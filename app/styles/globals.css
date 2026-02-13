@@ -1,29 +1,116 @@
-@import "tailwindcss/base";
-@import "tailwindcss/components";
-@import "tailwindcss/utilities";
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
+  --background: #202045;
   --foreground: #171717;
+}
+
+body {
+  font-family: var(--font-urbanist), sans-serif;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .site-header {
   box-sizing: border-box;
   width: 100%;
   max-width: 1440px;
-  height: min-content;
-
+  margin: 0 auto;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-
   padding: 0 60px;
+  min-height: 92px;
   gap: 44px;
-
   background: linear-gradient(0deg, #202045 0%, #000000 100%);
   box-shadow: 0 0 16px #202045;
+  overflow: visible;
+  position: relative;
+}
 
-  overflow: hidden;
+.header-logo {
+  display: flex;
+  align-items: center;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.header-nav-link {
+  position: relative;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding-bottom: 10px;
+}
+
+.header-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: #000000;
+  box-shadow: 0 -10px 22px rgba(208, 194, 144, 0.6);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.header-nav-link:hover::after,
+.header-nav-link:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.hamburger {
+  display: none;
+  font-size: 28px;
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .site-header {
+    padding: 20px;
+    min-height: auto;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+  }
+
+  .header-nav {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding: 20px;
+    background: #202045;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+  }
+
+  .header-nav.open {
+    display: flex;
+  }
 }
