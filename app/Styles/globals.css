@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+.site-header {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1440px;
+  height: min-content;
+
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 0 60px;
+  gap: 44px;
+
+  background: linear-gradient(0deg, #202045 0%, #000000 100%);
+  box-shadow: 0 0 16px #202045;
+
+  overflow: hidden;
+}
