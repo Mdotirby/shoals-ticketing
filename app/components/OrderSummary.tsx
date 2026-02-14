@@ -5,26 +5,20 @@ import { TicketType } from "@/lib/types/ticket";
 type OrderSummaryProps = {
   selectedTicket: TicketType | null;
   quantity: number;
+  ticketingFee: number; // flat dollar amount per ticket from event settings
   onCheckout: () => void;
 };
-
-const PROCESSING_FEE_RATE = 0.025; // 2.5% ticketing fee
-const TAX_RATE = 0.09; // 9% sales tax (configurable per event location later)
 
 export default function OrderSummary({
   selectedTicket,
   quantity,
+  ticketingFee,
   onCheckout,
 }: OrderSummaryProps) {
   const hasSelection = selectedTicket !== null && quantity > 0;
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
-  const processingFee = hasSelection
-    ? Math.round(subtotal * PROCESSING_FEE_RATE * 100) / 100
-    : 0;
-  const tax = hasSelection
-    ? Math.round(subtotal * TAX_RATE * 100) / 100
-    : 0;
-  const total = subtotal + processingFee + tax;
+  const totalFee = hasSelection ? ticketingFee * quantity : 0;
+  const total = subtotal + totalFee;
 
   return (
     <div className="order-summary">
@@ -60,7 +54,7 @@ export default function OrderSummary({
               {quantity > 1 ? ` × ${quantity}` : ""}
             </span>
             <span className="order-summary-line-value">
-              $ {subtotal.toLocaleString()}
+              $ {subtotal.toFixed(2)}
             </span>
           </div>
 
@@ -69,33 +63,24 @@ export default function OrderSummary({
           <div className="order-summary-line order-summary-line-sub">
             <span className="order-summary-line-label">Subtotal</span>
             <span className="order-summary-line-value">
-              $ {subtotal.toLocaleString()}
+              $ {subtotal.toFixed(2)}
             </span>
           </div>
-          <div className="order-summary-line order-summary-line-sub">
-            <span className="order-summary-line-label">Processing fee</span>
-            <span className="order-summary-line-value">
-              $ {processingFee.toFixed(2)}
-            </span>
-          </div>
-          <div className="order-summary-line order-summary-line-sub">
-            <span className="order-summary-line-label">
-              Sales tax ({Math.round(TAX_RATE * 100)}%)
-            </span>
-            <span className="order-summary-line-value">
-              $ {tax.toFixed(2)}
-            </span>
-          </div>
+          {totalFee > 0 && (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label">Ticketing fee</span>
+              <span className="order-summary-line-value">
+                $ {totalFee.toFixed(2)}
+              </span>
+            </div>
+          )}
 
           <div className="order-summary-divider" />
 
           <div className="order-summary-line order-summary-total">
             <span className="order-summary-line-label">Total</span>
             <span className="order-summary-line-value">
-              $ {total.toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              $ {total.toFixed(2)}
             </span>
           </div>
         </div>

@@ -2,36 +2,43 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Event } from "@/lib/types/event";
 import { TicketType } from "@/lib/types/ticket";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import OrderSummary from "@/app/components/OrderSummary";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import Footer from "@/app/components/Footer";
 
+type EventData = {
+  id: string;
+  title: string;
+  venue: string;
+  date: string;
+  price: number;
+  image_url?: string;
+  ticketing_fee: number;
+  venue_rebate: number;
+};
+
 export default function EventDetailPage() {
   const params = useParams();
   const eventId = params.id as string;
 
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<EventData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch event details from Supabase via API
     fetch(`/api/events/${eventId}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Event not found");
         return res.json();
       })
-      .then((data) => {
+      .then((data: EventData) => {
         setEvent(data);
 
-        // Build ticket types from the event's price field
-        // Only show General Admission since VIP/Tables are not being sold
-        // Later when ticket_types table exists, this will fetch from /api/events/[id]/ticket-types
+        // Build GA ticket type from event price
         const gaTicket: TicketType = {
           id: `${data.id}-ga`,
           event_id: data.id,
@@ -58,8 +65,7 @@ export default function EventDetailPage() {
 
   const handleCheckout = () => {
     if (!selectedTicket || !event) return;
-    // TODO: Phase 3 — redirect to Stripe Checkout
-    window.location.href = `/checkout?event=${eventId}&ticket_type=${selectedTicket.id}&qty=1`;
+    window.location.href = `/checkout?event=${eventId}&qty=1`;
   };
 
   if (isLoading) {
@@ -81,12 +87,10 @@ export default function EventDetailPage() {
   return (
     <>
       <main className="ticket-page">
-        {/* Hero section */}
         <section className="ticket-hero">
           <h1 className="ticket-hero-title">Get Your Ticket</h1>
         </section>
 
-        {/* Ticket selection section */}
         <section className="ticket-selection-section">
           <div className="ticket-selection-header">
             <span className="ticket-selection-eyebrow">Book Your Ticket</span>
@@ -94,7 +98,6 @@ export default function EventDetailPage() {
           </div>
 
           <div className="ticket-selection-layout">
-            {/* Left: Ticket cards */}
             <div className="ticket-cards-column">
               {ticketTypes.map((tt) => (
                 <PurchaseTicketCard
@@ -107,18 +110,17 @@ export default function EventDetailPage() {
               ))}
             </div>
 
-            {/* Right: Order summary */}
             <div className="order-summary-column">
               <OrderSummary
                 selectedTicket={selectedTicket}
                 quantity={1}
+                ticketingFee={event.ticketing_fee ?? 3.0}
                 onCheckout={handleCheckout}
               />
             </div>
           </div>
         </section>
 
-        {/* FAQ section */}
         <FAQAccordion />
       </main>
 
