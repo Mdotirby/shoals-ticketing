@@ -2,10 +2,15 @@
 
 import { TicketType } from "@/lib/types/ticket";
 
+// Stripe charges 2.9% + $0.30 per transaction
+const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_FLAT_FEE = 0.3;
+
 type OrderSummaryProps = {
   selectedTicket: TicketType | null;
   quantity: number;
-  ticketingFee: number; // flat dollar amount per ticket from event settings
+  ticketingFee: number; // flat dollar amount per ticket
+  taxRate: number; // decimal e.g. 0.09 for 9%
   onCheckout: () => void;
 };
 
@@ -13,12 +18,20 @@ export default function OrderSummary({
   selectedTicket,
   quantity,
   ticketingFee,
+  taxRate,
   onCheckout,
 }: OrderSummaryProps) {
   const hasSelection = selectedTicket !== null && quantity > 0;
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
-  const totalFee = hasSelection ? ticketingFee * quantity : 0;
-  const total = subtotal + totalFee;
+  const totalTicketingFee = hasSelection ? ticketingFee * quantity : 0;
+  const tax = hasSelection
+    ? Math.round(subtotal * taxRate * 100) / 100
+    : 0;
+  const subtotalBeforeStripe = subtotal + totalTicketingFee + tax;
+  const processingFee = hasSelection
+    ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    : 0;
+  const total = subtotalBeforeStripe + processingFee;
 
   return (
     <div className="order-summary">
@@ -66,11 +79,29 @@ export default function OrderSummary({
               $ {subtotal.toFixed(2)}
             </span>
           </div>
-          {totalFee > 0 && (
+          {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Ticketing fee</span>
               <span className="order-summary-line-value">
-                $ {totalFee.toFixed(2)}
+                $ {totalTicketingFee.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {tax > 0 && (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label">
+                Sales tax ({(taxRate * 100).toFixed(1)}%)
+              </span>
+              <span className="order-summary-line-value">
+                $ {tax.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {processingFee > 0 && (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label">Processing fee</span>
+              <span className="order-summary-line-value">
+                $ {processingFee.toFixed(2)}
               </span>
             </div>
           )}

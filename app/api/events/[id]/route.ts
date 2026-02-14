@@ -9,7 +9,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate")
+    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,tax_rate")
     .eq("id", id)
     .single();
 

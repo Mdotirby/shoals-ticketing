@@ -2,6 +2,10 @@ import { getStripe } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
+// Stripe charges 2.9% + $0.30 per transaction
+const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_FLAT_FEE_CENTS = 30;
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -14,10 +18,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Look up event from Supabase (includes per-event ticketing fee)
+    // Look up event from Supabase
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("id,title,venue,date,price,ticketing_fee,venue_rebate")
+      .select("id,title,venue,date,price,ticketing_fee,venue_rebate,tax_rate")
       .eq("id", event_id)
       .single();
 
@@ -30,11 +34,19 @@ export async function POST(request: Request) {
 
     const stripe = getStripe();
 
-    // Use per-event ticketing fee (flat dollar amount, default $3.00)
     const ticketPriceCents = Math.round(event.price * 100);
     const ticketingFeeCents = Math.round((event.ticketing_fee ?? 3.0) * 100);
+    const taxRate = event.tax_rate ?? 0.09;
 
-    // Determine the return URL based on the request origin
+    // Calculate tax on ticket price
+    const taxCents = Math.round(ticketPriceCents * taxRate);
+
+    // Calculate Stripe processing fee on the total (ticket + ticketing fee + tax)
+    const subtotalBeforeStripeFee = (ticketPriceCents + ticketingFeeCents + taxCents) * quantity;
+    const stripeFeeCents = Math.round(
+      subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
+    );
+
     const origin =
       request.headers.get("origin") || "https://shoals-ticketing.vercel.app";
 
@@ -60,17 +72,38 @@ export async function POST(request: Request) {
       },
     ];
 
-    // Only add ticketing fee line item if fee > 0
     if (ticketingFeeCents > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
-          product_data: {
-            name: "Ticketing Fee",
-          },
+          product_data: { name: "Ticketing Fee" },
           unit_amount: ticketingFeeCents,
         },
         quantity,
+      });
+    }
+
+    if (taxCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Sales Tax (${(taxRate * 100).toFixed(1)}%)`,
+          },
+          unit_amount: taxCents,
+        },
+        quantity,
+      });
+    }
+
+    if (stripeFeeCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: { name: "Processing Fee" },
+          unit_amount: stripeFeeCents,
+        },
+        quantity: 1, // Flat per-transaction, not per-ticket
       });
     }
 
@@ -86,6 +119,7 @@ export async function POST(request: Request) {
         quantity: String(quantity),
         ticketing_fee: String(event.ticketing_fee ?? 3.0),
         venue_rebate: String(event.venue_rebate ?? 0),
+        tax_rate: String(taxRate),
       },
     });
 

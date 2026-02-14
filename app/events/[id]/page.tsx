@@ -17,6 +17,7 @@ type EventData = {
   image_url?: string;
   ticketing_fee: number;
   venue_rebate: number;
+  tax_rate: number;
 };
 
 export default function EventDetailPage() {
@@ -38,7 +39,6 @@ export default function EventDetailPage() {
       .then((data: EventData) => {
         setEvent(data);
 
-        // Build GA ticket type from event price
         const gaTicket: TicketType = {
           id: `${data.id}-ga`,
           event_id: data.id,
@@ -115,6 +115,7 @@ export default function EventDetailPage() {
                 selectedTicket={selectedTicket}
                 quantity={1}
                 ticketingFee={event.ticketing_fee ?? 3.0}
+                taxRate={event.tax_rate ?? 0.09}
                 onCheckout={handleCheckout}
               />
             </div>
