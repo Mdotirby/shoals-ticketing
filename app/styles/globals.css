@@ -17,40 +17,41 @@ body {
 
 
 .site-header {
-  box-sizing: border-box;
   width: 100%;
-  max-width: none;
-  margin: 0;
-  display: flex;
-  justify-content: center;
-  padding: 0 24px;
-  min-height: 64px;
-  background: rgba(11, 13, 29, 0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(208, 194, 144, 0.08);
+  background: linear-gradient(0deg, #202045 0%, #000000 100%);
+  box-shadow: 0 0 16px #202045;
   position: sticky;
   top: 0;
   z-index: 999;
 }
 
 .header-inner {
-  width: 100%;
-  max-width: 1400px;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 40px;
+  min-height: 140px; /* fits 127px logo clean */
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
 }
 
 .header-logo img {
-  width: 120px;
-  height: auto;
+  width: 127px !important;
+  height: 127px !important;
+  object-fit: contain;
 }
+
+
 
 .header-nav {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 36px;
 }
 
 .header-nav-link {
@@ -1235,6 +1236,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  align-items: center;
+  text-align: center;
 }
 
 .home-hero-title {
@@ -1248,7 +1251,7 @@ body {
 
 .home-hero-cta {
   display: inline-flex;
-  align-items: center;
+  align-self: center;
   gap: 8px;
   padding: 12px 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);

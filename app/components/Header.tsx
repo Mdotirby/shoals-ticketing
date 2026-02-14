@@ -15,39 +15,44 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="site-header">
-      <Link href="/" className="header-logo" aria-label="Go to homepage">
-        <Image
-          src="/beige-brown-logo.png"
-          alt="West72 Logo"
-          width={127}
-          height={127}
-          priority
-        />
-      </Link>
+   <header className="site-header">
+  <div className="header-inner">
 
-      <button
-        type="button"
-        className="hamburger"
-        aria-label="Toggle navigation menu"
-        aria-expanded={isMenuOpen}
-        onClick={() => setIsMenuOpen((prev) => !prev)}
-      >
-        ☰
-      </button>
+    <Link href="/" className="header-logo" aria-label="Go to homepage">
+      <Image
+        src="/beige-brown-logo.png"
+        alt="West72 Logo"
+        width={127}
+        height={127}
+        priority
+      />
+    </Link>
 
-      <nav className={`header-nav ${isMenuOpen ? "open" : ""}`}>
-        {navItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="header-nav-link"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-    </header>
+    <button
+      type="button"
+      className="hamburger"
+      aria-label="Toggle navigation menu"
+      aria-expanded={isMenuOpen}
+      onClick={() => setIsMenuOpen((prev) => !prev)}
+    >
+      ☰
+    </button>
+
+    <nav className={`header-nav ${isMenuOpen ? "open" : ""}`}>
+      {navItems.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className="header-nav-link"
+          onClick={() => setIsMenuOpen(false)}
+        >
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+
+  </div>
+</header>
+
   );
 }
