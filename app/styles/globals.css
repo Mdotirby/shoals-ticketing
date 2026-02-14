@@ -257,8 +257,8 @@ body {
 
 .event-card {
   box-sizing: border-box;
-  width: 178px;
-  height: 100px;
+  width: 228px;
+  height: 150px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
