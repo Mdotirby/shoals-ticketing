@@ -2047,3 +2047,180 @@ select.admin-form-input {
   .home-event-card-wrapper { width: min(100%, 380px); }
   .home-hero-secondary { height: 20vh; min-height: 120px; }
 }
+
+/* ============================================================
+   IMAGE CROPPER MODAL
+   ============================================================ */
+
+.image-cropper-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.image-cropper-modal {
+  background: #12142a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.image-cropper-container {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  background: #000;
+}
+
+.image-cropper-controls {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-cropper-zoom-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.image-cropper-zoom-slider {
+  flex: 1;
+  accent-color: #d0c290;
+  height: 4px;
+}
+
+.image-cropper-actions {
+  display: flex;
+  gap: 12px;
+  padding: 0 20px 20px;
+  justify-content: flex-end;
+}
+
+.image-cropper-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 180ms ease;
+}
+
+.image-cropper-btn:hover {
+  opacity: 0.85;
+}
+
+.image-cropper-btn.cancel {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.image-cropper-btn.confirm {
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+}
+
+/* ============================================================
+   ADMIN IMAGE UPLOAD
+   ============================================================ */
+
+.admin-image-upload-area {
+  margin-top: 8px;
+}
+
+.admin-image-file-input {
+  display: none;
+}
+
+.admin-image-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px 20px;
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.admin-image-dropzone:hover {
+  border-color: rgba(208, 194, 144, 0.35);
+  background: rgba(208, 194, 144, 0.04);
+}
+
+.admin-image-dropzone-icon {
+  font-size: 28px;
+}
+
+.admin-image-dropzone-text {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.admin-image-dropzone-hint {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.admin-image-uploading {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  color: #d0c290;
+}
+
+.admin-image-preview-wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-image-preview {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.admin-image-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms ease;
+}
+
+.admin-image-remove-btn:hover {
+  background: rgba(220, 50, 50, 0.8);
+}

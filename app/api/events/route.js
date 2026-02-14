@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-server";
 
 export async function GET() {
   const { data, error } = await supabase
@@ -13,9 +14,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const admin = createAdminClient();
   const body = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("events")
     .insert({
       title: body.title,

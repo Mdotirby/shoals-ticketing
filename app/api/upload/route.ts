@@ -1,13 +1,64 @@
-// POST: upload image to Supabase Storage
-// Returns: { url: "public URL of uploaded image" }
-
 import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase-server";
+
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(request: Request) {
-  // TODO: Phase 5 — image upload
-  // 1. Verify admin auth
-  // 2. Parse multipart form data
-  // 3. Upload to Supabase Storage 'event-images' bucket
-  // 4. Return public URL
-  return NextResponse.json({ message: "Image upload — not wired up yet" });
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: "Invalid file type. Only .jpeg, .png, and .webp are allowed." },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { error: "File too large. Maximum size is 5 MB." },
+        { status: 400 }
+      );
+    }
+
+    const admin = createAdminClient();
+    const ext = file.name.split(".").pop() || "jpg";
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const filePath = `event-images/${fileName}`;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = new Uint8Array(arrayBuffer);
+
+    const { error: uploadError } = await admin.storage
+      .from("event-images")
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return NextResponse.json(
+        { error: uploadError.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: urlData } = admin.storage
+      .from("event-images")
+      .getPublicUrl(filePath);
+
+    return NextResponse.json({ url: urlData.publicUrl }, { status: 200 });
+  } catch (err) {
+    console.error("Upload error:", err);
+    return NextResponse.json(
+      { error: "Upload failed" },
+      { status: 500 }
+    );
+  }
 }

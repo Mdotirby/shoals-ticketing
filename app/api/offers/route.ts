@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -15,9 +16,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const admin = createAdminClient();
   const body = await request.json();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("artist_offers")
     .insert({
       artist_name: body.artist_name,

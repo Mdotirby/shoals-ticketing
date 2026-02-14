@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import ImageCropper from "@/app/components/ImageCropper";
+
+const ACCEPTED_IMAGE_TYPES = ".jpeg,.jpg,.png,.webp";
 
 export default function AdminCreateEventPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const [form, setForm] = useState({
@@ -20,10 +25,71 @@ export default function AdminCreateEventPage() {
     image_url: "",
   });
 
+  // Cropper state
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setError("Only .jpeg, .png, and .webp images are allowed.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRawImageSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    setRawImageSrc(null);
+    setUploading(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", croppedBlob, `event-${Date.now()}.jpg`);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
+
+      const { url } = await res.json();
+      setForm((prev) => ({ ...prev, image_url: url }));
+      setPreviewUrl(URL.createObjectURL(croppedBlob));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCropCancel = () => {
+    setRawImageSrc(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveImage = () => {
+    setForm((prev) => ({ ...prev, image_url: "" }));
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +98,6 @@ export default function AdminCreateEventPage() {
     setLoading(true);
 
     try {
-      // Combine date + time into ISO string
       const dateTime = form.time
         ? `${form.date}T${form.time}:00`
         : `${form.date}T19:00:00`;
@@ -165,18 +230,55 @@ export default function AdminCreateEventPage() {
               min="0"
             />
           </label>
+        </div>
 
-          <label className="admin-form-label">
-            Event Image URL
+        {/* Image upload section */}
+        <div className="admin-form-label admin-form-full">
+          Event Image
+          <div className="admin-image-upload-area">
+            {previewUrl ? (
+              <div className="admin-image-preview-wrapper">
+                <img
+                  src={previewUrl}
+                  alt="Event preview"
+                  className="admin-image-preview"
+                />
+                <button
+                  type="button"
+                  className="admin-image-remove-btn"
+                  onClick={handleRemoveImage}
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            ) : (
+              <div
+                className="admin-image-dropzone"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? (
+                  <span className="admin-image-uploading">Uploading…</span>
+                ) : (
+                  <>
+                    <span className="admin-image-dropzone-icon">📷</span>
+                    <span className="admin-image-dropzone-text">
+                      Click to upload an image
+                    </span>
+                    <span className="admin-image-dropzone-hint">
+                      .jpeg, .png, or .webp — max 5 MB
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
             <input
-              type="url"
-              name="image_url"
-              className="admin-form-input"
-              value={form.image_url}
-              onChange={handleChange}
-              placeholder="Paste Supabase storage URL"
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES}
+              onChange={handleFileSelect}
+              className="admin-image-file-input"
             />
-          </label>
+          </div>
         </div>
 
         <label className="admin-form-label admin-form-full">
@@ -194,11 +296,21 @@ export default function AdminCreateEventPage() {
         <button
           type="submit"
           className="admin-form-submit"
-          disabled={loading}
+          disabled={loading || uploading}
         >
           {loading ? "Creating..." : "Create Event"}
         </button>
       </form>
+
+      {/* Crop modal */}
+      {rawImageSrc && (
+        <ImageCropper
+          imageSrc={rawImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          aspect={16 / 9}
+        />
+      )}
     </div>
   );
 }
