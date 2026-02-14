@@ -1266,6 +1266,7 @@ word-wrap: break-word;
 word-break: break-word;
 line-height: 1.2;
 position: relative;
+font-size: 80px;
 }
 
 .home-hero-cta {
