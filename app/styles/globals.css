@@ -2143,3 +2143,43 @@ body {
 .site-footer {
   max-width: 100vw;
 }
+
+/* ============================================================
+   OVERFLOW FIX v2 — Remove clip from content containers
+   Keep clip only on full-width outer wrappers, not flex children
+   ============================================================ */
+
+/* Undo clip on sections that contain flowing content */
+.home-page,
+.home-upcoming-section,
+.home-cta-section,
+.ticket-page,
+.ticket-hero,
+.ticket-selection-section,
+.faq-section,
+.checkout-embed-section,
+.checkout-success-section,
+.events-list-page,
+.footer-content,
+.footer-bottom {
+  overflow: visible !important;
+}
+
+/* Only clip on the true full-width wrappers */
+.site-header {
+  overflow: clip;
+  overflow: var(--overflow-clip-fallback, clip);
+}
+
+.home-hero {
+  overflow: hidden; /* hidden instead of clip for bg-image sections */
+}
+
+.home-hero-secondary {
+  overflow: hidden;
+}
+
+.site-footer {
+  overflow-x: clip;
+  overflow-y: visible;
+}
