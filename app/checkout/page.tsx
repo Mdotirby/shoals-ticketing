@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -13,7 +13,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const searchParams = useSearchParams();
   const eventId = searchParams.get("event");
   const quantity = Number(searchParams.get("qty") || "1");
@@ -43,28 +43,29 @@ export default function CheckoutPage() {
 
   if (!eventId) {
     return (
-      <>
-        <main className="ticket-page">
-          <div className="ticket-page-loading">
-            No event selected. Go back and choose a ticket.
-          </div>
-        </main>
-        <Footer />
-      </>
+      <div className="ticket-page-loading">
+        No event selected. Go back and choose a ticket.
+      </div>
     );
   }
 
   if (error) {
-    return (
-      <>
-        <main className="ticket-page">
-          <div className="ticket-page-loading">{error}</div>
-        </main>
-        <Footer />
-      </>
-    );
+    return <div className="ticket-page-loading">{error}</div>;
   }
 
+  return (
+    <section className="checkout-embed-section">
+      <EmbeddedCheckoutProvider
+        stripe={stripePromise}
+        options={{ fetchClientSecret }}
+      >
+        <EmbeddedCheckout className="checkout-embed" />
+      </EmbeddedCheckoutProvider>
+    </section>
+  );
+}
+
+export default function CheckoutPage() {
   return (
     <>
       <main className="ticket-page">
@@ -72,14 +73,13 @@ export default function CheckoutPage() {
           <h1 className="ticket-hero-title">Secure Checkout</h1>
         </section>
 
-        <section className="checkout-embed-section">
-          <EmbeddedCheckoutProvider
-            stripe={stripePromise}
-            options={{ fetchClientSecret }}
-          >
-            <EmbeddedCheckout className="checkout-embed" />
-          </EmbeddedCheckoutProvider>
-        </section>
+        <Suspense
+          fallback={
+            <div className="ticket-page-loading">Loading checkout...</div>
+          }
+        >
+          <CheckoutContent />
+        </Suspense>
       </main>
 
       <Footer />
