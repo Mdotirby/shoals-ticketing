@@ -43,7 +43,7 @@ export default function EventDetailPage() {
         const gaTicket: TicketType = {
           id: `${data.id}-ga`,
           event_id: data.id,
-          name: "General Admission",
+          name: `GA - ${data.title}`,
           price: data.price,
           quantity_available: 500,
           quantity_sold: 0,
@@ -89,13 +89,13 @@ export default function EventDetailPage() {
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
-          <h1 className="ticket-hero-title">${title}</h1>
+          <h1 className="ticket-hero-title">{event.title}</h1>
         </section>
 
         <section className="ticket-selection-section">
           <div className="ticket-selection-header">
             <span className="ticket-selection-eyebrow">Secure Your Spot</span>
-            <h2 className="ticket-selection-heading">${event.venue}</h2>
+            <h2 className="ticket-selection-heading">{event.venue}</h2>
           </div>
 
           <div className="ticket-selection-layout">
@@ -107,6 +107,7 @@ export default function EventDetailPage() {
                   isSelected={selectedTicketId === tt.id}
                   onSelect={setSelectedTicketId}
                   venueName={event.venue}
+                  imageUrl={event.image_url}
                 />
               ))}
             </div>

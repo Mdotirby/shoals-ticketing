@@ -7,6 +7,7 @@ type PurchaseTicketCardProps = {
   isSelected: boolean;
   onSelect: (id: string) => void;
   venueName?: string;
+  imageUrl?: string;
 };
 
 export default function PurchaseTicketCard({
@@ -14,6 +15,7 @@ export default function PurchaseTicketCard({
   isSelected,
   onSelect,
   venueName,
+  imageUrl,
 }: PurchaseTicketCardProps) {
   const isSoldOut = ticketType.quantity_sold >= ticketType.quantity_available;
 
@@ -33,6 +35,13 @@ export default function PurchaseTicketCard({
           $ {ticketType.price.toLocaleString()}
         </span>
       </div>
+
+      {/* Event image */}
+      {imageUrl && (
+        <div className="ptc-image-wrapper">
+          <img src={imageUrl} alt="" className="ptc-image" />
+        </div>
+      )}
 
       {/* Venue / location row */}
       <div className="ptc-venue-row">
