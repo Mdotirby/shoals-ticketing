@@ -7,6 +7,7 @@ import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import OrderSummary from "@/app/components/OrderSummary";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import Footer from "@/app/components/Footer";
+import { title } from "process";
 
 type EventData = {
   id: string;
@@ -88,13 +89,13 @@ export default function EventDetailPage() {
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
-          <h1 className="ticket-hero-title">Get Your Ticket</h1>
+          <h1 className="ticket-hero-title">${title}</h1>
         </section>
 
         <section className="ticket-selection-section">
           <div className="ticket-selection-header">
-            <span className="ticket-selection-eyebrow">Book Your Ticket</span>
-            <h2 className="ticket-selection-heading">Choose the Right One</h2>
+            <span className="ticket-selection-eyebrow">Secure Your Spot</span>
+            <h2 className="ticket-selection-heading">${event.venue}</h2>
           </div>
 
           <div className="ticket-selection-layout">
