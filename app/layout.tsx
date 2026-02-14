@@ -34,10 +34,13 @@ const bayon = Bayon({
 
 
 export const metadata: Metadata = {
-  title: "Shoals Ticketing",
+  title: "VenueCore",
   description: "West72 Entertainment Ticketing Platform",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };

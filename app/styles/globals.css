@@ -21,8 +21,8 @@ body {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  padding: 0 60px;
-  min-height: 92px;
+  padding: 0 40px;
+  min-height: 64px;
   gap: 44px;
   background: linear-gradient(0deg, #202045 0%, #000000 100%);
   box-shadow: 0 0 16px #202045;
@@ -36,7 +36,7 @@ body {
 }
 
 .header-logo img {
-  width: 180px;
+  width: 140px;
   height: auto;
 }
 
@@ -1352,7 +1352,7 @@ body {
 
 .home-event-card-wrapper {
   flex-shrink: 0;
-  width: 200px;
+  width: 280px;
 }
 
 .home-events-loading {
@@ -1998,4 +1998,52 @@ body {
   .admin-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ============================================================
+   FIXES: Header, Card Sizes, Event Card on Home Page
+   ============================================================ */
+
+/* Bigger event cards on home page */
+.home-events-carousel .event-card {
+  width: 280px;
+  height: 160px;
+  border-radius: 15px;
+}
+
+/* CTA section - ensure full centering */
+.home-cta-section {
+  position: relative;
+  z-index: 1;
+}
+
+/* Event cards on home - center the carousel */
+.home-events-carousel {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .home-events-carousel .event-card {
+    width: 100%;
+    height: 200px;
+  }
+  .home-events-carousel {
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* Select dropdown styling for admin forms */
+.admin-form-input[type="date"],
+.admin-form-input[type="time"],
+select.admin-form-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  color-scheme: dark;
 }

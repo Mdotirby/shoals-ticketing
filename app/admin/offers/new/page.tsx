@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const DEAL_TYPES = ["VS", "FLAT", "PLUS", "BONUS"] as const;
+
 export default function AdminCreateOfferPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -13,14 +15,18 @@ export default function AdminCreateOfferPage() {
     venue: "",
     event_date: "",
     guarantee: "",
-    door_split: "",
-    merch_split: "",
+    deal_type: "",
+    backend_percentage: "",
+    merch_soft: "",
+    merch_hard: "",
     terms: "",
     notes: "",
   });
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -39,8 +45,10 @@ export default function AdminCreateOfferPage() {
           venue: form.venue || null,
           event_date: form.event_date || null,
           guarantee: form.guarantee ? parseFloat(form.guarantee) : null,
-          door_split: form.door_split || null,
-          merch_split: form.merch_split || null,
+          deal_type: form.deal_type || null,
+          backend_percentage: form.backend_percentage || null,
+          merch_soft: form.merch_soft || null,
+          merch_hard: form.merch_hard || null,
           terms: form.terms || null,
           notes: form.notes || null,
           status: "draft",
@@ -119,26 +127,55 @@ export default function AdminCreateOfferPage() {
           </label>
 
           <label className="admin-form-label">
-            Door Split
+            Deal Type
+            <select
+              name="deal_type"
+              className="admin-form-input"
+              value={form.deal_type}
+              onChange={handleChange}
+            >
+              <option value="">Select deal type...</option>
+              {DEAL_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="admin-form-label">
+            Backend Percentage
             <input
               type="text"
-              name="door_split"
+              name="backend_percentage"
               className="admin-form-input"
-              value={form.door_split}
+              value={form.backend_percentage}
               onChange={handleChange}
-              placeholder="e.g. 80/20"
+              placeholder="e.g. 80%"
             />
           </label>
 
           <label className="admin-form-label">
-            Merch Split
+            Merch Split — Soft
             <input
               type="text"
-              name="merch_split"
+              name="merch_soft"
               className="admin-form-input"
-              value={form.merch_split}
+              value={form.merch_soft}
               onChange={handleChange}
               placeholder="e.g. 85/15"
+            />
+          </label>
+
+          <label className="admin-form-label">
+            Merch Split — Hard
+            <input
+              type="text"
+              name="merch_hard"
+              className="admin-form-input"
+              value={form.merch_hard}
+              onChange={handleChange}
+              placeholder="e.g. 80/20"
             />
           </label>
         </div>

@@ -4,8 +4,10 @@ export type ArtistOffer = {
   venue?: string;
   event_date?: string;
   guarantee?: number;
-  door_split?: string; // e.g. '80/20'
-  merch_split?: string; // e.g. '85/15'
+  deal_type?: "VS" | "FLAT" | "PLUS" | "BONUS";
+  backend_percentage?: string; // e.g. "80%"
+  merch_soft?: string; // e.g. "85/15"
+  merch_hard?: string; // e.g. "80/20"
   status: "draft" | "sent" | "accepted" | "declined" | "expired";
   terms?: string;
   notes?: string;
