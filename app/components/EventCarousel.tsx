@@ -1,5 +1,5 @@
 import EventCard from "./EventCard";
-import { Event } from "@/app/types/event";
+import { Event } from "@/lib/types/event";
 
 type EventCarouselProps = {
   events: Event[];

@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import EventCarousel from "./components/EventCarousel";
 import EventsHero from "./components/EventsHero";
-import { Event } from "./types/event";
+import { Event } from "@/lib/types/event";
 
 export default function HomePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   useEffect(() => {
     fetch("/api/events")
                .then(async (res) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Event } from "@/app/types/event";
+import { Event } from "@/lib/types/event";
 
 type EventCardProps = {
   event: Event;
