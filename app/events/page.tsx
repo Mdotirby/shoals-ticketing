@@ -22,7 +22,8 @@ export default function Events() {
           <p>${event.price}</p>
           <p>{event.image_url ?? "No image"}</p>
           <button onClick={() => alert("Stripe checkout goes here")}>Buy Ticket</button>
+         </div>
       ))}
     </div>
-  );
+  )
 }

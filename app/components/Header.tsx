@@ -20,8 +20,8 @@ export default function Header() {
         <Image
           src="/beige-brown-logo.png"
           alt="West72 Logo"
-          width={180}
-          height={60}
+          width={127}
+          height={127}
           priority
         />
       </div>
