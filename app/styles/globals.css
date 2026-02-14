@@ -1999,89 +1999,44 @@ border-radius: 0px 0px 0px 0px;
    ============================================================ */
 
 @media (max-width: 768px) {
-  .admin-shell {
-    flex-direction: column;
-  }
-
-  .admin-sidebar {
-    width: 100%;
-    height: auto;
-    position: static;
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 12px;
-    gap: 8px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .admin-sidebar-header {
-    display: none;
-  }
-
-  .admin-sidebar-nav {
-    flex-direction: row;
-    gap: 4px;
-    width: max-content;
-  }
-
-  .admin-sidebar-link {
-    white-space: nowrap;
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  .admin-content {
-    padding: 20px 16px;
-  }
-
-  .admin-stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .admin-form-grid {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ============================================================
-   FIXES: Header, Card Sizes, Event Card on Home Page
+   OVERFLOW + SIZING FIXES (clean, non-conflicting)
    ============================================================ */
 
-/* Bigger event cards on home page */
+html, body {
+  overflow-x: hidden;
+}
+
+.home-hero {
+  overflow: hidden;
+}
+
+.home-hero-secondary {
+  overflow: hidden;
+}
+
+.site-header {
+  overflow: hidden;
+}
+
+/* Bigger event cards on home page carousel */
 .home-events-carousel .event-card {
   width: 280px;
   height: 160px;
   border-radius: 15px;
 }
 
-/* CTA section - ensure full centering */
-.home-cta-section {
-  position: relative;
-  z-index: 1;
+.home-event-card-wrapper {
+  width: 280px;
+  flex-shrink: 0;
 }
 
-/* Event cards on home - center the carousel */
 .home-events-carousel {
   justify-content: center;
-  flex-wrap: wrap;
 }
 
-@media (max-width: 390px) {
-  .home-events-carousel .event-card {
-    width: 100%;
-    height: 200px;
-  }
-  .home-events-carousel {
-    flex-wrap: nowrap;
-    flex-direction: column;
-    align-items: center;
-  }
-}
-
-/* Select dropdown styling for admin forms */
-.admin-form-input[type="date"],
-.admin-form-input[type="time"],
+/* Select dropdown dark theme */
 select.admin-form-input {
   appearance: none;
   -webkit-appearance: none;
@@ -2092,94 +2047,48 @@ select.admin-form-input {
   color-scheme: dark;
 }
 
-/* ============================================================
-   OVERFLOW FIX — Matches Framer's clip behavior
-   ============================================================ */
-
-:root {
-  --overflow-clip-fallback: clip;
-}
-
-html {
-  overflow-x: hidden;
-}
-
-body {
-  overflow-x: hidden;
-}
-
-/* Apply clip overflow to all major sections */
-.site-header,
-.home-page,
-.home-hero,
-.home-upcoming-section,
-.home-hero-secondary,
-.home-cta-section,
-.ticket-page,
-.ticket-hero,
-.ticket-selection-section,
-.faq-section,
-.checkout-embed-section,
-.checkout-success-section,
-.events-list-page,
-.site-footer,
-.footer-content,
-.footer-bottom {
-  overflow: var(--overflow-clip-fallback, clip);
-}
-
-/* Exceptions: horizontal scroll areas need visible overflow */
-.home-events-carousel,
-.upcoming-events-content-container {
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-/* Ensure nothing exceeds viewport width */
-.site-header,
-.home-hero,
-.home-hero-secondary,
-.home-cta-section,
-.site-footer {
-  max-width: 100vw;
+@media (max-width: 768px) {
+  .home-events-carousel .event-card {
+    width: 100%;
+    height: 200px;
+  }
+  .home-event-card-wrapper {
+    width: min(100%, 380px);
+  }
 }
 
 /* ============================================================
-   OVERFLOW FIX v2 — Remove clip from content containers
-   Keep clip only on full-width outer wrappers, not flex children
+   SECTION BACKGROUNDS — Prevent visual overlap
    ============================================================ */
 
-/* Undo clip on sections that contain flowing content */
-.home-page,
-.home-upcoming-section,
-.home-cta-section,
-.ticket-page,
-.ticket-hero,
-.ticket-selection-section,
-.faq-section,
-.checkout-embed-section,
-.checkout-success-section,
-.events-list-page,
-.footer-content,
-.footer-bottom {
-  overflow: visible !important;
+/* Give upcoming section its own solid background */
+.home-upcoming-section {
+  background: #0b0d1d;
+  position: relative;
+  z-index: 2;
 }
 
-/* Only clip on the true full-width wrappers */
-.site-header {
-  overflow: clip;
-  overflow: var(--overflow-clip-fallback, clip);
+/* Gold separator needs to be visible */
+.home-gold-separator {
+  position: relative;
+  z-index: 2;
 }
 
-.home-hero {
-  overflow: hidden; /* hidden instead of clip for bg-image sections */
-}
-
+/* Secondary hero needs position context */
 .home-hero-secondary {
-  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
-.site-footer {
-  overflow-x: clip;
-  overflow-y: visible;
+/* CTA section solid background */
+.home-cta-section {
+  background: #0b0d1d;
+  position: relative;
+  z-index: 2;
+}
+
+/* Ensure hero stays behind following content */
+.home-hero {
+  position: relative;
+  z-index: 1;
 }
