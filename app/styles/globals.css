@@ -26,7 +26,7 @@ body {
 }
 
 .header-inner {
-  max-width: 1600px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 0 48px;
   display: flex;
@@ -1236,8 +1236,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  align-items: center;
-  text-align: center;
 }
 
 .home-hero-title {
@@ -1251,7 +1249,8 @@ body {
 
 .home-hero-cta {
   display: inline-flex;
-  align-self: center;
+  align-items: center;
+  text-align: center;
   gap: 8px;
   padding: 12px 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);
