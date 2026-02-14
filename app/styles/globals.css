@@ -1354,7 +1354,7 @@ border-radius: 0px 0px 0px 0px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 20px;
 }
 
 .home-upcoming-heading {
@@ -1369,7 +1369,7 @@ border-radius: 0px 0px 0px 0px;
   word-break: break-word;
   text-align: center;
   line-height: 1.2;
-  position: absolute; 
+  position: relative; 
 }
 
 .home-events-carousel {
@@ -1407,7 +1407,7 @@ border-radius: 0px 0px 0px 0px;
 /* CTA Section */
 .home-cta-section {
   box-sizing: border-box;
-width: 1440px;
+width: 100%;
 height: min-content;
 display: flex;
 flex-direction: column;
@@ -1417,8 +1417,8 @@ padding: 80px 60px 80px 60px;
 overflow: var(--overflow-clip-fallback, clip);
 align-content: center;
 flex-wrap: nowrap;
-gap: 0px;
-position: absolute;
+gap: 16px;
+position: relative;
 border-radius: 0px 0px 0px 0px;
 }
 
@@ -1449,7 +1449,7 @@ border-radius: 0px 0px 0px 0px;
   word-break: break-word;
   text-align: center;
   line-height: 1.2;
-  position: absolute;
+  position: relative;
 }
 
 .home-cta-subtitle {
