@@ -8,6 +8,8 @@ type EventCarouselProps = {
 export default function EventCarousel({ events }: EventCarouselProps) {
   return (
     <section className="upcoming-events-row" aria-label="Upcoming events carousel">
+      <div className="upcoming-events-overlay-left" />
+
       <div className="upcoming-events-content-container">
         <div className="upcoming-events-stack">
           {events.map((event) => (
@@ -17,6 +19,8 @@ export default function EventCarousel({ events }: EventCarouselProps) {
           ))}
         </div>
       </div>
+
+      <div className="upcoming-events-overlay-right" />
     </section>
   );
 }

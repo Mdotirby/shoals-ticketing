@@ -16,7 +16,7 @@ export default function Header() {
 
   return (
     <header className="site-header">
-        <div className="header-logo">
+      <Link href="/" className="header-logo" aria-label="Go to homepage">
         <Image
           src="/beige-brown-logo.png"
           alt="West72 Logo"
@@ -24,7 +24,7 @@ export default function Header() {
           height={127}
           priority
         />
-      </div>
+      </Link>
 
       <button
         type="button"
