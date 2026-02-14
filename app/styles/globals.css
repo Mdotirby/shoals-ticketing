@@ -344,6 +344,8 @@ body {
 @media (max-width: 768px) {
   .site-header {
     padding: 20px;
+    width: 390px
+    height: 103px
     min-height: auto;
     gap: 20px;
     flex-wrap: wrap;
