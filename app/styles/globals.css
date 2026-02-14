@@ -1999,97 +1999,36 @@ border-radius: 0px 0px 0px 0px;
    ============================================================ */
 
 @media (max-width: 768px) {
-}
 
 /* ============================================================
-   OVERFLOW + SIZING FIXES (clean, non-conflicting)
+   FINAL FIXES — overflow, backgrounds, sizing
    ============================================================ */
 
-html, body {
-  overflow-x: hidden;
-}
+html, body { overflow-x: hidden; }
+.home-hero, .home-hero-secondary, .site-header { overflow: hidden; }
 
-.home-hero {
-  overflow: hidden;
-}
+/* Dark backgrounds so sections don't blend into hero */
+.home-upcoming-section { background: #0b0d1d; position: relative; z-index: 2; }
+.home-gold-separator { position: relative; z-index: 2; }
+.home-cta-section { background: #0b0d1d; position: relative; z-index: 2; }
 
-.home-hero-secondary {
-  overflow: hidden;
-}
+/* Reduce secondary hero — too tall when image is loading or missing */
+.home-hero-secondary { height: 30vh; min-height: 200px; position: relative; z-index: 1; }
 
-.site-header {
-  overflow: hidden;
-}
-
-/* Bigger event cards on home page carousel */
-.home-events-carousel .event-card {
-  width: 280px;
-  height: 160px;
-  border-radius: 15px;
-}
-
-.home-event-card-wrapper {
-  width: 280px;
-  flex-shrink: 0;
-}
-
-.home-events-carousel {
-  justify-content: center;
-}
+/* Bigger event cards on home carousel */
+.home-events-carousel .event-card { width: 280px; height: 160px; border-radius: 15px; }
+.home-event-card-wrapper { width: 280px; flex-shrink: 0; }
+.home-events-carousel { justify-content: center; }
 
 /* Select dropdown dark theme */
 select.admin-form-input {
-  appearance: none;
-  -webkit-appearance: none;
+  appearance: none; -webkit-appearance: none; color-scheme: dark;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 36px;
-  color-scheme: dark;
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
 }
 
 @media (max-width: 768px) {
-  .home-events-carousel .event-card {
-    width: 100%;
-    height: 200px;
-  }
-  .home-event-card-wrapper {
-    width: min(100%, 380px);
-  }
-}
-
-/* ============================================================
-   SECTION BACKGROUNDS — Prevent visual overlap
-   ============================================================ */
-
-/* Give upcoming section its own solid background */
-.home-upcoming-section {
-  background: #0b0d1d;
-  position: relative;
-  z-index: 2;
-}
-
-/* Gold separator needs to be visible */
-.home-gold-separator {
-  position: relative;
-  z-index: 2;
-}
-
-/* Secondary hero needs position context */
-.home-hero-secondary {
-  position: relative;
-  z-index: 1;
-}
-
-/* CTA section solid background */
-.home-cta-section {
-  background: #0b0d1d;
-  position: relative;
-  z-index: 2;
-}
-
-/* Ensure hero stays behind following content */
-.home-hero {
-  position: relative;
-  z-index: 1;
+  .home-events-carousel .event-card { width: 100%; height: 200px; }
+  .home-event-card-wrapper { width: min(100%, 380px); }
+  .home-hero-secondary { height: 20vh; min-height: 120px; }
 }
