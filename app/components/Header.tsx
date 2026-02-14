@@ -16,12 +16,12 @@ export default function Header() {
 
   return (
     <header className="site-header">
-      <div className="header-logo">
+        <div className="header-logo">
         <Image
           src="/beige-brown-logo.png"
           alt="West72 Logo"
-          width={127}
-          height={127}
+          width={180}
+          height={60}
           priority
         />
       </div>

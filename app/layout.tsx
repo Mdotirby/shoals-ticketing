@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Urbanist } from "next/font/google";
+import { Bayon, Cairo, Geist, Geist_Mono, Urbanist } from "next/font/google";
 import "./styles/globals.css";
 import Header from "./components/Header";
 
@@ -20,6 +20,19 @@ const urbanist = Urbanist({
   weight: ["400", "500", "600", "700"],
 });
 
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["latin"],
+  weight: ["700"],
+});
+
+const bayon = Bayon({
+  variable: "--font-bayon",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+
 export const metadata: Metadata = {
   title: "Shoals Ticketing",
   description: "West72 Entertainment Ticketing Platform",
@@ -36,8 +49,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-            <body
-        className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} antialiased`}
+                 <body
+        className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
         <Header />
         {children}
