@@ -1261,7 +1261,7 @@ body {
 .home-hero-title {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
-  font-size: clamp(16px);
+  font-size: 80px;
   color: #ffffff;
   line-height: 1.05;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
