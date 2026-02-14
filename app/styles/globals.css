@@ -16,7 +16,7 @@ body {
 .site-header {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1920px;
+  max-width: 1440px;
   margin: 0 auto;
   display: flex;
   flex-direction: row;
@@ -34,6 +34,11 @@ body {
 .header-logo {
   display: flex;
   align-items: center;
+}
+
+.header-logo img {
+  width: 180px;
+  height: auto;
 }
 
 .header-nav {
@@ -307,7 +312,7 @@ body {
   text-align: left;
   line-height: 1;
   font-family: var(--font-bayon), sans-serif;
-  font-size: 18px;
+  font-size: 38px;
   margin: 0;
 }
 
@@ -343,12 +348,14 @@ body {
 
 @media (max-width: 768px) {
   .site-header {
-    padding: 20px;
-    width: 390px;
-    height: 103px;
-    min-height: auto;
-    gap: 20px;
+    padding: 10px 14px;
+    min-height: 64px;
+    gap: 10px;
     flex-wrap: wrap;
+  }
+
+  .header-logo img {
+    width: 132px;
   }
 
   .hamburger {
@@ -356,18 +363,21 @@ body {
     align-items: center;
     justify-content: center;
     margin-left: auto;
+    font-size: 22px;
+    line-height: 1;
+    padding: 4px;
   }
 
   .header-nav {
     display: none;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 14px;
     width: 100%;
     position: absolute;
     top: 100%;
     left: 0;
-    padding: 20px;
+    padding: 14px;
     background: #202045;
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
     z-index: 1000;
@@ -378,15 +388,43 @@ body {
   }
 
   .home-events-page {
-    padding: 28px 12px 36px;
+    padding: 20px 12px 28px;
+    gap: 16px;
   }
 
-  .upcoming-events-content-container {
-    padding: 0 10px;
+  .events-heading {
+    font-size: 2.35rem;
   }
 
   .upcoming-events-overlay-left,
   .upcoming-events-overlay-right {
-    width: 30px;
+    display: none;
+  }
+
+  .upcoming-events-content-container {
+    width: 100%;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .upcoming-events-stack {
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .upcoming-events-item {
+    width: min(100%, 380px);
+  }
+
+  .upcoming-events-item:nth-child(n + 5) {
+    display: none;
+  }
+
+  .event-card {
+    width: 100%;
+    height: 116px;
+    border-radius: 15px;
   }
 }
