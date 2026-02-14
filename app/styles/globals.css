@@ -1261,7 +1261,7 @@ body {
 .home-hero-title {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
-  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-size: clamp(16px);
   color: #ffffff;
   line-height: 1.05;
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.5);
@@ -1364,8 +1364,6 @@ border-radius: 0px 0px 0px 0px;
   color: #ffffff;
   width: 100%;
   height: auto;
-  white-space: normal;
-  word-break: normal;
   text-align: center;
   line-height: 1.2;
   position: relative; 
@@ -1406,19 +1404,19 @@ border-radius: 0px 0px 0px 0px;
 /* CTA Section */
 .home-cta-section {
   box-sizing: border-box;
-width: 100%;
-height: min-content;
-display: flex;
-flex-direction: column;
-justify-content: flex-start;
-align-items: center;
-padding: 80px 60px 80px 60px;
-overflow: var(--overflow-clip-fallback, clip);
-align-content: center;
-flex-wrap: nowrap;
-gap: 16px;
-position: relative;
-border-radius: 0px 0px 0px 0px;
+  width: 100%;
+  height: min-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 80px 60px 80px 60px;
+  overflow: var(--overflow-clip-fallback, clip);
+  align-content: center;
+  flex-wrap: nowrap;
+  gap: 16px;
+  position: relative;
+  border-radius: 0px 0px 0px 0px;
 }
 
 .home-cta-glow {
@@ -1443,8 +1441,6 @@ border-radius: 0px 0px 0px 0px;
   color: #d0c290;
   width: 100%;
   height: auto;
-  white-space: normal;
-  word-break: normal;
   text-align: center;
   line-height: 1.2;
   position: relative;
