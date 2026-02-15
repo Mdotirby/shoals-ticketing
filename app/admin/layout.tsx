@@ -1,20 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { getCookie } from "@/lib/cookies";
 
 const sidebarItems = [
-  { label: "Dashboard", href: "/admin", icon: "🏠" },
-  { label: "Events", href: "/admin/events", icon: "🎪" },
-  { label: "Create Offer", href: "/admin/offers/new", icon: "📝" },
-  { label: "Partners", href: "/admin/sponsors", icon: "🤝" },
-  { label: "Reports", href: "/admin/reports", icon: "📊" },
-  { label: "Sales", href: "/admin/orders", icon: "💰" },
-  { label: "Scanner", href: "/admin/scan", icon: "📱" },
-  { label: "Portal", href: "/portal", icon: "👤" },
-  { label: "Settings", href: "/admin/settings", icon: "⚙️" },
+  { label: "Dashboard", href: "/admin" },
+  { label: "Events", href: "/admin/events" },
+  { label: "Booking", href: "/admin/offers" },
+  { label: "Partners", href: "/admin/sponsors" },
+  { label: "Reports", href: "/admin/reports" },
+  { label: "Sales", href: "/admin/orders" },
+  { label: "Scanner", href: "/admin/scan" },
+  { label: "Management", href: "/portal" },
+  { label: "Settings", href: "/admin/settings" },
 ];
 
 export default function AdminLayout({
@@ -24,6 +26,38 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [adminName, setAdminName] = useState("");
+  const [venueName, setVenueName] = useState("");
+
+  useEffect(() => {
+    // Fetch admin user name
+    const supabase = getSupabaseBrowser();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        // Use display name from metadata, or first part of email
+        const name =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email?.split("@")[0] ||
+          "Admin";
+        setAdminName(name);
+      }
+    });
+
+    // Fetch venue name
+    const venueId = getCookie("venue-id");
+    if (venueId) {
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((venues) => {
+          if (Array.isArray(venues)) {
+            const v = venues.find((x: { id: string }) => x.id === venueId);
+            if (v) setVenueName(v.name);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
@@ -71,6 +105,14 @@ export default function AdminLayout({
             unoptimized
             className="admin-sidebar-logo"
           />
+          {adminName && (
+            <p className="admin-sidebar-welcome">
+              Welcome, <strong>{adminName}</strong>
+            </p>
+          )}
+          {venueName && (
+            <p className="admin-sidebar-venue">{venueName}</p>
+          )}
         </div>
 
         <nav className="admin-sidebar-nav">
@@ -83,7 +125,6 @@ export default function AdminLayout({
               }`}
               onClick={() => setSidebarOpen(false)}
             >
-              <span className="admin-sidebar-icon">{item.icon}</span>
               {item.label}
             </Link>
           ))}

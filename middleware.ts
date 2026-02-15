@@ -6,53 +6,34 @@ import { createServerClient } from "@supabase/ssr";
 const ROOT_DOMAINS = ["venuecore.live", "localhost", "vercel.app"];
 
 function extractVenueSlug(host: string): string | null {
-  // Remove port for localhost
   const hostname = host.split(":")[0];
-
-  // Check if it's a subdomain of a known root domain
   for (const root of ROOT_DOMAINS) {
-    if (hostname === root || hostname === `www.${root}`) {
-      return null; // main domain, no venue slug
-    }
+    if (hostname === root || hostname === `www.${root}`) return null;
     if (hostname.endsWith(`.${root}`)) {
       const sub = hostname.replace(`.${root}`, "");
       if (sub && sub !== "www") return sub;
     }
   }
-
   return null;
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
-
-  // ── Subdomain detection ──
   const venueSlug = extractVenueSlug(host);
 
-  // Public routes that don't need auth
-  const isLoginPage = pathname === "/login" || pathname === "/admin/login";
+  // Skip middleware for static files and API routes
   const isApiRoute = pathname.startsWith("/api/");
-  const isPublicRoute =
-    !pathname.startsWith("/admin") && !pathname.startsWith("/portal");
-
-  // Skip auth check for public routes, login pages, and API routes
-  if (isPublicRoute || isLoginPage || isApiRoute) {
-    const response = NextResponse.next();
-    // Set venue slug cookie for public pages
-    if (venueSlug) {
-      response.cookies.set("venue-slug", venueSlug, { path: "/", sameSite: "lax" });
-    } else {
-      response.cookies.delete("venue-slug");
-    }
-    return response;
+  if (isApiRoute) {
+    return NextResponse.next();
   }
 
-  // ── Auth check for protected routes ──
+  // Create response with venue slug cookie
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
+  // ── Always refresh the Supabase session (keeps user logged in) ──
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -76,23 +57,27 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Verify the user's session
+  // This call refreshes the session cookie on every page load
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If no authenticated user, redirect to login
-  if (!user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // Set venue slug cookie for admin pages too
+  // Set venue slug cookie
   if (venueSlug) {
     response.cookies.set("venue-slug", venueSlug, { path: "/", sameSite: "lax" });
   } else {
     response.cookies.delete("venue-slug");
+  }
+
+  // ── Auth check only for protected routes ──
+  const isLoginPage = pathname === "/login" || pathname === "/admin/login";
+  const isProtectedRoute =
+    pathname.startsWith("/admin") || pathname.startsWith("/portal");
+
+  if (isProtectedRoute && !isLoginPage && !user) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   return response;

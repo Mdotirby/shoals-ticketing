@@ -3460,3 +3460,317 @@ select.admin-form-input {
     max-width: 120px;
   }
 }
+
+/* ============================================================
+   SETTINGS PAGE
+   ============================================================ */
+
+.admin-form-section-title {
+  margin: 24px 0 8px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #d0c290;
+  border-bottom: 1px solid rgba(208, 194, 144, 0.15);
+  padding-bottom: 6px;
+}
+
+.admin-form-success {
+  padding: 10px 14px;
+  background: rgba(100, 200, 100, 0.1);
+  border: 1px solid rgba(100, 200, 100, 0.25);
+  border-radius: 8px;
+  color: #7ddb7d;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+/* ============================================================
+   OFFER FORM
+   ============================================================ */
+
+.offer-form {
+  max-width: 100%;
+}
+
+/* Scaling Table */
+.offer-scaling-table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.offer-scaling-header,
+.offer-scaling-row {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr) auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 700px;
+}
+
+.offer-scaling-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 4px;
+}
+
+.offer-scaling-row .admin-form-input {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.offer-calc-cell {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+.offer-scaling-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.offer-inline-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  margin: 0 !important;
+}
+
+.offer-totals-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 12px 0;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.offer-totals-row strong {
+  color: #d0c290;
+}
+
+/* Expenses Grid */
+.offer-expenses-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.offer-expenses-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offer-expenses-heading {
+  margin: 0;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.offer-expense-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.offer-expense-row .admin-form-input {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.offer-expense-row .admin-form-input:first-child {
+  flex: 1;
+}
+
+.offer-expense-row .admin-form-input:nth-child(2) {
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.offer-var-name {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.offer-var-amount {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 70px;
+  text-align: right;
+}
+
+.offer-expense-total {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.offer-expense-total strong {
+  color: #d0c290;
+}
+
+.offer-total-expenses {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  padding: 12px 0;
+  border-top: 1px solid rgba(208, 194, 144, 0.2);
+  margin-top: 8px;
+}
+
+.offer-total-expenses strong {
+  color: #d0c290;
+}
+
+/* Potential Grid */
+.offer-potential-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.offer-potential-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.offer-potential-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.offer-potential-row strong {
+  color: #ffffff;
+  margin-left: auto;
+}
+
+.offer-potential-row.highlight {
+  padding: 8px 0;
+  border-top: 1px solid rgba(208, 194, 144, 0.2);
+  color: #d0c290;
+  font-weight: 600;
+}
+
+.offer-potential-row.highlight strong {
+  color: #d0c290;
+}
+
+/* Offer Detail Page */
+.offer-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.offer-detail-section {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.offer-detail-section h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d0c290;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.offer-detail-section p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.status-declined {
+  background: rgba(255, 100, 100, 0.12);
+  color: #ff9a9a;
+}
+
+@media (max-width: 768px) {
+  .offer-expenses-grid,
+  .offer-potential-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .offer-scaling-header,
+  .offer-scaling-row {
+    min-width: 600px;
+  }
+
+  .offer-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sidebar Welcome Message */
+.admin-sidebar-welcome {
+  margin: 8px 0 0;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+.admin-sidebar-welcome strong {
+  color: #ffffff;
+}
+
+.admin-sidebar-venue {
+  margin: 2px 0 0;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 11px;
+  color: #d0c290;
+  text-align: center;
+  letter-spacing: 0.04em;
+}

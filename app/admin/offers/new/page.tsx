@@ -1,56 +1,168 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { getCookie } from "@/lib/cookies";
+import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 
-const DEAL_TYPES = ["VS", "FLAT", "PLUS", "BONUS"] as const;
+const DEFAULT_FIXED: ExpenseItem[] = [
+  { name: "Rent", amount: 0 },
+  { name: "Production", amount: 0 },
+  { name: "Catering", amount: 0 },
+  { name: "Hospitality", amount: 0 },
+  { name: "Support", amount: 0 },
+  { name: "Talent", amount: 0 },
+];
+
+const DEFAULT_VARIABLE: VariableExpenseItem[] = [
+  { name: "ASCAP", rate: 0.008, amount: 0 },
+  { name: "BMI", rate: 0.008, amount: 0 },
+  { name: "SESAC", rate: 0.0003, amount: 0 },
+  { name: "GMR", rate: 0.0015, amount: 0 },
+  { name: "Credit Card (Stripe)", rate: 0.03, amount: 0 },
+];
+
+function emptyScalingRow(): TicketScalingRow {
+  return { name: "P1", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 };
+}
+
+function emptyLineup(): ShowLineupItem {
+  return { time: "", artist: "", set_length: "" };
+}
 
 export default function AdminCreateOfferPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState({
-    artist_name: "",
-    venue: "",
-    event_date: "",
-    guarantee: "",
-    deal_type: "",
-    backend_percentage: "",
-    merch_soft: "",
-    merch_hard: "",
-    terms: "",
-    notes: "",
-  });
+  // ── Section 1: Agency & Artist ──
+  const [agency, setAgency] = useState("");
+  const [agentName, setAgentName] = useState("");
+  const [agentPhone, setAgentPhone] = useState("");
+  const [agentEmail, setAgentEmail] = useState("");
+  const [artistName, setArtistName] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [dayOfEvent, setDayOfEvent] = useState("");
+  const [numShows, setNumShows] = useState("1");
+  const [showLength, setShowLength] = useState("");
+  const [showTime, setShowTime] = useState("");
+  const [billing, setBilling] = useState("100% Headline");
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  // ── Section 2: Show Lineup ──
+  const [lineup, setLineup] = useState<ShowLineupItem[]>([emptyLineup()]);
+
+  // ── Section 3: Deal Terms ──
+  const [guarantee, setGuarantee] = useState("");
+  const [dealType, setDealType] = useState("FLAT");
+  const [backendPct, setBackendPct] = useState("");
+  const [otherTerms, setOtherTerms] = useState("");
+  const [radiusDistance, setRadiusDistance] = useState("");
+  const [radiusDaysPrior, setRadiusDaysPrior] = useState("");
+  const [radiusDaysAfter, setRadiusDaysAfter] = useState("");
+  const [productionBy, setProductionBy] = useState("In House");
+  const [depositPct, setDepositPct] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositDue, setDepositDue] = useState("");
+  const [balanceDue, setBalanceDue] = useState("Day of Show");
+  const [merchSplit, setMerchSplit] = useState("100% Merch");
+  const [merchSeller, setMerchSeller] = useState("Artist");
+  const [comps, setComps] = useState("0");
+
+  // ── Section 4: Ticket Scaling ──
+  const [scaling, setScaling] = useState<TicketScalingRow[]>([emptyScalingRow()]);
+  const [facilityFee, setFacilityFee] = useState("0");
+
+  // ── Section 5: Expenses ──
+  const [fixedExpenses, setFixedExpenses] = useState<ExpenseItem[]>(DEFAULT_FIXED);
+  const [variableExpenses, setVariableExpenses] = useState<VariableExpenseItem[]>(DEFAULT_VARIABLE);
+
+  // ── Section 6: Tax ──
+  const [taxRate, setTaxRate] = useState("0.11");
+
+  // ── Section 7: Offer Validity ──
+  const [offerValidDays, setOfferValidDays] = useState("14");
+
+  // ── Calculated values ──
+  const grossPotential = scaling.reduce((sum, r) => sum + r.sellable_cap * r.price, 0);
+  const adjGross = grossPotential - scaling.reduce((sum, r) => sum + r.sellable_cap * r.facility_fee, 0);
+  const taxAmount = adjGross * parseFloat(taxRate || "0");
+  const netPotential = adjGross - taxAmount;
+  const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalVariable = variableExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+  const totalExpenses = totalFixed + totalVariable;
+  const splitpoint = netPotential - totalExpenses;
+
+  const guaranteeNum = parseFloat(guarantee || "0");
+  const backendNum = parseFloat(backendPct || "0") / 100;
+  const artistBackend = splitpoint > 0 ? splitpoint * backendNum : 0;
+
+  // VS: max(guarantee, backend); PLUS: guarantee + backend; FLAT: guarantee
+  let artistPAS = guaranteeNum;
+  if (dealType === "VS") artistPAS = Math.max(guaranteeNum, artistBackend);
+  else if (dealType === "PLUS" || dealType === "BONUS") artistPAS = guaranteeNum + artistBackend;
+
+  const potWalkout = netPotential - totalExpenses - artistPAS;
+
+  // Recalculate variable expenses when gross changes
+  const recalcVariables = useCallback(() => {
+    setVariableExpenses((prev) =>
+      prev.map((v) => ({ ...v, amount: Math.round(grossPotential * v.rate * 100) / 100 }))
+    );
+  }, [grossPotential]);
+
+  useEffect(() => { recalcVariables(); }, [recalcVariables]);
+
+  // Auto-calc scaling sellable_cap
+  const updateScaling = (index: number, field: keyof TicketScalingRow, value: number) => {
+    setScaling((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const updated = { ...r, [field]: value };
+        updated.sellable_cap = updated.seats - updated.comps - updated.kills;
+        updated.net_price = updated.price - updated.facility_fee;
+        return updated;
+      })
+    );
   };
 
+  // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!artistName.trim()) { setError("Artist name is required."); return; }
     setLoading(true);
+
+    const venueId = getCookie("venue-id");
 
     try {
       const res = await fetch("/api/offers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          artist_name: form.artist_name,
-          venue: form.venue || null,
-          event_date: form.event_date || null,
-          guarantee: form.guarantee ? parseFloat(form.guarantee) : null,
-          deal_type: form.deal_type || null,
-          backend_percentage: form.backend_percentage || null,
-          merch_soft: form.merch_soft || null,
-          merch_hard: form.merch_hard || null,
-          terms: form.terms || null,
-          notes: form.notes || null,
+          artist_name: artistName,
+          venue_id: venueId || null,
+          event_date: eventDate || null,
+          agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail,
+          day_of_event: dayOfEvent, num_shows: parseInt(numShows) || 1,
+          show_length: showLength, show_time: showTime, billing,
+          show_lineup: lineup.filter((l) => l.artist),
+          guarantee: guaranteeNum, deal_type: dealType,
+          backend_percentage: backendPct, other_terms: otherTerms,
+          radius_distance: radiusDistance,
+          radius_days_prior: parseInt(radiusDaysPrior) || null,
+          radius_days_after: parseInt(radiusDaysAfter) || null,
+          production_by: productionBy,
+          deposit_pct: parseFloat(depositPct) || null,
+          deposit_amount: parseFloat(depositAmount) || null,
+          deposit_due: depositDue, balance_due: balanceDue,
+          merch_split: merchSplit, merch_seller: merchSeller,
+          comps: parseInt(comps) || 0,
+          ticket_scaling: scaling, fixed_expenses: fixedExpenses, variable_expenses: variableExpenses,
+          total_fixed: totalFixed, total_variable: totalVariable, total_expenses: totalExpenses,
+          gross_potential: grossPotential, adj_gross: adjGross,
+          tax_rate: parseFloat(taxRate) || 0, net_potential: netPotential,
+          splitpoint, artist_backend: artistBackend, pot_walkout: potWalkout,
+          offer_valid_days: parseInt(offerValidDays) || 14,
           status: "draft",
         }),
       });
@@ -62,7 +174,7 @@ export default function AdminCreateOfferPage() {
 
       router.push("/admin/offers");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create offer");
+      setError(err instanceof Error ? err.message : "Failed");
     } finally {
       setLoading(false);
     }
@@ -70,146 +182,160 @@ export default function AdminCreateOfferPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Create New Offer</h1>
+      <h1 className="admin-page-title">New Offer</h1>
 
-      <form className="admin-form" onSubmit={handleSubmit}>
+      <form className="admin-form offer-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
+        {/* ═══ SECTION 1: Agency & Artist ═══ */}
+        <h2 className="admin-form-section-title">Agency & Artist</h2>
         <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Artist Name *
-            <input
-              type="text"
-              name="artist_name"
-              className="admin-form-input"
-              value={form.artist_name}
-              onChange={handleChange}
-              placeholder="e.g. Band of Heathens"
-              required
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Venue
-            <input
-              type="text"
-              name="venue"
-              className="admin-form-input"
-              value={form.venue}
-              onChange={handleChange}
-              placeholder="e.g. Singin River Live"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Event Date
-            <input
-              type="date"
-              name="event_date"
-              className="admin-form-input"
-              value={form.event_date}
-              onChange={handleChange}
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Guarantee ($)
-            <input
-              type="number"
-              name="guarantee"
-              className="admin-form-input"
-              value={form.guarantee}
-              onChange={handleChange}
-              placeholder="5000.00"
-              step="0.01"
-              min="0"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Deal Type
-            <select
-              name="deal_type"
-              className="admin-form-input"
-              value={form.deal_type}
-              onChange={handleChange}
-            >
-              <option value="">Select deal type...</option>
-              {DEAL_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="admin-form-label">
-            Backend Percentage
-            <input
-              type="text"
-              name="backend_percentage"
-              className="admin-form-input"
-              value={form.backend_percentage}
-              onChange={handleChange}
-              placeholder="e.g. 80%"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Merch Split — Soft
-            <input
-              type="text"
-              name="merch_soft"
-              className="admin-form-input"
-              value={form.merch_soft}
-              onChange={handleChange}
-              placeholder="e.g. 85/15"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Merch Split — Hard
-            <input
-              type="text"
-              name="merch_hard"
-              className="admin-form-input"
-              value={form.merch_hard}
-              onChange={handleChange}
-              placeholder="e.g. 80/20"
-            />
-          </label>
+          <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={agency} onChange={(e) => setAgency(e.target.value)} /></label>
+          <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
+          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} /></label>
+          <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} /></label>
+          <label className="admin-form-label">Artist Name *<input type="text" className="admin-form-input" value={artistName} onChange={(e) => setArtistName(e.target.value)} required /></label>
+          <label className="admin-form-label">Date of Engagement<input type="date" className="admin-form-input" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
+          <label className="admin-form-label">Day of Event<input type="text" className="admin-form-input" value={dayOfEvent} onChange={(e) => setDayOfEvent(e.target.value)} placeholder="e.g. Saturday" /></label>
+          <label className="admin-form-label"># of Shows<input type="number" className="admin-form-input" value={numShows} onChange={(e) => setNumShows(e.target.value)} min="1" /></label>
+          <label className="admin-form-label">Length of Show<input type="text" className="admin-form-input" value={showLength} onChange={(e) => setShowLength(e.target.value)} placeholder="75-90" /></label>
+          <label className="admin-form-label">Time of Show<input type="time" className="admin-form-input" value={showTime} onChange={(e) => setShowTime(e.target.value)} /></label>
+          <label className="admin-form-label">Billing<select className="admin-form-input" value={billing} onChange={(e) => setBilling(e.target.value)}>
+            <option>100% Headline</option><option>Co-Headline</option><option>Support</option>
+          </select></label>
         </div>
 
-        <label className="admin-form-label admin-form-full">
-          Terms
-          <textarea
-            name="terms"
-            className="admin-form-textarea"
-            value={form.terms}
-            onChange={handleChange}
-            placeholder="Contract terms..."
-            rows={4}
-          />
-        </label>
+        {/* ═══ SECTION 2: Show Lineup ═══ */}
+        <h2 className="admin-form-section-title">Show Lineup</h2>
+        <div className="admin-tiers-list">
+          {lineup.map((l, i) => (
+            <div key={i} className="admin-tier-row">
+              <input type="time" className="admin-form-input admin-tier-input" value={l.time} onChange={(e) => setLineup((p) => p.map((x, j) => j === i ? { ...x, time: e.target.value } : x))} />
+              <input type="text" className="admin-form-input admin-tier-input" placeholder="Artist / Act" value={l.artist} onChange={(e) => setLineup((p) => p.map((x, j) => j === i ? { ...x, artist: e.target.value } : x))} />
+              <input type="text" className="admin-form-input admin-tier-input admin-tier-capacity" placeholder="Set length" value={l.set_length} onChange={(e) => setLineup((p) => p.map((x, j) => j === i ? { ...x, set_length: e.target.value } : x))} />
+              {lineup.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setLineup((p) => p.filter((_, j) => j !== i))}>✕</button>}
+            </div>
+          ))}
+        </div>
+        <button type="button" className="admin-tier-add-btn" onClick={() => setLineup((p) => [...p, emptyLineup()])}>+ Add Act</button>
 
-        <label className="admin-form-label admin-form-full">
-          Internal Notes
-          <textarea
-            name="notes"
-            className="admin-form-textarea"
-            value={form.notes}
-            onChange={handleChange}
-            placeholder="Notes about this deal..."
-            rows={3}
-          />
-        </label>
+        {/* ═══ SECTION 3: Deal Terms ═══ */}
+        <h2 className="admin-form-section-title">Deal</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">Guarantee ($)<input type="number" className="admin-form-input" value={guarantee} onChange={(e) => setGuarantee(e.target.value)} step="0.01" min="0" /></label>
+          <label className="admin-form-label">Deal Type<select className="admin-form-input" value={dealType} onChange={(e) => setDealType(e.target.value)}>
+            <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
+          </select></label>
+          <label className="admin-form-label">Backend %<input type="text" className="admin-form-input" value={backendPct} onChange={(e) => setBackendPct(e.target.value)} placeholder="80" /></label>
+          <label className="admin-form-label admin-form-full">Other Terms<input type="text" className="admin-form-input" value={otherTerms} onChange={(e) => setOtherTerms(e.target.value)} /></label>
+          <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" value={radiusDistance} onChange={(e) => setRadiusDistance(e.target.value)} /></label>
+          <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" value={radiusDaysPrior} onChange={(e) => setRadiusDaysPrior(e.target.value)} /></label>
+          <label className="admin-form-label">Days After<input type="number" className="admin-form-input" value={radiusDaysAfter} onChange={(e) => setRadiusDaysAfter(e.target.value)} /></label>
+          <label className="admin-form-label">Production By<input type="text" className="admin-form-input" value={productionBy} onChange={(e) => setProductionBy(e.target.value)} /></label>
+          <label className="admin-form-label">Deposit %<input type="number" className="admin-form-input" value={depositPct} onChange={(e) => { setDepositPct(e.target.value); const pct = parseFloat(e.target.value) / 100; setDepositAmount(String(Math.round(guaranteeNum * pct * 100) / 100)); }} step="0.01" /></label>
+          <label className="admin-form-label">Deposit $<input type="number" className="admin-form-input" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} step="0.01" /></label>
+          <label className="admin-form-label">Deposit Due<input type="text" className="admin-form-input" value={depositDue} onChange={(e) => setDepositDue(e.target.value)} placeholder="30 Days w/ FEC" /></label>
+          <label className="admin-form-label">Balance Due<input type="text" className="admin-form-input" value={balanceDue} onChange={(e) => setBalanceDue(e.target.value)} /></label>
+          <label className="admin-form-label">Merch<input type="text" className="admin-form-input" value={merchSplit} onChange={(e) => setMerchSplit(e.target.value)} /></label>
+          <label className="admin-form-label">Who Sells<select className="admin-form-input" value={merchSeller} onChange={(e) => setMerchSeller(e.target.value)}>
+            <option>Artist</option><option>Venue</option><option>Split</option>
+          </select></label>
+          <label className="admin-form-label">Comps<input type="number" className="admin-form-input" value={comps} onChange={(e) => setComps(e.target.value)} min="0" /></label>
+        </div>
 
-        <button
-          type="submit"
-          className="admin-form-submit"
-          disabled={loading}
-        >
-          {loading ? "Creating..." : "Create Offer"}
+        {/* ═══ SECTION 4: Ticket Scaling ═══ */}
+        <h2 className="admin-form-section-title">Ticket Scaling</h2>
+        <div className="offer-scaling-table">
+          <div className="offer-scaling-header">
+            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Price</span><span>Net Price</span><span>Gross</span>
+          </div>
+          {scaling.map((r, i) => (
+            <div key={i} className="offer-scaling-row">
+              <input type="text" className="admin-form-input" value={r.name} onChange={(e) => { const v = e.target.value; setScaling((p) => p.map((x, j) => j === i ? { ...x, name: v } : x)); }} />
+              <input type="number" className="admin-form-input" value={r.seats || ""} onChange={(e) => updateScaling(i, "seats", parseInt(e.target.value) || 0)} />
+              <input type="number" className="admin-form-input" value={r.comps || ""} onChange={(e) => updateScaling(i, "comps", parseInt(e.target.value) || 0)} />
+              <input type="number" className="admin-form-input" value={r.kills || ""} onChange={(e) => updateScaling(i, "kills", parseInt(e.target.value) || 0)} />
+              <span className="offer-calc-cell">{r.sellable_cap}</span>
+              <input type="number" className="admin-form-input" value={r.price || ""} onChange={(e) => updateScaling(i, "price", parseFloat(e.target.value) || 0)} step="0.01" />
+              <span className="offer-calc-cell">${r.net_price.toFixed(2)}</span>
+              <span className="offer-calc-cell">${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setScaling((p) => p.filter((_, j) => j !== i))}>✕</button>}
+            </div>
+          ))}
+        </div>
+        <div className="offer-scaling-footer">
+          <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: `P${p.length + 1}` }])}>+ Add Tier</button>
+          <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={facilityFee} onChange={(e) => { setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, net_price: r.price - fee }))); }} step="0.01" /></label>
+        </div>
+        <div className="offer-totals-row">
+          <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>
+          <span>Sellable: <strong>{scaling.reduce((s, r) => s + r.sellable_cap, 0)}</strong></span>
+          <span>Gross Potential: <strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+          <span>Adj. Gross: <strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+        </div>
+
+        {/* ═══ SECTION 5: Expenses ═══ */}
+        <h2 className="admin-form-section-title">Expenses</h2>
+        <div className="offer-expenses-grid">
+          <div className="offer-expenses-col">
+            <h3 className="offer-expenses-heading">Fixed Expenses</h3>
+            {fixedExpenses.map((exp, i) => (
+              <div key={i} className="offer-expense-row">
+                <input type="text" className="admin-form-input" value={exp.name} onChange={(e) => setFixedExpenses((p) => p.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+                <input type="number" className="admin-form-input" value={exp.amount || ""} onChange={(e) => setFixedExpenses((p) => p.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} step="0.01" placeholder="$0.00" />
+                {fixedExpenses.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setFixedExpenses((p) => p.filter((_, j) => j !== i))}>✕</button>}
+              </div>
+            ))}
+            <button type="button" className="admin-tier-add-btn" onClick={() => setFixedExpenses((p) => [...p, { name: "", amount: 0 }])}>+ New Expense</button>
+            <div className="offer-expense-total">Fixed Total: <strong>${totalFixed.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+          </div>
+
+          <div className="offer-expenses-col">
+            <h3 className="offer-expenses-heading">Variable Expenses</h3>
+            {variableExpenses.map((exp, i) => (
+              <div key={i} className="offer-expense-row">
+                <span className="offer-var-name">{exp.name}</span>
+                <input type="number" className="admin-form-input" value={exp.rate} onChange={(e) => { const rate = parseFloat(e.target.value) || 0; setVariableExpenses((p) => p.map((x, j) => j === i ? { ...x, rate, amount: Math.round(grossPotential * rate * 100) / 100 } : x)); }} step="0.0001" style={{ width: 80 }} />
+                <span className="offer-var-amount">${exp.amount.toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="offer-expense-total">Variable Total: <strong>${totalVariable.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+          </div>
+        </div>
+        <div className="offer-total-expenses">Total Expenses: <strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+
+        {/* ═══ SECTION 6: Potential at Sellout ═══ */}
+        <h2 className="admin-form-section-title">Potential at Sellout</h2>
+        <div className="offer-potential-grid">
+          <div className="offer-potential-col">
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row">
+              <span>Tax Rate:</span>
+              <input type="number" className="admin-form-input" style={{ width: 80 }} value={taxRate} onChange={(e) => setTaxRate(e.target.value)} step="0.01" />
+              <span>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+          </div>
+          <div className="offer-potential-col">
+            <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
+            <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row highlight"><span>Artist PAS:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Pot. Walkout:</span><strong>${potWalkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+          </div>
+        </div>
+
+        {/* ═══ Offer Validity ═══ */}
+        <div className="admin-form-grid" style={{ marginTop: 16 }}>
+          <label className="admin-form-label">Offer Valid (days)<input type="number" className="admin-form-input" value={offerValidDays} onChange={(e) => setOfferValidDays(e.target.value)} min="1" /></label>
+          <label className="admin-form-label admin-form-full">Notes<textarea className="admin-form-textarea" rows={3} onChange={(e) => {/* stored on submit */}} placeholder="Additional notes..." /></label>
+        </div>
+
+        <button type="submit" className="admin-form-submit" disabled={loading}>
+          {loading ? "Creating…" : "Create Offer"}
         </button>
       </form>
     </div>

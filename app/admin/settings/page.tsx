@@ -1,10 +1,329 @@
-// TODO: Design settings page
-// Change password form (required on first login if must_change_password is true)
-// For full_admin: manage admin users (create/delete, assign roles)
+"use client";
+
+import { useEffect, useState } from "react";
+import { getCookie } from "@/lib/cookies";
+
 export default function AdminSettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [venueId, setVenueId] = useState("");
+
+  const [venue, setVenue] = useState({
+    name: "",
+    nickname: "",
+    capacity: "",
+    address_street: "",
+    address_city: "",
+    address_state: "",
+    address_zip: "",
+    primary_color: "#d0c290",
+    secondary_color: "#0b0d1d",
+    accent_color: "#202045",
+  });
+
+  const [buyer, setBuyer] = useState({
+    buyer_name: "",
+    contract_signatory: "",
+    buyer_phone: "",
+    buyer_email: "",
+    promoter_address: "",
+  });
+
+  useEffect(() => {
+    const vid = getCookie("venue-id");
+    if (!vid) {
+      setLoading(false);
+      setError("No venue assigned to your account.");
+      return;
+    }
+    setVenueId(vid);
+
+    fetch(`/api/venues?slug=_&id=${vid}`)
+      .catch(() => null);
+
+    // Fetch venue by querying all and finding by ID
+    fetch("/api/venues")
+      .then((r) => r.json())
+      .then((venues) => {
+        if (!Array.isArray(venues)) return;
+        const v = venues.find((x: { id: string }) => x.id === vid);
+        if (!v) {
+          setError("Venue not found.");
+          return;
+        }
+        setVenue({
+          name: v.name || "",
+          nickname: v.nickname || "",
+          capacity: v.capacity ? String(v.capacity) : "",
+          address_street: v.address_street || "",
+          address_city: v.address_city || "",
+          address_state: v.address_state || "",
+          address_zip: v.address_zip || "",
+          primary_color: v.primary_color || "#d0c290",
+          secondary_color: v.secondary_color || "#0b0d1d",
+          accent_color: v.accent_color || "#202045",
+        });
+        setBuyer({
+          buyer_name: v.buyer_name || "",
+          contract_signatory: v.contract_signatory || "",
+          buyer_phone: v.buyer_phone || "",
+          buyer_email: v.buyer_email || "",
+          promoter_address: v.promoter_address || "",
+        });
+      })
+      .catch(() => setError("Failed to load venue settings"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+    setSaving(true);
+
+    try {
+      const res = await fetch("/api/venues", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: venueId,
+          name: venue.name,
+          nickname: venue.nickname || null,
+          capacity: venue.capacity ? parseInt(venue.capacity) : null,
+          address_street: venue.address_street || null,
+          address_city: venue.address_city || null,
+          address_state: venue.address_state || null,
+          address_zip: venue.address_zip || null,
+          primary_color: venue.primary_color,
+          secondary_color: venue.secondary_color,
+          accent_color: venue.accent_color,
+          buyer_name: buyer.buyer_name || null,
+          contract_signatory: buyer.contract_signatory || null,
+          buyer_phone: buyer.buyer_phone || null,
+          buyer_email: buyer.buyer_email || null,
+          promoter_address: buyer.promoter_address || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save");
+      }
+
+      setSuccess("Settings saved successfully.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-form-page">
+        <h1 className="admin-page-title">Settings</h1>
+        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>
+      </div>
+    );
+  }
+
   return (
-    <main>
-      <p>Admin Settings — awaiting design</p>
-    </main>
+    <div className="admin-form-page">
+      <h1 className="admin-page-title">Settings</h1>
+
+      <form className="admin-form" onSubmit={handleSave}>
+        {error && <div className="admin-form-error">{error}</div>}
+        {success && <div className="admin-form-success">{success}</div>}
+
+        {/* ── Venue Information ── */}
+        <h2 className="admin-form-section-title">Venue Information</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Venue Name
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.name}
+              onChange={(e) => setVenue({ ...venue, name: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            Nickname
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.nickname}
+              onChange={(e) => setVenue({ ...venue, nickname: e.target.value })}
+              placeholder="e.g. SRL"
+            />
+          </label>
+          <label className="admin-form-label">
+            Total Capacity
+            <input
+              type="number"
+              className="admin-form-input"
+              value={venue.capacity}
+              onChange={(e) => setVenue({ ...venue, capacity: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            Street Address
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.address_street}
+              onChange={(e) => setVenue({ ...venue, address_street: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            City
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.address_city}
+              onChange={(e) => setVenue({ ...venue, address_city: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            State
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.address_state}
+              onChange={(e) => setVenue({ ...venue, address_state: e.target.value })}
+              placeholder="AL"
+              maxLength={2}
+            />
+          </label>
+          <label className="admin-form-label">
+            ZIP Code
+            <input
+              type="text"
+              className="admin-form-input"
+              value={venue.address_zip}
+              onChange={(e) => setVenue({ ...venue, address_zip: e.target.value })}
+            />
+          </label>
+        </div>
+
+        {/* ── Color Scheme ── */}
+        <h2 className="admin-form-section-title">Brand Colors</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Primary Color
+            <div className="color-input-row">
+              <input
+                type="color"
+                value={venue.primary_color}
+                onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })}
+                className="color-swatch"
+              />
+              <input
+                type="text"
+                className="admin-form-input"
+                value={venue.primary_color}
+                onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })}
+              />
+            </div>
+          </label>
+          <label className="admin-form-label">
+            Secondary Color
+            <div className="color-input-row">
+              <input
+                type="color"
+                value={venue.secondary_color}
+                onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })}
+                className="color-swatch"
+              />
+              <input
+                type="text"
+                className="admin-form-input"
+                value={venue.secondary_color}
+                onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })}
+              />
+            </div>
+          </label>
+          <label className="admin-form-label">
+            Accent Color
+            <div className="color-input-row">
+              <input
+                type="color"
+                value={venue.accent_color}
+                onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })}
+                className="color-swatch"
+              />
+              <input
+                type="text"
+                className="admin-form-input"
+                value={venue.accent_color}
+                onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })}
+              />
+            </div>
+          </label>
+        </div>
+
+        {/* ── Buyer Information ── */}
+        <h2 className="admin-form-section-title">Buyer / Promoter Information</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Buyer Name (Company)
+            <input
+              type="text"
+              className="admin-form-input"
+              value={buyer.buyer_name}
+              onChange={(e) => setBuyer({ ...buyer, buyer_name: e.target.value })}
+              placeholder="e.g. West 72 Entertainment LLC"
+            />
+          </label>
+          <label className="admin-form-label">
+            Contract Signatory
+            <input
+              type="text"
+              className="admin-form-input"
+              value={buyer.contract_signatory}
+              onChange={(e) => setBuyer({ ...buyer, contract_signatory: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            Phone
+            <input
+              type="tel"
+              className="admin-form-input"
+              value={buyer.buyer_phone}
+              onChange={(e) => setBuyer({ ...buyer, buyer_phone: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label">
+            Email
+            <input
+              type="email"
+              className="admin-form-input"
+              value={buyer.buyer_email}
+              onChange={(e) => setBuyer({ ...buyer, buyer_email: e.target.value })}
+            />
+          </label>
+          <label className="admin-form-label admin-form-full">
+            Promoter Address
+            <input
+              type="text"
+              className="admin-form-input"
+              value={buyer.promoter_address}
+              onChange={(e) => setBuyer({ ...buyer, promoter_address: e.target.value })}
+              placeholder="798 N Royal Ave, Florence AL, 35630"
+            />
+          </label>
+        </div>
+
+        <button
+          type="submit"
+          className="admin-form-submit"
+          disabled={saving}
+        >
+          {saving ? "Saving…" : "Save Settings"}
+        </button>
+      </form>
+    </div>
   );
 }
