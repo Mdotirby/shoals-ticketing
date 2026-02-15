@@ -49,7 +49,7 @@ export default function LoginPage() {
         .from("admin_users")
         .select("role")
         .eq("id", authData.user.id)
-        .single();
+        .single() as { data: { role: string } | null; error: unknown };
 
       if (adminError || !adminRecord) {
         // If no admin record, check user_metadata as fallback

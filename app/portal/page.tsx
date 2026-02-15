@@ -56,7 +56,7 @@ export default function PortalPage() {
         .from("admin_users")
         .select("role")
         .eq("id", user.id)
-        .single();
+        .single() as { data: { role: string } | null; error: unknown };
 
       if (!adminRecord || (adminRecord.role !== "owner" && adminRecord.role !== "super_admin")) {
         router.push("/login");
