@@ -2908,3 +2908,77 @@ select.admin-form-input {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ============================================================
+   HEADER — Dynamic Scroll Effects
+   ============================================================ */
+
+/* Transition for scroll-based changes */
+.site-header {
+  transition: background 350ms ease, box-shadow 350ms ease, min-height 300ms ease;
+  background: transparent;
+  box-shadow: none;
+}
+
+.site-header.header-scrolled {
+  background: linear-gradient(0deg, #202045 0%, #000000 100%);
+  box-shadow: 0 0 16px #202045;
+}
+
+.header-inner {
+  transition: min-height 300ms ease;
+}
+
+.site-header.header-scrolled .header-inner {
+  min-height: clamp(72px, 6vw, 88px);
+}
+
+.site-header.header-scrolled .header-logo img {
+  width: clamp(64px, 5vw, 80px) !important;
+  height: clamp(64px, 5vw, 80px) !important;
+}
+
+.header-logo img {
+  transition: width 300ms ease, height 300ms ease;
+}
+
+/* Animated Hamburger */
+.hamburger {
+  width: 32px;
+  height: 24px;
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1001;
+}
+
+.hamburger-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: transform 250ms ease, opacity 200ms ease;
+}
+
+.hamburger-bar.open:nth-child(1) {
+  transform: translateY(11px) rotate(45deg);
+}
+
+.hamburger-bar.open:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-bar.open:nth-child(3) {
+  transform: translateY(-11px) rotate(-45deg);
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+}

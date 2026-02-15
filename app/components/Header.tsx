@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -12,46 +12,57 @@ const navItems = [
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // check initial state
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   return (
-   <header className="site-header">
-  <div className="header-inner">
-
-    <Link href="/" className="header-logo" aria-label="Go to homepage">
-      <Image
-        src="/beige-brown-logo.png"
-        alt="West72 Logo"
-        width={127}
-        height={127}
-        priority
-      />
-    </Link>
-
-    <button
-      type="button"
-      className="hamburger"
-      aria-label="Toggle navigation menu"
-      aria-expanded={isMenuOpen}
-      onClick={() => setIsMenuOpen((prev) => !prev)}
-    >
-      ☰
-    </button>
-
-    <nav className={`header-nav ${isMenuOpen ? "open" : ""}`}>
-      {navItems.map((item) => (
-        <Link
-          key={item.label}
-          href={item.href}
-          className="header-nav-link"
-          onClick={() => setIsMenuOpen(false)}
-        >
-          {item.label}
+    <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
+      <div className="header-inner">
+        <Link href="/" className="header-logo" aria-label="Go to homepage">
+          <Image
+            src="/beige-brown-logo.png"
+            alt="West72 Logo"
+            width={127}
+            height={127}
+            priority
+            unoptimized
+          />
         </Link>
-      ))}
-    </nav>
 
-  </div>
-</header>
+        <button
+          type="button"
+          className="hamburger"
+          aria-label="Toggle navigation menu"
+          aria-expanded={isMenuOpen}
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+        >
+          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+        </button>
 
+        <nav className={`header-nav ${isMenuOpen ? "open" : ""}`}>
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="header-nav-link"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
   );
 }
