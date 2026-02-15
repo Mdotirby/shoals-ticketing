@@ -328,12 +328,15 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #0a0a0a;
   text-align: left;
   line-height: 1;
   font-family: var(--font-bayon), sans-serif;
   font-size: 32px;
   margin: 0;
+  background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .event-meta-badges {
@@ -609,6 +612,10 @@ body {
   line-height: 1;
   color: #ffffff;
   flex: 1;
+  background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .ptc-price {
@@ -1285,6 +1292,10 @@ body {
   position: relative;
   font-family: var(--font-bayon), sans-serif;
   font-size: 80px;
+  background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .home-hero-cta {
@@ -1387,6 +1398,10 @@ border-radius: 0px 0px 0px 0px;
   text-align: center;
   line-height: 1.2;
   position: relative; 
+  background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .home-events-carousel {

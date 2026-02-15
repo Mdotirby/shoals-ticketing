@@ -1,38 +1,39 @@
 // POST: look up the authenticated user's admin role
-// Uses the service-role key to bypass RLS on admin_users.
+// Accepts { access_token } in the body, verifies with Supabase Auth,
+// then uses the service-role key to bypass RLS on admin_users.
 // Returns: { role } or 403 if user has no admin record.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    // 1. Get the authenticated user from request cookies
-    const cookieStore = await cookies();
-    const supabaseAuth = createServerClient(
+    const body = await request.json();
+    const { access_token } = body;
+
+    if (!access_token) {
+      return NextResponse.json(
+        { error: "access_token is required" },
+        { status: 400 }
+      );
+    }
+
+    // 1. Verify the access token with Supabase Auth using a temporary client
+    const authClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll() {
-            // read-only in route handlers
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
     const {
       data: { user },
       error: userError,
-    } = await supabaseAuth.auth.getUser();
+    } = await authClient.auth.getUser(access_token);
 
     if (userError || !user) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 }
+      );
     }
 
     // 2. Use service-role client to bypass RLS

@@ -9,7 +9,7 @@ type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_adm
 
 // Map roles to their dashboard routes
 const ROLE_ROUTES: Record<UserRole, string> = {
-  owner: "/portal",
+  owner: "/admin",
   super_admin: "/admin",
   venue_admin: "/admin",
   promoter: "/admin",
@@ -40,12 +40,18 @@ export default function LoginPage() {
         throw new Error(authError.message);
       }
 
-      if (!authData.user) {
+      if (!authData.user || !authData.session) {
         throw new Error("Login failed — no user returned");
       }
 
+      const accessToken = authData.session.access_token;
+
       // Look up admin role via server-side API (bypasses RLS)
-      const authRes = await fetch("/api/admin/auth", { method: "POST" });
+      const authRes = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
       let role: UserRole | undefined;
 
       if (authRes.ok) {
@@ -55,6 +61,8 @@ export default function LoginPage() {
         // No admin record — try auto-bootstrap (first user becomes owner)
         const bootstrapRes = await fetch("/api/admin/bootstrap", {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ access_token: accessToken }),
         });
 
         if (bootstrapRes.ok) {

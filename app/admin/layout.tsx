@@ -11,6 +11,7 @@ const sidebarItems = [
   { label: "Events", href: "/admin/events", icon: "🎪" },
   { label: "Sales", href: "/admin/orders", icon: "💰" },
   { label: "Scanner", href: "/admin/scan", icon: "📱" },
+  { label: "Portal", href: "/portal", icon: "👤" },
   { label: "Settings", href: "/admin/settings", icon: "⚙️" },
 ];
 

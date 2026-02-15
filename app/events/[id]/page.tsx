@@ -107,7 +107,6 @@ export default function EventDetailPage() {
                   isSelected={selectedTicketId === tt.id}
                   onSelect={setSelectedTicketId}
                   venueName={event.venue}
-                  imageUrl={event.image_url}
                 />
               ))}
             </div>

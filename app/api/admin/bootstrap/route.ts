@@ -1,35 +1,33 @@
 // POST /api/admin/bootstrap
 // Auto-promotes the authenticated user to "owner" if admin_users table is empty.
+// Accepts { access_token } in the body.
 // Uses the service-role key so RLS is bypassed.
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    // 1. Get the authenticated user from the request cookies
-    const cookieStore = await cookies();
-    const supabaseAuth = createServerClient(
+    const body = await request.json();
+    const { access_token } = body;
+
+    if (!access_token) {
+      return NextResponse.json(
+        { error: "access_token is required" },
+        { status: 400 }
+      );
+    }
+
+    // 1. Verify the access token with Supabase Auth
+    const authClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll() {
-            // read-only in route handlers
-          },
-        },
-      }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
     const {
       data: { user },
       error: userError,
-    } = await supabaseAuth.auth.getUser();
+    } = await authClient.auth.getUser(access_token);
 
     if (userError || !user) {
       return NextResponse.json(
