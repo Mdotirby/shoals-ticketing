@@ -24,8 +24,6 @@ export default function AdminCreateEventPage() {
     venue: "",
     date: "",
     time: "",
-    ticketing_fee: "3.00",
-    venue_rebate: "0.00",
     description: "",
     image_url: "",
   });
@@ -165,8 +163,6 @@ export default function AdminCreateEventPage() {
           venue: form.venue,
           date: dateTime,
           price: lowestPrice,
-          ticketing_fee: parseFloat(form.ticketing_fee),
-          venue_rebate: parseFloat(form.venue_rebate),
           description: form.description || null,
           image_url: form.image_url || null,
           status: "published",
@@ -249,33 +245,6 @@ export default function AdminCreateEventPage() {
             />
           </label>
 
-          <label className="admin-form-label">
-            Ticketing Fee ($)
-            <input
-              type="number"
-              name="ticketing_fee"
-              className="admin-form-input"
-              value={form.ticketing_fee}
-              onChange={handleChange}
-              placeholder="3.00"
-              step="0.01"
-              min="0"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Venue Rebate ($)
-            <input
-              type="number"
-              name="venue_rebate"
-              className="admin-form-input"
-              value={form.venue_rebate}
-              onChange={handleChange}
-              placeholder="0.00"
-              step="0.01"
-              min="0"
-            />
-          </label>
         </div>
 
         {/* ── Ticket Tiers ── */}

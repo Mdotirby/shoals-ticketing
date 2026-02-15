@@ -9,6 +9,7 @@ const sidebarItems = [
   { label: "Create Event", href: "/admin/events/new", icon: "🎵" },
   { label: "Create Offer", href: "/admin/offers/new", icon: "📝" },
   { label: "Events", href: "/admin/events", icon: "🎪" },
+  { label: "Sponsors", href: "/admin/sponsors", icon: "🤝" },
   { label: "Sales", href: "/admin/orders", icon: "💰" },
   { label: "Scanner", href: "/admin/scan", icon: "📱" },
   { label: "Portal", href: "/portal", icon: "👤" },

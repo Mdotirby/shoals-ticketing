@@ -27,8 +27,6 @@ export default function AdminEditEventPage() {
     venue: "",
     date: "",
     time: "",
-    ticketing_fee: "3.00",
-    venue_rebate: "0.00",
     description: "",
     image_url: "",
   });
@@ -63,8 +61,6 @@ export default function AdminEditEventPage() {
           venue: event.venue || "",
           date: dateStr,
           time: timeStr,
-          ticketing_fee: String(event.ticketing_fee ?? 3),
-          venue_rebate: String(event.venue_rebate ?? 0),
           description: event.description || "",
           image_url: event.image_url || "",
         });
@@ -222,8 +218,6 @@ export default function AdminEditEventPage() {
           venue: form.venue,
           date: dateTime,
           price: lowestPrice,
-          ticketing_fee: parseFloat(form.ticketing_fee),
-          venue_rebate: parseFloat(form.venue_rebate),
           description: form.description || null,
           image_url: form.image_url || null,
         }),
@@ -327,31 +321,6 @@ export default function AdminEditEventPage() {
             />
           </label>
 
-          <label className="admin-form-label">
-            Ticketing Fee ($)
-            <input
-              type="number"
-              name="ticketing_fee"
-              className="admin-form-input"
-              value={form.ticketing_fee}
-              onChange={handleChange}
-              step="0.01"
-              min="0"
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Venue Rebate ($)
-            <input
-              type="number"
-              name="venue_rebate"
-              className="admin-form-input"
-              value={form.venue_rebate}
-              onChange={handleChange}
-              step="0.01"
-              min="0"
-            />
-          </label>
         </div>
 
         {/* ── Ticket Tiers ── */}

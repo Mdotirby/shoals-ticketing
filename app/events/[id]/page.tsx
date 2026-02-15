@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
+import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import OrderSummary from "@/app/components/OrderSummary";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import Footer from "@/app/components/Footer";
-import { title } from "process";
 
 type EventData = {
   id: string;
@@ -28,6 +28,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,16 @@ export default function EventDetailPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Fetch sponsors for this event
+  useEffect(() => {
+    fetch(`/api/sponsors?event_id=${eventId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSponsors(data);
+      })
+      .catch(() => {});
+  }, [eventId]);
 
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
@@ -127,6 +138,47 @@ export default function EventDetailPage() {
             </div>
           </div>
         </section>
+
+        {/* ── Sponsors Section ── */}
+        {sponsors.length > 0 && (
+          <section className="event-sponsors-section">
+            <h2 className="event-sponsors-heading">Our Sponsors</h2>
+            {(["title", "presenting", "supporting"] as SponsorTier[]).map((tier) => {
+              const tierSponsors = sponsors.filter((s) => s.tier === tier);
+              if (tierSponsors.length === 0) return null;
+              return (
+                <div key={tier} className={`sponsor-tier-group sponsor-tier-${tier}`}>
+                  <h3 className="sponsor-tier-label">
+                    {tier === "title" ? "Title Sponsor" : tier === "presenting" ? "Presenting Sponsors" : "Supporting Sponsors"}
+                  </h3>
+                  <div className="sponsor-logos-row">
+                    {tierSponsors.map((s) => (
+                      <a
+                        key={s.id}
+                        href={s.website_url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="sponsor-logo-link"
+                      >
+                        {s.logo_url ? (
+                          <img
+                            src={s.logo_url}
+                            alt={s.name}
+                            className={`sponsor-logo sponsor-logo-${tier}`}
+                          />
+                        ) : (
+                          <span className={`sponsor-name-text sponsor-name-${tier}`}>
+                            {s.name}
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        )}
 
         <FAQAccordion />
       </main>
