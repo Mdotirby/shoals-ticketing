@@ -2982,3 +2982,130 @@ select.admin-form-input {
     display: flex;
   }
 }
+
+/* ============================================================
+   ADMIN MOBILE — Sidebar Toggle
+   ============================================================ */
+
+/* Mobile top bar (hidden on desktop) */
+.admin-mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #0e1028 0%, #151533 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 1001;
+}
+
+.admin-mobile-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.admin-mobile-toggle {
+  width: 28px;
+  height: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-toggle-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: transform 250ms ease, opacity 200ms ease;
+}
+
+.admin-toggle-bar.open:nth-child(1) {
+  transform: translateY(9px) rotate(45deg);
+}
+
+.admin-toggle-bar.open:nth-child(2) {
+  opacity: 0;
+}
+
+.admin-toggle-bar.open:nth-child(3) {
+  transform: translateY(-9px) rotate(-45deg);
+}
+
+/* Overlay backdrop */
+.admin-sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .admin-shell {
+    flex-direction: column;
+  }
+
+  .admin-mobile-topbar {
+    display: flex;
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 1002;
+    transform: translateX(-100%);
+    transition: transform 300ms ease;
+  }
+
+  .admin-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  .admin-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1001;
+  }
+
+  .admin-content {
+    padding: 20px 16px;
+    width: 100%;
+  }
+
+  /* Admin form grid — single column on mobile */
+  .admin-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Admin page header (partners, etc.) */
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ============================================================
+   CHECKOUT — Dark Theme Wrapper
+   ============================================================ */
+
+.checkout-embed-section {
+  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.checkout-embed {
+  border-radius: 12px;
+  overflow: hidden;
+}

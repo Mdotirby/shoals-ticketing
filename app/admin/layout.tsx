@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,6 +23,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Don't show sidebar on login page
   if (pathname === "/admin/login") {
@@ -30,13 +32,43 @@ export default function AdminLayout({
 
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar">
+      {/* Mobile top bar */}
+      <div className="admin-mobile-topbar">
+        <button
+          className="admin-mobile-toggle"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          aria-label="Toggle sidebar"
+        >
+          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
+          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
+          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
+        </button>
+        <Image
+          src="/beige-brown-logo.png"
+          alt="West 72"
+          width={48}
+          height={48}
+          unoptimized
+          className="admin-mobile-logo"
+        />
+      </div>
+
+      {/* Overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="admin-sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
           <Image
             src="/beige-brown-logo.png"
             alt="West 72"
             width={100}
             height={100}
+            unoptimized
             className="admin-sidebar-logo"
           />
         </div>
@@ -49,6 +81,7 @@ export default function AdminLayout({
               className={`admin-sidebar-link ${
                 pathname === item.href ? "active" : ""
               }`}
+              onClick={() => setSidebarOpen(false)}
             >
               <span className="admin-sidebar-icon">{item.icon}</span>
               {item.label}
