@@ -18,7 +18,8 @@ export async function POST(request) {
   const admin = createAdminClient();
   const body = await request.json();
 
-  const { data, error } = await admin
+  // 1. Insert the event
+  const { data: event, error: eventError } = await admin
     .from("events")
     .insert({
       title: body.title,
@@ -34,9 +35,33 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  if (eventError) {
+    return new Response(JSON.stringify({ error: eventError.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify(data), { status: 201 });
+  // 2. Insert ticket tiers (if provided)
+  if (Array.isArray(body.tiers) && body.tiers.length > 0) {
+    const tierRows = body.tiers.map((t, i) => ({
+      event_id: event.id,
+      tier_name: t.tier_name,
+      price: t.price,
+      capacity: t.capacity,
+      sort_order: t.sort_order ?? i,
+    }));
+
+    const { error: tierError } = await admin
+      .from("ticket_tiers")
+      .insert(tierRows);
+
+    if (tierError) {
+      // Event was created but tiers failed — log and return partial error
+      console.error("Failed to insert tiers:", tierError.message);
+      return new Response(
+        JSON.stringify({ ...event, _tierError: tierError.message }),
+        { status: 201 }
+      );
+    }
+  }
+
+  return new Response(JSON.stringify(event), { status: 201 });
 }

@@ -2464,3 +2464,98 @@ select.admin-form-input {
   border-color: rgba(208, 194, 144, 0.35);
   color: #d0c290;
 }
+
+/* ============================================================
+   TICKET TIER BUILDER (admin form)
+   ============================================================ */
+
+.admin-tiers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.admin-tier-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.admin-tier-number {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #d0c290;
+  white-space: nowrap;
+  min-width: 44px;
+}
+
+.admin-tier-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-tier-price {
+  max-width: 100px;
+}
+
+.admin-tier-capacity {
+  max-width: 100px;
+}
+
+.admin-tier-remove-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 100, 100, 0.7);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 200ms ease, background 200ms ease;
+}
+
+.admin-tier-remove-btn:hover {
+  color: #ff6464;
+  background: rgba(255, 100, 100, 0.1);
+}
+
+.admin-tier-add-btn {
+  margin-top: 10px;
+  padding: 8px 18px;
+  background: rgba(208, 194, 144, 0.1);
+  border: 1px dashed rgba(208, 194, 144, 0.35);
+  border-radius: 8px;
+  color: #d0c290;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+
+.admin-tier-add-btn:hover {
+  background: rgba(208, 194, 144, 0.18);
+  border-color: rgba(208, 194, 144, 0.55);
+}
+
+@media (max-width: 768px) {
+  .admin-tier-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .admin-tier-input {
+    flex-basis: 100%;
+  }
+
+  .admin-tier-price,
+  .admin-tier-capacity {
+    max-width: none;
+    flex-basis: calc(50% - 4px);
+  }
+}

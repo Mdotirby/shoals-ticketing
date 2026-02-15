@@ -3,8 +3,14 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
+import { TicketTierDraft } from "@/lib/types/ticket";
 
 const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
+const MAX_TIERS = 8;
+
+function emptyTier(): TicketTierDraft {
+  return { tier_name: "General Admission", price: "", capacity: "" };
+}
 
 export default function AdminCreateEventPage() {
   const router = useRouter();
@@ -18,12 +24,14 @@ export default function AdminCreateEventPage() {
     venue: "",
     date: "",
     time: "",
-    price: "",
     ticketing_fee: "3.00",
     venue_rebate: "0.00",
     description: "",
     image_url: "",
   });
+
+  // Tier builder state — starts with one default tier
+  const [tiers, setTiers] = useState<TicketTierDraft[]>([emptyTier()]);
 
   // Cropper state
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
@@ -35,6 +43,31 @@ export default function AdminCreateEventPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ── Tier handlers ──
+  const handleTierChange = (
+    index: number,
+    field: keyof TicketTierDraft,
+    value: string
+  ) => {
+    setTiers((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, [field]: value } : t))
+    );
+  };
+
+  const addTier = () => {
+    if (tiers.length >= MAX_TIERS) return;
+    setTiers((prev) => [
+      ...prev,
+      { tier_name: "", price: "", capacity: "" },
+    ]);
+  };
+
+  const removeTier = (index: number) => {
+    if (tiers.length <= 1) return; // always keep at least 1
+    setTiers((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ── Image handlers ──
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -92,15 +125,37 @@ export default function AdminCreateEventPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    // Validate tiers
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i];
+      if (!t.tier_name.trim()) {
+        setError(`Tier ${i + 1}: name is required.`);
+        return;
+      }
+      if (!t.price || isNaN(parseFloat(t.price)) || parseFloat(t.price) < 0) {
+        setError(`Tier ${i + 1}: price must be a valid number.`);
+        return;
+      }
+      if (!t.capacity || isNaN(parseInt(t.capacity)) || parseInt(t.capacity) < 1) {
+        setError(`Tier ${i + 1}: capacity must be at least 1.`);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
       const dateTime = form.time
         ? `${form.date}T${form.time}:00`
         : `${form.date}T19:00:00`;
+
+      // Use the lowest tier price as the event's display price
+      const lowestPrice = Math.min(...tiers.map((t) => parseFloat(t.price)));
 
       const res = await fetch("/api/events", {
         method: "POST",
@@ -109,12 +164,18 @@ export default function AdminCreateEventPage() {
           title: form.title,
           venue: form.venue,
           date: dateTime,
-          price: parseFloat(form.price),
+          price: lowestPrice,
           ticketing_fee: parseFloat(form.ticketing_fee),
           venue_rebate: parseFloat(form.venue_rebate),
           description: form.description || null,
           image_url: form.image_url || null,
           status: "published",
+          tiers: tiers.map((t, i) => ({
+            tier_name: t.tier_name.trim(),
+            price: parseFloat(t.price),
+            capacity: parseInt(t.capacity),
+            sort_order: i,
+          })),
         }),
       });
 
@@ -189,21 +250,6 @@ export default function AdminCreateEventPage() {
           </label>
 
           <label className="admin-form-label">
-            Ticket Price ($) *
-            <input
-              type="number"
-              name="price"
-              className="admin-form-input"
-              value={form.price}
-              onChange={handleChange}
-              placeholder="20.00"
-              step="0.01"
-              min="0"
-              required
-            />
-          </label>
-
-          <label className="admin-form-label">
             Ticketing Fee ($)
             <input
               type="number"
@@ -230,6 +276,71 @@ export default function AdminCreateEventPage() {
               min="0"
             />
           </label>
+        </div>
+
+        {/* ── Ticket Tiers ── */}
+        <div className="admin-form-label admin-form-full">
+          Ticket Tiers *
+          <div className="admin-tiers-list">
+            {tiers.map((tier, i) => (
+              <div key={i} className="admin-tier-row">
+                <span className="admin-tier-number">Tier {i + 1}</span>
+                <input
+                  type="text"
+                  className="admin-form-input admin-tier-input"
+                  placeholder="Tier name (e.g. GA, VIP)"
+                  value={tier.tier_name}
+                  onChange={(e) =>
+                    handleTierChange(i, "tier_name", e.target.value)
+                  }
+                  required
+                />
+                <input
+                  type="number"
+                  className="admin-form-input admin-tier-input admin-tier-price"
+                  placeholder="Price"
+                  value={tier.price}
+                  onChange={(e) =>
+                    handleTierChange(i, "price", e.target.value)
+                  }
+                  step="0.01"
+                  min="0"
+                  required
+                />
+                <input
+                  type="number"
+                  className="admin-form-input admin-tier-input admin-tier-capacity"
+                  placeholder="Capacity"
+                  value={tier.capacity}
+                  onChange={(e) =>
+                    handleTierChange(i, "capacity", e.target.value)
+                  }
+                  min="1"
+                  step="1"
+                  required
+                />
+                {tiers.length > 1 && (
+                  <button
+                    type="button"
+                    className="admin-tier-remove-btn"
+                    onClick={() => removeTier(i)}
+                    title="Remove tier"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {tiers.length < MAX_TIERS && (
+            <button
+              type="button"
+              className="admin-tier-add-btn"
+              onClick={addTier}
+            >
+              + Add Tier
+            </button>
+          )}
         </div>
 
         {/* Image upload section */}

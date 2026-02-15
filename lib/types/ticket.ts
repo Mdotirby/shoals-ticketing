@@ -9,6 +9,24 @@ export type TicketType = {
   perks?: string[]; // e.g. ["All sessions & workshops", "Meals & coffee breaks"]
 };
 
+/** A ticket tier stored in the ticket_tiers table */
+export type TicketTier = {
+  id: string;
+  event_id: string;
+  tier_name: string;
+  price: number;
+  capacity: number;
+  sort_order: number;
+  created_at: string;
+};
+
+/** Shape used in the tier-builder UI before persistence */
+export type TicketTierDraft = {
+  tier_name: string;
+  price: string; // string for form input
+  capacity: string; // string for form input
+};
+
 export type Ticket = {
   id: string;
   order_id: string;
