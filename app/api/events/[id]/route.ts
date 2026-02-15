@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -6,8 +6,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const admin = createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("events")
     .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,tax_rate")
     .eq("id", id)

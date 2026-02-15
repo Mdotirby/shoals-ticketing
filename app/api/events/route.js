@@ -1,16 +1,17 @@
-import { supabase } from "@/lib/supabase";
 import { createAdminClient } from "@/lib/supabase-server";
 
 export async function GET() {
-  const { data, error } = await supabase
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate")
+    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status")
+    .or("status.eq.published,status.is.null")
     .order("date", { ascending: true });
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify(data), { status: 200 })
+  return new Response(JSON.stringify(data ?? []), { status: 200 })
 }
 
 export async function POST(request) {

@@ -1,5 +1,5 @@
 import { getStripe } from "@/lib/stripe";
-import { supabase } from "@/lib/supabase";
+import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 // Stripe charges 2.9% + $0.30 per transaction
@@ -19,7 +19,8 @@ export async function POST(request: Request) {
     }
 
     // Look up event from Supabase
-    const { data: event, error: eventError } = await supabase
+    const admin = createAdminClient();
+    const { data: event, error: eventError } = await admin
       .from("events")
       .select("id,title,venue,date,price,ticketing_fee,venue_rebate,tax_rate")
       .eq("id", event_id)

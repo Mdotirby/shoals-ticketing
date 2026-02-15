@@ -44,25 +44,38 @@ export default function LoginPage() {
         throw new Error("Login failed — no user returned");
       }
 
-      // Fetch user role from admin_users table
-      const { data: adminRecord, error: adminError } = await supabase
-        .from("admin_users")
-        .select("role")
-        .eq("id", authData.user.id)
-        .single() as { data: { role: string } | null; error: unknown };
+      // Look up admin role via server-side API (bypasses RLS)
+      const authRes = await fetch("/api/admin/auth", { method: "POST" });
+      let role: UserRole | undefined;
 
-      if (adminError || !adminRecord) {
-        // If no admin record, check user_metadata as fallback
-        const role = authData.user.user_metadata?.role as UserRole | undefined;
-        if (role && ROLE_ROUTES[role]) {
-          router.push(ROLE_ROUTES[role]);
-          return;
+      if (authRes.ok) {
+        const authBody = await authRes.json();
+        role = authBody.role as UserRole;
+      } else {
+        // No admin record — try auto-bootstrap (first user becomes owner)
+        const bootstrapRes = await fetch("/api/admin/bootstrap", {
+          method: "POST",
+        });
+
+        if (bootstrapRes.ok) {
+          const bootstrapData = await bootstrapRes.json();
+          role = bootstrapData.role as UserRole;
+        } else {
+          // Check user_metadata as last resort
+          const metaRole = authData.user.user_metadata?.role as UserRole | undefined;
+          if (metaRole && ROLE_ROUTES[metaRole]) {
+            role = metaRole;
+          } else {
+            throw new Error(
+              "Access denied — your account has no admin role. " +
+              "Ask an existing owner to add you, or if this is a fresh install, " +
+              "check that your admin_users row exists in Supabase."
+            );
+          }
         }
-        throw new Error("Access denied — no admin role assigned");
       }
 
-      const role = adminRecord.role as UserRole;
-      const route = ROLE_ROUTES[role];
+      const route = ROLE_ROUTES[role!];
 
       if (!route) {
         throw new Error(`Unknown role: ${role}`);

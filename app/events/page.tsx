@@ -19,9 +19,16 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetch("/api/events")
-      .then((res) => res.json())
-      .then(setEvents)
-      .catch(() => {})
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch events");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setEvents(data);
+        }
+      })
+      .catch((err) => {
+        console.error("Events fetch error:", err);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
