@@ -142,14 +142,14 @@ export default function EventDetailPage() {
         {/* ── Sponsors Section ── */}
         {sponsors.length > 0 && (
           <section className="event-sponsors-section">
-            <h2 className="event-sponsors-heading">Our Sponsors</h2>
+            <h2 className="event-sponsors-heading">Our Partners</h2>
             {(["title", "presenting", "supporting"] as SponsorTier[]).map((tier) => {
               const tierSponsors = sponsors.filter((s) => s.tier === tier);
               if (tierSponsors.length === 0) return null;
               return (
                 <div key={tier} className={`sponsor-tier-group sponsor-tier-${tier}`}>
                   <h3 className="sponsor-tier-label">
-                    {tier === "title" ? "Title Sponsor" : tier === "presenting" ? "Presenting Sponsors" : "Supporting Sponsors"}
+                    {tier === "title" ? "Title Partner" : tier === "presenting" ? "Presenting Partners" : "Supporting Partners"}
                   </h3>
                   <div className="sponsor-logos-row">
                     {tierSponsors.map((s) => (

@@ -40,7 +40,7 @@ export default function AdminEditSponsorPage() {
         });
         if (Array.isArray(eventsData)) setEvents(eventsData);
       })
-      .catch(() => setError("Failed to load sponsor"))
+      .catch(() => setError("Failed to load partner"))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -70,12 +70,12 @@ export default function AdminEditSponsorPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to update sponsor");
+        throw new Error(data.error || "Failed to update partner");
       }
 
       router.push("/admin/sponsors");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to update sponsor");
+      setError(err instanceof Error ? err.message : "Failed to update partner");
     } finally {
       setSaving(false);
     }
@@ -84,7 +84,7 @@ export default function AdminEditSponsorPage() {
   if (loading) {
     return (
       <div className="admin-form-page">
-        <h1 className="admin-page-title">Edit Sponsor</h1>
+        <h1 className="admin-page-title">Edit Partner</h1>
         <p style={{ color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
           Loading…
         </p>
@@ -94,14 +94,14 @@ export default function AdminEditSponsorPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Edit Sponsor</h1>
+      <h1 className="admin-page-title">Edit Partner</h1>
 
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
         <div className="admin-form-grid">
           <label className="admin-form-label">
-            Sponsor Name *
+            Partner Name *
             <input
               type="text"
               name="name"
@@ -120,9 +120,9 @@ export default function AdminEditSponsorPage() {
               value={form.tier}
               onChange={handleChange}
             >
-              <option value="title">🏆 Title Sponsor</option>
-              <option value="presenting">⭐ Presenting Sponsor</option>
-              <option value="supporting">🤝 Supporting Sponsor</option>
+              <option value="title">🏆 Title Partner</option>
+              <option value="presenting">⭐ Presenting Partner</option>
+              <option value="supporting">🤝 Supporting Partner</option>
             </select>
           </label>
 

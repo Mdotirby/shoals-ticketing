@@ -2791,3 +2791,120 @@ select.admin-form-input {
     align-items: flex-start;
   }
 }
+
+/* ============================================================
+   DASHBOARD ANALYTICS
+   ============================================================ */
+
+.admin-dashboard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.dash-loading {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  padding: 40px 0;
+}
+
+/* KPI Grid */
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.dash-kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 24px;
+  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+}
+
+.dash-kpi-label {
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-kpi-value {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  color: #d0c290;
+  line-height: 1;
+}
+
+/* Section Titles */
+.dash-section-title {
+  margin: 0;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.dash-empty {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+}
+
+/* Chart Section */
+.dash-chart-section {
+  width: 100%;
+}
+
+.dash-chart-wrapper {
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+}
+
+/* Tier Breakdown Table */
+.dash-table-section {
+  width: 100%;
+}
+
+.dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+}
+
+.dash-table th {
+  text-align: left;
+  padding: 10px 16px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dash-table td {
+  padding: 12px 16px;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.dash-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 768px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

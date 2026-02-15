@@ -54,12 +54,12 @@ export default function AdminCreateSponsorPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create sponsor");
+        throw new Error(data.error || "Failed to create partner");
       }
 
       router.push("/admin/sponsors");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to create sponsor");
+      setError(err instanceof Error ? err.message : "Failed to create partner");
     } finally {
       setLoading(false);
     }
@@ -67,14 +67,14 @@ export default function AdminCreateSponsorPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Add Sponsor</h1>
+      <h1 className="admin-page-title">Add Partner</h1>
 
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
         <div className="admin-form-grid">
           <label className="admin-form-label">
-            Sponsor Name *
+            Partner Name *
             <input
               type="text"
               name="name"
@@ -94,9 +94,9 @@ export default function AdminCreateSponsorPage() {
               value={form.tier}
               onChange={handleChange}
             >
-              <option value="title">🏆 Title Sponsor</option>
-              <option value="presenting">⭐ Presenting Sponsor</option>
-              <option value="supporting">🤝 Supporting Sponsor</option>
+              <option value="title">🏆 Title Partner</option>
+              <option value="presenting">⭐ Presenting Partner</option>
+              <option value="supporting">🤝 Supporting Partner</option>
             </select>
           </label>
 
@@ -147,7 +147,7 @@ export default function AdminCreateSponsorPage() {
           className="admin-form-submit"
           disabled={loading}
         >
-          {loading ? "Creating..." : "Create Sponsor"}
+          {loading ? "Creating..." : "Create Partner"}
         </button>
       </form>
     </div>

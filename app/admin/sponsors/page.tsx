@@ -25,7 +25,7 @@ export default function AdminSponsorsPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this sponsor?")) return;
+    if (!confirm("Delete this partner?")) return;
 
     const res = await fetch(`/api/sponsors/${id}`, { method: "DELETE" });
     if (res.ok) {
@@ -36,9 +36,9 @@ export default function AdminSponsorsPage() {
   return (
     <div className="admin-form-page">
       <div className="admin-page-header">
-        <h1 className="admin-page-title">Sponsors</h1>
+        <h1 className="admin-page-title">Partners</h1>
         <Link href="/admin/sponsors/new" className="admin-header-btn">
-          + New Sponsor
+          + New Partner
         </Link>
       </div>
 
@@ -48,7 +48,7 @@ export default function AdminSponsorsPage() {
 
       {!loading && sponsors.length === 0 && (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          No sponsors yet. Click &quot;+ New Sponsor&quot; to add one.
+          No partners yet. Click &quot;+ New Partner&quot; to add one.
         </p>
       )}
 
