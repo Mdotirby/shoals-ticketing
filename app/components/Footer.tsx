@@ -11,14 +11,17 @@ const infoLinks = [
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
   { label: "FAQ", href: "/faq" },
-  { label: "Venue", href: "/venue" },
+];
+
+const venueLinks = [
+  { label: "Singin\u2019 River Live", href: "/venue" },
+  { label: "Log in", href: "/login" },
 ];
 
 const connectLinks = [
   { label: "Instagram", href: "https://instagram.com" },
   { label: "Facebook", href: "https://facebook.com" },
   { label: "Email Us", href: "mailto:info@west72entertainment.com" },
-  { label: "Admin Console", href: "/admin" },
 ];
 
 export default function Footer() {
@@ -58,6 +61,15 @@ export default function Footer() {
           <div className="footer-column">
             <h3 className="footer-column-heading">Information</h3>
             {infoLinks.map((link) => (
+              <Link key={link.label} href={link.href} className="footer-link">
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="footer-column">
+            <h3 className="footer-column-heading">Venues</h3>
+            {venueLinks.map((link) => (
               <Link key={link.label} href={link.href} className="footer-link">
                 {link.label}
               </Link>

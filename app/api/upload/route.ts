@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-const MAX_SIZE = 10 * 1024 * 1024; // 5 MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIZE = 45 * 1024 * 1024; // 45 MB
 
 export async function POST(request: Request) {
   try {
@@ -15,14 +15,14 @@ export async function POST(request: Request) {
 
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Only .jpeg, .png, and .webp are allowed." },
+        { error: "Invalid file type. Only .jpg, .jpeg, .png, and .webp are allowed." },
         { status: 400 }
       );
     }
 
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 5 MB." },
+        { error: "File too large. Maximum size is 45 MB." },
         { status: 400 }
       );
     }

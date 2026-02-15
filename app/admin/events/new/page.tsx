@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
 
-const ACCEPTED_IMAGE_TYPES = ".jpeg,.jpg,.png,.webp";
+const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
 
 export default function AdminCreateEventPage() {
   const router = useRouter();
@@ -39,9 +39,9 @@ export default function AdminCreateEventPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     if (!validTypes.includes(file.type)) {
-      setError("Only .jpeg, .png, and .webp images are allowed.");
+      setError("Only .jpeg, .jpg .png, and .webp images are allowed.");
       return;
     }
 
@@ -265,7 +265,7 @@ export default function AdminCreateEventPage() {
                       Click to upload an image
                     </span>
                     <span className="admin-image-dropzone-hint">
-                      .jpeg, .png, or .webp — max 5 MB
+                      .jpg, .jpeg, .png, or .webp — max 45 MB
                     </span>
                   </>
                 )}
