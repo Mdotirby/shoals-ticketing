@@ -3109,3 +3109,137 @@ select.admin-form-input {
   border-radius: 12px;
   overflow: hidden;
 }
+
+/* ============================================================
+   REPORTS MODULE
+   ============================================================ */
+
+.report-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 20px;
+}
+
+.report-tab {
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.45);
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.report-tab:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.report-tab.active {
+  color: #d0c290;
+  border-bottom-color: #d0c290;
+}
+
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.report-filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.report-filter-label .admin-form-input {
+  min-width: 160px;
+}
+
+.report-export-btns {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.report-export-btn {
+  padding: 8px 16px;
+  background: rgba(208, 194, 144, 0.1);
+  border: 1px solid rgba(208, 194, 144, 0.3);
+  border-radius: 8px;
+  color: #d0c290;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.report-export-btn:hover:not(:disabled) {
+  background: rgba(208, 194, 144, 0.2);
+}
+
+.report-export-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.report-export-pdf {
+  background: rgba(100, 130, 255, 0.1);
+  border-color: rgba(100, 130, 255, 0.3);
+  color: #91a7ff;
+}
+
+.report-export-pdf:hover:not(:disabled) {
+  background: rgba(100, 130, 255, 0.2);
+}
+
+.report-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.report-table {
+  min-width: 700px;
+}
+
+.report-row-count {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+@media (max-width: 768px) {
+  .report-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .report-tab {
+    white-space: nowrap;
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .report-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-export-btns {
+    margin-left: 0;
+  }
+
+  .report-filter-label .admin-form-input {
+    min-width: 0;
+  }
+}
