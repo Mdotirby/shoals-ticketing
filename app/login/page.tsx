@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Footer from "@/app/components/Footer";
 
@@ -17,8 +17,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   box_office: "/admin/scan",
 };
 
-export default function LoginPage() {
-  const router = useRouter();
+function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -102,6 +101,48 @@ export default function LoginPage() {
   };
 
   return (
+    <form className="login-form" onSubmit={handleSubmit}>
+      {error && <div className="login-form-error">{error}</div>}
+
+      <label className="login-form-label">
+        Email
+        <input
+          type="email"
+          className="login-form-input"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          required
+          autoComplete="email"
+        />
+      </label>
+
+      <label className="login-form-label">
+        Password
+        <input
+          type="password"
+          className="login-form-input"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+          required
+          autoComplete="current-password"
+        />
+      </label>
+
+      <button
+        type="submit"
+        className="login-form-submit"
+        disabled={loading}
+      >
+        {loading ? "Signing in…" : "Sign In"}
+      </button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
@@ -109,43 +150,9 @@ export default function LoginPage() {
         </section>
 
         <section className="login-section">
-          <form className="login-form" onSubmit={handleSubmit}>
-            {error && <div className="login-form-error">{error}</div>}
-
-            <label className="login-form-label">
-              Email
-              <input
-                type="email"
-                className="login-form-input"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="login-form-label">
-              Password
-              <input
-                type="password"
-                className="login-form-input"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                autoComplete="current-password"
-              />
-            </label>
-
-            <button
-              type="submit"
-              className="login-form-submit"
-              disabled={loading}
-            >
-              {loading ? "Signing in…" : "Sign In"}
-            </button>
-          </form>
+          <Suspense fallback={<div className="login-form">Loading...</div>}>
+            <LoginForm />
+          </Suspense>
         </section>
       </main>
 
