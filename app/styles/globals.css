@@ -4124,3 +4124,32 @@ select.admin-form-input {
   padding-top: 20px;
   border-top: 1px solid rgba(255,255,255,0.06);
 }
+
+/* ============================================================
+   VENUE THEMING — CSS Variable Overrides
+   Applied when venue-slug cookie is set via VenueThemeProvider
+   ============================================================ */
+
+:root {
+  --venue-primary: #d0c290;
+  --venue-secondary: #0b0d1d;
+  --venue-accent: #202045;
+}
+
+/* Override key colors with venue theme variables */
+.site-header.header-scrolled { background: linear-gradient(0deg, var(--venue-accent) 0%, var(--venue-secondary) 100%); }
+.home-page { background: var(--venue-secondary); }
+.home-hero-overlay { background: linear-gradient(180deg, rgba(11,13,29,0.3) 0%, rgba(11,13,29,0.6) 60%, var(--venue-secondary) 100%); }
+.home-hero-cta:hover { border-color: var(--venue-primary); background: color-mix(in srgb, var(--venue-primary) 8%, transparent); }
+.home-upcoming-heading { background: linear-gradient(180deg, #888 0%, #e0e0e0 35%, #fff 55%, #b0b0b0 80%, #fff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.home-cta-title { color: var(--venue-primary); }
+.home-cta-glow { background: radial-gradient(50% 50% at 50% 50%, color-mix(in srgb, var(--venue-primary) 12%, transparent) 0%, transparent 100%); }
+.ticket-page { background: linear-gradient(180deg, var(--venue-secondary) 0%, var(--venue-accent) 40%, var(--venue-secondary) 100%); }
+.ticket-hero-title { color: var(--venue-primary); }
+.ticket-selection-eyebrow { color: var(--venue-primary); }
+.purchase-ticket-card.selected { border-color: color-mix(in srgb, var(--venue-primary) 50%, transparent); }
+.purchase-ticket-card.selected .ptc-bubble { background-color: var(--venue-primary); border-color: var(--venue-primary); }
+.ptc-bottom-bar { background: linear-gradient(90deg, var(--venue-primary), color-mix(in srgb, var(--venue-primary) 60%, #fff)); }
+.event-sponsors-heading { color: var(--venue-primary); }
+.digital-ticket-event { color: var(--venue-primary); }
+.digital-ticket-card { border-color: color-mix(in srgb, var(--venue-primary) 20%, transparent); }

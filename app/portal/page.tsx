@@ -294,13 +294,14 @@ export default function PortalPage() {
               <h2 className="portal-card-title">All Venues</h2>
               <div className="portal-table-wrapper">
                 <table className="portal-table">
-                  <thead><tr><th>Name</th><th>Subdomain</th><th>Capacity</th></tr></thead>
+                  <thead><tr><th>Name</th><th>Subdomain</th><th>Capacity</th><th></th></tr></thead>
                   <tbody>
                     {venues.map((v) => (
                       <tr key={v.id}>
                         <td>{v.name}</td>
                         <td><code className="portal-slug">{v.slug}.venuecore.live</code></td>
                         <td>{v.capacity || "—"}</td>
+                        <td><a href={`/admin/venues/${v.id}/edit`} className="admin-sponsor-edit-btn">Edit</a></td>
                       </tr>
                     ))}
                   </tbody>

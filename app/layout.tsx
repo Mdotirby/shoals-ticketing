@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bayon, Cairo, Geist, Geist_Mono, Urbanist } from "next/font/google";
 import "./styles/globals.css";
 import Header from "./components/Header";
+import VenueThemeProvider from "./components/VenueThemeProvider";
 
 
 const geistSans = Geist({
@@ -55,8 +56,10 @@ export default function RootLayout({
                  <body
         className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
-        <Header />
-        {children}
+        <VenueThemeProvider>
+          <Header />
+          {children}
+        </VenueThemeProvider>
       </body>
     </html>
   );

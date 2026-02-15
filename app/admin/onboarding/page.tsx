@@ -5,6 +5,8 @@ import { getCookie } from "@/lib/cookies";
 
 export default function AdminOnboardingPage() {
   const [step, setStep] = useState<"venue" | "admin" | "done">("venue");
+  const [uploading, setUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [createdVenueId, setCreatedVenueId] = useState("");
@@ -61,7 +63,7 @@ export default function AdminOnboardingPage() {
         body: JSON.stringify({
           name: venue.name,
           slug: venue.slug,
-          logo_url: null,
+          logo_url: logoPreview || null,
         }),
       });
 
@@ -192,6 +194,40 @@ export default function AdminOnboardingPage() {
               <input type="number" className="admin-form-input" value={venue.tax_rate} onChange={(e) => setVenue({ ...venue, tax_rate: e.target.value })} step="0.01" min="0" placeholder="0.09" />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>e.g. 0.09 = 9%, 0.11 = 11%</span>
             </label>
+          </div>
+
+          <h2 className="admin-form-section-title">Venue Logo</h2>
+          <div style={{ marginBottom: 16 }}>
+            {logoPreview ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <img src={logoPreview} alt="Logo" style={{ width: 80, height: 80, objectFit: "contain", borderRadius: 8 }} />
+                <button type="button" className="admin-tier-remove-btn" onClick={() => { setLogoPreview(null); setVenue({ ...venue }); }}>Remove</button>
+              </div>
+            ) : (
+              <label className="admin-form-label">
+                Upload Logo (.png, .jpg, .jpeg — max 45MB)
+                <input type="file" accept=".png,.jpg,.jpeg" className="admin-form-input" style={{ padding: 8 }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 45 * 1024 * 1024) { setError("File too large (45MB max)"); return; }
+                    setUploading(true); setError("");
+                    try {
+                      const fd = new FormData(); fd.append("file", file, `venue-logo-${Date.now()}.${file.name.split(".").pop()}`);
+                      const res = await fetch("/api/upload", { method: "POST", body: fd });
+                      if (!res.ok) throw new Error("Upload failed");
+                      const { url } = await res.json();
+                      setVenue({ ...venue }); // trigger re-render
+                      setLogoPreview(url);
+                      // Will be saved to venue on create
+                      (venue as Record<string, unknown>).logo_url = url;
+                    } catch { setError("Logo upload failed"); }
+                    finally { setUploading(false); }
+                  }}
+                />
+                {uploading && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Uploading…</span>}
+              </label>
+            )}
           </div>
 
           <h2 className="admin-form-section-title">Brand Colors</h2>
