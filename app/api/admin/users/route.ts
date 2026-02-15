@@ -75,15 +75,21 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   const admin = createAdminClient();
   const body = await request.json();
-  const { id, role, venue_id } = body;
+  const { id, ...fields } = body;
 
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
+  // Remove fields that shouldn't be updated
+  delete fields.email;
+  delete fields.created_at;
+
+  // Normalize null values
   const updates: Record<string, unknown> = {};
-  if (role !== undefined) updates.role = role;
-  if (venue_id !== undefined) updates.venue_id = venue_id || null;
+  for (const [key, value] of Object.entries(fields)) {
+    updates[key] = value === "" ? null : value;
+  }
 
   const { data, error } = await admin
     .from("admin_users")
