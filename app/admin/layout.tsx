@@ -62,7 +62,6 @@ export default function AdminLayout({
     }
 
     const venueId = getCookie("venue-id");
-    const role = getCookie("user-role") || "";
     if (venueId) {
       fetch("/api/venues")
         .then((r) => r.json())
