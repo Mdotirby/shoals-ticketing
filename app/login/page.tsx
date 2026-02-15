@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Footer from "@/app/components/Footer";
 
@@ -19,6 +19,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -83,13 +84,16 @@ export default function LoginPage() {
         }
       }
 
-      const route = ROLE_ROUTES[role!];
+      // Use redirect param if present, otherwise fall back to role-based route
+      const redirect = searchParams.get("redirect");
+      const route = redirect || ROLE_ROUTES[role!];
 
       if (!route) {
         throw new Error(`Unknown role: ${role}`);
       }
 
-      router.push(route);
+      // Full page navigation so middleware picks up the new cookie session
+      window.location.href = route;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

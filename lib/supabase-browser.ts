@@ -1,22 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-// Browser-side Supabase client — used for auth in client components
-// Uses the anon key (safe for browser) with auth auto-refresh
-let _client: ReturnType<typeof createClient> | null = null;
+// Browser-side Supabase client — uses @supabase/ssr to store
+// sessions in cookies (not localStorage), so the Next.js middleware
+// can read the auth state.
+let _client: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getSupabaseBrowser() {
   if (_client) return _client;
 
-  _client = createClient(
+  _client = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   return _client;
