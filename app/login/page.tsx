@@ -57,6 +57,10 @@ function LoginForm() {
       if (authRes.ok) {
         const authBody = await authRes.json();
         role = authBody.role as UserRole;
+        // Store venue_id for admin pages
+        if (authBody.venue_id) {
+          document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
+        }
       } else {
         // No admin record — try auto-bootstrap (first user becomes owner)
         const bootstrapRes = await fetch("/api/admin/bootstrap", {

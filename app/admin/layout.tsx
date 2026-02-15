@@ -7,9 +7,8 @@ import Image from "next/image";
 
 const sidebarItems = [
   { label: "Dashboard", href: "/admin", icon: "🏠" },
-  { label: "Create Event", href: "/admin/events/new", icon: "🎵" },
-  { label: "Create Offer", href: "/admin/offers/new", icon: "📝" },
   { label: "Events", href: "/admin/events", icon: "🎪" },
+  { label: "Create Offer", href: "/admin/offers/new", icon: "📝" },
   { label: "Partners", href: "/admin/sponsors", icon: "🤝" },
   { label: "Reports", href: "/admin/reports", icon: "📊" },
   { label: "Sales", href: "/admin/orders", icon: "💰" },

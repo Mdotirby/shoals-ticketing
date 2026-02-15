@@ -1,16 +1,98 @@
-// GET: list admin users (full_admin only)
-// POST: create admin user (full_admin only)
-
+import { createAdminClient } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+// GET: list all admin users
 export async function GET() {
-  // TODO: Phase 5 — list admin users
-  return NextResponse.json({ message: "Admin users list — not wired up yet" });
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("admin_users")
+    .select("id, email, role, venue_id, created_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data ?? []);
 }
 
+// POST: create a new admin user (creates auth user + admin_users row)
 export async function POST(request: Request) {
-  // TODO: Phase 5 — create admin user
-  // 1. Create user in Supabase Auth
-  // 2. Insert record in admin_users table with role
-  return NextResponse.json({ message: "Create admin user — not wired up yet" });
+  const body = await request.json();
+  const { email, password, role, venue_id } = body;
+
+  if (!email || !password || !role) {
+    return NextResponse.json(
+      { error: "email, password, and role are required" },
+      { status: 400 }
+    );
+  }
+
+  // Use service role to create auth user
+  const authAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  // 1. Create the auth user
+  const { data: authData, error: authError } =
+    await authAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+
+  if (authError) {
+    return NextResponse.json({ error: authError.message }, { status: 500 });
+  }
+
+  // 2. Insert admin_users row
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("admin_users")
+    .insert({
+      id: authData.user.id,
+      email,
+      role,
+      venue_id: venue_id || null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data, { status: 201 });
+}
+
+// PUT: update an admin user's role or venue assignment
+export async function PUT(request: Request) {
+  const admin = createAdminClient();
+  const body = await request.json();
+  const { id, role, venue_id } = body;
+
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (role !== undefined) updates.role = role;
+  if (venue_id !== undefined) updates.venue_id = venue_id || null;
+
+  const { data, error } = await admin
+    .from("admin_users")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
 }

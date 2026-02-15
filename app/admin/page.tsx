@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getCookie } from "@/lib/cookies";
 import {
   LineChart,
   Line,
@@ -39,7 +40,10 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/dashboard")
+    const venueId = getCookie("venue-id");
+    const params = venueId ? `?venue_id=${venueId}` : "";
+
+    fetch(`/api/admin/dashboard${params}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed");
         return res.json();

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
+import { getCookie } from "@/lib/cookies";
 
 const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
 const MAX_TIERS = 8;
@@ -155,6 +156,9 @@ export default function AdminCreateEventPage() {
       // Use the lowest tier price as the event's display price
       const lowestPrice = Math.min(...tiers.map((t) => parseFloat(t.price)));
 
+      // Auto-assign venue_id from logged-in admin's session
+      const venueId = getCookie("venue-id");
+
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,6 +170,7 @@ export default function AdminCreateEventPage() {
           description: form.description || null,
           image_url: form.image_url || null,
           status: "published",
+          venue_id: venueId || null,
           tiers: tiers.map((t, i) => ({
             tier_name: t.tier_name.trim(),
             price: parseFloat(t.price),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
+import { getCookie } from "@/lib/cookies";
 import Footer from "@/app/components/Footer";
 
 function formatEventDate(date: string) {
@@ -18,7 +19,10 @@ export default function EventsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/events")
+    const venueSlug = getCookie("venue-slug");
+    const params = venueSlug ? `?venue_slug=${venueSlug}` : "";
+
+    fetch(`/api/events${params}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch events");
         const data = await res.json();

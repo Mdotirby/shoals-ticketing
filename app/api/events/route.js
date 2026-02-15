@@ -1,24 +1,56 @@
 import { createAdminClient } from "@/lib/supabase-server";
 
-export async function GET() {
+export async function GET(request) {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const { searchParams } = new URL(request.url);
+  const venueId = searchParams.get("venue_id");
+  const venueSlug = searchParams.get("venue_slug");
+  const showAll = searchParams.get("all"); // for admin: show all statuses
+
+  let query = admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status")
-    .or("status.eq.published,status.is.null")
+    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id")
     .order("date", { ascending: true });
+
+  // Filter by status for public pages (not admin)
+  if (!showAll) {
+    query = query.or("status.eq.published,status.is.null");
+  }
+
+  // Filter by venue_id directly
+  if (venueId) {
+    query = query.eq("venue_id", venueId);
+  }
+
+  // Filter by venue slug (resolve slug → id first)
+  if (venueSlug && !venueId) {
+    const { data: venue } = await admin
+      .from("venues")
+      .select("id")
+      .eq("slug", venueSlug)
+      .single();
+
+    if (venue) {
+      query = query.eq("venue_id", venue.id);
+    } else {
+      // No venue found for this slug — return empty
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+  }
+
+  const { data, error } = await query;
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify(data ?? []), { status: 200 })
+  return new Response(JSON.stringify(data ?? []), { status: 200 });
 }
 
 export async function POST(request) {
   const admin = createAdminClient();
   const body = await request.json();
 
-  // 1. Insert the event
+  // 1. Insert the event (includes venue_id if provided)
   const { data: event, error: eventError } = await admin
     .from("events")
     .insert({
@@ -31,6 +63,7 @@ export async function POST(request) {
       description: body.description || null,
       image_url: body.image_url || null,
       status: body.status || "published",
+      venue_id: body.venue_id || null,
     })
     .select()
     .single();
@@ -54,7 +87,6 @@ export async function POST(request) {
       .insert(tierRows);
 
     if (tierError) {
-      // Event was created but tiers failed — log and return partial error
       console.error("Failed to insert tiers:", tierError.message);
       return new Response(
         JSON.stringify({ ...event, _tierError: tierError.message }),

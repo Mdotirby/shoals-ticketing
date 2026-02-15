@@ -8,6 +8,7 @@ export type Event = {
   image_url?: string;
   image_crop_data?: ImageCropData;
   status: "draft" | "published";
+  venue_id?: string;
 };
 
 export type ImageCropData = {

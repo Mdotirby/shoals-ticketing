@@ -6,6 +6,7 @@ import { motion, useInView } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import { Event } from "@/lib/types/event";
+import { getCookie } from "@/lib/cookies";
 
 // Hero images from Supabase storage bucket "webUI-pics"
 // Replace these with your actual Supabase storage URLs
@@ -34,7 +35,11 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/events")
+    // If on a venue subdomain, filter by that venue's slug
+    const venueSlug = getCookie("venue-slug");
+    const params = venueSlug ? `?venue_slug=${venueSlug}` : "";
+
+    fetch(`/api/events${params}`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch events");
         return res.json();

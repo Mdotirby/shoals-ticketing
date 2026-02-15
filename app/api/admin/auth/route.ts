@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     // 3. Look up admin_users record
     const { data: adminRecord, error: adminError } = await adminClient
       .from("admin_users")
-      .select("role")
+      .select("role, venue_id")
       .eq("id", user.id)
       .single();
 
@@ -56,7 +56,10 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({ role: adminRecord.role });
+    return NextResponse.json({
+      role: adminRecord.role,
+      venue_id: adminRecord.venue_id || null,
+    });
   } catch (err) {
     console.error("Admin auth error:", err);
     return NextResponse.json(
