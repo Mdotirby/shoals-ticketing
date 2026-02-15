@@ -3243,3 +3243,11 @@ select.admin-form-input {
     min-width: 0;
   }
 }
+
+/* Push header logo to far left edge */
+.header-inner {
+  max-width: none;
+  width: 100%;
+  padding-left: clamp(16px, 2vw, 32px);
+  padding-right: clamp(16px, 2vw, 32px);
+}
