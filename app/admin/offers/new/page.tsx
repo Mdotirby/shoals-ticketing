@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 
+type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
+
 const DEFAULT_FIXED: ExpenseItem[] = [
   { name: "Rent", amount: 0 },
   { name: "Production", amount: 0 },
@@ -34,6 +36,75 @@ export default function AdminCreateOfferPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  // Purchaser info (auto-filled from settings)
+  const [buyerName, setBuyerName] = useState("");
+  const [contractSignatory, setContractSignatory] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [promoterAddress, setPromoterAddress] = useState("");
+  const [venueAddress, setVenueAddress] = useState("");
+
+  // Fetch agents + buyer info on mount
+  useEffect(() => {
+    const venueId = getCookie("venue-id");
+    const role = getCookie("user-role") || "";
+    const params = venueId ? `?venue_id=${venueId}` : "";
+
+    // Fetch agents
+    fetch(`/api/agents${params}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setAgents(data); })
+      .catch(() => {});
+
+    // Auto-fill buyer info from venue (for venue_admin) or admin_users (for owner)
+    if (venueId) {
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((venues: Array<Record<string, string | number | null>>) => {
+          if (!Array.isArray(venues)) return;
+          const v = venues.find((x) => x.id === venueId);
+          if (v) {
+            setBuyerName(String(v.buyer_name || ""));
+            setContractSignatory(String(v.contract_signatory || ""));
+            setBuyerPhone(String(v.buyer_phone || ""));
+            setBuyerEmail(String(v.buyer_email || ""));
+            setPromoterAddress(String(v.promoter_address || ""));
+            const addr = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean).join(", ");
+            setVenueAddress(addr);
+          }
+        })
+        .catch(() => {});
+    } else if (role === "owner") {
+      // Fetch owner's buyer info from admin_users
+      fetch("/api/admin/users")
+        .then((r) => r.json())
+        .then((users: Array<Record<string, string | null>>) => {
+          if (!Array.isArray(users)) return;
+          // Find current user by matching the cookie email or just first owner
+          const me = users.find((u) => u.role === "owner");
+          if (me) {
+            setBuyerName(me.buyer_name || "");
+            setContractSignatory(me.contract_signatory || "");
+            setBuyerPhone(me.buyer_phone || "");
+            setBuyerEmail(me.buyer_email || "");
+            setPromoterAddress(me.promoter_address || "");
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
+
+  const selectAgent = (agentId: string) => {
+    const a = agents.find((x) => x.id === agentId);
+    if (a) {
+      setAgency(a.agency);
+      setAgentName(a.agent_name);
+      setAgentPhone(a.agent_phone || "");
+      setAgentEmail(a.agent_email || "");
+    }
+  };
 
   // ── Section 1: Agency & Artist ──
   const [agency, setAgency] = useState("");
@@ -71,6 +142,7 @@ export default function AdminCreateOfferPage() {
   // ── Section 4: Ticket Scaling ──
   const [scaling, setScaling] = useState<TicketScalingRow[]>([emptyScalingRow()]);
   const [facilityFee, setFacilityFee] = useState("0");
+  const [ticketingFee, setTicketingFee] = useState("3.00");
 
   // ── Section 5: Expenses ──
   const [fixedExpenses, setFixedExpenses] = useState<ExpenseItem[]>(DEFAULT_FIXED);
@@ -112,14 +184,18 @@ export default function AdminCreateOfferPage() {
 
   useEffect(() => { recalcVariables(); }, [recalcVariables]);
 
-  // Auto-calc scaling sellable_cap
+  // Auto-calc: user edits net_price → price = net_price + facility_fee + ticketing_fee
+  const ff = parseFloat(facilityFee || "0");
+  const tf = parseFloat(ticketingFee || "0");
+
   const updateScaling = (index: number, field: keyof TicketScalingRow, value: number) => {
     setScaling((prev) =>
       prev.map((r, i) => {
         if (i !== index) return r;
         const updated = { ...r, [field]: value };
         updated.sellable_cap = updated.seats - updated.comps - updated.kills;
-        updated.net_price = updated.price - updated.facility_fee;
+        // Price = net_price + facility_fee + ticketing_fee
+        updated.price = updated.net_price + ff + tf;
         return updated;
       })
     );
@@ -133,6 +209,15 @@ export default function AdminCreateOfferPage() {
     setLoading(true);
 
     const venueId = getCookie("venue-id");
+
+    // Auto-save agent for future use
+    if (agency && agentName) {
+      fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail, venue_id: venueId || null }),
+      }).catch(() => {}); // fire-and-forget
+    }
 
     try {
       const res = await fetch("/api/offers", {
@@ -189,6 +274,17 @@ export default function AdminCreateOfferPage() {
 
         {/* ═══ SECTION 1: Agency & Artist ═══ */}
         <h2 className="admin-form-section-title">Agency & Artist</h2>
+        {agents.length > 0 && (
+          <label className="admin-form-label" style={{ marginBottom: 12 }}>
+            Select Previous Agent
+            <select className="admin-form-input" onChange={(e) => selectAgent(e.target.value)} defaultValue="">
+              <option value="" disabled>— Choose an agent —</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>{a.agent_name} ({a.agency})</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="admin-form-grid">
           <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={agency} onChange={(e) => setAgency(e.target.value)} /></label>
           <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
@@ -219,6 +315,17 @@ export default function AdminCreateOfferPage() {
         </div>
         <button type="button" className="admin-tier-add-btn" onClick={() => setLineup((p) => [...p, emptyLineup()])}>+ Add Act</button>
 
+        {/* ═══ PURCHASER INFO (auto-filled from settings) ═══ */}
+        <h2 className="admin-form-section-title">Purchaser Info</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">Buyer<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} /></label>
+          <label className="admin-form-label">Contract Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={contractSignatory} onChange={(e) => setContractSignatory(e.target.value)} /></label>
+          <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} /></label>
+          <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} /></label>
+          <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={promoterAddress} onChange={(e) => setPromoterAddress(e.target.value)} /></label>
+          <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="Auto-filled from venue settings" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} /></label>
+        </div>
+
         {/* ═══ SECTION 3: Deal Terms ═══ */}
         <h2 className="admin-form-section-title">Deal</h2>
         <div className="admin-form-grid">
@@ -247,7 +354,7 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Ticket Scaling</h2>
         <div className="offer-scaling-table">
           <div className="offer-scaling-header">
-            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Price</span><span>Net Price</span><span>Gross</span>
+            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Price</span><span>Gross</span>
           </div>
           {scaling.map((r, i) => (
             <div key={i} className="offer-scaling-row">
@@ -256,8 +363,8 @@ export default function AdminCreateOfferPage() {
               <input type="number" className="admin-form-input" value={r.comps || ""} onChange={(e) => updateScaling(i, "comps", parseInt(e.target.value) || 0)} />
               <input type="number" className="admin-form-input" value={r.kills || ""} onChange={(e) => updateScaling(i, "kills", parseInt(e.target.value) || 0)} />
               <span className="offer-calc-cell">{r.sellable_cap}</span>
-              <input type="number" className="admin-form-input" value={r.price || ""} onChange={(e) => updateScaling(i, "price", parseFloat(e.target.value) || 0)} step="0.01" />
-              <span className="offer-calc-cell">${r.net_price.toFixed(2)}</span>
+              <input type="number" className="admin-form-input" value={r.net_price || ""} onChange={(e) => updateScaling(i, "net_price", parseFloat(e.target.value) || 0)} step="0.01" />
+              <span className="offer-calc-cell">${r.price.toFixed(2)}</span>
               <span className="offer-calc-cell">${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setScaling((p) => p.filter((_, j) => j !== i))}>✕</button>}
             </div>
@@ -265,7 +372,8 @@ export default function AdminCreateOfferPage() {
         </div>
         <div className="offer-scaling-footer">
           <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: `P${p.length + 1}` }])}>+ Add Tier</button>
-          <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={facilityFee} onChange={(e) => { setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, net_price: r.price - fee }))); }} step="0.01" /></label>
+          <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={facilityFee} onChange={(e) => { setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} step="0.01" /></label>
+          <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={ticketingFee} onChange={(e) => { setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} step="0.01" /></label>
         </div>
         <div className="offer-totals-row">
           <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>

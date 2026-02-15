@@ -10,7 +10,8 @@ import { getCookie } from "@/lib/cookies";
 type SidebarItem = {
   label: string;
   href: string;
-  roles: string[]; // which roles can see this item
+  roles: string[];
+  ownerLabel?: string; // different label for owner
 };
 
 const ALL_ROLES = ["owner", "venue_admin", "read_only", "box_office", "door_greeter"];
@@ -23,8 +24,8 @@ const sidebarItems: SidebarItem[] = [
   { label: "Reports", href: "/admin/reports", roles: ["owner", "venue_admin", "read_only", "box_office"] },
   { label: "Sales", href: "/admin/orders", roles: ["owner", "venue_admin", "box_office", "door_greeter"] },
   { label: "Scanner", href: "/admin/scan", roles: ["owner", "venue_admin", "box_office", "door_greeter"] },
-  { label: "Management", href: "/portal", roles: ["owner", "venue_admin"] },
-  { label: "Settings", href: "/admin/settings", roles: ["owner", "venue_admin"] },
+  { label: "Manage My Venue", href: "/portal", roles: ["venue_admin"], ownerLabel: "Venue Management" },
+  { label: "Venue Management", href: "/portal", roles: ["owner"] },
   { label: "Onboarding", href: "/admin/onboarding", roles: ["owner"] },
 ];
 
@@ -40,7 +41,6 @@ export default function AdminLayout({
   const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
-    // Get role and name from cookies
     const role = getCookie("user-role") || "";
     setUserRole(role);
 
@@ -48,19 +48,21 @@ export default function AdminLayout({
     if (cookieName) {
       setAdminName(decodeURIComponent(cookieName));
     } else {
-      // Fallback: get from Supabase auth
       async function loadUser() {
         const supabase = getSupabaseBrowser();
         const { data } = await supabase.auth.getUser();
         if (data?.user) {
-          setAdminName(data.user.email?.split("@")[0] || "Admin");
+          // Parse first name from email (take part before @ and before any dots)
+          const emailPrefix = data.user.email?.split("@")[0] || "Admin";
+          const firstName = emailPrefix.split(".")[0];
+          setAdminName(firstName.charAt(0).toUpperCase() + firstName.slice(1));
         }
       }
       loadUser();
     }
 
-    // Fetch venue name
     const venueId = getCookie("venue-id");
+    const role = getCookie("user-role") || "";
     if (venueId) {
       fetch("/api/venues")
         .then((r) => r.json())
@@ -71,22 +73,21 @@ export default function AdminLayout({
           }
         })
         .catch(() => {});
+    } else if (role === "owner") {
+      setVenueName("All Venues");
     }
   }, []);
 
-  // Don't show sidebar on login page
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // Filter sidebar items by role
   const visibleItems = sidebarItems.filter(
     (item) => !userRole || item.roles.includes(userRole)
   );
 
   return (
     <div className="admin-shell">
-      {/* Mobile top bar */}
       <div className="admin-mobile-topbar">
         <button
           className="admin-mobile-toggle"
@@ -107,7 +108,6 @@ export default function AdminLayout({
         />
       </div>
 
-      {/* Overlay backdrop */}
       {sidebarOpen && (
         <div
           className="admin-sidebar-overlay"
@@ -138,7 +138,7 @@ export default function AdminLayout({
         <nav className="admin-sidebar-nav">
           {visibleItems.map((item) => (
             <Link
-              key={item.href}
+              key={item.href + item.label}
               href={item.href}
               className={`admin-sidebar-link ${
                 pathname === item.href ? "active" : ""

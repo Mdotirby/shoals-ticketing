@@ -57,13 +57,16 @@ function LoginForm() {
       if (authRes.ok) {
         const authBody = await authRes.json();
         role = authBody.role as UserRole;
-        // Store venue_id, role, and name for admin pages
-        if (authBody.venue_id) {
-          document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
-        }
+        // Store role and name for admin pages
         document.cookie = `user-role=${role}; path=/; samesite=lax`;
         if (authBody.first_name) {
           document.cookie = `user-name=${encodeURIComponent(authBody.first_name)}; path=/; samesite=lax`;
+        }
+        // Owner gets global access (no venue filter); others get venue-scoped
+        if (role !== "owner" && authBody.venue_id) {
+          document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
+        } else {
+          document.cookie = "venue-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
         }
       } else {
         // No admin record — try auto-bootstrap (first user becomes owner)

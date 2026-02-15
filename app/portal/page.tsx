@@ -7,114 +7,110 @@ import { startSessionManager, touchActivity } from "@/lib/sessionManager";
 import { getCookie } from "@/lib/cookies";
 import Footer from "@/app/components/Footer";
 
-type AdminUser = {
-  id: string;
-  email: string;
-  role: string;
-  venue_id: string | null;
-  created_at: string;
-};
+type AdminUser = { id: string; email: string; role: string; venue_id: string | null; first_name: string | null; last_name: string | null; created_at: string };
+type Venue = { id: string; name: string; slug: string; nickname?: string; capacity?: number; address_street?: string; address_city?: string; address_state?: string; address_zip?: string; buyer_name?: string; contract_signatory?: string; buyer_phone?: string; buyer_email?: string; promoter_address?: string; primary_color?: string; secondary_color?: string; accent_color?: string };
 
-type Venue = {
-  id: string;
-  name: string;
-  slug: string;
-};
-
-// Roles a venue_admin can assign (owner is NOT an option)
 const VENUE_ADMIN_ROLES = [
-  { value: "venue_admin", label: "Venue Admin (full access)" },
-  { value: "read_only", label: "Read Only (view sales data)" },
-  { value: "box_office", label: "Box Office (tickets, sales, scanner)" },
-  { value: "door_greeter", label: "Door Greeter (scanner + sales count)" },
+  { value: "venue_admin", label: "Venue Admin" },
+  { value: "read_only", label: "Read Only" },
+  { value: "box_office", label: "Box Office" },
+  { value: "door_greeter", label: "Door Greeter" },
 ];
-
-// All roles for owner view
 const OWNER_ROLES = ["owner", "super_admin", "venue_admin", "read_only", "box_office", "door_greeter"];
 
 export default function PortalPage() {
   const router = useRouter();
   const supabase = getSupabaseBrowser();
-
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userVenueId, setUserVenueId] = useState("");
+  const [myVenue, setMyVenue] = useState<Venue | null>(null);
+  const [currentUserId, setCurrentUserId] = useState("");
+
+  // Venue settings form (venue_admin)
+  const [venueForm, setVenueForm] = useState({ name: "", nickname: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045" });
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  // Owner buyer info (stored on admin_users)
+  const [ownerBuyer, setOwnerBuyer] = useState({ buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "" });
 
   // New admin form
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState("read_only");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
   const [newVenueId, setNewVenueId] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Venue form (owner only)
-  const [venueName, setVenueName] = useState("");
-  const [venueSlug, setVenueSlug] = useState("");
-  const [creatingVenue, setCreatingVenue] = useState(false);
-  const [venueError, setVenueError] = useState("");
-
-  // Session manager
   useEffect(() => {
     const cleanup = startSessionManager({
-      onExpire: async () => {
-        await supabase.auth.signOut();
-        router.push("/login");
-      },
-      refreshSession: async () => {
-        await supabase.auth.refreshSession();
-      },
+      onExpire: async () => { await supabase.auth.signOut(); router.push("/login"); },
+      refreshSession: async () => { await supabase.auth.refreshSession(); },
     });
     return cleanup;
   }, [supabase, router]);
 
-  // Load data
   useEffect(() => {
     async function loadData() {
       touchActivity();
-
       const { data } = await supabase.auth.getUser();
-      const user = data?.user;
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      setUserEmail(user.email || "");
-
+      if (!data?.user) { router.push("/login"); return; }
+      setUserEmail(data.user.email || "");
       const role = getCookie("user-role") || "";
       const venueId = getCookie("venue-id") || "";
       setUserRole(role);
       setUserVenueId(venueId);
+      if (!["owner", "super_admin", "venue_admin"].includes(role)) { router.push("/admin"); return; }
 
-      // Only owner, super_admin, and venue_admin can access
-      if (!["owner", "super_admin", "venue_admin"].includes(role)) {
-        router.push("/admin");
-        return;
-      }
-
-      // Fetch admin users + venues
       const [usersRes, venuesRes] = await Promise.all([
         fetch("/api/admin/users").then((r) => r.json()),
         fetch("/api/venues").then((r) => r.json()),
       ]);
 
-      if (Array.isArray(usersRes)) {
-        // venue_admin only sees users from their venue
+      if (Array.isArray(venuesRes)) {
+        setVenues(venuesRes);
         if (role === "venue_admin" && venueId) {
-          setAdmins(usersRes.filter((u: AdminUser) => u.venue_id === venueId));
-        } else {
-          setAdmins(usersRes);
+          const v = venuesRes.find((x: Venue) => x.id === venueId);
+          if (v) {
+            setMyVenue(v);
+            setVenueForm({
+              name: v.name || "", nickname: v.nickname || "", capacity: v.capacity ? String(v.capacity) : "",
+              address_street: v.address_street || "", address_city: v.address_city || "",
+              address_state: v.address_state || "", address_zip: v.address_zip || "",
+              buyer_name: v.buyer_name || "", contract_signatory: v.contract_signatory || "",
+              buyer_phone: v.buyer_phone || "", buyer_email: v.buyer_email || "",
+              promoter_address: v.promoter_address || "",
+              primary_color: v.primary_color || "#d0c290", secondary_color: v.secondary_color || "#0b0d1d",
+              accent_color: v.accent_color || "#202045",
+            });
+          }
         }
       }
-      if (Array.isArray(venuesRes)) setVenues(venuesRes);
+      if (Array.isArray(usersRes)) {
+        setAdmins(role === "venue_admin" && venueId ? usersRes.filter((u: AdminUser) => u.venue_id === venueId) : usersRes);
+        // Load owner's buyer info from their admin_users record
+        if (role === "owner" || role === "super_admin") {
+          const me = usersRes.find((u: AdminUser) => u.email === data.user!.email);
+          if (me) {
+            setCurrentUserId(me.id);
+            setOwnerBuyer({
+              buyer_name: (me as Record<string, string>).buyer_name || "",
+              contract_signatory: (me as Record<string, string>).contract_signatory || "",
+              buyer_phone: (me as Record<string, string>).buyer_phone || "",
+              buyer_email: (me as Record<string, string>).buyer_email || "",
+              promoter_address: (me as Record<string, string>).promoter_address || "",
+            });
+          }
+        }
+      }
       setLoading(false);
     }
-
     loadData();
   }, [supabase, router]);
 
@@ -124,229 +120,201 @@ export default function PortalPage() {
     await supabase.auth.signOut();
     document.cookie = "venue-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "user-name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };
 
-  // ── Create Admin User ──
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreateError("");
-    setCreating(true);
-
-    try {
-      const venueToAssign = isOwner ? (newVenueId || null) : userVenueId;
-
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: newEmail,
-          password: newPassword,
-          role: newRole,
-          venue_id: venueToAssign,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to create user");
-      }
-
-      const newUser = await res.json();
-      setAdmins((prev) => [newUser, ...prev]);
-      setNewEmail("");
-      setNewPassword("");
-      setNewRole("read_only");
-      setNewVenueId("");
-    } catch (err: unknown) {
-      setCreateError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  // ── Update Admin User ──
-  const handleUpdateUser = async (
-    userId: string,
-    field: "venue_id" | "role",
-    value: string
-  ) => {
-    const res = await fetch("/api/admin/users", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: userId, [field]: value || null }),
-    });
-
-    if (res.ok) {
-      const updated = await res.json();
-      setAdmins((prev) =>
-        prev.map((a) => (a.id === userId ? { ...a, ...updated } : a))
-      );
-    }
-  };
-
-  // ── Create Venue (owner only) ──
-  const handleCreateVenue = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setVenueError("");
-    setCreatingVenue(true);
-
+  const handleSaveVenue = async () => {
+    if (!myVenue) return;
+    setSaving(true); setSaveMsg("");
     try {
       const res = await fetch("/api/venues", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: venueName, slug: venueSlug }),
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: myVenue.id, name: venueForm.name, nickname: venueForm.nickname || null,
+          capacity: venueForm.capacity ? parseInt(venueForm.capacity) : null,
+          address_street: venueForm.address_street || null, address_city: venueForm.address_city || null,
+          address_state: venueForm.address_state || null, address_zip: venueForm.address_zip || null,
+          buyer_name: venueForm.buyer_name || null, contract_signatory: venueForm.contract_signatory || null,
+          buyer_phone: venueForm.buyer_phone || null, buyer_email: venueForm.buyer_email || null,
+          promoter_address: venueForm.promoter_address || null,
+          primary_color: venueForm.primary_color, secondary_color: venueForm.secondary_color,
+          accent_color: venueForm.accent_color,
+        }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to create venue");
-      }
-
-      const newVenue = await res.json();
-      setVenues((prev) => [...prev, newVenue]);
-      setVenueName("");
-      setVenueSlug("");
-    } catch (err: unknown) {
-      setVenueError(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setCreatingVenue(false);
-    }
+      if (!res.ok) throw new Error("Failed to save");
+      setSaveMsg("Settings saved.");
+    } catch { setSaveMsg("Save failed."); }
+    finally { setSaving(false); }
   };
 
-  if (loading) {
-    return (
-      <main className="ticket-page">
-        <div className="ticket-page-loading">Loading…</div>
-      </main>
-    );
-  }
+  const handleSaveOwnerBuyer = async () => {
+    if (!currentUserId) return;
+    setSaving(true); setSaveMsg("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: currentUserId, ...ownerBuyer }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSaveMsg("Buyer info saved.");
+    } catch { setSaveMsg("Save failed."); }
+    finally { setSaving(false); }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault(); setCreateError(""); setCreating(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newEmail, password: newPassword, role: newRole,
+          venue_id: isOwner ? (newVenueId || null) : userVenueId,
+          first_name: newFirstName || null, last_name: newLastName || null,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
+      const newUser = await res.json();
+      setAdmins((p) => [newUser, ...p]);
+      setNewEmail(""); setNewPassword(""); setNewRole("read_only"); setNewFirstName(""); setNewLastName(""); setNewVenueId("");
+    } catch (err: unknown) { setCreateError(err instanceof Error ? err.message : "Failed"); }
+    finally { setCreating(false); }
+  };
+
+  const handleUpdateUser = async (userId: string, field: string, value: string) => {
+    const res = await fetch("/api/admin/users", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: userId, [field]: value || null }),
+    });
+    if (res.ok) { const u = await res.json(); setAdmins((p) => p.map((a) => a.id === userId ? { ...a, ...u } : a)); }
+  };
+
+  if (loading) return <main className="ticket-page"><div className="ticket-page-loading">Loading…</div></main>;
 
   return (
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
           <h1 className="ticket-hero-title">
-            {isOwner ? "Owner Portal" : "Team Management"}
+            {isOwner ? "Venue Management" : "Manage My Venue"}
           </h1>
         </section>
 
         <section className="portal-section">
           <div className="portal-header">
-            <p className="portal-welcome">
-              Signed in as <strong>{userEmail}</strong>
-            </p>
-            <button type="button" className="portal-signout-btn" onClick={handleSignOut}>
-              Sign Out
-            </button>
+            <p className="portal-welcome">Signed in as <strong>{userEmail}</strong></p>
+            <button type="button" className="portal-signout-btn" onClick={handleSignOut}>Sign Out</button>
           </div>
 
-          {/* ── Venues (owner only) ── */}
+          {/* ── Venue Settings (venue_admin only) ── */}
+          {!isOwner && myVenue && (
+            <div className="portal-card">
+              <h2 className="portal-card-title">Venue Information</h2>
+              <div className="admin-form-grid" style={{ marginTop: 12 }}>
+                <label className="admin-form-label">Name<input type="text" className="admin-form-input" value={venueForm.name} onChange={(e) => setVenueForm({ ...venueForm, name: e.target.value })} /></label>
+                <label className="admin-form-label">Nickname<input type="text" className="admin-form-input" value={venueForm.nickname} onChange={(e) => setVenueForm({ ...venueForm, nickname: e.target.value })} /></label>
+                <label className="admin-form-label">Capacity<input type="number" className="admin-form-input" value={venueForm.capacity} onChange={(e) => setVenueForm({ ...venueForm, capacity: e.target.value })} /></label>
+                <label className="admin-form-label">Street<input type="text" className="admin-form-input" value={venueForm.address_street} onChange={(e) => setVenueForm({ ...venueForm, address_street: e.target.value })} /></label>
+                <label className="admin-form-label">City<input type="text" className="admin-form-input" value={venueForm.address_city} onChange={(e) => setVenueForm({ ...venueForm, address_city: e.target.value })} /></label>
+                <label className="admin-form-label">State<input type="text" className="admin-form-input" value={venueForm.address_state} onChange={(e) => setVenueForm({ ...venueForm, address_state: e.target.value })} maxLength={2} /></label>
+                <label className="admin-form-label">ZIP<input type="text" className="admin-form-input" value={venueForm.address_zip} onChange={(e) => setVenueForm({ ...venueForm, address_zip: e.target.value })} /></label>
+              </div>
+
+              <h3 className="portal-form-heading" style={{ marginTop: 16 }}>Buyer / Promoter Info</h3>
+              <div className="admin-form-grid" style={{ marginTop: 8 }}>
+                <label className="admin-form-label">Buyer Name<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={venueForm.buyer_name} onChange={(e) => setVenueForm({ ...venueForm, buyer_name: e.target.value })} /></label>
+                <label className="admin-form-label">Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={venueForm.contract_signatory} onChange={(e) => setVenueForm({ ...venueForm, contract_signatory: e.target.value })} /></label>
+                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={venueForm.buyer_phone} onChange={(e) => setVenueForm({ ...venueForm, buyer_phone: e.target.value })} /></label>
+                <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={venueForm.buyer_email} onChange={(e) => setVenueForm({ ...venueForm, buyer_email: e.target.value })} /></label>
+                <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={venueForm.promoter_address} onChange={(e) => setVenueForm({ ...venueForm, promoter_address: e.target.value })} /></label>
+              </div>
+
+              <h3 className="portal-form-heading" style={{ marginTop: 16 }}>Brand Colors</h3>
+              <div className="admin-form-grid" style={{ marginTop: 8 }}>
+                <label className="admin-form-label">Primary<div className="color-input-row"><input type="color" value={venueForm.primary_color} onChange={(e) => setVenueForm({ ...venueForm, primary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.primary_color} onChange={(e) => setVenueForm({ ...venueForm, primary_color: e.target.value })} /></div></label>
+                <label className="admin-form-label">Secondary<div className="color-input-row"><input type="color" value={venueForm.secondary_color} onChange={(e) => setVenueForm({ ...venueForm, secondary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.secondary_color} onChange={(e) => setVenueForm({ ...venueForm, secondary_color: e.target.value })} /></div></label>
+                <label className="admin-form-label">Accent<div className="color-input-row"><input type="color" value={venueForm.accent_color} onChange={(e) => setVenueForm({ ...venueForm, accent_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.accent_color} onChange={(e) => setVenueForm({ ...venueForm, accent_color: e.target.value })} /></div></label>
+              </div>
+
+              <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>
+                <button className="portal-form-submit" onClick={handleSaveVenue} disabled={saving}>{saving ? "Saving…" : "Save Settings"}</button>
+                {saveMsg && <span style={{ fontSize: 13, color: saveMsg.includes("fail") ? "#ff9a9a" : "#7ddb7d" }}>{saveMsg}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* ── Venues Table (owner only) ── */}
+          {isOwner && venues.length > 0 && (
+            <div className="portal-card">
+              <h2 className="portal-card-title">All Venues</h2>
+              <div className="portal-table-wrapper">
+                <table className="portal-table">
+                  <thead><tr><th>Name</th><th>Subdomain</th><th>Capacity</th></tr></thead>
+                  <tbody>
+                    {venues.map((v) => (
+                      <tr key={v.id}>
+                        <td>{v.name}</td>
+                        <td><code className="portal-slug">{v.slug}.venuecore.live</code></td>
+                        <td>{v.capacity || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── Owner Buyer/Promoter Info ── */}
           {isOwner && (
             <div className="portal-card">
-              <h2 className="portal-card-title">Venues</h2>
-              <p className="portal-card-desc">
-                Each venue gets a subdomain (e.g., renshoals.venuecore.live).
-              </p>
-
-              {venues.length > 0 && (
-                <div className="portal-table-wrapper">
-                  <table className="portal-table">
-                    <thead>
-                      <tr><th>Name</th><th>Subdomain</th></tr>
-                    </thead>
-                    <tbody>
-                      {venues.map((v) => (
-                        <tr key={v.id}>
-                          <td>{v.name}</td>
-                          <td><code className="portal-slug">{v.slug}.venuecore.live</code></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <form className="portal-inline-form" onSubmit={handleCreateVenue}>
-                {venueError && <div className="portal-form-error">{venueError}</div>}
-                <input type="text" className="portal-form-input" placeholder="Venue name" value={venueName} onChange={(e) => setVenueName(e.target.value)} required />
-                <input type="text" className="portal-form-input" placeholder="subdomain-slug" value={venueSlug} onChange={(e) => setVenueSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required />
-                <button type="submit" className="portal-form-submit" disabled={creatingVenue}>
-                  {creatingVenue ? "Creating…" : "+ Add Venue"}
-                </button>
-              </form>
+              <h2 className="portal-card-title">My Buyer / Promoter Info</h2>
+              <p className="portal-card-desc">Your buyer info used on offer sheets when no venue is assigned.</p>
+              <div className="admin-form-grid" style={{ marginTop: 8 }}>
+                <label className="admin-form-label">Buyer Name<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={ownerBuyer.buyer_name} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_name: e.target.value })} /></label>
+                <label className="admin-form-label">Contract Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={ownerBuyer.contract_signatory} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, contract_signatory: e.target.value })} /></label>
+                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={ownerBuyer.buyer_phone} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_phone: e.target.value })} /></label>
+                <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={ownerBuyer.buyer_email} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_email: e.target.value })} /></label>
+                <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={ownerBuyer.promoter_address} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, promoter_address: e.target.value })} /></label>
+              </div>
+              <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center" }}>
+                <button className="portal-form-submit" onClick={handleSaveOwnerBuyer} disabled={saving}>{saving ? "Saving…" : "Save Buyer Info"}</button>
+                {saveMsg && <span style={{ fontSize: 13, color: saveMsg.includes("fail") ? "#ff9a9a" : "#7ddb7d" }}>{saveMsg}</span>}
+              </div>
             </div>
           )}
 
           {/* ── Team Members ── */}
           <div className="portal-card">
-            <h2 className="portal-card-title">
-              {isOwner ? "Admin Users" : "Team Members"}
-            </h2>
-            <p className="portal-card-desc">
-              {isOwner
-                ? "Assign roles and venues. Venue admins only see events for their assigned venue."
-                : "Manage your team's access. Assign roles using the checkboxes below."}
-            </p>
-
+            <h2 className="portal-card-title">Team Members</h2>
             {admins.length > 0 && (
               <div className="portal-table-wrapper">
                 <table className="portal-table">
-                  <thead>
-                    <tr>
-                      <th>Email</th>
-                      <th>Role</th>
-                      {isOwner && <th>Venue</th>}
-                      <th>Created</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Name</th><th>Email</th><th>Role</th>{isOwner && <th>Venue</th>}<th>Created</th></tr></thead>
                   <tbody>
                     {admins.map((a) => (
                       <tr key={a.id}>
+                        <td>{[a.first_name, a.last_name].filter(Boolean).join(" ") || "—"}</td>
                         <td>{a.email}</td>
                         <td>
                           {isOwner ? (
-                            <select
-                              className="portal-inline-select"
-                              value={a.role}
-                              onChange={(e) => handleUpdateUser(a.id, "role", e.target.value)}
-                            >
-                              {OWNER_ROLES.map((r) => (
-                                <option key={r} value={r}>{r}</option>
-                              ))}
+                            <select className="portal-inline-select" value={a.role} onChange={(e) => handleUpdateUser(a.id, "role", e.target.value)}>
+                              {OWNER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                             </select>
                           ) : (
-                            <select
-                              className="portal-inline-select"
-                              value={a.role}
-                              onChange={(e) => handleUpdateUser(a.id, "role", e.target.value)}
-                              disabled={a.role === "owner" || a.role === "super_admin"}
-                            >
-                              {VENUE_ADMIN_ROLES.map((r) => (
-                                <option key={r.value} value={r.value}>{r.label}</option>
-                              ))}
+                            <select className="portal-inline-select" value={a.role} onChange={(e) => handleUpdateUser(a.id, "role", e.target.value)} disabled={a.role === "owner"}>
+                              {VENUE_ADMIN_ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                             </select>
                           )}
                         </td>
                         {isOwner && (
                           <td>
-                            <select
-                              className="portal-inline-select"
-                              value={a.venue_id || ""}
-                              onChange={(e) => handleUpdateUser(a.id, "venue_id", e.target.value)}
-                            >
+                            <select className="portal-inline-select" value={a.venue_id || ""} onChange={(e) => handleUpdateUser(a.id, "venue_id", e.target.value)}>
                               <option value="">— None —</option>
-                              {venues.map((v) => (
-                                <option key={v.id} value={v.id}>{v.name}</option>
-                              ))}
+                              {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                             </select>
                           </td>
                         )}
-                        <td>
-                          {new Date(a.created_at).toLocaleDateString("en-US", {
-                            month: "short", day: "numeric", year: "numeric",
-                          })}
-                        </td>
+                        <td>{new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -355,44 +323,26 @@ export default function PortalPage() {
             )}
 
             <form className="portal-inline-form" onSubmit={handleCreateUser}>
-              <h3 className="portal-form-heading">
-                {isOwner ? "Add New Admin" : "Add Team Member"}
-              </h3>
+              <h3 className="portal-form-heading">Add Team Member</h3>
               {createError && <div className="portal-form-error">{createError}</div>}
+              <input type="text" className="portal-form-input" placeholder="First Name" value={newFirstName} onChange={(e) => setNewFirstName(e.target.value)} />
+              <input type="text" className="portal-form-input" placeholder="Last Name" value={newLastName} onChange={(e) => setNewLastName(e.target.value)} />
               <input type="email" className="portal-form-input" placeholder="Email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
               <input type="password" className="portal-form-input" placeholder="Password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
               <select className="portal-form-input" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-                {(isOwner ? OWNER_ROLES : VENUE_ADMIN_ROLES.map((r) => r.value)).map((r) => (
-                  <option key={typeof r === "string" ? r : r} value={typeof r === "string" ? r : r}>
-                    {typeof r === "string" ? r : r}
-                  </option>
-                ))}
+                {(isOwner ? OWNER_ROLES : VENUE_ADMIN_ROLES.map((r) => r.value)).map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
               {isOwner && (
                 <select className="portal-form-input" value={newVenueId} onChange={(e) => setNewVenueId(e.target.value)}>
                   <option value="">— No venue —</option>
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
+                  {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
               )}
-              <button type="submit" className="portal-form-submit" disabled={creating}>
-                {creating ? "Creating…" : isOwner ? "+ Create Admin" : "+ Add Member"}
-              </button>
+              <button type="submit" className="portal-form-submit" disabled={creating}>{creating ? "Creating…" : "+ Add Member"}</button>
             </form>
-          </div>
-
-          <div className="portal-card">
-            <h2 className="portal-card-title">Quick Links</h2>
-            <div className="portal-quick-links">
-              <a href="/admin" className="portal-quick-link">Admin Dashboard →</a>
-              <a href="/admin/events" className="portal-quick-link">Manage Events →</a>
-              <a href="/admin/scan" className="portal-quick-link">Ticket Scanner →</a>
-            </div>
           </div>
         </section>
       </main>
-
       <Footer />
     </>
   );
