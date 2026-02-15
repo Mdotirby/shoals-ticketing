@@ -72,18 +72,42 @@ export default function EventDetailPage() {
             .catch(() => {});
         }
 
-        const gaTicket: TicketType = {
-          id: `${data.id}-ga`,
-          event_id: data.id,
-          name: `GA - ${data.title}`,
-          price: data.price,
-          quantity_available: 500,
-          quantity_sold: 0,
-          sort_order: 0,
-          perks: ["Full event access", "Standing room", "Venue amenities"],
-        };
-
-        setTicketTypes([gaTicket]);
+        // Fetch real ticket tiers from the API
+        fetch(`/api/events/${data.id}/ticket-types`)
+          .then((r) => r.json())
+          .then((tiers) => {
+            if (Array.isArray(tiers) && tiers.length > 0) {
+              setTicketTypes(tiers.map((t: { id: string; event_id: string; tier_name: string; price: number; capacity: number; sort_order: number }) => ({
+                id: t.id,
+                event_id: t.event_id,
+                name: t.tier_name,
+                price: t.price,
+                quantity_available: t.capacity,
+                quantity_sold: 0,
+                sort_order: t.sort_order,
+                perks: ["Full event access", "Venue amenities"],
+              })));
+            } else {
+              // Fallback: single GA tier from event price
+              setTicketTypes([{
+                id: `${data.id}-ga`,
+                event_id: data.id,
+                name: `GA - ${data.title}`,
+                price: data.price,
+                quantity_available: 500,
+                quantity_sold: 0,
+                sort_order: 0,
+                perks: ["Full event access", "Venue amenities"],
+              }]);
+            }
+          })
+          .catch(() => {
+            setTicketTypes([{
+              id: `${data.id}-ga`, event_id: data.id, name: `GA - ${data.title}`,
+              price: data.price, quantity_available: 500, quantity_sold: 0, sort_order: 0,
+              perks: ["Full event access"],
+            }]);
+          });
       })
       .catch(() => {
         setError("Could not load this event.");

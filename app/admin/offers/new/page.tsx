@@ -14,6 +14,14 @@ const DEFAULT_FIXED: ExpenseItem[] = [
   { name: "Hospitality", amount: 0 },
   { name: "Support", amount: 0 },
   { name: "Talent", amount: 0 },
+  { name: "Marketing", amount: 0 },
+  { name: "Labor", amount: 0 },
+  { name: "Insurance", amount: 0 },
+  { name: "Security", amount: 0 },
+  { name: "Ushers", amount: 0 },
+  { name: "Police", amount: 0 },
+  { name: "Cleaning", amount: 0 },
+  { name: "Medical", amount: 0 },
 ];
 
 const DEFAULT_VARIABLE: VariableExpenseItem[] = [

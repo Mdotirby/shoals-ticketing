@@ -3951,3 +3951,176 @@ select.admin-form-input {
     justify-content: space-between;
   }
 }
+
+/* ============================================================
+   DIGITAL TICKET PAGE
+   ============================================================ */
+
+.digital-ticket-section {
+  width: 100%;
+  max-width: 500px;
+  padding: 0 20px 48px;
+}
+
+.digital-ticket-card {
+  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  border: 1px solid rgba(208, 194, 144, 0.2);
+  border-radius: 20px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.digital-ticket-qr {
+  width: 220px;
+  height: 220px;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.digital-ticket-qr-placeholder {
+  width: 220px;
+  height: 220px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 12px;
+}
+
+.digital-ticket-info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.digital-ticket-event {
+  margin: 0;
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  color: #d0c290;
+}
+
+.digital-ticket-venue {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+}
+
+.digital-ticket-date {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.5);
+}
+
+.digital-ticket-holder {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.digital-ticket-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.digital-ticket-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.digital-ticket-email {
+  font-size: 13px;
+  color: rgba(255,255,255,0.45);
+}
+
+.digital-ticket-scanned {
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: rgba(255,200,100,0.1);
+  border-radius: 8px;
+  color: #e8c66a;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   QR SCANNER PAGE
+   ============================================================ */
+
+.scan-result {
+  position: relative;
+  padding: 24px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: scanFadeIn 300ms ease;
+}
+
+@keyframes scanFadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.scan-valid {
+  background: rgba(100, 200, 100, 0.12);
+  border: 2px solid rgba(100, 200, 100, 0.4);
+}
+
+.scan-invalid {
+  background: rgba(255, 100, 100, 0.12);
+  border: 2px solid rgba(255, 100, 100, 0.4);
+}
+
+.scan-result-icon {
+  font-size: 48px;
+}
+
+.scan-result-text h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.scan-result-text p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+}
+
+.scan-result-event {
+  color: #d0c290 !important;
+}
+
+.scan-camera-section {
+  margin: 20px 0;
+}
+
+.scan-camera-view {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scan-controls {
+  margin-top: 12px;
+}
+
+.scan-manual-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}

@@ -1,19 +1,56 @@
-// POST: validate a ticket QR code at the door
-// Body: { qr_code }
-// Returns: { valid: true, customer_name } or { valid: false, reason }
-
+import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+// POST: validate and scan a ticket by QR code
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  // TODO: Phase 6 — validate ticket
-  // 1. Look up ticket by qr_code
-  // 2. If not found → { valid: false, reason: "Ticket not found" }
-  // 3. If already scanned → { valid: false, reason: "Already scanned" }
-  // 4. Mark is_scanned = true, set scanned_at
-  // 5. Return { valid: true, customer_name }
-  return NextResponse.json({ message: `Validate ticket ${id} — not wired up yet` });
+  const admin = createAdminClient();
+
+  // Look up ticket by qr_code
+  const { data: ticket, error: findError } = await admin
+    .from("tickets")
+    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, events!inner(title, venue)")
+    .eq("qr_code", id)
+    .single();
+
+  if (findError || !ticket) {
+    return NextResponse.json(
+      { valid: false, reason: "Ticket not found" },
+      { status: 200 }
+    );
+  }
+
+  if (ticket.is_scanned) {
+    return NextResponse.json({
+      valid: false,
+      reason: `Already scanned at ${new Date(ticket.scanned_at).toLocaleString()}`,
+      customer_name: ticket.customer_name,
+    });
+  }
+
+  // Mark as scanned
+  const { error: updateError } = await admin
+    .from("tickets")
+    .update({ is_scanned: true, scanned_at: new Date().toISOString() })
+    .eq("id", ticket.id);
+
+  if (updateError) {
+    return NextResponse.json(
+      { valid: false, reason: "Failed to update ticket" },
+      { status: 500 }
+    );
+  }
+
+  const ev = ticket.events as unknown as { title: string; venue: string } | null;
+
+  return NextResponse.json({
+    valid: true,
+    customer_name: ticket.customer_name,
+    customer_email: ticket.customer_email,
+    event_title: ev?.title || "",
+    venue: ev?.venue || "",
+  });
 }
