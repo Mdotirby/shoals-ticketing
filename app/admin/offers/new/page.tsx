@@ -37,6 +37,7 @@ export default function AdminCreateOfferPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [isOwnerRole, setIsOwnerRole] = useState(false);
 
   // Purchaser info (auto-filled from settings)
   const [buyerName, setBuyerName] = useState("");
@@ -50,12 +51,28 @@ export default function AdminCreateOfferPage() {
   useEffect(() => {
     const venueId = getCookie("venue-id");
     const role = getCookie("user-role") || "";
+    setIsOwnerRole(role === "owner");
     const params = venueId ? `?venue_id=${venueId}` : "";
 
     // Fetch agents
     fetch(`/api/agents${params}`)
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setAgents(data); })
+      .catch(() => {});
+
+    // Fetch owner's global defaults (radius clause, ticketing fee)
+    fetch("/api/admin/users")
+      .then((r) => r.json())
+      .then((users: Array<Record<string, unknown>>) => {
+        if (!Array.isArray(users)) return;
+        const owner = users.find((u) => u.role === "owner");
+        if (owner) {
+          if (owner.default_radius_distance) setRadiusDistance(String(owner.default_radius_distance));
+          if (owner.default_radius_days_prior) setRadiusDaysPrior(String(owner.default_radius_days_prior));
+          if (owner.default_radius_days_after) setRadiusDaysAfter(String(owner.default_radius_days_after));
+          if (owner.default_ticketing_fee) setTicketingFee(String(owner.default_ticketing_fee));
+        }
+      })
       .catch(() => {});
 
     // Auto-fill buyer info from venue (for venue_admin) or admin_users (for owner)
@@ -73,6 +90,10 @@ export default function AdminCreateOfferPage() {
             setPromoterAddress(String(v.promoter_address || ""));
             const addr = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean).join(", ");
             setVenueAddress(addr);
+            // Override radius defaults with venue-specific values (if set)
+            if (v.default_radius_distance) setRadiusDistance(String(v.default_radius_distance));
+            if (v.default_radius_days_prior) setRadiusDaysPrior(String(v.default_radius_days_prior));
+            if (v.default_radius_days_after) setRadiusDaysAfter(String(v.default_radius_days_after));
           }
         })
         .catch(() => {});
@@ -373,7 +394,7 @@ export default function AdminCreateOfferPage() {
         <div className="offer-scaling-footer">
           <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: `P${p.length + 1}` }])}>+ Add Tier</button>
           <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={facilityFee} onChange={(e) => { setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} step="0.01" /></label>
-          <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={ticketingFee} onChange={(e) => { setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} step="0.01" /></label>
+          <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={ticketingFee} onChange={(e) => { if (!isOwnerRole) return; setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
         </div>
         <div className="offer-totals-row">
           <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>

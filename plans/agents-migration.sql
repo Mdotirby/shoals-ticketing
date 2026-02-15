@@ -27,3 +27,9 @@ ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS contract_signatory TEXT;
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS buyer_phone TEXT;
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS buyer_email TEXT;
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS promoter_address TEXT;
+
+-- Global settings for offers (stored on owner's admin_users record)
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS default_radius_distance TEXT;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS default_radius_days_prior INTEGER;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS default_radius_days_after INTEGER;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS default_ticketing_fee NUMERIC(10,2) DEFAULT 3.00;

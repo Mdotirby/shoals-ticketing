@@ -18,11 +18,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // Look up event from Supabase
+    // Look up event + venue fees from Supabase
     const admin = createAdminClient();
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,ticketing_fee,venue_rebate,tax_rate")
+      .select("id,title,venue,date,price,venue_id")
       .eq("id", event_id)
       .single();
 
@@ -33,11 +33,29 @@ export async function POST(request: Request) {
       );
     }
 
+    // Fetch venue-specific fees
+    let ticketingFee = 3.0;
+    let venueRebate = 0;
+    let taxRate = 0.09;
+
+    if (event.venue_id) {
+      const { data: venueData } = await admin
+        .from("venues")
+        .select("ticketing_fee, venue_rebate, tax_rate")
+        .eq("id", event.venue_id)
+        .single();
+
+      if (venueData) {
+        ticketingFee = venueData.ticketing_fee ?? 3.0;
+        venueRebate = venueData.venue_rebate ?? 0;
+        taxRate = venueData.tax_rate ?? 0.09;
+      }
+    }
+
     const stripe = getStripe();
 
     const ticketPriceCents = Math.round(event.price * 100);
-    const ticketingFeeCents = Math.round((event.ticketing_fee ?? 3.0) * 100);
-    const taxRate = event.tax_rate ?? 0.09;
+    const ticketingFeeCents = Math.round(ticketingFee * 100);
 
     // Calculate tax on ticket price
     const taxCents = Math.round(ticketPriceCents * taxRate);
@@ -118,8 +136,8 @@ export async function POST(request: Request) {
         event_id: event.id,
         event_title: event.title,
         quantity: String(quantity),
-        ticketing_fee: String(event.ticketing_fee ?? 3.0),
-        venue_rebate: String(event.venue_rebate ?? 0),
+        ticketing_fee: String(ticketingFee),
+        venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
       },
     });

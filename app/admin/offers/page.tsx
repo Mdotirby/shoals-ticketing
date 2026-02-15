@@ -101,7 +101,7 @@ export default function AdminOffersPage() {
                   href={`/admin/offers/${offer.id}`}
                   className="admin-sponsor-edit-btn"
                 >
-                  View
+                  Edit
                 </Link>
                 <button
                   className="admin-sponsor-delete-btn"

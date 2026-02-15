@@ -31,12 +31,15 @@ export default function PortalPage() {
   const [currentUserId, setCurrentUserId] = useState("");
 
   // Venue settings form (venue_admin)
-  const [venueForm, setVenueForm] = useState({ name: "", nickname: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045" });
+  const [venueForm, setVenueForm] = useState({ name: "", nickname: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045", default_radius_distance: "", default_radius_days_prior: "", default_radius_days_after: "" });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
   // Owner buyer info (stored on admin_users)
   const [ownerBuyer, setOwnerBuyer] = useState({ buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "" });
+
+  // Owner global offer defaults
+  const [ownerDefaults, setOwnerDefaults] = useState({ default_radius_distance: "", default_radius_days_prior: "", default_radius_days_after: "", default_ticketing_fee: "3.00" });
 
   // New admin form
   const [newEmail, setNewEmail] = useState("");
@@ -88,23 +91,31 @@ export default function PortalPage() {
               promoter_address: v.promoter_address || "",
               primary_color: v.primary_color || "#d0c290", secondary_color: v.secondary_color || "#0b0d1d",
               accent_color: v.accent_color || "#202045",
+              default_radius_distance: v.default_radius_distance || "", default_radius_days_prior: v.default_radius_days_prior ? String(v.default_radius_days_prior) : "", default_radius_days_after: v.default_radius_days_after ? String(v.default_radius_days_after) : "",
             });
           }
         }
       }
       if (Array.isArray(usersRes)) {
         setAdmins(role === "venue_admin" && venueId ? usersRes.filter((u: AdminUser) => u.venue_id === venueId) : usersRes);
-        // Load owner's buyer info from their admin_users record
+        // Load owner's buyer info + global defaults from admin_users record
         if (role === "owner" || role === "super_admin") {
           const me = usersRes.find((u: AdminUser) => u.email === data.user!.email);
           if (me) {
+            const r = me as Record<string, string>;
             setCurrentUserId(me.id);
             setOwnerBuyer({
-              buyer_name: (me as Record<string, string>).buyer_name || "",
-              contract_signatory: (me as Record<string, string>).contract_signatory || "",
-              buyer_phone: (me as Record<string, string>).buyer_phone || "",
-              buyer_email: (me as Record<string, string>).buyer_email || "",
-              promoter_address: (me as Record<string, string>).promoter_address || "",
+              buyer_name: r.buyer_name || "",
+              contract_signatory: r.contract_signatory || "",
+              buyer_phone: r.buyer_phone || "",
+              buyer_email: r.buyer_email || "",
+              promoter_address: r.promoter_address || "",
+            });
+            setOwnerDefaults({
+              default_radius_distance: r.default_radius_distance || "",
+              default_radius_days_prior: r.default_radius_days_prior || "",
+              default_radius_days_after: r.default_radius_days_after || "",
+              default_ticketing_fee: r.default_ticketing_fee || "3.00",
             });
           }
         }
@@ -140,6 +151,9 @@ export default function PortalPage() {
           promoter_address: venueForm.promoter_address || null,
           primary_color: venueForm.primary_color, secondary_color: venueForm.secondary_color,
           accent_color: venueForm.accent_color,
+          default_radius_distance: venueForm.default_radius_distance || null,
+          default_radius_days_prior: venueForm.default_radius_days_prior ? parseInt(venueForm.default_radius_days_prior) : null,
+          default_radius_days_after: venueForm.default_radius_days_after ? parseInt(venueForm.default_radius_days_after) : null,
         }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -158,6 +172,26 @@ export default function PortalPage() {
       });
       if (!res.ok) throw new Error("Failed");
       setSaveMsg("Buyer info saved.");
+    } catch { setSaveMsg("Save failed."); }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveDefaults = async () => {
+    if (!currentUserId) return;
+    setSaving(true); setSaveMsg("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: currentUserId,
+          default_radius_distance: ownerDefaults.default_radius_distance || null,
+          default_radius_days_prior: ownerDefaults.default_radius_days_prior ? parseInt(ownerDefaults.default_radius_days_prior) : null,
+          default_radius_days_after: ownerDefaults.default_radius_days_after ? parseInt(ownerDefaults.default_radius_days_after) : null,
+          default_ticketing_fee: ownerDefaults.default_ticketing_fee ? parseFloat(ownerDefaults.default_ticketing_fee) : 3.00,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      setSaveMsg("Defaults saved.");
     } catch { setSaveMsg("Save failed."); }
     finally { setSaving(false); }
   };
@@ -203,7 +237,10 @@ export default function PortalPage() {
         <section className="portal-section">
           <div className="portal-header">
             <p className="portal-welcome">Signed in as <strong>{userEmail}</strong></p>
-            <button type="button" className="portal-signout-btn" onClick={handleSignOut}>Sign Out</button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a href="/admin" className="admin-header-btn">← Dashboard</a>
+              <button type="button" className="portal-signout-btn" onClick={handleSignOut}>Sign Out</button>
+            </div>
           </div>
 
           {/* ── Venue Settings (venue_admin only) ── */}
@@ -227,6 +264,14 @@ export default function PortalPage() {
                 <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={venueForm.buyer_phone} onChange={(e) => setVenueForm({ ...venueForm, buyer_phone: e.target.value })} /></label>
                 <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={venueForm.buyer_email} onChange={(e) => setVenueForm({ ...venueForm, buyer_email: e.target.value })} /></label>
                 <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={venueForm.promoter_address} onChange={(e) => setVenueForm({ ...venueForm, promoter_address: e.target.value })} /></label>
+              </div>
+
+              <h3 className="portal-form-heading" style={{ marginTop: 16 }}>Offer Defaults</h3>
+              <p className="portal-card-desc" style={{ margin: "4px 0 8px", fontSize: 12 }}>Override global radius defaults for your venue. Leave blank to use platform defaults.</p>
+              <div className="admin-form-grid" style={{ marginTop: 4 }}>
+                <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" placeholder="e.g. 150" value={venueForm.default_radius_distance} onChange={(e) => setVenueForm({ ...venueForm, default_radius_distance: e.target.value })} /></label>
+                <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" placeholder="e.g. 60" value={venueForm.default_radius_days_prior} onChange={(e) => setVenueForm({ ...venueForm, default_radius_days_prior: e.target.value })} /></label>
+                <label className="admin-form-label">Days After<input type="number" className="admin-form-input" placeholder="e.g. 60" value={venueForm.default_radius_days_after} onChange={(e) => setVenueForm({ ...venueForm, default_radius_days_after: e.target.value })} /></label>
               </div>
 
               <h3 className="portal-form-heading" style={{ marginTop: 16 }}>Brand Colors</h3>
@@ -278,6 +323,24 @@ export default function PortalPage() {
               </div>
               <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center" }}>
                 <button className="portal-form-submit" onClick={handleSaveOwnerBuyer} disabled={saving}>{saving ? "Saving…" : "Save Buyer Info"}</button>
+                {saveMsg && <span style={{ fontSize: 13, color: saveMsg.includes("fail") ? "#ff9a9a" : "#7ddb7d" }}>{saveMsg}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* ── Global Offer Defaults (owner only) ── */}
+          {isOwner && (
+            <div className="portal-card">
+              <h2 className="portal-card-title">Global Offer Defaults</h2>
+              <p className="portal-card-desc">These defaults auto-fill on every new offer for all venues.</p>
+              <div className="admin-form-grid" style={{ marginTop: 8 }}>
+                <label className="admin-form-label">Default Radius (mi)<input type="text" className="admin-form-input" placeholder="e.g. 150" value={ownerDefaults.default_radius_distance} onChange={(e) => setOwnerDefaults({ ...ownerDefaults, default_radius_distance: e.target.value })} /></label>
+                <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" placeholder="e.g. 60" value={ownerDefaults.default_radius_days_prior} onChange={(e) => setOwnerDefaults({ ...ownerDefaults, default_radius_days_prior: e.target.value })} /></label>
+                <label className="admin-form-label">Days After<input type="number" className="admin-form-input" placeholder="e.g. 60" value={ownerDefaults.default_radius_days_after} onChange={(e) => setOwnerDefaults({ ...ownerDefaults, default_radius_days_after: e.target.value })} /></label>
+                <label className="admin-form-label">Default Ticketing Fee ($)<input type="number" className="admin-form-input" placeholder="3.00" value={ownerDefaults.default_ticketing_fee} onChange={(e) => setOwnerDefaults({ ...ownerDefaults, default_ticketing_fee: e.target.value })} step="0.01" /></label>
+              </div>
+              <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center" }}>
+                <button className="portal-form-submit" onClick={handleSaveDefaults} disabled={saving}>{saving ? "Saving…" : "Save Defaults"}</button>
                 {saveMsg && <span style={{ fontSize: 13, color: saveMsg.includes("fail") ? "#ff9a9a" : "#7ddb7d" }}>{saveMsg}</span>}
               </div>
             </div>

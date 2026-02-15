@@ -22,6 +22,9 @@ export default function AdminOnboardingPage() {
     primary_color: "#d0c290",
     secondary_color: "#0b0d1d",
     accent_color: "#202045",
+    ticketing_fee: "3.00",
+    venue_rebate: "0.00",
+    tax_rate: "0.09",
   });
 
   // Admin form
@@ -85,6 +88,9 @@ export default function AdminOnboardingPage() {
           primary_color: venue.primary_color,
           secondary_color: venue.secondary_color,
           accent_color: venue.accent_color,
+          ticketing_fee: parseFloat(venue.ticketing_fee) || 3.00,
+          venue_rebate: parseFloat(venue.venue_rebate) || 0,
+          tax_rate: parseFloat(venue.tax_rate) || 0.09,
         }),
       });
 
@@ -169,6 +175,25 @@ export default function AdminOnboardingPage() {
             </label>
           </div>
 
+          <h2 className="admin-form-section-title">Fees & Rebate</h2>
+          <div className="admin-form-grid">
+            <label className="admin-form-label">
+              Ticketing Fee ($)
+              <input type="number" className="admin-form-input" value={venue.ticketing_fee} onChange={(e) => setVenue({ ...venue, ticketing_fee: e.target.value })} step="0.01" min="0" placeholder="3.00" />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Fee added to each ticket sold</span>
+            </label>
+            <label className="admin-form-label">
+              Venue Rebate ($)
+              <input type="number" className="admin-form-input" value={venue.venue_rebate} onChange={(e) => setVenue({ ...venue, venue_rebate: e.target.value })} step="0.01" min="0" placeholder="0.00" />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Quarterly rebate per ticket — incentive for platform use</span>
+            </label>
+            <label className="admin-form-label">
+              Tax Rate (decimal)
+              <input type="number" className="admin-form-input" value={venue.tax_rate} onChange={(e) => setVenue({ ...venue, tax_rate: e.target.value })} step="0.01" min="0" placeholder="0.09" />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>e.g. 0.09 = 9%, 0.11 = 11%</span>
+            </label>
+          </div>
+
           <h2 className="admin-form-section-title">Brand Colors</h2>
           <div className="admin-form-grid">
             <label className="admin-form-label">
@@ -242,7 +267,7 @@ export default function AdminOnboardingPage() {
           <div className="admin-form-success">
             Onboarding complete! {createdVenueName} is ready. The venue admin can now log in.
           </div>
-          <button className="admin-form-submit" onClick={() => { setStep("venue"); setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045" }); setAdmin({ email: "", password: "", first_name: "", last_name: "" }); }}>
+          <button className="admin-form-submit" onClick={() => { setStep("venue"); setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045", ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09" }); setAdmin({ email: "", password: "", first_name: "", last_name: "" }); }}>
             Onboard Another Venue
           </button>
         </div>

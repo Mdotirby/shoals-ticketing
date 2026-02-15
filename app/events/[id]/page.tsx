@@ -16,9 +16,7 @@ type EventData = {
   date: string;
   price: number;
   image_url?: string;
-  ticketing_fee: number;
-  venue_rebate: number;
-  tax_rate: number;
+  venue_id?: string;
 };
 
 export default function EventDetailPage() {
@@ -29,6 +27,7 @@ export default function EventDetailPage() {
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.09 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +54,23 @@ export default function EventDetailPage() {
       })
       .then((data: EventData) => {
         setEvent(data);
+
+        // Fetch venue-specific fees
+        if (data.venue_id) {
+          fetch("/api/venues")
+            .then((r) => r.json())
+            .then((venues: Array<Record<string, unknown>>) => {
+              if (!Array.isArray(venues)) return;
+              const v = venues.find((x) => x.id === data.venue_id);
+              if (v) {
+                setVenueFees({
+                  ticketing_fee: Number(v.ticketing_fee) || 3.0,
+                  tax_rate: Number(v.tax_rate) || 0.09,
+                });
+              }
+            })
+            .catch(() => {});
+        }
 
         const gaTicket: TicketType = {
           id: `${data.id}-ga`,
@@ -131,8 +147,8 @@ export default function EventDetailPage() {
               <OrderSummary
                 selectedTicket={selectedTicket}
                 quantity={1}
-                ticketingFee={event.ticketing_fee ?? 3.0}
-                taxRate={event.tax_rate ?? 0.09}
+                ticketingFee={venueFees.ticketing_fee}
+                taxRate={venueFees.tax_rate}
                 onCheckout={handleCheckout}
               />
             </div>
