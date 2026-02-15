@@ -7,16 +7,25 @@ import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
 
-const sidebarItems = [
-  { label: "Dashboard", href: "/admin" },
-  { label: "Events", href: "/admin/events" },
-  { label: "Booking", href: "/admin/offers" },
-  { label: "Partners", href: "/admin/sponsors" },
-  { label: "Reports", href: "/admin/reports" },
-  { label: "Sales", href: "/admin/orders" },
-  { label: "Scanner", href: "/admin/scan" },
-  { label: "Management", href: "/portal" },
-  { label: "Settings", href: "/admin/settings" },
+type SidebarItem = {
+  label: string;
+  href: string;
+  roles: string[]; // which roles can see this item
+};
+
+const ALL_ROLES = ["owner", "venue_admin", "read_only", "box_office", "door_greeter"];
+
+const sidebarItems: SidebarItem[] = [
+  { label: "Dashboard", href: "/admin", roles: ALL_ROLES },
+  { label: "Events", href: "/admin/events", roles: ["owner", "venue_admin"] },
+  { label: "Booking", href: "/admin/offers", roles: ["owner", "venue_admin"] },
+  { label: "Partners", href: "/admin/sponsors", roles: ["owner", "venue_admin"] },
+  { label: "Reports", href: "/admin/reports", roles: ["owner", "venue_admin", "read_only", "box_office"] },
+  { label: "Sales", href: "/admin/orders", roles: ["owner", "venue_admin", "box_office", "door_greeter"] },
+  { label: "Scanner", href: "/admin/scan", roles: ["owner", "venue_admin", "box_office", "door_greeter"] },
+  { label: "Management", href: "/portal", roles: ["owner", "venue_admin"] },
+  { label: "Settings", href: "/admin/settings", roles: ["owner", "venue_admin"] },
+  { label: "Onboarding", href: "/admin/onboarding", roles: ["owner"] },
 ];
 
 export default function AdminLayout({
@@ -28,30 +37,36 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminName, setAdminName] = useState("");
   const [venueName, setVenueName] = useState("");
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
-    // Fetch admin user name
-    const supabase = getSupabaseBrowser();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        // Use display name from metadata, or first part of email
-        const name =
-          user.user_metadata?.full_name ||
-          user.user_metadata?.name ||
-          user.email?.split("@")[0] ||
-          "Admin";
-        setAdminName(name);
+    // Get role and name from cookies
+    const role = getCookie("user-role") || "";
+    setUserRole(role);
+
+    const cookieName = getCookie("user-name");
+    if (cookieName) {
+      setAdminName(decodeURIComponent(cookieName));
+    } else {
+      // Fallback: get from Supabase auth
+      async function loadUser() {
+        const supabase = getSupabaseBrowser();
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          setAdminName(data.user.email?.split("@")[0] || "Admin");
+        }
       }
-    });
+      loadUser();
+    }
 
     // Fetch venue name
     const venueId = getCookie("venue-id");
     if (venueId) {
       fetch("/api/venues")
         .then((r) => r.json())
-        .then((venues) => {
+        .then((venues: Array<{ id: string; name: string }>) => {
           if (Array.isArray(venues)) {
-            const v = venues.find((x: { id: string }) => x.id === venueId);
+            const v = venues.find((x) => x.id === venueId);
             if (v) setVenueName(v.name);
           }
         })
@@ -63,6 +78,11 @@ export default function AdminLayout({
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
+
+  // Filter sidebar items by role
+  const visibleItems = sidebarItems.filter(
+    (item) => !userRole || item.roles.includes(userRole)
+  );
 
   return (
     <div className="admin-shell">
@@ -79,7 +99,7 @@ export default function AdminLayout({
         </button>
         <Image
           src="/beige-brown-logo.png"
-          alt="West 72"
+          alt="VenueCore"
           width={48}
           height={48}
           unoptimized
@@ -99,7 +119,7 @@ export default function AdminLayout({
         <div className="admin-sidebar-header">
           <Image
             src="/beige-brown-logo.png"
-            alt="West 72"
+            alt="VenueCore"
             width={100}
             height={100}
             unoptimized
@@ -116,7 +136,7 @@ export default function AdminLayout({
         </div>
 
         <nav className="admin-sidebar-nav">
-          {sidebarItems.map((item) => (
+          {visibleItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

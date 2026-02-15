@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await admin
     .from("admin_users")
-    .select("id, email, role, venue_id, created_at")
+    .select("id, email, role, venue_id, first_name, last_name, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -21,7 +21,7 @@ export async function GET() {
 // POST: create a new admin user (creates auth user + admin_users row)
 export async function POST(request: Request) {
   const body = await request.json();
-  const { email, password, role, venue_id } = body;
+  const { email, password, role, venue_id, first_name, last_name } = body;
 
   if (!email || !password || !role) {
     return NextResponse.json(
@@ -58,6 +58,8 @@ export async function POST(request: Request) {
       email,
       role,
       venue_id: venue_id || null,
+      first_name: first_name || null,
+      last_name: last_name || null,
     })
     .select()
     .single();

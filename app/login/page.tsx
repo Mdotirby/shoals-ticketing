@@ -57,9 +57,13 @@ function LoginForm() {
       if (authRes.ok) {
         const authBody = await authRes.json();
         role = authBody.role as UserRole;
-        // Store venue_id for admin pages
+        // Store venue_id, role, and name for admin pages
         if (authBody.venue_id) {
           document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
+        }
+        document.cookie = `user-role=${role}; path=/; samesite=lax`;
+        if (authBody.first_name) {
+          document.cookie = `user-name=${encodeURIComponent(authBody.first_name)}; path=/; samesite=lax`;
         }
       } else {
         // No admin record — try auto-bootstrap (first user becomes owner)
