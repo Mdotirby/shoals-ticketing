@@ -110,7 +110,7 @@ export default function AdminEditVenuePage() {
                   if (file.size > 45 * 1024 * 1024) { setError("File too large"); return; }
                   setUploading(true);
                   try {
-                    const fd = new FormData(); fd.append("file", file);
+                    const fd = new FormData(); fd.append("file", file); fd.append("bucket", "venue-logos");
                     const res = await fetch("/api/upload", { method: "POST", body: fd });
                     if (!res.ok) throw new Error();
                     const { url } = await res.json();

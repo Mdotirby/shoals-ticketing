@@ -30,13 +30,17 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const ext = file.name.split(".").pop() || "jpg";
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const filePath = `event-images/${fileName}`;
+
+    // Support different buckets: "event-images" (default) or "venue-logos"
+    const bucketParam = formData.get("bucket") as string | null;
+    const bucket = bucketParam === "venue-logos" ? "venue-logos" : "event-images";
+    const filePath = `${bucket}/${fileName}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
 
     const { error: uploadError } = await admin.storage
-      .from("event-images")
+      .from(bucket)
       .upload(filePath, buffer, {
         contentType: file.type,
         upsert: false,
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     const { data: urlData } = admin.storage
-      .from("event-images")
+      .from(bucket)
       .getPublicUrl(filePath);
 
     return NextResponse.json({ url: urlData.publicUrl }, { status: 200 });

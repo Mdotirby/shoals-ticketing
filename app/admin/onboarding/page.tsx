@@ -213,7 +213,7 @@ export default function AdminOnboardingPage() {
                     if (file.size > 45 * 1024 * 1024) { setError("File too large (45MB max)"); return; }
                     setUploading(true); setError("");
                     try {
-                      const fd = new FormData(); fd.append("file", file, `venue-logo-${Date.now()}.${file.name.split(".").pop()}`);
+                      const fd = new FormData(); fd.append("file", file, `venue-logo-${Date.now()}.${file.name.split(".").pop()}`); fd.append("bucket", "venue-logos");
                       const res = await fetch("/api/upload", { method: "POST", body: fd });
                       if (!res.ok) throw new Error("Upload failed");
                       const { url } = await res.json();
