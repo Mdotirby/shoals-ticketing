@@ -43,7 +43,7 @@ export default function Header() {
             />
           ) : (
             <Image
-              src="/venuecore.png"
+              src="/beige-brown-logo.png"
               alt="VenueCore Logo"
               width={200}
               height={200}
