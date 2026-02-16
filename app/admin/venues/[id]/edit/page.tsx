@@ -135,7 +135,7 @@ export default function AdminEditVenuePage() {
             <input type="file" accept=".png,.jpg,.jpeg" className="admin-form-input" style={{ padding: 8, marginTop: 4 }}
               onChange={async (e) => {
                 const file = e.target.files?.[0]; if (!file) return;
-                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "venue-logos");
+                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "hero-images");
                 const res = await fetch("/api/upload", { method: "POST", body: fd });
                 if (res.ok) { const { url } = await res.json(); setForm({ ...form, hero_image_url: url }); }
               }}
@@ -147,7 +147,7 @@ export default function AdminEditVenuePage() {
             <input type="file" accept=".png,.jpg,.jpeg" className="admin-form-input" style={{ padding: 8, marginTop: 4 }}
               onChange={async (e) => {
                 const file = e.target.files?.[0]; if (!file) return;
-                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "venue-logos");
+                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "hero-images");
                 const res = await fetch("/api/upload", { method: "POST", body: fd });
                 if (res.ok) { const { url } = await res.json(); setForm({ ...form, hero_image_2_url: url }); }
               }}

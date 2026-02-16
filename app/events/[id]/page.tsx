@@ -36,6 +36,22 @@ export default function EventDetailPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  // Track page view for marketing analytics
+  useEffect(() => {
+    // Generate or reuse a session ID for unique visitor tracking
+    let sessionId = sessionStorage.getItem("vc_session");
+    if (!sessionId) {
+      sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem("vc_session", sessionId);
+    }
+
+    fetch(`/api/events/${eventId}/views`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId }),
+    }).catch(() => {}); // fire-and-forget
+  }, [eventId]);
+
   // Fetch sponsors for this event
   useEffect(() => {
     fetch(`/api/sponsors?event_id=${eventId}`)

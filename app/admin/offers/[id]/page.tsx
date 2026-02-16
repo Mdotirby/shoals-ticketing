@@ -123,103 +123,121 @@ export default function AdminOfferDetailPage() {
       const pc = venue?.primary_color || "#d0c290";
       const sc = venue?.secondary_color || "#0b0d1d";
       const hex = (h: string) => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)] as [number,number,number];
-      let y = 10;
+      const W = 215.9; // letter width mm
+      let y = 0;
 
-      // Header
+      // ─── HEADER BAR (venue branding) ───
       doc.setFillColor(...hex(sc));
-      doc.rect(0, 0, 220, 24, "F");
+      doc.rect(0, 0, W, 26, "F");
       doc.setFillColor(...hex(pc));
-      doc.rect(0, 24, 220, 1, "F");
+      doc.rect(0, 26, W, 1.5, "F");
+
+      // Venue info (right side of header)
       doc.setTextColor(...hex(pc));
-      doc.setFontSize(14);
-      doc.text(venue?.name || "Venue", 200, 10, { align: "right" });
-      doc.setFontSize(9);
-      if (venue?.capacity) doc.text(`Capacity: ${venue.capacity}`, 200, 15, { align: "right" });
-      const addr = [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ");
-      if (addr) doc.text(addr, 200, 20, { align: "right" });
-
-      y = 30;
-      doc.setTextColor(0,0,0);
       doc.setFontSize(16);
-      doc.text(String(form.artist_name || ""), 10, y);
-      y += 6;
-      doc.setFontSize(8);
-      doc.setTextColor(100,100,100);
-      doc.text(`Offer Sheet — ${form.event_date ? new Date(String(form.event_date)).toLocaleDateString() : "Date TBD"}`, 10, y);
-      y += 8;
+      doc.text(venue?.name || "Venue", W - 10, 11, { align: "right" });
+      doc.setFontSize(9);
+      const venueInfo = [`Venue Capacity: ${venue?.capacity || "—"}`,
+        [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ")
+      ].filter(Boolean);
+      venueInfo.forEach((line, i) => doc.text(line, W - 10, 17 + i * 4, { align: "right" }));
 
-      // Helper for labeled rows
-      const row = (label: string, val: string) => {
-        doc.setTextColor(80,80,80);
-        doc.setFontSize(7);
-        doc.text(label, 10, y);
-        doc.setTextColor(0,0,0);
-        doc.setFontSize(8);
-        doc.text(val, 50, y);
-        y += 4;
-      };
+      y = 32;
 
-      // Agency
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Agency & Artist", 10, y); y += 5;
-      row("Agency", String(form.agency || "—"));
-      row("Agent", `${form.agent_name || "—"}  |  ${form.agent_phone || "—"}  |  ${form.agent_email || "—"}`);
-      row("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${form.show_time || "—"}`);
-      row("Billing", String(form.billing || "—"));
+      // Helpers
+      const sectionTitle = (title: string) => { doc.setFillColor(...hex(pc)); doc.rect(10, y - 1, W - 20, 5, "F"); doc.setTextColor(...hex(sc)); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(title, 12, y + 2.5); doc.setFont("helvetica", "normal"); y += 7; };
+      const labelVal = (label: string, val: string, x1 = 10, x2 = 50) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); y += 3.8; };
+      const labelValR = (label: string, val: string, x1: number, x2: number) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); };
+
+      // ─── AGENCY & ARTIST ───
+      sectionTitle("Agency / Artist");
+      labelVal("Agency", String(form.agency || "—"));
+      labelVal("Agent", String(form.agent_name || "—"));
+      labelVal("Phone", String(form.agent_phone || "—")); labelValR("Email", String(form.agent_email || "—"), 110, 135); y += 3.8;
+      labelVal("Artist", String(form.artist_name || "—"));
+      labelVal("Date", form.event_date ? new Date(String(form.event_date)).toLocaleDateString() : "MA");
+      labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${form.show_time || "—"}`);
+      labelVal("Billing", String(form.billing || "—"));
       y += 2;
 
-      // Deal
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Deal", 10, y); y += 5;
-      row("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      row("Deal Type", `${form.deal_type || "FLAT"}  |  Backend: ${form.backend_percentage || "0"}%`);
-      row("Radius", `${form.radius_distance || "—"} mi  |  ${form.radius_days_prior || "—"} days prior  |  ${form.radius_days_after || "—"} days after`);
-      row("Deposit", `$${Number(form.deposit_amount || 0).toLocaleString()}  (${form.deposit_pct || 0}%)  |  Due: ${form.deposit_due || "—"}`);
-      row("Balance", String(form.balance_due || "Day of Show"));
-      row("Merch", `${form.merch_split || "—"}  |  Sells: ${form.merch_seller || "—"}`);
-      row("Production", String(form.production_by || "—"));
-      row("Comps", String(form.comps || 0));
+      // ─── DEAL ───
+      sectionTitle("Deal");
+      labelVal("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
+      labelVal("Type", `${form.deal_type || "FLAT"}`); labelValR("Backend", `${form.backend_percentage || "0"}%`, 110, 135); y += 3.8;
+      labelVal("Other Terms", String(form.other_terms || "—"));
+      labelVal("Radius", `${form.radius_distance || "—"} mi  |  ${form.radius_days_prior || "—"} days prior  |  ${form.radius_days_after || "—"} days after`);
+      labelVal("Production", String(form.production_by || "—"));
+      labelVal("Deposit", `$${Number(form.deposit_amount || 0).toLocaleString()} (${form.deposit_pct || 0}%)  |  Due: ${form.deposit_due || "—"}`);
+      labelVal("Balance", String(form.balance_due || "Day of Show"));
+      labelVal("Merch", `${form.merch_split || "—"}  |  Sells: ${form.merch_seller || "—"}`);
+      labelVal("Comps", String(form.comps || 0));
       y += 2;
 
-      // Scaling
+      // ─── TICKET SCALING ───
       const scaling = (form.ticket_scaling || []) as TicketScalingRow[];
       if (scaling.length > 0) {
-        doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Ticket Scaling", 10, y); y += 5;
+        sectionTitle("Ticket Scaling");
+        // Column headers
+        doc.setTextColor(80,80,80); doc.setFontSize(6);
+        const cols = [10, 35, 55, 70, 85, 105, 130, 155];
+        ["Scaling", "# Seats", "Comps", "Kills", "Sellable", "Net Price", "Price", "Gross"].forEach((h, i) => doc.text(h, cols[i], y));
+        y += 3.5;
+        doc.setTextColor(0,0,0); doc.setFontSize(7);
         scaling.forEach((r) => {
-          row(r.name, `${r.seats} seats  |  Sellable: ${r.sellable_cap}  |  Net: $${r.net_price?.toFixed(2)}  |  Price: $${r.price?.toFixed(2)}  |  Gross: $${(r.sellable_cap * r.price).toLocaleString()}`);
+          [r.name, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap), `$${r.net_price?.toFixed(2)}`, `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`].forEach((v, i) => doc.text(v, cols[i], y));
+          y += 3.5;
         });
         y += 2;
       }
 
-      // Expenses
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Expenses", 10, y); y += 5;
+      // ─── EXPENSES (two columns) ───
+      sectionTitle("Expenses");
       const fe = (form.fixed_expenses || []) as ExpenseItem[];
       const ve = (form.variable_expenses || []) as VariableExpenseItem[];
-      fe.filter(e => e.amount > 0).forEach((e) => row(e.name, `$${e.amount.toFixed(2)}`));
-      row("Fixed Total", `$${Number(form.total_fixed || 0).toLocaleString()}`);
-      y += 1;
-      ve.filter(e => e.amount > 0).forEach((e) => row(e.name, `${(e.rate * 100).toFixed(2)}% → $${e.amount.toFixed(2)}`));
-      row("Variable Total", `$${Number(form.total_variable || 0).toLocaleString()}`);
-      row("TOTAL EXPENSES", `$${Number(form.total_expenses || 0).toLocaleString()}`);
-      y += 3;
+      const startY = y;
 
-      // Potential
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Potential at Sellout", 10, y); y += 5;
-      row("Gross Potential", `$${Number(form.gross_potential || 0).toLocaleString()}`);
-      row("Adj. Gross", `$${Number(form.adj_gross || 0).toLocaleString()}`);
-      row("Net Potential", `$${Number(form.net_potential || 0).toLocaleString()}`);
-      row("Total Expenses", `$${Number(form.total_expenses || 0).toLocaleString()}`);
-      row("Splitpoint", `$${Number(form.splitpoint || 0).toLocaleString()}`);
-      y += 1;
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Artist Potential", 10, y); y += 5;
-      row("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      if (form.deal_type !== "FLAT") row("Backend", `$${Number(form.artist_backend || 0).toLocaleString()}`);
-      y += 1;
-      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Promoter Potential", 10, y); y += 5;
-      row("Promoter Walkout", `$${Number(form.pot_walkout || 0).toLocaleString()}`);
-      y += 4;
+      // Fixed (left)
+      doc.setTextColor(80,80,80); doc.setFontSize(6); doc.text("Fixed Expenses", 10, y); doc.text("Est.", 60, y); y += 3.5;
+      doc.setFontSize(7); doc.setTextColor(0,0,0);
+      fe.forEach((e) => { if (e.amount > 0) { doc.text(e.name, 10, y); doc.text(`$${e.amount.toFixed(2)}`, 60, y); y += 3.2; } });
+      doc.setFont("helvetica", "bold"); doc.text("Fixed Total", 10, y); doc.text(`$${Number(form.total_fixed || 0).toFixed(2)}`, 60, y); doc.setFont("helvetica", "normal");
+      const fixedEndY = y + 4;
 
+      // Variable (right)
+      y = startY;
+      doc.setTextColor(80,80,80); doc.setFontSize(6); doc.text("Variable Expenses", 110, y); doc.text("Rate", 160, y); doc.text("$", 180, y); y += 3.5;
+      doc.setFontSize(7); doc.setTextColor(0,0,0);
+      ve.forEach((e) => { if (e.amount > 0) { doc.text(e.name, 110, y); doc.text(`${(e.rate * 100).toFixed(2)}%`, 160, y); doc.text(`$${e.amount.toFixed(2)}`, 180, y); y += 3.2; } });
+      doc.setFont("helvetica", "bold"); doc.text("Variable Total", 110, y); doc.text(`$${Number(form.total_variable || 0).toFixed(2)}`, 180, y); doc.setFont("helvetica", "normal");
+
+      y = Math.max(fixedEndY, y + 4) + 2;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+      doc.text(`Total Expenses:  $${Number(form.total_expenses || 0).toLocaleString()}`, 10, y);
+      doc.setFont("helvetica", "normal");
+      y += 6;
+
+      // ─── POTENTIAL AT SELLOUT ───
+      sectionTitle("Potential at Sellout");
+      labelVal("Gross Potential", `$${Number(form.gross_potential || 0).toLocaleString()}`);
+      labelVal("Adj. Gross", `$${Number(form.adj_gross || 0).toLocaleString()}`);
+      const taxPct = Number(form.tax_rate || 0) * 100;
+      labelVal(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(form.adj_gross || 0) * Number(form.tax_rate || 0)).toFixed(2)}`);
+      labelVal("Net Potential", `$${Number(form.net_potential || 0).toLocaleString()}`);
+      labelVal("Total Expenses", `$${Number(form.total_expenses || 0).toLocaleString()}`);
+      if (form.deal_type !== "FLAT") labelVal("Splitpoint", `$${Number(form.splitpoint || 0).toLocaleString()}`);
+      y += 2;
+
+      // ─── ARTIST POTENTIAL ───
+      sectionTitle("Artist Potential at Sellout");
+      labelVal("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
+      if (form.deal_type !== "FLAT") labelVal("Backend", `$${Number(form.artist_backend || 0).toLocaleString()}`);
+      y += 5;
+
+      // ─── FOOTER ───
       doc.setFontSize(7); doc.setTextColor(120,120,120);
-      doc.text(`Offer valid for ${form.offer_valid_days || 14} days from ${new Date().toLocaleDateString()}`, 10, y);
+      doc.text(`Offer Good for ${form.offer_valid_days || 14} days from Today     ${new Date().toLocaleDateString()}`, 10, y);
 
+      // Save
       const dateStr = form.event_date ? new Date(String(form.event_date)).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).replace(/\//g, ".") : "TBD";
       const city = venue?.address_city || "City";
       const state = venue?.address_state || "ST";

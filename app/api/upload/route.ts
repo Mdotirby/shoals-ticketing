@@ -31,9 +31,10 @@ export async function POST(request: Request) {
     const ext = file.name.split(".").pop() || "jpg";
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-    // Support different buckets: "event-images" (default) or "venue-logos"
+    // Support different buckets: "event-images" (default), "venue-logos", or "hero-images"
     const bucketParam = formData.get("bucket") as string | null;
-    const bucket = bucketParam === "venue-logos" ? "venue-logos" : "event-images";
+    const allowedBuckets = ["event-images", "venue-logos", "hero-images"];
+    const bucket = bucketParam && allowedBuckets.includes(bucketParam) ? bucketParam : "event-images";
     const filePath = `${bucket}/${fileName}`;
 
     const arrayBuffer = await file.arrayBuffer();

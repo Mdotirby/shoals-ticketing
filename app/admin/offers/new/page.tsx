@@ -142,6 +142,7 @@ export default function AdminCreateOfferPage() {
   const [agentEmail, setAgentEmail] = useState("");
   const [artistName, setArtistName] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [dateMode, setDateMode] = useState<"ma" | "date">("date");
   const [dayOfEvent, setDayOfEvent] = useState("");
   const [numShows, setNumShows] = useState("1");
   const [showLength, setShowLength] = useState("");
@@ -178,7 +179,8 @@ export default function AdminCreateOfferPage() {
   const [variableExpenses, setVariableExpenses] = useState<VariableExpenseItem[]>(DEFAULT_VARIABLE);
 
   // ── Section 6: Tax ──
-  const [taxRate, setTaxRate] = useState("0.11");
+  const [taxRate, setTaxRate] = useState("9.5"); // percentage (e.g., 9.5 = 9.5%)
+  const [taxMode, setTaxMode] = useState<"imposed" | "absorbed">("imposed");
 
   // ── Section 7: Offer Validity ──
   const [offerValidDays, setOfferValidDays] = useState("14");
@@ -186,23 +188,53 @@ export default function AdminCreateOfferPage() {
   // ── Calculated values ──
   const grossPotential = scaling.reduce((sum, r) => sum + r.sellable_cap * r.price, 0);
   const adjGross = grossPotential - scaling.reduce((sum, r) => sum + r.sellable_cap * r.facility_fee, 0);
-  const taxAmount = adjGross * parseFloat(taxRate || "0");
-  const netPotential = adjGross - taxAmount;
+
+  // Tax: imposed = divisor (adjGross / (1 + rate)), absorbed = multiplier (adjGross - adjGross * rate)
+  const taxRateDecimal = parseFloat(taxRate || "0") / 100;
+  let netPotential: number;
+  let taxAmount: number;
+  if (taxMode === "imposed") {
+    // Ticket buyer pays tax — divisor method
+    netPotential = adjGross / (1 + taxRateDecimal);
+    taxAmount = adjGross - netPotential;
+  } else {
+    // Promoter absorbs tax — multiplier method
+    taxAmount = adjGross * taxRateDecimal;
+    netPotential = adjGross - taxAmount;
+  }
+
   const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
   const totalVariable = variableExpenses.reduce((s, e) => s + (e.amount || 0), 0);
   const totalExpenses = totalFixed + totalVariable;
-  const splitpoint = netPotential - totalExpenses;
 
   const guaranteeNum = parseFloat(guarantee || "0");
   const backendNum = parseFloat(backendPct || "0") / 100;
-  const artistBackend = splitpoint > 0 ? splitpoint * backendNum : 0;
 
-  // VS: max(guarantee, backend); PLUS: guarantee + backend; FLAT: guarantee
+  // FLAT: no splitpoint — promoter gets net - expenses - guarantee
+  // VS/PLUS/BONUS: splitpoint = net - expenses, then artist backend calculated from that
+  let splitpoint = 0;
+  let artistBackend = 0;
   let artistPAS = guaranteeNum;
-  if (dealType === "VS") artistPAS = Math.max(guaranteeNum, artistBackend);
-  else if (dealType === "PLUS" || dealType === "BONUS") artistPAS = guaranteeNum + artistBackend;
+  let potWalkout = 0;
 
-  const potWalkout = netPotential - totalExpenses - artistPAS;
+  if (dealType === "FLAT") {
+    // No splitpoint for FLAT deals. Guarantee IS already in expenses as Talent.
+    // So promoter walkout = net - expenses (guarantee already counted in expenses)
+    potWalkout = netPotential - totalExpenses;
+    artistPAS = guaranteeNum;
+  } else {
+    // VS, PLUS, BONUS — have splitpoints and backends
+    splitpoint = netPotential - totalExpenses;
+    artistBackend = splitpoint > 0 ? splitpoint * backendNum : 0;
+
+    if (dealType === "VS") {
+      artistPAS = Math.max(guaranteeNum, artistBackend);
+    } else {
+      // PLUS or BONUS — guarantee + backend
+      artistPAS = guaranteeNum + artistBackend;
+    }
+    potWalkout = splitpoint - artistPAS;
+  }
 
   // Recalculate variable expenses when gross changes
   const recalcVariables = useCallback(() => {
@@ -274,7 +306,7 @@ export default function AdminCreateOfferPage() {
           ticket_scaling: scaling, fixed_expenses: fixedExpenses, variable_expenses: variableExpenses,
           total_fixed: totalFixed, total_variable: totalVariable, total_expenses: totalExpenses,
           gross_potential: grossPotential, adj_gross: adjGross,
-          tax_rate: parseFloat(taxRate) || 0, net_potential: netPotential,
+          tax_rate: taxRateDecimal, net_potential: netPotential,
           splitpoint, artist_backend: artistBackend, pot_walkout: potWalkout,
           offer_valid_days: parseInt(offerValidDays) || 14,
           status: "draft",
@@ -320,7 +352,15 @@ export default function AdminCreateOfferPage() {
           <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} /></label>
           <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} /></label>
           <label className="admin-form-label">Artist Name *<input type="text" className="admin-form-input" value={artistName} onChange={(e) => setArtistName(e.target.value)} required /></label>
-          <label className="admin-form-label">Date of Engagement<input type="date" className="admin-form-input" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
+          <label className="admin-form-label">Date of Engagement
+            <select className="admin-form-input" value={dateMode} onChange={(e) => { const m = e.target.value as "ma" | "date"; setDateMode(m); if (m === "ma") setEventDate(""); }} style={{ marginBottom: 6 }}>
+              <option value="ma">MA — No date attached</option>
+              <option value="date">Specific date</option>
+            </select>
+          </label>
+          {dateMode === "date" && (
+            <label className="admin-form-label">Event Date<input type="date" className="admin-form-input" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
+          )}
           <label className="admin-form-label">Day of Event<input type="text" className="admin-form-input" value={dayOfEvent} onChange={(e) => setDayOfEvent(e.target.value)} placeholder="e.g. Saturday" /></label>
           <label className="admin-form-label"># of Shows<input type="number" className="admin-form-input" value={numShows} onChange={(e) => setNumShows(e.target.value)} min="1" /></label>
           <label className="admin-form-label">Length of Show<input type="text" className="admin-form-input" value={showLength} onChange={(e) => setShowLength(e.target.value)} placeholder="75-90" /></label>
@@ -441,20 +481,34 @@ export default function AdminCreateOfferPage() {
         </div>
         <div className="offer-total-expenses">Total Expenses: <strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
 
+        {/* ═══ Tax Mode ═══ */}
+        <h2 className="admin-form-section-title">Tax</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Tax Method
+            <select className="admin-form-input" value={taxMode} onChange={(e) => setTaxMode(e.target.value as "imposed" | "absorbed")}>
+              <option value="imposed">Tax imposed on ticket buyer (divisor)</option>
+              <option value="absorbed">Tax absorbed by promoter (multiplier)</option>
+            </select>
+          </label>
+          <label className="admin-form-label">
+            Tax Rate (%)
+            <input type="number" className="admin-form-input" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} step="0.5" min="0" placeholder="9.5" />
+          </label>
+        </div>
+
         {/* ═══ SECTION 6: Potential at Sellout ═══ */}
         <h2 className="admin-form-section-title">Potential at Sellout</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row">
-              <span>Tax Rate:</span>
-              <input type="number" className="admin-form-input" style={{ width: 80 }} value={taxRate} onChange={(e) => setTaxRate(e.target.value)} step="0.01" />
-              <span>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
-            </div>
+            <div className="offer-potential-row"><span>Tax ({taxRate}% — {taxMode}):</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            {dealType !== "FLAT" && (
+              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            )}
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
@@ -463,8 +517,6 @@ export default function AdminCreateOfferPage() {
               <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
             )}
             <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <h3 className="offer-expenses-heading" style={{ marginTop: 12 }}>Promoter Potential</h3>
-            <div className="offer-potential-row highlight"><span>Promoter Walkout:</span><strong>${potWalkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
 
