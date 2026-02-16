@@ -41,3 +41,7 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,4) DEFAULT 0.09;
 -- ALTER TABLE events DROP COLUMN IF EXISTS ticketing_fee;
 -- ALTER TABLE events DROP COLUMN IF EXISTS venue_rebate;
 -- ALTER TABLE events DROP COLUMN IF EXISTS tax_rate;
+
+-- Hero images for venue subdomains
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS hero_image_url TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS hero_image_2_url TEXT;

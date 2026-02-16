@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { useVenueTheme } from "@/app/components/VenueThemeProvider";
 
 type SidebarItem = {
   label: string;
@@ -39,6 +40,8 @@ export default function AdminLayout({
   const [adminName, setAdminName] = useState("");
   const [venueName, setVenueName] = useState("");
   const [userRole, setUserRole] = useState("");
+  const [sidebarLogoUrl, setSidebarLogoUrl] = useState<string | null>(null);
+  const venueTheme = useVenueTheme();
 
   useEffect(() => {
     const role = getCookie("user-role") || "";
@@ -65,10 +68,13 @@ export default function AdminLayout({
     if (venueId) {
       fetch("/api/venues")
         .then((r) => r.json())
-        .then((venues: Array<{ id: string; name: string }>) => {
+        .then((venues: Array<{ id: string; name: string; logo_url?: string }>) => {
           if (Array.isArray(venues)) {
             const v = venues.find((x) => x.id === venueId);
-            if (v) setVenueName(v.name);
+            if (v) {
+              setVenueName(v.name);
+              if (v.logo_url) setSidebarLogoUrl(v.logo_url);
+            }
           }
         })
         .catch(() => {});
@@ -116,14 +122,24 @@ export default function AdminLayout({
 
       <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
-          <Image
-            src="/beige-brown-logo.png"
-            alt="VenueCore"
-            width={100}
-            height={100}
-            unoptimized
-            className="admin-sidebar-logo"
-          />
+          {(sidebarLogoUrl || venueTheme.logo_url) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={sidebarLogoUrl || venueTheme.logo_url || "/beige-brown-logo.png"}
+              alt={venueName || "Venue"}
+              className="admin-sidebar-logo"
+              style={{ width: 80, height: 80, objectFit: "contain" }}
+            />
+          ) : (
+            <Image
+              src="/beige-brown-logo.png"
+              alt="VenueCore"
+              width={100}
+              height={100}
+              unoptimized
+              className="admin-sidebar-logo"
+            />
+          )}
           {adminName && (
             <p className="admin-sidebar-welcome">
               Welcome, <strong>{adminName}</strong>

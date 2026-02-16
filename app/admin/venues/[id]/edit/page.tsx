@@ -14,6 +14,7 @@ export default function AdminEditVenuePage() {
 
   const [form, setForm] = useState({
     name: "", slug: "", nickname: "", capacity: "", logo_url: "",
+    hero_image_url: "", hero_image_2_url: "",
     address_street: "", address_city: "", address_state: "", address_zip: "",
     buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "",
     primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045",
@@ -29,6 +30,7 @@ export default function AdminEditVenuePage() {
         setForm({
           name: String(v.name || ""), slug: String(v.slug || ""), nickname: String(v.nickname || ""),
           capacity: v.capacity ? String(v.capacity) : "", logo_url: String(v.logo_url || ""),
+          hero_image_url: String(v.hero_image_url || ""), hero_image_2_url: String(v.hero_image_2_url || ""),
           address_street: String(v.address_street || ""), address_city: String(v.address_city || ""),
           address_state: String(v.address_state || ""), address_zip: String(v.address_zip || ""),
           buyer_name: String(v.buyer_name || ""), contract_signatory: String(v.contract_signatory || ""),
@@ -52,6 +54,7 @@ export default function AdminEditVenuePage() {
         body: JSON.stringify({
           id, name: form.name, slug: form.slug, nickname: form.nickname || null,
           capacity: form.capacity ? parseInt(form.capacity) : null, logo_url: form.logo_url || null,
+          hero_image_url: form.hero_image_url || null, hero_image_2_url: form.hero_image_2_url || null,
           address_street: form.address_street || null, address_city: form.address_city || null,
           address_state: form.address_state || null, address_zip: form.address_zip || null,
           buyer_name: form.buyer_name || null, contract_signatory: form.contract_signatory || null,
@@ -122,6 +125,34 @@ export default function AdminEditVenuePage() {
               {uploading && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Uploading…</span>}
             </label>
           )}
+        </div>
+
+        <h2 className="admin-form-section-title">Hero Images</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Hero Image 1 (main)
+            {form.hero_image_url && <img src={form.hero_image_url} alt="Hero 1" style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 8, marginTop: 4 }} />}
+            <input type="file" accept=".png,.jpg,.jpeg" className="admin-form-input" style={{ padding: 8, marginTop: 4 }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "venue-logos");
+                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                if (res.ok) { const { url } = await res.json(); setForm({ ...form, hero_image_url: url }); }
+              }}
+            />
+          </label>
+          <label className="admin-form-label">
+            Hero Image 2 (secondary)
+            {form.hero_image_2_url && <img src={form.hero_image_2_url} alt="Hero 2" style={{ width: "100%", maxHeight: 120, objectFit: "cover", borderRadius: 8, marginTop: 4 }} />}
+            <input type="file" accept=".png,.jpg,.jpeg" className="admin-form-input" style={{ padding: 8, marginTop: 4 }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]; if (!file) return;
+                const fd = new FormData(); fd.append("file", file); fd.append("bucket", "venue-logos");
+                const res = await fetch("/api/upload", { method: "POST", body: fd });
+                if (res.ok) { const { url } = await res.json(); setForm({ ...form, hero_image_2_url: url }); }
+              }}
+            />
+          </label>
         </div>
 
         <h2 className="admin-form-section-title">Fees</h2>

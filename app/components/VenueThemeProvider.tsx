@@ -7,6 +7,8 @@ type VenueTheme = {
   name: string;
   slug: string;
   logo_url: string | null;
+  hero_image_url: string | null;
+  hero_image_2_url: string | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
@@ -17,6 +19,8 @@ const defaultTheme: VenueTheme = {
   name: "",
   slug: "",
   logo_url: null,
+  hero_image_url: null,
+  hero_image_2_url: null,
   primary_color: "#d0c290",
   secondary_color: "#0b0d1d",
   accent_color: "#202045",
@@ -49,6 +53,8 @@ export default function VenueThemeProvider({ children }: { children: React.React
             name: venue.name || "",
             slug: venue.slug || "",
             logo_url: venue.logo_url || null,
+            hero_image_url: venue.hero_image_url || null,
+            hero_image_2_url: venue.hero_image_2_url || null,
             primary_color: pc,
             secondary_color: sc,
             accent_color: ac,

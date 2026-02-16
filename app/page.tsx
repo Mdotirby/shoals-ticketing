@@ -7,11 +7,11 @@ import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import { Event } from "@/lib/types/event";
 import { getCookie } from "@/lib/cookies";
+import { useVenueTheme } from "./components/VenueThemeProvider";
 
-// Hero images from Supabase storage bucket "webUI-pics"
-// Replace these with your actual Supabase storage URLs
-const HERO_IMAGE_1 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Nov%2008%202025,%208%2041%2054%20PM.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE5vdiAwOCAyMDI1LCA4IDQxIDU0IFBNLmpwZyIsImlhdCI6MTc3MTA0NjkwMSwiZXhwIjoxODAyNTgyOTAxfQ.Nv30BCP6oIByWGDfqwg1AfwnYzBA3U6xkgB9fNX-T2E"; // Paste URL from webUI-pics bucket
-const HERO_IMAGE_2 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Oct%2025%202024,%204%2008%2039%20PM%20(1).jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE9jdCAyNSAyMDI0LCA0IDA4IDM5IFBNICgxKS5qcGciLCJpYXQiOjE3NzEwNDY4NzUsImV4cCI6MTgwMjU4Mjg3NX0.1dRj_BCrFrFGv6-_bfxE67qy5aKNIsDuGyLXrk6f3MA"; // Paste URL from webUI-pics bucket
+// Default hero images (West 72 / main domain)
+const DEFAULT_HERO_1 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Nov%2008%202025,%208%2041%2054%20PM.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE5vdiAwOCAyMDI1LCA4IDQxIDU0IFBNLmpwZyIsImlhdCI6MTc3MTA0NjkwMSwiZXhwIjoxODAyNTgyOTAxfQ.Nv30BCP6oIByWGDfqwg1AfwnYzBA3U6xkgB9fNX-T2E";
+const DEFAULT_HERO_2 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Oct%2025%202024,%204%2008%2039%20PM%20(1).jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE9jdCAyNSAyMDI0LCA0IDA4IDM5IFBNICgxKS5qcGciLCJpYXQiOjE3NzEwNDY4NzUsImV4cCI6MTgwMjU4Mjg3NX0.1dRj_BCrFrFGv6-_bfxE67qy5aKNIsDuGyLXrk6f3MA";
 
 function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   const ref = useRef(null);
@@ -31,8 +31,13 @@ function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
 }
 
 export default function HomePage() {
+  const venueTheme = useVenueTheme();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Use venue-specific hero images if on a subdomain, otherwise defaults
+  const HERO_IMAGE_1 = venueTheme.hero_image_url || DEFAULT_HERO_1;
+  const HERO_IMAGE_2 = venueTheme.hero_image_2_url || DEFAULT_HERO_2;
 
   useEffect(() => {
     // If on a venue subdomain, filter by that venue's slug
