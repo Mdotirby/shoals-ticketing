@@ -39,7 +39,7 @@ export default function Footer() {
             <img src={venue.logo_url} alt={venue.name || "Venue"} className="footer-logo" style={{ width: 127, height: 127, objectFit: "contain" }} />
           ) : (
             <Image
-              src="/beige-brown-logo.png"
+              src="/venuecore.png"
               alt="VenueCore Logo"
               width={127}
               height={127}
