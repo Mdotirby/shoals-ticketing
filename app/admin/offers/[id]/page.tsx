@@ -132,15 +132,30 @@ export default function AdminOfferDetailPage() {
       doc.setFillColor(...hex(pc));
       doc.rect(0, 26, W, 1.5, "F");
 
-      // Venue info (right side of header)
+      // Venue logo (top-left of header)
+      if (venue?.logo_url) {
+        try {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = venue.logo_url;
+          await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 2000); });
+          if (img.complete && img.naturalWidth > 0) {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+            canvas.getContext("2d")?.drawImage(img, 0, 0);
+            doc.addImage(canvas.toDataURL("image/png"), "PNG", 8, 3, 20, 20);
+          }
+        } catch {}
+      }
+
+      // Venue info (top-right): Name → Address → Capacity
       doc.setTextColor(...hex(pc));
       doc.setFontSize(16);
-      doc.text(venue?.name || "Venue", W - 10, 11, { align: "right" });
+      doc.text(venue?.name || "Venue", W - 10, 10, { align: "right" });
       doc.setFontSize(9);
-      const venueInfo = [`Venue Capacity: ${venue?.capacity || "—"}`,
-        [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ")
-      ].filter(Boolean);
-      venueInfo.forEach((line, i) => doc.text(line, W - 10, 17 + i * 4, { align: "right" }));
+      const venueAddr = [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ");
+      if (venueAddr) doc.text(venueAddr, W - 10, 16, { align: "right" });
+      doc.text(`Venue Capacity: ${venue?.capacity || "—"}`, W - 10, venueAddr ? 21 : 16, { align: "right" });
 
       y = 32;
 
@@ -153,7 +168,8 @@ export default function AdminOfferDetailPage() {
       sectionTitle("Agency / Artist");
       labelVal("Agency", String(form.agency || "—"));
       labelVal("Agent", String(form.agent_name || "—"));
-      labelVal("Phone", String(form.agent_phone || "—")); labelValR("Email", String(form.agent_email || "—"), 110, 135); y += 3.8;
+      labelVal("Phone", String(form.agent_phone || "—"));
+      labelVal("Email", String(form.agent_email || "—"));
       labelVal("Artist", String(form.artist_name || "—"));
       labelVal("Date", form.event_date ? new Date(String(form.event_date)).toLocaleDateString() : "MA");
       labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${form.show_time || "—"}`);
@@ -163,7 +179,8 @@ export default function AdminOfferDetailPage() {
       // ─── DEAL ───
       sectionTitle("Deal");
       labelVal("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      labelVal("Type", `${form.deal_type || "FLAT"}`); labelValR("Backend", `${form.backend_percentage || "0"}%`, 110, 135); y += 3.8;
+      labelVal("Type", `${form.deal_type || "FLAT"}`);
+      labelVal("Backend", `${form.backend_percentage || "0"}%`);
       labelVal("Other Terms", String(form.other_terms || "—"));
       labelVal("Radius", `${form.radius_distance || "—"} mi  |  ${form.radius_days_prior || "—"} days prior  |  ${form.radius_days_after || "—"} days after`);
       labelVal("Production", String(form.production_by || "—"));
@@ -319,13 +336,55 @@ export default function AdminOfferDetailPage() {
           <label className="admin-form-label">Comps<input type="number" className="admin-form-input" value={String(form.comps || "")} onChange={(e) => updateField("comps", parseInt(e.target.value) || 0)} /></label>
         </div>
 
-        <h2 className="admin-form-section-title">Financials (read-only)</h2>
+        {/* ── Ticket Scaling ── */}
+        <h2 className="admin-form-section-title">Ticket Scaling</h2>
+        <div className="admin-tiers-list">
+          {(Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : []).map((r, i) => (
+            <div key={i} className="admin-tier-row">
+              <input type="text" className="admin-form-input admin-tier-input" value={String(r.name || "")} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], name: e.target.value }; updateField("ticket_scaling", s); }} placeholder="Tier name" />
+              <input type="number" className="admin-form-input admin-tier-input" value={r.seats || ""} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; const v = parseInt(e.target.value) || 0; s[i] = { ...s[i], seats: v, sellable_cap: v - Number(s[i].comps || 0) - Number(s[i].kills || 0) }; updateField("ticket_scaling", s); }} placeholder="Seats" />
+              <input type="number" className="admin-form-input admin-tier-input admin-tier-price" value={r.net_price || ""} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], net_price: parseFloat(e.target.value) || 0 }; updateField("ticket_scaling", s); }} placeholder="Net $" step="0.01" />
+              <span className="offer-calc-cell" style={{ minWidth: 50, fontSize: 12 }}>{r.sellable_cap || 0} sell</span>
+            </div>
+          ))}
+          <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: `P${((form.ticket_scaling as [])?.length || 0) + 1}`, seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 }])}>+ Add Tier</button>
+        </div>
+
+        {/* ── Fixed Expenses ── */}
+        <h2 className="admin-form-section-title">Expenses</h2>
+        <div className="offer-expenses-grid">
+          <div className="offer-expenses-col">
+            <h3 className="offer-expenses-heading">Fixed Expenses</h3>
+            {(Array.isArray(form.fixed_expenses) ? form.fixed_expenses as Array<{name: string; amount: number}> : []).map((e, i) => (
+              <div key={i} className="offer-expense-row">
+                <input type="text" className="admin-form-input" value={e.name} onChange={(ev) => { const f = [...(form.fixed_expenses as Array<Record<string, unknown>>)]; f[i] = { ...f[i], name: ev.target.value }; updateField("fixed_expenses", f); }} />
+                <input type="number" className="admin-form-input" value={e.amount || ""} onChange={(ev) => { const f = [...(form.fixed_expenses as Array<Record<string, unknown>>)]; f[i] = { ...f[i], amount: parseFloat(ev.target.value) || 0 }; updateField("fixed_expenses", f); }} step="0.01" />
+              </div>
+            ))}
+            <button type="button" className="admin-tier-add-btn" onClick={() => updateField("fixed_expenses", [...(Array.isArray(form.fixed_expenses) ? form.fixed_expenses : []), { name: "", amount: 0 }])}>+ New Expense</button>
+          </div>
+          <div className="offer-expenses-col">
+            <h3 className="offer-expenses-heading">Variable Expenses</h3>
+            {(Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{name: string; rate: number; amount: number}> : []).map((e, i) => (
+              <div key={i} className="offer-expense-row">
+                <span className="offer-var-name">{e.name}</span>
+                <input type="number" className="admin-form-input" style={{ width: 80 }} value={e.rate} onChange={(ev) => { const v = [...(form.variable_expenses as Array<Record<string, unknown>>)]; const rate = parseFloat(ev.target.value) || 0; v[i] = { ...v[i], rate, amount: Math.round(Number(form.gross_potential || 0) * rate * 100) / 100 }; updateField("variable_expenses", v); }} step="0.0001" />
+                <span className="offer-var-amount">${e.amount?.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Financials Summary ── */}
+        <h2 className="admin-form-section-title">Financials</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross Potential:</span><strong>${Number(form.gross_potential || 0).toLocaleString()}</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${Number(form.net_potential || 0).toLocaleString()}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${Number(form.total_expenses || 0).toLocaleString()}</strong></div>
-            <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString()}</strong></div>
+            {form.deal_type !== "FLAT" && (
+              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString()}</strong></div>
+            )}
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential</h3>
@@ -333,8 +392,6 @@ export default function AdminOfferDetailPage() {
             {form.deal_type !== "FLAT" && (
               <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${Number(form.artist_backend || 0).toLocaleString()}</strong></div>
             )}
-            <h3 className="offer-expenses-heading" style={{ marginTop: 12 }}>Promoter Potential</h3>
-            <div className="offer-potential-row highlight"><span>Promoter Walkout:</span><strong>${Number(form.pot_walkout || 0).toLocaleString()}</strong></div>
           </div>
         </div>
 

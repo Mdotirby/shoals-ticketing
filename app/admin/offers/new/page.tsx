@@ -330,7 +330,7 @@ export default function AdminCreateOfferPage() {
     <div className="admin-form-page">
       <h1 className="admin-page-title">New Offer</h1>
 
-      <form className="admin-form offer-form" onSubmit={handleSubmit}>
+      <form className="admin-form offer-form" onSubmit={(e) => e.preventDefault()} onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.preventDefault(); }}>
         {error && <div className="admin-form-error">{error}</div>}
 
         {/* ═══ SECTION 1: Agency & Artist ═══ */}
@@ -526,7 +526,7 @@ export default function AdminCreateOfferPage() {
           <label className="admin-form-label admin-form-full">Notes<textarea className="admin-form-textarea" rows={3} onChange={(e) => {/* stored on submit */}} placeholder="Additional notes..." /></label>
         </div>
 
-        <button type="submit" className="admin-form-submit" disabled={loading}>
+        <button type="button" className="admin-form-submit" disabled={loading} onClick={handleSubmit as unknown as () => void}>
           {loading ? "Creating…" : "Create Offer"}
         </button>
       </form>
