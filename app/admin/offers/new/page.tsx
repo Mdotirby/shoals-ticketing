@@ -459,9 +459,12 @@ export default function AdminCreateOfferPage() {
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row highlight"><span>Artist PAS:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Pot. Walkout:</span><strong>${potWalkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            {dealType !== "FLAT" && (
+              <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            )}
+            <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <h3 className="offer-expenses-heading" style={{ marginTop: 12 }}>Promoter Potential</h3>
+            <div className="offer-potential-row highlight"><span>Promoter Walkout:</span><strong>${potWalkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
 

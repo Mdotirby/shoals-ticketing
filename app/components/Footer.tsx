@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useVenueTheme } from "./VenueThemeProvider";
 
 const serviceLinks = [
   { label: "Concert Promotion", href: "/about" },
@@ -25,17 +28,24 @@ const connectLinks = [
 ];
 
 export default function Footer() {
+  const venue = useVenueTheme();
+
   return (
     <footer className="site-footer">
       <div className="footer-content">
         <div className="footer-brand">
-          <Image
-            src="/beige-brown-logo.png"
-            alt="West 72 Logo"
-            width={127}
-            height={127}
-            className="footer-logo"
-          />
+          {venue.isVenueSubdomain && venue.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={venue.logo_url} alt={venue.name || "Venue"} className="footer-logo" style={{ width: 127, height: 127, objectFit: "contain" }} />
+          ) : (
+            <Image
+              src="/beige-brown-logo.png"
+              alt="VenueCore Logo"
+              width={127}
+              height={127}
+              className="footer-logo"
+            />
+          )}
           <p className="footer-description">
             West 72 Entertainment is a full-service live event company with over
             a decade of experience in artist promotion, concert production, and

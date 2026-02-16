@@ -196,7 +196,7 @@ export default function AdminOfferDetailPage() {
       fe.filter(e => e.amount > 0).forEach((e) => row(e.name, `$${e.amount.toFixed(2)}`));
       row("Fixed Total", `$${Number(form.total_fixed || 0).toLocaleString()}`);
       y += 1;
-      ve.filter(e => e.amount > 0).forEach((e) => row(e.name, `${e.rate} → $${e.amount.toFixed(2)}`));
+      ve.filter(e => e.amount > 0).forEach((e) => row(e.name, `${(e.rate * 100).toFixed(2)}% → $${e.amount.toFixed(2)}`));
       row("Variable Total", `$${Number(form.total_variable || 0).toLocaleString()}`);
       row("TOTAL EXPENSES", `$${Number(form.total_expenses || 0).toLocaleString()}`);
       y += 3;
@@ -206,11 +206,15 @@ export default function AdminOfferDetailPage() {
       row("Gross Potential", `$${Number(form.gross_potential || 0).toLocaleString()}`);
       row("Adj. Gross", `$${Number(form.adj_gross || 0).toLocaleString()}`);
       row("Net Potential", `$${Number(form.net_potential || 0).toLocaleString()}`);
+      row("Total Expenses", `$${Number(form.total_expenses || 0).toLocaleString()}`);
       row("Splitpoint", `$${Number(form.splitpoint || 0).toLocaleString()}`);
       y += 1;
+      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Artist Potential", 10, y); y += 5;
       row("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      row("Artist Backend", `$${Number(form.artist_backend || 0).toLocaleString()}`);
-      row("Pot. Walkout", `$${Number(form.pot_walkout || 0).toLocaleString()}`);
+      if (form.deal_type !== "FLAT") row("Backend", `$${Number(form.artist_backend || 0).toLocaleString()}`);
+      y += 1;
+      doc.setTextColor(...hex(pc)); doc.setFontSize(9); doc.text("Promoter Potential", 10, y); y += 5;
+      row("Promoter Walkout", `$${Number(form.pot_walkout || 0).toLocaleString()}`);
       y += 4;
 
       doc.setFontSize(7); doc.setTextColor(120,120,120);
@@ -306,9 +310,13 @@ export default function AdminOfferDetailPage() {
             <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString()}</strong></div>
           </div>
           <div className="offer-potential-col">
+            <h3 className="offer-expenses-heading">Artist Potential</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString()}</strong></div>
-            <div className="offer-potential-row"><span>Artist Backend:</span><strong>${Number(form.artist_backend || 0).toLocaleString()}</strong></div>
-            <div className="offer-potential-row"><span>Pot. Walkout:</span><strong>${Number(form.pot_walkout || 0).toLocaleString()}</strong></div>
+            {form.deal_type !== "FLAT" && (
+              <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${Number(form.artist_backend || 0).toLocaleString()}</strong></div>
+            )}
+            <h3 className="offer-expenses-heading" style={{ marginTop: 12 }}>Promoter Potential</h3>
+            <div className="offer-potential-row highlight"><span>Promoter Walkout:</span><strong>${Number(form.pot_walkout || 0).toLocaleString()}</strong></div>
           </div>
         </div>
 
