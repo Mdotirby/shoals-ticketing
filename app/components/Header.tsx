@@ -45,8 +45,8 @@ export default function Header() {
             <Image
               src="/venuecore.png"
               alt="VenueCore Logo"
-              width={127}
-              height={127}
+              width={200}
+              height={200}
               priority
               unoptimized
             />
