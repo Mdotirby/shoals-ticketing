@@ -11,8 +11,7 @@ import { useVenueTheme } from "./components/VenueThemeProvider";
 
 // Default hero images (West 72 / main domain)
 const DEFAULT_HERO_1 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Nov%2008%202025,%208%2041%2054%20PM.jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE5vdiAwOCAyMDI1LCA4IDQxIDU0IFBNLmpwZyIsImlhdCI6MTc3MTA0NjkwMSwiZXhwIjoxODAyNTgyOTAxfQ.Nv30BCP6oIByWGDfqwg1AfwnYzBA3U6xkgB9fNX-T2E";
-const DEFAULT_HERO_2 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Oct%2025%202024,%204%2008%2039%20PM%20(1).jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE9jdCAyNSAyMDI0LCA0IDA4IDM5IFBNICgxKS5qcGciLCJpYXQiOjE3NzEwNDY4NzUsImV4cCI6MTgwMjU4Mjg3NX0.1dRj_BCrFrFGv6-_bfxE67qy5aKNIsDuGyLXrk6f3MA";
-
+const DEFAULT_HERO_2 = "https://rgwykfwlnzkblsmtzatx.supabase.co/storage/v1/object/sign/webUI-pics/Photo%20Oct%2025%202024,%204%2008%2039%20PM%20(1).jpg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lN2Y2ZWNhMS01ZWEyLTRlOWEtOWZhMS01NWUxOGNkODkxMzkiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ3ZWJVSS1waWNzL1Bob3RvIE9jdCAyNSAyMDI0LCA0IDA4IDM5IFBNICgxKS5qcGciLCJpYXQiOjE3NzEyNzE3MzUsImV4cCI6MTgwMjgwNzczNX0._wFJSXOe4a4GWPfwAC-skaCxpra06sGhszPZKvdAsrA";
 function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
