@@ -46,14 +46,10 @@ export default function Footer() {
             />
           )}
           <p className="footer-description">
-            West 72 Entertainment is a full-service live event company with over
-            a decade of experience in artist promotion, concert production, and
-            music marketing. Based in the heart of the Southeast, we specialize
-            in creating unforgettable experiences that connect top-tier talent
-            with fan-first production. From intimate venues to large-scale
-            stages, every live music event we produce is designed to engage
-            audiences and artists in authentic, lasting ways through our
-            expertly crafted concerts.
+            Discover. Grab. Experience. Live.  
+            VenueCore makes it easy to find upcoming shows, buy tickets in seconds, 
+            and enjoy seamless entry at the door—plus VIP packages 
+            and live auctions for the ultimate experience.
           </p>
         </div>
 
