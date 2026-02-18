@@ -27,7 +27,7 @@ export default function Header() {
 
   const logoSrc = venue.isVenueSubdomain && venue.logo_url
     ? venue.logo_url
-    : "/beige-brown-logo.png";
+    : "/VenueCore_VenueCore-FullLogo.png";
 
   return (
     <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
@@ -43,7 +43,7 @@ export default function Header() {
             />
           ) : (
             <Image
-              src="/beige-brown-logo.png"
+              src="/VenueCore_VenueCore-FullLogo.png"
               alt="VenueCore Logo"
               width={200}
               height={200}
