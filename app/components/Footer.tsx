@@ -17,7 +17,6 @@ const infoLinks = [
 ];
 
 const venueLinks = [
-  { label: "Singin\u2019 River Live", href: "/venue" },
   { label: "Log in", href: "/login" },
 ];
 
@@ -78,7 +77,7 @@ export default function Footer() {
           </div>
 
           <div className="footer-column">
-            <h3 className="footer-column-heading">Venues</h3>
+            <h3 className="footer-column-heading">Organizers</h3>
             {venueLinks.map((link) => (
               <Link key={link.label} href={link.href} className="footer-link">
                 {link.label}
