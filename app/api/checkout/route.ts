@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // Fetch venue-specific fees
     let ticketingFee = 3.0;
     let venueRebate = 0;
-    let taxRate = 0.09;
+    let taxRate = 0.095;
 
     if (event.venue_id) {
       const { data: venueData } = await admin
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
       if (venueData) {
         ticketingFee = venueData.ticketing_fee ?? 3.0;
         venueRebate = venueData.venue_rebate ?? 0;
-        taxRate = venueData.tax_rate ?? 0.09;
+        taxRate = venueData.tax_rate ?? 0.095;
       }
     }
 

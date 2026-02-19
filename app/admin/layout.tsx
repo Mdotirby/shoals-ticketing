@@ -24,8 +24,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Reports",          href: "/admin/reports",     roles: ["owner","venue_admin","full_admin","read_only","box_office","artist"] },
   { label: "Sales",            href: "/admin/orders",      roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
   { label: "Scanner",          href: "/admin/scan",        roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
-  { label: "Guest List",       href: "/admin/guest-list",  roles: ["artist"] },
-  { label: "Guest Lists",      href: "/admin/guest-lists", roles: ["owner","venue_admin","full_admin"] },
+  { label: "Guest Lists",      href: "/admin/guest-lists", roles: ["owner","venue_admin","full_admin","artist"] },
   { label: "Venue Management", href: "/portal",            roles: ["owner","venue_admin"] },
   { label: "Onboarding",       href: "/admin/onboarding",  roles: ["owner"] },
 ];

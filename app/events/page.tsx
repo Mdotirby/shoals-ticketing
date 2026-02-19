@@ -111,7 +111,7 @@ export default function EventsPage() {
 
               <div className="elc-right">
                 <Link href={`/events/${event.id}`} className="elc-buy-btn">
-                  🎫 Buy Tickets
+                  Buy Tickets
                 </Link>
                 {event.image_url ? (
                   <div

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
+import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
@@ -62,7 +63,7 @@ export default function EventDetailPage() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.09 });
+  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.095 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,7 +110,7 @@ export default function EventDetailPage() {
               if (v) {
                 setVenueFees({
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
-                  tax_rate: Number(v.tax_rate) || 0.09,
+                  tax_rate: Number(v.tax_rate) || 0.095,
                 });
               }
             })
@@ -198,89 +199,81 @@ export default function EventDetailPage() {
     <>
       <main className="ticket-page">
 
-        {/* ── Event Card ── */}
-        <section className="ticket-event-card">
-          {/* Hero image with gradient fade */}
-          {event.image_url && (
-            <div className="ticket-hero-image-wrap">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.image_url}
-                alt={event.title}
-                className="ticket-hero-image"
-              />
-              <div className="ticket-hero-gradient" />
-            </div>
-          )}
-
-          <div className="ticket-card-body">
-            {/* Title + date/time */}
-            <h1 className="ticket-hero-title">{event.title}</h1>
-            <p className="ticket-event-meta">
-              <span className="ticket-event-date">{formatDate(event.date)}</span>
-              {showTime && (
-                <>
-                  <span className="ticket-event-meta-sep">·</span>
-                  <span className="ticket-event-time">{showTime}</span>
-                </>
-              )}
-              <span className="ticket-event-meta-sep">·</span>
-              <span className="ticket-event-venue">{event.venue}</span>
-            </p>
-
-            {/* Badges */}
-            <EventBadges
-              eventDate={event.date}
-              ageRestriction={event.age_restriction}
-            />
-
-            {/* Description */}
-            {event.description && (
-              <p className="ticket-event-description">{event.description}</p>
+        {/* ── Event Hero Card (full-width) ── */}
+        <div className="ticket-event-card-wrap">
+          <section className="ticket-event-card">
+            {/* Hero image with gradient fade */}
+            {event.image_url && (
+              <div className="ticket-hero-image-wrap">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={event.image_url}
+                  alt={event.title}
+                  className="ticket-hero-image"
+                />
+                <div className="ticket-hero-gradient" />
+              </div>
             )}
 
-            {/* Ticket type dropdown + quantity selector */}
-            <div className="ticket-selector-row">
-              <select
-                className="ticket-type-select"
-                value={selectedTicketId ?? ""}
-                onChange={(e) => setSelectedTicketId(e.target.value)}
-                aria-label="Select ticket type"
-              >
-                {ticketTypes.map((tt) => (
-                  <option key={tt.id} value={tt.id}>
-                    {tt.name} — ${tt.price.toFixed(2)}
-                  </option>
-                ))}
-              </select>
+            <div className="ticket-card-body">
+              {/* Title + date/time */}
+              <h1 className="ticket-hero-title">{event.title}</h1>
+              <p className="ticket-event-meta">
+                <span className="ticket-event-date">{formatDate(event.date)}</span>
+                {showTime && (
+                  <>
+                    <span className="ticket-event-meta-sep">·</span>
+                    <span className="ticket-event-time">{showTime}</span>
+                  </>
+                )}
+                <span className="ticket-event-meta-sep">·</span>
+                <span className="ticket-event-venue">{event.venue}</span>
+              </p>
 
-              <div className="ticket-qty-control">
-                <button
-                  type="button"
-                  className="ticket-qty-btn"
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  aria-label="Decrease quantity"
-                  disabled={quantity <= 1}
-                >
-                  −
-                </button>
-                <span className="ticket-qty-value">{quantity}</span>
-                <button
-                  type="button"
-                  className="ticket-qty-btn"
-                  onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-                  aria-label="Increase quantity"
-                >
-                  +
-                </button>
+              {/* Badges */}
+              <EventBadges
+                eventDate={event.date}
+                ageRestriction={event.age_restriction}
+              />
+
+              {/* Description */}
+              {event.description && (
+                <p className="ticket-event-description">{event.description}</p>
+              )}
+
+            </div>
+          </section>
+        </div>
+
+        {/* ── Ticket Selection ── */}
+        <section className="ticket-selection-section">
+          <div className="ticket-selection-header">
+            <span className="ticket-selection-eyebrow">Book Your Ticket</span>
+            <h2 className="ticket-selection-heading">Choose the Right One</h2>
+          </div>
+
+          <div className="ticket-selection-layout">
+            <div className="ticket-cards-column">
+              {ticketTypes.map((tt) => (
+                <PurchaseTicketCard
+                  key={tt.id}
+                  ticketType={tt}
+                  isSelected={selectedTicketId === tt.id}
+                  onSelect={setSelectedTicketId}
+                  venueName={event.venue}
+                />
+              ))}
+              {/* Quantity selector below cards */}
+              <div className="ticket-qty-row">
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>Quantity:</span>
+                <div className="ticket-qty-control">
+                  <button type="button" className="ticket-qty-btn" onClick={() => setQuantity(q => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
+                  <span className="ticket-qty-value">{quantity}</span>
+                  <button type="button" className="ticket-qty-btn" onClick={() => setQuantity(q => Math.min(10, q + 1))}>+</button>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* ── Order Summary ── */}
-        <section className="ticket-selection-section">
-          <div className="ticket-selection-layout">
             <div className="order-summary-column">
               <OrderSummary
                 selectedTicket={selectedTicket}

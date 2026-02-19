@@ -500,10 +500,10 @@ body {
   position: relative;
   border-radius: 16px;
   overflow: hidden;
-  margin: 0 auto 32px;
-  max-width: 900px;
   background: linear-gradient(135deg, rgba(11,13,29,0.95) 0%, rgba(32,32,69,0.7) 100%);
   border: 1px solid rgba(208,194,144,0.08);
+  flex: 1;
+  min-width: 0;
 }
 
 .ticket-hero-image-wrap {
@@ -617,45 +617,67 @@ body {
   padding: 10px 4px;
 }
 
-/* Ticket Selection Section */
-.ticket-selection-section {
-  max-width: 900px;
+/* ── Event Card Wrap (full-width) ── */
+.ticket-event-card-wrap {
+  max-width: 1100px;
   margin: 0 auto 40px;
+  padding: 0 20px;
+}
+
+/* ── Ticket Selection Section ── */
+.ticket-selection-section {
+  max-width: 1100px;
+  margin: 0 auto 48px;
+  padding: 0 20px;
 }
 
 .ticket-selection-header {
   text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  margin-bottom: 32px;
 }
 
 .ticket-selection-eyebrow {
-  font-family: var(--font-cairo), sans-serif;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.08em;
+  display: inline-block;
   text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 3px;
   color: #d0c290;
+  margin-bottom: 8px;
 }
 
 .ticket-selection-heading {
+  font-size: 2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fff;
   margin: 0;
-  font-family: var(--font-bayon), sans-serif;
-  font-size: clamp(1.6rem, 3vw, 2.4rem);
-  color: #ffffff;
-  line-height: 1.1;
+  font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
 }
 
-/* ── Ticket Selection Layout (side by side) ── */
 .ticket-selection-layout {
   display: flex;
   gap: 24px;
   align-items: flex-start;
 }
-.ticket-cards-column { flex: 1; }
-.order-summary-column { flex: 0 0 340px; position: sticky; top: 100px; }
+
+.ticket-cards-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.order-summary-column {
+  flex: 0 0 340px;
+  position: sticky;
+  top: 100px;
+}
+
+.ticket-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 0;
+}
 
 /* ============================================================
    PURCHASE TICKET CARD
@@ -1181,13 +1203,9 @@ body {
     font-size: 2.2rem;
   }
 
-  .ticket-selection-section {
-    padding: 0 16px 36px;
-    gap: 24px;
-  }
-
   .ticket-selection-layout { flex-direction: column; }
   .order-summary-column { flex: none; width: 100%; position: static; }
+  .ticket-selection-heading { font-size: 1.5rem; }
   .ticket-hero-image-wrap { height: 220px; }
   .ticket-card-body { padding: 20px; }
   .ticket-hero-title { font-size: 1.6rem; }
@@ -1494,16 +1512,12 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  color: #ffffff;
+  color: #fff;
   width: 100%;
   height: auto;
   text-align: center;
   line-height: 1.2;
-  position: relative; 
-  background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  position: relative;
 }
 
 .home-events-carousel {
