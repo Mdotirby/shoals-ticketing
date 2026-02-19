@@ -37,18 +37,32 @@ export default function EventSalesDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/events/${id}`).then((r) => r.json()),
-      fetch(`/api/orders?event_id=${id}`).then((r) => r.json()),
-      fetch(`/api/events/${id}/views`).then((r) => r.json()),
-    ])
-      .then(([eventData, ordersData, viewsData]) => {
-        if (!eventData.error) setEvent(eventData);
+    async function loadData() {
+      try {
+        const [eventData, ordersData] = await Promise.all([
+          fetch(`/api/events/${id}`).then((r) => r.json()),
+          fetch(`/api/orders?event_id=${id}`).then((r) => r.json()),
+        ]);
+        if (eventData && !eventData.error) setEvent(eventData);
         if (Array.isArray(ordersData)) setOrders(ordersData);
-        if (viewsData && !viewsData.error) setViewStats(viewsData);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+
+        // Fetch view stats separately — may fail for events with no views
+        try {
+          const viewsRes = await fetch(`/api/events/${id}/views`);
+          if (viewsRes.ok) {
+            const viewsData = await viewsRes.json();
+            if (viewsData && !viewsData.error) setViewStats(viewsData);
+          }
+        } catch {
+          // views endpoint failed — leave viewStats as null
+        }
+      } catch {
+        // ignore fetch errors
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, [id]);
 
   const totalRevenue = orders.reduce((s, o) => s + (o.total_amount || 0), 0);

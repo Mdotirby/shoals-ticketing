@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { getCookie } from "@/lib/cookies";
 import { useVenue } from "@/app/components/VenueContext";
 import SafeImage from "@/app/components/SafeImage";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
@@ -27,7 +28,25 @@ const sidebarItems: SidebarItem[] = [
   { label: "Guest Lists",      href: "/admin/guest-lists", roles: ["owner","venue_admin","full_admin","artist"] },
   { label: "Venue Management", href: "/portal",            roles: ["owner","venue_admin"] },
   { label: "Onboarding",       href: "/admin/onboarding",  roles: ["owner"] },
+  { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner","venue_admin"] },
 ];
+
+// Map sidebar labels to tab_key used in sidebar_permissions table
+const TAB_KEY_MAP: Record<string, string> = {
+  "Dashboard": "dashboard",
+  "Events": "events",
+  "Booking": "booking",
+  "Settlements": "settlements",
+  "Contracts": "contracts",
+  "Partners": "partners",
+  "Reports": "reports",
+  "Sales": "sales",
+  "Scanner": "scanner",
+  "Guest Lists": "guest_lists",
+  "Venue Management": "venue_management",
+  "Onboarding": "onboarding",
+  "Permissions": "permissions",
+};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [venueSlugResolved, setVenueSlugResolved] = useState("");
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userId, setUserId] = useState("");
+  const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
 
   useEffect(() => {
     async function loadUser() {
@@ -86,13 +106,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     loadUser();
   }, []);
 
+  // Fetch sidebar_permissions for the venue once we know the role
+  useEffect(() => {
+    const venueId = getCookie("venue-id");
+    if (!venueId || !userRole) return;
+
+    const supabase = getSupabaseBrowser();
+    supabase
+      .from("sidebar_permissions")
+      .select("tab_key, visible")
+      .eq("venue_id", venueId)
+      .eq("role", userRole)
+      .then(({ data }: { data: { tab_key: string; visible: boolean }[] | null }) => {
+        if (data && data.length > 0) {
+          const map: Record<string, boolean> = {};
+          for (const row of data) {
+            map[row.tab_key] = row.visible;
+          }
+          setSidebarPerms(map);
+        }
+      });
+  }, [userRole]);
+
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  const visibleItems = sidebarItems.filter(
-    (item) => !userRole || item.roles.includes(userRole)
-  );
+  const visibleItems = sidebarItems.filter((item) => {
+    // First: hardcoded role check
+    if (userRole && !item.roles.includes(userRole)) return false;
+    // Second: if sidebar_permissions were loaded, check them
+    if (sidebarPerms) {
+      const tabKey = TAB_KEY_MAP[item.label];
+      if (tabKey && tabKey in sidebarPerms) {
+        return sidebarPerms[tabKey];
+      }
+    }
+    return true;
+  });
 
   return (
     <div className="admin-shell">
@@ -116,7 +167,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
         </button>
         <SafeImage
-          src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo.png` : "/logos/default/logo.png"}
+          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
           fallback="/logos/default/logo.png"
           alt="VenueCore"
           style={{ width: 48, height: 48, objectFit: "contain" }}
@@ -130,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
           <SafeImage
-            src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo.png` : "/logos/default/logo.png"}
+            src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
             fallback="/logos/default/logo.png"
             alt={venueName || "VenueCore"}
             className="admin-sidebar-logo"
