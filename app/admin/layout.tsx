@@ -91,7 +91,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         const name = adminRecord.first_name
           ? adminRecord.first_name
-          : (cookieName || authData.user.email?.split("@")[0].split(".")[0] ?? "Admin");
+          : (cookieName || (authData.user.email?.split("@")[0].split(".")[0] ?? "Admin"));
         setAdminName(name.charAt(0).toUpperCase() + name.slice(1));
 
         // Load venue name + slug for logo
