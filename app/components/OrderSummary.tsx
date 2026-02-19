@@ -6,11 +6,16 @@ import { TicketType } from "@/lib/types/ticket";
 const STRIPE_PERCENT_FEE = 0.029;
 const STRIPE_FLAT_FEE = 0.3;
 
+/** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */
+function normalizeTaxRate(rate: number): number {
+  return rate > 1 ? rate / 100 : rate;
+}
+
 type OrderSummaryProps = {
   selectedTicket: TicketType | null;
   quantity: number;
-  ticketingFee: number; // flat dollar amount per ticket
-  taxRate: number; // decimal e.g. 0.09 for 9%
+  ticketingFee: number;   // flat dollar per ticket (venue_ticket_fee)
+  taxRate: number;        // venue_tax_rate — accepts 9.5 or 0.095
   onCheckout: () => void;
 };
 
@@ -21,11 +26,12 @@ export default function OrderSummary({
   taxRate,
   onCheckout,
 }: OrderSummaryProps) {
+  const rate = normalizeTaxRate(taxRate);
   const hasSelection = selectedTicket !== null && quantity > 0;
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
   const totalTicketingFee = hasSelection ? ticketingFee * quantity : 0;
   const tax = hasSelection
-    ? Math.round(subtotal * taxRate * 100) / 100
+    ? Math.round(subtotal * rate * 100) / 100
     : 0;
   const subtotalBeforeStripe = subtotal + totalTicketingFee + tax;
   const processingFee = hasSelection
@@ -45,7 +51,6 @@ export default function OrderSummary({
             height="40"
             viewBox="0 0 24 24"
             fill="none"
-            xmlns="http://www.w3.org/2000/svg"
           >
             <path
               d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"
@@ -55,9 +60,7 @@ export default function OrderSummary({
               strokeLinejoin="round"
             />
           </svg>
-          <p className="order-summary-empty-text">
-            Select a ticket to continue
-          </p>
+          <p className="order-summary-empty-text">Select a ticket to continue</p>
         </div>
       ) : (
         <div className="order-summary-details">
@@ -66,43 +69,35 @@ export default function OrderSummary({
               {selectedTicket.name}
               {quantity > 1 ? ` × ${quantity}` : ""}
             </span>
-            <span className="order-summary-line-value">
-              $ {subtotal.toFixed(2)}
-            </span>
+            <span className="order-summary-line-value">$ {subtotal.toFixed(2)}</span>
           </div>
 
           <div className="order-summary-divider" />
 
           <div className="order-summary-line order-summary-line-sub">
             <span className="order-summary-line-label">Subtotal</span>
-            <span className="order-summary-line-value">
-              $ {subtotal.toFixed(2)}
-            </span>
+            <span className="order-summary-line-value">$ {subtotal.toFixed(2)}</span>
           </div>
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Ticketing fee</span>
-              <span className="order-summary-line-value">
-                $ {totalTicketingFee.toFixed(2)}
-              </span>
+              <span className="order-summary-line-label">Venue ticketing fee</span>
+              <span className="order-summary-line-value">$ {totalTicketingFee.toFixed(2)}</span>
             </div>
           )}
           {tax > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">
-                Sales tax ({(taxRate * 100).toFixed(1)}%)
+                Sales tax ({(rate * 100).toFixed(2).replace(/\.?0+$/, "")}%)
               </span>
-              <span className="order-summary-line-value">
-                $ {tax.toFixed(2)}
-              </span>
+              <span className="order-summary-line-value">$ {tax.toFixed(2)}</span>
             </div>
           )}
           {processingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Processing fee</span>
-              <span className="order-summary-line-value">
-                $ {processingFee.toFixed(2)}
+              <span className="order-summary-line-label">
+                Processing fee (2.9% + $0.30)
               </span>
+              <span className="order-summary-line-value">$ {processingFee.toFixed(2)}</span>
             </div>
           )}
 
@@ -110,9 +105,7 @@ export default function OrderSummary({
 
           <div className="order-summary-line order-summary-total">
             <span className="order-summary-line-label">Total</span>
-            <span className="order-summary-line-value">
-              $ {total.toFixed(2)}
-            </span>
+            <span className="order-summary-line-value">$ {total.toFixed(2)}</span>
           </div>
         </div>
       )}
@@ -123,30 +116,20 @@ export default function OrderSummary({
         disabled={!hasSelection}
         onClick={onCheckout}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect
-            x="2"
-            y="4"
-            width="20"
-            height="16"
-            rx="2"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
           <path d="M2 10h20" stroke="currentColor" strokeWidth="1.5" />
         </svg>
-        Buy Ticket
+        Secure Your Spot
       </button>
 
-      <p className="order-summary-trust">
-        Secure Checkout &bull; Instant confirmation
+      <p className="order-summary-terms">
+        By completing your purchase you agree to our{" "}
+        <a href="/faq" className="order-summary-terms-link">Terms of Sale</a>.
+        All sales are final. Refunds only if event is cancelled.
       </p>
+
+      <p className="order-summary-trust">Secure Checkout &bull; Instant confirmation</p>
     </div>
   );
 }

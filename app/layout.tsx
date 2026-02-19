@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { Bayon, Cairo, Geist, Geist_Mono, Urbanist } from "next/font/google";
+import { cookies } from "next/headers";
 import "./styles/globals.css";
 import Header from "./components/Header";
 import VenueThemeProvider from "./components/VenueThemeProvider";
+import { VenueProvider } from "./components/VenueContext";
 
 
 const geistSans = Geist({
@@ -46,20 +48,25 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const venueSlug = cookieStore.get("venueSlug")?.value ?? "default";
+
   return (
     <html lang="en">
-                 <body
+      <body
         className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
-        <VenueThemeProvider>
-          <Header />
-          {children}
-        </VenueThemeProvider>
+        <VenueProvider venueSlug={venueSlug}>
+          <VenueThemeProvider>
+            <Header />
+            {children}
+          </VenueThemeProvider>
+        </VenueProvider>
       </body>
     </html>
   );

@@ -3,41 +3,36 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-type FAQItem = {
+export type FAQItem = {
   question: string;
   answer: string;
 };
 
-const defaultFAQs: FAQItem[] = [
+export const GLOBAL_FAQS: FAQItem[] = [
   {
     question: "What is your refund policy?",
     answer:
-      "We offer full refunds up to 30 days before the event. After that, tickets are non-refundable but may be transferred to another person. Please contact us at tickets@west72entertainment.com for refund requests.",
-  },
-  {
-    question: "Are meals or refreshments included?",
-    answer:
-      "Food and beverages are available for purchase at the venue. VIP ticket holders receive complimentary drinks and access to the VIP lounge area with a dedicated bar and food options.",
-  },
-  {
-    question: "Can I upgrade my ticket?",
-    answer:
-      "Yes! You can upgrade your ticket at any time before the event, subject to availability. Visit your ticket page or contact us to upgrade. You will only pay the price difference.",
+      "All sales are final. Refunds are only issued if the event is cancelled by the organizer. In the event of a cancellation, you will be automatically refunded to your original payment method within 5–10 business days.",
   },
   {
     question: "What time do doors open?",
     answer:
-      "Doors typically open 1 hour before the scheduled show time. VIP ticket holders may enter 30 minutes earlier. Check your specific event page for exact door times.",
-  },
-  {
-    question: "Is there parking available?",
-    answer:
-      "Parking availability varies by venue. Most of our venues offer nearby paid parking lots and street parking. We recommend arriving early for the best spots. Rideshare drop-off areas are available at all venues.",
+      "Doors typically open 1 hour before the scheduled show time. Check your specific event page for the exact door time.",
   },
   {
     question: "Can I transfer my ticket to someone else?",
     answer:
       "Yes, tickets can be transferred to another person up until the event start time. Log in to your ticket page and use the transfer option to send your ticket via email.",
+  },
+  {
+    question: "Is there parking available?",
+    answer:
+      "Parking availability varies by venue. We recommend arriving early and checking the venue website for nearby parking options. Rideshare drop-off is available at all venues.",
+  },
+  {
+    question: "Will I receive my ticket immediately?",
+    answer:
+      "Yes. After checkout you will receive a confirmation email with your QR code ticket(s) attached. Tickets are also accessible via your order confirmation link.",
   },
 ];
 
@@ -46,10 +41,9 @@ type FAQAccordionProps = {
 };
 
 export default function FAQAccordion({ faqs }: FAQAccordionProps) {
-  const items = faqs || defaultFAQs;
+  const items = faqs && faqs.length > 0 ? faqs : GLOBAL_FAQS;
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  // Split into two columns for desktop
   const midpoint = Math.ceil(items.length / 2);
   const leftColumn = items.slice(0, midpoint);
   const rightColumn = items.slice(midpoint);
@@ -81,22 +75,22 @@ export default function FAQAccordion({ faqs }: FAQAccordionProps) {
           <path
             d="M6 9l6 6 6-6"
             stroke="currentColor"
-            strokeWidth="2"
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
         </svg>
       </button>
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {openIndex === index && (
           <motion.div
-            className="faq-answer-wrapper"
+            className="faq-answer"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
+            transition={{ duration: 0.22, ease: "easeInOut" }}
           >
-            <p className="faq-answer">{item.answer}</p>
+            <p className="faq-answer-text">{item.answer}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -104,21 +98,9 @@ export default function FAQAccordion({ faqs }: FAQAccordionProps) {
   );
 
   return (
-    <section className="faq-section">
-      <div className="faq-border-wrapper">
-        <h2 className="faq-heading">Frequently Asked Questions</h2>
-
-        <div className="faq-columns">
-          <div className="faq-column">
-            {leftColumn.map((item, i) => renderItem(item, i))}
-          </div>
-          <div className="faq-column">
-            {rightColumn.map((item, i) =>
-              renderItem(item, i + midpoint)
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
+    <div className="faq-grid">
+      <div className="faq-column">{leftColumn.map(renderItem)}</div>
+      <div className="faq-column">{rightColumn.map(renderItem)}</div>
+    </div>
   );
 }

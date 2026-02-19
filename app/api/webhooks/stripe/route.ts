@@ -1,3 +1,7 @@
+// Requires: npm install resend
+// Set RESEND_API_KEY in .env.local and Vercel env vars
+// Set RESEND_FROM_EMAIL e.g. "tickets@venuecore.live"
+
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import Stripe from "stripe";
@@ -6,6 +10,185 @@ import { v4 as uuidv4 } from "uuid";
 const QRCode = require("qrcode");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+function ticketEmailHtml({
+  customerName,
+  eventTitle,
+  eventDate,
+  eventVenue,
+  ticketCount,
+  totalAmount,
+  qrDataUrl,
+  ticketUrl,
+}: {
+  customerName: string;
+  eventTitle: string;
+  eventDate: string;
+  eventVenue: string;
+  ticketCount: number;
+  totalAmount: number;
+  qrDataUrl: string;
+  ticketUrl: string;
+}) {
+  const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Ticket — ${eventTitle}</title>
+</head>
+<body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#131629;border-radius:12px;overflow:hidden;border:1px solid rgba(208,194,144,0.15);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:#d0c290;padding:20px 28px;">
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">VenueCore</p>
+              <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your Ticket is Ready 🎟️</h1>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:28px 28px 20px;">
+              <p style="margin:0 0 20px;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;">
+                Hey ${customerName ? customerName.split(" ")[0] : "there"},<br/>
+                You&apos;re all set! Here&apos;s everything you need for the show.
+              </p>
+
+              <!-- Event info box -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.08);border:1px solid rgba(208,194,144,0.2);border-radius:10px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:18px 20px;">
+                    <p style="margin:0;font-size:18px;font-weight:700;color:#d0c290;">${eventTitle}</p>
+                    <p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,0.6);">${formattedDate}</p>
+                    <p style="margin:4px 0 0;font-size:14px;color:rgba(255,255,255,0.6);">${eventVenue}</p>
+                    <p style="margin:10px 0 0;font-size:13px;color:rgba(255,255,255,0.4);">
+                      ${ticketCount} ticket${ticketCount !== 1 ? "s" : ""} · $${totalAmount.toFixed(2)} total
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- QR code -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">Show this at the door</p>
+                    <img src="${qrDataUrl}" alt="Your QR code" width="180" height="180" style="border-radius:8px;display:block;margin:0 auto;" />
+                    <p style="margin:10px 0 0;font-size:11px;color:rgba(255,255,255,0.3);">One QR code per ticket. Do not share.</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+                <tr>
+                  <td align="center">
+                    <a href="${ticketUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;text-decoration:none;">
+                      View My Ticket Online
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fine print -->
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
+                All sales are final. Refunds are issued only if the event is cancelled by the organizer.
+                Questions? Reply to this email or contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:14px 28px;background:rgba(0,0,0,0.2);text-align:center;">
+              <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);">
+                Powered by VenueCore · <a href="https://venuecore.live" style="color:rgba(208,194,144,0.4);text-decoration:none;">venuecore.live</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
+
+async function sendTicketEmail({
+  to,
+  customerName,
+  eventTitle,
+  eventDate,
+  eventVenue,
+  ticketCount,
+  totalAmount,
+  qrDataUrl,
+  ticketId,
+  venueSlug,
+}: {
+  to: string;
+  customerName: string;
+  eventTitle: string;
+  eventDate: string;
+  eventVenue: string;
+  ticketCount: number;
+  totalAmount: number;
+  qrDataUrl: string;
+  ticketId: string;
+  venueSlug: string;
+}) {
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    console.warn("RESEND_API_KEY not set — skipping ticket email");
+    return;
+  }
+
+  // Send from {venueSlug}@venuecore.live so each venue has its own sender
+  const fromEmail = venueSlug ? `${venueSlug}@venuecore.live` : "tickets@venuecore.live";
+  const ticketUrl = `https://venuecore.live/tickets/${ticketId}`;
+
+  const html = ticketEmailHtml({
+    customerName,
+    eventTitle,
+    eventDate,
+    eventVenue,
+    ticketCount,
+    totalAmount,
+    qrDataUrl,
+    ticketUrl,
+  });
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `VenueCore Tickets <${fromEmail}>`,
+      to: [to],
+      subject: `Your ticket for ${eventTitle} 🎟️`,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error("Resend email failed:", err);
+  } else {
+    console.log(`📧 Ticket email sent to ${to}`);
+  }
+}
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -23,21 +206,70 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  const admin = createAdminClient();
+
+  // ── Idempotent event logging ──
+  const { data: existingEvent } = await admin
+    .from("stripe_events")
+    .select("id")
+    .eq("id", event.id)
+    .maybeSingle();
+
+  if (existingEvent) {
+    console.log(`Stripe event ${event.id} already processed — skipping`);
+    return NextResponse.json({ received: true });
+  }
+
+  await admin.from("stripe_events").insert({
+    id: event.id,
+    type: event.type,
+    payload: JSON.parse(JSON.stringify(event.data.object)),
+  });
+
+  // ── checkout.session.completed ──
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const admin = createAdminClient();
-
     const eventId = session.metadata?.event_id;
     const quantity = parseInt(session.metadata?.quantity || "1");
     const customerEmail = session.customer_details?.email || session.customer_email || "";
     const customerName = session.customer_details?.name || "";
+    const totalAmount = (session.amount_total || 0) / 100;
 
     if (!eventId) {
       console.error("No event_id in session metadata");
       return NextResponse.json({ received: true });
     }
 
+    // Idempotency: skip if order already exists for this session
+    const { data: existing } = await admin
+      .from("orders")
+      .select("id")
+      .eq("stripe_checkout_session_id", session.id)
+      .maybeSingle();
+
+    if (existing) {
+      console.log(`Order already exists for session ${session.id} — skipping`);
+      return NextResponse.json({ received: true });
+    }
+
     try {
+      // Fetch event details + venue slug for email
+      const { data: eventData } = await admin
+        .from("events")
+        .select("title, date, venue, venue_id")
+        .eq("id", eventId)
+        .single();
+
+      let venueSlug = "tickets";
+      if (eventData?.venue_id) {
+        const { data: venueData } = await admin
+          .from("venues")
+          .select("slug")
+          .eq("id", eventData.venue_id)
+          .single();
+        if (venueData?.slug) venueSlug = venueData.slug;
+      }
+
       // 1. Create order record
       const { data: order, error: orderError } = await admin
         .from("orders")
@@ -46,7 +278,7 @@ export async function POST(request: Request) {
           customer_name: customerName,
           customer_email: customerEmail,
           quantity,
-          total_amount: (session.amount_total || 0) / 100,
+          total_amount: totalAmount,
           stripe_checkout_session_id: session.id,
           status: "completed",
         })
@@ -66,7 +298,6 @@ export async function POST(request: Request) {
           `https://venuecore.live/tickets/${qrCode}`,
           { width: 300, margin: 2 }
         );
-
         tickets.push({
           order_id: order.id,
           event_id: eventId,
@@ -78,17 +309,122 @@ export async function POST(request: Request) {
         });
       }
 
-      const { error: ticketError } = await admin
+      const { data: createdTickets, error: ticketError } = await admin
         .from("tickets")
-        .insert(tickets);
+        .insert(tickets)
+        .select();
 
       if (ticketError) {
         console.error("Failed to create tickets:", ticketError.message);
       }
 
-      console.log(`✅ Order ${order.id} created with ${quantity} tickets for event ${eventId}`);
+      // 4. Write settlement ledger entry
+      const ticketingFee = parseFloat(session.metadata?.ticketing_fee || "3");
+      const venueRebate = parseFloat(session.metadata?.venue_rebate || "0");
+      const taxRate = parseFloat(session.metadata?.tax_rate || "0.09");
+      const ticketRevenue = totalAmount;
+      const totalTicketingFee = ticketingFee * quantity;
+      const taxCollected = Math.round(ticketRevenue * taxRate * 100) / 100;
+      const stripeFee = Math.round((totalAmount * 0.029 + 0.30) * 100) / 100;
+
+      await admin.from("settlement_ledger").insert({
+        order_id: order.id,
+        event_id: eventId,
+        venue_id: eventData?.venue_id || null,
+        stripe_session_id: session.id,
+        stripe_event_id: event.id,
+        gross_amount: totalAmount,
+        ticket_revenue: ticketRevenue,
+        ticketing_fee: totalTicketingFee,
+        venue_rebate: venueRebate,
+        tax_collected: taxCollected,
+        stripe_fee: stripeFee,
+        net_to_venue: ticketRevenue - totalTicketingFee - stripeFee + venueRebate,
+        net_to_platform: totalTicketingFee - venueRebate,
+        type: "sale",
+      });
+
+      console.log(`✅ Order ${order.id} + ledger entry created for event ${eventId}`);
+
+      // 5. Send confirmation email via Resend
+      if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
+        await sendTicketEmail({
+          to: customerEmail,
+          customerName,
+          eventTitle: eventData.title,
+          eventDate: eventData.date,
+          eventVenue: eventData.venue,
+          ticketCount: quantity,
+          totalAmount,
+          qrDataUrl: createdTickets[0].qr_data_url,
+          ticketId: createdTickets[0].qr_code,
+          venueSlug,
+        });
+      }
     } catch (err) {
       console.error("Webhook processing error:", err);
+    }
+  }
+
+  // ── charge.refunded ──
+  if (event.type === "charge.refunded") {
+    try {
+      const charge = event.data.object as Stripe.Charge;
+      const refundAmount = (charge.amount_refunded || 0) / 100;
+
+      // Find original order via payment_intent
+      const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+      if (pi) {
+        const { data: order } = await admin
+          .from("orders")
+          .select("id, event_id")
+          .eq("stripe_checkout_session_id", pi)
+          .maybeSingle();
+
+        if (order) {
+          await admin.from("settlement_ledger").insert({
+            order_id: order.id,
+            event_id: order.event_id,
+            stripe_event_id: event.id,
+            gross_amount: -refundAmount,
+            ticket_revenue: -refundAmount,
+            ticketing_fee: 0,
+            venue_rebate: 0,
+            tax_collected: 0,
+            stripe_fee: 0,
+            net_to_venue: -refundAmount,
+            net_to_platform: 0,
+            type: "refund",
+          });
+          console.log(`Refund $${refundAmount} recorded for order ${order.id}`);
+        }
+      }
+    } catch (err) {
+      console.error("Refund processing error:", err);
+    }
+  }
+
+  // ── charge.dispute.created ──
+  if (event.type === "charge.dispute.created") {
+    try {
+      const dispute = event.data.object as Stripe.Dispute;
+      const disputeAmount = (dispute.amount || 0) / 100;
+
+      await admin.from("settlement_ledger").insert({
+        stripe_event_id: event.id,
+        gross_amount: -disputeAmount,
+        ticket_revenue: -disputeAmount,
+        ticketing_fee: 0,
+        venue_rebate: 0,
+        tax_collected: 0,
+        stripe_fee: 0,
+        net_to_venue: -disputeAmount,
+        net_to_platform: 0,
+        type: "dispute",
+      });
+      console.log(`Dispute $${disputeAmount} recorded (${event.id})`);
+    } catch (err) {
+      console.error("Dispute processing error:", err);
     }
   }
 

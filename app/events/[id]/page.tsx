@@ -4,10 +4,16 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
-import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import OrderSummary from "@/app/components/OrderSummary";
 import FAQAccordion from "@/app/components/FAQAccordion";
+import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
+
+type Artist = {
+  id: string;
+  name: string;
+  image_url?: string;
+};
 
 type EventData = {
   id: string;
@@ -17,7 +23,35 @@ type EventData = {
   price: number;
   image_url?: string;
   venue_id?: string;
+  description?: string;
+  age_restriction?: string;
+  venue_lat?: number;
+  venue_lng?: number;
+  venue_phone?: string;
+  venue_email?: string;
+  venue_address?: string;
+  artists?: Artist[];
 };
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatTime(date: string) {
+  const d = new Date(date);
+  // Only show time if there's an actual time component (not midnight UTC)
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -26,42 +60,37 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [quantity, setQuantity] = useState(1);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.09 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Scroll to top on mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
-  // Track page view for marketing analytics
+  // Track page view
   useEffect(() => {
-    // Generate or reuse a session ID for unique visitor tracking
     let sessionId = sessionStorage.getItem("vc_session");
     if (!sessionId) {
       sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
       sessionStorage.setItem("vc_session", sessionId);
     }
-
     fetch(`/api/events/${eventId}/views`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ session_id: sessionId }),
-    }).catch(() => {}); // fire-and-forget
+    }).catch(() => {});
   }, [eventId]);
 
-  // Fetch sponsors for this event
+  // Fetch sponsors
   useEffect(() => {
     fetch(`/api/sponsors?event_id=${eventId}`)
       .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setSponsors(data);
-      })
+      .then((data) => { if (Array.isArray(data)) setSponsors(data); })
       .catch(() => {});
   }, [eventId]);
 
+  // Fetch event + venue fees + ticket types
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
       .then(async (res) => {
@@ -71,7 +100,6 @@ export default function EventDetailPage() {
       .then((data: EventData) => {
         setEvent(data);
 
-        // Fetch venue-specific fees
         if (data.venue_id) {
           fetch("/api/venues")
             .then((r) => r.json())
@@ -88,12 +116,14 @@ export default function EventDetailPage() {
             .catch(() => {});
         }
 
-        // Fetch real ticket tiers from the API
         fetch(`/api/events/${data.id}/ticket-types`)
           .then((r) => r.json())
           .then((tiers) => {
             if (Array.isArray(tiers) && tiers.length > 0) {
-              setTicketTypes(tiers.map((t: { id: string; event_id: string; tier_name: string; price: number; capacity: number; sort_order: number }) => ({
+              const mapped = tiers.map((t: {
+                id: string; event_id: string; tier_name: string;
+                price: number; capacity: number; sort_order: number;
+              }) => ({
                 id: t.id,
                 event_id: t.event_id,
                 name: t.tier_name,
@@ -102,43 +132,43 @@ export default function EventDetailPage() {
                 quantity_sold: 0,
                 sort_order: t.sort_order,
                 perks: ["Full event access", "Venue amenities"],
-              })));
+              }));
+              setTicketTypes(mapped);
+              setSelectedTicketId(mapped[0]?.id ?? null);
             } else {
-              // Fallback: single GA tier from event price
-              setTicketTypes([{
+              const ga: TicketType = {
                 id: `${data.id}-ga`,
                 event_id: data.id,
-                name: `GA - ${data.title}`,
+                name: "General Admission",
                 price: data.price,
                 quantity_available: 500,
                 quantity_sold: 0,
                 sort_order: 0,
                 perks: ["Full event access", "Venue amenities"],
-              }]);
+              };
+              setTicketTypes([ga]);
+              setSelectedTicketId(ga.id);
             }
           })
           .catch(() => {
-            setTicketTypes([{
-              id: `${data.id}-ga`, event_id: data.id, name: `GA - ${data.title}`,
+            const ga: TicketType = {
+              id: `${data.id}-ga`, event_id: data.id, name: "General Admission",
               price: data.price, quantity_available: 500, quantity_sold: 0, sort_order: 0,
               perks: ["Full event access"],
-            }]);
+            };
+            setTicketTypes([ga]);
+            setSelectedTicketId(ga.id);
           });
       })
-      .catch(() => {
-        setError("Could not load this event.");
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .catch(() => setError("Could not load this event."))
+      .finally(() => setIsLoading(false));
   }, [eventId]);
 
-  const selectedTicket =
-    ticketTypes.find((t) => t.id === selectedTicketId) || null;
+  const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
 
   const handleCheckout = () => {
     if (!selectedTicket || !event) return;
-    window.location.href = `/checkout?event=${eventId}&qty=1`;
+    window.location.href = `/checkout?event=${eventId}&qty=${quantity}`;
   };
 
   if (isLoading) {
@@ -157,36 +187,104 @@ export default function EventDetailPage() {
     );
   }
 
+  const showTime = formatTime(event.date);
+  const mapSrc = event.venue_lat && event.venue_lng
+    ? `https://maps.google.com/maps?q=${event.venue_lat},${event.venue_lng}&z=15&output=embed`
+    : event.venue_address
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(event.venue_address)}&z=15&output=embed`
+    : null;
+
   return (
     <>
       <main className="ticket-page">
-        <section className="ticket-hero">
-          <h1 className="ticket-hero-title">{event.title}</h1>
+
+        {/* ── Event Card ── */}
+        <section className="ticket-event-card">
+          {/* Hero image with gradient fade */}
+          {event.image_url && (
+            <div className="ticket-hero-image-wrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={event.image_url}
+                alt={event.title}
+                className="ticket-hero-image"
+              />
+              <div className="ticket-hero-gradient" />
+            </div>
+          )}
+
+          <div className="ticket-card-body">
+            {/* Title + date/time */}
+            <h1 className="ticket-hero-title">{event.title}</h1>
+            <p className="ticket-event-meta">
+              <span className="ticket-event-date">{formatDate(event.date)}</span>
+              {showTime && (
+                <>
+                  <span className="ticket-event-meta-sep">·</span>
+                  <span className="ticket-event-time">{showTime}</span>
+                </>
+              )}
+              <span className="ticket-event-meta-sep">·</span>
+              <span className="ticket-event-venue">{event.venue}</span>
+            </p>
+
+            {/* Badges */}
+            <EventBadges
+              eventDate={event.date}
+              ageRestriction={event.age_restriction}
+            />
+
+            {/* Description */}
+            {event.description && (
+              <p className="ticket-event-description">{event.description}</p>
+            )}
+
+            {/* Ticket type dropdown + quantity selector */}
+            <div className="ticket-selector-row">
+              <select
+                className="ticket-type-select"
+                value={selectedTicketId ?? ""}
+                onChange={(e) => setSelectedTicketId(e.target.value)}
+                aria-label="Select ticket type"
+              >
+                {ticketTypes.map((tt) => (
+                  <option key={tt.id} value={tt.id}>
+                    {tt.name} — ${tt.price.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+
+              <div className="ticket-qty-control">
+                <button
+                  type="button"
+                  className="ticket-qty-btn"
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  aria-label="Decrease quantity"
+                  disabled={quantity <= 1}
+                >
+                  −
+                </button>
+                <span className="ticket-qty-value">{quantity}</span>
+                <button
+                  type="button"
+                  className="ticket-qty-btn"
+                  onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                  aria-label="Increase quantity"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
 
+        {/* ── Order Summary ── */}
         <section className="ticket-selection-section">
-          <div className="ticket-selection-header">
-            <span className="ticket-selection-eyebrow">Secure Your Spot</span>
-            <h2 className="ticket-selection-heading">{event.venue}</h2>
-          </div>
-
           <div className="ticket-selection-layout">
-            <div className="ticket-cards-column">
-              {ticketTypes.map((tt) => (
-                <PurchaseTicketCard
-                  key={tt.id}
-                  ticketType={tt}
-                  isSelected={selectedTicketId === tt.id}
-                  onSelect={setSelectedTicketId}
-                  venueName={event.venue}
-                />
-              ))}
-            </div>
-
             <div className="order-summary-column">
               <OrderSummary
                 selectedTicket={selectedTicket}
-                quantity={1}
+                quantity={quantity}
                 ticketingFee={venueFees.ticketing_fee}
                 taxRate={venueFees.tax_rate}
                 onCheckout={handleCheckout}
@@ -195,7 +293,65 @@ export default function EventDetailPage() {
           </div>
         </section>
 
-        {/* ── Sponsors Section ── */}
+        {/* ── Map + Venue Info ── */}
+        {(mapSrc || event.venue_phone || event.venue_email) && (
+          <section className="event-venue-section">
+            {mapSrc && (
+              <div className="event-map-wrap">
+                <iframe
+                  title="Venue location"
+                  src={mapSrc}
+                  className="event-map-iframe"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+            )}
+            <div className="event-venue-contact">
+              <h3 className="event-venue-contact-name">{event.venue}</h3>
+              {event.venue_address && (
+                <p className="event-venue-address">{event.venue_address}</p>
+              )}
+              {event.venue_phone && (
+                <a href={`tel:${event.venue_phone}`} className="event-venue-contact-link">
+                  📞 {event.venue_phone}
+                </a>
+              )}
+              {event.venue_email && (
+                <a href={`mailto:${event.venue_email}`} className="event-venue-contact-link">
+                  ✉️ {event.venue_email}
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ── Talent Section ── */}
+        {event.artists && event.artists.length > 0 && (
+          <section className="event-talent-section">
+            <h2 className="event-talent-heading">Performing</h2>
+            <div className="event-talent-grid">
+              {event.artists.map((artist) => (
+                <div key={artist.id} className="event-talent-card">
+                  {artist.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={artist.image_url}
+                      alt={artist.name}
+                      className="event-talent-img"
+                    />
+                  ) : (
+                    <div className="event-talent-img event-talent-img-placeholder" />
+                  )}
+                  <span className="event-talent-name">{artist.name}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Sponsors ── */}
         {sponsors.length > 0 && (
           <section className="event-sponsors-section">
             <h2 className="event-sponsors-heading">Our Partners</h2>
@@ -217,15 +373,9 @@ export default function EventDetailPage() {
                         className="sponsor-logo-link"
                       >
                         {s.logo_url ? (
-                          <img
-                            src={s.logo_url}
-                            alt={s.name}
-                            className={`sponsor-logo sponsor-logo-${tier}`}
-                          />
+                          <img src={s.logo_url} alt={s.name} className={`sponsor-logo sponsor-logo-${tier}`} />
                         ) : (
-                          <span className={`sponsor-name-text sponsor-name-${tier}`}>
-                            {s.name}
-                          </span>
+                          <span className={`sponsor-name-text sponsor-name-${tier}`}>{s.name}</span>
                         )}
                       </a>
                     ))}

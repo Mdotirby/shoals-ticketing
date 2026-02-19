@@ -3,6 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
+
+type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist";
+
+const ROLE_ROUTES: Record<UserRole, string> = {
+  owner: "/admin",
+  super_admin: "/admin",
+  venue_admin: "/admin",
+  promoter: "/admin",
+  full_admin: "/admin",
+  box_office: "/admin/scan",
+  read_only: "/admin",
+  door_greeter: "/admin/scan",
+  artist: "/admin/guest-list",
+};
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -17,15 +32,43 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Wire up Supabase Auth signInWithPassword
-      // For now, simple placeholder login
-      if (email && password) {
-        router.push("/admin");
-      } else {
-        setError("Email and password are required.");
+      const supabase = getSupabaseBrowser();
+
+      const { data: authData, error: authError } =
+        await supabase.auth.signInWithPassword({ email, password });
+
+      if (authError) throw new Error(authError.message);
+      if (!authData.user || !authData.session) throw new Error("Login failed.");
+
+      // Look up admin role
+      const authRes = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: authData.session.access_token }),
+      });
+
+      if (!authRes.ok) {
+        throw new Error("No admin role assigned. Contact your venue administrator.");
       }
-    } catch {
-      setError("Login failed. Please try again.");
+
+      const authBody = await authRes.json();
+      const role = authBody.role as UserRole;
+
+      // Set cookies for admin layout
+      document.cookie = `user-role=${role}; path=/; samesite=lax`;
+      if (authBody.first_name) {
+        document.cookie = `user-name=${encodeURIComponent(authBody.first_name)}; path=/; samesite=lax`;
+      }
+      if (role !== "owner" && authBody.venue_id) {
+        document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
+      } else {
+        document.cookie = "venue-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      }
+
+      // Redirect to role-appropriate page
+      router.push(ROLE_ROUTES[role] || "/admin");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -36,7 +79,7 @@ export default function AdminLoginPage() {
       <div className="admin-login-card">
         <Image
           src="/beige-brown-logo.png"
-          alt="West 72 Logo"
+          alt="VenueCore Logo"
           width={127}
           height={127}
           className="admin-login-logo"
@@ -56,7 +99,7 @@ export default function AdminLoginPage() {
               className="admin-form-input"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@west72.com"
+              placeholder="admin@venuecore.live"
               required
             />
           </label>
@@ -73,12 +116,8 @@ export default function AdminLoginPage() {
             />
           </label>
 
-          <button
-            type="submit"
-            className="admin-login-btn"
-            disabled={loading}
-          >
-            {loading ? "Signing in..." : "Sign In"}
+          <button type="submit" className="admin-login-btn" disabled={loading}>
+            {loading ? "Signing in…" : "Sign In"}
           </button>
         </form>
       </div>

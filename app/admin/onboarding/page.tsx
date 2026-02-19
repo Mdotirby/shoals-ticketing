@@ -21,9 +21,6 @@ export default function AdminOnboardingPage() {
     address_city: "",
     address_state: "",
     address_zip: "",
-    primary_color: "#d0c290",
-    secondary_color: "#0b0d1d",
-    accent_color: "#202045",
     ticketing_fee: "3.00",
     venue_rebate: "0.00",
     tax_rate: "0.09",
@@ -87,9 +84,6 @@ export default function AdminOnboardingPage() {
           address_city: venue.address_city || null,
           address_state: venue.address_state || null,
           address_zip: venue.address_zip || null,
-          primary_color: venue.primary_color,
-          secondary_color: venue.secondary_color,
-          accent_color: venue.accent_color,
           ticketing_fee: parseFloat(venue.ticketing_fee) || 3.00,
           venue_rebate: parseFloat(venue.venue_rebate) || 0,
           tax_rate: parseFloat(venue.tax_rate) || 0.09,
@@ -230,31 +224,6 @@ export default function AdminOnboardingPage() {
             )}
           </div>
 
-          <h2 className="admin-form-section-title">Brand Colors</h2>
-          <div className="admin-form-grid">
-            <label className="admin-form-label">
-              Primary
-              <div className="color-input-row">
-                <input type="color" value={venue.primary_color} onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })} className="color-swatch" />
-                <input type="text" className="admin-form-input" value={venue.primary_color} onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })} />
-              </div>
-            </label>
-            <label className="admin-form-label">
-              Secondary
-              <div className="color-input-row">
-                <input type="color" value={venue.secondary_color} onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })} className="color-swatch" />
-                <input type="text" className="admin-form-input" value={venue.secondary_color} onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })} />
-              </div>
-            </label>
-            <label className="admin-form-label">
-              Accent
-              <div className="color-input-row">
-                <input type="color" value={venue.accent_color} onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })} className="color-swatch" />
-                <input type="text" className="admin-form-input" value={venue.accent_color} onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })} />
-              </div>
-            </label>
-          </div>
-
           <button type="submit" className="admin-form-submit" disabled={loading}>
             {loading ? "Creating Venue…" : "Create Venue & Continue"}
           </button>
@@ -303,7 +272,7 @@ export default function AdminOnboardingPage() {
           <div className="admin-form-success">
             Onboarding complete! {createdVenueName} is ready. The venue admin can now log in.
           </div>
-          <button className="admin-form-submit" onClick={() => { setStep("venue"); setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045", ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09" }); setAdmin({ email: "", password: "", first_name: "", last_name: "" }); }}>
+          <button className="admin-form-submit" onClick={() => { setStep("venue"); setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09" }); setAdmin({ email: "", password: "", first_name: "", last_name: "" }); }}>
             Onboard Another Venue
           </button>
         </div>

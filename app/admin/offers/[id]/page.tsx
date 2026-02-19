@@ -120,8 +120,8 @@ export default function AdminOfferDetailPage() {
     try {
       const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-      const pc = venue?.primary_color || "#d0c290";
-      const sc = venue?.secondary_color || "#0b0d1d";
+      const pc = "#d0c290";
+      const sc = "#0b0d1d";
       const hex = (h: string) => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)] as [number,number,number];
       const W = 215.9; // letter width mm
       let y = 0;

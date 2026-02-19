@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import { Event } from "@/lib/types/event";
-import { getCookie } from "@/lib/cookies";
+import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
 
 // Default hero images (West 72 / main domain)
@@ -30,18 +30,28 @@ function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
 }
 
 export default function HomePage() {
+  const { venueSlug, isVenueSubdomain } = useVenue();
   const venueTheme = useVenueTheme();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   // Use venue-specific hero images if on a subdomain, otherwise defaults
   const HERO_IMAGE_1 = venueTheme.hero_image_url || DEFAULT_HERO_1;
   const HERO_IMAGE_2 = venueTheme.hero_image_2_url || DEFAULT_HERO_2;
 
+  const filtered = useMemo(() => {
+    if (!query) return events;
+    const q = query.toLowerCase();
+    return events.filter(
+      (e) =>
+        e.title.toLowerCase().includes(q) ||
+        e.venue.toLowerCase().includes(q)
+    );
+  }, [events, query]);
+
   useEffect(() => {
-    // If on a venue subdomain, filter by that venue's slug
-    const venueSlug = getCookie("venue-slug");
-    const params = venueSlug ? `?venue_slug=${venueSlug}` : "";
+    const params = isVenueSubdomain ? `?venue_slug=${venueSlug}` : "";
 
     fetch(`/api/events${params}`)
       .then(async (res) => {
@@ -104,17 +114,33 @@ export default function HomePage() {
             <h2 className="home-upcoming-heading">
               What&apos;s Coming . . ?
             </h2>
+            <div className="home-events-search">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <input
+                type="search"
+                className="home-events-search-input"
+                placeholder="Search shows…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search events"
+              />
+            </div>
           </div>
 
           <div className="home-events-carousel">
             {isLoading && (
               <p className="home-events-loading">Loading events...</p>
             )}
-            {!isLoading && events.length === 0 && (
-              <p className="home-events-loading">No events yet.</p>
+            {!isLoading && filtered.length === 0 && (
+              <p className="home-events-loading">
+                {query ? `No shows match "${query}".` : "No events yet."}
+              </p>
             )}
             {!isLoading &&
-              events.map((event, i) => (
+              filtered.map((event, i) => (
                 <AnimatedEventCard key={event.id} event={event} index={i} />
               ))}
           </div>

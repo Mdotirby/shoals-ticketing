@@ -31,7 +31,7 @@ export default function PortalPage() {
   const [currentUserId, setCurrentUserId] = useState("");
 
   // Venue settings form (venue_admin)
-  const [venueForm, setVenueForm] = useState({ name: "", nickname: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "", primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045", default_radius_distance: "", default_radius_days_prior: "", default_radius_days_after: "" });
+  const [venueForm, setVenueForm] = useState({ name: "", nickname: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "", default_radius_distance: "", default_radius_days_prior: "", default_radius_days_after: "" });
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
 
@@ -89,8 +89,6 @@ export default function PortalPage() {
               buyer_name: v.buyer_name || "", contract_signatory: v.contract_signatory || "",
               buyer_phone: v.buyer_phone || "", buyer_email: v.buyer_email || "",
               promoter_address: v.promoter_address || "",
-              primary_color: v.primary_color || "#d0c290", secondary_color: v.secondary_color || "#0b0d1d",
-              accent_color: v.accent_color || "#202045",
               default_radius_distance: v.default_radius_distance || "", default_radius_days_prior: v.default_radius_days_prior ? String(v.default_radius_days_prior) : "", default_radius_days_after: v.default_radius_days_after ? String(v.default_radius_days_after) : "",
             });
           }
@@ -149,9 +147,7 @@ export default function PortalPage() {
           buyer_name: venueForm.buyer_name || null, contract_signatory: venueForm.contract_signatory || null,
           buyer_phone: venueForm.buyer_phone || null, buyer_email: venueForm.buyer_email || null,
           promoter_address: venueForm.promoter_address || null,
-          primary_color: venueForm.primary_color, secondary_color: venueForm.secondary_color,
-          accent_color: venueForm.accent_color,
-          default_radius_distance: venueForm.default_radius_distance || null,
+         default_radius_distance: venueForm.default_radius_distance || null,
           default_radius_days_prior: venueForm.default_radius_days_prior ? parseInt(venueForm.default_radius_days_prior) : null,
           default_radius_days_after: venueForm.default_radius_days_after ? parseInt(venueForm.default_radius_days_after) : null,
         }),
@@ -272,13 +268,6 @@ export default function PortalPage() {
                 <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" placeholder="e.g. 150" value={venueForm.default_radius_distance} onChange={(e) => setVenueForm({ ...venueForm, default_radius_distance: e.target.value })} /></label>
                 <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" placeholder="e.g. 60" value={venueForm.default_radius_days_prior} onChange={(e) => setVenueForm({ ...venueForm, default_radius_days_prior: e.target.value })} /></label>
                 <label className="admin-form-label">Days After<input type="number" className="admin-form-input" placeholder="e.g. 60" value={venueForm.default_radius_days_after} onChange={(e) => setVenueForm({ ...venueForm, default_radius_days_after: e.target.value })} /></label>
-              </div>
-
-              <h3 className="portal-form-heading" style={{ marginTop: 16 }}>Brand Colors</h3>
-              <div className="admin-form-grid" style={{ marginTop: 8 }}>
-                <label className="admin-form-label">Primary<div className="color-input-row"><input type="color" value={venueForm.primary_color} onChange={(e) => setVenueForm({ ...venueForm, primary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.primary_color} onChange={(e) => setVenueForm({ ...venueForm, primary_color: e.target.value })} /></div></label>
-                <label className="admin-form-label">Secondary<div className="color-input-row"><input type="color" value={venueForm.secondary_color} onChange={(e) => setVenueForm({ ...venueForm, secondary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.secondary_color} onChange={(e) => setVenueForm({ ...venueForm, secondary_color: e.target.value })} /></div></label>
-                <label className="admin-form-label">Accent<div className="color-input-row"><input type="color" value={venueForm.accent_color} onChange={(e) => setVenueForm({ ...venueForm, accent_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={venueForm.accent_color} onChange={(e) => setVenueForm({ ...venueForm, accent_color: e.target.value })} /></div></label>
               </div>
 
               <div style={{ marginTop: 16, display: "flex", gap: 12, alignItems: "center" }}>

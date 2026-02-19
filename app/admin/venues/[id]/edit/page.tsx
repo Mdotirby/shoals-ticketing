@@ -17,7 +17,6 @@ export default function AdminEditVenuePage() {
     hero_image_url: "", hero_image_2_url: "",
     address_street: "", address_city: "", address_state: "", address_zip: "",
     buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "",
-    primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#202045",
     ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09",
   });
 
@@ -36,8 +35,6 @@ export default function AdminEditVenuePage() {
           buyer_name: String(v.buyer_name || ""), contract_signatory: String(v.contract_signatory || ""),
           buyer_phone: String(v.buyer_phone || ""), buyer_email: String(v.buyer_email || ""),
           promoter_address: String(v.promoter_address || ""),
-          primary_color: String(v.primary_color || "#d0c290"), secondary_color: String(v.secondary_color || "#0b0d1d"),
-          accent_color: String(v.accent_color || "#202045"),
           ticketing_fee: String(v.ticketing_fee || "3.00"), venue_rebate: String(v.venue_rebate || "0"),
           tax_rate: String(v.tax_rate || "0.09"),
         });
@@ -60,7 +57,6 @@ export default function AdminEditVenuePage() {
           buyer_name: form.buyer_name || null, contract_signatory: form.contract_signatory || null,
           buyer_phone: form.buyer_phone || null, buyer_email: form.buyer_email || null,
           promoter_address: form.promoter_address || null,
-          primary_color: form.primary_color, secondary_color: form.secondary_color, accent_color: form.accent_color,
           ticketing_fee: parseFloat(form.ticketing_fee) || 3.00,
           venue_rebate: parseFloat(form.venue_rebate) || 0,
           tax_rate: parseFloat(form.tax_rate) || 0.09,
@@ -160,13 +156,6 @@ export default function AdminEditVenuePage() {
           <label className="admin-form-label">Ticketing Fee ($)<input type="number" className="admin-form-input" value={form.ticketing_fee} onChange={(e) => setForm({ ...form, ticketing_fee: e.target.value })} step="0.01" /></label>
           <label className="admin-form-label">Venue Rebate ($)<input type="number" className="admin-form-input" value={form.venue_rebate} onChange={(e) => setForm({ ...form, venue_rebate: e.target.value })} step="0.01" /></label>
           <label className="admin-form-label">Tax Rate (decimal)<input type="number" className="admin-form-input" value={form.tax_rate} onChange={(e) => setForm({ ...form, tax_rate: e.target.value })} step="0.01" /></label>
-        </div>
-
-        <h2 className="admin-form-section-title">Brand Colors</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">Primary<div className="color-input-row"><input type="color" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} /></div></label>
-          <label className="admin-form-label">Secondary<div className="color-input-row"><input type="color" value={form.secondary_color} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={form.secondary_color} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })} /></div></label>
-          <label className="admin-form-label">Accent<div className="color-input-row"><input type="color" value={form.accent_color} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} className="color-swatch" /><input type="text" className="admin-form-input" value={form.accent_color} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} /></div></label>
         </div>
 
         <h2 className="admin-form-section-title">Buyer / Promoter</h2>

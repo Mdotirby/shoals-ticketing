@@ -18,9 +18,6 @@ export default function AdminSettingsPage() {
     address_city: "",
     address_state: "",
     address_zip: "",
-    primary_color: "#d0c290",
-    secondary_color: "#0b0d1d",
-    accent_color: "#202045",
   });
 
   const [buyer, setBuyer] = useState({
@@ -61,9 +58,6 @@ export default function AdminSettingsPage() {
           address_city: v.address_city || "",
           address_state: v.address_state || "",
           address_zip: v.address_zip || "",
-          primary_color: v.primary_color || "#d0c290",
-          secondary_color: v.secondary_color || "#0b0d1d",
-          accent_color: v.accent_color || "#202045",
         });
         setBuyer({
           buyer_name: v.buyer_name || "",
@@ -96,9 +90,6 @@ export default function AdminSettingsPage() {
           address_city: venue.address_city || null,
           address_state: venue.address_state || null,
           address_zip: venue.address_zip || null,
-          primary_color: venue.primary_color,
-          secondary_color: venue.secondary_color,
-          accent_color: venue.accent_color,
           buyer_name: buyer.buyer_name || null,
           contract_signatory: buyer.contract_signatory || null,
           buyer_phone: buyer.buyer_phone || null,
@@ -205,62 +196,6 @@ export default function AdminSettingsPage() {
               value={venue.address_zip}
               onChange={(e) => setVenue({ ...venue, address_zip: e.target.value })}
             />
-          </label>
-        </div>
-
-        {/* ── Color Scheme ── */}
-        <h2 className="admin-form-section-title">Brand Colors</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Primary Color
-            <div className="color-input-row">
-              <input
-                type="color"
-                value={venue.primary_color}
-                onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })}
-                className="color-swatch"
-              />
-              <input
-                type="text"
-                className="admin-form-input"
-                value={venue.primary_color}
-                onChange={(e) => setVenue({ ...venue, primary_color: e.target.value })}
-              />
-            </div>
-          </label>
-          <label className="admin-form-label">
-            Secondary Color
-            <div className="color-input-row">
-              <input
-                type="color"
-                value={venue.secondary_color}
-                onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })}
-                className="color-swatch"
-              />
-              <input
-                type="text"
-                className="admin-form-input"
-                value={venue.secondary_color}
-                onChange={(e) => setVenue({ ...venue, secondary_color: e.target.value })}
-              />
-            </div>
-          </label>
-          <label className="admin-form-label">
-            Accent Color
-            <div className="color-input-row">
-              <input
-                type="color"
-                value={venue.accent_color}
-                onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })}
-                className="color-swatch"
-              />
-              <input
-                type="text"
-                className="admin-form-input"
-                value={venue.accent_color}
-                onChange={(e) => setVenue({ ...venue, accent_color: e.target.value })}
-              />
-            </div>
           </label>
         </div>
 

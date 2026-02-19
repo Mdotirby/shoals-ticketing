@@ -62,12 +62,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Set venue slug cookie
-  if (venueSlug) {
-    response.cookies.set("venue-slug", venueSlug, { path: "/", sameSite: "lax" });
-  } else {
-    response.cookies.delete("venue-slug");
-  }
+  // Set venueSlug cookie — subdomain or "default"
+  response.cookies.set("venueSlug", venueSlug || "default", {
+    path: "/",
+    sameSite: "lax",
+  });
 
   // ── Auth check only for protected routes ──
   const isLoginPage = pathname === "/login" || pathname === "/admin/login";

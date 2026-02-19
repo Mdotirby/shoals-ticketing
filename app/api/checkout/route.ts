@@ -135,6 +135,7 @@ export async function POST(request: Request) {
       metadata: {
         event_id: event.id,
         event_title: event.title,
+        venue_id: event.venue_id || "",
         quantity: String(quantity),
         ticketing_fee: String(ticketingFee),
         venue_rebate: String(venueRebate),
