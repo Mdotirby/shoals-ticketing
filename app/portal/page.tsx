@@ -91,6 +91,7 @@ export default function PortalPage() {
       setUserRole(role);
       setUserVenueId(venueId);
       if (!["owner", "super_admin", "venue_admin"].includes(role)) { router.push("/admin"); return; }
+      setCurrentUserId(data.user.id);
 
       const [usersRes, venuesRes] = await Promise.all([
         fetch("/api/admin/users").then((r) => r.json()),
@@ -241,6 +242,17 @@ export default function PortalPage() {
     if (res.ok) { const u = await res.json(); setAdmins((p) => p.map((a) => a.id === userId ? { ...a, ...u } : a)); }
   };
 
+  const handleRemoveUser = async (userId: string, userName: string) => {
+    if (!confirm(`Remove team member "${userName}"? This will permanently delete their account and cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/api/admin/users?id=${userId}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed"); }
+      setAdmins((p) => p.filter((a) => a.id !== userId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to remove user");
+    }
+  };
+
   // ── Artist management ──
   const loadArtists = useCallback(async () => {
     try {
@@ -367,24 +379,58 @@ export default function PortalPage() {
   };
 
   const handleRemoveArtist = async (artistId: string) => {
-    if (!confirm("Remove this artist? Their guest list entries will also be removed.")) return;
+    if (!confirm("Remove this artist? Their guest list entries and event assignments will also be removed. This cannot be undone.")) return;
     try {
-      // Delete assignments first
+      // Delete assignments + guest list first
       const sb = getSupabaseBrowser();
       await sb.from("artist_event_assignments").delete().eq("artist_id", artistId);
       await sb.from("guest_list").delete().eq("artist_id", artistId);
 
-      // Delete admin_users record (via API — uses service role)
-      // For now just update their role to remove access
-      await fetch("/api/admin/users", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: artistId, role: "read_only" }),
-      });
+      // Delete admin_users record + auth user via API
+      const res = await fetch(`/api/admin/users?id=${artistId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete artist");
 
       await loadArtists();
     } catch (err) {
       console.error("Failed to remove artist:", err);
+      alert("Failed to remove artist. Please try again.");
+    }
+  };
+
+  const handleUpdateArtist = async (artistId: string, updates: { first_name?: string; last_name?: string; email?: string }) => {
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: artistId, ...updates }),
+      });
+      if (res.ok) await loadArtists();
+    } catch (err) {
+      console.error("Failed to update artist:", err);
+    }
+  };
+
+  const handleAddAssignment = async (artistId: string, eventId: string, compLimit: number) => {
+    if (!eventId) return;
+    try {
+      const sb = getSupabaseBrowser();
+      const { error } = await sb
+        .from("artist_event_assignments")
+        .insert({ artist_id: artistId, event_id: eventId, comp_limit: compLimit });
+      if (error) throw error;
+      await loadArtists();
+    } catch (err) {
+      console.error("Failed to add assignment:", err);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    try {
+      const sb = getSupabaseBrowser();
+      await sb.from("artist_event_assignments").delete().eq("id", assignmentId);
+      await loadArtists();
+    } catch (err) {
+      console.error("Failed to remove assignment:", err);
     }
   };
 
@@ -514,7 +560,7 @@ export default function PortalPage() {
             {admins.length > 0 && (
               <div className="portal-table-wrapper">
                 <table className="portal-table">
-                  <thead><tr><th>Name</th><th>Email</th><th>Role</th>{isOwner && <th>Venue</th>}<th>Created</th></tr></thead>
+                  <thead><tr><th>Name</th><th>Email</th><th>Role</th>{isOwner && <th>Venue</th>}<th>Created</th><th></th></tr></thead>
                   <tbody>
                     {admins.map((a) => (
                       <tr key={a.id}>
@@ -540,6 +586,26 @@ export default function PortalPage() {
                           </td>
                         )}
                         <td>{new Date(a.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                        <td>
+                          {a.role !== "owner" && a.id !== currentUserId && (
+                            <button
+                              onClick={() => handleRemoveUser(a.id, [a.first_name, a.last_name].filter(Boolean).join(" ") || a.email)}
+                              style={{
+                                background: "rgba(255,100,100,0.08)",
+                                border: "1px solid rgba(255,100,100,0.2)",
+                                borderRadius: 6,
+                                color: "rgba(255,100,100,0.8)",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                padding: "4px 10px",
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -614,12 +680,24 @@ export default function PortalPage() {
                           borderRadius: 8,
                         }}
                       >
+                        {/* Artist header: editable name fields + remove */}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                          <div>
-                            <span style={{ color: "#fff", fontWeight: 600 }}>
-                              {[artist.first_name, artist.last_name].filter(Boolean).join(" ") || "—"}
-                            </span>
-                            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginLeft: 10 }}>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            <input
+                              type="text"
+                              defaultValue={artist.first_name || ""}
+                              placeholder="First"
+                              onBlur={(e) => { if (e.target.value !== (artist.first_name || "")) handleUpdateArtist(artist.id, { first_name: e.target.value }); }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
+                            />
+                            <input
+                              type="text"
+                              defaultValue={artist.last_name || ""}
+                              placeholder="Last"
+                              onBlur={(e) => { if (e.target.value !== (artist.last_name || "")) handleUpdateArtist(artist.id, { last_name: e.target.value }); }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
+                            />
+                            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
                               {artist.email}
                             </span>
                           </div>
@@ -636,16 +714,20 @@ export default function PortalPage() {
                               cursor: "pointer",
                             }}
                           >
-                            Remove
+                            Remove Artist
                           </button>
                         </div>
-                        {artist.assignments.length > 0 ? (
+
+                        {/* Assignments with remove buttons */}
+                        {artist.assignments.length > 0 && (
                           <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
                             {artist.assignments.map((a) => (
                               <span
                                 key={a.id}
                                 style={{
-                                  display: "inline-block",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
                                   padding: "3px 10px",
                                   background: "rgba(208,194,144,0.1)",
                                   border: "1px solid rgba(208,194,144,0.15)",
@@ -657,14 +739,50 @@ export default function PortalPage() {
                                 {a.event_title}
                                 {a.event_date && ` (${slugDate(a.event_date)})`}
                                 {" · "}{a.comp_limit} comps
+                                <button
+                                  onClick={() => handleRemoveAssignment(a.id)}
+                                  title="Remove assignment"
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    color: "rgba(255,100,100,0.7)",
+                                    cursor: "pointer",
+                                    fontSize: 14,
+                                    padding: "0 2px",
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  ✕
+                                </button>
                               </span>
                             ))}
                           </div>
-                        ) : (
-                          <p style={{ margin: "6px 0 0", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
-                            No events assigned
-                          </p>
                         )}
+
+                        {/* Add assignment inline */}
+                        <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                          <select
+                            className="portal-form-input"
+                            style={{ width: "auto", minWidth: 180, fontSize: 12, padding: "4px 8px" }}
+                            defaultValue=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleAddAssignment(artist.id, e.target.value, 4);
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="">+ Assign event…</option>
+                            {artistEvents
+                              .filter((ev) => !artist.assignments.some((a) => a.event_id === ev.id))
+                              .map((ev) => (
+                                <option key={ev.id} value={ev.id}>{ev.title} — {slugDate(ev.date)}</option>
+                              ))}
+                          </select>
+                          {artist.assignments.length === 0 && (
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>No events assigned</span>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>

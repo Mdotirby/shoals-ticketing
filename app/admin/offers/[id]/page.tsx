@@ -159,30 +159,44 @@ export default function AdminOfferDetailPage() {
       doc.setFillColor(...hex(pc));
       doc.rect(0, 26, W, 1.5, "F");
 
-      // Venue logo (top-left of header)
-      if (venue?.logo_url) {
-        try {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = venue.logo_url;
-          await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; setTimeout(resolve, 2000); });
-          if (img.complete && img.naturalWidth > 0) {
-            const canvas = document.createElement("canvas");
-            canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-            canvas.getContext("2d")?.drawImage(img, 0, 0);
-            doc.addImage(canvas.toDataURL("image/png"), "PNG", 8, 3, 20, 20);
-          }
-        } catch {}
-      }
+      // Venue logo (top-left of header) — try slug logo, fall back to default
+      try {
+        const slugForLogo = venue?.slug || "";
+        const logoUrls = slugForLogo
+          ? [`/logos/${slugForLogo}/logo.png`, "/logos/default/logo.png"]
+          : ["/logos/default/logo.png"];
 
-      // Venue info (top-right): Name → Address → Capacity
+        let logoLoaded = false;
+        for (const logoUrl of logoUrls) {
+          if (logoLoaded) break;
+          try {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.src = logoUrl;
+            await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; setTimeout(reject, 2000); });
+            if (img.complete && img.naturalWidth > 0) {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+              canvas.getContext("2d")?.drawImage(img, 0, 0);
+              doc.addImage(canvas.toDataURL("image/png"), "PNG", 8, 3, 20, 20);
+              logoLoaded = true;
+            }
+          } catch { /* try next logo */ }
+        }
+      } catch {}
+
+      // Venue info (top-right): Use offer venue fields first, then fall back to venue object
+      const pdfVenueName = String(form.venue || venue?.name || "Venue");
+      const pdfVenueAddr = String(form.venue_address || [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ") || "");
+
       doc.setTextColor(...hex(pc));
       doc.setFontSize(16);
-      doc.text(venue?.name || "Venue", W - 10, 10, { align: "right" });
+      doc.text(pdfVenueName, W - 10, 10, { align: "right" });
       doc.setFontSize(9);
-      const venueAddr = [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ");
-      if (venueAddr) doc.text(venueAddr, W - 10, 16, { align: "right" });
-      doc.text(`Venue Capacity: ${venue?.capacity || "—"}`, W - 10, venueAddr ? 21 : 16, { align: "right" });
+      if (pdfVenueAddr) doc.text(pdfVenueAddr, W - 10, 16, { align: "right" });
+      if (venue?.capacity) {
+        doc.text(`Venue Capacity: ${venue.capacity}`, W - 10, pdfVenueAddr ? 21 : 16, { align: "right" });
+      }
 
       y = 32;
 

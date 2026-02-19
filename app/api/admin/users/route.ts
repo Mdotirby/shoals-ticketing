@@ -111,6 +111,43 @@ If you didn't expect this invitation, you can safely ignore this email. Question
   return NextResponse.json(data, { status: 201 });
 }
 
+// DELETE: remove a team member (admin_users row + auth user)
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  // 1. Delete admin_users row
+  const { error: dbError } = await admin
+    .from("admin_users")
+    .delete()
+    .eq("id", id);
+
+  if (dbError) {
+    return NextResponse.json({ error: dbError.message }, { status: 500 });
+  }
+
+  // 2. Delete auth user via service role
+  const authAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  const { error: authError } = await authAdmin.auth.admin.deleteUser(id);
+  if (authError) {
+    // admin_users row already deleted — log but don't fail
+    console.error("Failed to delete auth user:", authError.message);
+  }
+
+  return NextResponse.json({ deleted: true });
+}
+
 // PUT: update an admin user's role or venue assignment
 export async function PUT(request: Request) {
   const admin = createAdminClient();
