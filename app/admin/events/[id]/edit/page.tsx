@@ -203,9 +203,11 @@ export default function AdminEditEventPage() {
     setSaving(true);
 
     try {
-      const dateTime = form.time
+      // Build local datetime string and convert to ISO (preserves correct timezone)
+      const localDateTime = form.time
         ? `${form.date}T${form.time}:00`
         : `${form.date}T19:00:00`;
+      const dateTime = new Date(localDateTime).toISOString();
 
       const lowestPrice = Math.min(...tiers.map((t) => parseFloat(t.price)));
 

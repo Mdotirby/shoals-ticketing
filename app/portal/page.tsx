@@ -71,6 +71,7 @@ export default function PortalPage() {
   const [newArtistPassword, setNewArtistPassword] = useState("");
   const [newArtistEventId, setNewArtistEventId] = useState("");
   const [newArtistCompLimit, setNewArtistCompLimit] = useState(4);
+  const [newArtistUrl, setNewArtistUrl] = useState("");
   const [newArtistImage, setNewArtistImage] = useState<File | null>(null);
   const [creatingArtist, setCreatingArtist] = useState(false);
   const [artistCreateError, setArtistCreateError] = useState("");
@@ -352,15 +353,17 @@ export default function PortalPage() {
       }
       const newUser = await res.json();
 
-      // Step 1b: If avatar was uploaded, save it
+      // Step 1b: Save avatar_url and/or website_url if provided
       const avatarUrl = (window as unknown as Record<string, string>).__newArtistAvatarUrl;
-      if (avatarUrl) {
+      const extraFields: Record<string, string> = {};
+      if (avatarUrl) { extraFields.avatar_url = avatarUrl; delete (window as unknown as Record<string, string>).__newArtistAvatarUrl; }
+      if (newArtistUrl.trim()) extraFields.website_url = newArtistUrl.trim();
+      if (Object.keys(extraFields).length > 0) {
         await fetch("/api/admin/users", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: newUser.id, avatar_url: avatarUrl }),
+          body: JSON.stringify({ id: newUser.id, ...extraFields }),
         });
-        delete (window as unknown as Record<string, string>).__newArtistAvatarUrl;
       }
 
       // Step 2: If an event is selected, create the assignment
@@ -390,6 +393,7 @@ export default function PortalPage() {
       setNewArtistPassword("");
       setNewArtistEventId("");
       setNewArtistCompLimit(4);
+      setNewArtistUrl("");
 
       // Refresh artist list
       await loadArtists();
@@ -754,6 +758,7 @@ export default function PortalPage() {
                     <input type="number" className="portal-form-input" value={newArtistCompLimit} min={1} max={50} onChange={(e) => setNewArtistCompLimit(Math.max(1, parseInt(e.target.value) || 4))} />
                   </label>
                 )}
+                <input type="url" className="portal-form-input" placeholder="Artist URL (e.g. https://artistname.com)" value={newArtistUrl} onChange={(e) => setNewArtistUrl(e.target.value)} />
                 <button type="button" className="admin-header-btn" onClick={openNewArtistImagePicker} style={{ fontSize: 12, padding: "6px 14px" }}>
                   📷 Upload Artist Photo
                 </button>
