@@ -61,32 +61,31 @@ export default function EventsPage() {
       <main className="events-list-page">
         {/* ── Search + Filter bar ── */}
         <div className="events-search-bar">
-          <div className="events-search-input-wrap">
-            <svg className="events-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <input
-              type="search"
-              className="events-search-input"
-              placeholder="Search events…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search events"
-            />
-          </div>
+          <svg className="events-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            className="events-search-input"
+            placeholder="Search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
           <select
             className="events-filter-select"
             value={filter}
             onChange={(e) => setFilter(e.target.value as FilterType)}
-            aria-label="Filter by"
           >
-            <option value="all">All</option>
-            <option value="event">Event</option>
-            <option value="artist">Artist</option>
-            <option value="city">City</option>
-            <option value="venue">Venue</option>
+            <option value="all">by All</option>
+            <option value="event">by Event</option>
+            <option value="artist">by Artist</option>
+            <option value="venue">by Venue</option>
+            <option value="city">by City</option>
           </select>
+          {query && (
+            <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px 12px" }}>✕</button>
+          )}
         </div>
 
         {isLoading && <p className="events-list-loading">Loading events...</p>}

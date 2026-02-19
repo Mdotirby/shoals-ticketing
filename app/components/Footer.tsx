@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useVenueTheme } from "./VenueThemeProvider";
 
 const serviceLinks = [
   { label: "Concert Promotion", href: "/about" },
@@ -27,24 +26,17 @@ const connectLinks = [
 ];
 
 export default function Footer() {
-  const venue = useVenueTheme();
-
   return (
     <footer className="site-footer">
       <div className="footer-content">
         <div className="footer-brand">
-          {venue.isVenueSubdomain && venue.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={venue.logo_url} alt={venue.name || "Venue"} className="footer-logo" style={{ width: 127, height: 127, objectFit: "contain" }} />
-          ) : (
-            <Image
-              src="/VenueCore_VenueCore-FullLogo.png"
-              alt="VenueCore Logo"
-              width={127}
-              height={127}
-              className="footer-logo"
-            />
-          )}
+          <Image
+            src="/VenueCore_VenueCore-FullLogo.png"
+            alt="VenueCore Logo"
+            width={127}
+            height={127}
+            className="footer-logo"
+          />
           <p className="footer-description">
             Discover. Grab. Experience. Live.  
             VenueCore makes it easy to find upcoming shows, buy tickets in seconds, 

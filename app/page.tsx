@@ -115,7 +115,7 @@ export default function HomePage() {
               What&apos;s Coming . . ?
             </h2>
             <div className="home-events-search">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{color: "rgba(255,255,255,0.35)", flexShrink: 0}}>
                 <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
@@ -125,8 +125,10 @@ export default function HomePage() {
                 placeholder="Search shows…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search events"
               />
+              {query && (
+                <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px" }}>✕</button>
+              )}
             </div>
           </div>
 

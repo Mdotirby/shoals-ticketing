@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import type { Venue } from "@/lib/types/venue";
+import type { Contract } from "@/lib/types/contract";
+import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 
 const DEFAULT_FIXED: ExpenseItem[] = [
   { name: "Rent", amount: 0 }, { name: "Production", amount: 0 }, { name: "Catering", amount: 0 },
@@ -31,8 +33,30 @@ export default function AdminOfferDetailPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Contract state
+  const [contract, setContract] = useState<Contract | null>(null);
+  const [contractLoading, setContractLoading] = useState(false);
+  const [signedByArtist, setSignedByArtist] = useState("");
+  const [signedByBuyer, setSignedByBuyer] = useState("");
+
   // Editable fields
   const [form, setForm] = useState<Record<string, unknown>>({});
+
+  // Fetch contract for this offer
+  const fetchContract = async () => {
+    try {
+      const res = await fetch(`/api/contracts?venue_id=${getCookie("venue-id") || ""}`);
+      if (res.ok) {
+        const all: Contract[] = await res.json();
+        const found = all.find((c) => c.offer_id === id);
+        if (found) {
+          setContract(found);
+          setSignedByArtist(found.signed_by_artist || "");
+          setSignedByBuyer(found.signed_by_buyer || "");
+        }
+      }
+    } catch { /* ignore */ }
+  };
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
@@ -49,6 +73,9 @@ export default function AdminOfferDetailPage() {
       })
       .catch(() => setError("Failed to load offer"))
       .finally(() => setLoading(false));
+
+    // Also load contract
+    fetchContract();
   }, [id]);
 
   const updateField = (key: string, value: unknown) => {
@@ -400,6 +427,329 @@ export default function AdminOfferDetailPage() {
           <textarea className="admin-form-textarea" rows={3} value={String(form.notes || "")} onChange={(e) => updateField("notes", e.target.value)} />
         </label>
       </div>
+
+      {/* ════════════════════════════════════════════
+          CONTRACT SECTION
+      ════════════════════════════════════════════ */}
+      <h2 className="admin-form-section-title" style={{ marginTop: 32 }}>Contract</h2>
+
+      {!contract ? (
+        /* ── No contract yet ── */
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+          <button
+            className="admin-form-submit"
+            style={{ padding: "10px 20px" }}
+            disabled={contractLoading}
+            onClick={async () => {
+              if (!offer || !venue) return;
+              setContractLoading(true);
+              setError("");
+              try {
+                // Create contract record
+                const res = await fetch("/api/contracts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    offer_id: offer.id,
+                    venue_id: offer.venue_id || getCookie("venue-id"),
+                    source: "generated",
+                    guarantee: offer.guarantee,
+                    deal_type: offer.deal_type,
+                    backend_percentage: offer.backend_percentage,
+                    deposit_amount: offer.deposit_amount,
+                    status: "draft",
+                  }),
+                });
+                if (!res.ok) throw new Error("Failed to create contract");
+                const created: Contract = await res.json();
+                setContract(created);
+
+                // Generate PDF
+                await exportContractPDF(created, offer, venue);
+                setSuccess("Contract generated & PDF downloaded.");
+              } catch {
+                setError("Failed to generate contract.");
+              } finally {
+                setContractLoading(false);
+              }
+            }}
+          >
+            {contractLoading ? "Generating…" : "Generate Contract"}
+          </button>
+
+          <button
+            className="admin-header-btn"
+            style={{ padding: "10px 20px" }}
+            disabled={contractLoading}
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+              input.onchange = async () => {
+                const file = input.files?.[0];
+                if (!file || !offer) return;
+                setContractLoading(true);
+                setError("");
+                try {
+                  // Upload file
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+                  if (!uploadRes.ok) throw new Error("Upload failed");
+                  const { url } = await uploadRes.json();
+
+                  // Create contract record
+                  const res = await fetch("/api/contracts", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      offer_id: offer.id,
+                      venue_id: offer.venue_id || getCookie("venue-id"),
+                      source: "uploaded",
+                      file_url: url,
+                      file_name: file.name,
+                      guarantee: offer.guarantee,
+                      deal_type: offer.deal_type,
+                      backend_percentage: offer.backend_percentage,
+                      deposit_amount: offer.deposit_amount,
+                      status: "draft",
+                    }),
+                  });
+                  if (!res.ok) throw new Error("Failed to create contract");
+                  const created: Contract = await res.json();
+                  setContract(created);
+                  setSuccess("Contract uploaded successfully.");
+                } catch {
+                  setError("Failed to upload contract.");
+                } finally {
+                  setContractLoading(false);
+                }
+              };
+              input.click();
+            }}
+          >
+            Upload Contract
+          </button>
+        </div>
+      ) : (
+        /* ── Contract exists ── */
+        <div style={{ marginTop: 8 }}>
+          {/* Status badge */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 16 }}>
+            <span
+              style={{
+                background:
+                  contract.status === "signed" ? "rgba(100,200,100,0.15)" :
+                  contract.status === "sent" ? "rgba(100,180,255,0.12)" :
+                  contract.status === "void" ? "rgba(255,100,100,0.12)" :
+                  "rgba(255,200,50,0.12)",
+                color:
+                  contract.status === "signed" ? "#7ddb7d" :
+                  contract.status === "sent" ? "#6ab4ff" :
+                  contract.status === "void" ? "#ff9a9a" :
+                  "#e8c94a",
+                padding: "4px 14px",
+                borderRadius: 4,
+                fontSize: 13,
+                fontWeight: 700,
+                textTransform: "uppercase",
+              }}
+            >
+              {contract.status}
+            </span>
+            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+              Source: {contract.source} · v{contract.version}
+            </span>
+            {contract.signed_at && (
+              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                Signed: {new Date(contract.signed_at).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            {/* Download / Generate PDF */}
+            <button
+              className="admin-header-btn"
+              style={{ padding: "8px 16px" }}
+              disabled={contractLoading}
+              onClick={async () => {
+                if (contract.source === "uploaded" && contract.file_url) {
+                  window.open(contract.file_url, "_blank");
+                } else if (offer && venue) {
+                  setContractLoading(true);
+                  try {
+                    await exportContractPDF(contract, offer, venue);
+                  } catch {
+                    setError("Failed to generate PDF.");
+                  } finally {
+                    setContractLoading(false);
+                  }
+                }
+              }}
+            >
+              {contract.source === "uploaded" ? "Download Contract" : "Download Contract PDF"}
+            </button>
+
+            {/* Mark as Sent */}
+            {contract.status === "draft" && (
+              <button
+                className="admin-header-btn"
+                style={{
+                  padding: "8px 16px",
+                  background: "rgba(100,180,255,0.1)",
+                  borderColor: "rgba(100,180,255,0.3)",
+                  color: "#6ab4ff",
+                }}
+                disabled={contractLoading}
+                onClick={async () => {
+                  setContractLoading(true);
+                  try {
+                    const res = await fetch(`/api/contracts/${contract.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ status: "sent" }),
+                    });
+                    if (!res.ok) throw new Error("Failed");
+                    const updated = await res.json();
+                    setContract(updated);
+                    setSuccess("Contract marked as sent.");
+                  } catch {
+                    setError("Failed to update contract.");
+                  } finally {
+                    setContractLoading(false);
+                  }
+                }}
+              >
+                Mark as Sent
+              </button>
+            )}
+
+            {/* Mark as Signed */}
+            {(contract.status === "draft" || contract.status === "sent") && (
+              <button
+                className="admin-form-submit"
+                style={{
+                  padding: "8px 16px",
+                  background: "rgba(100,200,100,0.15)",
+                  borderColor: "rgba(100,200,100,0.4)",
+                  color: "#7ddb7d",
+                }}
+                disabled={contractLoading}
+                onClick={async () => {
+                  if (!signedByArtist && !signedByBuyer) {
+                    setError("Enter at least one signer name before marking as signed.");
+                    return;
+                  }
+                  setContractLoading(true);
+                  try {
+                    const res = await fetch(`/api/contracts/${contract.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        status: "signed",
+                        signed_at: new Date().toISOString(),
+                        signed_by_artist: signedByArtist || null,
+                        signed_by_buyer: signedByBuyer || null,
+                      }),
+                    });
+                    if (!res.ok) throw new Error("Failed");
+                    const updated = await res.json();
+                    setContract(updated);
+                    setSuccess("Contract marked as signed.");
+                  } catch {
+                    setError("Failed to update contract.");
+                  } finally {
+                    setContractLoading(false);
+                  }
+                }}
+              >
+                ✓ Mark as Signed
+              </button>
+            )}
+
+            {/* Upload countersigned copy */}
+            <button
+              className="admin-header-btn"
+              style={{ padding: "8px 16px" }}
+              disabled={contractLoading}
+              onClick={() => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                input.onchange = async () => {
+                  const file = input.files?.[0];
+                  if (!file) return;
+                  setContractLoading(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+                    if (!uploadRes.ok) throw new Error("Upload failed");
+                    const { url } = await uploadRes.json();
+
+                    const res = await fetch(`/api/contracts/${contract.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        file_url: url,
+                        file_name: file.name,
+                        version: (contract.version || 1) + 1,
+                      }),
+                    });
+                    if (!res.ok) throw new Error("Failed");
+                    const updated = await res.json();
+                    setContract(updated);
+                    setSuccess("Countersigned copy uploaded.");
+                  } catch {
+                    setError("Failed to upload countersigned copy.");
+                  } finally {
+                    setContractLoading(false);
+                  }
+                };
+                input.click();
+              }}
+            >
+              Upload Countersigned Copy
+            </button>
+          </div>
+
+          {/* Signed-by fields (visible when not yet signed) */}
+          {contract.status !== "signed" && contract.status !== "void" && (
+            <div className="admin-form-grid" style={{ maxWidth: 500 }}>
+              <label className="admin-form-label">
+                Signed by Artist
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={signedByArtist}
+                  onChange={(e) => setSignedByArtist(e.target.value)}
+                  placeholder="Artist or agent name"
+                />
+              </label>
+              <label className="admin-form-label">
+                Signed by Buyer
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={signedByBuyer}
+                  onChange={(e) => setSignedByBuyer(e.target.value)}
+                  placeholder="Buyer / promoter name"
+                />
+              </label>
+            </div>
+          )}
+
+          {/* Show signer info if already signed */}
+          {contract.status === "signed" && (
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 8 }}>
+              {contract.signed_by_artist && <div>Artist: <strong style={{ color: "#fff" }}>{contract.signed_by_artist}</strong></div>}
+              {contract.signed_by_buyer && <div>Buyer: <strong style={{ color: "#fff" }}>{contract.signed_by_buyer}</strong></div>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

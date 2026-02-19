@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
-import { useVenueTheme } from "@/app/components/VenueThemeProvider";
+import { useVenue } from "@/app/components/VenueContext";
+import SafeImage from "@/app/components/SafeImage";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
 
 type SidebarItem = {
@@ -18,6 +18,8 @@ const sidebarItems: SidebarItem[] = [
   { label: "Dashboard",        href: "/admin",             roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"] },
   { label: "Events",           href: "/admin/events",      roles: ["owner","venue_admin","full_admin"] },
   { label: "Booking",          href: "/admin/offers",      roles: ["owner","venue_admin"] },
+  { label: "Settlements",      href: "/admin/settlements", roles: ["owner","venue_admin"] },
+  { label: "Contracts",        href: "/admin/contracts",   roles: ["owner","venue_admin"] },
   { label: "Partners",         href: "/admin/sponsors",    roles: ["owner","venue_admin"] },
   { label: "Reports",          href: "/admin/reports",     roles: ["owner","venue_admin","full_admin","read_only","box_office","artist"] },
   { label: "Sales",            href: "/admin/orders",      roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
@@ -30,13 +32,13 @@ const sidebarItems: SidebarItem[] = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const venueTheme = useVenueTheme();
+  const { venueSlug } = useVenue();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminName, setAdminName] = useState("");
   const [venueName, setVenueName] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [sidebarLogoUrl, setSidebarLogoUrl] = useState<string | null>(null);
+  const [venueSlugResolved, setVenueSlugResolved] = useState("");
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userId, setUserId] = useState("");
 
@@ -65,16 +67,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           : (authData.user.email?.split("@")[0].split(".")[0] ?? "Admin");
         setAdminName(name.charAt(0).toUpperCase() + name.slice(1));
 
-        // Load venue name + logo
+        // Load venue name + slug for logo
         if (adminRecord.venue_id) {
           const { data: venue } = await supabase
             .from("venues")
-            .select("name, logo_url")
+            .select("name, slug")
             .eq("id", adminRecord.venue_id)
             .single();
           if (venue) {
             setVenueName(venue.name || "");
-            if (venue.logo_url) setSidebarLogoUrl(venue.logo_url);
+            if (venue.slug) setVenueSlugResolved(venue.slug);
           }
         } else if (adminRecord.role === "owner") {
           setVenueName("All Venues");
@@ -114,13 +116,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
           <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
         </button>
-        <Image
-          src="/beige-brown-logo.png"
+        <SafeImage
+          src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo` : "/logos/default/logo"}
+          fallback="/logos/default/logo"
           alt="VenueCore"
-          width={48}
-          height={48}
-          unoptimized
-          className="admin-mobile-logo"
+          style={{ width: 48, height: 48, objectFit: "contain" }}
         />
       </div>
 
@@ -130,24 +130,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
-          {(sidebarLogoUrl || venueTheme.logo_url) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={sidebarLogoUrl || venueTheme.logo_url || "/beige-brown-logo.png"}
-              alt={venueName || "Venue"}
-              className="admin-sidebar-logo"
-              style={{ width: 80, height: 80, objectFit: "contain" }}
-            />
-          ) : (
-            <Image
-              src="/beige-brown-logo.png"
-              alt="VenueCore"
-              width={100}
-              height={100}
-              unoptimized
-              className="admin-sidebar-logo"
-            />
-          )}
+          <SafeImage
+            src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo` : "/logos/default/logo"}
+            fallback="/logos/default/logo"
+            alt={venueName || "VenueCore"}
+            className="admin-sidebar-logo"
+            style={{ width: 80, height: 80, objectFit: "contain" }}
+          />
           {adminName && (
             <p className="admin-sidebar-welcome">
               Welcome, <strong>{adminName}</strong>
