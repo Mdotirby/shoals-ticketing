@@ -1,13 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
-const EXTENSIONS = ["png", "jpg", "jpeg", "webp", "svg"];
+import { useState } from "react";
 
 type SafeImageProps = {
-  /** Base path WITHOUT extension, e.g. "/logos/renshoals/logo" */
   src: string;
-  /** Fallback base path WITHOUT extension, e.g. "/logos/default/logo" */
   fallback: string;
   alt: string;
   className?: string;
@@ -15,9 +11,10 @@ type SafeImageProps = {
 };
 
 /**
- * Tries src with each extension (png, jpg, jpeg, webp, svg).
- * On failure falls back to the fallback path with the same extension scan.
- * Drop any image into the folder and it'll be found automatically.
+ * Simple <img> with onError fallback.
+ * Pass full paths WITH extension:
+ *   src="/logos/shoals/logo.png"
+ *   fallback="/logos/default/logo.png"
  */
 export default function SafeImage({
   src,
@@ -26,49 +23,18 @@ export default function SafeImage({
   className,
   style,
 }: SafeImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function probe(basePath: string): Promise<string | null> {
-      for (const ext of EXTENSIONS) {
-        const url = `${basePath}.${ext}`;
-        try {
-          const res = await fetch(url, { method: "HEAD" });
-          if (res.ok && !cancelled) return url;
-        } catch {
-          // continue
-        }
-      }
-      return null;
-    }
-
-    async function resolve() {
-      // Try primary path first
-      const primary = await probe(src);
-      if (primary && !cancelled) {
-        setResolvedSrc(primary);
-        return;
-      }
-      // Try fallback
-      const fb = await probe(fallback);
-      if (fb && !cancelled) {
-        setResolvedSrc(fb);
-        return;
-      }
-      // Nothing found — show nothing
-      if (!cancelled) setResolvedSrc(null);
-    }
-
-    resolve();
-    return () => { cancelled = true; };
-  }, [src, fallback]);
-
-  if (!resolvedSrc) return null;
+  const [imgSrc, setImgSrc] = useState(src);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={resolvedSrc} alt={alt} className={className} style={style} />
+    <img
+      src={imgSrc}
+      alt={alt}
+      className={className}
+      style={style}
+      onError={() => {
+        if (imgSrc !== fallback) setImgSrc(fallback);
+      }}
+    />
   );
 }

@@ -2,41 +2,46 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { getCookie } from "@/lib/cookies";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
 
-/* ── Shared types ── */
+/* ── Types ── */
 type EventRow = { id: string; title: string; date: string; venue: string };
-type GuestRow = { id: string; first_name: string; last_name: string; quantity: number; artist_id: string };
-type PreviewState = { event: EventRow; rows: Array<{ name: string; quantity: number }> };
-
-/* ── Artist-only types ── */
-type Assignment = {
-  event_id: string;
-  comp_limit: number;
-  events: { id: string; title: string; date: string; venue: string };
+type GuestRow = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  quantity: number;
+  artist_id: string;
 };
-type NewGuest = { first_name: string; last_name: string; quantity: number };
-
-/* ── Organizer assignment types ── */
-type ArtistUser = { id: string; first_name: string; last_name: string; email: string };
 type ArtistAssignment = {
   id: string;
-  event_id: string;
   artist_id: string;
   comp_limit: number;
-  events: { title: string; date: string } | null;
-  admin_users: { first_name: string; last_name: string } | null;
+  artist_name?: string;
+  artist_email?: string;
+};
+type PreviewState = {
+  event: EventRow;
+  rows: Array<{ name: string; quantity: number }>;
 };
 
 function slugDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 function safeFilename(s: string) {
   return s.replace(/[^a-z0-9 ._-]/gi, "_").replace(/\s+/g, "_");
 }
 
-async function generateGuestListPDF(event: EventRow, rows: Array<{ name: string; quantity: number }>) {
+async function generateGuestListPDF(
+  event: EventRow,
+  rows: Array<{ name: string; quantity: number }>
+) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
 
@@ -78,7 +83,8 @@ async function generateGuestListPDF(event: EventRow, rows: Array<{ name: string;
       doc.rect(0, 0, 216, 279, "F");
       y = 20;
     }
-    if (i % 2 === 0) doc.setTextColor(...white); else doc.setTextColor(210, 210, 210);
+    if (i % 2 === 0) doc.setTextColor(...white);
+    else doc.setTextColor(210, 210, 210);
     doc.text(String(i + 1), 14, y);
     doc.text(row.name, 24, y);
     doc.setTextColor(...gold);
@@ -112,12 +118,23 @@ export default function GuestListsPage() {
     async function init() {
       const supabase = getSupabaseBrowser();
       const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) { setLoading(false); return; }
+      if (!authData?.user) {
+        setLoading(false);
+        return;
+      }
       setUserId(authData.user.id);
+
+      // Try cookie first for speed, fall back to DB
+      const cookieRole = getCookie("user-role");
+      if (cookieRole) {
+        setUserRole(cookieRole);
+        setLoading(false);
+        return;
+      }
 
       const { data: adminRecord } = await supabase
         .from("admin_users")
-        .select("role, venue_id")
+        .select("role")
         .eq("id", authData.user.id)
         .single();
 
@@ -140,28 +157,51 @@ export default function GuestListsPage() {
     return <ArtistGuestListView artistId={userId} />;
   }
 
-  return <OrganizerGuestListView />;
+  if (userId) {
+    return <OrganizerGuestListView userId={userId} />;
+  }
+
+  return (
+    <div className="admin-form-page">
+      <h1 className="admin-page-title">Guest Lists</h1>
+      <p style={{ color: "rgba(255,255,255,0.5)" }}>Not authenticated.</p>
+    </div>
+  );
 }
 
 /* ================================================================
    ARTIST VIEW — manage their own guest list
    ================================================================ */
 
+type Assignment = {
+  event_id: string;
+  comp_limit: number;
+  events: { id: string; title: string; date: string; venue: string };
+};
+
 function ArtistGuestListView({ artistId }: { artistId: string }) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
-  const [guests, setGuests] = useState<{ id: string; first_name: string; last_name: string; quantity: number }[]>([]);
-  const [newGuest, setNewGuest] = useState<NewGuest>({ first_name: "", last_name: "", quantity: 1 });
+  const [guests, setGuests] = useState<GuestRow[]>([]);
+  const [newGuest, setNewGuest] = useState({ first_name: "", last_name: "", quantity: 1 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [tablesExist, setTablesExist] = useState(true);
 
   useEffect(() => {
     async function load() {
       const supabase = getSupabaseBrowser();
-      const { data } = await supabase
+      const { data, error: qErr } = await supabase
         .from("artist_event_assignments")
         .select("event_id, comp_limit, events(id, title, date, venue)")
         .eq("artist_id", artistId);
+
+      if (qErr) {
+        if (qErr.message.includes("does not exist") || qErr.code === "42P01") {
+          setTablesExist(false);
+          return;
+        }
+      }
 
       if (data) {
         setAssignments(data as unknown as Assignment[]);
@@ -176,13 +216,11 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
     const supabase = getSupabaseBrowser();
     supabase
       .from("guest_list")
-      .select("id, first_name, last_name, quantity")
+      .select("id, first_name, last_name, quantity, artist_id")
       .eq("event_id", selectedEventId)
       .eq("artist_id", artistId)
       .order("created_at")
-      .then((result: { data: { id: string; first_name: string; last_name: string; quantity: number }[] | null }) =>
-        setGuests(result.data || [])
-      );
+      .then((result: { data: GuestRow[] | null }) => setGuests(result.data || []));
   }, [selectedEventId, artistId]);
 
   const selectedAssignment = assignments.find((a) => a.event_id === selectedEventId);
@@ -217,7 +255,7 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
     if (dbError) {
       setError(dbError.message);
     } else if (data) {
-      setGuests((prev) => [...prev, data as { id: string; first_name: string; last_name: string; quantity: number }]);
+      setGuests((prev) => [...prev, data as GuestRow]);
       setNewGuest({ first_name: "", last_name: "", quantity: 1 });
     }
     setSaving(false);
@@ -228,6 +266,20 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
     await supabase.from("guest_list").delete().eq("id", id);
     setGuests((prev) => prev.filter((g) => g.id !== id));
   };
+
+  if (!tablesExist) {
+    return (
+      <div className="admin-form-page">
+        <h1 className="admin-page-title">Guest Lists</h1>
+        <div style={{ padding: "20px", background: "rgba(255,200,50,0.08)", border: "1px solid rgba(255,200,50,0.2)", borderRadius: 8 }}>
+          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>⚠ Guest list tables not found.</p>
+          <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
+            Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (assignments.length === 0) {
     return (
@@ -264,7 +316,15 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
       )}
 
       {selectedAssignment && (
-        <div style={{ marginBottom: 20, padding: "12px 16px", background: "rgba(208,194,144,0.08)", borderRadius: 8, border: "1px solid rgba(208,194,144,0.15)" }}>
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "12px 16px",
+            background: "rgba(208,194,144,0.08)",
+            borderRadius: 8,
+            border: "1px solid rgba(208,194,144,0.15)",
+          }}
+        >
           <strong style={{ color: "#d0c290" }}>{selectedAssignment.events.title}</strong>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
             {slugDate(selectedAssignment.events.date)} · {selectedAssignment.events.venue}
@@ -287,22 +347,40 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
           <div className="admin-form-grid">
             <label className="admin-form-label">
               First Name
-              <input type="text" className="admin-form-input" value={newGuest.first_name}
-                onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })} placeholder="Jane" />
+              <input
+                type="text"
+                className="admin-form-input"
+                value={newGuest.first_name}
+                onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
+                placeholder="Jane"
+              />
             </label>
             <label className="admin-form-label">
               Last Name
-              <input type="text" className="admin-form-input" value={newGuest.last_name}
-                onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })} placeholder="Smith" />
+              <input
+                type="text"
+                className="admin-form-input"
+                value={newGuest.last_name}
+                onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
+                placeholder="Smith"
+              />
             </label>
             <label className="admin-form-label">
               Quantity
-              <input type="number" className="admin-form-input" value={newGuest.quantity} min={1} max={remaining}
-                onChange={(e) => setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })} />
+              <input
+                type="number"
+                className="admin-form-input"
+                value={newGuest.quantity}
+                min={1}
+                max={remaining}
+                onChange={(e) =>
+                  setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })
+                }
+              />
             </label>
           </div>
           <button className="admin-form-submit" onClick={addGuest} disabled={saving}>
-            {saving ? "Adding…" : "+ Add New Guest"}
+            {saving ? "Adding…" : "+ Add Guest"}
           </button>
         </div>
       )}
@@ -323,12 +401,26 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
             <tbody>
               {guests.map((g) => (
                 <tr key={g.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <td style={{ padding: "10px 12px", color: "#fff" }}>{g.first_name} {g.last_name}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "center", color: "#d0c290" }}>{g.quantity}</td>
+                  <td style={{ padding: "10px 12px", color: "#fff" }}>
+                    {g.first_name} {g.last_name}
+                  </td>
+                  <td style={{ padding: "10px 12px", textAlign: "center", color: "#d0c290" }}>
+                    {g.quantity}
+                  </td>
                   <td style={{ padding: "10px 12px" }}>
-                    <button onClick={() => removeGuest(g.id)}
-                      style={{ background: "none", border: "none", color: "rgba(255,100,100,0.7)", cursor: "pointer", fontSize: 16 }}
-                      aria-label="Remove guest">✕</button>
+                    <button
+                      onClick={() => removeGuest(g.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "rgba(255,100,100,0.7)",
+                        cursor: "pointer",
+                        fontSize: 16,
+                      }}
+                      aria-label="Remove guest"
+                    >
+                      ✕
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -338,105 +430,185 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
       )}
 
       {guests.length === 0 && remaining <= 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>No comps remaining for this event.</p>
+        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>
+          No comps remaining for this event.
+        </p>
       )}
     </div>
   );
 }
 
 /* ================================================================
-   ORGANIZER VIEW — view all guest lists + assign artists
+   ORGANIZER VIEW — event selector, guest CRUD, PDF, assignments
    ================================================================ */
 
-function OrganizerGuestListView() {
+function OrganizerGuestListView({ userId }: { userId: string }) {
   const [events, setEvents] = useState<EventRow[]>([]);
-  const [guestsByEvent, setGuestsByEvent] = useState<Record<string, GuestRow[]>>({});
+  const [selectedEventId, setSelectedEventId] = useState<string>("");
+  const [guests, setGuests] = useState<GuestRow[]>([]);
+  const [artistAssignments, setArtistAssignments] = useState<ArtistAssignment[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tablesExist, setTablesExist] = useState(true);
+  const [guestError, setGuestError] = useState("");
 
-  /* ── Artist assignment state ── */
-  const [allArtists, setAllArtists] = useState<ArtistUser[]>([]);
-  const [allEvents, setAllEvents] = useState<EventRow[]>([]);
-  const [assignments, setAssignments] = useState<ArtistAssignment[]>([]);
-  const [assignEventId, setAssignEventId] = useState("");
+  // Add guest form
+  const [newGuest, setNewGuest] = useState({ first_name: "", last_name: "", quantity: 1 });
+  const [saving, setSaving] = useState(false);
+
+  // Assign artist form
+  const [allArtists, setAllArtists] = useState<{ id: string; first_name: string; last_name: string; email: string }[]>([]);
   const [assignArtistId, setAssignArtistId] = useState("");
   const [assignCompLimit, setAssignCompLimit] = useState(4);
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignError, setAssignError] = useState("");
 
-  const loadAssignments = useCallback(async () => {
-    const supabase = getSupabaseBrowser();
-    const { data } = await supabase
-      .from("artist_event_assignments")
-      .select("id, event_id, artist_id, comp_limit, events(title, date), admin_users!artist_id(first_name, last_name)")
-      .order("created_at", { ascending: false });
-    if (data) setAssignments(data as unknown as ArtistAssignment[]);
+  // Fetch events via API (bypasses RLS)
+  useEffect(() => {
+    async function loadEvents() {
+      try {
+        const venueId = getCookie("venue-id") || "";
+        const params = new URLSearchParams({ all: "1" });
+        if (venueId) params.set("venue_id", venueId);
+
+        const res = await fetch(`/api/events?${params.toString()}`);
+        const data = await res.json();
+
+        if (Array.isArray(data)) {
+          setEvents(data as EventRow[]);
+          if (data.length > 0) setSelectedEventId(data[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to fetch events:", err);
+      }
+      setLoading(false);
+    }
+    loadEvents();
   }, []);
 
+  // Fetch artists list via API
   useEffect(() => {
-    async function load() {
-      const supabase = getSupabaseBrowser();
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) return;
-
-      const { data: adminRecord } = await supabase
-        .from("admin_users")
-        .select("venue_id, role")
-        .eq("id", authData.user.id)
-        .single();
-
-      // Load events for guest list display
-      let eventsQuery = supabase
-        .from("events")
-        .select("id, title, date, venue")
-        .order("date", { ascending: true });
-
-      if (adminRecord?.role !== "owner" && adminRecord?.venue_id) {
-        eventsQuery = eventsQuery.eq("venue_id", adminRecord.venue_id);
+    async function loadArtists() {
+      try {
+        const res = await fetch("/api/admin/users");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAllArtists(
+            data.filter((u: { role: string }) => u.role === "artist")
+          );
+        }
+      } catch (err) {
+        console.error("Failed to fetch artists:", err);
       }
+    }
+    loadArtists();
+  }, []);
 
-      const { data: eventsData } = await eventsQuery;
-      if (!eventsData) { setLoading(false); return; }
-      setEvents(eventsData as EventRow[]);
-      setAllEvents(eventsData as EventRow[]);
+  // Fetch guests + artist assignments when event changes
+  const loadEventData = useCallback(
+    async (eventId: string) => {
+      if (!eventId) return;
+      const supabase = getSupabaseBrowser();
 
-      // Fetch guest lists
-      const eventIds = eventsData.map((e: EventRow) => e.id);
-      if (eventIds.length > 0) {
-        const { data: guestsData } = await supabase
-          .from("guest_list")
-          .select("id, event_id, first_name, last_name, quantity, artist_id")
-          .in("event_id", eventIds);
+      // Fetch guest list
+      const { data: guestData, error: guestErr } = await supabase
+        .from("guest_list")
+        .select("id, first_name, last_name, quantity, artist_id")
+        .eq("event_id", eventId)
+        .order("created_at");
 
-        if (guestsData) {
-          const byEvent: Record<string, GuestRow[]> = {};
-          (guestsData as Array<GuestRow & { event_id: string }>).forEach((g) => {
-            if (!byEvent[g.event_id]) byEvent[g.event_id] = [];
-            byEvent[g.event_id].push(g);
-          });
-          setGuestsByEvent(byEvent);
+      if (guestErr) {
+        if (guestErr.message.includes("does not exist") || guestErr.code === "42P01") {
+          setTablesExist(false);
+          return;
+        }
+        console.error("Guest list query error:", guestErr.message);
+      }
+      setGuests((guestData as GuestRow[]) || []);
+
+      // Fetch artist assignments for this event
+      const { data: assignData, error: assignErr } = await supabase
+        .from("artist_event_assignments")
+        .select("id, artist_id, comp_limit")
+        .eq("event_id", eventId);
+
+      if (assignErr) {
+        if (assignErr.message.includes("does not exist") || assignErr.code === "42P01") {
+          setTablesExist(false);
+          return;
         }
       }
 
-      // Fetch artists for assignment
-      const { data: artistsData } = await supabase
-        .from("admin_users")
-        .select("id, first_name, last_name, email")
-        .eq("role", "artist");
-      if (artistsData) setAllArtists(artistsData as ArtistUser[]);
+      if (assignData && assignData.length > 0) {
+        // Enrich with artist names from the allArtists list or fetch them
+        const enriched: ArtistAssignment[] = assignData.map((a: { id: string; artist_id: string; comp_limit: number }) => {
+          const found = allArtists.find((ar) => ar.id === a.artist_id);
+          return {
+            ...a,
+            artist_name: found ? `${found.first_name} ${found.last_name}` : "Unknown",
+            artist_email: found?.email || "",
+          };
+        });
+        setArtistAssignments(enriched);
+      } else {
+        setArtistAssignments([]);
+      }
+    },
+    [allArtists]
+  );
 
-      // Fetch existing assignments
-      await loadAssignments();
+  useEffect(() => {
+    if (selectedEventId) loadEventData(selectedEventId);
+  }, [selectedEventId, loadEventData]);
 
-      setLoading(false);
+  const selectedEvent = events.find((e) => e.id === selectedEventId);
+  const totalGuests = guests.reduce((s, g) => s + g.quantity, 0);
+
+  // Add guest (organizer adds directly, using their own userId as artist_id)
+  const addGuest = async () => {
+    if (!selectedEventId) return;
+    if (!newGuest.first_name.trim() || !newGuest.last_name.trim()) {
+      setGuestError("First and last name are required.");
+      return;
     }
-    load();
-  }, [loadAssignments]);
+    setSaving(true);
+    setGuestError("");
+    const supabase = getSupabaseBrowser();
+    const { data, error: dbError } = await supabase
+      .from("guest_list")
+      .insert({
+        event_id: selectedEventId,
+        artist_id: userId,
+        first_name: newGuest.first_name.trim(),
+        last_name: newGuest.last_name.trim(),
+        quantity: newGuest.quantity,
+      })
+      .select()
+      .single();
 
-  const openPreview = (event: EventRow) => {
-    const guests = guestsByEvent[event.id] || [];
-    const rows = guests.map((g) => ({ name: `${g.first_name} ${g.last_name}`, quantity: g.quantity }));
-    setPreview({ event, rows });
+    if (dbError) {
+      setGuestError(dbError.message);
+    } else if (data) {
+      setGuests((prev) => [...prev, data as GuestRow]);
+      setNewGuest({ first_name: "", last_name: "", quantity: 1 });
+    }
+    setSaving(false);
+  };
+
+  const removeGuest = async (id: string) => {
+    const supabase = getSupabaseBrowser();
+    await supabase.from("guest_list").delete().eq("id", id);
+    setGuests((prev) => prev.filter((g) => g.id !== id));
+  };
+
+  // Print
+  const openPreview = () => {
+    if (!selectedEvent || guests.length === 0) return;
+    const rows = guests.map((g) => ({
+      name: `${g.first_name} ${g.last_name}`,
+      quantity: g.quantity,
+    }));
+    setPreview({ event: selectedEvent, rows });
   };
 
   const downloadPDF = async () => {
@@ -444,9 +616,10 @@ function OrganizerGuestListView() {
     await generateGuestListPDF(preview.event, preview.rows);
   };
 
+  // Assign artist
   const handleAssign = async () => {
-    if (!assignEventId || !assignArtistId) {
-      setAssignError("Select both an event and an artist.");
+    if (!assignArtistId || !selectedEventId) {
+      setAssignError("Select an artist.");
       return;
     }
     setAssignSaving(true);
@@ -455,7 +628,7 @@ function OrganizerGuestListView() {
     const { error: dbError } = await supabase
       .from("artist_event_assignments")
       .insert({
-        event_id: assignEventId,
+        event_id: selectedEventId,
         artist_id: assignArtistId,
         comp_limit: assignCompLimit,
       });
@@ -463,10 +636,9 @@ function OrganizerGuestListView() {
     if (dbError) {
       setAssignError(dbError.message);
     } else {
-      setAssignEventId("");
       setAssignArtistId("");
       setAssignCompLimit(4);
-      await loadAssignments();
+      await loadEventData(selectedEventId);
     }
     setAssignSaving(false);
   };
@@ -474,8 +646,31 @@ function OrganizerGuestListView() {
   const removeAssignment = async (id: string) => {
     const supabase = getSupabaseBrowser();
     await supabase.from("artist_event_assignments").delete().eq("id", id);
-    setAssignments((prev) => prev.filter((a) => a.id !== id));
+    setArtistAssignments((prev) => prev.filter((a) => a.id !== id));
   };
+
+  if (!tablesExist) {
+    return (
+      <div className="admin-form-page">
+        <h1 className="admin-page-title">Guest Lists</h1>
+        <div
+          style={{
+            padding: "20px",
+            background: "rgba(255,200,50,0.08)",
+            border: "1px solid rgba(255,200,50,0.2)",
+            borderRadius: 8,
+          }}
+        >
+          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>
+            ⚠ Guest list tables not found.
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
+            Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-form-page">
@@ -483,113 +678,195 @@ function OrganizerGuestListView() {
 
       {loading && <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>}
 
-      {/* ── Event Guest Lists ── */}
       {!loading && events.length === 0 && (
         <p style={{ color: "rgba(255,255,255,0.5)" }}>No events found.</p>
       )}
 
       {!loading && events.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 40 }}>
-          {events.map((event) => {
-            const guests = guestsByEvent[event.id] || [];
-            const totalGuests = guests.reduce((s, g) => s + g.quantity, 0);
-            return (
-              <div
-                key={event.id}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "14px 18px", background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8,
-                  flexWrap: "wrap", gap: 10,
-                }}
+        <>
+          {/* ── Event Selector ── */}
+          <div style={{ marginBottom: 24 }}>
+            <label className="admin-form-label">
+              Select Event
+              <select
+                className="admin-form-input"
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
               >
-                <div>
-                  <p style={{ color: "#fff", fontWeight: 600, margin: 0 }}>{event.title}</p>
-                  <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, margin: "2px 0 0" }}>
-                    {slugDate(event.date)} · {event.venue}
-                  </p>
-                  <p style={{ color: "#d0c290", fontSize: 12, margin: "4px 0 0" }}>
-                    {totalGuests} guest{totalGuests !== 1 ? "s" : ""} on list
-                  </p>
-                </div>
-                <button
-                  className="admin-header-btn"
-                  onClick={() => openPreview(event)}
-                  disabled={totalGuests === 0}
-                  style={{ opacity: totalGuests === 0 ? 0.4 : 1 }}
-                >
-                  🖨 Print Guest List
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Assign Artist to Event ── */}
-      {!loading && (
-        <div style={{ marginBottom: 40 }}>
-          <h2 style={{ margin: "0 0 16px", fontFamily: "var(--font-bayon), sans-serif", fontSize: "1.4rem", color: "#d0c290" }}>
-            Assign Artist to Event
-          </h2>
-          {assignError && <div className="admin-form-error" style={{ marginBottom: 12 }}>{assignError}</div>}
-          <div className="admin-form-grid" style={{ marginBottom: 12 }}>
-            <label className="admin-form-label">
-              Event
-              <select className="admin-form-input" value={assignEventId} onChange={(e) => setAssignEventId(e.target.value)}>
-                <option value="">Select event…</option>
-                {allEvents.map((ev) => (
-                  <option key={ev.id} value={ev.id}>{ev.title} — {slugDate(ev.date)}</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title} — {slugDate(ev.date)}
+                  </option>
                 ))}
               </select>
-            </label>
-            <label className="admin-form-label">
-              Artist
-              <select className="admin-form-input" value={assignArtistId} onChange={(e) => setAssignArtistId(e.target.value)}>
-                <option value="">Select artist…</option>
-                {allArtists.map((a) => (
-                  <option key={a.id} value={a.id}>{a.first_name} {a.last_name} ({a.email})</option>
-                ))}
-              </select>
-            </label>
-            <label className="admin-form-label">
-              Comp Limit
-              <input type="number" className="admin-form-input" value={assignCompLimit} min={1} max={50}
-                onChange={(e) => setAssignCompLimit(Math.max(1, parseInt(e.target.value) || 4))} />
             </label>
           </div>
-          <button className="admin-form-submit" onClick={handleAssign} disabled={assignSaving}>
-            {assignSaving ? "Assigning…" : "Assign Artist"}
-          </button>
 
-          {/* Current assignments */}
-          {assignments.length > 0 && (
-            <div style={{ marginTop: 24 }}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.7)" }}>
-                Current Assignments
-              </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {assignments.map((a) => (
+          {/* ── Event Info Bar ── */}
+          {selectedEvent && (
+            <div
+              style={{
+                marginBottom: 20,
+                padding: "12px 16px",
+                background: "rgba(208,194,144,0.08)",
+                borderRadius: 8,
+                border: "1px solid rgba(208,194,144,0.15)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 10,
+              }}
+            >
+              <div>
+                <strong style={{ color: "#d0c290" }}>{selectedEvent.title}</strong>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
+                  {slugDate(selectedEvent.date)} · {selectedEvent.venue}
+                </span>
+                <div style={{ marginTop: 4, fontSize: 13, color: "#d0c290" }}>
+                  {totalGuests} guest{totalGuests !== 1 ? "s" : ""} on list
+                </div>
+              </div>
+              <button
+                className="admin-header-btn"
+                onClick={openPreview}
+                disabled={totalGuests === 0}
+                style={{ opacity: totalGuests === 0 ? 0.4 : 1 }}
+              >
+                🖨 Print Guest List
+              </button>
+            </div>
+          )}
+
+          {/* ── Add Guest Form ── */}
+          <div className="admin-form" style={{ marginBottom: 24 }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>Add Guest</h2>
+            {guestError && <div className="admin-form-error">{guestError}</div>}
+            <div className="admin-form-grid">
+              <label className="admin-form-label">
+                First Name
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newGuest.first_name}
+                  onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
+                  placeholder="Jane"
+                />
+              </label>
+              <label className="admin-form-label">
+                Last Name
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newGuest.last_name}
+                  onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
+                  placeholder="Smith"
+                />
+              </label>
+              <label className="admin-form-label">
+                Quantity
+                <input
+                  type="number"
+                  className="admin-form-input"
+                  value={newGuest.quantity}
+                  min={1}
+                  max={50}
+                  onChange={(e) =>
+                    setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })
+                  }
+                />
+              </label>
+            </div>
+            <button className="admin-form-submit" onClick={addGuest} disabled={saving}>
+              {saving ? "Adding…" : "+ Add Guest"}
+            </button>
+          </div>
+
+          {/* ── Guest List Table ── */}
+          {guests.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600, color: "#fff" }}>
+                Guest List ({guests.length} {guests.length === 1 ? "entry" : "entries"})
+              </h2>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                    <th style={{ textAlign: "left", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+                      Name
+                    </th>
+                    <th style={{ textAlign: "center", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
+                      Qty
+                    </th>
+                    <th style={{ width: 40 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {guests.map((g) => (
+                    <tr key={g.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                      <td style={{ padding: "10px 12px", color: "#fff" }}>
+                        {g.first_name} {g.last_name}
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#d0c290" }}>
+                        {g.quantity}
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <button
+                          onClick={() => removeGuest(g.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "rgba(255,100,100,0.7)",
+                            cursor: "pointer",
+                            fontSize: 16,
+                          }}
+                          aria-label="Remove guest"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ── Artist Assignments for this Event ── */}
+          <div style={{ marginBottom: 40 }}>
+            <h2
+              style={{
+                margin: "0 0 16px",
+                fontFamily: "var(--font-bayon), sans-serif",
+                fontSize: "1.4rem",
+                color: "#d0c290",
+              }}
+            >
+              Artist Assignments
+            </h2>
+
+            {/* Current assignments */}
+            {artistAssignments.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                {artistAssignments.map((a) => (
                   <div
                     key={a.id}
                     style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "10px 14px", background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, gap: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "10px 14px",
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      borderRadius: 8,
+                      gap: 12,
                       flexWrap: "wrap",
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ color: "#fff", fontWeight: 500 }}>
-                        {a.admin_users?.first_name} {a.admin_users?.last_name}
-                      </span>
-                      <span style={{ color: "rgba(255,255,255,0.35)", margin: "0 8px" }}>→</span>
-                      <span style={{ color: "rgba(255,255,255,0.7)" }}>
-                        {a.events?.title}
-                      </span>
-                      {a.events?.date && (
-                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 6 }}>
-                          ({slugDate(a.events.date)})
+                      <span style={{ color: "#fff", fontWeight: 500 }}>{a.artist_name}</span>
+                      {a.artist_email && (
+                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 8 }}>
+                          ({a.artist_email})
                         </span>
                       )}
                       <span style={{ color: "#d0c290", fontSize: 12, marginLeft: 12 }}>
@@ -599,9 +876,14 @@ function OrganizerGuestListView() {
                     <button
                       onClick={() => removeAssignment(a.id)}
                       style={{
-                        background: "rgba(255,100,100,0.08)", border: "1px solid rgba(255,100,100,0.2)",
-                        borderRadius: 6, color: "rgba(255,100,100,0.8)", fontSize: 12, fontWeight: 600,
-                        padding: "4px 12px", cursor: "pointer",
+                        background: "rgba(255,100,100,0.08)",
+                        border: "1px solid rgba(255,100,100,0.2)",
+                        borderRadius: 6,
+                        color: "rgba(255,100,100,0.8)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: "4px 12px",
+                        cursor: "pointer",
                       }}
                     >
                       Remove
@@ -609,9 +891,63 @@ function OrganizerGuestListView() {
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+
+            {artistAssignments.length === 0 && (
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 16 }}>
+                No artists assigned to this event yet.
+              </p>
+            )}
+
+            {/* Assign artist form */}
+            {allArtists.length > 0 ? (
+              <>
+                {assignError && <div className="admin-form-error" style={{ marginBottom: 12 }}>{assignError}</div>}
+                <div className="admin-form-grid" style={{ marginBottom: 12 }}>
+                  <label className="admin-form-label">
+                    Artist
+                    <select
+                      className="admin-form-input"
+                      value={assignArtistId}
+                      onChange={(e) => setAssignArtistId(e.target.value)}
+                    >
+                      <option value="">Select artist…</option>
+                      {allArtists.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.first_name} {a.last_name} ({a.email})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="admin-form-label">
+                    Comp Limit
+                    <input
+                      type="number"
+                      className="admin-form-input"
+                      value={assignCompLimit}
+                      min={1}
+                      max={50}
+                      onChange={(e) =>
+                        setAssignCompLimit(Math.max(1, parseInt(e.target.value) || 4))
+                      }
+                    />
+                  </label>
+                </div>
+                <button className="admin-form-submit" onClick={handleAssign} disabled={assignSaving}>
+                  {assignSaving ? "Assigning…" : "Assign Artist"}
+                </button>
+              </>
+            ) : (
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
+                No artist users found. Create artists from the{" "}
+                <a href="/portal" style={{ color: "#d0c290" }}>
+                  Portal
+                </a>{" "}
+                page first.
+              </p>
+            )}
+          </div>
+        </>
       )}
 
       {preview && (

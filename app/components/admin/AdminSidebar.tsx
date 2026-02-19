@@ -12,8 +12,8 @@ export default function AdminSidebar() {
       <div className="admin-sidebar-logo">
         <Link href="/admin">
           <SafeImage
-            src={`/logos/${venueSlug}/logo`}
-            fallback="/logos/default/logo"
+            src={`/logos/${venueSlug}/logo.png`}
+            fallback="/logos/default/logo.png"
             alt="Venue Logo"
             style={{ width: 120, height: "auto", objectFit: "contain" }}
           />

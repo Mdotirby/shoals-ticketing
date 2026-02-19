@@ -116,8 +116,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
         </button>
         <SafeImage
-          src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo` : "/logos/default/logo"}
-          fallback="/logos/default/logo"
+          src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo.png` : "/logos/default/logo.png"}
+          fallback="/logos/default/logo.png"
           alt="VenueCore"
           style={{ width: 48, height: 48, objectFit: "contain" }}
         />
@@ -130,8 +130,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
           <SafeImage
-            src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo` : "/logos/default/logo"}
-            fallback="/logos/default/logo"
+            src={venueSlugResolved ? `/logos/${venueSlugResolved}/logo.png` : "/logos/default/logo.png"}
+            fallback="/logos/default/logo.png"
             alt={venueName || "VenueCore"}
             className="admin-sidebar-logo"
             style={{ width: 80, height: 80, objectFit: "contain" }}

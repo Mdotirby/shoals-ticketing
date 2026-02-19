@@ -10,8 +10,8 @@ export default function EventsHero() {
     <div className="events-hero-shell" style={{ position: "relative", overflow: "hidden" }}>
       {/* Hero background image with per-venue override */}
       <SafeImage
-        src={`/hero-images/${venueSlug}/hero`}
-        fallback="/hero-images/default/hero"
+        src={`/hero-images/${venueSlug}/hero.jpg`}
+        fallback="/hero-images/default/hero.jpg"
         alt=""
         style={{
           position: "absolute",

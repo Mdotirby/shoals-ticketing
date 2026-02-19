@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { startSessionManager, touchActivity } from "@/lib/sessionManager";
@@ -9,6 +9,14 @@ import Footer from "@/app/components/Footer";
 
 type AdminUser = { id: string; email: string; role: string; venue_id: string | null; first_name: string | null; last_name: string | null; created_at: string };
 type Venue = { id: string; name: string; slug: string; nickname?: string; capacity?: number; address_street?: string; address_city?: string; address_state?: string; address_zip?: string; buyer_name?: string; contract_signatory?: string; buyer_phone?: string; buyer_email?: string; promoter_address?: string; primary_color?: string; secondary_color?: string; accent_color?: string };
+type EventRow = { id: string; title: string; date: string; venue: string };
+type ArtistWithAssignments = {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  assignments: { id: string; event_id: string; event_title: string; event_date: string; comp_limit: number }[];
+};
 
 const VENUE_ADMIN_ROLES = [
   { value: "venue_admin", label: "Venue Admin" },
@@ -50,6 +58,19 @@ export default function PortalPage() {
   const [newVenueId, setNewVenueId] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
+
+  // Artist management state
+  const [artistEvents, setArtistEvents] = useState<EventRow[]>([]);
+  const [artists, setArtists] = useState<ArtistWithAssignments[]>([]);
+  const [newArtistFirst, setNewArtistFirst] = useState("");
+  const [newArtistLast, setNewArtistLast] = useState("");
+  const [newArtistEmail, setNewArtistEmail] = useState("");
+  const [newArtistPassword, setNewArtistPassword] = useState("");
+  const [newArtistEventId, setNewArtistEventId] = useState("");
+  const [newArtistCompLimit, setNewArtistCompLimit] = useState(4);
+  const [creatingArtist, setCreatingArtist] = useState(false);
+  const [artistCreateError, setArtistCreateError] = useState("");
+  const [artistCreateSuccess, setArtistCreateSuccess] = useState("");
 
   useEffect(() => {
     const cleanup = startSessionManager({
@@ -218,6 +239,156 @@ export default function PortalPage() {
     });
     if (res.ok) { const u = await res.json(); setAdmins((p) => p.map((a) => a.id === userId ? { ...a, ...u } : a)); }
   };
+
+  // ── Artist management ──
+  const loadArtists = useCallback(async () => {
+    try {
+      // Fetch artist users
+      const usersRes = await fetch("/api/admin/users");
+      const allUsers = await usersRes.json();
+      if (!Array.isArray(allUsers)) return;
+      const artistUsers = allUsers.filter((u: AdminUser) => u.role === "artist");
+
+      // Fetch events for assignment dropdown
+      const venueId = getCookie("venue-id") || "";
+      const params = new URLSearchParams({ all: "1" });
+      if (venueId) params.set("venue_id", venueId);
+      const eventsRes = await fetch(`/api/events?${params.toString()}`);
+      const eventsData = await eventsRes.json();
+      if (Array.isArray(eventsData)) setArtistEvents(eventsData as EventRow[]);
+
+      // Fetch assignments via supabase browser client
+      const sb = getSupabaseBrowser();
+      const { data: assignData } = await sb
+        .from("artist_event_assignments")
+        .select("id, artist_id, event_id, comp_limit");
+
+      // Build enriched artist list
+      const enriched: ArtistWithAssignments[] = artistUsers.map((u: AdminUser) => {
+        const userAssignments = (assignData || [])
+          .filter((a: { artist_id: string }) => a.artist_id === u.id)
+          .map((a: { id: string; event_id: string; comp_limit: number }) => {
+            const ev = Array.isArray(eventsData)
+              ? (eventsData as EventRow[]).find((e) => e.id === a.event_id)
+              : null;
+            return {
+              id: a.id,
+              event_id: a.event_id,
+              event_title: ev?.title || "Unknown Event",
+              event_date: ev?.date || "",
+              comp_limit: a.comp_limit,
+            };
+          });
+        return {
+          id: u.id,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          email: u.email,
+          assignments: userAssignments,
+        };
+      });
+      setArtists(enriched);
+    } catch (err) {
+      console.error("Failed to load artists:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!loading && (userRole === "owner" || userRole === "super_admin" || userRole === "venue_admin")) {
+      loadArtists();
+    }
+  }, [loading, userRole, loadArtists]);
+
+  const handleCreateArtist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setArtistCreateError("");
+    setArtistCreateSuccess("");
+    if (!newArtistEmail || !newArtistPassword || !newArtistFirst) {
+      setArtistCreateError("First name, email, and password are required.");
+      return;
+    }
+    setCreatingArtist(true);
+    try {
+      // Step 1: Create the artist user
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newArtistEmail,
+          password: newArtistPassword,
+          role: "artist",
+          venue_id: null,
+          first_name: newArtistFirst || null,
+          last_name: newArtistLast || null,
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || "Failed to create artist user");
+      }
+      const newUser = await res.json();
+
+      // Step 2: If an event is selected, create the assignment
+      if (newArtistEventId) {
+        const sb = getSupabaseBrowser();
+        const { error: assignErr } = await sb
+          .from("artist_event_assignments")
+          .insert({
+            artist_id: newUser.id,
+            event_id: newArtistEventId,
+            comp_limit: newArtistCompLimit,
+          });
+        if (assignErr) {
+          console.error("Assignment failed:", assignErr.message);
+          setArtistCreateSuccess(`Artist created but event assignment failed: ${assignErr.message}`);
+        } else {
+          setArtistCreateSuccess(`Artist "${newArtistFirst} ${newArtistLast}" created and assigned.`);
+        }
+      } else {
+        setArtistCreateSuccess(`Artist "${newArtistFirst} ${newArtistLast}" created (no event assigned).`);
+      }
+
+      // Reset form
+      setNewArtistFirst("");
+      setNewArtistLast("");
+      setNewArtistEmail("");
+      setNewArtistPassword("");
+      setNewArtistEventId("");
+      setNewArtistCompLimit(4);
+
+      // Refresh artist list
+      await loadArtists();
+    } catch (err: unknown) {
+      setArtistCreateError(err instanceof Error ? err.message : "Failed to create artist");
+    } finally {
+      setCreatingArtist(false);
+    }
+  };
+
+  const handleRemoveArtist = async (artistId: string) => {
+    if (!confirm("Remove this artist? Their guest list entries will also be removed.")) return;
+    try {
+      // Delete assignments first
+      const sb = getSupabaseBrowser();
+      await sb.from("artist_event_assignments").delete().eq("artist_id", artistId);
+      await sb.from("guest_list").delete().eq("artist_id", artistId);
+
+      // Delete admin_users record (via API — uses service role)
+      // For now just update their role to remove access
+      await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: artistId, role: "read_only" }),
+      });
+
+      await loadArtists();
+    } catch (err) {
+      console.error("Failed to remove artist:", err);
+    }
+  };
+
+  const slugDate = (d: string) =>
+    new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   if (loading) return <main className="ticket-page"><div className="ticket-page-loading">Loading…</div></main>;
 
@@ -394,6 +565,118 @@ export default function PortalPage() {
               <button type="submit" className="portal-form-submit" disabled={creating}>{creating ? "Creating…" : "+ Add Member"}</button>
             </form>
           </div>
+
+          {/* ── Manage Artists ── */}
+          {(isOwner || userRole === "venue_admin") && (
+            <div className="portal-card">
+              <h2 className="portal-card-title">Manage Artists</h2>
+              <p className="portal-card-desc">Create artist users who can manage their own guest lists for assigned events.</p>
+
+              {/* Create Artist Form */}
+              <form className="portal-inline-form" onSubmit={handleCreateArtist} style={{ marginTop: 12 }}>
+                <h3 className="portal-form-heading">Add Artist</h3>
+                {artistCreateError && <div className="portal-form-error">{artistCreateError}</div>}
+                {artistCreateSuccess && <div style={{ color: "#7ddb7d", fontSize: 13, marginBottom: 8 }}>{artistCreateSuccess}</div>}
+                <input type="text" className="portal-form-input" placeholder="First Name *" value={newArtistFirst} onChange={(e) => setNewArtistFirst(e.target.value)} required />
+                <input type="text" className="portal-form-input" placeholder="Last Name" value={newArtistLast} onChange={(e) => setNewArtistLast(e.target.value)} />
+                <input type="email" className="portal-form-input" placeholder="Email *" value={newArtistEmail} onChange={(e) => setNewArtistEmail(e.target.value)} required />
+                <input type="password" className="portal-form-input" placeholder="Password *" value={newArtistPassword} onChange={(e) => setNewArtistPassword(e.target.value)} required minLength={6} />
+                <select className="portal-form-input" value={newArtistEventId} onChange={(e) => setNewArtistEventId(e.target.value)}>
+                  <option value="">— Assign to event (optional) —</option>
+                  {artistEvents.map((ev) => (
+                    <option key={ev.id} value={ev.id}>{ev.title} — {slugDate(ev.date)}</option>
+                  ))}
+                </select>
+                {newArtistEventId && (
+                  <label className="admin-form-label" style={{ margin: 0 }}>
+                    Comp Limit
+                    <input type="number" className="portal-form-input" value={newArtistCompLimit} min={1} max={50} onChange={(e) => setNewArtistCompLimit(Math.max(1, parseInt(e.target.value) || 4))} />
+                  </label>
+                )}
+                <button type="submit" className="portal-form-submit" disabled={creatingArtist}>
+                  {creatingArtist ? "Creating…" : "+ Create Artist"}
+                </button>
+              </form>
+
+              {/* Existing Artists List */}
+              {artists.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                  <h3 className="portal-form-heading">Current Artists</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {artists.map((artist) => (
+                      <div
+                        key={artist.id}
+                        style={{
+                          padding: "12px 16px",
+                          background: "rgba(255,255,255,0.03)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                          <div>
+                            <span style={{ color: "#fff", fontWeight: 600 }}>
+                              {[artist.first_name, artist.last_name].filter(Boolean).join(" ") || "—"}
+                            </span>
+                            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginLeft: 10 }}>
+                              {artist.email}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveArtist(artist.id)}
+                            style={{
+                              background: "rgba(255,100,100,0.08)",
+                              border: "1px solid rgba(255,100,100,0.2)",
+                              borderRadius: 6,
+                              color: "rgba(255,100,100,0.8)",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: "4px 12px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        {artist.assignments.length > 0 ? (
+                          <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {artist.assignments.map((a) => (
+                              <span
+                                key={a.id}
+                                style={{
+                                  display: "inline-block",
+                                  padding: "3px 10px",
+                                  background: "rgba(208,194,144,0.1)",
+                                  border: "1px solid rgba(208,194,144,0.15)",
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                  color: "#d0c290",
+                                }}
+                              >
+                                {a.event_title}
+                                {a.event_date && ` (${slugDate(a.event_date)})`}
+                                {" · "}{a.comp_limit} comps
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ margin: "6px 0 0", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+                            No events assigned
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {artists.length === 0 && (
+                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginTop: 16 }}>
+                  No artists created yet. Use the form above to add one.
+                </p>
+              )}
+            </div>
+          )}
         </section>
       </main>
       <Footer />
