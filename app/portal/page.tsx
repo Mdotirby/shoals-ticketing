@@ -27,7 +27,7 @@ const VENUE_ADMIN_ROLES = [
   { value: "box_office", label: "Box Office" },
   { value: "door_greeter", label: "Door Greeter" },
 ];
-const OWNER_ROLES = ["owner", "super_admin", "venue_admin", "read_only", "box_office", "door_greeter"];
+const OWNER_ROLES = ["owner", "super_admin", "venue_admin", "read_only", "box_office", "door_greeter", "artist"];
 
 export default function PortalPage() {
   const router = useRouter();
@@ -656,7 +656,7 @@ export default function PortalPage() {
                 <table className="portal-table">
                   <thead><tr><th>Name</th><th>Email</th><th>Role</th>{isOwner && <th>Venue</th>}<th>Created</th><th></th></tr></thead>
                   <tbody>
-                    {admins.map((a) => (
+                    {admins.filter((a) => a.role !== "artist").map((a) => (
                       <tr key={a.id}>
                         <td>{[a.first_name, a.last_name].filter(Boolean).join(" ") || "—"}</td>
                         <td>{a.email}</td>

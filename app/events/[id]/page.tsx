@@ -57,12 +57,7 @@ function formatDate(date: string) {
 }
 
 function formatTime(date: string) {
-  // Date-only strings have no time component
-  if (date && date.length === 10) return null;
-  const d = safeDate(date);
-  // Only show time if there's an actual time component (not midnight UTC)
-  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
-  return d.toLocaleTimeString("en-US", {
+  return safeDate(date).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
