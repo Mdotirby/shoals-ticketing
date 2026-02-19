@@ -14,6 +14,7 @@ type FeaturedArtist = {
   id: string;
   name: string;
   avatar_url?: string;
+  website_url?: string;
 };
 
 type Artist = {
@@ -312,19 +313,25 @@ export default function EventDetailPage() {
           <section className="event-featured-artists-section">
             <h2 className="event-featured-artists-heading">Featured Artists</h2>
             <div className="event-featured-artists-grid">
-              {featuredArtists.map((artist) => (
-                <div key={artist.id} className="event-featured-artist-card">
-                  <div className="event-featured-artist-avatar">
-                    {artist.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={artist.avatar_url} alt={artist.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      <div className="event-featured-artist-placeholder" />
-                    )}
-                  </div>
-                  <span className="event-featured-artist-name">{artist.name}</span>
-                </div>
-              ))}
+              {featuredArtists.map((artist) => {
+                const Wrapper = artist.website_url ? "a" : "div";
+                const wrapperProps = artist.website_url
+                  ? { href: artist.website_url, target: "_blank", rel: "noopener noreferrer", style: { textDecoration: "none" } }
+                  : {};
+                return (
+                  <Wrapper key={artist.id} className="event-featured-artist-card" {...wrapperProps}>
+                    <div className="event-featured-artist-avatar">
+                      {artist.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={artist.avatar_url} alt={artist.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div className="event-featured-artist-placeholder" />
+                      )}
+                    </div>
+                    <span className="event-featured-artist-name">{artist.name}</span>
+                  </Wrapper>
+                );
+              })}
             </div>
           </section>
         )}

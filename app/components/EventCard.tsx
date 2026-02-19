@@ -22,10 +22,12 @@ function formatEventDate(date: string) {
   });
 }
 
-function formatEventTime(date: string) {
+function formatEventTime(date: string): string | null {
+  // Date-only strings have no time
+  if (date && date.length === 10 && date[4] === "-") return null;
   const d = safeDate(date);
-  // Only show time if there's an actual time component (not our noon placeholder)
-  if (date.length === 10) return "";
+  // Filter out midnight UTC (no real time set)
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
   return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -61,9 +63,11 @@ export default function EventCard({ event }: EventCardProps) {
           <span className="event-badge event-date-badge">
             <span className="badge-text">{formatEventDate(event.date)}</span>
           </span>
-          <span className="event-badge event-time-badge">
-            <span className="badge-text">{formatEventTime(event.date)}</span>
-          </span>
+          {formatEventTime(event.date) && (
+            <span className="event-badge event-time-badge">
+              <span className="badge-text">{formatEventTime(event.date)}</span>
+            </span>
+          )}
         </div>
       </div>
     </Link>

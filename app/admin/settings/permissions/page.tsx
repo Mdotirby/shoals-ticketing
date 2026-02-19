@@ -63,7 +63,9 @@ function buildDefaults(): PermState {
 export default function PermissionsPage() {
   const [perms, setPerms] = useState<PermState>(buildDefaults);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [selectedRole, setSelectedRole] = useState<Role>("venue_admin");
   const [venueId, setVenueId] = useState<string | null>(getCookie("venue-id"));
 
   // Resolve venueId for owners/super_admins without a venue-id cookie
@@ -110,29 +112,42 @@ export default function PermissionsPage() {
       .finally(() => setLoading(false));
   }, [venueId]);
 
-  const toggle = async (tabKey: string, role: Role) => {
-    if (!venueId) return;
-    const newVal = !perms[tabKey][role];
+  const toggle = (tabKey: string) => {
     setPerms((prev) => ({
       ...prev,
-      [tabKey]: { ...prev[tabKey], [role]: newVal },
+      [tabKey]: { ...prev[tabKey], [selectedRole]: !prev[tabKey][selectedRole] },
     }));
+  };
 
-    const cellKey = `${tabKey}-${role}`;
-    setSaving(cellKey);
+  const handleSave = async () => {
+    if (!venueId) return;
+    setSaving(true);
+    setSaveMsg("");
 
     const supabase = getSupabaseBrowser();
-    await supabase.from("sidebar_permissions").upsert(
-      {
-        venue_id: venueId,
-        role,
-        tab_key: tabKey,
-        visible: newVal,
-      },
-      { onConflict: "venue_id,role,tab_key" }
-    );
+    const rows: { venue_id: string; role: string; tab_key: string; visible: boolean }[] = [];
 
-    setSaving(null);
+    // Build all permission rows for the selected role
+    for (const tab of TABS) {
+      rows.push({
+        venue_id: venueId,
+        role: selectedRole,
+        tab_key: tab.key,
+        visible: perms[tab.key][selectedRole],
+      });
+    }
+
+    const { error } = await supabase.from("sidebar_permissions").upsert(rows, {
+      onConflict: "venue_id,role,tab_key",
+    });
+
+    if (error) {
+      setSaveMsg("Failed to save permissions.");
+    } else {
+      setSaveMsg("Permissions saved successfully.");
+    }
+    setSaving(false);
+    setTimeout(() => setSaveMsg(""), 3000);
   };
 
   if (loading) {
@@ -155,42 +170,70 @@ export default function PermissionsPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Sidebar Permissions</h1>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Sidebar Permissions</h1>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {saveMsg && (
+            <span style={{ fontSize: 13, color: saveMsg.includes("Failed") ? "#ff9a9a" : "#7ddb7d" }}>
+              {saveMsg}
+            </span>
+          )}
+          <button
+            className="admin-form-submit"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ padding: "8px 20px" }}
+          >
+            {saving ? "Saving…" : "Save Permissions"}
+          </button>
+        </div>
+      </div>
+
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, marginBottom: 20 }}>
-        Control which sidebar tabs are visible for each role.
+        Select a role, then toggle which sidebar tabs are visible for that role.
       </p>
 
-      <div className="report-table-wrapper">
-        <table className="dash-table report-table" style={{ fontSize: 13 }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", minWidth: 140 }}>Tab</th>
-              {ROLES.map((r) => (
-                <th key={r} style={{ textAlign: "center", minWidth: 90, textTransform: "capitalize" }}>
-                  {r.replace(/_/g, " ")}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {TABS.map((tab) => (
-              <tr key={tab.key}>
-                <td style={{ fontWeight: 600 }}>{tab.label}</td>
-                {ROLES.map((role) => (
-                  <td key={role} style={{ textAlign: "center" }}>
-                    <button
-                      type="button"
-                      className={`toggle-switch ${perms[tab.key][role] ? "active" : ""}`}
-                      onClick={() => toggle(tab.key, role)}
-                      aria-label={`${tab.label} visible for ${role}`}
-                      disabled={saving === `${tab.key}-${role}`}
-                    />
-                  </td>
-                ))}
-              </tr>
+      {/* Role Selector Dropdown */}
+      <div style={{ marginBottom: 24 }}>
+        <label className="admin-form-label">
+          Role
+          <select
+            className="admin-form-input"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value as Role)}
+            style={{ maxWidth: 280 }}
+          >
+            {ROLES.map((r) => (
+              <option key={r} value={r}>
+                {r.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        </label>
+      </div>
+
+      {/* Single Column of Toggles */}
+      <div style={{ maxWidth: 400 }}>
+        {TABS.map((tab) => (
+          <div
+            key={tab.key}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "12px 0",
+              borderBottom: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <span style={{ color: "#fff", fontWeight: 500, fontSize: 14 }}>{tab.label}</span>
+            <button
+              type="button"
+              className={`toggle-switch ${perms[tab.key][selectedRole] ? "active" : ""}`}
+              onClick={() => toggle(tab.key)}
+              aria-label={`${tab.label} visible for ${selectedRole}`}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

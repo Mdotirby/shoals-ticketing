@@ -17,6 +17,7 @@ type ArtistWithAssignments = {
   last_name: string | null;
   email: string;
   avatar_url?: string | null;
+  website_url?: string | null;
   assignments: { id: string; event_id: string; event_title: string; event_date: string; comp_limit: number }[];
 };
 
@@ -306,6 +307,7 @@ export default function PortalPage() {
           last_name: u.last_name,
           email: u.email,
           avatar_url: u.avatar_url || null,
+          website_url: (u as Record<string, unknown>).website_url as string || null,
           assignments: userAssignments,
         };
       });
@@ -828,6 +830,26 @@ export default function PortalPage() {
                           >
                             Remove Artist
                           </button>
+                        </div>
+
+                        {/* Artist URL */}
+                        <div style={{ marginTop: 8 }}>
+                          <input
+                            type="url"
+                            defaultValue={artist.website_url || ""}
+                            placeholder="Artist URL (e.g. https://artistname.com)"
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              if (val !== (artist.website_url || "")) {
+                                handleUpdateArtist(artist.id, { website_url: val } as Record<string, string>);
+                              }
+                            }}
+                            style={{
+                              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                              borderRadius: 4, color: "#d0c290", padding: "4px 8px", fontSize: 12, width: "100%",
+                              maxWidth: 350,
+                            }}
+                          />
                         </div>
 
                         {/* Assignments with remove buttons */}

@@ -131,8 +131,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               const authBody = await res.json();
               if (authBody.role) setUserRole(authBody.role);
               if (authBody.must_change_password) setMustChangePassword(true);
+              if (authBody.avatar_url) setAvatarUrl(authBody.avatar_url);
               setUserId(uid);
-              const fname = authBody.first_name || cookieName || authData.user.email?.split("@")[0].split(".")[0] || "Admin";
+              const fname = authBody.first_name || cookieName || (authData.user.email?.split("@")[0].split(".")[0]) || "Admin";
               setAdminName(fname.charAt(0).toUpperCase() + fname.slice(1));
               // Fetch venue info if we have venue_id
               if (authBody.venue_id) {

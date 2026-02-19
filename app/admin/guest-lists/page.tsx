@@ -181,11 +181,13 @@ type Assignment = {
   events: { id: string; title: string; date: string; venue: string };
 };
 
+type NewGuestRow = { first_name: string; last_name: string; quantity: number };
+
 function ArtistGuestListView({ artistId }: { artistId: string }) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [guests, setGuests] = useState<GuestRow[]>([]);
-  const [newGuest, setNewGuest] = useState({ first_name: "", last_name: "", quantity: 1 });
+  const [newGuests, setNewGuests] = useState<NewGuestRow[]>([{ first_name: "", last_name: "", quantity: 1 }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [tablesExist, setTablesExist] = useState(true);
@@ -229,38 +231,56 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
   const usedComps = guests.reduce((sum, g) => sum + g.quantity, 0);
   const remaining = selectedAssignment ? selectedAssignment.comp_limit - usedComps : 0;
 
-  const addGuest = async () => {
+  const addGuests = async () => {
     if (!selectedEventId) return;
-    if (!newGuest.first_name.trim() || !newGuest.last_name.trim()) {
-      setError("First and last name are required.");
+    const validRows = newGuests.filter((g) => g.first_name.trim() && g.last_name.trim());
+    if (validRows.length === 0) {
+      setError("At least one guest with first and last name is required.");
       return;
     }
-    if (newGuest.quantity > remaining) {
-      setError(`Only ${remaining} comp(s) remaining.`);
+    const totalNew = validRows.reduce((s, g) => s + g.quantity, 0);
+    if (totalNew > remaining) {
+      setError(`Only ${remaining} comp(s) remaining. You're trying to add ${totalNew}.`);
       return;
     }
     setSaving(true);
     setError("");
     const supabase = getSupabaseBrowser();
-    const { data, error: dbError } = await supabase
-      .from("guest_list")
-      .insert({
-        event_id: selectedEventId,
-        artist_id: artistId,
-        first_name: newGuest.first_name.trim(),
-        last_name: newGuest.last_name.trim(),
-        quantity: newGuest.quantity,
-      })
-      .select()
-      .single();
 
-    if (dbError) {
-      setError(dbError.message);
-    } else if (data) {
-      setGuests((prev) => [...prev, data as GuestRow]);
-      setNewGuest({ first_name: "", last_name: "", quantity: 1 });
+    for (const guest of validRows) {
+      const { data, error: dbError } = await supabase
+        .from("guest_list")
+        .insert({
+          event_id: selectedEventId,
+          artist_id: artistId,
+          first_name: guest.first_name.trim(),
+          last_name: guest.last_name.trim(),
+          quantity: guest.quantity,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        setError(dbError.message);
+        break;
+      } else if (data) {
+        setGuests((prev) => [...prev, data as GuestRow]);
+      }
     }
+    setNewGuests([{ first_name: "", last_name: "", quantity: 1 }]);
     setSaving(false);
+  };
+
+  const updateNewGuest = (index: number, field: keyof NewGuestRow, value: string | number) => {
+    setNewGuests((prev) => prev.map((g, i) => i === index ? { ...g, [field]: value } : g));
+  };
+
+  const addGuestRow = () => {
+    setNewGuests((prev) => [...prev, { first_name: "", last_name: "", quantity: 1 }]);
+  };
+
+  const removeGuestRow = (index: number) => {
+    setNewGuests((prev) => prev.filter((_, i) => i !== index));
   };
 
   const removeGuest = async (id: string) => {
@@ -344,46 +364,51 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
 
       {remaining > 0 && (
         <div className="admin-form" style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>Add Guest</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>Add Guests</h2>
           {error && <div className="admin-form-error">{error}</div>}
-          <div className="admin-form-grid">
-            <label className="admin-form-label">
-              First Name
-              <input
-                type="text"
-                className="admin-form-input"
-                value={newGuest.first_name}
-                onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
-                placeholder="Jane"
-              />
-            </label>
-            <label className="admin-form-label">
-              Last Name
-              <input
-                type="text"
-                className="admin-form-input"
-                value={newGuest.last_name}
-                onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
-                placeholder="Smith"
-              />
-            </label>
-            <label className="admin-form-label">
-              Quantity
-              <input
-                type="number"
-                className="admin-form-input"
-                value={newGuest.quantity}
-                min={1}
-                max={remaining}
-                onChange={(e) =>
-                  setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })
-                }
-              />
-            </label>
+          <div className="admin-tiers-list" style={{ marginTop: 8 }}>
+            {newGuests.map((g, i) => (
+              <div key={i} className="admin-tier-row" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={g.first_name}
+                  onChange={(e) => updateNewGuest(i, "first_name", e.target.value)}
+                  placeholder="First Name"
+                  style={{ flex: 2 }}
+                />
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={g.last_name}
+                  onChange={(e) => updateNewGuest(i, "last_name", e.target.value)}
+                  placeholder="Last Name"
+                  style={{ flex: 2 }}
+                />
+                <input
+                  type="number"
+                  className="admin-form-input"
+                  value={g.quantity}
+                  min={1}
+                  max={remaining}
+                  onChange={(e) => updateNewGuest(i, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
+                  style={{ width: 60, flex: "none" }}
+                  placeholder="Qty"
+                />
+                {newGuests.length > 1 && (
+                  <button type="button" className="admin-tier-remove-btn" onClick={() => removeGuestRow(i)}>✕</button>
+                )}
+              </div>
+            ))}
           </div>
-          <button className="admin-form-submit" onClick={addGuest} disabled={saving}>
-            {saving ? "Adding…" : "+ Add Guest"}
-          </button>
+          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+            <button type="button" className="admin-tier-add-btn" onClick={addGuestRow} style={{ fontSize: 12 }}>
+              + add guest
+            </button>
+            <button className="admin-form-submit" onClick={addGuests} disabled={saving} style={{ padding: "8px 20px" }}>
+              {saving ? "Saving…" : "Save All"}
+            </button>
+          </div>
         </div>
       )}
 

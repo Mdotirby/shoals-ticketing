@@ -6,8 +6,9 @@ ALTER TABLE artist_offers ADD COLUMN IF NOT EXISTS venue_address TEXT;
 ALTER TABLE artist_offers ADD COLUMN IF NOT EXISTS venue_contact TEXT;
 ALTER TABLE artist_offers ADD COLUMN IF NOT EXISTS venue_phone TEXT;
 
--- Artist avatar support
+-- Artist avatar + website support
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS website_url TEXT;
 
 -- Create artist-avatars storage bucket (run as superuser or via Supabase dashboard)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('artist-avatars', 'artist-avatars', true)
