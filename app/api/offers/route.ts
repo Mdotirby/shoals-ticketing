@@ -35,6 +35,9 @@ export async function POST(request: Request) {
     .insert({
       artist_name: body.artist_name,
       venue: body.venue || null,
+      venue_address: body.venue_address || null,
+      venue_contact: body.venue_contact || null,
+      venue_phone: body.venue_phone || null,
       event_date: body.event_date || null,
       venue_id: body.venue_id || null,
       // Agency

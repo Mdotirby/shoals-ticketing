@@ -35,6 +35,7 @@ export default function EventSalesDetailPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -76,8 +77,6 @@ export default function EventSalesDetailPage() {
       </div>
     );
   }
-
-  const [showPreview, setShowPreview] = useState(false);
 
   const exportOrdersPDF = async () => {
     if (!event) return;

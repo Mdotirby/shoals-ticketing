@@ -120,7 +120,7 @@ export default function AdminOfferDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: updated.artist_name,
-            venue: venue?.name || updated.venue || "TBD",
+            venue: updated.venue || venue?.name || "TBD",
             date: updated.event_date || new Date().toISOString(),
             price: updated.guarantee || 0,
             venue_id: updated.venue_id || getCookie("venue-id") || null,
@@ -190,6 +190,16 @@ export default function AdminOfferDetailPage() {
       const sectionTitle = (title: string) => { doc.setFillColor(...hex(pc)); doc.rect(10, y - 1, W - 20, 5, "F"); doc.setTextColor(...hex(sc)); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(title, 12, y + 2.5); doc.setFont("helvetica", "normal"); y += 7; };
       const labelVal = (label: string, val: string, x1 = 10, x2 = 50) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); y += 3.8; };
       const labelValR = (label: string, val: string, x1: number, x2: number) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); };
+
+      // ─── VENUE INFO ───
+      if (form.venue || form.venue_address) {
+        sectionTitle("Venue");
+        labelVal("Venue", String(form.venue || "—"));
+        labelVal("Address", String(form.venue_address || "—"));
+        if (form.venue_contact) labelVal("Contact", String(form.venue_contact));
+        if (form.venue_phone) labelVal("Phone", String(form.venue_phone));
+        y += 2;
+      }
 
       // ─── AGENCY & ARTIST ───
       sectionTitle("Agency / Artist");
@@ -326,6 +336,14 @@ export default function AdminOfferDetailPage() {
 
       {/* Editable Fields */}
       <div className="admin-form">
+        <h2 className="admin-form-section-title">Venue Info</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">Venue<input type="text" className="admin-form-input" value={String(form.venue || "")} onChange={(e) => updateField("venue", e.target.value)} /></label>
+          <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" value={String(form.venue_address || "")} onChange={(e) => updateField("venue_address", e.target.value)} /></label>
+          <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" value={String(form.venue_contact || "")} onChange={(e) => updateField("venue_contact", e.target.value)} /></label>
+          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" value={String(form.venue_phone || "")} onChange={(e) => updateField("venue_phone", e.target.value)} /></label>
+        </div>
+
         <h2 className="admin-form-section-title">Agency & Artist</h2>
         <div className="admin-form-grid">
           <label className="admin-form-label">Artist Name<input type="text" className="admin-form-input" value={String(form.artist_name || "")} onChange={(e) => updateField("artist_name", e.target.value)} /></label>

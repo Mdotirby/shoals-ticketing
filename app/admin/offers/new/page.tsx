@@ -47,6 +47,12 @@ export default function AdminCreateOfferPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isOwnerRole, setIsOwnerRole] = useState(false);
 
+  // Venue info
+  const [venueName, setVenueName] = useState("");
+  const [venueAddressField, setVenueAddressField] = useState("");
+  const [venueContact, setVenueContact] = useState("");
+  const [venuePhone, setVenuePhone] = useState("");
+
   // Purchaser info (auto-filled from settings)
   const [buyerName, setBuyerName] = useState("");
   const [contractSignatory, setContractSignatory] = useState("");
@@ -98,6 +104,11 @@ export default function AdminCreateOfferPage() {
             setPromoterAddress(String(v.promoter_address || ""));
             const addr = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean).join(", ");
             setVenueAddress(addr);
+            // Auto-fill venue info fields
+            if (v.name) setVenueName(String(v.name));
+            if (addr) setVenueAddressField(addr);
+            if (v.buyer_name) setVenueContact(String(v.buyer_name));
+            if (v.buyer_phone) setVenuePhone(String(v.buyer_phone));
             // Override radius defaults with venue-specific values (if set)
             if (v.default_radius_distance) setRadiusDistance(String(v.default_radius_distance));
             if (v.default_radius_days_prior) setRadiusDaysPrior(String(v.default_radius_days_prior));
@@ -286,6 +297,10 @@ export default function AdminCreateOfferPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           artist_name: artistName,
+          venue: venueName || null,
+          venue_address: venueAddressField || null,
+          venue_contact: venueContact || null,
+          venue_phone: venuePhone || null,
           venue_id: venueId || null,
           event_date: eventDate || null,
           agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail,
@@ -332,6 +347,15 @@ export default function AdminCreateOfferPage() {
 
       <form className="admin-form offer-form" onSubmit={(e) => e.preventDefault()} onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.preventDefault(); }}>
         {error && <div className="admin-form-error">{error}</div>}
+
+        {/* ═══ VENUE INFO ═══ */}
+        <h2 className="admin-form-section-title">Venue Info</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">Venue *<input type="text" className="admin-form-input" placeholder="e.g. The Shoals Theatre" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></label>
+          <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Florence, AL 35630" value={venueAddressField} onChange={(e) => setVenueAddressField(e.target.value)} /></label>
+          <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" placeholder="e.g. John Smith" value={venueContact} onChange={(e) => setVenueContact(e.target.value)} /></label>
+          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={venuePhone} onChange={(e) => setVenuePhone(e.target.value)} /></label>
+        </div>
 
         {/* ═══ SECTION 1: Agency & Artist ═══ */}
         <h2 className="admin-form-section-title">Agency & Artist</h2>

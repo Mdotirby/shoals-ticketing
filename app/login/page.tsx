@@ -68,8 +68,20 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         // Owner gets global access (no venue filter); others get venue-scoped
         if (role !== "owner" && authBody.venue_id) {
           document.cookie = `venue-id=${authBody.venue_id}; path=/; samesite=lax`;
+          // Fetch venue name for sidebar display
+          try {
+            const venuesRes = await fetch("/api/venues");
+            if (venuesRes.ok) {
+              const venues = await venuesRes.json();
+              const v = Array.isArray(venues) ? venues.find((x: Record<string, string>) => x.id === authBody.venue_id) : null;
+              if (v?.name) document.cookie = `venue-name=${encodeURIComponent(v.name)}; path=/; samesite=lax`;
+            }
+          } catch {}
         } else {
           document.cookie = "venue-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          if (role === "owner") {
+            document.cookie = `venue-name=${encodeURIComponent("All Venues")}; path=/; samesite=lax`;
+          }
         }
       } else {
         // No admin record — try auto-bootstrap (first user becomes owner)

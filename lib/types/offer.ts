@@ -32,6 +32,9 @@ export type ArtistOffer = {
   id: string;
   artist_name: string;
   venue?: string;
+  venue_address?: string;
+  venue_contact?: string;
+  venue_phone?: string;
   event_date?: string;
   venue_id?: string;
 

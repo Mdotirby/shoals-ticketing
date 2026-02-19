@@ -62,6 +62,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
 
   useEffect(() => {
+    // Immediately read cookies for instant display (no flash of empty sidebar)
+    const cookieName = getCookie("user-name");
+    const cookieRole = getCookie("user-role");
+    const cookieVenueName = getCookie("venue-name");
+    if (cookieName) setAdminName(cookieName.charAt(0).toUpperCase() + cookieName.slice(1));
+    if (cookieRole) setUserRole(cookieRole);
+    if (cookieVenueName) setVenueName(decodeURIComponent(cookieVenueName));
+
     async function loadUser() {
       const supabase = getSupabaseBrowser();
       const { data: authData } = await supabase.auth.getUser();
@@ -78,12 +86,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .single();
 
       if (adminRecord) {
-        setUserRole(adminRecord.role || "");
+        setUserRole(adminRecord.role || cookieRole || "");
         setMustChangePassword(adminRecord.must_change_password === true);
 
         const name = adminRecord.first_name
           ? adminRecord.first_name
-          : (authData.user.email?.split("@")[0].split(".")[0] ?? "Admin");
+          : (cookieName || authData.user.email?.split("@")[0].split(".")[0] ?? "Admin");
         setAdminName(name.charAt(0).toUpperCase() + name.slice(1));
 
         // Load venue name + slug for logo
@@ -96,10 +104,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           if (venue) {
             setVenueName(venue.name || "");
             if (venue.slug) setVenueSlugResolved(venue.slug);
+            // Persist venue name in cookie for instant sidebar display
+            document.cookie = `venue-name=${encodeURIComponent(venue.name || "")}; path=/; samesite=lax`;
           }
         } else if (adminRecord.role === "owner") {
-          setVenueName("All Venues");
+          setVenueName(cookieVenueName ? decodeURIComponent(cookieVenueName) : "All Venues");
         }
+      } else {
+        // Supabase RLS may block direct admin_users read — fall back to cookies
+        if (cookieName && !adminName) {
+          setAdminName(cookieName.charAt(0).toUpperCase() + cookieName.slice(1));
+        }
+        // Try the server-side auth API as last resort
+        try {
+          const session = await supabase.auth.getSession();
+          const token = session.data.session?.access_token;
+          if (token) {
+            const res = await fetch("/api/admin/auth", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ access_token: token }),
+            });
+            if (res.ok) {
+              const authBody = await res.json();
+              if (authBody.role) setUserRole(authBody.role);
+              if (authBody.must_change_password) setMustChangePassword(true);
+              setUserId(uid);
+              const fname = authBody.first_name || cookieName || authData.user.email?.split("@")[0].split(".")[0] || "Admin";
+              setAdminName(fname.charAt(0).toUpperCase() + fname.slice(1));
+              // Fetch venue info if we have venue_id
+              if (authBody.venue_id) {
+                try {
+                  const venuesRes = await fetch("/api/venues");
+                  if (venuesRes.ok) {
+                    const venues = await venuesRes.json();
+                    const v = Array.isArray(venues) ? venues.find((x: Record<string, string>) => x.id === authBody.venue_id) : null;
+                    if (v) {
+                      setVenueName(v.name || "");
+                      if (v.slug) setVenueSlugResolved(v.slug);
+                      document.cookie = `venue-name=${encodeURIComponent(v.name || "")}; path=/; samesite=lax`;
+                    }
+                  }
+                } catch {}
+              } else if (authBody.role === "owner") {
+                setVenueName("All Venues");
+              }
+            }
+          }
+        } catch {}
       }
     }
 

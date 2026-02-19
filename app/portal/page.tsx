@@ -151,6 +151,7 @@ export default function PortalPage() {
     document.cookie = "venue-id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user-role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     document.cookie = "user-name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "venue-name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
   };
 
