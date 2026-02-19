@@ -419,7 +419,7 @@ export default function PortalPage() {
     }
   };
 
-  const handleUpdateArtist = async (artistId: string, updates: { first_name?: string; last_name?: string; email?: string }) => {
+  const handleUpdateArtist = async (artistId: string, updates: Record<string, string>) => {
     try {
       const res = await fetch("/api/admin/users", {
         method: "PUT",
@@ -727,10 +727,10 @@ export default function PortalPage() {
             </form>
           </div>
 
-          {/* ── Manage Artists ── */}
+          {/* ── Artist Management ── */}
           {(isOwner || userRole === "venue_admin") && (
             <div className="portal-card">
-              <h2 className="portal-card-title">Manage Artists</h2>
+              <h2 className="portal-card-title">Artist Management</h2>
               <p className="portal-card-desc">Create artist users who can manage their own guest lists for assigned events.</p>
 
               {/* Create Artist Form */}
@@ -777,7 +777,7 @@ export default function PortalPage() {
                           borderRadius: 8,
                         }}
                       >
-                        {/* Artist header: avatar + editable name fields + remove */}
+                        {/* Artist header: avatar + name + email + remove */}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                             {/* Circular avatar */}
@@ -797,20 +797,9 @@ export default function PortalPage() {
                                 <span style={{ fontSize: 18, color: "rgba(208,194,144,0.4)" }}>📷</span>
                               )}
                             </div>
-                            <input
-                              type="text"
-                              defaultValue={artist.first_name || ""}
-                              placeholder="First"
-                              onBlur={(e) => { if (e.target.value !== (artist.first_name || "")) handleUpdateArtist(artist.id, { first_name: e.target.value }); }}
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
-                            />
-                            <input
-                              type="text"
-                              defaultValue={artist.last_name || ""}
-                              placeholder="Last"
-                              onBlur={(e) => { if (e.target.value !== (artist.last_name || "")) handleUpdateArtist(artist.id, { last_name: e.target.value }); }}
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
-                            />
+                            <span style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>
+                              {[artist.first_name, artist.last_name].filter(Boolean).join(" ") || "—"}
+                            </span>
                             <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
                               {artist.email}
                             </span>
@@ -832,24 +821,60 @@ export default function PortalPage() {
                           </button>
                         </div>
 
-                        {/* Artist URL */}
-                        <div style={{ marginTop: 8 }}>
-                          <input
-                            type="url"
-                            defaultValue={artist.website_url || ""}
-                            placeholder="Artist URL (e.g. https://artistname.com)"
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val !== (artist.website_url || "")) {
-                                handleUpdateArtist(artist.id, { website_url: val } as Record<string, string>);
-                              }
+                        {/* Editable fields + Save button */}
+                        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                          <div>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>First Name</span>
+                            <input
+                              type="text"
+                              id={`artist-fn-${artist.id}`}
+                              defaultValue={artist.first_name || ""}
+                              placeholder="First"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
+                            />
+                          </div>
+                          <div>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Last Name</span>
+                            <input
+                              type="text"
+                              id={`artist-ln-${artist.id}`}
+                              defaultValue={artist.last_name || ""}
+                              placeholder="Last"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 180 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Artist URL</span>
+                            <input
+                              type="url"
+                              id={`artist-url-${artist.id}`}
+                              defaultValue={artist.website_url || ""}
+                              placeholder="https://artistname.com"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#d0c290", padding: "4px 8px", fontSize: 12, width: "100%" }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const fn = (document.getElementById(`artist-fn-${artist.id}`) as HTMLInputElement)?.value || "";
+                              const ln = (document.getElementById(`artist-ln-${artist.id}`) as HTMLInputElement)?.value || "";
+                              const url = (document.getElementById(`artist-url-${artist.id}`) as HTMLInputElement)?.value || "";
+                              await handleUpdateArtist(artist.id, { first_name: fn, last_name: ln, website_url: url } as Record<string, string>);
                             }}
                             style={{
-                              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                              borderRadius: 4, color: "#d0c290", padding: "4px 8px", fontSize: 12, width: "100%",
-                              maxWidth: 350,
+                              background: "rgba(208,194,144,0.12)",
+                              border: "1px solid rgba(208,194,144,0.25)",
+                              borderRadius: 6,
+                              color: "#d0c290",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: "6px 16px",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
                             }}
-                          />
+                          >
+                            Save Changes
+                          </button>
                         </div>
 
                         {/* Assignments with remove buttons */}
