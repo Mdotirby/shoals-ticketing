@@ -525,22 +525,22 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Potential at Sellout</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Tax ({taxRate}% — {taxMode}):</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Tax ({taxRate}% — {taxMode}):</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
-            <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (
-              <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
-            <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
 

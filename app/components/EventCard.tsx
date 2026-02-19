@@ -7,8 +7,15 @@ type EventCardProps = {
   event: Event;
 };
 
+/** Parse date strings safely — date-only strings get T12:00:00 to avoid UTC midnight timezone shift */
+function safeDate(date: string) {
+  // If it's a date-only string (YYYY-MM-DD, 10 chars), append noon to avoid timezone shift
+  if (date && date.length === 10 && date[4] === "-") return new Date(date + "T12:00:00");
+  return new Date(date);
+}
+
 function formatEventDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
+  return safeDate(date).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
@@ -16,7 +23,10 @@ function formatEventDate(date: string) {
 }
 
 function formatEventTime(date: string) {
-  return new Date(date).toLocaleTimeString("en-US", {
+  const d = safeDate(date);
+  // Only show time if there's an actual time component (not our noon placeholder)
+  if (date.length === 10) return "";
+  return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

@@ -121,7 +121,7 @@ export default function AdminOfferDetailPage() {
           body: JSON.stringify({
             title: updated.artist_name,
             venue: updated.venue || venue?.name || "TBD",
-            date: updated.event_date || new Date().toISOString(),
+            date: updated.event_date ? (String(updated.event_date).slice(0,10) + "T12:00:00") : new Date().toISOString(),
             price: updated.guarantee || 0,
             venue_id: updated.venue_id || getCookie("venue-id") || null,
             status: "draft",
@@ -222,7 +222,7 @@ export default function AdminOfferDetailPage() {
       labelVal("Phone", String(form.agent_phone || "—"));
       labelVal("Email", String(form.agent_email || "—"));
       labelVal("Artist", String(form.artist_name || "—"));
-      labelVal("Date", form.event_date ? new Date(String(form.event_date)).toLocaleDateString() : "MA");
+      labelVal("Date", form.event_date ? new Date(String(form.event_date).slice(0,10) + "T12:00:00").toLocaleDateString() : "MA");
       labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${form.show_time || "—"}`);
       labelVal("Billing", String(form.billing || "—"));
       y += 2;
@@ -306,7 +306,7 @@ export default function AdminOfferDetailPage() {
       doc.text(`Offer Good for ${form.offer_valid_days || 14} days from Today     ${new Date().toLocaleDateString()}`, 10, y);
 
       // Save
-      const dateStr = form.event_date ? new Date(String(form.event_date)).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).replace(/\//g, ".") : "TBD";
+      const dateStr = form.event_date ? new Date(String(form.event_date).slice(0,10) + "T12:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).replace(/\//g, ".") : "TBD";
       const city = venue?.address_city || "City";
       const state = venue?.address_state || "ST";
       doc.save(`${String(form.artist_name || "Offer").replace(/\s+/g, "_")}.${dateStr}.${city},${state}.pdf`);
@@ -438,18 +438,18 @@ export default function AdminOfferDetailPage() {
         <h2 className="admin-form-section-title">Financials</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${Number(form.gross_potential || 0).toLocaleString()}</strong></div>
-            <div className="offer-potential-row"><span>Net Potential:</span><strong>${Number(form.net_potential || 0).toLocaleString()}</strong></div>
-            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${Number(form.total_expenses || 0).toLocaleString()}</strong></div>
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${Number(form.gross_potential || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Net Potential:</span><strong>${Number(form.net_potential || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${Number(form.total_expenses || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString()}</strong></div>
+              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential</h3>
-            <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString()}</strong></div>
+            <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${Number(form.artist_backend || 0).toLocaleString()}</strong></div>
+              <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${Number(form.artist_backend || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
         </div>

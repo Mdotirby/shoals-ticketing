@@ -105,7 +105,7 @@ export default function AdminSalesPage() {
             <div className="sales-event-info">
               <h3 className="sales-event-name">{ev.title}</h3>
               <span className="sales-event-meta">
-                {ev.venue} · {new Date(ev.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {ev.venue} · {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(ev.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </span>
             </div>
             <div className="sales-event-stats">

@@ -20,8 +20,10 @@ const STATUS_COLORS: Record<string, string> = {
   finalized: "status-published",
 };
 
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+
 function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", {
+  return safeDate(d).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

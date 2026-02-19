@@ -134,7 +134,7 @@ export default function ContractsListPage() {
                     </td>
                     <td style={{ padding: "10px 6px" }}>
                       {c.event_date
-                        ? new Date(c.event_date).toLocaleDateString()
+                        ? ((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(c.event_date).toLocaleDateString()
                         : "—"}
                     </td>
                     <td style={{ padding: "10px 6px" }}>

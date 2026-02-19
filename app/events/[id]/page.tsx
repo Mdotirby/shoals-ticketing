@@ -40,8 +40,14 @@ type EventData = {
   artists?: Artist[];
 };
 
+/** Parse date strings safely — date-only strings get T12:00:00 to avoid UTC midnight timezone shift */
+function safeDate(date: string) {
+  if (date && date.length === 10 && date[4] === "-") return new Date(date + "T12:00:00");
+  return new Date(date);
+}
+
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
+  return safeDate(date).toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -50,7 +56,9 @@ function formatDate(date: string) {
 }
 
 function formatTime(date: string) {
-  const d = new Date(date);
+  // Date-only strings have no time component
+  if (date && date.length === 10) return null;
+  const d = safeDate(date);
   // Only show time if there's an actual time component (not midnight UTC)
   if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
   return d.toLocaleTimeString("en-US", {

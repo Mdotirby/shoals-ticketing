@@ -13,8 +13,10 @@ const STATUS_COLORS: Record<string, string> = {
   expired: "status-declined",
 };
 
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
+  return safeDate(date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",

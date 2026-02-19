@@ -98,7 +98,7 @@ export default function EventSalesDetailPage() {
     doc.text(`${event.title} — Orders Report`, 14, 14);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(`${event.venue}  ·  ${new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`, 14, 19);
+    doc.text(`${event.venue}  ·  ${((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`, 14, 19);
 
     // Table header
     let y = 34;
@@ -144,7 +144,7 @@ export default function EventSalesDetailPage() {
     doc.text(`Tickets Sold: ${totalTickets}`, 80, y);
     doc.text(`Gross Receipts: $${totalRevenue.toFixed(2)}`, 140, y);
 
-    const dateStr = new Date(event.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).replace(/,/g, "").replace(/\s+/g, "_");
+    const dateStr = ((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(event.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }).replace(/,/g, "").replace(/\s+/g, "_");
     doc.save(`${event.title.replace(/[^a-z0-9]/gi, "_")}-${dateStr}-Orders_Report.pdf`);
   };
 
@@ -155,7 +155,7 @@ export default function EventSalesDetailPage() {
           <h1 className="admin-page-title">{event?.title || "Event Sales"}</h1>
           {event && (
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: "4px 0 0" }}>
-              {event.venue} · {new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+              {event.venue} · {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
             </p>
           )}
         </div>
