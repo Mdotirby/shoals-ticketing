@@ -8,7 +8,7 @@ export async function GET() {
 
   const { data, error } = await admin
     .from("admin_users")
-    .select("id, email, role, venue_id, first_name, last_name, buyer_name, contract_signatory, buyer_phone, buyer_email, promoter_address, created_at")
+    .select("id, email, role, venue_id, first_name, last_name, avatar_url, buyer_name, contract_signatory, buyer_phone, buyer_email, promoter_address, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {

@@ -2873,6 +2873,75 @@ select.admin-form-input {
    SPONSORS — Event Page Display
    ============================================================ */
 
+/* ============================================================
+   FEATURED ARTISTS — Event Page Display
+   ============================================================ */
+
+.event-featured-artists-section {
+  width: 100%;
+  max-width: 1200px;
+  padding: 32px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.event-featured-artists-heading {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--venue-primary, #d0c290);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.event-featured-artists-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+}
+
+.event-featured-artist-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 100px;
+}
+
+.event-featured-artist-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid rgba(208, 194, 144, 0.25);
+  background: rgba(208, 194, 144, 0.08);
+}
+
+.event-featured-artist-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(208,194,144,0.15), rgba(208,194,144,0.05));
+}
+
+.event-featured-artist-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .event-featured-artists-section {
+    padding: 24px 20px;
+  }
+  .event-featured-artist-avatar {
+    width: 72px;
+    height: 72px;
+  }
+}
+
 .event-sponsors-section {
   width: 100%;
   max-width: 1200px;

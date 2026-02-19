@@ -6,8 +6,9 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { startSessionManager, touchActivity } from "@/lib/sessionManager";
 import { getCookie } from "@/lib/cookies";
 import Footer from "@/app/components/Footer";
+import ImageCropper from "@/app/components/ImageCropper";
 
-type AdminUser = { id: string; email: string; role: string; venue_id: string | null; first_name: string | null; last_name: string | null; created_at: string };
+type AdminUser = { id: string; email: string; role: string; venue_id: string | null; first_name: string | null; last_name: string | null; avatar_url?: string | null; created_at: string };
 type Venue = { id: string; name: string; slug: string; nickname?: string; capacity?: number; address_street?: string; address_city?: string; address_state?: string; address_zip?: string; buyer_name?: string; contract_signatory?: string; buyer_phone?: string; buyer_email?: string; promoter_address?: string; primary_color?: string; secondary_color?: string; accent_color?: string };
 type EventRow = { id: string; title: string; date: string; venue: string };
 type ArtistWithAssignments = {
@@ -15,6 +16,7 @@ type ArtistWithAssignments = {
   first_name: string | null;
   last_name: string | null;
   email: string;
+  avatar_url?: string | null;
   assignments: { id: string; event_id: string; event_title: string; event_date: string; comp_limit: number }[];
 };
 
@@ -68,9 +70,15 @@ export default function PortalPage() {
   const [newArtistPassword, setNewArtistPassword] = useState("");
   const [newArtistEventId, setNewArtistEventId] = useState("");
   const [newArtistCompLimit, setNewArtistCompLimit] = useState(4);
+  const [newArtistImage, setNewArtistImage] = useState<File | null>(null);
   const [creatingArtist, setCreatingArtist] = useState(false);
   const [artistCreateError, setArtistCreateError] = useState("");
   const [artistCreateSuccess, setArtistCreateSuccess] = useState("");
+
+  // Image crop state
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropArtistId, setCropArtistId] = useState<string | null>(null);
+  const [cropIsNew, setCropIsNew] = useState(false);
 
   useEffect(() => {
     const cleanup = startSessionManager({
@@ -297,6 +305,7 @@ export default function PortalPage() {
           first_name: u.first_name,
           last_name: u.last_name,
           email: u.email,
+          avatar_url: u.avatar_url || null,
           assignments: userAssignments,
         };
       });
@@ -340,6 +349,17 @@ export default function PortalPage() {
         throw new Error(d.error || "Failed to create artist user");
       }
       const newUser = await res.json();
+
+      // Step 1b: If avatar was uploaded, save it
+      const avatarUrl = (window as unknown as Record<string, string>).__newArtistAvatarUrl;
+      if (avatarUrl) {
+        await fetch("/api/admin/users", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: newUser.id, avatar_url: avatarUrl }),
+        });
+        delete (window as unknown as Record<string, string>).__newArtistAvatarUrl;
+      }
 
       // Step 2: If an event is selected, create the assignment
       if (newArtistEventId) {
@@ -431,6 +451,78 @@ export default function PortalPage() {
       await loadArtists();
     } catch (err) {
       console.error("Failed to remove assignment:", err);
+    }
+  };
+
+  const openArtistImagePicker = (artistId: string) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".png,.webp,.jpeg,.jpg,image/png,image/webp,image/jpeg";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 45 * 1024 * 1024) { alert("File too large. Maximum 45 MB."); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCropSrc(reader.result as string);
+        setCropArtistId(artistId);
+        setCropIsNew(false);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const openNewArtistImagePicker = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".png,.webp,.jpeg,.jpg,image/png,image/webp,image/jpeg";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 45 * 1024 * 1024) { alert("File too large. Maximum 45 MB."); return; }
+      setNewArtistImage(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCropSrc(reader.result as string);
+        setCropArtistId(null);
+        setCropIsNew(true);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
+
+  const handleCropComplete = async (blob: Blob) => {
+    setCropSrc(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "avatar.jpg");
+      formData.append("bucket", "artist-avatars");
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const { url } = await uploadRes.json();
+
+      if (cropIsNew) {
+        // Store URL temporarily — will be saved when artist is created
+        setNewArtistImage(null);
+        // Save directly to state for the create flow
+        setCropArtistId(null);
+        // We'll store in a hidden ref-like state
+        (window as unknown as Record<string, string>).__newArtistAvatarUrl = url;
+        setArtistCreateSuccess("Image uploaded. Now create the artist.");
+      } else if (cropArtistId) {
+        // Update existing artist
+        await fetch("/api/admin/users", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: cropArtistId, avatar_url: url }),
+        });
+        await loadArtists();
+      }
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("Image upload failed. Please try again.");
     }
   };
 
@@ -660,6 +752,9 @@ export default function PortalPage() {
                     <input type="number" className="portal-form-input" value={newArtistCompLimit} min={1} max={50} onChange={(e) => setNewArtistCompLimit(Math.max(1, parseInt(e.target.value) || 4))} />
                   </label>
                 )}
+                <button type="button" className="admin-header-btn" onClick={openNewArtistImagePicker} style={{ fontSize: 12, padding: "6px 14px" }}>
+                  📷 Upload Artist Photo
+                </button>
                 <button type="submit" className="portal-form-submit" disabled={creatingArtist}>
                   {creatingArtist ? "Creating…" : "+ Create Artist"}
                 </button>
@@ -680,9 +775,26 @@ export default function PortalPage() {
                           borderRadius: 8,
                         }}
                       >
-                        {/* Artist header: editable name fields + remove */}
+                        {/* Artist header: avatar + editable name fields + remove */}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                            {/* Circular avatar */}
+                            <div
+                              onClick={() => openArtistImagePicker(artist.id)}
+                              title="Click to upload/change photo"
+                              style={{
+                                width: 48, height: 48, borderRadius: "50%", overflow: "hidden",
+                                background: "rgba(208,194,144,0.1)", border: "2px solid rgba(208,194,144,0.25)",
+                                cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                              }}
+                            >
+                              {artist.avatar_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={artist.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                <span style={{ fontSize: 18, color: "rgba(208,194,144,0.4)" }}>📷</span>
+                              )}
+                            </div>
                             <input
                               type="text"
                               defaultValue={artist.first_name || ""}
@@ -799,6 +911,16 @@ export default function PortalPage() {
         </section>
       </main>
       <Footer />
+
+      {/* Image Crop Modal */}
+      {cropSrc && (
+        <ImageCropper
+          imageSrc={cropSrc}
+          aspect={1}
+          onCropComplete={handleCropComplete}
+          onCancel={() => { setCropSrc(null); setCropArtistId(null); setCropIsNew(false); }}
+        />
+      )}
     </>
   );
 }

@@ -59,6 +59,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [venueSlugResolved, setVenueSlugResolved] = useState("");
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userId, setUserId] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
 
   useEffect(() => {
@@ -81,13 +82,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       // Fetch admin_users record for role + must_change_password
       const { data: adminRecord } = await supabase
         .from("admin_users")
-        .select("role, venue_id, first_name, last_name, must_change_password")
+        .select("role, venue_id, first_name, last_name, must_change_password, avatar_url")
         .eq("id", uid)
         .single();
 
       if (adminRecord) {
         setUserRole(adminRecord.role || cookieRole || "");
         setMustChangePassword(adminRecord.must_change_password === true);
+        if (adminRecord.avatar_url) setAvatarUrl(adminRecord.avatar_url);
 
         const name = adminRecord.first_name
           ? adminRecord.first_name
@@ -232,13 +234,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
         <div className="admin-sidebar-header">
-          <SafeImage
-            src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
-            fallback="/logos/default/logo.png"
-            alt={venueName || "VenueCore"}
-            className="admin-sidebar-logo"
-            style={{ width: 80, height: 80, objectFit: "contain" }}
-          />
+          {userRole === "artist" && avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarUrl}
+              alt={adminName || "Artist"}
+              style={{
+                width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
+                border: "3px solid rgba(208,194,144,0.3)",
+              }}
+            />
+          ) : (
+            <SafeImage
+              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
+              fallback="/logos/default/logo.png"
+              alt={venueName || "VenueCore"}
+              className="admin-sidebar-logo"
+              style={{ width: 80, height: 80, objectFit: "contain" }}
+            />
+          )}
           {adminName && (
             <p className="admin-sidebar-welcome">
               Welcome, <strong>{adminName}</strong>

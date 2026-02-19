@@ -10,6 +10,12 @@ import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
 
+type FeaturedArtist = {
+  id: string;
+  name: string;
+  avatar_url?: string;
+};
+
 type Artist = {
   id: string;
   name: string;
@@ -63,6 +69,7 @@ export default function EventDetailPage() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtist[]>([]);
   const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.095 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +95,14 @@ export default function EventDetailPage() {
     fetch(`/api/sponsors?event_id=${eventId}`)
       .then((res) => res.json())
       .then((data) => { if (Array.isArray(data)) setSponsors(data); })
+      .catch(() => {});
+  }, [eventId]);
+
+  // Fetch featured artists assigned to this event
+  useEffect(() => {
+    fetch(`/api/events/${eventId}/artists`)
+      .then((res) => res.json())
+      .then((data) => { if (Array.isArray(data)) setFeaturedArtists(data); })
       .catch(() => {});
   }, [eventId]);
 
@@ -283,6 +298,28 @@ export default function EventDetailPage() {
             </div>
           </div>
         </section>
+
+        {/* ── Featured Artists ── */}
+        {featuredArtists.length > 0 && (
+          <section className="event-featured-artists-section">
+            <h2 className="event-featured-artists-heading">Featured Artists</h2>
+            <div className="event-featured-artists-grid">
+              {featuredArtists.map((artist) => (
+                <div key={artist.id} className="event-featured-artist-card">
+                  <div className="event-featured-artist-avatar">
+                    {artist.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={artist.avatar_url} alt={artist.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <div className="event-featured-artist-placeholder" />
+                    )}
+                  </div>
+                  <span className="event-featured-artist-name">{artist.name}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Map + Venue Info ── */}
         {(mapSrc || event.venue_phone || event.venue_email) && (

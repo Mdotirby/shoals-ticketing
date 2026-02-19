@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // Support different buckets: "event-images" (default), "venue-logos", or "hero-images"
     const bucketParam = formData.get("bucket") as string | null;
-    const allowedBuckets = ["event-images", "venue-logos", "hero-images"];
+    const allowedBuckets = ["event-images", "venue-logos", "hero-images", "artist-avatars"];
     const bucket = bucketParam && allowedBuckets.includes(bucketParam) ? bucketParam : "event-images";
     const filePath = `${bucket}/${fileName}`;
 
