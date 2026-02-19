@@ -25,6 +25,10 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
+  const [resetMsg, setResetMsg] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +78,24 @@ export default function AdminLoginPage() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetSending(true);
+    setResetMsg("");
+    try {
+      const supabase = getSupabaseBrowser();
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: "https://venuecore.live/login?reset=true",
+      });
+      if (error) throw error;
+      setResetMsg("If that email exists, a reset link has been sent. Check your inbox.");
+    } catch {
+      setResetMsg("Something went wrong. Please try again.");
+    } finally {
+      setResetSending(false);
+    }
+  };
+
   return (
     <div className="admin-login-page">
       <div className="admin-login-card">
@@ -84,42 +106,88 @@ export default function AdminLoginPage() {
           height={127}
           className="admin-login-logo"
         />
-        <h1 className="admin-login-title">Admin Login</h1>
+        <h1 className="admin-login-title">{showForgot ? "Reset Password" : "Admin Login"}</h1>
         <p className="admin-login-subtitle">
-          Sign in to manage your events and sales
+          {showForgot ? "Enter your email to receive a reset link" : "Sign in to manage your events and sales"}
         </p>
 
-        <form className="admin-login-form" onSubmit={handleLogin}>
-          {error && <div className="admin-login-error">{error}</div>}
+        {showForgot ? (
+          <form className="admin-login-form" onSubmit={handleResetPassword}>
+            {resetMsg && (
+              <div
+                className="admin-login-error"
+                style={resetMsg.includes("sent") ? { background: "rgba(34,197,94,0.15)", color: "#22c55e", borderColor: "rgba(34,197,94,0.3)" } : undefined}
+              >
+                {resetMsg}
+              </div>
+            )}
+            <label className="admin-form-label">
+              Email
+              <input
+                type="email"
+                className="admin-form-input"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                placeholder="admin@venuecore.live"
+                required
+              />
+            </label>
+            <button type="submit" className="admin-login-btn" disabled={resetSending}>
+              {resetSending ? "Sending…" : "Send Reset Link"}
+            </button>
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(false); setResetMsg(""); }}
+                style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+              >
+                ← Back to Sign In
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form className="admin-login-form" onSubmit={handleLogin}>
+            {error && <div className="admin-login-error">{error}</div>}
 
-          <label className="admin-form-label">
-            Email
-            <input
-              type="email"
-              className="admin-form-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@venuecore.live"
-              required
-            />
-          </label>
+            <label className="admin-form-label">
+              Email
+              <input
+                type="email"
+                className="admin-form-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@venuecore.live"
+                required
+              />
+            </label>
 
-          <label className="admin-form-label">
-            Password
-            <input
-              type="password"
-              className="admin-form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </label>
+            <label className="admin-form-label">
+              Password
+              <input
+                type="password"
+                className="admin-form-input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+              />
+            </label>
 
-          <button type="submit" className="admin-login-btn" disabled={loading}>
-            {loading ? "Signing in…" : "Sign In"}
-          </button>
-        </form>
+            <button type="submit" className="admin-login-btn" disabled={loading}>
+              {loading ? "Signing in…" : "Sign In"}
+            </button>
+
+            <div style={{ textAlign: "center", marginTop: 12 }}>
+              <button
+                type="button"
+                onClick={() => { setShowForgot(true); setResetMsg(""); }}
+                style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

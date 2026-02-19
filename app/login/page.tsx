@@ -20,7 +20,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   artist: "/admin/guest-lists",
 };
 
-function LoginForm() {
+function LoginForm({ onForgot }: { onForgot: () => void }) {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -151,22 +151,102 @@ function LoginForm() {
       >
         {loading ? "Signing in…" : "Sign In"}
       </button>
+
+      <div style={{ textAlign: "center", marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={onForgot}
+          style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+        >
+          Forgot Password?
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
+  const [resetEmail, setResetEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSending(true);
+    setMsg("");
+    try {
+      const supabase = getSupabaseBrowser();
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: "https://venuecore.live/login?reset=true",
+      });
+      if (error) throw error;
+      setMsg("If that email exists, a reset link has been sent. Check your inbox.");
+    } catch {
+      setMsg("Something went wrong. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <form className="login-form" onSubmit={handleReset}>
+      <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, marginBottom: 16 }}>
+        Enter your email and we&apos;ll send you a password reset link.
+      </p>
+      {msg && (
+        <div
+          className="login-form-error"
+          style={msg.includes("sent") ? { background: "rgba(34,197,94,0.15)", color: "#22c55e" } : undefined}
+        >
+          {msg}
+        </div>
+      )}
+      <label className="login-form-label">
+        Email
+        <input
+          type="email"
+          className="login-form-input"
+          value={resetEmail}
+          onChange={(e) => setResetEmail(e.target.value)}
+          placeholder="you@example.com"
+          required
+          autoComplete="email"
+        />
+      </label>
+      <button type="submit" className="login-form-submit" disabled={sending}>
+        {sending ? "Sending…" : "Send Reset Link"}
+      </button>
+      <div style={{ textAlign: "center", marginTop: 12 }}>
+        <button
+          type="button"
+          onClick={onBack}
+          style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+        >
+          ← Back to Sign In
+        </button>
+      </div>
     </form>
   );
 }
 
 export default function LoginPage() {
+  const [showForgot, setShowForgot] = useState(false);
+
   return (
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
-          <h1 className="ticket-hero-title">Log In</h1>
+          <h1 className="ticket-hero-title">{showForgot ? "Reset Password" : "Log In"}</h1>
         </section>
 
         <section className="login-section">
-          <Suspense fallback={<div className="login-form">Loading...</div>}>
-            <LoginForm />
-          </Suspense>
+          {showForgot ? (
+            <ForgotPasswordForm onBack={() => setShowForgot(false)} />
+          ) : (
+            <Suspense fallback={<div className="login-form">Loading...</div>}>
+              <LoginForm onForgot={() => setShowForgot(true)} />
+            </Suspense>
+          )}
         </section>
       </main>
 

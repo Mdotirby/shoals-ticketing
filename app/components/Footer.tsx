@@ -16,7 +16,11 @@ const infoLinks = [
 ];
 
 const venueLinks = [
-  { label: "Log in", href: "/login" },
+  { label: "Venue Portal", href: "/login" },
+];
+
+const artistLinks = [
+  { label: "Artist Portal", href: "/login" },
 ];
 
 const connectLinks = [
@@ -67,6 +71,15 @@ export default function Footer() {
           <div className="footer-column">
             <h3 className="footer-column-heading">Organizers</h3>
             {venueLinks.map((link) => (
+              <Link key={link.label} href={link.href} className="footer-link">
+                {link.label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="footer-column">
+            <h3 className="footer-column-heading">Artists</h3>
+            {artistLinks.map((link) => (
               <Link key={link.label} href={link.href} className="footer-link">
                 {link.label}
               </Link>

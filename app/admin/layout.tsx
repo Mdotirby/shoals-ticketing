@@ -28,7 +28,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Guest Lists",      href: "/admin/guest-lists", roles: ["owner","venue_admin","full_admin","artist"] },
   { label: "Venue Management", href: "/portal",            roles: ["owner","venue_admin"] },
   { label: "Onboarding",       href: "/admin/onboarding",  roles: ["owner"] },
-  { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner","venue_admin"] },
+  { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner"] },
 ];
 
 // Map sidebar labels to tab_key used in sidebar_permissions table

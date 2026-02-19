@@ -193,7 +193,7 @@ export default function EventSalesDetailPage() {
       </div>
 
       {/* ── Marketing Data ── */}
-      {viewStats && (
+      {viewStats && viewStats.total_views !== undefined && (
         <div className="portal-card" style={{ marginTop: 20 }}>
           <h2 className="portal-card-title">Marketing Analytics</h2>
           <div className="dash-kpi-grid">
