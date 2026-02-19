@@ -64,8 +64,26 @@ export default function PermissionsPage() {
   const [perms, setPerms] = useState<PermState>(buildDefaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
-  const venueId = getCookie("venue-id");
+  const [venueId, setVenueId] = useState<string | null>(getCookie("venue-id"));
 
+  // Resolve venueId for owners/super_admins without a venue-id cookie
+  useEffect(() => {
+    const role = getCookie("user-role");
+    if (!venueId && (role === "owner" || role === "super_admin")) {
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((venues) => {
+          if (Array.isArray(venues) && venues.length > 0) {
+            setVenueId(venues[0].id);
+          } else {
+            setLoading(false);
+          }
+        })
+        .catch(() => setLoading(false));
+    }
+  }, [venueId]);
+
+  // Load permissions once venueId is resolved
   useEffect(() => {
     if (!venueId) {
       setLoading(false);
@@ -130,7 +148,7 @@ export default function PermissionsPage() {
     return (
       <div className="admin-form-page">
         <h1 className="admin-page-title">Sidebar Permissions</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>No venue assigned.</p>
+        <p style={{ color: "rgba(255,255,255,0.5)" }}>No venue assigned to your account.</p>
       </div>
     );
   }

@@ -30,42 +30,52 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     const vid = getCookie("venue-id");
-    if (!vid) {
+    const role = getCookie("user-role");
+
+    if (!vid && role !== "owner" && role !== "super_admin") {
       setLoading(false);
       setError("No venue assigned to your account.");
       return;
     }
-    setVenueId(vid);
 
-    fetch(`/api/venues?slug=_&id=${vid}`)
-      .catch(() => null);
+    // Helper to load a venue's settings into state
+    const loadVenue = (v: Record<string, unknown>) => {
+      setVenueId(v.id as string);
+      setVenue({
+        name: (v.name as string) || "",
+        nickname: (v.nickname as string) || "",
+        capacity: v.capacity ? String(v.capacity) : "",
+        address_street: (v.address_street as string) || "",
+        address_city: (v.address_city as string) || "",
+        address_state: (v.address_state as string) || "",
+        address_zip: (v.address_zip as string) || "",
+      });
+      setBuyer({
+        buyer_name: (v.buyer_name as string) || "",
+        contract_signatory: (v.contract_signatory as string) || "",
+        buyer_phone: (v.buyer_phone as string) || "",
+        buyer_email: (v.buyer_email as string) || "",
+        promoter_address: (v.promoter_address as string) || "",
+      });
+    };
 
-    // Fetch venue by querying all and finding by ID
+    // Fetch all venues and resolve the target
     fetch("/api/venues")
       .then((r) => r.json())
       .then((venues) => {
-        if (!Array.isArray(venues)) return;
-        const v = venues.find((x: { id: string }) => x.id === vid);
+        if (!Array.isArray(venues) || venues.length === 0) {
+          setError("No venues found.");
+          return;
+        }
+        // If we have a venue-id cookie, use it; otherwise pick the first venue (owner/super_admin)
+        const v = vid
+          ? venues.find((x: { id: string }) => x.id === vid)
+          : venues[0];
         if (!v) {
           setError("Venue not found.");
           return;
         }
-        setVenue({
-          name: v.name || "",
-          nickname: v.nickname || "",
-          capacity: v.capacity ? String(v.capacity) : "",
-          address_street: v.address_street || "",
-          address_city: v.address_city || "",
-          address_state: v.address_state || "",
-          address_zip: v.address_zip || "",
-        });
-        setBuyer({
-          buyer_name: v.buyer_name || "",
-          contract_signatory: v.contract_signatory || "",
-          buyer_phone: v.buyer_phone || "",
-          buyer_email: v.buyer_email || "",
-          promoter_address: v.promoter_address || "",
-        });
+        loadVenue(v);
       })
       .catch(() => setError("Failed to load venue settings"))
       .finally(() => setLoading(false));
