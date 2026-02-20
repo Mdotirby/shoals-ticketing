@@ -98,6 +98,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         // Load venue name + slug for logo
         if (adminRecord.venue_id) {
+          setVenueIdResolved(adminRecord.venue_id);
           const { data: venue } = await supabase
             .from("venues")
             .select("name, slug")
@@ -137,6 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               setAdminName(fname.charAt(0).toUpperCase() + fname.slice(1));
               // Fetch venue info if we have venue_id
               if (authBody.venue_id) {
+                setVenueIdResolved(authBody.venue_id);
                 try {
                   const venuesRes = await fetch("/api/venues");
                   if (venuesRes.ok) {
@@ -162,8 +164,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   // Fetch sidebar_permissions for the venue once we know the role
+  const [venueIdResolved, setVenueIdResolved] = useState("");
   useEffect(() => {
-    const venueId = getCookie("venue-id");
+    // Use cookie first, fallback to resolved venue ID from admin record
+    const venueId = getCookie("venue-id") || venueIdResolved;
     if (!venueId || !userRole) return;
 
     const supabase = getSupabaseBrowser();
@@ -172,7 +176,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .select("tab_key, visible")
       .eq("venue_id", venueId)
       .eq("role", userRole)
-      .then(({ data }: { data: { tab_key: string; visible: boolean }[] | null }) => {
+      .then(({ data, error }: { data: { tab_key: string; visible: boolean }[] | null; error: unknown }) => {
+        if (error) {
+          console.warn("[AdminLayout] sidebar_permissions fetch error:", error);
+        }
         if (data && data.length > 0) {
           const map: Record<string, boolean> = {};
           for (const row of data) {
@@ -181,22 +188,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           setSidebarPerms(map);
         }
       });
-  }, [userRole]);
+  }, [userRole, venueIdResolved]);
 
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
   const visibleItems = sidebarItems.filter((item) => {
-    // First: hardcoded role check
-    if (userRole && !item.roles.includes(userRole)) return false;
-    // Second: if sidebar_permissions were loaded, check them
-    if (sidebarPerms) {
-      const tabKey = TAB_KEY_MAP[item.label];
-      if (tabKey && tabKey in sidebarPerms) {
-        return sidebarPerms[tabKey];
-      }
+    const tabKey = TAB_KEY_MAP[item.label];
+    // When sidebar_permissions are loaded, they are the sole authority
+    if (sidebarPerms && tabKey && tabKey in sidebarPerms) {
+      return sidebarPerms[tabKey];
     }
+    // Fallback: hardcoded role check (used when no permissions data exists)
+    if (userRole && !item.roles.includes(userRole)) return false;
     return true;
   });
 

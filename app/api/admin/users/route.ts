@@ -23,9 +23,9 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { email, password, role, venue_id, first_name, last_name } = body;
 
-  if (!email || !password || !role) {
+  if (!role) {
     return NextResponse.json(
-      { error: "email, password, and role are required" },
+      { error: "role is required" },
       { status: 400 }
     );
   }
@@ -37,11 +37,17 @@ export async function POST(request: Request) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
+  // If no email/password provided, generate placeholder credentials
+  // so the auth user exists (FK constraint) but can't actually log in
+  const hasCredentials = !!(email && password);
+  const authEmail = email || `artist-${crypto.randomUUID()}@placeholder.venuecore.local`;
+  const authPassword = password || crypto.randomUUID();
+
   // 1. Create the auth user
   const { data: authData, error: authError } =
     await authAdmin.auth.admin.createUser({
-      email,
-      password,
+      email: authEmail,
+      password: authPassword,
       email_confirm: true,
     });
 
@@ -55,7 +61,7 @@ export async function POST(request: Request) {
     .from("admin_users")
     .insert({
       id: authData.user.id,
-      email,
+      email: hasCredentials ? email : null,
       role,
       venue_id: venue_id || null,
       first_name: first_name || null,
@@ -68,9 +74,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Send welcome email
+  // Send welcome email only if real credentials were provided
   const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey && email) {
+  if (resendKey && hasCredentials && email) {
     const welcomeHtml = `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
@@ -158,15 +164,35 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  // Remove fields that shouldn't be updated
-  delete fields.email;
+  // Handle email + password updates on the auth user
+  const newEmail = fields.email;
+  const newPassword = fields.new_password;
+  delete fields.new_password;
   delete fields.created_at;
+
+  if (newEmail || newPassword) {
+    const authAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const authUpdates: Record<string, string> = {};
+    if (newEmail) authUpdates.email = newEmail;
+    if (newPassword) authUpdates.password = newPassword;
+    const { error: authErr } = await authAdmin.auth.admin.updateUserById(id, authUpdates);
+    if (authErr) {
+      return NextResponse.json({ error: `Auth update failed: ${authErr.message}` }, { status: 500 });
+    }
+  }
 
   // Normalize null values
   const updates: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(fields)) {
     updates[key] = value === "" ? null : value;
   }
+
+  // Include email in admin_users update if provided
+  if (newEmail) updates.email = newEmail;
 
   const { data, error } = await admin
     .from("admin_users")

@@ -65,8 +65,7 @@ export default function PortalPage() {
   // Artist management state
   const [artistEvents, setArtistEvents] = useState<EventRow[]>([]);
   const [artists, setArtists] = useState<ArtistWithAssignments[]>([]);
-  const [newArtistFirst, setNewArtistFirst] = useState("");
-  const [newArtistLast, setNewArtistLast] = useState("");
+  const [newArtistName, setNewArtistName] = useState("");
   const [newArtistEmail, setNewArtistEmail] = useState("");
   const [newArtistPassword, setNewArtistPassword] = useState("");
   const [newArtistEventId, setNewArtistEventId] = useState("");
@@ -328,23 +327,28 @@ export default function PortalPage() {
     e.preventDefault();
     setArtistCreateError("");
     setArtistCreateSuccess("");
-    if (!newArtistEmail || !newArtistPassword || !newArtistFirst) {
-      setArtistCreateError("First name, email, and password are required.");
+    if (!newArtistName.trim()) {
+      setArtistCreateError("Artist name is required.");
+      return;
+    }
+    // If email provided, password is also required (and vice versa)
+    if ((newArtistEmail && !newArtistPassword) || (!newArtistEmail && newArtistPassword)) {
+      setArtistCreateError("Both email and password are required to enable portal login.");
       return;
     }
     setCreatingArtist(true);
     try {
-      // Step 1: Create the artist user
+      // Step 1: Create the artist user (email/password optional)
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: newArtistEmail,
-          password: newArtistPassword,
+          email: newArtistEmail || null,
+          password: newArtistPassword || null,
           role: "artist",
           venue_id: null,
-          first_name: newArtistFirst || null,
-          last_name: newArtistLast || null,
+          first_name: newArtistName.trim(),
+          last_name: null,
         }),
       });
       if (!res.ok) {
@@ -380,15 +384,15 @@ export default function PortalPage() {
           console.error("Assignment failed:", assignErr.message);
           setArtistCreateSuccess(`Artist created but event assignment failed: ${assignErr.message}`);
         } else {
-          setArtistCreateSuccess(`Artist "${newArtistFirst} ${newArtistLast}" created and assigned.`);
+          setArtistCreateSuccess(`Artist "${newArtistName}" created and assigned.`);
         }
       } else {
-        setArtistCreateSuccess(`Artist "${newArtistFirst} ${newArtistLast}" created (no event assigned).`);
+        const loginNote = newArtistEmail ? "" : " (no portal login — add email/password later)";
+        setArtistCreateSuccess(`Artist "${newArtistName}" created${loginNote}.`);
       }
 
       // Reset form
-      setNewArtistFirst("");
-      setNewArtistLast("");
+      setNewArtistName("");
       setNewArtistEmail("");
       setNewArtistPassword("");
       setNewArtistEventId("");
@@ -735,17 +739,16 @@ export default function PortalPage() {
           {(isOwner || userRole === "venue_admin") && (
             <div className="portal-card">
               <h2 className="portal-card-title">Artist Management</h2>
-              <p className="portal-card-desc">Create artist users who can manage their own guest lists for assigned events.</p>
+              <p className="portal-card-desc">Add artists and assign them to events. Portal login credentials are optional — you can add them later.</p>
 
               {/* Create Artist Form */}
               <form className="portal-inline-form" onSubmit={handleCreateArtist} style={{ marginTop: 12 }}>
                 <h3 className="portal-form-heading">Add Artist</h3>
                 {artistCreateError && <div className="portal-form-error">{artistCreateError}</div>}
                 {artistCreateSuccess && <div style={{ color: "#7ddb7d", fontSize: 13, marginBottom: 8 }}>{artistCreateSuccess}</div>}
-                <input type="text" className="portal-form-input" placeholder="First Name *" value={newArtistFirst} onChange={(e) => setNewArtistFirst(e.target.value)} required />
-                <input type="text" className="portal-form-input" placeholder="Last Name" value={newArtistLast} onChange={(e) => setNewArtistLast(e.target.value)} />
-                <input type="email" className="portal-form-input" placeholder="Email *" value={newArtistEmail} onChange={(e) => setNewArtistEmail(e.target.value)} required />
-                <input type="password" className="portal-form-input" placeholder="Password *" value={newArtistPassword} onChange={(e) => setNewArtistPassword(e.target.value)} required minLength={6} />
+                <input type="text" className="portal-form-input" placeholder="Artist Name *" value={newArtistName} onChange={(e) => setNewArtistName(e.target.value)} required />
+                <input type="email" className="portal-form-input" placeholder="Email (optional — for portal login)" value={newArtistEmail} onChange={(e) => setNewArtistEmail(e.target.value)} />
+                <input type="password" className="portal-form-input" placeholder="Password (optional — for portal login)" value={newArtistPassword} onChange={(e) => setNewArtistPassword(e.target.value)} minLength={6} />
                 <select className="portal-form-input" value={newArtistEventId} onChange={(e) => setNewArtistEventId(e.target.value)}>
                   <option value="">— Assign to event (optional) —</option>
                   {artistEvents.map((ev) => (
@@ -828,24 +831,14 @@ export default function PortalPage() {
 
                         {/* Editable fields + Save button */}
                         <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-                          <div>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>First Name</span>
+                          <div style={{ minWidth: 160 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Artist Name</span>
                             <input
                               type="text"
-                              id={`artist-fn-${artist.id}`}
-                              defaultValue={artist.first_name || ""}
-                              placeholder="First"
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
-                            />
-                          </div>
-                          <div>
-                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Last Name</span>
-                            <input
-                              type="text"
-                              id={`artist-ln-${artist.id}`}
-                              defaultValue={artist.last_name || ""}
-                              placeholder="Last"
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: 100 }}
+                              id={`artist-name-${artist.id}`}
+                              defaultValue={[artist.first_name, artist.last_name].filter(Boolean).join(" ") || ""}
+                              placeholder="Artist Name"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
                             />
                           </div>
                           <div style={{ flex: 1, minWidth: 180 }}>
@@ -861,10 +854,9 @@ export default function PortalPage() {
                           <button
                             type="button"
                             onClick={async () => {
-                              const fn = (document.getElementById(`artist-fn-${artist.id}`) as HTMLInputElement)?.value || "";
-                              const ln = (document.getElementById(`artist-ln-${artist.id}`) as HTMLInputElement)?.value || "";
+                              const name = (document.getElementById(`artist-name-${artist.id}`) as HTMLInputElement)?.value || "";
                               const url = (document.getElementById(`artist-url-${artist.id}`) as HTMLInputElement)?.value || "";
-                              await handleUpdateArtist(artist.id, { first_name: fn, last_name: ln, website_url: url } as Record<string, string>);
+                              await handleUpdateArtist(artist.id, { first_name: name, last_name: null, website_url: url } as unknown as Record<string, string>);
                             }}
                             style={{
                               background: "rgba(208,194,144,0.12)",
@@ -879,6 +871,63 @@ export default function PortalPage() {
                             }}
                           >
                             Save Changes
+                          </button>
+                        </div>
+
+                        {/* Portal Login Credentials */}
+                        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                          <div style={{ minWidth: 180 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>
+                              Email {!artist.email && <span style={{ color: "rgba(208,194,144,0.6)" }}>(no login set)</span>}
+                            </span>
+                            <input
+                              type="email"
+                              id={`artist-email-${artist.id}`}
+                              defaultValue={artist.email || ""}
+                              placeholder="artist@email.com"
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
+                            />
+                          </div>
+                          <div style={{ minWidth: 140 }}>
+                            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>
+                              {artist.email ? "New Password" : "Password"}
+                            </span>
+                            <input
+                              type="password"
+                              id={`artist-pw-${artist.id}`}
+                              defaultValue=""
+                              placeholder={artist.email ? "Leave blank to keep" : "Set password"}
+                              minLength={6}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const email = (document.getElementById(`artist-email-${artist.id}`) as HTMLInputElement)?.value || "";
+                              const pw = (document.getElementById(`artist-pw-${artist.id}`) as HTMLInputElement)?.value || "";
+                              if (!email) { alert("Email is required to set up portal login."); return; }
+                              if (!artist.email && !pw) { alert("Password is required to set up a new portal login."); return; }
+                              const updates: Record<string, string> = { email };
+                              if (pw) updates.new_password = pw;
+                              await handleUpdateArtist(artist.id, updates);
+                              // Clear password field after save
+                              const pwInput = document.getElementById(`artist-pw-${artist.id}`) as HTMLInputElement;
+                              if (pwInput) pwInput.value = "";
+                            }}
+                            style={{
+                              background: "rgba(208,194,144,0.12)",
+                              border: "1px solid rgba(208,194,144,0.25)",
+                              borderRadius: 6,
+                              color: "#d0c290",
+                              fontSize: 12,
+                              fontWeight: 600,
+                              padding: "6px 16px",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {artist.email ? "Update Login" : "Enable Login"}
                           </button>
                         </div>
 
