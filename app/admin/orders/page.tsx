@@ -57,8 +57,9 @@ export default function AdminSalesPage() {
         }
       }
 
+      // For artists, skip venue_id filter — fetch all events then filter by assigned IDs
       const params = new URLSearchParams({ all: "1" });
-      if (venueId) params.set("venue_id", venueId);
+      if (!isArtist && venueId) params.set("venue_id", venueId);
 
       try {
         const [eventsData, venuesData] = await Promise.all([
