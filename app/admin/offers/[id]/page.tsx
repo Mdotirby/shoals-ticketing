@@ -116,11 +116,11 @@ export default function AdminOfferDetailPage() {
         // Auto-create event from offer data
         setSuccess("Offer confirmed! Creating event...");
 
-        // Build date with show time
+        // Build date with show time (local string, not ISO — matches how events are stored)
         const offerDate = updated.event_date ? String(updated.event_date).slice(0, 10) : "";
         const showTime = updated.show_time || "19:00"; // default 7 PM
         const eventDate = offerDate
-          ? new Date(`${offerDate}T${showTime.length === 5 ? showTime : "19:00"}:00`).toISOString()
+          ? `${offerDate}T${showTime.length === 5 ? showTime : "19:00"}:00`
           : new Date().toISOString();
 
         // Build ticket tiers from offer scaling

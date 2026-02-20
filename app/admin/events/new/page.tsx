@@ -149,11 +149,9 @@ export default function AdminCreateEventPage() {
     setLoading(true);
 
     try {
-      // Build local datetime string and convert to ISO (preserves correct timezone)
-      const localDateTime = form.time
+      const dateTime = form.time
         ? `${form.date}T${form.time}:00`
         : `${form.date}T19:00:00`;
-      const dateTime = new Date(localDateTime).toISOString();
 
       // Use the lowest tier price as the event's display price
       const lowestPrice = Math.min(...tiers.map((t) => parseFloat(t.price)));
