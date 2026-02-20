@@ -11,7 +11,7 @@ import { useVenueTheme } from "./components/VenueThemeProvider";
 
 // Hero images from public folder — per-venue via slug
 const DEFAULT_HERO_1 = "/hero-images/default/hero.jpg";
-const DEFAULT_HERO_2 = "/hero-images/default/hero.jpg";
+const DEFAULT_HERO_2 = "/hero-images/default/hero2.jpg";
 function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
