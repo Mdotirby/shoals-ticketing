@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
+
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VenueCore <onboarding@resend.dev>";
+const NOTIFY_EMAIL = "Matt.irby@west72ent.com";
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,6 +50,77 @@ export async function POST(req: NextRequest) {
     if (error) {
       console.error("Newsletter insert error:", error);
       return NextResponse.json({ error: "Failed to subscribe. Please try again." }, { status: 500 });
+    }
+
+    // ── Send emails via Resend (fire-and-forget) ──
+    const resendKey = process.env.RESEND_API_KEY;
+    if (resendKey) {
+      const resend = new Resend(resendKey);
+      const subscriberName = `${firstName.trim()} ${lastName.trim()}`;
+
+      // 1. Welcome email to the subscriber
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: email.trim().toLowerCase(),
+        subject: "Welcome to Friends with Benefits!",
+        html: `
+          <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="120" style="margin-bottom: 16px;" />
+            </div>
+            <h1 style="font-size: 28px; color: #d0c290; text-align: center; margin: 0 0 8px;">Welcome, ${firstName.trim()}!</h1>
+            <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 32px;">You're officially a Friend with Benefits.</p>
+            
+            <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 24px;">
+              <h2 style="font-size: 18px; color: #d0c290; margin: 0 0 12px;">Here's what you get:</h2>
+              <ul style="list-style: none; padding: 0; margin: 0;">
+                <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">&#9889; <strong style="color: #fff;">Presale Access</strong> — Get tickets before they go public</li>
+                <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">&#127381; <strong style="color: #fff;">Exclusive Offers</strong> — Special deals just for subscribers</li>
+                <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">&#128240; <strong style="color: #fff;">Breaking News</strong> — Be the first to know about new shows</li>
+                <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px;">&#128276; <strong style="color: #fff;">Early Announcements</strong> — Artist lineups and venue updates</li>
+              </ul>
+            </div>
+
+            <div style="text-align: center; margin-bottom: 32px;">
+              <a href="https://venuecore.live/events" style="display: inline-block; background: linear-gradient(135deg, #d0c290, #b8a66e); color: #0b0d1d; font-weight: 700; font-size: 14px; padding: 14px 32px; border-radius: 8px; text-decoration: none;">Browse Upcoming Events</a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0;" />
+            <p style="text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); margin: 0;">
+              You're receiving this because you signed up at VenueCore.<br />
+              <a href="https://venuecore.live/privacy" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Privacy Policy</a>
+            </p>
+          </div>
+        `,
+      }).catch((err) => console.error("Welcome email failed:", err));
+
+      // 2. BCC notification to admin
+      resend.emails.send({
+        from: FROM_EMAIL,
+        to: NOTIFY_EMAIL,
+        subject: `[Newsletter] New Signup: ${subscriberName}`,
+        html: `
+          <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #333; margin: 0 0 16px;">New Newsletter Subscriber</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 10px 12px; font-weight: bold; color: #555; border-bottom: 1px solid #eee;">Name</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #eee;">${subscriberName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 12px; font-weight: bold; color: #555; border-bottom: 1px solid #eee;">Email</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #eee;"><a href="mailto:${email.trim().toLowerCase()}">${email.trim().toLowerCase()}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 12px; font-weight: bold; color: #555; border-bottom: 1px solid #eee;">Signed Up</td>
+                <td style="padding: 10px 12px; border-bottom: 1px solid #eee;">${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })}</td>
+              </tr>
+            </table>
+          </div>
+        `,
+      }).catch((err) => console.error("Admin notification email failed:", err));
+    } else {
+      console.warn("RESEND_API_KEY not set — skipping newsletter emails");
     }
 
     return NextResponse.json({ success: true });

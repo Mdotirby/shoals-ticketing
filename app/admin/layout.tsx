@@ -100,7 +100,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         // Load venue name + slug for logo
         if (adminRecord.venue_id) {
-          setVenueIdResolved(adminRecord.venue_id);
+          // venue_id resolved from admin record
           const { data: venue } = await supabase
             .from("venues")
             .select("name, slug")
@@ -140,7 +140,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               setAdminName(fname.charAt(0).toUpperCase() + fname.slice(1));
               // Fetch venue info if we have venue_id
               if (authBody.venue_id) {
-                setVenueIdResolved(authBody.venue_id);
+                // venue_id from auth response
                 try {
                   const venuesRes = await fetch("/api/venues");
                   if (venuesRes.ok) {
@@ -166,28 +166,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, []);
 
   // Fetch sidebar_permissions for the venue once we know the role
-  const [venueIdResolved, setVenueIdResolved] = useState("");
   useEffect(() => {
-    // Use cookie first, fallback to resolved venue ID from admin record
-    let venueId = getCookie("venue-id") || venueIdResolved;
+    if (!userRole) return;
 
-    // For artists without a venue_id, resolve from first available venue
-    if (!venueId && userRole === "artist") {
-      fetch("/api/venues")
-        .then((r) => r.json())
-        .then((venues: Array<{ id: string }>) => {
-          if (Array.isArray(venues) && venues.length > 0) {
-            setVenueIdResolved(venues[0].id);
-          }
-        })
-        .catch(() => {});
-      return; // Will re-run when venueIdResolved updates
-    }
+    const venueId = getCookie("venue-id") || "";
 
-    if (!venueId || !userRole) return;
+    // Build URL — venue_id is optional for artists
+    const params = new URLSearchParams({ role: userRole });
+    if (venueId) params.set("venue_id", venueId);
 
     // Use server-side API route to bypass RLS restrictions
-    fetch(`/api/admin/sidebar-permissions?venue_id=${venueId}&role=${userRole}`)
+    fetch(`/api/admin/sidebar-permissions?${params}`)
       .then((r) => r.json())
       .then((data: { tab_key: string; visible: boolean }[]) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -201,7 +190,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .catch((err) => {
         console.warn("[AdminLayout] sidebar_permissions fetch error:", err);
       });
-  }, [userRole, venueIdResolved]);
+  }, [userRole]);
 
   if (pathname === "/admin/login") {
     return <>{children}</>;

@@ -383,10 +383,11 @@ body {
 
 @media (max-width: 768px) {
   .site-header {
-  padding: 0;
-}
+    padding: 0;
+    position: relative;
+  }
 
-.header-inner {
+  .header-inner {
     width: 100%;
     padding: 0 16px;
     min-height: 88px;
@@ -397,27 +398,27 @@ body {
     height: 74px !important;
   }
 
-.hamburger {
-  display: inline-flex;
-  margin-left: auto;
-}
+  .hamburger {
+    display: inline-flex;
+    margin-left: auto;
+  }
 
-.header-nav {
-  display: none;
-  flex-direction: column;
-  width: 100%;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  padding: 16px;
-  background: #0b0d1d;
-  border-bottom: 1px solid rgba(208,194,144,0.08);
-}
+  .header-nav {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    padding: 16px;
+    background: #0b0d1d;
+    border-bottom: 1px solid rgba(208,194,144,0.08);
+    z-index: 999;
+  }
 
-.header-nav.open {
-  display: flex;
-}
-
+  .header-nav.open {
+    display: flex;
+  }
 
   .home-events-page {
     padding: 20px 12px 28px;
@@ -4349,13 +4350,22 @@ select.admin-form-input {
     color: var(--venue-primary, #d0c290);
   }
 
-  /* Overlay — subtle tap-to-close, no dark backdrop */
+  /* Overlay — subtle tap-to-close, sits BELOW the dropdown */
   .admin-sidebar-overlay {
     display: block;
     position: fixed;
     inset: 0;
     background: transparent;
-    z-index: 1001;
+    z-index: 1002;
+  }
+
+  /* Ensure the topbar + dropdown are above the overlay */
+  .admin-mobile-topbar {
+    z-index: 1005;
+  }
+
+  .admin-mobile-dropdown-menu {
+    z-index: 1006;
   }
 
   .admin-content {
