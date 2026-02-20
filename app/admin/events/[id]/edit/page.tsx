@@ -314,13 +314,22 @@ export default function AdminEditEventPage() {
 
           <label className="admin-form-label">
             Time
-            <input
-              type="time"
+            <select
               name="time"
               className="admin-form-input"
               value={form.time}
-              onChange={handleChange}
-            />
+              onChange={(e) => setForm({ ...form, time: e.target.value })}
+            >
+              <option value="">— Select time —</option>
+              {Array.from({ length: 30 }, (_, i) => {
+                const h24 = Math.floor(i / 2) + 10;
+                const m = i % 2 === 0 ? "00" : "30";
+                const h12 = h24 > 12 ? h24 - 12 : h24;
+                const ampm = h24 >= 12 ? "PM" : "AM";
+                const val = `${String(h24).padStart(2, "0")}:${m}`;
+                return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+              })}
+            </select>
           </label>
 
         </div>

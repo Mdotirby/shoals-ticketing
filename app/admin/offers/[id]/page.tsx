@@ -115,21 +115,45 @@ export default function AdminOfferDetailPage() {
       if (status === "accepted") {
         // Auto-create event from offer data
         setSuccess("Offer confirmed! Creating event...");
+
+        // Build date with show time
+        const offerDate = updated.event_date ? String(updated.event_date).slice(0, 10) : "";
+        const showTime = updated.show_time || "19:00"; // default 7 PM
+        const eventDate = offerDate
+          ? new Date(`${offerDate}T${showTime.length === 5 ? showTime : "19:00"}:00`).toISOString()
+          : new Date().toISOString();
+
+        // Build ticket tiers from offer scaling
+        const scaling = Array.isArray(updated.ticket_scaling) ? updated.ticket_scaling : [];
+        const tiers = scaling
+          .filter((r: { sellable_cap: number; price: number }) => r.sellable_cap > 0)
+          .map((r: { name: string; price: number; sellable_cap: number }) => ({
+            tier_name: r.name || "General Admission",
+            price: r.price || 0,
+            capacity: r.sellable_cap || 500,
+          }));
+
+        // Display price = lowest tier price, or 0 if no tiers
+        const displayPrice = tiers.length > 0
+          ? Math.min(...tiers.map((t: { price: number }) => t.price))
+          : 0;
+
         const eventRes = await fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: updated.artist_name,
             venue: updated.venue || venue?.name || "TBD",
-            date: updated.event_date ? (String(updated.event_date).slice(0,10) + "T12:00:00") : new Date().toISOString(),
-            price: updated.guarantee || 0,
+            date: eventDate,
+            price: displayPrice,
             venue_id: updated.venue_id || getCookie("venue-id") || null,
             status: "draft",
             description: `${updated.artist_name} - ${updated.billing || "Live Performance"}`,
+            tiers: tiers.length > 0 ? tiers : undefined,
           }),
         });
         if (eventRes.ok) {
-          setSuccess("Offer confirmed & event created! Go to Events to set up tickets.");
+          setSuccess("Offer confirmed & event created with ticket tiers! Go to Events to add an image and publish.");
         } else {
           setSuccess("Offer confirmed but event creation failed. Create manually.");
         }
