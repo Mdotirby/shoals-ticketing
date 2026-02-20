@@ -51,10 +51,11 @@ export default function AdminEditEventPage() {
           return;
         }
 
-        // Parse date + time from ISO string
-        const dateObj = new Date(event.date);
-        const dateStr = dateObj.toISOString().slice(0, 10);
-        const timeStr = dateObj.toTimeString().slice(0, 5);
+        // Parse date + time using local time (avoid UTC shift)
+        const raw = event.date || "";
+        const dateStr = raw.length >= 10 ? raw.slice(0, 10) : "";
+        // Extract time: if stored as ISO-ish "YYYY-MM-DDTHH:MM:SS", grab HH:MM
+        const timeStr = raw.length >= 16 && raw[10] === "T" ? raw.slice(11, 16) : "";
 
         setForm({
           title: event.title || "",
