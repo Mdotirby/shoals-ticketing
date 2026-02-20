@@ -6181,3 +6181,515 @@ select.admin-form-input {
   }
 }
 
+/* ═══════════════════════════════════════════════════
+   ABOUT PAGE
+   ═══════════════════════════════════════════════════ */
+
+.about-page {
+  min-height: 100vh;
+}
+
+/* Gold text utility */
+.about-gold-text {
+  color: var(--gold);
+  font-family: var(--font-bayon), sans-serif;
+}
+
+/* Section label with lines */
+.about-section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.about-section-label-center {
+  justify-content: center;
+}
+
+.about-label-text {
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.about-label-line {
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: var(--gold);
+  opacity: 0.5;
+}
+
+/* ── Philosophy Section ── */
+.about-philosophy {
+  padding: 80px 24px 60px;
+  border-top: 1px solid rgba(208,194,144,0.12);
+}
+
+.about-philosophy-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.about-philosophy-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(32px, 4.5vw, 52px);
+  line-height: 1.1;
+  font-weight: 400;
+  margin: 0 0 24px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.about-philosophy-desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.6);
+  margin: 0 0 16px;
+  max-width: 480px;
+}
+
+.about-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 24px;
+  border: 1px solid rgba(208,194,144,0.5);
+  border-radius: 24px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.about-cta-btn:hover {
+  background: rgba(208,194,144,0.1);
+  border-color: var(--gold);
+}
+
+.about-philosophy-image {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.about-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(32,32,69,0.8), rgba(11,13,29,0.9));
+  border: 2px dashed rgba(208,194,144,0.25);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.3);
+  font-size: 16px;
+  gap: 8px;
+}
+
+.about-image-placeholder p {
+  font-size: 12px;
+  margin: 0;
+  color: rgba(255,255,255,0.2);
+}
+
+/* ── Why Us Section ── */
+.about-why-us {
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.about-why-us-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 400;
+  margin: 0 0 48px;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.about-features-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.about-feature-card {
+  background: linear-gradient(180deg, rgba(32,32,69,0.6) 0%, rgba(11,13,29,0.8) 100%);
+  border: 1px solid rgba(208,194,144,0.1);
+  border-radius: 16px;
+  padding: 32px 24px;
+  text-align: left;
+  transition: border-color 0.3s ease, transform 0.3s ease;
+}
+
+.about-feature-card:hover {
+  border-color: rgba(208,194,144,0.3);
+  transform: translateY(-4px);
+}
+
+.about-feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 1px solid rgba(208,194,144,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  margin-bottom: 20px;
+}
+
+.about-feature-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: #fff;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.about-feature-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+}
+
+/* About page responsive */
+@media (max-width: 900px) {
+  .about-philosophy-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .about-philosophy-image {
+    order: -1;
+  }
+
+  .about-features-grid {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTACT PAGE
+   ═══════════════════════════════════════════════════ */
+
+.contact-page {
+  min-height: 100vh;
+}
+
+/* ── Hero ── */
+.contact-hero {
+  padding: 60px 24px 48px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(32,32,69,0.5) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(208,194,144,0.08);
+}
+
+.contact-hero-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 400;
+  color: #fff;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Content Layout ── */
+.contact-content {
+  padding: 60px 24px 80px;
+}
+
+.contact-content-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+/* ── Form Card ── */
+.contact-form-card {
+  background: linear-gradient(180deg, rgba(20,20,50,0.9) 0%, rgba(11,13,29,0.95) 100%);
+  border: 1px solid rgba(208,194,144,0.1);
+  border-radius: 16px;
+  padding: 36px 32px;
+}
+
+.contact-form-heading {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: #fff;
+  margin: 0 0 24px;
+  text-transform: uppercase;
+}
+
+.contact-success-msg {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.contact-error-msg {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.contact-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+}
+
+.contact-field input,
+.contact-field select,
+.contact-field textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  outline: none;
+}
+
+.contact-field input::placeholder,
+.contact-field textarea::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.contact-field input:focus,
+.contact-field select:focus,
+.contact-field textarea:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(208,194,144,0.15);
+}
+
+.contact-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff60' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.contact-field select option {
+  background: #141432;
+  color: #fff;
+}
+
+.contact-field textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.contact-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #d0c290 0%, #b5a66e 100%);
+  border: none;
+  border-radius: 8px;
+  color: #0b0d1d;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  margin-top: 4px;
+}
+
+.contact-submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.contact-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Info Panel ── */
+.contact-info-panel {
+  padding-top: 12px;
+}
+
+.contact-info-label {
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.contact-info-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 400;
+  color: #fff;
+  margin: 12px 0 36px;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+.contact-info-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-bottom: 40px;
+}
+
+.contact-method {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.contact-method-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(208,194,144,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.contact-method-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #fff;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+}
+
+.contact-method-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+.contact-method-link {
+  font-size: 14px;
+  color: var(--gold);
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.contact-method-link:hover {
+  opacity: 0.8;
+}
+
+/* ── Social Links ── */
+.contact-social {
+  background: linear-gradient(180deg, rgba(32,32,69,0.4) 0%, rgba(11,13,29,0.6) 100%);
+  border: 1px solid rgba(208,194,144,0.08);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.contact-social-title {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: #fff;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.contact-social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+.contact-social-icons a {
+  color: rgba(255,255,255,0.5);
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contact-social-icons a:hover {
+  color: var(--gold);
+}
+
+/* Contact page responsive */
+@media (max-width: 768px) {
+  .contact-content-inner {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .contact-form-card {
+    padding: 28px 20px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FAQ PAGE
+   ═══════════════════════════════════════════════════ */
+
+.faq-page {
+  min-height: 100vh;
+}
+
+.faq-page-content {
+  padding: 60px 24px 80px;
+}
+
+.faq-page-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+}
