@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const bucketParam = formData.get("bucket") as string | null;
     const allowedBuckets = ["event-images", "venue-logos", "hero-images", "artist-avatars"];
     const bucket = bucketParam && allowedBuckets.includes(bucketParam) ? bucketParam : "event-images";
-    const filePath = fileName;
+    const filePath = `${bucket}/${fileName}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);

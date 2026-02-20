@@ -5,6 +5,8 @@ type EventBadgesProps = {
   ageRestriction?: string;  // "all_ages" | "18+" | "21+" — default all_ages
 };
 
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+
 function formatTime(date: Date) {
   return date.toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -15,7 +17,7 @@ function formatTime(date: Date) {
 
 export default function EventBadges({ eventDate, ageRestriction = "all_ages" }: EventBadgesProps) {
   const now = new Date();
-  const showDate = new Date(eventDate);
+  const showDate = safeDate(eventDate);
   const diffMs = showDate.getTime() - now.getTime();
   const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 

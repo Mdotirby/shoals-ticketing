@@ -8,12 +8,21 @@ import Footer from "@/app/components/Footer";
 
 type FilterType = "all" | "event" | "artist" | "venue" | "city";
 
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+
 function formatEventDate(date: string) {
-  return new Date(date).toLocaleDateString("en-US", {
+  return safeDate(date).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
+}
+
+function formatEventTime(date: string) {
+  if (date && date.length === 10) return null;
+  const d = safeDate(date);
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function matchesFilter(event: Event, query: string, filter: FilterType): boolean {
@@ -102,7 +111,10 @@ export default function EventsPage() {
               <div className="elc-info">
                 <span className="elc-price-badge">${event.price.toFixed(2)}</span>
                 <h2 className="elc-title">{event.title}</h2>
-                <p className="elc-date">{formatEventDate(event.date)}</p>
+                <p className="elc-date">
+                  {formatEventDate(event.date)}
+                  {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
+                </p>
                 <span className="elc-venue-badge">
                   <span className="elc-venue-dot" />
                   {event.venue}
