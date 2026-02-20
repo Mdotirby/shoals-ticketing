@@ -210,23 +210,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Mobile topbar */}
+      {/* Mobile topbar — avatar dropdown */}
       <div className="admin-mobile-topbar">
-        <button
-          className="admin-mobile-toggle"
-          onClick={() => setSidebarOpen((prev) => !prev)}
-          aria-label="Toggle sidebar"
-        >
-          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
-          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
-          <span className={`admin-toggle-bar ${sidebarOpen ? "open" : ""}`} />
-        </button>
         <SafeImage
           src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
           fallback="/logos/default/logo.png"
           alt="VenueCore"
-          style={{ width: 48, height: 48, objectFit: "contain" }}
+          style={{ width: 36, height: 36, objectFit: "contain" }}
         />
+        <button
+          className="admin-mobile-avatar-btn"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          aria-label="Toggle navigation"
+        >
+          {avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
+          ) : (
+            <span className="admin-mobile-avatar-placeholder">
+              {adminName ? adminName.charAt(0).toUpperCase() : "☰"}
+            </span>
+          )}
+          <span className={`admin-mobile-dropdown-arrow ${sidebarOpen ? "open" : ""}`}>▾</span>
+        </button>
       </div>
 
       {sidebarOpen && (

@@ -3276,8 +3276,8 @@ select.admin-form-input {
 .admin-mobile-topbar {
   display: none;
   align-items: center;
-  gap: 14px;
-  padding: 12px 16px;
+  justify-content: space-between;
+  padding: 10px 16px;
   background: linear-gradient(180deg, #0e1028 0%, #151533 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: sticky;
@@ -3291,6 +3291,50 @@ select.admin-form-input {
   object-fit: contain;
 }
 
+/* Avatar dropdown button (replaces hamburger) */
+.admin-mobile-avatar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 2px solid rgba(208, 194, 144, 0.25);
+  border-radius: 999px;
+  padding: 3px 10px 3px 3px;
+  cursor: pointer;
+}
+
+.admin-mobile-avatar-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.admin-mobile-avatar-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(208, 194, 144, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d0c290;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.admin-mobile-dropdown-arrow {
+  color: rgba(208, 194, 144, 0.6);
+  font-size: 16px;
+  transition: transform 200ms ease;
+  line-height: 1;
+}
+
+.admin-mobile-dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Legacy hamburger — keep for reference but no longer used */
 .admin-mobile-toggle {
   width: 28px;
   height: 20px;
