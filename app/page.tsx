@@ -149,6 +149,9 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ── NEWSLETTER SIGNUP ── */}
+        <NewsletterSignup />
+
         {/* ── SECOND HERO IMAGE ── */}
         <section
           className="home-hero-secondary"
@@ -175,7 +178,6 @@ export default function HomePage() {
         </section>
       </main>
 
-      <NewsletterSignup />
       <Footer />
     </>
   );
