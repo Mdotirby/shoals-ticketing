@@ -7,6 +7,7 @@ const serviceLinks = [
   { label: "Concert Promotion", href: "/about" },
   { label: "Talent Buying", href: "/about" },
   { label: "Ticketing", href: "/events" },
+  { label: "Auctions", href: "/auctions" },
 ];
 
 const infoLinks = [

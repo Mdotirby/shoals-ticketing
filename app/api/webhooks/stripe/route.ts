@@ -229,6 +229,24 @@ export async function POST(request: Request) {
   // ── checkout.session.completed ──
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    // ── Handle Auction Checkout ──
+    if (session.metadata?.type === "auction") {
+      const auctionOrderId = session.metadata.auction_order_id;
+      if (auctionOrderId) {
+        await admin
+          .from("auction_orders")
+          .update({
+            status: "paid",
+            stripe_payment_intent_id: session.payment_intent as string,
+            stripe_transaction_id: session.id,
+          })
+          .eq("id", auctionOrderId);
+        console.log(`Auction order ${auctionOrderId} marked as paid`);
+      }
+      return NextResponse.json({ received: true });
+    }
+
+    // ── Handle Event Ticket Checkout ──
     const eventId = session.metadata?.event_id;
     const quantity = parseInt(session.metadata?.quantity || "1");
     const customerEmail = session.customer_details?.email || session.customer_email || "";
