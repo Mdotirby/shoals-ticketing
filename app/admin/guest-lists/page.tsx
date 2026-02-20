@@ -217,15 +217,11 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
   const loadGuests = useCallback(async () => {
     if (!selectedEventId) return;
     try {
-      // Try API first for guest list (bypasses RLS)
-      const supabase = getSupabaseBrowser();
-      const { data } = await supabase
-        .from("guest_list")
-        .select("id, first_name, last_name, quantity, artist_id")
-        .eq("event_id", selectedEventId)
-        .eq("artist_id", artistId)
-        .order("created_at");
-      setGuests(data || []);
+      const res = await fetch(`/api/artists/guests?event_id=${selectedEventId}&artist_id=${artistId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGuests(Array.isArray(data) ? data : []);
+      }
     } catch {
       setGuests([]);
     }
@@ -251,25 +247,26 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
     }
     setSaving(true);
     setError("");
-    const supabase = getSupabaseBrowser();
 
     for (const guest of validRows) {
-      const { data, error: dbError } = await supabase
-        .from("guest_list")
-        .insert({
+      const res = await fetch("/api/artists/guests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           event_id: selectedEventId,
           artist_id: artistId,
-          first_name: guest.first_name.trim(),
-          last_name: guest.last_name.trim(),
+          first_name: guest.first_name,
+          last_name: guest.last_name,
           quantity: guest.quantity,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (dbError) {
-        setError(dbError.message);
+      if (!res.ok) {
+        const errData = await res.json();
+        setError(errData.error || "Failed to add guest");
         break;
-      } else if (data) {
+      } else {
+        const data = await res.json();
         setGuests((prev) => [...prev, data as GuestRow]);
       }
     }
@@ -290,8 +287,7 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
   };
 
   const removeGuest = async (id: string) => {
-    const supabase = getSupabaseBrowser();
-    await supabase.from("guest_list").delete().eq("id", id);
+    await fetch(`/api/artists/guests?id=${id}`, { method: "DELETE" });
     setGuests((prev) => prev.filter((g) => g.id !== id));
   };
 
