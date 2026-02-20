@@ -194,38 +194,44 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
 
   useEffect(() => {
     async function load() {
-      const supabase = getSupabaseBrowser();
-      const { data, error: qErr } = await supabase
-        .from("artist_event_assignments")
-        .select("event_id, comp_limit, events(id, title, date, venue)")
-        .eq("artist_id", artistId);
-
-      if (qErr) {
-        if (qErr.message.includes("does not exist") || qErr.code === "42P01") {
-          setTablesExist(false);
+      try {
+        // Use API route (service role) to bypass RLS
+        const res = await fetch(`/api/artists/assignments?artist_id=${artistId}`);
+        if (!res.ok) {
+          const errData = await res.json();
+          if (errData.error?.includes("does not exist")) { setTablesExist(false); return; }
           return;
         }
-      }
-
-      if (data) {
-        setAssignments(data as unknown as Assignment[]);
-        if (data.length > 0) setSelectedEventId(data[0].event_id);
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setAssignments(data as Assignment[]);
+          setSelectedEventId(data[0].event_id);
+        }
+      } catch {
+        // ignore
       }
     }
     load();
   }, [artistId]);
 
-  useEffect(() => {
+  const loadGuests = useCallback(async () => {
     if (!selectedEventId) return;
-    const supabase = getSupabaseBrowser();
-    supabase
-      .from("guest_list")
-      .select("id, first_name, last_name, quantity, artist_id")
-      .eq("event_id", selectedEventId)
-      .eq("artist_id", artistId)
-      .order("created_at")
-      .then((result: { data: GuestRow[] | null }) => setGuests(result.data || []));
+    try {
+      // Try API first for guest list (bypasses RLS)
+      const supabase = getSupabaseBrowser();
+      const { data } = await supabase
+        .from("guest_list")
+        .select("id, first_name, last_name, quantity, artist_id")
+        .eq("event_id", selectedEventId)
+        .eq("artist_id", artistId)
+        .order("created_at");
+      setGuests(data || []);
+    } catch {
+      setGuests([]);
+    }
   }, [selectedEventId, artistId]);
+
+  useEffect(() => { loadGuests(); }, [loadGuests]);
 
   const selectedAssignment = assignments.find((a) => a.event_id === selectedEventId);
   const usedComps = guests.reduce((sum, g) => sum + g.quantity, 0);
