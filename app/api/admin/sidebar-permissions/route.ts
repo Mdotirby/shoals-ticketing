@@ -50,3 +50,24 @@ export async function GET(request: Request) {
 
   return NextResponse.json([]);
 }
+
+// POST: save sidebar permissions (bypasses RLS)
+export async function POST(request: Request) {
+  const body = await request.json();
+  const { rows } = body;
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return NextResponse.json({ error: "rows array is required" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("sidebar_permissions")
+    .upsert(rows, { onConflict: "venue_id,role,tab_key" });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ saved: true });
+}

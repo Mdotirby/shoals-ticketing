@@ -177,12 +177,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     // Use server-side API route to bypass RLS restrictions
     fetch(`/api/admin/sidebar-permissions?${params}`)
-      .then((r) => r.json())
-      .then((data: { tab_key: string; visible: boolean }[]) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          console.warn("[AdminLayout] sidebar_permissions API error:", r.status);
+          return;
+        }
+        const data = await r.json();
         if (Array.isArray(data) && data.length > 0) {
           const map: Record<string, boolean> = {};
           for (const row of data) {
-            map[row.tab_key] = row.visible;
+            if (row.tab_key) map[row.tab_key] = row.visible;
           }
           setSidebarPerms(map);
         }

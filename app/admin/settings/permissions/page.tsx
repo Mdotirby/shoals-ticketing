@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
 
 const TABS = [
@@ -37,8 +36,8 @@ const DEFAULTS: Record<string, Role[]> = {
   events: ["owner", "venue_admin", "full_admin"],
   booking: ["owner", "venue_admin"],
   partners: ["owner", "venue_admin"],
-  reports: ["owner", "venue_admin", "full_admin", "read_only", "box_office", "artist"],
-  sales: ["owner", "venue_admin", "full_admin", "box_office", "door_greeter"],
+  reports: ["owner", "venue_admin", "full_admin", "read_only", "box_office"],
+  sales: ["owner", "venue_admin", "full_admin", "box_office", "door_greeter", "artist"],
   scanner: ["owner", "venue_admin", "full_admin", "box_office", "door_greeter"],
   guest_lists: ["owner", "venue_admin", "full_admin", "artist"],
   settlements: ["owner", "venue_admin"],
@@ -85,22 +84,28 @@ export default function PermissionsPage() {
     }
   }, [venueId]);
 
-  // Load permissions once venueId is resolved
+  // Load permissions once venueId is resolved — uses API to bypass RLS
   useEffect(() => {
     if (!venueId) {
       setLoading(false);
       return;
     }
-    const supabase = getSupabaseBrowser();
-    supabase
-      .from("sidebar_permissions")
-      .select("role, tab_key, visible")
-      .eq("venue_id", venueId)
-      .then(({ data }: { data: { role: string; tab_key: string; visible: boolean }[] | null }) => {
-        if (data && data.length > 0) {
+    // Load all roles' permissions for this venue
+    Promise.all(
+      ROLES.map((role) =>
+        fetch(`/api/admin/sidebar-permissions?venue_id=${venueId}&role=${role}`)
+          .then((r) => r.json())
+          .then((data: { tab_key: string; visible: boolean }[]) =>
+            Array.isArray(data) ? data.map((d) => ({ ...d, role })) : []
+          )
+      )
+    )
+      .then((results) => {
+        const allRows = results.flat();
+        if (allRows.length > 0) {
           setPerms((prev) => {
             const next = { ...prev };
-            for (const row of data) {
+            for (const row of allRows) {
               if (next[row.tab_key] && ROLES.includes(row.role as Role)) {
                 next[row.tab_key] = { ...next[row.tab_key], [row.role]: row.visible };
               }
@@ -124,7 +129,6 @@ export default function PermissionsPage() {
     setSaving(true);
     setSaveMsg("");
 
-    const supabase = getSupabaseBrowser();
     const rows: { venue_id: string; role: string; tab_key: string; visible: boolean }[] = [];
 
     // Build all permission rows for the selected role
@@ -137,14 +141,20 @@ export default function PermissionsPage() {
       });
     }
 
-    const { error } = await supabase.from("sidebar_permissions").upsert(rows, {
-      onConflict: "venue_id,role,tab_key",
-    });
+    try {
+      const res = await fetch("/api/admin/sidebar-permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
 
-    if (error) {
-      setSaveMsg("Failed to save permissions.");
-    } else {
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Save failed");
+      }
       setSaveMsg("Permissions saved successfully.");
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : "Failed to save permissions.");
     }
     setSaving(false);
     setTimeout(() => setSaveMsg(""), 3000);
