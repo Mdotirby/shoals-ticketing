@@ -23,8 +23,8 @@ const sidebarItems: SidebarItem[] = [
   { label: "Contracts",        href: "/admin/contracts",   roles: ["owner","venue_admin"] },
   { label: "Partners",         href: "/admin/sponsors",    roles: ["owner","venue_admin"] },
   { label: "Auctions",         href: "/admin/auctions",    roles: ["owner","venue_admin","full_admin"] },
-  { label: "Reports",          href: "/admin/reports",     roles: ["owner","venue_admin","full_admin","read_only","box_office","artist"] },
-  { label: "Sales",            href: "/admin/orders",      roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
+  { label: "Reports",          href: "/admin/reports",     roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
+  { label: "Sales",            href: "/admin/orders",      roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
   { label: "Scanner",          href: "/admin/scan",        roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
   { label: "Guest Lists",      href: "/admin/guest-lists", roles: ["owner","venue_admin","full_admin","artist"] },
   { label: "Venue Management", href: "/portal",            roles: ["owner","venue_admin"] },
@@ -200,7 +200,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
+  // Artists get a hardcoded sidebar — Dashboard, Sales, Guest Lists only
+  const ARTIST_ALLOWED_LABELS = ["Dashboard", "Sales", "Guest Lists"];
+
   const visibleItems = sidebarItems.filter((item) => {
+    // Hardcode artist sidebar — ignore sidebar_permissions entirely
+    if (userRole === "artist") {
+      return ARTIST_ALLOWED_LABELS.includes(item.label);
+    }
+
     const tabKey = TAB_KEY_MAP[item.label];
     // When sidebar_permissions are loaded, they are the sole authority
     if (sidebarPerms && tabKey && tabKey in sidebarPerms) {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import {
   AreaChart,
   Area,
@@ -97,26 +98,97 @@ function TrendIndicator({ current, previous, label }: { current: number; previou
 export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isArtist, setIsArtist] = useState(false);
+  const [artistEventIds, setArtistEventIds] = useState<string[]>([]);
 
   useEffect(() => {
-    const venueId = getCookie("venue-id");
-    const params = venueId ? `?venue_id=${venueId}` : "";
+    const role = getCookie("user-role");
+    const isArtistRole = role === "artist";
+    setIsArtist(isArtistRole);
 
-    fetch(`/api/admin/dashboard${params}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
-      })
-      .then((d) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    async function loadDashboard() {
+      let eventIdsParam = "";
+
+      // If artist, first fetch their assigned event IDs
+      if (isArtistRole) {
+        try {
+          const supabase = getSupabaseBrowser();
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            const res = await fetch(`/api/artists/assignments?artist_id=${authData.user.id}`);
+            if (res.ok) {
+              const assignments = await res.json();
+              const ids = Array.isArray(assignments)
+                ? assignments.map((a: { event_id: string }) => a.event_id)
+                : [];
+              setArtistEventIds(ids);
+              if (ids.length > 0) {
+                eventIdsParam = `event_ids=${ids.join(",")}`;
+              } else {
+                // Artist has no assigned events — show empty dashboard
+                setData({
+                  totalEvents: 0,
+                  ticketsSoldToday: 0,
+                  ticketsSoldYesterday: 0,
+                  ticketsSoldThisWeek: 0,
+                  totalTicketsSold: 0,
+                  totalRevenue: 0,
+                  revenueToday: 0,
+                  revenueThisWeek: 0,
+                  tierBreakdown: [],
+                  dailySales: [],
+                  eventNames: [],
+                  upcomingEvents: [],
+                  recentOrders: [],
+                });
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch artist assignments:", err);
+        }
+      }
+
+      // Build dashboard API URL
+      const venueId = getCookie("venue-id");
+      const params = new URLSearchParams();
+      if (eventIdsParam) {
+        params.set("event_ids", artistEventIds.length > 0 ? artistEventIds.join(",") : eventIdsParam.replace("event_ids=", ""));
+      } else if (venueId) {
+        params.set("venue_id", venueId);
+      }
+
+      // Re-parse eventIdsParam properly
+      let apiUrl = "/api/admin/dashboard";
+      if (isArtistRole && eventIdsParam) {
+        apiUrl += `?${eventIdsParam}`;
+      } else if (venueId) {
+        apiUrl += `?venue_id=${venueId}`;
+      }
+
+      fetch(apiUrl)
+        .then(async (res) => {
+          if (!res.ok) throw new Error("Failed");
+          return res.json();
+        })
+        .then((d) => setData(d))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+
+    loadDashboard();
   }, []);
+
+  const dashboardTitle = isArtist ? "Artist Dashboard" : "Command Center";
+  const dashboardSubtitle = isArtist ? "Sales data for your assigned events" : "Your shows at a glance";
 
   if (loading) {
     return (
       <div className="admin-dashboard">
         <div className="dash-header">
-          <h1 className="admin-page-title">Command Center</h1>
+          <h1 className="admin-page-title">{dashboardTitle}</h1>
         </div>
         <div className="dash-loading-state">
           <div className="dash-spinner" />
@@ -130,7 +202,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="admin-dashboard">
         <div className="dash-header">
-          <h1 className="admin-page-title">Command Center</h1>
+          <h1 className="admin-page-title">{dashboardTitle}</h1>
         </div>
         <div className="dash-loading-state">
           <p>Failed to load dashboard data. Check your connection.</p>
@@ -139,6 +211,196 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // ── ARTIST DASHBOARD (simplified) ──
+  if (isArtist) {
+    return (
+      <div className="admin-dashboard">
+        {/* ── HEADER ── */}
+        <div className="dash-header">
+          <div>
+            <h1 className="admin-page-title">{dashboardTitle}</h1>
+            <p className="dash-subtitle">{dashboardSubtitle}</p>
+          </div>
+        </div>
+
+        {/* ── TOP KPI ROW ── */}
+        <div className="dash-kpi-grid">
+          <div className="dash-kpi-card dash-kpi-highlight">
+            <div className="dash-kpi-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <div className="dash-kpi-content">
+              <span className="dash-kpi-label">Revenue Today</span>
+              <span className="dash-kpi-value">{formatCurrency(data.revenueToday)}</span>
+            </div>
+          </div>
+
+          <div className="dash-kpi-card">
+            <div className="dash-kpi-icon dash-kpi-icon-tickets">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                <path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
+              </svg>
+            </div>
+            <div className="dash-kpi-content">
+              <span className="dash-kpi-label">Tickets Today</span>
+              <span className="dash-kpi-value">{data.ticketsSoldToday}</span>
+              <TrendIndicator current={data.ticketsSoldToday} previous={data.ticketsSoldYesterday} label="sales" />
+            </div>
+          </div>
+
+          <div className="dash-kpi-card">
+            <div className="dash-kpi-icon dash-kpi-icon-week">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
+              </svg>
+            </div>
+            <div className="dash-kpi-content">
+              <span className="dash-kpi-label">This Week</span>
+              <span className="dash-kpi-value">{data.ticketsSoldThisWeek} tickets</span>
+              <span className="dash-kpi-secondary">{formatCurrency(data.revenueThisWeek)} revenue</span>
+            </div>
+          </div>
+
+          <div className="dash-kpi-card">
+            <div className="dash-kpi-icon dash-kpi-icon-total">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+                <path d="M13 5v2" /><path d="M13 17v2" /><path d="M13 11v2" />
+              </svg>
+            </div>
+            <div className="dash-kpi-content">
+              <span className="dash-kpi-label">Total Tickets Sold</span>
+              <span className="dash-kpi-value">{data.totalTicketsSold.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── LIFETIME BANNER ── */}
+        <div className="dash-lifetime-banner">
+          <div className="dash-lifetime-item">
+            <span className="dash-lifetime-label">Total Tickets</span>
+            <span className="dash-lifetime-value">{data.totalTicketsSold.toLocaleString()}</span>
+          </div>
+          <div className="dash-lifetime-divider" />
+          <div className="dash-lifetime-item">
+            <span className="dash-lifetime-label">Total Revenue</span>
+            <span className="dash-lifetime-value">{formatCurrency(data.totalRevenue)}</span>
+          </div>
+          <div className="dash-lifetime-divider" />
+          <div className="dash-lifetime-item">
+            <span className="dash-lifetime-label">Avg. per Ticket</span>
+            <span className="dash-lifetime-value">
+              {data.totalTicketsSold > 0
+                ? formatCurrency(data.totalRevenue / data.totalTicketsSold)
+                : "$0.00"}
+            </span>
+          </div>
+        </div>
+
+        {/* ── SALES TREND CHART ── */}
+        <div className="dash-panel">
+          <div className="dash-panel-header">
+            <h2 className="dash-panel-title">Sales Trend</h2>
+            <span className="dash-panel-badge">Last 30 Days</span>
+          </div>
+          {data.dailySales.length > 0 ? (
+            <div className="dash-chart-wrapper">
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={data.dailySales}>
+                  <defs>
+                    {data.eventNames.map((name, i) => (
+                      <linearGradient key={name} id={`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_COLORS[i % CHART_COLORS.length]} stopOpacity={0} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="rgba(255,255,255,0.2)"
+                    tick={{ fontSize: 11, fill: "rgba(255,255,255,0.35)" }}
+                    tickFormatter={(d: string) => {
+                      const parts = d.split("-");
+                      return `${parts[1]}/${parts[2]}`;
+                    }}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.2)"
+                    tick={{ fontSize: 11, fill: "rgba(255,255,255,0.35)" }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "#12122e",
+                      border: "1px solid rgba(208,194,144,0.2)",
+                      borderRadius: 10,
+                      color: "#fff",
+                      fontSize: 12,
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
+                  {data.eventNames.map((name, i) => (
+                    <Area
+                      key={name}
+                      type="monotone"
+                      dataKey={name}
+                      stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                      fill={`url(#grad-${i})`}
+                      strokeWidth={2}
+                    />
+                  ))}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="dash-empty-state">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
+              </svg>
+              <p>Sales data will appear here once tickets start selling</p>
+            </div>
+          )}
+        </div>
+
+        {/* ── TIER BREAKDOWN ── */}
+        {data.tierBreakdown.length > 0 && (
+          <div className="dash-panel">
+            <div className="dash-panel-header">
+              <h2 className="dash-panel-title">Sales by Tier</h2>
+            </div>
+            <div className="dash-tier-grid">
+              {data.tierBreakdown.map((tier) => (
+                <div key={tier.tier_name} className="dash-tier-item">
+                  <div className="dash-tier-bar-wrapper">
+                    <div
+                      className="dash-tier-bar"
+                      style={{
+                        width: `${Math.max(
+                          8,
+                          (tier.tickets_sold / Math.max(...data.tierBreakdown.map((t) => t.tickets_sold))) * 100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="dash-tier-info">
+                    <span className="dash-tier-name">{tier.tier_name}</span>
+                    <span className="dash-tier-count">{tier.tickets_sold} sold</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── OWNER / ADMIN DASHBOARD (full) ──
   return (
     <div className="admin-dashboard">
       {/* ── HEADER ── */}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 type EventSales = {
   id: string;
@@ -21,28 +22,64 @@ export default function AdminSalesPage() {
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [venueFilter, setVenueFilter] = useState("");
   const [loading, setLoading] = useState(true);
-  const isOwner = getCookie("user-role") === "owner";
+  const userRole = getCookie("user-role") || "";
+  const isOwner = userRole === "owner";
+  const isArtist = userRole === "artist";
 
   useEffect(() => {
-    const venueId = getCookie("venue-id");
-    const params = new URLSearchParams({ all: "1" });
-    if (venueId) params.set("venue_id", venueId);
+    async function loadSales() {
+      const venueId = getCookie("venue-id");
 
-    Promise.all([
-      fetch(`/api/events?${params}`).then((r) => r.json()),
-      isOwner ? fetch("/api/venues").then((r) => r.json()) : Promise.resolve([]),
-    ])
-      .then(async ([eventsData, venuesData]) => {
+      // If artist, fetch their assigned event IDs first
+      let artistEventIds: string[] | null = null;
+      if (isArtist) {
+        try {
+          const supabase = getSupabaseBrowser();
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            const res = await fetch(`/api/artists/assignments?artist_id=${authData.user.id}`);
+            if (res.ok) {
+              const assignments = await res.json();
+              artistEventIds = Array.isArray(assignments)
+                ? assignments.map((a: { event_id: string }) => a.event_id)
+                : [];
+            }
+          }
+        } catch (err) {
+          console.error("Failed to fetch artist assignments:", err);
+        }
+
+        // If artist has no assignments, show empty
+        if (!artistEventIds || artistEventIds.length === 0) {
+          setEvents([]);
+          setLoading(false);
+          return;
+        }
+      }
+
+      const params = new URLSearchParams({ all: "1" });
+      if (venueId) params.set("venue_id", venueId);
+
+      try {
+        const [eventsData, venuesData] = await Promise.all([
+          fetch(`/api/events?${params}`).then((r) => r.json()),
+          isOwner ? fetch("/api/venues").then((r) => r.json()) : Promise.resolve([]),
+        ]);
+
         if (Array.isArray(venuesData)) setVenues(venuesData);
         if (!Array.isArray(eventsData)) return;
 
+        // Filter to artist's assigned events if applicable
+        const filteredEventsData = artistEventIds
+          ? eventsData.filter((ev: Record<string, unknown>) => artistEventIds!.includes(ev.id as string))
+          : eventsData;
+
         // Fetch ticket tiers for each event to get capacity + sold count
         const enriched: EventSales[] = await Promise.all(
-          eventsData.map(async (ev: Record<string, unknown>) => {
+          filteredEventsData.map(async (ev: Record<string, unknown>) => {
             const tiersRes = await fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json());
             const tiers = Array.isArray(tiersRes) ? tiersRes : [];
             const totalCapacity = tiers.reduce((s: number, t: { capacity: number }) => s + (t.capacity || 0), 0);
-            // For now, tickets_sold is estimated from orders (actual count needs tickets table)
             return {
               id: ev.id as string,
               title: ev.title as string,
@@ -50,16 +87,21 @@ export default function AdminSalesPage() {
               date: ev.date as string,
               venue_id: ev.venue_id as string | null,
               total_capacity: totalCapacity || 500,
-              tickets_sold: 0, // Will be populated when webhook is wired
+              tickets_sold: 0,
             };
           })
         );
 
         setEvents(enriched);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [isOwner]);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSales();
+  }, [isOwner, isArtist]);
 
   const filteredEvents = venueFilter
     ? events.filter((e) => e.venue_id === venueFilter)

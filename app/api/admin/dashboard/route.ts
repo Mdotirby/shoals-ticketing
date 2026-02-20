@@ -1,49 +1,59 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
-// GET /api/admin/dashboard?venue_id=... (optional venue filter)
+// GET /api/admin/dashboard?venue_id=...&event_ids=id1,id2 (optional filters)
 export async function GET(request: Request) {
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
+  const eventIdsParam = searchParams.get("event_ids"); // comma-separated event IDs (for artist filtering)
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+  const emptyResponse = {
+    totalEvents: 0,
+    ticketsSoldToday: 0,
+    ticketsSoldYesterday: 0,
+    ticketsSoldThisWeek: 0,
+    totalTicketsSold: 0,
+    totalRevenue: 0,
+    revenueToday: 0,
+    revenueThisWeek: 0,
+    tierBreakdown: [],
+    dailySales: [],
+    eventNames: [],
+    upcomingEvents: [],
+    recentOrders: [],
+    revenueByEvent: [],
+  };
+
   try {
-    // If venue-scoped, get the event IDs for this venue first
+    // If explicit event IDs are provided (artist mode), use those directly
     let eventIds: string[] | null = null;
-    if (venueId) {
+    if (eventIdsParam) {
+      eventIds = eventIdsParam.split(",").filter(Boolean);
+      if (eventIds.length === 0) {
+        return NextResponse.json(emptyResponse);
+      }
+    } else if (venueId) {
+      // If venue-scoped, get the event IDs for this venue first
       const { data: venueEvents } = await admin
         .from("events")
         .select("id")
         .eq("venue_id", venueId);
       eventIds = venueEvents?.map((e) => e.id) || [];
       if (eventIds.length === 0) {
-        return NextResponse.json({
-          totalEvents: 0,
-          ticketsSoldToday: 0,
-          ticketsSoldYesterday: 0,
-          ticketsSoldThisWeek: 0,
-          totalTicketsSold: 0,
-          totalRevenue: 0,
-          revenueToday: 0,
-          revenueThisWeek: 0,
-          tierBreakdown: [],
-          dailySales: [],
-          eventNames: [],
-          upcomingEvents: [],
-          recentOrders: [],
-          revenueByEvent: [],
-        });
+        return NextResponse.json(emptyResponse);
       }
     }
 
     // Build queries with optional venue scoping
     let eventsQ = admin.from("events").select("id", { count: "exact", head: true });
-    if (venueId) eventsQ = eventsQ.eq("venue_id", venueId);
+    if (eventIds) eventsQ = eventsQ.in("id", eventIds);
+    else if (venueId) eventsQ = eventsQ.eq("venue_id", venueId);
 
     let ticketsTodayQ = admin.from("tickets").select("id", { count: "exact", head: true }).gte("created_at", todayStart);
     if (eventIds) ticketsTodayQ = ticketsTodayQ.in("event_id", eventIds);
@@ -76,7 +86,8 @@ export async function GET(request: Request) {
       .gte("date", now.toISOString().slice(0, 10))
       .order("date", { ascending: true })
       .limit(5);
-    if (venueId) upcomingEventsQ = upcomingEventsQ.eq("venue_id", venueId);
+    if (eventIds) upcomingEventsQ = upcomingEventsQ.in("id", eventIds);
+    else if (venueId) upcomingEventsQ = upcomingEventsQ.eq("venue_id", venueId);
 
     // Recent orders
     let recentOrdersQ = admin.from("orders")
