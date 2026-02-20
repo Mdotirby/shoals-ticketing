@@ -8,7 +8,7 @@ import Footer from "@/app/components/Footer";
 
 type FilterType = "all" | "event" | "artist" | "venue" | "city";
 
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
 
 function formatEventDate(date: string) {
   return safeDate(date).toLocaleDateString("en-US", {
@@ -21,7 +21,7 @@ function formatEventDate(date: string) {
 function formatEventTime(date: string) {
   if (date && date.length === 10) return null;
   const d = safeDate(date);
-  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null;
+  if (d.getHours() === 0 && d.getMinutes() === 0) return null;
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 

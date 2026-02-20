@@ -41,10 +41,10 @@ type EventData = {
   artists?: Artist[];
 };
 
-/** Parse date strings safely — date-only strings get T12:00:00 to avoid UTC midnight timezone shift */
+/** Parse date strings safely — strips timezone so stored time is treated as intended local display time */
 function safeDate(date: string) {
   if (date && date.length === 10 && date[4] === "-") return new Date(date + "T12:00:00");
-  return new Date(date);
+  return new Date(date.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
 }
 
 function formatDate(date: string) {
@@ -56,8 +56,10 @@ function formatDate(date: string) {
   });
 }
 
-function formatTime(date: string) {
-  return safeDate(date).toLocaleTimeString("en-US", {
+function formatTime(date: string): string | null {
+  const d = safeDate(date);
+  if (d.getHours() === 0 && d.getMinutes() === 0) return null;
+  return d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,

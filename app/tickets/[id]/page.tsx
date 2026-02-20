@@ -60,11 +60,11 @@ export default function TicketViewPage() {
               <p className="digital-ticket-venue">{event?.venue || "Venue"}</p>
               {event?.date && (
                 <p className="digital-ticket-date">
-                  {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(event.date).toLocaleDateString("en-US", {
+                  {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(event.date).toLocaleDateString("en-US", {
                     weekday: "long", month: "long", day: "numeric", year: "numeric",
                   })}
                   {" at "}
-                  {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d))(event.date).toLocaleTimeString("en-US", {
+                  {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(event.date).toLocaleTimeString("en-US", {
                     hour: "numeric", minute: "2-digit",
                   })}
                 </p>

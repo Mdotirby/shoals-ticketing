@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { getCookie } from "@/lib/cookies";
 
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
 
 function formatDate(date: string) {
   return safeDate(date).toLocaleDateString("en-US", {

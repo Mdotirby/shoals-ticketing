@@ -218,28 +218,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           alt="VenueCore"
           style={{ width: 36, height: 36, objectFit: "contain" }}
         />
-        <button
-          className="admin-mobile-avatar-btn"
-          onClick={() => setSidebarOpen((prev) => !prev)}
-          aria-label="Toggle navigation"
-        >
-          {avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
-          ) : (
-            <span className="admin-mobile-avatar-placeholder">
-              {adminName ? adminName.charAt(0).toUpperCase() : "☰"}
-            </span>
-          )}
-          <span className={`admin-mobile-dropdown-arrow ${sidebarOpen ? "open" : ""}`}>▾</span>
-        </button>
+        <div className="admin-mobile-dropdown-wrapper">
+          <button
+            className="admin-mobile-avatar-btn"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+            aria-label="Toggle navigation"
+          >
+            {avatarUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
+            ) : (
+              <span className="admin-mobile-avatar-placeholder">
+                {adminName ? adminName.charAt(0).toUpperCase() : "☰"}
+              </span>
+            )}
+            <span className={`admin-mobile-dropdown-arrow ${sidebarOpen ? "open" : ""}`}>▾</span>
+          </button>
+          <nav className={`admin-mobile-dropdown-menu ${sidebarOpen ? "dropdown-open" : ""}`}>
+            {visibleItems.map((item) => (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                className={`admin-mobile-dropdown-link ${pathname === item.href ? "active" : ""}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {sidebarOpen && (
         <div className="admin-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+      {/* Desktop sidebar — hidden on mobile */}
+      <aside className={`admin-sidebar`}>
         <div className="admin-sidebar-header">
           {userRole === "artist" && avatarUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */

@@ -533,7 +533,7 @@ export default function PortalPage() {
   };
 
   const slugDate = (d: string) =>
-    ((v: string) => (v && v.length === 10 && v[4] === "-") ? new Date(v + "T12:00:00") : new Date(v))(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    ((v: string) => (v && v.length === 10 && v[4] === "-") ? new Date(v + "T12:00:00") : new Date(v.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   if (loading) return <main className="ticket-page"><div className="ticket-page-loading">Loading…</div></main>;
 

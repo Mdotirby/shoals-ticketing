@@ -51,11 +51,13 @@ export default function AdminEditEventPage() {
           return;
         }
 
-        // Parse date + time using local time (avoid UTC shift)
+        // Parse date + time from raw string (handles "T" or space separator, with or without tz)
         const raw = event.date || "";
         const dateStr = raw.length >= 10 ? raw.slice(0, 10) : "";
-        // Extract time: if stored as ISO-ish "YYYY-MM-DDTHH:MM:SS", grab HH:MM
-        const timeStr = raw.length >= 16 && raw[10] === "T" ? raw.slice(11, 16) : "";
+        const sep = raw.length > 10 ? raw[10] : "";
+        let timeStr = raw.length >= 16 && (sep === "T" || sep === " ") ? raw.slice(11, 16) : "";
+        // Treat midnight (00:00) as "no time set"
+        if (timeStr === "00:00") timeStr = "";
 
         setForm({
           title: event.title || "",

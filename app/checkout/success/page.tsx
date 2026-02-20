@@ -17,7 +17,7 @@ type ConfirmationData = {
   ticket: { id: string; qr_code: string; qr_data_url: string } | null;
 };
 
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
+function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
 
 function formatDate(d: string) {
   return safeDate(d).toLocaleDateString("en-US", {
