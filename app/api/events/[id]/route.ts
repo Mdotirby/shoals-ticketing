@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id")
+    .select("id,title,venue,date,price,image_url,venue_id,description")
     .eq("id", id)
     .single();
 
@@ -32,18 +34,21 @@ export async function PUT(
   const admin = createAdminClient();
   const body = await request.json();
 
+  // Only include fields that were actually sent to avoid wiping unrelated columns
+  const updates: Record<string, unknown> = {};
+  if (body.title !== undefined) updates.title = body.title;
+  if (body.venue !== undefined) updates.venue = body.venue;
+  if (body.date !== undefined) updates.date = body.date;
+  if (body.price !== undefined) updates.price = body.price;
+  if (body.ticketing_fee !== undefined) updates.ticketing_fee = body.ticketing_fee;
+  if (body.venue_rebate !== undefined) updates.venue_rebate = body.venue_rebate;
+  if (body.description !== undefined) updates.description = body.description;
+  if (body.image_url !== undefined) updates.image_url = body.image_url;
+  if (body.status !== undefined) updates.status = body.status;
+
   const { data, error } = await admin
     .from("events")
-    .update({
-      title: body.title,
-      venue: body.venue,
-      date: body.date,
-      price: body.price,
-      ticketing_fee: body.ticketing_fee,
-      venue_rebate: body.venue_rebate,
-      description: body.description,
-      image_url: body.image_url,
-    })
+    .update(updates)
     .eq("id", id)
     .select()
     .single();
