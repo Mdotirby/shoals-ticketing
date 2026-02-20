@@ -62,7 +62,7 @@ export default function AboutPage() {
 
             <div className="about-philosophy-image">
               {/* TEMPLATE: Replace src with your own image */}
-              <div className="about-image-placeholder">
+              <div className="IMG_5742.png">
                 <span>Drop your image here</span>
                 <p>Replace this div with an &lt;Image&gt; component</p>
               </div>
