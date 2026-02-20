@@ -170,23 +170,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const venueId = getCookie("venue-id") || venueIdResolved;
     if (!venueId || !userRole) return;
 
-    const supabase = getSupabaseBrowser();
-    supabase
-      .from("sidebar_permissions")
-      .select("tab_key, visible")
-      .eq("venue_id", venueId)
-      .eq("role", userRole)
-      .then(({ data, error }: { data: { tab_key: string; visible: boolean }[] | null; error: unknown }) => {
-        if (error) {
-          console.warn("[AdminLayout] sidebar_permissions fetch error:", error);
-        }
-        if (data && data.length > 0) {
+    // Use server-side API route to bypass RLS restrictions
+    fetch(`/api/admin/sidebar-permissions?venue_id=${venueId}&role=${userRole}`)
+      .then((r) => r.json())
+      .then((data: { tab_key: string; visible: boolean }[]) => {
+        if (Array.isArray(data) && data.length > 0) {
           const map: Record<string, boolean> = {};
           for (const row of data) {
             map[row.tab_key] = row.visible;
           }
           setSidebarPerms(map);
         }
+      })
+      .catch((err) => {
+        console.warn("[AdminLayout] sidebar_permissions fetch error:", err);
       });
   }, [userRole, venueIdResolved]);
 
