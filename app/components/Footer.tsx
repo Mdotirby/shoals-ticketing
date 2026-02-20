@@ -104,12 +104,16 @@ export default function Footer() {
           Reserved.
         </p>
         <div className="footer-legal">
+          <Link href="/do-not-sell" className="footer-legal-link">
+            Do Not Sell My Info
+          </Link>
+          <span className="footer-legal-separator">·</span>
           <Link href="/privacy" className="footer-legal-link">
             Privacy Policy
           </Link>
           <span className="footer-legal-separator">·</span>
-          <Link href="/terms" className="footer-legal-link">
-            Terms &amp; Conditions
+          <Link href="/cookies" className="footer-legal-link">
+            Cookie Policy
           </Link>
         </div>
       </div>

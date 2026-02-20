@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
+import NewsletterSignup from "./components/NewsletterSignup";
 import { Event } from "@/lib/types/event";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
@@ -174,6 +175,7 @@ export default function HomePage() {
         </section>
       </main>
 
+      <NewsletterSignup />
       <Footer />
     </>
   );
