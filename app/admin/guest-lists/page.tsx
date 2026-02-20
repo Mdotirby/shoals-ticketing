@@ -537,25 +537,20 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
   const loadEventData = useCallback(
     async (eventId: string) => {
       if (!eventId) return;
-      const supabase = getSupabaseBrowser();
 
-      // Fetch guest list
-      const { data: guestData, error: guestErr } = await supabase
-        .from("guest_list")
-        .select("id, first_name, last_name, quantity, artist_id")
-        .eq("event_id", eventId)
-        .order("created_at");
-
-      if (guestErr) {
-        if (guestErr.message.includes("does not exist") || guestErr.code === "42P01") {
-          setTablesExist(false);
-          return;
+      // Fetch guest list via API (bypasses RLS)
+      try {
+        const guestRes = await fetch(`/api/artists/guests?event_id=${eventId}`);
+        if (guestRes.ok) {
+          const guestData = await guestRes.json();
+          setGuests(Array.isArray(guestData) ? guestData : []);
         }
-        console.error("Guest list query error:", guestErr.message);
+      } catch (err) {
+        console.error("Guest list fetch error:", err);
       }
-      setGuests((guestData as GuestRow[]) || []);
 
-      // Fetch artist assignments for this event
+      // Fetch artist assignments for this event via Supabase (owner has RLS access)
+      const supabase = getSupabaseBrowser();
       const { data: assignData, error: assignErr } = await supabase
         .from("artist_event_assignments")
         .select("id, artist_id, comp_limit")
@@ -602,22 +597,24 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
     }
     setSaving(true);
     setGuestError("");
-    const supabase = getSupabaseBrowser();
-    const { data, error: dbError } = await supabase
-      .from("guest_list")
-      .insert({
+
+    const res = await fetch("/api/artists/guests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         event_id: selectedEventId,
         artist_id: userId,
         first_name: newGuest.first_name.trim(),
         last_name: newGuest.last_name.trim(),
         quantity: newGuest.quantity,
-      })
-      .select()
-      .single();
+      }),
+    });
 
-    if (dbError) {
-      setGuestError(dbError.message);
-    } else if (data) {
+    if (!res.ok) {
+      const errData = await res.json();
+      setGuestError(errData.error || "Failed to add guest");
+    } else {
+      const data = await res.json();
       setGuests((prev) => [...prev, data as GuestRow]);
       setNewGuest({ first_name: "", last_name: "", quantity: 1 });
     }
@@ -625,8 +622,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
   };
 
   const removeGuest = async (id: string) => {
-    const supabase = getSupabaseBrowser();
-    await supabase.from("guest_list").delete().eq("id", id);
+    await fetch(`/api/artists/guests?id=${id}`, { method: "DELETE" });
     setGuests((prev) => prev.filter((g) => g.id !== id));
   };
 

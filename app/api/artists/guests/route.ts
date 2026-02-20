@@ -1,23 +1,29 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
-// GET: fetch guest list for an artist + event (bypasses RLS)
+// GET: fetch guest list (bypasses RLS)
+// Params: event_id (required), artist_id (optional — if omitted, returns all guests for event)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
   const artistId = searchParams.get("artist_id");
 
-  if (!eventId || !artistId) {
-    return NextResponse.json({ error: "event_id and artist_id required" }, { status: 400 });
+  if (!eventId) {
+    return NextResponse.json({ error: "event_id is required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("guest_list")
     .select("id, first_name, last_name, quantity, artist_id")
     .eq("event_id", eventId)
-    .eq("artist_id", artistId)
     .order("created_at");
+
+  if (artistId) {
+    query = query.eq("artist_id", artistId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
