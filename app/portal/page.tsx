@@ -346,7 +346,7 @@ export default function PortalPage() {
           email: newArtistEmail || null,
           password: newArtistPassword || null,
           role: "artist",
-          venue_id: null,
+          venue_id: userVenueId || null,
           first_name: newArtistName.trim(),
           last_name: null,
         }),

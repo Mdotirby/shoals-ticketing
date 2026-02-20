@@ -167,7 +167,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [venueIdResolved, setVenueIdResolved] = useState("");
   useEffect(() => {
     // Use cookie first, fallback to resolved venue ID from admin record
-    const venueId = getCookie("venue-id") || venueIdResolved;
+    let venueId = getCookie("venue-id") || venueIdResolved;
+
+    // For artists without a venue_id, resolve from first available venue
+    if (!venueId && userRole === "artist") {
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((venues: Array<{ id: string }>) => {
+          if (Array.isArray(venues) && venues.length > 0) {
+            setVenueIdResolved(venues[0].id);
+          }
+        })
+        .catch(() => {});
+      return; // Will re-run when venueIdResolved updates
+    }
+
     if (!venueId || !userRole) return;
 
     // Use server-side API route to bypass RLS restrictions
