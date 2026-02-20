@@ -6,6 +6,7 @@ import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
+type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
 
 const DEFAULT_FIXED: ExpenseItem[] = [
   { name: "Rent", amount: 0 },
@@ -45,6 +46,7 @@ export default function AdminCreateOfferPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [isOwnerRole, setIsOwnerRole] = useState(false);
 
   // Venue info
@@ -73,6 +75,17 @@ export default function AdminCreateOfferPage() {
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setAgents(data); })
       .catch(() => {});
+
+    // Fetch event venues (non-platform venues)
+    import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+      getSupabaseBrowser()
+        .from("event_venues")
+        .select("id, name, full_address, contact_name, phone")
+        .order("name")
+        .then(({ data }: { data: EventVenue[] | null }) => {
+          if (data) setEventVenues(data);
+        });
+    });
 
     // Fetch owner's global defaults (radius clause, ticketing fee)
     fetch("/api/admin/users")
@@ -135,6 +148,16 @@ export default function AdminCreateOfferPage() {
         .catch(() => {});
     }
   }, []);
+
+  const selectEventVenue = (venueId: string) => {
+    const v = eventVenues.find((x) => x.id === venueId);
+    if (v) {
+      setVenueName(v.name);
+      setVenueAddressField(v.full_address || "");
+      setVenueContact(v.contact_name || "");
+      setVenuePhone(v.phone || "");
+    }
+  };
 
   const selectAgent = (agentId: string) => {
     const a = agents.find((x) => x.id === agentId);
@@ -291,6 +314,21 @@ export default function AdminCreateOfferPage() {
       }).catch(() => {}); // fire-and-forget
     }
 
+    // Auto-save event venue for future use (if not already in list)
+    if (venueName && !eventVenues.some((v) => v.name.toLowerCase() === venueName.toLowerCase())) {
+      import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+        getSupabaseBrowser()
+          .from("event_venues")
+          .insert({
+            name: venueName,
+            full_address: venueAddressField || null,
+            contact_name: venueContact || null,
+            phone: venuePhone || null,
+          })
+          .then(() => {}); // fire-and-forget
+      });
+    }
+
     try {
       const res = await fetch("/api/offers", {
         method: "POST",
@@ -350,6 +388,17 @@ export default function AdminCreateOfferPage() {
 
         {/* ═══ VENUE INFO ═══ */}
         <h2 className="admin-form-section-title">Venue Info</h2>
+        {eventVenues.length > 0 && (
+          <label className="admin-form-label" style={{ marginBottom: 12 }}>
+            Select Previous Venue
+            <select className="admin-form-input" onChange={(e) => selectEventVenue(e.target.value)} defaultValue="">
+              <option value="" disabled>— Choose a venue —</option>
+              {eventVenues.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="admin-form-grid">
           <label className="admin-form-label">Venue *<input type="text" className="admin-form-input" placeholder="e.g. The Shoals Theatre" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></label>
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Florence, AL 35630" value={venueAddressField} onChange={(e) => setVenueAddressField(e.target.value)} /></label>

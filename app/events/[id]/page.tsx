@@ -31,6 +31,7 @@ type EventData = {
   price: number;
   image_url?: string;
   venue_id?: string;
+  event_venue_id?: string;
   description?: string;
   age_restriction?: string;
   venue_lat?: number;
@@ -38,6 +39,9 @@ type EventData = {
   venue_phone?: string;
   venue_email?: string;
   venue_address?: string;
+  venue_directions_car?: string;
+  venue_parking_info?: string;
+  venue_directions_transit?: string;
   artists?: Artist[];
 };
 
@@ -133,9 +137,44 @@ export default function EventDetailPage() {
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
                   tax_rate: Number(v.tax_rate) || 0.095,
                 });
+                // Enrich event with venue location data
+                const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
+                const fullAddress = parts.length > 0 ? parts.join(", ") : "";
+                setEvent((prev) => prev ? {
+                  ...prev,
+                  venue_address: fullAddress || prev.venue_address,
+                  venue_phone: (v.buyer_phone as string) || prev.venue_phone,
+                  venue_email: (v.buyer_email as string) || prev.venue_email,
+                } : prev);
               }
             })
             .catch(() => {});
+        }
+
+        // Fetch event venue data (non-platform venues)
+        if (data.event_venue_id) {
+          import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+            const sb = getSupabaseBrowser();
+            sb.from("event_venues")
+              .select("*")
+              .eq("id", data.event_venue_id)
+              .single()
+              .then(({ data: ev }: { data: Record<string, unknown> | null }) => {
+                if (ev) {
+                  setEvent((prev) => prev ? {
+                    ...prev,
+                    venue_address: (ev.full_address as string) || prev.venue_address,
+                    venue_lat: (ev.lat as number) || prev.venue_lat,
+                    venue_lng: (ev.lng as number) || prev.venue_lng,
+                    venue_phone: (ev.phone as string) || prev.venue_phone,
+                    venue_email: (ev.email as string) || prev.venue_email,
+                    venue_directions_car: (ev.directions_by_car as string) || prev.venue_directions_car,
+                    venue_parking_info: (ev.parking_info as string) || prev.venue_parking_info,
+                    venue_directions_transit: (ev.directions_public_transit as string) || prev.venue_directions_transit,
+                  } : prev);
+                }
+              });
+          });
         }
 
         fetch(`/api/events/${data.id}/ticket-types`)
@@ -333,36 +372,80 @@ export default function EventDetailPage() {
           </section>
         )}
 
-        {/* ── Map + Venue Info ── */}
-        {(mapSrc || event.venue_phone || event.venue_email) && (
-          <section className="event-venue-section">
-            {mapSrc && (
-              <div className="event-map-wrap">
-                <iframe
-                  title="Venue location"
-                  src={mapSrc}
-                  className="event-map-iframe"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
-                />
+        {/* ── How to Get to the Venue ── */}
+        {(mapSrc || event.venue_address) && (
+          <section className="venue-directions-section">
+            <span className="venue-directions-label">Getting Here</span>
+            <h2 className="venue-directions-heading">How to Get to the Venue</h2>
+
+            <div className="venue-directions-container">
+              {mapSrc && (
+                <div className="venue-directions-map-wrap">
+                  <iframe
+                    title="Venue location"
+                    src={mapSrc}
+                    className="venue-directions-map-iframe"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
+              <div className="venue-directions-cards">
+                {/* Address Card */}
+                <div className="venue-directions-card venue-address-card">
+                  <h3 className="venue-directions-card-title">Address</h3>
+                  <p className="venue-directions-card-name">{event.venue}</p>
+                  {event.venue_address && (
+                    <p className="venue-directions-card-text">{event.venue_address}</p>
+                  )}
+                  {event.venue_phone && (
+                    <a href={`tel:${event.venue_phone}`} className="venue-directions-card-link">
+                      📞 {event.venue_phone}
+                    </a>
+                  )}
+                  {event.venue_email && (
+                    <a href={`mailto:${event.venue_email}`} className="venue-directions-card-link">
+                      ✉️ {event.venue_email}
+                    </a>
+                  )}
+                </div>
+
+                {/* Directions & Parking Card */}
+                {(event.venue_directions_car || event.venue_parking_info || event.venue_directions_transit) && (
+                  <div className="venue-directions-card venue-parking-card">
+                    <h3 className="venue-directions-card-title">Directions &amp; Parking</h3>
+                    {event.venue_directions_car && (
+                      <div className="venue-directions-info-block">
+                        <span className="venue-directions-info-icon">🚗</span>
+                        <div>
+                          <strong className="venue-directions-info-label">By Car</strong>
+                          <p className="venue-directions-card-text">{event.venue_directions_car}</p>
+                        </div>
+                      </div>
+                    )}
+                    {event.venue_parking_info && (
+                      <div className="venue-directions-info-block">
+                        <span className="venue-directions-info-icon">🅿️</span>
+                        <div>
+                          <strong className="venue-directions-info-label">Parking</strong>
+                          <p className="venue-directions-card-text">{event.venue_parking_info}</p>
+                        </div>
+                      </div>
+                    )}
+                    {event.venue_directions_transit && (
+                      <div className="venue-directions-info-block">
+                        <span className="venue-directions-info-icon">🚌</span>
+                        <div>
+                          <strong className="venue-directions-info-label">Public Transport</strong>
+                          <p className="venue-directions-card-text">{event.venue_directions_transit}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-            <div className="event-venue-contact">
-              <h3 className="event-venue-contact-name">{event.venue}</h3>
-              {event.venue_address && (
-                <p className="event-venue-address">{event.venue_address}</p>
-              )}
-              {event.venue_phone && (
-                <a href={`tel:${event.venue_phone}`} className="event-venue-contact-link">
-                  📞 {event.venue_phone}
-                </a>
-              )}
-              {event.venue_email && (
-                <a href={`mailto:${event.venue_email}`} className="event-venue-contact-link">
-                  ✉️ {event.venue_email}
-                </a>
-              )}
             </div>
           </section>
         )}

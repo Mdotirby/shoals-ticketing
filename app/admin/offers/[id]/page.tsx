@@ -25,8 +25,10 @@ const DEFAULT_VARIABLE: VariableExpenseItem[] = [
 export default function AdminOfferDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  type EventVenueOption = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
   const [offer, setOffer] = useState<ArtistOffer | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
+  const [eventVenues, setEventVenues] = useState<EventVenueOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -76,6 +78,17 @@ export default function AdminOfferDetailPage() {
 
     // Also load contract
     fetchContract();
+
+    // Fetch event venues for dropdown
+    import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+      getSupabaseBrowser()
+        .from("event_venues")
+        .select("id, name, full_address, contact_name, phone")
+        .order("name")
+        .then(({ data }: { data: EventVenueOption[] | null }) => {
+          if (data) setEventVenues(data);
+        });
+    });
   }, [id]);
 
   const updateField = (key: string, value: unknown) => {
@@ -375,6 +388,25 @@ export default function AdminOfferDetailPage() {
       {/* Editable Fields */}
       <div className="admin-form">
         <h2 className="admin-form-section-title">Venue Info</h2>
+        {eventVenues.length > 0 && (
+          <label className="admin-form-label" style={{ marginBottom: 12 }}>
+            Select Previous Venue
+            <select className="admin-form-input" onChange={(e) => {
+              const v = eventVenues.find((x) => x.id === e.target.value);
+              if (v) {
+                updateField("venue", v.name);
+                updateField("venue_address", v.full_address || "");
+                updateField("venue_contact", v.contact_name || "");
+                updateField("venue_phone", v.phone || "");
+              }
+            }} defaultValue="">
+              <option value="" disabled>— Choose a venue —</option>
+              {eventVenues.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="admin-form-grid">
           <label className="admin-form-label">Venue<input type="text" className="admin-form-input" value={String(form.venue || "")} onChange={(e) => updateField("venue", e.target.value)} /></label>
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" value={String(form.venue_address || "")} onChange={(e) => updateField("venue_address", e.target.value)} /></label>

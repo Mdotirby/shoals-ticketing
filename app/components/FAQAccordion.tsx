@@ -34,6 +34,11 @@ export const GLOBAL_FAQS: FAQItem[] = [
     answer:
       "Yes. After checkout you will receive a confirmation email with your QR code ticket(s) attached. Tickets are also accessible via your order confirmation link.",
   },
+  {
+    question: "Is this event age-restricted?",
+    answer:
+      "Age restrictions vary by event. Check the event details section above for any age requirements. Valid ID may be required at the door.",
+  },
 ];
 
 type FAQAccordionProps = {
@@ -55,19 +60,19 @@ export default function FAQAccordion({ faqs }: FAQAccordionProps) {
   const renderItem = (item: FAQItem, index: number) => (
     <div
       key={index}
-      className={`faq-item ${openIndex === index ? "faq-item-open" : ""}`}
+      className={`faq-card ${openIndex === index ? "faq-card-open" : ""}`}
     >
       <button
         type="button"
-        className="faq-question"
+        className="faq-card-question"
         onClick={() => toggle(index)}
         aria-expanded={openIndex === index}
       >
-        <span className="faq-question-text">{item.question}</span>
+        <span className="faq-card-question-text">{item.question}</span>
         <svg
-          className="faq-chevron"
-          width="18"
-          height="18"
+          className="faq-card-chevron"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -84,13 +89,13 @@ export default function FAQAccordion({ faqs }: FAQAccordionProps) {
       <AnimatePresence initial={false}>
         {openIndex === index && (
           <motion.div
-            className="faq-answer"
+            className="faq-card-answer"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.22, ease: "easeInOut" }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            <p className="faq-answer-text">{item.answer}</p>
+            <p className="faq-card-answer-text">{item.answer}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -98,9 +103,17 @@ export default function FAQAccordion({ faqs }: FAQAccordionProps) {
   );
 
   return (
-    <div className="faq-grid">
-      <div className="faq-column">{leftColumn.map(renderItem)}</div>
-      <div className="faq-column">{rightColumn.map(renderItem)}</div>
-    </div>
+    <section className="faq-section">
+      <span className="faq-section-label">FAQ</span>
+      <h2 className="faq-section-heading">Frequently Asked Questions</h2>
+      <div className="faq-cards-grid">
+        <div className="faq-cards-column">
+          {leftColumn.map((item, i) => renderItem(item, i))}
+        </div>
+        <div className="faq-cards-column">
+          {rightColumn.map((item, i) => renderItem(item, i + midpoint))}
+        </div>
+      </div>
+    </section>
   );
 }

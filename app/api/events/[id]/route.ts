@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id")
     .eq("id", id)
     .single();
 
