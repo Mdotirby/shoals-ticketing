@@ -61,11 +61,13 @@ export default function AboutPage() {
             </div>
 
             <div className="about-philosophy-image">
-              {/* TEMPLATE: Replace src with your own image */}
-              <div className="IMG_5742.png">
-                <span>Drop your image here</span>
-                <p>Replace this div with an &lt;Image&gt; component</p>
-              </div>
+              <Image
+                src="/IMG_5742.png"
+                alt="West 72 Entertainment"
+                width={600}
+                height={450}
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
+              />
             </div>
           </div>
         </section>
