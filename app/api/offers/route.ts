@@ -68,6 +68,8 @@ export async function POST(request: Request) {
       merch_split: body.merch_split || null,
       merch_seller: body.merch_seller || null,
       comps: body.comps || 0,
+      artist_comps: body.artist_comps || 0,
+      marketing_comps: body.marketing_comps || 0,
       // Scaling + Expenses
       ticket_scaling: body.ticket_scaling || [],
       fixed_expenses: body.fixed_expenses || [],

@@ -68,6 +68,8 @@ export type ArtistOffer = {
   merch_split?: string;
   merch_seller?: string;
   comps?: number;
+  artist_comps?: number;
+  marketing_comps?: number;
 
   // Ticket scaling
   ticket_scaling?: TicketScalingRow[];

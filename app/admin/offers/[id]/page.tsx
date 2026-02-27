@@ -8,6 +8,19 @@ import type { Venue } from "@/lib/types/venue";
 import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 
+/** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
+function formatTime12hr(time: string): string {
+  if (!time) return time;
+  const match = time.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return time;
+  let hours = parseInt(match[1]);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? "PM" : "AM";
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+  return `${hours}:${minutes} ${ampm}`;
+}
+
 const DEFAULT_FIXED: ExpenseItem[] = [
   { name: "Rent", amount: 0 }, { name: "Production", amount: 0 }, { name: "Catering", amount: 0 },
   { name: "Hospitality", amount: 0 }, { name: "Support", amount: 0 }, { name: "Talent", amount: 0 },
@@ -260,7 +273,7 @@ export default function AdminOfferDetailPage() {
       labelVal("Email", String(form.agent_email || "—"));
       labelVal("Artist", String(form.artist_name || "—"));
       labelVal("Date", form.event_date ? new Date(String(form.event_date).slice(0,10) + "T12:00:00").toLocaleDateString() : "MA");
-      labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${form.show_time || "—"}`);
+      labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${formatTime12hr(String(form.show_time || ""))}`);
       labelVal("Billing", String(form.billing || "—"));
       y += 2;
 
@@ -275,7 +288,9 @@ export default function AdminOfferDetailPage() {
       labelVal("Deposit", `$${Number(form.deposit_amount || 0).toLocaleString()} (${form.deposit_pct || 0}%)  |  Due: ${form.deposit_due || "—"}`);
       labelVal("Balance", String(form.balance_due || "Day of Show"));
       labelVal("Merch", `${form.merch_split || "—"}  |  Sells: ${form.merch_seller || "—"}`);
-      labelVal("Comps", String(form.comps || 0));
+      labelVal("Total Comps", String(form.comps || 0));
+      labelVal("Artist Comps", String(form.artist_comps || 0));
+      labelVal("Marketing Comps", String(form.marketing_comps || 0));
       y += 2;
 
       // ─── TICKET SCALING ───
@@ -448,7 +463,9 @@ export default function AdminOfferDetailPage() {
           <label className="admin-form-label">Deposit $<input type="number" className="admin-form-input" value={String(form.deposit_amount || "")} onChange={(e) => updateField("deposit_amount", parseFloat(e.target.value) || 0)} step="0.01" /></label>
           <label className="admin-form-label">Balance Due<input type="text" className="admin-form-input" value={String(form.balance_due || "")} onChange={(e) => updateField("balance_due", e.target.value)} /></label>
           <label className="admin-form-label">Merch<input type="text" className="admin-form-input" value={String(form.merch_split || "")} onChange={(e) => updateField("merch_split", e.target.value)} /></label>
-          <label className="admin-form-label">Comps<input type="number" className="admin-form-input" value={String(form.comps || "")} onChange={(e) => updateField("comps", parseInt(e.target.value) || 0)} /></label>
+          <label className="admin-form-label">Total Comps<input type="number" className="admin-form-input" value={String(form.comps || "")} onChange={(e) => updateField("comps", parseInt(e.target.value) || 0)} /></label>
+          <label className="admin-form-label">Artist Comps<input type="number" className="admin-form-input" value={String(form.artist_comps || "")} onChange={(e) => updateField("artist_comps", parseInt(e.target.value) || 0)} /></label>
+          <label className="admin-form-label">Marketing Comps<input type="number" className="admin-form-input" value={String(form.marketing_comps || "")} onChange={(e) => updateField("marketing_comps", parseInt(e.target.value) || 0)} /></label>
         </div>
 
         {/* ── Ticket Scaling ── */}

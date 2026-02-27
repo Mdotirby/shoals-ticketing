@@ -202,6 +202,8 @@ export default function AdminCreateOfferPage() {
   const [merchSplit, setMerchSplit] = useState("100% Merch");
   const [merchSeller, setMerchSeller] = useState("Artist");
   const [comps, setComps] = useState("0");
+  const [artistComps, setArtistComps] = useState("0");
+  const [marketingComps, setMarketingComps] = useState("0");
 
   // ── Section 4: Ticket Scaling ──
   const [scaling, setScaling] = useState<TicketScalingRow[]>([emptyScalingRow()]);
@@ -221,7 +223,9 @@ export default function AdminCreateOfferPage() {
 
   // ── Calculated values ──
   const grossPotential = scaling.reduce((sum, r) => sum + r.sellable_cap * r.price, 0);
-  const adjGross = grossPotential - scaling.reduce((sum, r) => sum + r.sellable_cap * r.facility_fee, 0);
+  // Adj Gross = Gross - ticketing fees (facility fee stays in)
+  const tfNum = parseFloat(ticketingFee || "0");
+  const adjGross = grossPotential - scaling.reduce((sum, r) => sum + r.sellable_cap * tfNum, 0);
 
   // Tax: imposed = divisor (adjGross / (1 + rate)), absorbed = multiplier (adjGross - adjGross * rate)
   const taxRateDecimal = parseFloat(taxRate || "0") / 100;
@@ -356,6 +360,8 @@ export default function AdminCreateOfferPage() {
           deposit_due: depositDue, balance_due: balanceDue,
           merch_split: merchSplit, merch_seller: merchSeller,
           comps: parseInt(comps) || 0,
+          artist_comps: parseInt(artistComps) || 0,
+          marketing_comps: parseInt(marketingComps) || 0,
           ticket_scaling: scaling, fixed_expenses: fixedExpenses, variable_expenses: variableExpenses,
           total_fixed: totalFixed, total_variable: totalVariable, total_expenses: totalExpenses,
           gross_potential: grossPotential, adj_gross: adjGross,
@@ -489,7 +495,9 @@ export default function AdminCreateOfferPage() {
           <label className="admin-form-label">Who Sells<select className="admin-form-input" value={merchSeller} onChange={(e) => setMerchSeller(e.target.value)}>
             <option>Artist</option><option>Venue</option><option>Split</option>
           </select></label>
-          <label className="admin-form-label">Comps<input type="number" className="admin-form-input" value={comps} onChange={(e) => setComps(e.target.value)} min="0" /></label>
+          <label className="admin-form-label">Total Comps<input type="number" className="admin-form-input" value={comps} onChange={(e) => setComps(e.target.value)} min="0" /></label>
+          <label className="admin-form-label">Artist Comps<input type="number" className="admin-form-input" value={artistComps} onChange={(e) => setArtistComps(e.target.value)} min="0" /></label>
+          <label className="admin-form-label">Marketing Comps<input type="number" className="admin-form-input" value={marketingComps} onChange={(e) => setMarketingComps(e.target.value)} min="0" /></label>
         </div>
 
         {/* ═══ SECTION 4: Ticket Scaling ═══ */}

@@ -26,6 +26,19 @@ function fmt(n: number | undefined): string {
   return (n ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
+/** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
+function formatTime12hr(time: string): string {
+  if (!time) return time;
+  const match = time.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return time;
+  let hours = parseInt(match[1]);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? "PM" : "AM";
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+  return `${hours}:${minutes} ${ampm}`;
+}
+
 function venueFullAddress(v: Venue): string {
   return [v.address_street, v.address_city, v.address_state, v.address_zip]
     .filter(Boolean)
@@ -188,7 +201,7 @@ export async function exportContractPDF(
   y = drawSectionHeader(doc, "Engagement Details", y);
   y = drawLabelValue(doc, "Event Date", eventDate, y);
   y = drawLabelValue(doc, "Venue", `${venueName}${venueAddr ? `, ${venueAddr}` : ""}`, y);
-  if (offer.show_time) y = drawLabelValue(doc, "Show Time", offer.show_time, y);
+  if (offer.show_time) y = drawLabelValue(doc, "Show Time", formatTime12hr(offer.show_time), y);
   if (offer.billing) y = drawLabelValue(doc, "Billing", offer.billing, y);
   if (offer.num_shows) y = drawLabelValue(doc, "Number of Shows", String(offer.num_shows), y);
   if (offer.show_length) y = drawLabelValue(doc, "Set Length", offer.show_length, y);
@@ -205,7 +218,7 @@ export async function exportContractPDF(
     doc.setFont("helvetica", "normal");
     for (const item of offer.show_lineup) {
       y = ensureSpace(doc, 6, y);
-      doc.text(`${item.time} — ${item.artist} (${item.set_length})`, MARGIN + 8, y + 4);
+      doc.text(`${formatTime12hr(item.time)} — ${item.artist} (${item.set_length})`, MARGIN + 8, y + 4);
       y += 6;
     }
     y += 3;
