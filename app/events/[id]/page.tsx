@@ -93,10 +93,18 @@ export default function EventDetailPage() {
       sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
       sessionStorage.setItem("vc_session", sessionId);
     }
+    // Capture UTM params and referrer for marketing attribution
+    const urlParams = new URLSearchParams(window.location.search);
     fetch(`/api/events/${eventId}/views`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        referrer_url: document.referrer || null,
+        utm_source: urlParams.get("utm_source") || null,
+        utm_medium: urlParams.get("utm_medium") || null,
+        utm_campaign: urlParams.get("utm_campaign") || null,
+      }),
     }).catch(() => {});
   }, [eventId]);
 

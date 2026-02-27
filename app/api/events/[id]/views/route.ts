@@ -14,6 +14,10 @@ export async function POST(
     event_id: id,
     session_id: body.session_id || null,
     purchased: false,
+    referrer_url: body.referrer_url || null,
+    utm_source: body.utm_source || null,
+    utm_medium: body.utm_medium || null,
+    utm_campaign: body.utm_campaign || null,
   });
 
   return NextResponse.json({ tracked: true });
