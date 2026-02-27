@@ -141,18 +141,78 @@ export default function TemplatesPage() {
             Subject Line *
             <input type="text" className="admin-form-input" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} required placeholder="e.g. Hey {{first_name}}, here's what you need to know!" />
           </label>
-          <label className="admin-form-label" style={{ marginTop: 8 }}>
-            Email Body (HTML) *
-            <textarea
-              className="admin-form-input"
-              value={form.body_html}
-              onChange={(e) => setForm({ ...form, body_html: e.target.value })}
-              required
-              rows={12}
-              style={{ fontFamily: "monospace", fontSize: 12, resize: "vertical" }}
-              placeholder={`<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">\n  <h1>Hey {{first_name}}!</h1>\n  <p>Your email content here...</p>\n</div>`}
+          <div style={{ marginTop: 8 }}>
+            <label className="admin-form-label">Email Body *</label>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 8px" }}>
+              Type your email content below. Use the toolbar to format. Type <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code> where you want the recipient&apos;s name.
+            </p>
+            {/* Simple formatting toolbar */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 4, flexWrap: "wrap" }}>
+              {[
+                { cmd: "bold", label: "B", style: { fontWeight: 700 } },
+                { cmd: "italic", label: "I", style: { fontStyle: "italic" } },
+                { cmd: "underline", label: "U", style: { textDecoration: "underline" } },
+                { cmd: "insertUnorderedList", label: "• List", style: {} },
+                { cmd: "insertOrderedList", label: "1. List", style: {} },
+              ].map((btn) => (
+                <button
+                  key={btn.cmd}
+                  type="button"
+                  onClick={() => document.execCommand(btn.cmd, false)}
+                  style={{
+                    padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4,
+                    color: "rgba(255,255,255,0.7)", cursor: "pointer", ...btn.style,
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const url = prompt("Enter link URL:");
+                  if (url) document.execCommand("createLink", false, url);
+                }}
+                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(208,194,144,0.8)", cursor: "pointer" }}
+              >
+                🔗 Link
+              </button>
+              <button
+                type="button"
+                onClick={() => document.execCommand("formatBlock", false, "h2")}
+                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(255,255,255,0.7)", cursor: "pointer", fontWeight: 700 }}
+              >
+                H2
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  document.execCommand("insertText", false, "{{first_name}}");
+                }}
+                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(208,194,144,0.1)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 4, color: "#d0c290", cursor: "pointer", fontWeight: 600 }}
+              >
+                + First Name
+              </button>
+            </div>
+            {/* Rich text editor area */}
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(e) => {
+                const html = (e.target as HTMLDivElement).innerHTML;
+                setForm((prev) => ({ ...prev, body_html: html }));
+              }}
+              dangerouslySetInnerHTML={{ __html: form.body_html }}
+              style={{
+                minHeight: 200, padding: 16, borderRadius: 8,
+                background: "rgba(255,255,255,0.95)", color: "#1a1a1a",
+                border: "1px solid rgba(255,255,255,0.2)",
+                fontSize: 14, lineHeight: 1.6, outline: "none",
+                fontFamily: "Arial, sans-serif",
+              }}
             />
-          </label>
+          </div>
           <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <button type="submit" className="admin-form-submit" disabled={saving}>
               {saving ? "Saving..." : editingId ? "Update Template" : "Create Template"}
