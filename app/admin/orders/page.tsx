@@ -13,6 +13,7 @@ type EventSales = {
   venue_id: string | null;
   total_capacity: number;
   tickets_sold: number;
+  tickets_scanned: number;
 };
 
 type VenueOption = { id: string; name: string };
@@ -78,7 +79,10 @@ export default function AdminSalesPage() {
         // Fetch ticket tiers for each event to get capacity + sold count
         const enriched: EventSales[] = await Promise.all(
           filteredEventsData.map(async (ev: Record<string, unknown>) => {
-            const tiersRes = await fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json());
+            const [tiersRes, scanRes] = await Promise.all([
+              fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json()),
+              fetch(`/api/events/${ev.id}/drop-count`).then((r) => r.json()).catch(() => ({ scanned: 0 })),
+            ]);
             const tiers = Array.isArray(tiersRes) ? tiersRes : [];
             const totalCapacity = tiers.reduce((s: number, t: { capacity: number }) => s + (t.capacity || 0), 0);
             return {
@@ -89,6 +93,7 @@ export default function AdminSalesPage() {
               venue_id: ev.venue_id as string | null,
               total_capacity: totalCapacity || 500,
               tickets_sold: 0,
+              tickets_scanned: scanRes?.scanned || 0,
             };
           })
         );
@@ -160,6 +165,11 @@ export default function AdminSalesPage() {
                 <span className="sales-stat-value">{available}</span>
                 <span className="sales-stat-label">Available</span>
               </div>
+              {/* Drop Count Donut */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 56 }}>
+                <DropCountDonut sold={ev.tickets_sold} scanned={ev.tickets_scanned} />
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Drop</span>
+              </div>
               <div className="sales-progress-wrapper">
                 <div className="sales-progress-bar">
                   <div
@@ -176,5 +186,38 @@ export default function AdminSalesPage() {
         );
       })}
     </div>
+  );
+}
+
+/** SVG donut chart: white ring = total sold, gold ring = drop count (scanned) */
+function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
+  const size = 44;
+  const stroke = 5;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const pct = sold > 0 ? Math.min(scanned / sold, 1) : 0;
+  const offset = circ * (1 - pct);
+
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      {/* Background ring (white = total sold) */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={stroke} />
+      {/* Foreground ring (gold = scanned/checked in) */}
+      <circle
+        cx={size / 2} cy={size / 2} r={radius} fill="none"
+        stroke="#d0c290" strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+      {/* Center text */}
+      <text
+        x={size / 2} y={size / 2}
+        textAnchor="middle" dominantBaseline="central"
+        fill="rgba(255,255,255,0.7)" fontSize="10" fontWeight="600"
+        style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
+      >
+        {scanned}
+      </text>
+    </svg>
   );
 }
