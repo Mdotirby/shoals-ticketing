@@ -21,7 +21,7 @@ export default function FWBPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [bulkSending, setBulkSending] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
+  const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number; total: number; from_email?: string; errors?: string[] } | null>(null);
 
   const role = getCookie("user-role");
   if (role !== "owner") {
@@ -143,7 +143,7 @@ export default function FWBPage() {
       if (!res.ok) {
         alert(data.error || "Failed to send emails");
       } else {
-        setBulkResult({ sent: data.sent, failed: data.failed, total: data.total });
+        setBulkResult({ sent: data.sent, failed: data.failed, total: data.total, from_email: data.from_email, errors: data.errors });
       }
     } catch {
       alert("Network error — check console");
@@ -234,12 +234,22 @@ export default function FWBPage() {
         </button>
       </div>
       {bulkResult && (
-        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 8, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.2)", fontSize: 13 }}>
-          <strong style={{ color: "rgba(80,200,120,0.9)" }}>Bulk send complete:</strong>{" "}
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 8, background: bulkResult.failed > 0 ? "rgba(255,180,80,0.08)" : "rgba(80,200,120,0.08)", border: `1px solid ${bulkResult.failed > 0 ? "rgba(255,180,80,0.2)" : "rgba(80,200,120,0.2)"}`, fontSize: 13 }}>
+          <strong style={{ color: bulkResult.failed > 0 ? "rgba(255,180,80,0.9)" : "rgba(80,200,120,0.9)" }}>Bulk send complete:</strong>{" "}
           <span style={{ color: "rgba(255,255,255,0.7)" }}>
             {bulkResult.sent} of {bulkResult.total} sent successfully
             {bulkResult.failed > 0 && <span style={{ color: "rgba(255,80,80,0.8)" }}> · {bulkResult.failed} failed</span>}
           </span>
+          {bulkResult.from_email && (
+            <div style={{ marginTop: 6, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+              From: {bulkResult.from_email}
+            </div>
+          )}
+          {bulkResult.errors && bulkResult.errors.length > 0 && (
+            <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(255,80,80,0.06)", borderRadius: 6, fontSize: 11, color: "rgba(255,80,80,0.7)" }}>
+              {bulkResult.errors.map((e, i) => <div key={i}>{e}</div>)}
+            </div>
+          )}
         </div>
       )}
 

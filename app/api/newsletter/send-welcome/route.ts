@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
       total: subscribers.length,
       sent: sentCount,
       failed: failedCount,
+      from_email: FROM_EMAIL,
       errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
     });
   } catch (err) {
