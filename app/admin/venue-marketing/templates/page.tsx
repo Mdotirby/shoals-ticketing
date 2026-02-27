@@ -97,9 +97,31 @@ export default function TemplatesPage() {
         Create reusable email templates. Use <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code> for personalization.
       </p>
 
-      <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="admin-form-submit" style={{ marginBottom: 16, padding: "10px 20px", fontSize: 13 }}>
-        {showForm ? "Cancel" : "+ New Email Template"}
-      </button>
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="admin-form-submit" style={{ padding: "10px 20px", fontSize: 13 }}>
+          {showForm ? "Cancel" : "+ New Email Template"}
+        </button>
+        {templates.length === 0 && (
+          <button
+            onClick={async () => {
+              const params = venueId ? `?venue_id=${venueId}` : "";
+              const res = await fetch(`/api/email-templates/seed${params}`, { method: "POST" });
+              if (res.ok) {
+                const result = await res.json();
+                if (result.count > 0) {
+                  // Reload templates
+                  const reloadParams = venueId ? `?venue_id=${venueId}` : "";
+                  const reloaded = await fetch(`/api/email-templates${reloadParams}`).then((r) => r.json());
+                  if (Array.isArray(reloaded)) setTemplates(reloaded);
+                }
+              }
+            }}
+            style={{ padding: "10px 20px", fontSize: 13, background: "rgba(208,194,144,0.1)", color: "#d0c290", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
+          >
+            Seed Default Templates
+          </button>
+        )}
+      </div>
 
       {showForm && (
         <form onSubmit={handleSubmit} className="admin-form" style={{ marginBottom: 24 }}>
