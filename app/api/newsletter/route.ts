@@ -37,32 +37,45 @@ export function buildWelcomeEmailHtml(firstName: string): string {
   `;
 }
 
-/** Send an email via Resend REST API (same approach as Stripe webhook) */
-async function sendViaResend(to: string, subject: string, html: string): Promise<{ success: boolean; error?: string }> {
+/** Send an email via Resend REST API with retry on rate limit */
+async function sendViaResend(to: string, subject: string, html: string, retries = 3): Promise<{ success: boolean; error?: string }> {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
     console.warn("RESEND_API_KEY not set — skipping email to", to);
     return { success: false, error: "RESEND_API_KEY not set" };
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${resendKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
-  });
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+    });
 
-  if (!res.ok) {
+    if (res.ok) {
+      const data = await res.json();
+      console.log(`Email sent to ${to}, Resend ID: ${data.id}`);
+      return { success: true };
+    }
+
     const errText = await res.text();
+
+    // Retry on rate limit (429)
+    if (res.status === 429 && attempt < retries - 1) {
+      const delay = (attempt + 1) * 1000; // 1s, 2s, 3s backoff
+      console.warn(`Rate limited sending to ${to}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     console.error(`Resend email failed (${res.status}) to ${to}:`, errText);
     return { success: false, error: errText };
   }
 
-  const data = await res.json();
-  console.log(`Email sent to ${to}, Resend ID: ${data.id}`);
-  return { success: true };
+  return { success: false, error: "Max retries exceeded" };
 }
 
 export async function POST(req: NextRequest) {
