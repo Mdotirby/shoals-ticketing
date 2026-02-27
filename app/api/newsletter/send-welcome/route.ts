@@ -109,8 +109,8 @@ export async function POST(req: NextRequest) {
         failedCount++;
       }
 
-      // Rate limit: ~10 emails/second to stay within Resend limits
-      await new Promise((r) => setTimeout(r, 100));
+      // Rate limit: stay under Resend's 2 req/sec limit
+      await new Promise((r) => setTimeout(r, 600));
     }
 
     return NextResponse.json({
