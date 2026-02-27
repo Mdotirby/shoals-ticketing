@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type SafeImageProps = {
   src: string;
@@ -24,6 +24,11 @@ export default function SafeImage({
   style,
 }: SafeImageProps) {
   const [imgSrc, setImgSrc] = useState(src);
+
+  // Re-sync when the src prop changes (e.g. after async venue slug resolves)
+  useEffect(() => {
+    setImgSrc(src);
+  }, [src]);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
