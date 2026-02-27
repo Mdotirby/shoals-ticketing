@@ -364,7 +364,57 @@ export async function POST(request: Request) {
 
       console.log(`✅ Order ${order.id} + ledger entry created for event ${eventId}`);
 
-      // 5. Send confirmation email via Resend
+      // 5. Upsert customer profile (for LFV tracking)
+      if (customerEmail) {
+        const email = customerEmail.toLowerCase();
+        const nameParts = customerName.split(" ");
+        const { data: existingProfile } = await admin
+          .from("customer_profiles")
+          .select("id, total_orders, total_spend, first_order_at, events_attended")
+          .eq("email", email)
+          .maybeSingle();
+
+        if (existingProfile) {
+          const newOrderCount = (existingProfile.total_orders || 0) + 1;
+          const newSpend = (parseFloat(existingProfile.total_spend) || 0) + totalAmount;
+          const newEventsAttended = (existingProfile.events_attended || 0) + 1;
+          let segment = "one_timer";
+          if (newEventsAttended >= 4) segment = "whale";
+          else if (newEventsAttended >= 2) segment = "loyalist";
+          else if (newOrderCount >= 2) segment = "repeat";
+
+          await admin.from("customer_profiles").update({
+            total_orders: newOrderCount,
+            total_spend: newSpend,
+            last_order_at: new Date().toISOString(),
+            events_attended: newEventsAttended,
+            lfv_segment: segment,
+            updated_at: new Date().toISOString(),
+          }).eq("id", existingProfile.id);
+        } else {
+          await admin.from("customer_profiles").upsert({
+            email,
+            first_name: nameParts[0] || null,
+            last_name: nameParts.slice(1).join(" ") || null,
+            total_orders: 1,
+            total_spend: totalAmount,
+            first_order_at: new Date().toISOString(),
+            last_order_at: new Date().toISOString(),
+            events_attended: 1,
+            lfv_segment: "one_timer",
+          }, { onConflict: "email" });
+        }
+      }
+
+      // 6. Mark any cart abandonment as recovered
+      if (customerEmail) {
+        await admin.from("cart_abandonment").update({ recovered: true })
+          .eq("customer_email", customerEmail.toLowerCase())
+          .eq("event_id", eventId)
+          .eq("recovered", false);
+      }
+
+      // 7. Send confirmation email via Resend
       if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
         await sendTicketEmail({
           to: customerEmail,
