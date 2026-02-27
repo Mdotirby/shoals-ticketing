@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useVenue } from "@/app/components/VenueContext";
 
 export default function NewsletterSignup() {
+  const { venueSlug } = useVenue();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -19,7 +21,7 @@ export default function NewsletterSignup() {
       const res = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim() }),
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), source: "homepage", venueSlug }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong");

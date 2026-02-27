@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { getCookie } from "@/lib/cookies";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Link from "next/link";
 
 type Subscriber = {
@@ -19,6 +20,8 @@ export default function FWBPage() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [bulkSending, setBulkSending] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number; total: number } | null>(null);
 
   const role = getCookie("user-role");
   if (role !== "owner") {
@@ -116,6 +119,39 @@ export default function FWBPage() {
     doc.save(`fwb-subscribers-${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
+  const sendWelcomeToAll = async () => {
+    if (!confirm(`Send the FWB Welcome email to all ${subscribers.filter((s) => !s.unsubscribed_at).length} active subscribers?`)) return;
+    setBulkSending(true);
+    setBulkResult(null);
+    try {
+      const supabase = getSupabaseBrowser();
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) {
+        alert("Not authenticated. Please log in again.");
+        return;
+      }
+      const res = await fetch("/api/newsletter/send-welcome", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to send emails");
+      } else {
+        setBulkResult({ sent: data.sent, failed: data.failed, total: data.total });
+      }
+    } catch {
+      alert("Network error — check console");
+    } finally {
+      setBulkSending(false);
+    }
+  };
+
   return (
     <div className="admin-form-page">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
@@ -188,7 +224,24 @@ export default function FWBPage() {
         <button onClick={exportPDF} className="admin-form-submit" style={{ padding: "10px 20px", fontSize: 13, background: "rgba(208,194,144,0.15)", color: "#d0c290" }}>
           Export PDF
         </button>
+        <button
+          onClick={sendWelcomeToAll}
+          disabled={bulkSending || subscribers.filter((s) => !s.unsubscribed_at).length === 0}
+          className="admin-form-submit"
+          style={{ padding: "10px 20px", fontSize: 13, background: "rgba(80,200,120,0.15)", color: "rgba(80,200,120,0.9)", border: "1px solid rgba(80,200,120,0.3)" }}
+        >
+          {bulkSending ? "Sending..." : "Send Welcome Email to All"}
+        </button>
       </div>
+      {bulkResult && (
+        <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 8, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.2)", fontSize: 13 }}>
+          <strong style={{ color: "rgba(80,200,120,0.9)" }}>Bulk send complete:</strong>{" "}
+          <span style={{ color: "rgba(255,255,255,0.7)" }}>
+            {bulkResult.sent} of {bulkResult.total} sent successfully
+            {bulkResult.failed > 0 && <span style={{ color: "rgba(255,80,80,0.8)" }}> · {bulkResult.failed} failed</span>}
+          </span>
+        </div>
+      )}
 
       {/* Subscriber table */}
       {loading ? (
