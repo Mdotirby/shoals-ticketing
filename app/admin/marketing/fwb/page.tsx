@@ -16,12 +16,27 @@ type Subscriber = {
   unsubscribed_at: string | null;
 };
 
+type FWBEmailKPIs = {
+  total_sent: number;
+  total_delivered: number;
+  total_opened: number;
+  total_clicked: number;
+  total_bounced: number;
+  total_failed: number;
+  open_rate: string;
+  click_rate: string;
+  bounce_rate: string;
+  daily_sends: { date: string; count: number }[];
+  recent_sends: { email: string; name: string; status: string; sent_at: string; opened_at: string | null; clicked_at: string | null }[];
+};
+
 export default function FWBPage() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number; total: number; from_email?: string; errors?: string[] } | null>(null);
+  const [emailKpis, setEmailKpis] = useState<FWBEmailKPIs | null>(null);
 
   const role = getCookie("user-role");
   if (role !== "owner") {
@@ -40,6 +55,12 @@ export default function FWBPage() {
         if (Array.isArray(data)) setSubscribers(data);
       })
       .finally(() => setLoading(false));
+
+    // Fetch FWB email KPIs
+    fetch("/api/marketing/fwb-email-kpis")
+      .then((r) => r.json())
+      .then((data) => setEmailKpis(data))
+      .catch(() => {});
   }, []);
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -205,6 +226,110 @@ export default function FWBPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── Email KPIs Dashboard ── */}
+      {emailKpis && emailKpis.total_sent > 0 && (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+          <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 16px", fontWeight: 600 }}>Welcome Email Performance</h3>
+          
+          {/* KPI Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 20 }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "#d0c290" }}>{emailKpis.total_sent}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Sent</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "rgba(100,149,237,0.9)" }}>{emailKpis.total_delivered}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Delivered</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "rgba(80,200,120,0.9)" }}>{emailKpis.open_rate}%</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Open Rate</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>avg ~20%</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "rgba(208,194,144,0.9)" }}>{emailKpis.click_rate}%</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Click Rate</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>avg ~2.5%</div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: emailKpis.total_bounced > 0 ? "rgba(255,80,80,0.9)" : "rgba(80,200,120,0.9)" }}>{emailKpis.bounce_rate}%</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Bounce Rate</div>
+            </div>
+            {emailKpis.total_failed > 0 && (
+              <div style={{ background: "rgba(255,80,80,0.05)", borderRadius: 8, padding: "12px 10px", textAlign: "center" }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "rgba(255,80,80,0.9)" }}>{emailKpis.total_failed}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Failed</div>
+              </div>
+            )}
+          </div>
+
+          {/* Email Funnel */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {[
+              { label: "Sent", value: emailKpis.total_sent, color: "rgba(255,255,255,0.15)" },
+              { label: "Delivered", value: emailKpis.total_delivered, color: "rgba(100,149,237,0.35)" },
+              { label: "Opened", value: emailKpis.total_opened, color: "rgba(80,200,120,0.35)" },
+              { label: "Clicked", value: emailKpis.total_clicked, color: "rgba(208,194,144,0.45)" },
+            ].map((step) => {
+              const pct = emailKpis.total_sent > 0 ? (step.value / emailKpis.total_sent) * 100 : 0;
+              return (
+                <div key={step.label} style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ height: 50, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+                    <div style={{ width: "80%", height: `${Math.max(pct, 5)}%`, background: step.color, borderRadius: "4px 4px 0 0" }} />
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginTop: 6 }}>{step.value}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>{step.label}</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.2)" }}>{pct.toFixed(1)}%</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Recent Sends */}
+          {emailKpis.recent_sends.length > 0 && (
+            <div>
+              <h4 style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, fontWeight: 600, margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Recent Welcome Emails</h4>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle, fontSize: 10 }}>Recipient</th>
+                      <th style={{ ...thStyle, fontSize: 10 }}>Status</th>
+                      <th style={{ ...thStyle, fontSize: 10 }}>Sent</th>
+                      <th style={{ ...thStyle, fontSize: 10 }}>Opened</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {emailKpis.recent_sends.map((s, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <td style={{ ...tdStyle, fontSize: 12 }}>{s.email}</td>
+                        <td style={{ ...tdStyle, fontSize: 12 }}>
+                          <span style={{
+                            fontSize: 10, padding: "2px 8px", borderRadius: 6,
+                            background: s.status === "opened" || s.status === "clicked" ? "rgba(80,200,120,0.1)" :
+                              s.status === "delivered" ? "rgba(100,149,237,0.1)" :
+                              s.status === "sent" ? "rgba(255,255,255,0.05)" :
+                              s.status === "failed" || s.status === "bounced" ? "rgba(255,80,80,0.1)" : "rgba(255,255,255,0.05)",
+                            color: s.status === "opened" || s.status === "clicked" ? "rgba(80,200,120,0.8)" :
+                              s.status === "delivered" ? "rgba(100,149,237,0.8)" :
+                              s.status === "sent" ? "rgba(255,255,255,0.5)" :
+                              s.status === "failed" || s.status === "bounced" ? "rgba(255,80,80,0.8)" : "rgba(255,255,255,0.4)",
+                          }}>
+                            {s.status}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{new Date(s.sent_at).toLocaleDateString()}</td>
+                        <td style={{ ...tdStyle, fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{s.opened_at ? new Date(s.opened_at).toLocaleDateString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase-server";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VenueCore <onboarding@resend.dev>";
 const NOTIFY_EMAIL = "Matt.irby@west72ent.com";
@@ -38,7 +39,7 @@ export function buildWelcomeEmailHtml(firstName: string): string {
 }
 
 /** Send an email via Resend REST API with retry on rate limit */
-async function sendViaResend(to: string, subject: string, html: string, retries = 3): Promise<{ success: boolean; error?: string }> {
+async function sendViaResend(to: string, subject: string, html: string, retries = 3): Promise<{ success: boolean; resendId?: string; error?: string }> {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
     console.warn("RESEND_API_KEY not set — skipping email to", to);
@@ -58,7 +59,7 @@ async function sendViaResend(to: string, subject: string, html: string, retries 
     if (res.ok) {
       const data = await res.json();
       console.log(`Email sent to ${to}, Resend ID: ${data.id}`);
-      return { success: true };
+      return { success: true, resendId: data.id };
     }
 
     const errText = await res.text();
@@ -76,6 +77,22 @@ async function sendViaResend(to: string, subject: string, html: string, retries 
   }
 
   return { success: false, error: "Max retries exceeded" };
+}
+
+/** Track an email send in the email_sends table for KPI tracking */
+async function trackEmailSend(recipientEmail: string, recipientName: string, resendId: string | undefined, status: string) {
+  try {
+    const admin = createAdminClient();
+    await admin.from("email_sends").insert({
+      campaign_id: null, // null = FWB welcome email (not a campaign)
+      resend_message_id: resendId || null,
+      recipient_email: recipientEmail,
+      recipient_name: `[FWB Welcome] ${recipientName}`,
+      status,
+    });
+  } catch (err) {
+    console.error("Failed to track email send:", err);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -148,6 +165,14 @@ export async function POST(req: NextRequest) {
       email.trim().toLowerCase(),
       "Welcome to Friends with Benefits!",
       buildWelcomeEmailHtml(firstName.trim())
+    );
+
+    // Track the welcome email send for KPI monitoring
+    await trackEmailSend(
+      email.trim().toLowerCase(),
+      subscriberName,
+      welcomeResult.resendId,
+      welcomeResult.success ? "sent" : "failed"
     );
 
     if (!welcomeResult.success) {

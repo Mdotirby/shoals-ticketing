@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase-server";
 import { buildWelcomeEmailHtml } from "../route";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VenueCore <onboarding@resend.dev>";
@@ -96,12 +97,31 @@ export async function POST(req: NextRequest) {
         });
 
         if (res.ok) {
+          const resData = await res.json();
           sentCount++;
+          // Track in email_sends for KPI monitoring
+          const adminDb = createAdminClient();
+          await adminDb.from("email_sends").insert({
+            campaign_id: null,
+            resend_message_id: resData.id || null,
+            recipient_email: sub.email,
+            recipient_name: `[FWB Welcome] ${sub.first_name || ""}`,
+            status: "sent",
+          });
         } else {
           const errText = await res.text();
           console.error(`Failed to send to ${sub.email}:`, errText);
           errors.push(`${sub.email}: ${errText}`);
           failedCount++;
+          // Track failure too
+          const adminDb = createAdminClient();
+          await adminDb.from("email_sends").insert({
+            campaign_id: null,
+            resend_message_id: null,
+            recipient_email: sub.email,
+            recipient_name: `[FWB Welcome] ${sub.first_name || ""}`,
+            status: "failed",
+          });
         }
       } catch (err) {
         console.error(`Error sending to ${sub.email}:`, err);
