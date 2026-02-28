@@ -172,16 +172,9 @@ export default function AdminSalesPage() {
                 <DropCountDonut sold={ev.tickets_sold} scanned={ev.tickets_scanned} />
                 <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Drop</span>
               </div>
-              <div className="sales-progress-wrapper">
-                <div className="sales-progress-bar">
-                  <div
-                    className="sales-progress-fill"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="sales-progress-label">
-                  {pct}%{pct >= 100 ? " — SOLD OUT" : ""}
-                </span>
+              {/* Sold Percentage Donut */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 56 }}>
+                <SoldDonut sold={ev.tickets_sold} capacity={ev.total_capacity} />
               </div>
             </div>
           </Link>
@@ -219,6 +212,41 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
         style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
       >
         {scanned}
+      </text>
+    </svg>
+  );
+}
+
+/** SVG donut chart: sold percentage with % in center */
+function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
+  const size = 52;
+  const stroke = 5;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const pct = capacity > 0 ? Math.min(sold / capacity, 1) : 0;
+  const offset = circ * (1 - pct);
+  const pctDisplay = Math.round(pct * 100);
+  const isSoldOut = pctDisplay >= 100;
+
+  return (
+    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+      {/* Background ring */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
+      {/* Foreground ring (gold fill based on % sold) */}
+      <circle
+        cx={size / 2} cy={size / 2} r={radius} fill="none"
+        stroke={isSoldOut ? "#ff6b6b" : "#d0c290"} strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset}
+        strokeLinecap="round"
+      />
+      {/* Center percentage text */}
+      <text
+        x={size / 2} y={size / 2}
+        textAnchor="middle" dominantBaseline="central"
+        fill={isSoldOut ? "#ff6b6b" : "rgba(255,255,255,0.8)"} fontSize="11" fontWeight="700"
+        style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
+      >
+        {pctDisplay}%
       </text>
     </svg>
   );
