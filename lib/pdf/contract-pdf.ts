@@ -171,17 +171,21 @@ export async function exportContractPDF(
 
   const artistName = offer.artist_name ?? "Artist";
   const eventDate = offer.event_date ?? new Date().toLocaleDateString();
-  const venueName = venue.name;
-  const venueAddr = venueFullAddress(venue);
+  // Buyer / Promoter info (the organization — e.g. "West 72 Entertainment")
+  const buyerName = venue.buyer_name ?? venue.name;
+  const buyerAddr = venue.promoter_address ?? venueFullAddress(venue);
+  // Event venue info (the physical venue for the show — from the offer)
+  const eventVenueName = offer.venue ?? venue.name;
+  const eventVenueAddr = offer.venue_address ?? venueFullAddress(venue);
 
   // ═══════════════════════════════════════════════════════════════════
   //  PAGE 1 — HEADER / TITLE PAGE
   // ═══════════════════════════════════════════════════════════════════
   // Dark header block
   doc.setFillColor(DARK);
-  doc.rect(0, 0, PAGE_W, 52, "F");
+  doc.rect(0, 0, PAGE_W, 58, "F");
   doc.setFillColor(GOLD);
-  doc.rect(0, 52, PAGE_W, 1.5, "F");
+  doc.rect(0, 58, PAGE_W, 1.5, "F");
 
   // Venue logo (top-left) — try venue slug, fall back to default
   const slugForLogo = venue.slug || "";
@@ -189,39 +193,40 @@ export async function exportContractPDF(
     ? [`/logos/${slugForLogo}/logo.png`, "/logos/default/logo.png"]
     : ["/logos/default/logo.png"];
 
-  let logoLoaded = false;
+  let logoBottomY = 8;
   for (const logoUrl of logoUrls) {
-    if (logoLoaded) break;
     const dataUrl = await loadImageAsDataURL(logoUrl);
     if (dataUrl) {
-      doc.addImage(dataUrl, "PNG", MARGIN, 5, 22, 22);
-      logoLoaded = true;
+      doc.addImage(dataUrl, "PNG", MARGIN, 6, 22, 22);
+      logoBottomY = 30;
+      break;
     }
   }
 
-  // Title — positioned to the right of the logo
-  const titleX = logoLoaded ? MARGIN + 27 : MARGIN;
+  // Title "PERFORMANCE AGREEMENT" — left-aligned, below logo
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(16);
   doc.setTextColor(GOLD);
-  doc.text("PERFORMANCE AGREEMENT", titleX, 16);
+  doc.text("PERFORMANCE AGREEMENT", MARGIN, logoBottomY + 2);
 
-  // Venue letterhead — below title, next to logo
+  // Buyer / Promoter info — left-aligned, below title
+  let infoY = logoBottomY + 8;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(WHITE);
-  doc.text(venueName, titleX, 24);
-  if (venueAddr) doc.text(venueAddr, titleX, 30);
+  doc.text(buyerName, MARGIN, infoY);
+  infoY += 5;
+  if (buyerAddr) { doc.text(buyerAddr, MARGIN, infoY); infoY += 5; }
   const contactParts = [venue.buyer_phone, venue.buyer_email].filter(Boolean);
-  if (contactParts.length) doc.text(contactParts.join("  |  "), titleX, 36);
+  if (contactParts.length) { doc.text(contactParts.join("  |  "), MARGIN, infoY); infoY += 5; }
 
-  // Date (right-aligned)
+  // Date (right-aligned, in header)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(GOLD);
-  doc.text(`Date: ${eventDate}`, MARGIN + CONTENT_W, 46, { align: "right" });
+  doc.text(`Date: ${eventDate}`, MARGIN + CONTENT_W, 52, { align: "right" });
 
-  let y = 60;
+  let y = 66;
 
   // Parties
   doc.setFont("helvetica", "normal");
@@ -229,7 +234,7 @@ export async function exportContractPDF(
   doc.setTextColor(DARK);
   y = drawParagraph(doc, `This Performance Agreement ("Agreement") is entered into by and between:`, y);
   y += 2;
-  y = drawParagraph(doc, `BUYER / PROMOTER: ${venue.buyer_name ?? venueName}, ${venueAddr}`, y, { bold: true, indent: 5 });
+  y = drawParagraph(doc, `BUYER / PROMOTER: ${buyerName}, ${buyerAddr}`, y, { bold: true, indent: 5 });
   y += 2;
   y = drawParagraph(doc, `ARTIST / PERFORMER: ${artistName}${offer.agency ? `, c/o ${offer.agency}` : ""}${offer.agent_name ? ` (Agent: ${offer.agent_name})` : ""}`, y, { bold: true, indent: 5 });
   y += 5;
@@ -239,7 +244,7 @@ export async function exportContractPDF(
   // ═══════════════════════════════════════════════════════════════════
   y = drawSectionHeader(doc, "Engagement Details", y);
   y = drawLabelValue(doc, "Event Date", eventDate, y);
-  y = drawLabelValue(doc, "Venue", `${venueName}${venueAddr ? `, ${venueAddr}` : ""}`, y);
+  y = drawLabelValue(doc, "Venue", `${eventVenueName}${eventVenueAddr ? `, ${eventVenueAddr}` : ""}`, y);
   if (offer.show_time) y = drawLabelValue(doc, "Show Time", formatTime12hr(offer.show_time), y);
   if (offer.billing) y = drawLabelValue(doc, "Billing", offer.billing, y);
   if (offer.num_shows) y = drawLabelValue(doc, "Number of Shows", String(offer.num_shows), y);
@@ -285,14 +290,14 @@ export async function exportContractPDF(
   // ═══════════════════════════════════════════════════════════════════
   if (offer.ticket_scaling?.length) {
     y = drawSectionHeader(doc, "Ticket Scaling", y);
-    const cols = ["Tier", "Seats", "Comps", "Kills", "Sellable", "Price", "Net Price", "Fac. Fee"];
-    const colX = [MARGIN + 3, MARGIN + 35, MARGIN + 52, MARGIN + 68, MARGIN + 84, MARGIN + 104, MARGIN + 126, MARGIN + CONTENT_W - 3];
+    const cols = ["Tier", "Seats", "Comps", "Kills", "Sellable", "Net Price", "Tkt Fee", "Fac. Fee", "Price"];
+    const colX = [MARGIN + 3, MARGIN + 30, MARGIN + 44, MARGIN + 58, MARGIN + 74, MARGIN + 96, MARGIN + 118, MARGIN + 140, MARGIN + CONTENT_W - 3];
 
     y = ensureSpace(doc, 8, y);
     doc.setFillColor(LIGHT_GRAY);
     doc.rect(MARGIN, y, CONTENT_W, 7, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(DARK);
     cols.forEach((c, i) => {
       doc.text(c, colX[i], y + 5, i >= 1 ? { align: "right" } : undefined);
@@ -300,17 +305,19 @@ export async function exportContractPDF(
     y += 8;
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     for (const r of offer.ticket_scaling) {
       y = ensureSpace(doc, 6, y);
+      const ticketingFee = r.price - (r.net_price || 0) - (r.facility_fee || 0);
       doc.text(r.name, colX[0], y + 4);
       doc.text(String(r.seats), colX[1], y + 4, { align: "right" });
       doc.text(String(r.comps), colX[2], y + 4, { align: "right" });
       doc.text(String(r.kills), colX[3], y + 4, { align: "right" });
       doc.text(String(r.sellable_cap), colX[4], y + 4, { align: "right" });
-      doc.text(fmt(r.price), colX[5], y + 4, { align: "right" });
-      doc.text(fmt(r.net_price), colX[6], y + 4, { align: "right" });
+      doc.text(fmt(r.net_price), colX[5], y + 4, { align: "right" });
+      doc.text(fmt(ticketingFee > 0 ? ticketingFee : 0), colX[6], y + 4, { align: "right" });
       doc.text(fmt(r.facility_fee), colX[7], y + 4, { align: "right" });
+      doc.text(fmt(r.price), colX[8], y + 4, { align: "right" });
       y += 6;
     }
     y += 3;
@@ -427,7 +434,7 @@ export async function exportContractPDF(
   const radiusPrior = offer.radius_days_prior ?? 60;
   const radiusAfter = offer.radius_days_after ?? 60;
   y = drawClause(doc, 1, "Radius Restriction",
-    `Artist agrees not to perform within ${radiusDist} miles of ${venueName} for ${radiusPrior} days prior to and ${radiusAfter} days following the engagement date without prior written consent of Buyer. Violation of this clause shall entitle Buyer to reduce the guarantee by fifty percent (50%) or cancel the engagement at Buyer's sole discretion.${contract.radius_clause ? ` Additional terms: ${contract.radius_clause}` : ""}`,
+    `Artist agrees not to perform within ${radiusDist} miles of ${eventVenueName} for ${radiusPrior} days prior to and ${radiusAfter} days following the engagement date without prior written consent of Buyer. Violation of this clause shall entitle Buyer to reduce the guarantee by fifty percent (50%) or cancel the engagement at Buyer's sole discretion.${contract.radius_clause ? ` Additional terms: ${contract.radius_clause}` : ""}`,
     y
   );
 
