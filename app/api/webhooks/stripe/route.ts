@@ -208,7 +208,7 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // ── Idempotent event logging ──
+  // ── Idempotent event check (log AFTER success so retries work) ──
   const { data: existingEvent } = await admin
     .from("stripe_events")
     .select("id")
@@ -219,12 +219,6 @@ export async function POST(request: Request) {
     console.log(`Stripe event ${event.id} already processed — skipping`);
     return NextResponse.json({ received: true });
   }
-
-  await admin.from("stripe_events").insert({
-    id: event.id,
-    type: event.type,
-    payload: JSON.parse(JSON.stringify(event.data.object)),
-  });
 
   // ── checkout.session.completed ──
   if (event.type === "checkout.session.completed") {
@@ -495,6 +489,13 @@ export async function POST(request: Request) {
       console.error("Dispute processing error:", err);
     }
   }
+
+  // ── Log event AFTER successful processing (so failed events can be retried) ──
+  await admin.from("stripe_events").insert({
+    id: event.id,
+    type: event.type,
+    payload: JSON.parse(JSON.stringify(event.data.object)),
+  });
 
   return NextResponse.json({ received: true });
 }
