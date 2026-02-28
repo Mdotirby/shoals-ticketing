@@ -184,9 +184,9 @@ export default function AdminSalesPage() {
   );
 }
 
-/** SVG donut chart: white ring = total sold, gold ring = drop count (scanned) */
+/** SVG donut chart: gold ring = drop count (scanned), white number in center */
 function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
-  const size = 44;
+  const size = 48;
   const stroke = 5;
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
@@ -195,20 +195,17 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
 
   return (
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      {/* Background ring (white = total sold) */}
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={stroke} />
-      {/* Foreground ring (gold = scanned/checked in) */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
         stroke="#d0c290" strokeWidth={stroke}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
       />
-      {/* Center text */}
       <text
         x={size / 2} y={size / 2}
         textAnchor="middle" dominantBaseline="central"
-        fill="rgba(255,255,255,0.7)" fontSize="10" fontWeight="600"
+        fill="#ffffff" fontSize="12" fontWeight="700"
         style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
       >
         {scanned}
@@ -217,9 +214,9 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
   );
 }
 
-/** SVG donut chart: sold percentage with % in center */
+/** SVG donut chart: sold percentage with white % in center */
 function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
-  const size = 52;
+  const size = 48;
   const stroke = 5;
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
@@ -230,20 +227,17 @@ function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
 
   return (
     <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
-      {/* Background ring */}
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={stroke} />
-      {/* Foreground ring (gold fill based on % sold) */}
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
         stroke={isSoldOut ? "#ff6b6b" : "#d0c290"} strokeWidth={stroke}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
       />
-      {/* Center percentage text */}
       <text
         x={size / 2} y={size / 2}
         textAnchor="middle" dominantBaseline="central"
-        fill={isSoldOut ? "#ff6b6b" : "rgba(255,255,255,0.8)"} fontSize="11" fontWeight="700"
+        fill="#ffffff" fontSize="11" fontWeight="700"
         style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
       >
         {pctDisplay}%

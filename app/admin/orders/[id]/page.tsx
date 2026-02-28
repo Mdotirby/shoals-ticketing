@@ -66,8 +66,8 @@ export default function EventSalesDetailPage() {
     loadData();
   }, [id]);
 
-  const totalRevenue = orders.reduce((s, o) => s + (o.total_amount || 0), 0);
-  const totalTickets = orders.reduce((s, o) => s + (o.quantity || 1), 0);
+  const totalRevenue = orders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
+  const totalTickets = orders.reduce((s, o) => s + (Number(o.quantity) || 1), 0);
 
   if (loading) {
     return (

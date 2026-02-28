@@ -32,7 +32,7 @@ export async function GET(
     const { id } = await params;
     const admin = createAdminClient();
 
-    const [totalViewsRes, uniqueViewsRes, purchaseViewsRes] = await Promise.all([
+    const [totalViewsRes, uniqueViewsRes, ordersCountRes] = await Promise.all([
       admin
         .from("event_views")
         .select("id", { count: "exact", head: true })
@@ -42,15 +42,16 @@ export async function GET(
         .select("session_id")
         .eq("event_id", id)
         .not("session_id", "is", null),
+      // Count actual orders as "purchase views" — more reliable than event_views.purchased flag
       admin
-        .from("event_views")
+        .from("orders")
         .select("id", { count: "exact", head: true })
         .eq("event_id", id)
-        .eq("purchased", true),
+        .eq("status", "paid"),
     ]);
 
     // If any query errored (e.g. table doesn't exist), return zeros
-    if (totalViewsRes.error || uniqueViewsRes.error || purchaseViewsRes.error) {
+    if (totalViewsRes.error || uniqueViewsRes.error) {
       return NextResponse.json({
         total_views: 0,
         unique_views: 0,
@@ -65,13 +66,14 @@ export async function GET(
     ).size;
 
     const totalViews = totalViewsRes.count ?? 0;
-    const purchaseViews = purchaseViewsRes.count ?? 0;
-    const viewsWithoutPurchase = totalViews - purchaseViews;
-    const conversionRate = totalViews > 0 ? ((purchaseViews / totalViews) * 100).toFixed(1) : "0";
+    const purchaseViews = ordersCountRes.count ?? 0;
+    const uniqueViews = uniqueSessions || totalViews;
+    const viewsWithoutPurchase = Math.max(0, uniqueViews - purchaseViews);
+    const conversionRate = uniqueViews > 0 ? ((purchaseViews / uniqueViews) * 100).toFixed(1) : "0";
 
     return NextResponse.json({
       total_views: totalViews,
-      unique_views: uniqueSessions,
+      unique_views: uniqueViews,
       purchase_views: purchaseViews,
       views_without_purchase: viewsWithoutPurchase,
       conversion_rate: conversionRate,
