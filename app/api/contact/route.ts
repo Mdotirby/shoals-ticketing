@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     // Send email via Resend
     await resend.emails.send({
-      from: "West 72 Contact Form <onboarding@resend.dev>",
+      from: "West 72 Contact Form <noreply@venuecore.live>",
       to: "Matt.irby@west72ent.com",
       replyTo: email,
       subject: `[Contact Form] ${reason} — ${fullName}`,

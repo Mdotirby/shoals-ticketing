@@ -68,7 +68,7 @@ export default function ContactPage() {
           <div className="contact-content-inner">
             {/* LEFT — FORM */}
             <div className="contact-form-card">
-              <h2 className="contact-form-heading">SEND US A</h2>
+              <h2 className="contact-form-heading">SHOOT US A MESSAGE!</h2>
 
               {status === "success" && (
                 <div className="contact-success-msg">
@@ -184,8 +184,8 @@ export default function ContactPage() {
                     <p className="contact-method-desc">
                       We typically respond within 1&ndash;2 business days.
                     </p>
-                    <a href="mailto:matt.irby@west72ent.com" className="contact-method-link">
-                      matt.irby@west72ent.com
+                    <a href="mailto:contact@venuecore.live" className="contact-method-link">
+                      contact@venuecore.live
                     </a>
                   </div>
                 </div>
