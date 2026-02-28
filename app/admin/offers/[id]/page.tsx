@@ -602,13 +602,18 @@ export default function AdminOfferDetailPage() {
                   accent_color: "#d0c290",
                   created_at: new Date().toISOString(),
                 };
+                // Resolve venue_id: offer's venue_id, cookie, or fallback venue's id
+                const contractVenueId = offer.venue_id || getCookie("venue-id") || contractVenue.id;
+                if (!contractVenueId) {
+                  throw new Error("No venue is associated with this offer. Please assign a venue first.");
+                }
                 // Create contract record
                 const res = await fetch("/api/contracts", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     offer_id: offer.id,
-                    venue_id: offer.venue_id || getCookie("venue-id"),
+                    venue_id: contractVenueId,
                     source: "generated",
                     guarantee: offer.guarantee,
                     deal_type: offer.deal_type,
@@ -617,15 +622,19 @@ export default function AdminOfferDetailPage() {
                     status: "draft",
                   }),
                 });
-                if (!res.ok) throw new Error("Failed to create contract");
+                if (!res.ok) {
+                  const errData = await res.json().catch(() => ({}));
+                  throw new Error(errData.error || "Failed to create contract");
+                }
                 const created: Contract = await res.json();
                 setContract(created);
 
                 // Generate PDF
                 await exportContractPDF(created, offer, contractVenue);
                 setSuccess("Contract generated & PDF downloaded.");
-              } catch {
-                setError("Failed to generate contract.");
+              } catch (err) {
+                console.error("Contract generation error:", err);
+                setError(err instanceof Error ? err.message : "Failed to generate contract.");
               } finally {
                 setContractLoading(false);
               }
