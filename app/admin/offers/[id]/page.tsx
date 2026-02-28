@@ -82,15 +82,17 @@ export default function AdminOfferDetailPage() {
         setOffer(offerData);
         setForm(offerData);
 
-        // Resolve venue: use venue-id cookie, or fall back to offer's venue_id
-        const resolveVenueId = venueId || offerData.venue_id;
-        if (resolveVenueId) {
-          try {
-            const venues: Venue[] = await fetch("/api/venues").then((r) => r.json());
-            const found = venues.find((v) => v.id === resolveVenueId) || null;
+        // Resolve venue: use venue-id cookie, offer's venue_id, or first available venue (for owner)
+        try {
+          const venues: Venue[] = await fetch("/api/venues").then((r) => r.json());
+          if (Array.isArray(venues) && venues.length > 0) {
+            const resolveVenueId = venueId || offerData.venue_id;
+            const found = resolveVenueId
+              ? venues.find((v) => v.id === resolveVenueId) || venues[0]
+              : venues[0]; // owner without cookie — use first venue
             setVenue(found);
-          } catch { /* ignore */ }
-        }
+          }
+        } catch { /* ignore */ }
       })
       .catch(() => setError("Failed to load offer"))
       .finally(() => setLoading(false));
