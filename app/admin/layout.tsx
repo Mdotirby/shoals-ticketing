@@ -17,6 +17,7 @@ type SidebarItem = {
 
 const sidebarItems: SidebarItem[] = [
   { label: "Dashboard",          href: "/admin",                     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
+  { label: "Calendar",           href: "/admin/calendar",            roles: ["owner","venue_admin","full_admin"] },
   { label: "Events",             href: "/admin/events",              roles: ["owner","venue_admin","full_admin"] },
   { label: "Booking",            href: "/admin/offers",              roles: ["owner","venue_admin"] },
   { label: "Settlements",        href: "/admin/settlements",         roles: ["owner","venue_admin"] },
@@ -38,6 +39,7 @@ const sidebarItems: SidebarItem[] = [
 // Map sidebar labels to tab_key used in sidebar_permissions table
 const TAB_KEY_MAP: Record<string, string> = {
   "Dashboard": "dashboard",
+  "Calendar": "calendar",
   "Events": "events",
   "Booking": "booking",
   "Settlements": "settlements",

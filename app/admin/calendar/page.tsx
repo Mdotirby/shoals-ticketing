@@ -1,0 +1,688 @@
+"use client";
+
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { getCookie } from "@/lib/cookies";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
+
+type CalendarEvent = {
+  id: string;
+  title: string;
+  venue: string;
+  date: string;
+  end_time: string | null;
+  price: number;
+  status: string;
+  event_type: string | null;
+  notes: string | null;
+  calendar_color: string | null;
+  image_url: string | null;
+  venue_id: string | null;
+};
+
+type EventForm = {
+  title: string;
+  date: string;
+  time: string;
+  end_time: string;
+  venue: string;
+  event_type: string;
+  notes: string;
+  calendar_color: string;
+  status: string;
+  description: string;
+};
+
+const EVENT_COLORS: Record<string, string> = {
+  ticketed: "rgba(208,194,144,0.85)",
+  non_ticketed: "rgba(100,149,237,0.85)",
+  private: "rgba(180,100,200,0.85)",
+};
+
+const EVENT_BG: Record<string, string> = {
+  ticketed: "rgba(208,194,144,0.15)",
+  non_ticketed: "rgba(100,149,237,0.15)",
+  private: "rgba(180,100,200,0.15)",
+};
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function emptyForm(dateStr?: string): EventForm {
+  return {
+    title: "",
+    date: dateStr || new Date().toISOString().split("T")[0],
+    time: "19:00",
+    end_time: "",
+    venue: "",
+    event_type: "non_ticketed",
+    notes: "",
+    calendar_color: "",
+    status: "published",
+    description: "",
+  };
+}
+
+export default function CalendarPage() {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [form, setForm] = useState<EventForm>(emptyForm());
+  const [saving, setSaving] = useState(false);
+
+  // Venue info
+  const [venueId, setVenueId] = useState<string | null>(null);
+  const [venueName, setVenueName] = useState("");
+
+  const role = getCookie("user-role");
+
+  // Load venue info
+  useEffect(() => {
+    async function loadVenue() {
+      const supabase = getSupabaseBrowser();
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+
+      const { data: adminRecord } = await supabase
+        .from("admin_users")
+        .select("venue_id")
+        .eq("id", authData.user.id)
+        .single();
+
+      if (adminRecord?.venue_id) {
+        setVenueId(adminRecord.venue_id);
+        const { data: venue } = await supabase
+          .from("venues")
+          .select("name")
+          .eq("id", adminRecord.venue_id)
+          .single();
+        if (venue) setVenueName(venue.name);
+      }
+    }
+    loadVenue();
+  }, []);
+
+  // Fetch events for current month
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ month: currentMonth });
+    if (venueId) params.set("venue_id", venueId);
+
+    try {
+      const res = await fetch(`/api/calendar?${params}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setEvents(data);
+    } catch (err) {
+      console.error("Failed to fetch calendar events:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentMonth, venueId]);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Calendar grid computation
+  const calendarDays = useMemo(() => {
+    const [year, mon] = currentMonth.split("-").map(Number);
+    const firstDay = new Date(year, mon - 1, 1);
+    const lastDay = new Date(year, mon, 0);
+
+    const startDayOfWeek = firstDay.getDay(); // 0=Sun
+    const daysInMonth = lastDay.getDate();
+
+    const days: { date: Date; inMonth: boolean }[] = [];
+
+    // Previous month padding
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      const d = new Date(year, mon - 1, -i);
+      days.push({ date: d, inMonth: false });
+    }
+
+    // Current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ date: new Date(year, mon - 1, i), inMonth: true });
+    }
+
+    // Next month padding (fill to 6 rows)
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({ date: new Date(year, mon, i), inMonth: false });
+    }
+
+    return days;
+  }, [currentMonth]);
+
+  // Group events by date string
+  const eventsByDate = useMemo(() => {
+    const map: Record<string, CalendarEvent[]> = {};
+    events.forEach((e) => {
+      const d = new Date(e.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(e);
+    });
+    return map;
+  }, [events]);
+
+  // Navigation
+  const prevMonth = () => {
+    const [y, m] = currentMonth.split("-").map(Number);
+    const d = new Date(y, m - 2, 1);
+    setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const nextMonth = () => {
+    const [y, m] = currentMonth.split("-").map(Number);
+    const d = new Date(y, m, 1);
+    setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  const goToToday = () => {
+    const now = new Date();
+    setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  };
+
+  // Month label
+  const monthLabel = useMemo(() => {
+    const [y, m] = currentMonth.split("-").map(Number);
+    return new Date(y, m - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+  }, [currentMonth]);
+
+  // Open modal for new event
+  const openNewEvent = (dateStr?: string) => {
+    setEditingEvent(null);
+    setForm(emptyForm(dateStr));
+    setShowModal(true);
+  };
+
+  // Open modal for editing
+  const openEditEvent = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    const eventDate = new Date(event.date);
+    setForm({
+      title: event.title,
+      date: eventDate.toISOString().split("T")[0],
+      time: eventDate.toTimeString().slice(0, 5),
+      end_time: event.end_time ? new Date(event.end_time).toTimeString().slice(0, 5) : "",
+      venue: event.venue || "",
+      event_type: event.event_type || "ticketed",
+      notes: event.notes || "",
+      calendar_color: event.calendar_color || "",
+      status: event.status || "published",
+      description: "",
+    });
+    setShowModal(true);
+  };
+
+  // Save event
+  const handleSave = async () => {
+    if (!form.title.trim() || !form.date) return;
+    setSaving(true);
+
+    const dateTime = `${form.date}T${form.time || "00:00"}:00`;
+    const endTime = form.end_time ? `${form.date}T${form.end_time}:00` : null;
+
+    const payload: Record<string, unknown> = {
+      title: form.title.trim(),
+      date: dateTime,
+      end_time: endTime,
+      venue: form.venue || venueName,
+      event_type: form.event_type,
+      notes: form.notes || null,
+      calendar_color: form.calendar_color || null,
+      status: form.status,
+      description: form.description || null,
+      venue_id: venueId,
+    };
+
+    try {
+      if (editingEvent) {
+        payload.id = editingEvent.id;
+        await fetch("/api/calendar", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch("/api/calendar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      setShowModal(false);
+      fetchEvents();
+    } catch (err) {
+      console.error("Save failed:", err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete event
+  const handleDelete = async () => {
+    if (!editingEvent) return;
+    if (!confirm(`Delete "${editingEvent.title}"?`)) return;
+
+    try {
+      await fetch(`/api/calendar?id=${editingEvent.id}`, { method: "DELETE" });
+      setShowModal(false);
+      fetchEvents();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+  if (role && !["owner", "venue_admin", "full_admin"].includes(role)) {
+    return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
+  }
+
+  return (
+    <div className="admin-form-page">
+      <h1 className="admin-page-title">Calendar</h1>
+      <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
+        {venueName ? `${venueName} — ` : ""}Manage your venue events, holds, and private bookings.
+      </p>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+        {[
+          { label: "Ticketed", type: "ticketed" },
+          { label: "Non-Ticketed", type: "non_ticketed" },
+          { label: "Private", type: "private" },
+        ].map((l) => (
+          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: EVENT_COLORS[l.type] }} />
+            {l.label}
+          </div>
+        ))}
+      </div>
+
+      {/* Month Navigation */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <button onClick={prevMonth} style={navBtnStyle}>&larr;</button>
+        <h2 style={{ color: "#d0c290", fontSize: 20, fontWeight: 700, margin: 0, minWidth: 200, textAlign: "center" }}>
+          {monthLabel}
+        </h2>
+        <button onClick={nextMonth} style={navBtnStyle}>&rarr;</button>
+        <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: 12, padding: "6px 14px" }}>Today</button>
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => openNewEvent()}
+          className="admin-form-submit"
+          style={{ padding: "10px 20px", fontSize: 13 }}
+        >
+          + Add Event
+        </button>
+      </div>
+
+      {/* Calendar Grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 12,
+        overflow: "hidden",
+      }}>
+        {/* Day headers */}
+        {DAYS.map((d) => (
+          <div key={d} style={{
+            padding: "10px 8px",
+            textAlign: "center",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "rgba(255,255,255,0.4)",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            background: "rgba(255,255,255,0.03)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+          }}>
+            {d}
+          </div>
+        ))}
+
+        {/* Calendar cells */}
+        {calendarDays.map((day, i) => {
+          const key = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, "0")}-${String(day.date.getDate()).padStart(2, "0")}`;
+          const dayEvents = eventsByDate[key] || [];
+          const isToday = key === todayStr;
+
+          return (
+            <div
+              key={i}
+              onClick={() => openNewEvent(key)}
+              style={{
+                minHeight: 100,
+                padding: "4px 6px",
+                background: isToday
+                  ? "rgba(208,194,144,0.06)"
+                  : day.inMonth
+                  ? "rgba(255,255,255,0.01)"
+                  : "rgba(0,0,0,0.15)",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                borderRight: "1px solid rgba(255,255,255,0.04)",
+                cursor: "pointer",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isToday
+                  ? "rgba(208,194,144,0.06)"
+                  : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
+              }}
+            >
+              {/* Date number */}
+              <div style={{
+                fontSize: 12,
+                fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
+                color: isToday
+                  ? "#d0c290"
+                  : day.inMonth
+                  ? "rgba(255,255,255,0.6)"
+                  : "rgba(255,255,255,0.2)",
+                marginBottom: 4,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}>
+                {isToday && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#d0c290", display: "inline-block" }} />}
+                {day.date.getDate()}
+              </div>
+
+              {/* Events on this day */}
+              {dayEvents.slice(0, 3).map((ev) => {
+                const type = ev.event_type || "ticketed";
+                const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
+                const bg = EVENT_BG[type] || EVENT_BG.ticketed;
+                return (
+                  <div
+                    key={ev.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditEvent(ev);
+                    }}
+                    title={`${ev.title}${ev.notes ? ` — ${ev.notes}` : ""}`}
+                    style={{
+                      fontSize: 10,
+                      padding: "2px 6px",
+                      marginBottom: 2,
+                      borderRadius: 4,
+                      background: bg,
+                      color,
+                      borderLeft: `3px solid ${color}`,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {ev.title}
+                  </div>
+                );
+              })}
+              {dayEvents.length > 3 && (
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
+                  +{dayEvents.length - 3} more
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {loading && (
+        <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 16 }}>Loading events...</p>
+      )}
+
+      {/* ── Event Modal ── */}
+      {showModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f1128", borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.1)",
+              padding: 28, width: "100%", maxWidth: 500,
+              maxHeight: "90vh", overflowY: "auto",
+            }}
+          >
+            <h2 style={{ color: "#d0c290", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
+              {editingEvent ? "Edit Event" : "New Calendar Event"}
+            </h2>
+
+            {/* Title */}
+            <label style={labelStyle}>Event Title *</label>
+            <input
+              className="admin-form-input"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Private Party, Band Night, Staff Meeting"
+              style={{ width: "100%", marginBottom: 14 }}
+            />
+
+            {/* Event Type */}
+            <label style={labelStyle}>Event Type</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[
+                { value: "non_ticketed", label: "Non-Ticketed" },
+                { value: "private", label: "Private" },
+                { value: "ticketed", label: "Ticketed" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, event_type: opt.value })}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${form.event_type === opt.value ? EVENT_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
+                    background: form.event_type === opt.value ? EVENT_BG[opt.value] : "transparent",
+                    color: form.event_type === opt.value ? EVENT_COLORS[opt.value] : "rgba(255,255,255,0.5)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date & Times */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div>
+                <label style={labelStyle}>Date *</label>
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Start Time</label>
+                <input
+                  type="time"
+                  className="admin-form-input"
+                  value={form.time}
+                  onChange={(e) => setForm({ ...form, time: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>End Time</label>
+                <input
+                  type="time"
+                  className="admin-form-input"
+                  value={form.end_time}
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            </div>
+
+            {/* Venue */}
+            <label style={labelStyle}>Location / Room</label>
+            <input
+              className="admin-form-input"
+              value={form.venue}
+              onChange={(e) => setForm({ ...form, venue: e.target.value })}
+              placeholder={venueName || "e.g. Main Stage, VIP Room"}
+              style={{ width: "100%", marginBottom: 14 }}
+            />
+
+            {/* Notes */}
+            <label style={labelStyle}>Internal Notes</label>
+            <textarea
+              className="admin-form-input"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              placeholder="Internal notes (not shown publicly)"
+              rows={3}
+              style={{ width: "100%", marginBottom: 14, resize: "vertical" }}
+            />
+
+            {/* Description */}
+            <label style={labelStyle}>Description</label>
+            <textarea
+              className="admin-form-input"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Public description (optional)"
+              rows={2}
+              style={{ width: "100%", marginBottom: 14, resize: "vertical" }}
+            />
+
+            {/* Color */}
+            <label style={labelStyle}>Calendar Color (optional)</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+              {["", "#d0c290", "#6495ed", "#b464c8", "#50c878", "#ff6b6b", "#ffa500"].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setForm({ ...form, calendar_color: c })}
+                  style={{
+                    width: 28, height: 28, borderRadius: "50%",
+                    background: c || "rgba(255,255,255,0.1)",
+                    border: form.calendar_color === c ? "2px solid #fff" : "2px solid transparent",
+                    cursor: "pointer",
+                    position: "relative",
+                  }}
+                >
+                  {c === "" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(255,255,255,0.4)" }}>×</span>}
+                </button>
+              ))}
+            </div>
+
+            {/* Status */}
+            <label style={labelStyle}>Status</label>
+            <select
+              className="admin-form-input"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              style={{ width: "100%", marginBottom: 20 }}
+            >
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={handleSave}
+                disabled={saving || !form.title.trim()}
+                className="admin-form-submit"
+                style={{ flex: 1, padding: "12px 20px" }}
+              >
+                {saving ? "Saving..." : editingEvent ? "Update Event" : "Create Event"}
+              </button>
+              {editingEvent && (
+                <button
+                  onClick={handleDelete}
+                  style={{
+                    padding: "12px 20px",
+                    background: "rgba(255,80,80,0.1)",
+                    color: "rgba(255,80,80,0.8)",
+                    border: "1px solid rgba(255,80,80,0.2)",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  padding: "12px 20px",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "rgba(255,255,255,0.5)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Link to full event editor for ticketed events */}
+            {editingEvent && (editingEvent.event_type === "ticketed" || !editingEvent.event_type) && (
+              <p style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
+                  Open full event editor →
+                </a>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const navBtnStyle: React.CSSProperties = {
+  padding: "8px 16px",
+  background: "rgba(255,255,255,0.05)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  borderRadius: 8,
+  color: "rgba(255,255,255,0.6)",
+  cursor: "pointer",
+  fontSize: 16,
+  fontWeight: 600,
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 600,
+  color: "rgba(255,255,255,0.4)",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+  marginBottom: 4,
+};
