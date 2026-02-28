@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 type ScanResult = {
   valid: boolean;
@@ -13,22 +13,59 @@ export default function AdminScanPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
   const [manualCode, setManualCode] = useState("");
+  const [processing, setProcessing] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrRef = useRef<unknown>(null);
+  const lastScannedRef = useRef<string>("");
+  const lastScanTimeRef = useRef<number>(0);
+  const resultTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const validateTicket = async (qrCode: string) => {
+  const validateTicket = useCallback(async (qrCode: string) => {
+    // Debounce: ignore same code within 3 seconds
+    const now = Date.now();
+    if (qrCode === lastScannedRef.current && now - lastScanTimeRef.current < 3000) return;
+    lastScannedRef.current = qrCode;
+    lastScanTimeRef.current = now;
+
+    setProcessing(true);
     setResult(null);
+
     try {
       const res = await fetch(`/api/tickets/${qrCode}/validate`, { method: "POST" });
       const data = await res.json();
       setResult(data);
 
-      // Auto-clear result after 5 seconds
-      setTimeout(() => setResult(null), 5000);
+      // Play sound feedback
+      try {
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.value = 0.3;
+        osc.frequency.value = data.valid ? 880 : 330;
+        osc.type = data.valid ? "sine" : "square";
+        osc.start();
+        osc.stop(ctx.currentTime + (data.valid ? 0.15 : 0.3));
+      } catch {}
+
+      // Vibrate on mobile
+      if (navigator.vibrate) {
+        navigator.vibrate(data.valid ? 100 : [100, 50, 100]);
+      }
+
+      // Auto-clear result after 3 seconds
+      if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+      resultTimeoutRef.current = setTimeout(() => {
+        setResult(null);
+        lastScannedRef.current = "";
+      }, 3000);
     } catch {
       setResult({ valid: false, reason: "Network error" });
+    } finally {
+      setProcessing(false);
     }
-  };
+  }, []);
 
   const startScanner = async () => {
     if (scanning) return;
@@ -43,13 +80,12 @@ export default function AdminScanPage() {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-          // Extract QR code from URL or use raw
           const code = decodedText.includes("/tickets/")
             ? decodedText.split("/tickets/").pop() || decodedText
             : decodedText;
           validateTicket(code);
         },
-        () => {} // ignore errors
+        () => {}
       );
     } catch (err) {
       console.error("Scanner error:", err);
@@ -66,9 +102,8 @@ export default function AdminScanPage() {
     setScanning(false);
   };
 
-  useEffect(() => {
-    return () => { stopScanner(); };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { return () => { stopScanner(); }; }, []);
 
   const handleManualScan = () => {
     if (manualCode.trim()) {
@@ -80,46 +115,119 @@ export default function AdminScanPage() {
     }
   };
 
+  // Full-screen overlay colors
+  const overlayBg = result
+    ? result.valid
+      ? "rgba(34, 197, 94, 0.95)"   // green
+      : "rgba(239, 68, 68, 0.95)"   // red
+    : "transparent";
+
   return (
-    <div className="admin-form-page">
+    <div className="admin-form-page" style={{ position: "relative", minHeight: "100vh" }}>
+
+      {/* ── FULL-SCREEN RESULT OVERLAY ── */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: result ? 9999 : -1,
+          background: overlayBg,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: result ? 1 : 0,
+          transition: "opacity 200ms ease, background 200ms ease",
+          pointerEvents: result ? "auto" : "none",
+        }}
+        onClick={() => { setResult(null); lastScannedRef.current = ""; }}
+      >
+        {result && (
+          <>
+            {/* Large icon */}
+            <div style={{
+              fontSize: 96, lineHeight: 1, marginBottom: 16,
+              animation: "scan-pop 300ms ease-out",
+            }}>
+              {result.valid ? "✓" : "✗"}
+            </div>
+
+            {/* Status text */}
+            <h2 style={{
+              color: "#fff", fontSize: 32, fontWeight: 800, margin: "0 0 8px",
+              fontFamily: "var(--font-bayon), sans-serif",
+              textTransform: "uppercase", letterSpacing: 2,
+            }}>
+              {result.valid ? "VALID TICKET" : "INVALID"}
+            </h2>
+
+            {/* Details */}
+            {result.valid ? (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>
+                <p style={{ fontSize: 22, fontWeight: 700, margin: "4px 0" }}>{result.customer_name}</p>
+                <p style={{ fontSize: 16, opacity: 0.8, margin: "4px 0" }}>{result.event_title}</p>
+              </div>
+            ) : (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>
+                <p style={{ fontSize: 18, margin: "4px 0" }}>{result.reason}</p>
+                {result.customer_name && (
+                  <p style={{ fontSize: 16, opacity: 0.8, margin: "4px 0" }}>{result.customer_name}</p>
+                )}
+              </div>
+            )}
+
+            <p style={{
+              color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 24,
+            }}>
+              Tap anywhere to dismiss
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* ── SCANNER UI ── */}
       <h1 className="admin-page-title">Ticket Scanner</h1>
 
-      {/* Scan Result Overlay */}
-      {result && (
-        <div className={`scan-result ${result.valid ? "scan-valid" : "scan-invalid"}`}>
-          <div className="scan-result-icon">{result.valid ? "✅" : "❌"}</div>
-          <div className="scan-result-text">
-            {result.valid ? (
-              <>
-                <h2>Valid Ticket</h2>
-                <p>{result.customer_name}</p>
-                <p className="scan-result-event">{result.event_title}</p>
-              </>
-            ) : (
-              <>
-                <h2>Invalid</h2>
-                <p>{result.reason}</p>
-                {result.customer_name && <p>{result.customer_name}</p>}
-              </>
-            )}
-          </div>
+      {processing && (
+        <div style={{
+          textAlign: "center", padding: 12, color: "#d0c290", fontSize: 14,
+        }}>
+          Validating…
         </div>
       )}
 
       {/* Camera Scanner */}
       <div className="scan-camera-section">
-        <div id="qr-reader" ref={scannerRef} className="scan-camera-view" />
-        <div className="scan-controls">
+        <div
+          id="qr-reader"
+          ref={scannerRef}
+          className="scan-camera-view"
+          style={{
+            borderRadius: 12,
+            overflow: "hidden",
+            border: scanning ? "2px solid rgba(208,194,144,0.3)" : "2px dashed rgba(255,255,255,0.1)",
+            minHeight: scanning ? 300 : 80,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "min-height 300ms ease",
+          }}
+        />
+        <div className="scan-controls" style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: "center" }}>
           {!scanning ? (
-            <button className="admin-form-submit" onClick={startScanner}>Start Camera</button>
+            <button className="admin-form-submit" onClick={startScanner} style={{ minWidth: 160 }}>
+              📷 Start Camera
+            </button>
           ) : (
-            <button className="portal-signout-btn" onClick={stopScanner}>Stop Camera</button>
+            <button className="portal-signout-btn" onClick={stopScanner} style={{ minWidth: 160 }}>
+              ⏹ Stop Camera
+            </button>
           )}
         </div>
       </div>
 
       {/* Manual Entry */}
-      <div className="scan-manual-section">
+      <div className="scan-manual-section" style={{ marginTop: 32 }}>
         <h3 className="portal-form-heading">Manual Entry</h3>
         <div style={{ display: "flex", gap: 10 }}>
           <input
@@ -133,6 +241,15 @@ export default function AdminScanPage() {
           <button className="admin-form-submit" onClick={handleManualScan}>Validate</button>
         </div>
       </div>
+
+      {/* Animation keyframes */}
+      <style jsx>{`
+        @keyframes scan-pop {
+          0% { transform: scale(0.3); opacity: 0; }
+          60% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

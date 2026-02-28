@@ -40,8 +40,6 @@ function SuccessContent() {
       .finally(() => setLoading(false));
   }, [sessionId]);
 
-  const handlePrint = () => window.print();
-
   return (
     <section className="checkout-success-section">
       <div className="checkout-success-card">
@@ -105,32 +103,33 @@ function SuccessContent() {
 
         {/* Actions */}
         <div className="checkout-success-actions" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Apple Wallet — requires server-side pkpass generation, stub for now */}
-          <button
-            type="button"
-            disabled
-            title="Apple Wallet support coming soon"
-            style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              background: "#000", color: "#fff", border: "none", borderRadius: 8,
-              padding: "12px 24px", fontSize: 15, fontWeight: 600, opacity: 0.45,
-              cursor: "not-allowed",
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.3.07 2.18.76 2.94.8 1.12-.22 2.2-.93 3.37-.84 1.42.12 2.51.65 3.2 1.67-3.12 1.8-2.37 5.67.35 6.83-.57 1.52-1.27 3.02-1.86 4.42zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-            </svg>
-            Add to Apple Wallet
-          </button>
+          {/* Apple Wallet */}
+          {data?.ticket?.qr_code && (
+            <a
+              href={`/api/tickets/${data.ticket.qr_code}/wallet`}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                background: "#000", color: "#fff", border: "none", borderRadius: 8,
+                padding: "12px 24px", fontSize: 15, fontWeight: 600,
+                textDecoration: "none", cursor: "pointer",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.3.07 2.18.76 2.94.8 1.12-.22 2.2-.93 3.37-.84 1.42.12 2.51.65 3.2 1.67-3.12 1.8-2.37 5.67.35 6.83-.57 1.52-1.27 3.02-1.86 4.42zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+              </svg>
+              Add to Apple Wallet
+            </a>
+          )}
 
-          {/* Print ticket */}
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="checkout-success-btn"
-          >
-            🖨 Print My Ticket
-          </button>
+          {/* View ticket online */}
+          {data?.ticket?.qr_code && (
+            <Link
+              href={`/tickets/${data.ticket.qr_code}`}
+              className="checkout-success-btn"
+            >
+              🎟️ {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
+            </Link>
+          )}
 
           {/* Back to events */}
           <Link href="/events" className="checkout-success-btn" style={{ background: "transparent", border: "1px solid rgba(208,194,144,0.3)" }}>
