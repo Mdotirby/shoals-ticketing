@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 
+type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
+
 const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
 const MAX_TIERS = 8;
 
@@ -21,6 +23,8 @@ export default function AdminEditEventPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
+  const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: "",
@@ -72,6 +76,11 @@ export default function AdminEditEventPage() {
           setPreviewUrl(event.image_url);
         }
 
+        // Set existing event_venue_id
+        if (event.event_venue_id) {
+          setSelectedEventVenueId(event.event_venue_id);
+        }
+
         // Map existing tiers to draft format
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
@@ -94,6 +103,17 @@ export default function AdminEditEventPage() {
       })
       .catch(() => setError("Failed to load event"))
       .finally(() => setLoading(false));
+
+    // Load event venues for dropdown
+    import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+      getSupabaseBrowser()
+        .from("event_venues")
+        .select("id, name, full_address, contact_name, phone")
+        .order("name")
+        .then(({ data }: { data: EventVenue[] | null }) => {
+          if (data) setEventVenues(data);
+        });
+    });
   }, [id]);
 
   const handleChange = (
@@ -223,6 +243,7 @@ export default function AdminEditEventPage() {
           price: lowestPrice,
           description: form.description || null,
           image_url: form.image_url || null,
+          event_venue_id: selectedEventVenueId || null,
         }),
       });
 
@@ -290,13 +311,37 @@ export default function AdminEditEventPage() {
           </label>
 
           <label className="admin-form-label">
-            Venue Name *
+            Venue *
+            {eventVenues.length > 0 && (
+              <select
+                className="admin-form-input"
+                value={selectedEventVenueId || ""}
+                onChange={(e) => {
+                  const v = eventVenues.find((x) => x.id === e.target.value);
+                  if (v) {
+                    setSelectedEventVenueId(v.id);
+                    setForm((prev) => ({ ...prev, venue: v.name }));
+                  } else {
+                    setSelectedEventVenueId(null);
+                  }
+                }}
+                style={{ marginBottom: 6 }}
+              >
+                <option value="">— Select a venue or type below —</option>
+                {eventVenues.map((v) => (
+                  <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
+                ))}
+              </select>
+            )}
             <input
               type="text"
               name="venue"
               className="admin-form-input"
               value={form.venue}
-              onChange={handleChange}
+              onChange={(e) => {
+                handleChange(e);
+                setSelectedEventVenueId(null);
+              }}
               required
             />
           </label>

@@ -45,6 +45,7 @@ export async function PUT(
   if (body.description !== undefined) updates.description = body.description;
   if (body.image_url !== undefined) updates.image_url = body.image_url;
   if (body.status !== undefined) updates.status = body.status;
+  if (body.event_venue_id !== undefined) updates.event_venue_id = body.event_venue_id;
 
   const { data, error } = await admin
     .from("events")

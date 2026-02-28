@@ -64,6 +64,7 @@ export async function POST(request) {
       image_url: body.image_url || null,
       status: body.status || "published",
       venue_id: body.venue_id || null,
+      event_venue_id: body.event_venue_id || null,
     })
     .select()
     .single();
