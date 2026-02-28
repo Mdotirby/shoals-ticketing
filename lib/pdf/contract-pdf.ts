@@ -324,6 +324,23 @@ export async function exportContractPDF(
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  //  REVENUE
+  // ═══════════════════════════════════════════════════════════════════
+  if (offer.gross_potential != null || offer.adj_gross != null || offer.net_potential != null) {
+    y = drawSectionHeader(doc, "Revenue", y);
+    if (offer.gross_potential != null) y = drawLabelValue(doc, "Gross Revenue", fmt(offer.gross_potential), y);
+    if (offer.adj_gross != null) y = drawLabelValue(doc, "Adjusted Gross", fmt(offer.adj_gross), y);
+    if (offer.tax_rate != null) {
+      const taxPct = (offer.tax_rate * 100).toFixed(2);
+      const taxAmount = (offer.adj_gross ?? offer.gross_potential ?? 0) * offer.tax_rate;
+      y = drawLabelValue(doc, "Tax Rate", `${taxPct}%`, y);
+      y = drawLabelValue(doc, "Taxes", fmt(taxAmount), y);
+    }
+    if (offer.net_potential != null) y = drawLabelValue(doc, "Net Potential", fmt(offer.net_potential), y);
+    y += 3;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   //  EXPENSES
   // ═══════════════════════════════════════════════════════════════════
   if (offer.fixed_expenses?.length || offer.variable_expenses?.length) {
