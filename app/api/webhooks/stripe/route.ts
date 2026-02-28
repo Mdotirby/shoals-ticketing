@@ -306,7 +306,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true, error: orderError.message });
       }
 
-      // 2. Create ticket records with unique QR codes
+      // 2. Look up the default ticket tier for this event
+      const { data: defaultTier } = await admin
+        .from("ticket_tiers")
+        .select("id")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      // 3. Create ticket records with unique QR codes
       const tickets = [];
       for (let i = 0; i < quantity; i++) {
         const qrCode = uuidv4();
@@ -317,6 +326,7 @@ export async function POST(request: Request) {
         tickets.push({
           order_id: order.id,
           event_id: eventId,
+          ticket_type_id: defaultTier?.id || null,
           customer_name: customerName,
           customer_email: customerEmail,
           qr_code: qrCode,
