@@ -9,6 +9,7 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [venueId, setVenueId] = useState("");
+  const [isOwner, setIsOwner] = useState(false);
 
   const [venue, setVenue] = useState({
     name: "",
@@ -18,6 +19,12 @@ export default function AdminSettingsPage() {
     address_city: "",
     address_state: "",
     address_zip: "",
+  });
+
+  const [fees, setFees] = useState({
+    ticketing_fee: "3.00",
+    facility_fee: "0",
+    tax_rate: "9.5",
   });
 
   const [buyer, setBuyer] = useState({
@@ -31,6 +38,8 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const vid = getCookie("venue-id");
     const role = getCookie("user-role");
+
+    setIsOwner(role === "owner" || role === "super_admin");
 
     if (!vid && role !== "owner" && role !== "super_admin") {
       setLoading(false);
@@ -56,6 +65,11 @@ export default function AdminSettingsPage() {
         buyer_phone: (v.buyer_phone as string) || "",
         buyer_email: (v.buyer_email as string) || "",
         promoter_address: (v.promoter_address as string) || "",
+      });
+      setFees({
+        ticketing_fee: v.ticketing_fee != null ? String(v.ticketing_fee) : "3.00",
+        facility_fee: v.facility_fee != null ? String(v.facility_fee) : "0",
+        tax_rate: v.tax_rate != null ? String(Number(v.tax_rate) > 1 ? v.tax_rate : Number(v.tax_rate) * 100) : "9.5",
       });
     };
 
@@ -105,6 +119,12 @@ export default function AdminSettingsPage() {
           buyer_phone: buyer.buyer_phone || null,
           buyer_email: buyer.buyer_email || null,
           promoter_address: buyer.promoter_address || null,
+          // Only owner can update fee fields
+          ...(isOwner ? {
+            ticketing_fee: parseFloat(fees.ticketing_fee) || 0,
+            facility_fee: parseFloat(fees.facility_fee) || 0,
+            tax_rate: parseFloat(fees.tax_rate) / 100, // store as decimal
+          } : {}),
         }),
       });
 
@@ -257,6 +277,58 @@ export default function AdminSettingsPage() {
               value={buyer.promoter_address}
               onChange={(e) => setBuyer({ ...buyer, promoter_address: e.target.value })}
               placeholder="798 N Royal Ave, Florence AL, 35630"
+            />
+          </label>
+        </div>
+
+        {/* ── Fees & Tax (owner only can edit) ── */}
+        <h2 className="admin-form-section-title">Fees & Tax</h2>
+        {!isOwner && (
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12 }}>
+            These fields are set by the platform owner and cannot be edited by venue admins.
+          </p>
+        )}
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Ticketing Fee ($ per ticket)
+            <input
+              type="number"
+              className="admin-form-input"
+              value={fees.ticketing_fee}
+              onChange={(e) => setFees({ ...fees, ticketing_fee: e.target.value })}
+              step="0.01"
+              min="0"
+              readOnly={!isOwner}
+              style={{ opacity: isOwner ? 1 : 0.5 }}
+              title={isOwner ? "" : "Only the owner can edit this field"}
+            />
+          </label>
+          <label className="admin-form-label">
+            Facility Fee ($ per ticket)
+            <input
+              type="number"
+              className="admin-form-input"
+              value={fees.facility_fee}
+              onChange={(e) => setFees({ ...fees, facility_fee: e.target.value })}
+              step="0.01"
+              min="0"
+              readOnly={!isOwner}
+              style={{ opacity: isOwner ? 1 : 0.5 }}
+              title={isOwner ? "" : "Only the owner can edit this field"}
+            />
+          </label>
+          <label className="admin-form-label">
+            Tax Rate (%)
+            <input
+              type="number"
+              className="admin-form-input"
+              value={fees.tax_rate}
+              onChange={(e) => setFees({ ...fees, tax_rate: e.target.value })}
+              step="0.5"
+              min="0"
+              readOnly={!isOwner}
+              style={{ opacity: isOwner ? 1 : 0.5 }}
+              title={isOwner ? "" : "Only the owner can edit this field"}
             />
           </label>
         </div>

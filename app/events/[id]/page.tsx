@@ -80,7 +80,7 @@ export default function EventDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtist[]>([]);
-  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, tax_rate: 0.095 });
+  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,6 +143,7 @@ export default function EventDetailPage() {
               if (v) {
                 setVenueFees({
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
+                  facility_fee: Number(v.facility_fee) || 0,
                   tax_rate: Number(v.tax_rate) || 0.095,
                 });
                 // Enrich event with venue location data
@@ -345,6 +346,7 @@ export default function EventDetailPage() {
                 selectedTicket={selectedTicket}
                 quantity={quantity}
                 ticketingFee={venueFees.ticketing_fee}
+                facilityFee={venueFees.facility_fee}
                 taxRate={venueFees.tax_rate}
                 onCheckout={handleCheckout}
               />

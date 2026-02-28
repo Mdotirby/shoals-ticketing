@@ -35,18 +35,20 @@ export async function POST(request: Request) {
 
     // Fetch venue-specific fees
     let ticketingFee = 3.0;
+    let facilityFee = 0;
     let venueRebate = 0;
     let taxRate = 0.095;
 
     if (event.venue_id) {
       const { data: venueData } = await admin
         .from("venues")
-        .select("ticketing_fee, venue_rebate, tax_rate")
+        .select("ticketing_fee, facility_fee, venue_rebate, tax_rate")
         .eq("id", event.venue_id)
         .single();
 
       if (venueData) {
         ticketingFee = venueData.ticketing_fee ?? 3.0;
+        facilityFee = venueData.facility_fee ?? 0;
         venueRebate = venueData.venue_rebate ?? 0;
         taxRate = venueData.tax_rate ?? 0.095;
       }
@@ -56,12 +58,13 @@ export async function POST(request: Request) {
 
     const ticketPriceCents = Math.round(event.price * 100);
     const ticketingFeeCents = Math.round(ticketingFee * 100);
+    const facilityFeeCents = Math.round(facilityFee * 100);
 
     // Calculate tax on ticket price
     const taxCents = Math.round(ticketPriceCents * taxRate);
 
-    // Calculate Stripe processing fee on the total (ticket + ticketing fee + tax)
-    const subtotalBeforeStripeFee = (ticketPriceCents + ticketingFeeCents + taxCents) * quantity;
+    // Calculate Stripe processing fee on the total (ticket + ticketing fee + facility fee + tax)
+    const subtotalBeforeStripeFee = (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
     const stripeFeeCents = Math.round(
       subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
     );
@@ -97,6 +100,17 @@ export async function POST(request: Request) {
           currency: "usd",
           product_data: { name: "Ticketing Fee" },
           unit_amount: ticketingFeeCents,
+        },
+        quantity,
+      });
+    }
+
+    if (facilityFeeCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: { name: "Facility Fee" },
+          unit_amount: facilityFeeCents,
         },
         quantity,
       });
@@ -138,6 +152,7 @@ export async function POST(request: Request) {
         venue_id: event.venue_id || "",
         quantity: String(quantity),
         ticketing_fee: String(ticketingFee),
+        facility_fee: String(facilityFee),
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
       },

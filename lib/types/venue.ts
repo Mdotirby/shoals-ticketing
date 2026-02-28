@@ -14,6 +14,10 @@ export type Venue = {
   buyer_phone: string | null;
   buyer_email: string | null;
   promoter_address: string | null;
+  ticketing_fee: number | null;
+  facility_fee: number | null;
+  tax_rate: number | null;
+  venue_rebate: number | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;

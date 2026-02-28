@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       subject: "Welcome to Friends with Benefits, {{first_name}}!",
       category: "welcome",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #000000; padding: 40px 32px; border-radius: 12px;">
   <div style="text-align: center; margin-bottom: 32px;">
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="120" style="margin-bottom: 16px;" />
   </div>

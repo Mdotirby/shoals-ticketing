@@ -15,6 +15,7 @@ type OrderSummaryProps = {
   selectedTicket: TicketType | null;
   quantity: number;
   ticketingFee: number;   // flat dollar per ticket (venue_ticket_fee)
+  facilityFee: number;    // flat dollar per ticket (venue facility_fee)
   taxRate: number;        // venue_tax_rate — accepts 9.5 or 0.095
   onCheckout: () => void;
 };
@@ -23,6 +24,7 @@ export default function OrderSummary({
   selectedTicket,
   quantity,
   ticketingFee,
+  facilityFee,
   taxRate,
   onCheckout,
 }: OrderSummaryProps) {
@@ -30,10 +32,11 @@ export default function OrderSummary({
   const hasSelection = selectedTicket !== null && quantity > 0;
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
   const totalTicketingFee = hasSelection ? ticketingFee * quantity : 0;
+  const totalFacilityFee = hasSelection ? facilityFee * quantity : 0;
   const tax = hasSelection
     ? Math.round(subtotal * rate * 100) / 100
     : 0;
-  const subtotalBeforeStripe = subtotal + totalTicketingFee + tax;
+  const subtotalBeforeStripe = subtotal + totalTicketingFee + totalFacilityFee + tax;
   const processingFee = hasSelection
     ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0;
@@ -82,6 +85,12 @@ export default function OrderSummary({
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Venue ticketing fee</span>
               <span className="order-summary-line-value">$ {totalTicketingFee.toFixed(2)}</span>
+            </div>
+          )}
+          {totalFacilityFee > 0 && (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label">Facility fee</span>
+              <span className="order-summary-line-value">$ {totalFacilityFee.toFixed(2)}</span>
             </div>
           )}
           {tax > 0 && (

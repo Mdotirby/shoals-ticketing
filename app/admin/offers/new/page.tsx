@@ -126,6 +126,13 @@ export default function AdminCreateOfferPage() {
             if (v.default_radius_distance) setRadiusDistance(String(v.default_radius_distance));
             if (v.default_radius_days_prior) setRadiusDaysPrior(String(v.default_radius_days_prior));
             if (v.default_radius_days_after) setRadiusDaysAfter(String(v.default_radius_days_after));
+            // Auto-fill fees from venue settings
+            if (v.facility_fee != null) setFacilityFee(String(v.facility_fee));
+            if (v.ticketing_fee != null) setTicketingFee(String(v.ticketing_fee));
+            if (v.tax_rate != null) {
+              const rate = Number(v.tax_rate);
+              setTaxRate(String(rate > 1 ? rate : rate * 100));
+            }
           }
         })
         .catch(() => {});
@@ -522,7 +529,7 @@ export default function AdminCreateOfferPage() {
         </div>
         <div className="offer-scaling-footer">
           <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: `P${p.length + 1}` }])}>+ Add Tier</button>
-          <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={facilityFee} onChange={(e) => { setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} step="0.01" /></label>
+          <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={facilityFee} onChange={(e) => { if (!isOwnerRole) return; setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
           <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={ticketingFee} onChange={(e) => { if (!isOwnerRole) return; setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
         </div>
         <div className="offer-totals-row">
@@ -574,7 +581,7 @@ export default function AdminCreateOfferPage() {
           </label>
           <label className="admin-form-label">
             Tax Rate (%)
-            <input type="number" className="admin-form-input" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} step="0.5" min="0" placeholder="9.5" />
+            <input type="number" className="admin-form-input" style={{ opacity: isOwnerRole ? 1 : 0.5 }} value={taxRate} onChange={(e) => { if (!isOwnerRole) return; setTaxRate(e.target.value); }} readOnly={!isOwnerRole} step="0.5" min="0" placeholder="9.5" title={isOwnerRole ? "" : "Set by platform owner"} />
           </label>
         </div>
 

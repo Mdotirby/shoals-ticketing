@@ -299,12 +299,14 @@ export default function AdminOfferDetailPage() {
         sectionTitle("Ticket Scaling");
         // Column headers
         doc.setTextColor(80,80,80); doc.setFontSize(6);
-        const cols = [10, 35, 55, 70, 85, 105, 130, 155];
-        ["Scaling", "# Seats", "Comps", "Kills", "Sellable", "Net Price", "Price", "Gross"].forEach((h, i) => doc.text(h, cols[i], y));
+        const cols = [10, 35, 52, 65, 80, 100, 120, 140, 160, 185];
+        ["Scaling", "# Seats", "Comps", "Kills", "Sellable", "Net Price", "Fac. Fee", "Tkt Fee", "Price", "Gross"].forEach((h, i) => doc.text(h, cols[i], y));
         y += 3.5;
         doc.setTextColor(0,0,0); doc.setFontSize(7);
         scaling.forEach((r) => {
-          [r.name, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap), `$${r.net_price?.toFixed(2)}`, `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`].forEach((v, i) => doc.text(v, cols[i], y));
+          const facFee = r.facility_fee || 0;
+          const tktFee = r.price - (r.net_price || 0) - facFee;
+          [r.name, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap), `$${r.net_price?.toFixed(2)}`, `$${facFee.toFixed(2)}`, `$${tktFee.toFixed(2)}`, `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`].forEach((v, i) => doc.text(v, cols[i], y));
           y += 3.5;
         });
         y += 2;
@@ -335,6 +337,24 @@ export default function AdminOfferDetailPage() {
       doc.text(`Total Expenses:  $${Number(form.total_expenses || 0).toLocaleString()}`, 10, y);
       doc.setFont("helvetica", "normal");
       y += 6;
+
+      // ─── REVENUE BREAKDOWN (Facility Fees & Ticketing Fees) ───
+      sectionTitle("Revenue Breakdown");
+      // Calculate total sellable tickets
+      const totalSellable = scaling.reduce((s: number, r: TicketScalingRow) => s + (r.sellable_cap || 0), 0);
+      // Facility fee per ticket (from scaling rows or 0)
+      const pdfFacilityFee = scaling.length > 0 ? (scaling[0] as TicketScalingRow).facility_fee || 0 : 0;
+      // Ticketing fee: derive from price - net_price - facility_fee
+      const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee) : 0;
+      const totalFacilityFeeRevenue = totalSellable * pdfFacilityFee;
+      const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
+
+      labelVal("Facility Fee (per ticket)", `$${pdfFacilityFee.toFixed(2)}`);
+      labelVal("Total Facility Fee Revenue", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+      labelVal("Ticketing Fee (per ticket)", `$${pdfTicketingFee.toFixed(2)}`);
+      labelVal("Total Ticketing Fee Revenue", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+      labelVal("Combined Fee Revenue", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+      y += 2;
 
       // ─── POTENTIAL AT SELLOUT ───
       sectionTitle("Potential at Sellout");
