@@ -76,15 +76,21 @@ export default function AdminOfferDetailPage() {
   useEffect(() => {
     const venueId = getCookie("venue-id");
 
-    Promise.all([
-      fetch(`/api/offers/${id}`).then((r) => r.json()),
-      venueId ? fetch("/api/venues").then((r) => r.json()).then((vs: Venue[]) => vs.find((v) => v.id === venueId) || null) : Promise.resolve(null),
-    ])
-      .then(([offerData, venueData]) => {
+    fetch(`/api/offers/${id}`).then((r) => r.json())
+      .then(async (offerData) => {
         if (offerData.error) { setError(offerData.error); return; }
         setOffer(offerData);
         setForm(offerData);
-        setVenue(venueData);
+
+        // Resolve venue: use venue-id cookie, or fall back to offer's venue_id
+        const resolveVenueId = venueId || offerData.venue_id;
+        if (resolveVenueId) {
+          try {
+            const venues: Venue[] = await fetch("/api/venues").then((r) => r.json());
+            const found = venues.find((v) => v.id === resolveVenueId) || null;
+            setVenue(found);
+          } catch { /* ignore */ }
+        }
       })
       .catch(() => setError("Failed to load offer"))
       .finally(() => setLoading(false));
@@ -566,10 +572,36 @@ export default function AdminOfferDetailPage() {
             style={{ padding: "10px 20px" }}
             disabled={contractLoading}
             onClick={async () => {
-              if (!offer || !venue) return;
+              if (!offer) return;
               setContractLoading(true);
               setError("");
               try {
+                // Build a fallback venue from offer fields if no venue object
+                const contractVenue: Venue = venue || {
+                  id: offer.venue_id || "",
+                  name: String(form.venue || "Venue"),
+                  slug: "",
+                  logo_url: null,
+                  nickname: null,
+                  capacity: null,
+                  address_street: String(form.venue_address || "").split(",")[0]?.trim() || null,
+                  address_city: String(form.venue_address || "").split(",")[1]?.trim() || null,
+                  address_state: String(form.venue_address || "").split(",")[2]?.trim() || null,
+                  address_zip: String(form.venue_address || "").split(",")[3]?.trim() || null,
+                  buyer_name: null,
+                  contract_signatory: null,
+                  buyer_phone: String(form.venue_phone || "") || null,
+                  buyer_email: null,
+                  promoter_address: null,
+                  ticketing_fee: null,
+                  facility_fee: null,
+                  tax_rate: null,
+                  venue_rebate: null,
+                  primary_color: "#d0c290",
+                  secondary_color: "#0b0d1d",
+                  accent_color: "#d0c290",
+                  created_at: new Date().toISOString(),
+                };
                 // Create contract record
                 const res = await fetch("/api/contracts", {
                   method: "POST",
@@ -590,7 +622,7 @@ export default function AdminOfferDetailPage() {
                 setContract(created);
 
                 // Generate PDF
-                await exportContractPDF(created, offer, venue);
+                await exportContractPDF(created, offer, contractVenue);
                 setSuccess("Contract generated & PDF downloaded.");
               } catch {
                 setError("Failed to generate contract.");
@@ -702,10 +734,24 @@ export default function AdminOfferDetailPage() {
               onClick={async () => {
                 if (contract.source === "uploaded" && contract.file_url) {
                   window.open(contract.file_url, "_blank");
-                } else if (offer && venue) {
+                } else if (offer) {
                   setContractLoading(true);
                   try {
-                    await exportContractPDF(contract, offer, venue);
+                    // Use venue or build fallback from offer fields
+                    const dlVenue: Venue = venue || {
+                      id: offer.venue_id || "", name: String(form.venue || "Venue"), slug: "",
+                      logo_url: null, nickname: null, capacity: null,
+                      address_street: String(form.venue_address || "").split(",")[0]?.trim() || null,
+                      address_city: String(form.venue_address || "").split(",")[1]?.trim() || null,
+                      address_state: String(form.venue_address || "").split(",")[2]?.trim() || null,
+                      address_zip: String(form.venue_address || "").split(",")[3]?.trim() || null,
+                      buyer_name: null, contract_signatory: null, buyer_phone: String(form.venue_phone || "") || null,
+                      buyer_email: null, promoter_address: null,
+                      ticketing_fee: null, facility_fee: null, tax_rate: null, venue_rebate: null,
+                      primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#d0c290",
+                      created_at: new Date().toISOString(),
+                    };
+                    await exportContractPDF(contract, offer, dlVenue);
                   } catch {
                     setError("Failed to generate PDF.");
                   } finally {
