@@ -49,9 +49,14 @@ export default function AdminEventsPage() {
     <div className="admin-form-page">
       <div className="admin-page-header">
         <h1 className="admin-page-title">Events</h1>
-        <Link href="/admin/events/new" className="admin-header-btn">
-          + Create Event
-        </Link>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link href="/admin/calendar" className="admin-header-btn" style={{ background: "rgba(208,194,144,0.1)", color: "#d0c290", border: "1px solid rgba(208,194,144,0.2)" }}>
+            Calendar View
+          </Link>
+          <Link href="/admin/events/new" className="admin-header-btn">
+            + Create Event
+          </Link>
+        </div>
       </div>
 
       {loading && (

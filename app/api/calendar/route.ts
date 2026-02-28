@@ -19,9 +19,13 @@ export async function GET(req: NextRequest) {
   const endDate = new Date(year, mon, 0);
   endDate.setDate(endDate.getDate() + 7); // 7 days after month end
 
+  // Try full column set first; fall back to basic columns if migration hasn't run
+  const fullColumns = "id, title, venue, date, end_time, price, status, event_type, notes, calendar_color, image_url, venue_id";
+  const basicColumns = "id, title, venue, date, price, status, image_url, venue_id";
+
   let query = admin
     .from("events")
-    .select("id, title, venue, date, end_time, price, status, event_type, notes, calendar_color, image_url, venue_id")
+    .select(fullColumns)
     .gte("date", startDate.toISOString())
     .lte("date", endDate.toISOString())
     .order("date", { ascending: true });
@@ -30,7 +34,31 @@ export async function GET(req: NextRequest) {
     query = query.eq("venue_id", venueId);
   }
 
-  const { data, error } = await query;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let { data, error } = await query as { data: any[] | null; error: any };
+
+  // If columns don't exist yet, fall back to basic select
+  if (error && error.message?.includes("column")) {
+    console.warn("Calendar: new columns not found, using basic select");
+    let fallback = admin
+      .from("events")
+      .select(basicColumns)
+      .gte("date", startDate.toISOString())
+      .lte("date", endDate.toISOString())
+      .order("date", { ascending: true });
+
+    if (venueId) fallback = fallback.eq("venue_id", venueId);
+
+    const result = await fallback;
+    data = (result.data ?? []).map((e: Record<string, unknown>) => ({
+      ...e,
+      end_time: null,
+      event_type: "ticketed",
+      notes: null,
+      calendar_color: null,
+    }));
+    error = result.error;
+  }
 
   if (error) {
     console.error("Calendar fetch error:", error);

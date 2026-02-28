@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import Link from "next/link";
 
 type CalendarEvent = {
   id: string;
@@ -317,6 +318,12 @@ export default function CalendarPage() {
         <button onClick={nextMonth} style={navBtnStyle}>&rarr;</button>
         <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: 12, padding: "6px 14px" }}>Today</button>
         <div style={{ flex: 1 }} />
+        <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
+          Events List
+        </Link>
+        <Link href="/admin/events/new" style={{ padding: "8px 16px", fontSize: 12, color: "#d0c290", textDecoration: "none", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, background: "rgba(208,194,144,0.08)", display: "inline-flex", alignItems: "center" }}>
+          + Ticketed Event
+        </Link>
         <button
           onClick={() => openNewEvent()}
           className="admin-form-submit"
