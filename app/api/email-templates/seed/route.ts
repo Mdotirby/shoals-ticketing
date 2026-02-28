@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="120" style="margin-bottom: 16px;" />
   </div>
   <h1 style="font-size: 28px; color: #d0c290; text-align: center; margin: 0 0 8px;">Welcome, {{first_name}}!</h1>
-  <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 32px;">You're officially a Friend with Benefits.</p>
+  <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 32px;">You're officially a part of the FWB Crew!.</p>
   
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 24px;">
-    <h2 style="font-size: 18px; color: #d0c290; margin: 0 0 12px;">Here's what you get:</h2>
+    <h2 style="font-size: 18px; color: #d0c290; margin: 0 0 12px;">Whats included:</h2>
     <ul style="list-style: none; padding: 0; margin: 0;">
       <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">⚡ <strong style="color: #fff;">Presale Access</strong> — Get tickets before they go public</li>
       <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">🎁 <strong style="color: #fff;">Exclusive Offers</strong> — Special deals just for subscribers</li>
