@@ -26,6 +26,7 @@ export default function AdminOnboardingPage() {
     address_state: "",
     address_zip: "",
     ticketing_fee: "3.00",
+    facility_fee: "0",
     venue_rebate: "0.00",
     tax_rate: "0.09",
   });
@@ -138,6 +139,7 @@ export default function AdminOnboardingPage() {
           address_state: venue.address_state || null,
           address_zip: venue.address_zip || null,
           ticketing_fee: parseFloat(venue.ticketing_fee) || 3.00,
+          facility_fee: parseFloat(venue.facility_fee) || 0,
           venue_rebate: parseFloat(venue.venue_rebate) || 0,
           tax_rate: parseFloat(venue.tax_rate) || 0.09,
         }),
@@ -306,7 +308,7 @@ export default function AdminOnboardingPage() {
     setLogoPreview(null);
     setCreatedEntityId("");
     setCreatedEntityName("");
-    setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09" });
+    setVenue({ name: "", slug: "", capacity: "", address_street: "", address_city: "", address_state: "", address_zip: "", ticketing_fee: "3.00", facility_fee: "0", venue_rebate: "0.00", tax_rate: "0.09" });
     setOrganizer({ company_name: "", slug: "", contact_first: "", contact_last: "", email: "", phone: "" });
     setArtist({ name: "", genre: "", mgmt_email: "", mgmt_phone: "", instagram: "", spotify: "", website: "", bio: "" });
     setPartner({ company_name: "", contact_first: "", contact_last: "", email: "", phone: "", tier: "standard" });
@@ -394,6 +396,11 @@ export default function AdminOnboardingPage() {
               Ticketing Fee ($)
               <input type="number" className="admin-form-input" value={venue.ticketing_fee} onChange={(e) => setVenue({ ...venue, ticketing_fee: e.target.value })} step="0.01" min="0" placeholder="3.00" />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Fee added to each ticket sold</span>
+            </label>
+            <label className="admin-form-label">
+              Facility Fee ($)
+              <input type="number" className="admin-form-input" value={venue.facility_fee} onChange={(e) => setVenue({ ...venue, facility_fee: e.target.value })} step="0.01" min="0" placeholder="0.00" />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Per-ticket facility fee included in ticket price</span>
             </label>
             <label className="admin-form-label">
               Venue Rebate ($)

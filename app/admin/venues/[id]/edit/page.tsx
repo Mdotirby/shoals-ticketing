@@ -17,7 +17,7 @@ export default function AdminEditVenuePage() {
     hero_image_url: "", hero_image_2_url: "",
     address_street: "", address_city: "", address_state: "", address_zip: "",
     buyer_name: "", contract_signatory: "", buyer_phone: "", buyer_email: "", promoter_address: "",
-    ticketing_fee: "3.00", venue_rebate: "0.00", tax_rate: "0.09",
+    ticketing_fee: "3.00", facility_fee: "0", venue_rebate: "0.00", tax_rate: "0.09",
   });
 
   useEffect(() => {
@@ -35,8 +35,8 @@ export default function AdminEditVenuePage() {
           buyer_name: String(v.buyer_name || ""), contract_signatory: String(v.contract_signatory || ""),
           buyer_phone: String(v.buyer_phone || ""), buyer_email: String(v.buyer_email || ""),
           promoter_address: String(v.promoter_address || ""),
-          ticketing_fee: String(v.ticketing_fee || "3.00"), venue_rebate: String(v.venue_rebate || "0"),
-          tax_rate: String(v.tax_rate || "0.09"),
+          ticketing_fee: String(v.ticketing_fee || "3.00"), facility_fee: String(v.facility_fee || "0"),
+          venue_rebate: String(v.venue_rebate || "0"), tax_rate: String(v.tax_rate || "0.09"),
         });
         setLoading(false);
       })
@@ -58,6 +58,7 @@ export default function AdminEditVenuePage() {
           buyer_phone: form.buyer_phone || null, buyer_email: form.buyer_email || null,
           promoter_address: form.promoter_address || null,
           ticketing_fee: parseFloat(form.ticketing_fee) || 3.00,
+          facility_fee: parseFloat(form.facility_fee) || 0,
           venue_rebate: parseFloat(form.venue_rebate) || 0,
           tax_rate: parseFloat(form.tax_rate) || 0.09,
         }),
@@ -154,6 +155,7 @@ export default function AdminEditVenuePage() {
         <h2 className="admin-form-section-title">Fees</h2>
         <div className="admin-form-grid">
           <label className="admin-form-label">Ticketing Fee ($)<input type="number" className="admin-form-input" value={form.ticketing_fee} onChange={(e) => setForm({ ...form, ticketing_fee: e.target.value })} step="0.01" /></label>
+          <label className="admin-form-label">Facility Fee ($)<input type="number" className="admin-form-input" value={form.facility_fee} onChange={(e) => setForm({ ...form, facility_fee: e.target.value })} step="0.01" min="0" /></label>
           <label className="admin-form-label">Venue Rebate ($)<input type="number" className="admin-form-input" value={form.venue_rebate} onChange={(e) => setForm({ ...form, venue_rebate: e.target.value })} step="0.01" /></label>
           <label className="admin-form-label">Tax Rate (decimal)<input type="number" className="admin-form-input" value={form.tax_rate} onChange={(e) => setForm({ ...form, tax_rate: e.target.value })} step="0.01" /></label>
         </div>
