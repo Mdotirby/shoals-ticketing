@@ -77,11 +77,13 @@ export default function AdminSalesPage() {
           : eventsData;
 
         // Fetch ticket tiers for each event to get capacity + sold count
+        const supabase = getSupabaseBrowser();
         const enriched: EventSales[] = await Promise.all(
           filteredEventsData.map(async (ev: Record<string, unknown>) => {
-            const [tiersRes, scanRes] = await Promise.all([
+            const [tiersRes, scanRes, ticketCountRes] = await Promise.all([
               fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json()),
               fetch(`/api/events/${ev.id}/drop-count`).then((r) => r.json()).catch(() => ({ scanned: 0 })),
+              supabase.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", ev.id as string),
             ]);
             const tiers = Array.isArray(tiersRes) ? tiersRes : [];
             const totalCapacity = tiers.reduce((s: number, t: { capacity: number }) => s + (t.capacity || 0), 0);
@@ -92,7 +94,7 @@ export default function AdminSalesPage() {
               date: ev.date as string,
               venue_id: ev.venue_id as string | null,
               total_capacity: totalCapacity || 500,
-              tickets_sold: 0,
+              tickets_sold: ticketCountRes.count || 0,
               tickets_scanned: scanRes?.scanned || 0,
             };
           })

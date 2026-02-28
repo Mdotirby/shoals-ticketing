@@ -7793,3 +7793,162 @@ select.admin-form-input {
   max-width: 1000px;
   margin: 0 auto;
 }
+
+/* ═══════════════════════════════════════════════════
+   PRINT STYLES — Ticket Success Page
+   ═══════════════════════════════════════════════════ */
+
+@media print {
+  /* Hide everything except the ticket card */
+  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  header, footer, nav,
+  .site-header, .site-footer, .ticket-hero,
+  .checkout-success-actions,
+  .checkout-success-btn,
+  button { display: none !important; }
+
+  .ticket-page { min-height: auto !important; background: #fff !important; padding: 0 !important; }
+
+  .checkout-success-section {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .checkout-success-card {
+    background: #fff !important;
+    border: 2px solid #333 !important;
+    border-radius: 12px !important;
+    color: #000 !important;
+    padding: 32px !important;
+    box-shadow: none !important;
+  }
+
+  .checkout-success-heading {
+    color: #000 !important;
+    font-size: 28px !important;
+  }
+
+  .checkout-success-text {
+    color: #333 !important;
+  }
+
+  /* Make QR code prominent */
+  .checkout-success-card img[alt="Your ticket QR code"] {
+    width: 200px !important;
+    height: 200px !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Make event details readable in print */
+  .checkout-success-card p,
+  .checkout-success-card div {
+    color: #000 !important;
+  }
+
+  .checkout-success-card a {
+    color: #000 !important;
+    text-decoration: underline !important;
+  }
+
+  /* Hide fine print links */
+  .checkout-success-card > p:last-child { display: none !important; }
+}
+
+/* ═══════════════════════════════════════════════════
+   PRE-CHECKOUT BUYER INFO FORM
+   ═══════════════════════════════════════════════════ */
+
+.pre-checkout-form {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 32px;
+  padding: 28px 32px;
+  background: linear-gradient(180deg, #151533 0%, #0e1028 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+
+.pre-checkout-form h3 {
+  margin: 0 0 20px;
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 1.3rem;
+  color: #d0c290;
+}
+
+.pre-checkout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.pre-checkout-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pre-checkout-field input {
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-family: var(--font-urbanist), sans-serif;
+  outline: none;
+  transition: border-color 180ms ease;
+}
+
+.pre-checkout-field input:focus {
+  border-color: rgba(208, 194, 144, 0.4);
+}
+
+.pre-checkout-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  cursor: pointer;
+}
+
+.pre-checkout-checkbox input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: #d0c290;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.pre-checkout-checkbox span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.pre-checkout-continue-btn {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 0;
+  background: #d0c290;
+  color: #0b0d1d;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-urbanist), sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.pre-checkout-continue-btn:hover {
+  background: #c4b57e;
+}
+
+.pre-checkout-continue-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,6 +1,7 @@
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 // Stripe charges 2.9% + $0.30 per transaction
 const STRIPE_PERCENT_FEE = 0.029;
@@ -9,7 +10,7 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1 } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
     }
 
     // Create embedded checkout session
-    const session = await stripe.checkout.sessions.create({
+    const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       ui_mode: "embedded",
       mode: "payment",
       return_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -155,8 +156,18 @@ export async function POST(request: Request) {
         facility_fee: String(facilityFee),
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
+        buyer_name: buyer_name || "",
+        buyer_phone: buyer_phone || "",
+        fwb_opt_in: fwb_opt_in ? "true" : "false",
       },
-    });
+    };
+
+    // Pre-fill customer email if provided
+    if (buyer_email) {
+      sessionOptions.customer_email = buyer_email;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionOptions);
 
     return NextResponse.json({ clientSecret: session.client_secret });
   } catch (err) {

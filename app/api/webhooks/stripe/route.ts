@@ -244,7 +244,9 @@ export async function POST(request: Request) {
     const eventId = session.metadata?.event_id;
     const quantity = parseInt(session.metadata?.quantity || "1");
     const customerEmail = session.customer_details?.email || session.customer_email || "";
-    const customerName = session.customer_details?.name || "";
+    const customerName = session.metadata?.buyer_name || session.customer_details?.name || "";
+    const customerPhone = session.metadata?.buyer_phone || session.customer_details?.phone || "";
+    const fwbOptIn = session.metadata?.fwb_opt_in === "true";
     const totalAmount = (session.amount_total || 0) / 100;
 
     if (!eventId) {
@@ -289,10 +291,12 @@ export async function POST(request: Request) {
           event_id: eventId,
           customer_name: customerName,
           customer_email: customerEmail,
+          customer_phone: customerPhone || null,
           quantity,
           total_amount: totalAmount,
           stripe_checkout_session_id: session.id,
           status: "paid",
+          fwb_opt_in: fwbOptIn,
         })
         .select()
         .single();
@@ -327,7 +331,13 @@ export async function POST(request: Request) {
         .select();
 
       if (ticketError) {
-        console.error("Failed to create tickets:", ticketError.message);
+        console.error("Failed to create tickets:", ticketError.message, ticketError.details, ticketError.hint);
+        return NextResponse.json({
+          received: true,
+          error: `Ticket creation failed: ${ticketError.message}`,
+          details: ticketError.details || null,
+          hint: ticketError.hint || null,
+        });
       }
 
       // 4. Write settlement ledger entry
@@ -408,7 +418,21 @@ export async function POST(request: Request) {
           .eq("recovered", false);
       }
 
-      // 7. Send confirmation email via Resend
+      // 7. FWB opt-in — subscribe to newsletter
+      if (fwbOptIn && customerEmail) {
+        const nameParts = customerName.split(" ");
+        await admin.from("newsletter_subscribers").upsert({
+          email: customerEmail.toLowerCase(),
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(" ") || null,
+          phone: customerPhone || null,
+          source: "checkout_fwb",
+          venue_id: eventData?.venue_id || null,
+        }, { onConflict: "email" });
+        console.log(`📬 FWB opt-in for ${customerEmail}`);
+      }
+
+      // 8. Send confirmation email via Resend
       if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
         await sendTicketEmail({
           to: customerEmail,

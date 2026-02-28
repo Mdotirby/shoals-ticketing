@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     let totalTicketsQ = admin.from("tickets").select("id", { count: "exact", head: true });
     if (eventIds) totalTicketsQ = totalTicketsQ.in("event_id", eventIds);
 
-    let revenueQ = admin.from("orders").select("total_amount, created_at, event_id");
+    let revenueQ = admin.from("orders").select("total_amount, created_at, event_id").eq("status", "paid");
     if (eventIds) revenueQ = revenueQ.in("event_id", eventIds);
 
     let tierQ = admin.from("tickets").select("ticket_type_id, ticket_tiers!inner(tier_name, event_id)").limit(10000);
