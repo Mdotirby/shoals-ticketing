@@ -46,6 +46,18 @@ const EVENT_BG: Record<string, string> = {
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 function emptyForm(dateStr?: string): EventForm {
   return {
@@ -80,6 +92,7 @@ export default function CalendarPage() {
   const [venueId, setVenueId] = useState<string | null>(null);
   const [venueName, setVenueName] = useState("");
 
+  const isMobile = useIsMobile();
   const role = getCookie("user-role");
 
   // Load venue info
@@ -290,46 +303,52 @@ export default function CalendarPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Calendar</h1>
-      <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
-        {venueName ? `${venueName} — ` : ""}Manage your venue events, holds, and private bookings.
-      </p>
+      <h1 className="admin-page-title" style={isMobile ? { fontSize: 20, marginBottom: 4 } : undefined}>Calendar</h1>
+      {!isMobile && (
+        <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
+          {venueName ? `${venueName} — ` : ""}Manage your venue events, holds, and private bookings.
+        </p>
+      )}
 
       {/* Legend */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
         {[
           { label: "Ticketed", type: "ticketed" },
           { label: "Non-Ticketed", type: "non_ticketed" },
           { label: "Private", type: "private" },
         ].map((l) => (
-          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: EVENT_COLORS[l.type] }} />
+          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.5)" }}>
+            <div style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, borderRadius: 3, background: EVENT_COLORS[l.type] }} />
             {l.label}
           </div>
         ))}
       </div>
 
       {/* Month Navigation */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <button onClick={prevMonth} style={navBtnStyle}>&larr;</button>
-        <h2 style={{ color: "#d0c290", fontSize: 20, fontWeight: 700, margin: 0, minWidth: 200, textAlign: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
+        <button onClick={prevMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&larr;</button>
+        <h2 style={{ color: "#d0c290", fontSize: isMobile ? 16 : 20, fontWeight: 700, margin: 0, flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 200, textAlign: "center" }}>
           {monthLabel}
         </h2>
-        <button onClick={nextMonth} style={navBtnStyle}>&rarr;</button>
-        <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: 12, padding: "6px 14px" }}>Today</button>
-        <div style={{ flex: 1 }} />
-        <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
-          Events List
-        </Link>
-        <Link href="/admin/events/new" style={{ padding: "8px 16px", fontSize: 12, color: "#d0c290", textDecoration: "none", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, background: "rgba(208,194,144,0.08)", display: "inline-flex", alignItems: "center" }}>
-          + Ticketed Event
-        </Link>
+        <button onClick={nextMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&rarr;</button>
+        <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: isMobile ? 10 : 12, padding: isMobile ? "4px 10px" : "6px 14px" }}>Today</button>
+        {!isMobile && <div style={{ flex: 1 }} />}
+        {!isMobile && (
+          <>
+            <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
+              Events List
+            </Link>
+            <Link href="/admin/events/new" style={{ padding: "8px 16px", fontSize: 12, color: "#d0c290", textDecoration: "none", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, background: "rgba(208,194,144,0.08)", display: "inline-flex", alignItems: "center" }}>
+              + Ticketed Event
+            </Link>
+          </>
+        )}
         <button
           onClick={() => openNewEvent()}
           className="admin-form-submit"
-          style={{ padding: "10px 20px", fontSize: 13 }}
+          style={{ padding: isMobile ? "8px 14px" : "10px 20px", fontSize: isMobile ? 11 : 13 }}
         >
-          + Add Event
+          + Add
         </button>
       </div>
 
@@ -342,11 +361,11 @@ export default function CalendarPage() {
         overflow: "hidden",
       }}>
         {/* Day headers */}
-        {DAYS.map((d) => (
-          <div key={d} style={{
-            padding: "10px 8px",
+        {(isMobile ? DAYS_SHORT : DAYS).map((d, idx) => (
+          <div key={idx} style={{
+            padding: isMobile ? "6px 2px" : "10px 8px",
             textAlign: "center",
-            fontSize: 11,
+            fontSize: isMobile ? 10 : 11,
             fontWeight: 600,
             color: "rgba(255,255,255,0.4)",
             textTransform: "uppercase",
@@ -367,10 +386,17 @@ export default function CalendarPage() {
           return (
             <div
               key={i}
-              onClick={() => openNewEvent(key)}
+              onClick={() => {
+                if (isMobile && dayEvents.length > 0) {
+                  // On mobile, tapping a day with events opens the first event
+                  openEditEvent(dayEvents[0]);
+                } else {
+                  openNewEvent(key);
+                }
+              }}
               style={{
-                minHeight: 100,
-                padding: "4px 6px",
+                minHeight: isMobile ? 48 : 100,
+                padding: isMobile ? "3px 2px" : "4px 6px",
                 background: isToday
                   ? "rgba(208,194,144,0.06)"
                   : day.inMonth
@@ -381,67 +407,91 @@ export default function CalendarPage() {
                 cursor: "pointer",
                 transition: "background 0.15s",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
+              onMouseEnter={(e) => { if (!isMobile) e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = isToday
+                if (!isMobile) e.currentTarget.style.background = isToday
                   ? "rgba(208,194,144,0.06)"
                   : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
               }}
             >
               {/* Date number */}
               <div style={{
-                fontSize: 12,
+                fontSize: isMobile ? 11 : 12,
                 fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
                 color: isToday
                   ? "#d0c290"
                   : day.inMonth
                   ? "rgba(255,255,255,0.6)"
                   : "rgba(255,255,255,0.2)",
-                marginBottom: 4,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
+                marginBottom: isMobile ? 2 : 4,
+                textAlign: isMobile ? "center" : "left",
               }}>
-                {isToday && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#d0c290", display: "inline-block" }} />}
                 {day.date.getDate()}
               </div>
 
               {/* Events on this day */}
-              {dayEvents.slice(0, 3).map((ev) => {
-                const type = ev.event_type || "ticketed";
-                const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
-                const bg = EVENT_BG[type] || EVENT_BG.ticketed;
-                return (
-                  <div
-                    key={ev.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditEvent(ev);
-                    }}
-                    title={`${ev.title}${ev.notes ? ` — ${ev.notes}` : ""}`}
-                    style={{
-                      fontSize: 10,
-                      padding: "2px 6px",
-                      marginBottom: 2,
-                      borderRadius: 4,
-                      background: bg,
-                      color,
-                      borderLeft: `3px solid ${color}`,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      cursor: "pointer",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {ev.title}
+              {isMobile ? (
+                /* Mobile: show colored dots */
+                dayEvents.length > 0 && (
+                  <div style={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
+                    {dayEvents.slice(0, 4).map((ev) => {
+                      const type = ev.event_type || "ticketed";
+                      const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
+                      return (
+                        <div
+                          key={ev.id}
+                          style={{
+                            width: 6, height: 6, borderRadius: "50%",
+                            background: color,
+                          }}
+                        />
+                      );
+                    })}
+                    {dayEvents.length > 4 && (
+                      <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", lineHeight: "6px" }}>+</span>
+                    )}
                   </div>
-                );
-              })}
-              {dayEvents.length > 3 && (
-                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
-                  +{dayEvents.length - 3} more
-                </div>
+                )
+              ) : (
+                /* Desktop: show event labels */
+                <>
+                  {dayEvents.slice(0, 3).map((ev) => {
+                    const type = ev.event_type || "ticketed";
+                    const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
+                    const bg = EVENT_BG[type] || EVENT_BG.ticketed;
+                    return (
+                      <div
+                        key={ev.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditEvent(ev);
+                        }}
+                        title={`${ev.title}${ev.notes ? ` — ${ev.notes}` : ""}`}
+                        style={{
+                          fontSize: 10,
+                          padding: "2px 6px",
+                          marginBottom: 2,
+                          borderRadius: 4,
+                          background: bg,
+                          color,
+                          borderLeft: `3px solid ${color}`,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          cursor: "pointer",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {ev.title}
+                      </div>
+                    );
+                  })}
+                  {dayEvents.length > 3 && (
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
@@ -458,18 +508,23 @@ export default function CalendarPage() {
           style={{
             position: "fixed", inset: 0, zIndex: 9999,
             background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 20,
+            display: "flex", alignItems: isMobile ? "stretch" : "center", justifyContent: "center",
+            padding: isMobile ? 0 : 20,
           }}
           onClick={() => setShowModal(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#0f1128", borderRadius: 16,
-              border: "1px solid rgba(255,255,255,0.1)",
-              padding: 28, width: "100%", maxWidth: 500,
-              maxHeight: "90vh", overflowY: "auto",
+              background: "#0f1128",
+              borderRadius: isMobile ? 0 : 16,
+              border: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)",
+              padding: isMobile ? "20px 16px" : 28,
+              width: "100%",
+              maxWidth: isMobile ? "100%" : 500,
+              height: isMobile ? "100%" : "auto",
+              maxHeight: isMobile ? "100%" : "90vh",
+              overflowY: "auto",
             }}
           >
             <h2 style={{ color: "#d0c290", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
@@ -517,7 +572,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Date & Times */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>Date *</label>
                 <input
@@ -616,7 +671,7 @@ export default function CalendarPage() {
             </select>
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <button
                 onClick={handleSave}
                 disabled={saving || !form.title.trim()}
