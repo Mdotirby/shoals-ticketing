@@ -37,8 +37,8 @@ export default function AboutPage() {
               </div>
 
               <h1 className="about-philosophy-title">
-                CREATING MEMORIES, NOT{" "}
-                <span className="about-gold-text">SPREADSHEETS</span>
+                CREATING MEMORIES,{" "}
+                <span className="about-gold-text">ONE NIGHT AT A TIME</span>
               </h1>
 
               <p className="about-philosophy-desc">
