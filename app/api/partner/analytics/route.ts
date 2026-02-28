@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
     .from("orders")
     .select("customer_zip")
     .in("event_id", eventIds)
-    .eq("status", "completed");
+    .eq("status", "paid");
 
   const zipCounts: Record<string, number> = {};
   (orders ?? []).forEach((o: { customer_zip: string | null }) => {

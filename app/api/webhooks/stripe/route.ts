@@ -292,7 +292,7 @@ export async function POST(request: Request) {
           quantity,
           total_amount: totalAmount,
           stripe_checkout_session_id: session.id,
-          status: "completed",
+          status: "paid",
         })
         .select()
         .single();

@@ -9,7 +9,7 @@ export async function GET() {
   const { data: orders, error } = await admin
     .from("orders")
     .select("customer_email, customer_name, total_amount, created_at, event_id")
-    .eq("status", "completed")
+    .eq("status", "paid")
     .order("created_at", { ascending: false });
 
   if (error) {

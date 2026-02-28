@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     `
     )
     .eq("orders.event_id", body.event_id)
-    .eq("orders.status", "completed");
+    .eq("orders.status", "paid");
 
   // Build ticket_audit grouped by ticket type
   const tierMap: Record<

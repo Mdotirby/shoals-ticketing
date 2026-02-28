@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     .from("orders")
     .select("customer_zip")
     .eq("event_id", eventId)
-    .eq("status", "completed");
+    .eq("status", "paid");
 
   // Aggregate zip codes
   const zipCounts: Record<string, number> = {};

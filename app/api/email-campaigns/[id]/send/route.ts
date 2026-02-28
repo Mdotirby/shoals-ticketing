@@ -32,7 +32,7 @@ export async function POST(
       .from("orders")
       .select("customer_email, customer_name")
       .eq("event_id", campaign.event_id)
-      .eq("status", "completed");
+      .eq("status", "paid");
 
     // Deduplicate by email
     const seen = new Set<string>();
@@ -57,7 +57,7 @@ export async function POST(
     const { data: orders } = await admin
       .from("orders")
       .select("customer_email, customer_name")
-      .eq("status", "completed");
+      .eq("status", "paid");
 
     const seen = new Set<string>();
     (orders ?? []).forEach((o: { customer_email: string; customer_name: string }) => {
