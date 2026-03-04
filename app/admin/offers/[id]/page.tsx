@@ -408,10 +408,30 @@ export default function AdminOfferDetailPage() {
             )}
           </div>
           <div className="offer-potential-col">
-            <h3 className="offer-expenses-heading">Artist Potential</h3>
+            <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${Number(form.artist_backend || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            {form.deal_type === "VS" && (() => {
+              const sp = Number(form.splitpoint || 0);
+              const bp = Number(form.backend_percentage || 0) / 100;
+              const artistTotal = sp * bp;
+              const backendVS = Math.max(artistTotal - Number(form.guarantee || 0), 0);
+              return <>
+                <div className="offer-potential-row"><span>Backend (VS):</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              </>;
+            })()}
+            {form.deal_type === "PLUS" && (() => {
+              const sp = Number(form.splitpoint || 0);
+              const bp = Number(form.backend_percentage || 0) / 100;
+              const backendPlus = sp * bp;
+              const artistTotal = Number(form.guarantee || 0) + backendPlus;
+              return <>
+                <div className="offer-potential-row"><span>Backend (PLUS):</span><strong>${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              </>;
+            })()}
+            {form.deal_type === "FLAT" && (
+              <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
         </div>

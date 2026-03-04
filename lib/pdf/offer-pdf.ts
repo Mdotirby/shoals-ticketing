@@ -110,7 +110,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
    * Draw a label:value row at full width with text wrapping.
    * Returns the new Y position.
    */
-  const labelVal = (label: string, val: string, yPos: number): number => {
+  const labelVal = (label: string, val: string, yPos: number, valueColor?: [number, number, number]): number => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(VALUE_FONT);
     const lines: string[] = doc.splitTextToSize(val || "—", maxValueW);
@@ -124,12 +124,13 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.text(`${label}:`, labelX, yPos);
 
     // Value
-    doc.setFont("helvetica", "normal");
+    doc.setFont("helvetica", valueColor ? "bold" : "normal");
     doc.setFontSize(VALUE_FONT);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(...(valueColor || [0, 0, 0]));
     for (let i = 0; i < lines.length; i++) {
       doc.text(lines[i], valueX, yPos + i * ROW_H);
     }
+    doc.setTextColor(0, 0, 0);
     return yPos + totalH;
   };
 
@@ -359,18 +360,20 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   y = labelVal("Guarantee", `$${guarantee.toLocaleString()}`, y);
 
   if (dealType === "VS") {
-    const backendVS = splitpoint * backendPct;
-    const walkout = guarantee + backendVS;
+    // VS: Artist Total = Splitpoint × Backend%, Backend = Artist Total - Guarantee
+    const artistTotal = splitpoint * backendPct;
+    const backendVS = Math.max(artistTotal - guarantee, 0);
     y = labelVal("Backend (VS)", `$${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-    y = labelVal("Total Potential Walkout", `$${walkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   } else if (dealType === "PLUS") {
+    // PLUS: Backend = Splitpoint × Backend%, Artist Total = Guarantee + Backend
     const backendPlus = splitpoint * backendPct;
-    const walkout = guarantee + backendPlus;
+    const artistTotal = guarantee + backendPlus;
     y = labelVal("Backend (PLUS)", `$${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-    y = labelVal("Total Potential Walkout", `$${walkout.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   } else {
-    // FLAT — no backend
-    y = labelVal("Total Potential Walkout", `$${guarantee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    // FLAT — no backend, Artist Total = Guarantee
+    y = labelVal("Artist Total", `$${guarantee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   }
   y += 4;
 
