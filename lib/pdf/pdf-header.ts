@@ -98,6 +98,19 @@ export function drawSectionHeader(doc: Doc, title: string, y: number): number {
   return y + 12;
 }
 
+/** Draw a compact section header bar (smaller for single-page layouts) */
+export function drawCompactSectionHeader(doc: Doc, title: string, y: number, width?: number): number {
+  const w = width ?? CONTENT_WIDTH;
+  doc.setFillColor(...DARK);
+  doc.rect(MARGIN, y, w, 6, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...GOLD);
+  doc.text(title.toUpperCase(), MARGIN + 2, y + 4.2);
+  doc.setTextColor(...DARK);
+  return y + 8;
+}
+
 /** Draw label: value row */
 export function drawLabelValue(doc: Doc, label: string, value: string, y: number): number {
   y = ensureSpace(doc, 7, y);
@@ -208,14 +221,30 @@ export async function loadLogoAsDataURL(url: string): Promise<{ dataUrl: string;
 
 /**
  * Try to load venue-specific logo, falling back to default VenueCore logo.
- * Returns the logo data or null.
+ * Accepts an optional direct logoUrl (e.g., from venue.logo_url) and a slug.
+ * Tries: logoUrl -> /logos/{slug}/logo.png -> /logos/{slug lowercase}/logo.png -> /logos/default/logo.png
  */
-export async function loadVenueLogo(venueSlug?: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
+export async function loadVenueLogo(venueSlug?: string, logoUrl?: string | null): Promise<{ dataUrl: string; width: number; height: number } | null> {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
   const logoUrls: string[] = [];
-  if (venueSlug) {
-    logoUrls.push(`/logos/${venueSlug}/logo.png`);
+
+  // 1. Direct logo URL from venue record
+  if (logoUrl) {
+    const abs = logoUrl.startsWith("http") ? logoUrl : `${origin}${logoUrl.startsWith("/") ? "" : "/"}${logoUrl}`;
+    logoUrls.push(abs);
   }
-  logoUrls.push("/logos/default/logo.png");
+
+  // 2. Slug-based paths (try exact case, then lowercase)
+  if (venueSlug) {
+    logoUrls.push(`${origin}/logos/${venueSlug}/logo.png`);
+    const lower = venueSlug.toLowerCase();
+    if (lower !== venueSlug) {
+      logoUrls.push(`${origin}/logos/${lower}/logo.png`);
+    }
+  }
+
+  // 3. Default fallback
+  logoUrls.push(`${origin}/logos/default/logo.png`);
 
   for (const url of logoUrls) {
     const result = await loadLogoAsDataURL(url);
@@ -231,13 +260,15 @@ export type PdfHeaderOptions = {
   venueName: string;
   venueAddress?: string;
   venueSlug?: string;      // to load venue-specific logo
+  logoUrl?: string | null;  // direct logo URL from venue record
+  compact?: boolean;       // compact header for single-page layouts (offers)
+  showTitle?: boolean;     // show title below header bar (default: true)
   showBuyerInfo?: boolean; // only true for offers/performance agreements
   buyerInfo?: {
-    agency?: string;
-    agent?: string;
-    phone?: string;
-    email?: string;
-    artist?: string;
+    company?: string;      // promoter company name
+    contact?: string;      // buyer/promoter contact name
+    phone?: string;        // buyer phone
+    email?: string;        // buyer email
   };
 };
 
@@ -252,9 +283,16 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
     venueName,
     venueAddress,
     venueSlug,
+    logoUrl,
+    compact = false,
+    showTitle = true,
     showBuyerInfo = false,
     buyerInfo,
   } = options;
+
+  if (compact) {
+    return addCompactPdfHeader(doc, options);
+  }
 
   // Calculate header height based on content
   const headerHeight = showBuyerInfo && buyerInfo ? 58 : 42;
@@ -269,7 +307,7 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   doc.line(0, headerHeight, PAGE_WIDTH, headerHeight);
 
   // ── Logo (left, small for file size) ──
-  const logo = await loadVenueLogo(venueSlug);
+  const logo = await loadVenueLogo(venueSlug, logoUrl);
   if (logo) {
     // Scale logo to fit max 20mm height in the header
     const maxLogoH = 20; // mm
@@ -310,27 +348,23 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   });
   doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, venueAddress ? 26 : 20, { align: "right" });
 
-  // ── Buyer/Agent info block (only for offers & performance agreements) ──
+  // ── Buyer/Promoter info block (only for offers & performance agreements) ──
   if (showBuyerInfo && buyerInfo) {
     let infoY = 30;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...WHITE);
 
-    if (buyerInfo.artist) {
+    if (buyerInfo.company) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text(buyerInfo.artist, MARGIN, infoY);
+      doc.text(buyerInfo.company, MARGIN, infoY);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       infoY += 5;
     }
-    if (buyerInfo.agency) {
-      doc.text(`Agency: ${buyerInfo.agency}`, MARGIN, infoY);
-      infoY += 4;
-    }
-    if (buyerInfo.agent) {
-      doc.text(`Agent: ${buyerInfo.agent}`, MARGIN, infoY);
+    if (buyerInfo.contact) {
+      doc.text(`Buyer: ${buyerInfo.contact}`, MARGIN, infoY);
       infoY += 4;
     }
     const contactParts: string[] = [];
@@ -342,12 +376,86 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   }
 
   // ── Document title (below gold bar) ──
-  let y = headerHeight + 6;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text(title.toUpperCase(), MARGIN, y);
-  y += 8;
+  let y = headerHeight + 2;
+  if (showTitle) {
+    y = headerHeight + 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...DARK);
+    doc.text(title.toUpperCase(), MARGIN, y);
+    y += 8;
+  }
 
   return y;
+}
+
+/**
+ * Compact header for single-page PDFs (offers).
+ * ~22mm tall with logo, venue, buyer info, and NO title below.
+ */
+async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise<number> {
+  const {
+    venueName,
+    venueAddress,
+    venueSlug,
+    logoUrl,
+    showBuyerInfo = false,
+    buyerInfo,
+  } = options;
+
+  const headerHeight = 22;
+
+  // ── Dark header background ──
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, PAGE_WIDTH, headerHeight, "F");
+
+  // ── Gold accent bar ──
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(1);
+  doc.line(0, headerHeight, PAGE_WIDTH, headerHeight);
+
+  // ── Logo (left, compact) ──
+  const logo = await loadVenueLogo(venueSlug, logoUrl);
+  if (logo) {
+    const maxLogoH = 14; // mm — compact
+    const maxLogoW = 32; // mm
+    const pxPerMm = logo.height / maxLogoH;
+    let logoW = logo.width / pxPerMm;
+    let logoH = maxLogoH;
+    if (logoW > maxLogoW) {
+      logoH = logoH * (maxLogoW / logoW);
+      logoW = maxLogoW;
+    }
+    doc.addImage(logo.dataUrl, "JPEG", MARGIN, 4, logoW, logoH);
+  }
+
+  // ── Right side: venue name + address ──
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...GOLD);
+  doc.text(venueName, PAGE_WIDTH - MARGIN, 8, { align: "right" });
+
+  if (venueAddress) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...WHITE);
+    doc.text(venueAddress, PAGE_WIDTH - MARGIN, 13, { align: "right" });
+  }
+
+  // ── Buyer info (right-aligned, small) ──
+  if (showBuyerInfo && buyerInfo) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...LIGHT_TEXT);
+    const parts: string[] = [];
+    if (buyerInfo.contact) parts.push(buyerInfo.contact);
+    if (buyerInfo.phone) parts.push(buyerInfo.phone);
+    if (buyerInfo.email) parts.push(buyerInfo.email);
+    if (parts.length) {
+      doc.text(parts.join("  |  "), PAGE_WIDTH - MARGIN, 18, { align: "right" });
+    }
+  }
+
+  // No title below the header — saves vertical space
+  return headerHeight + 3;
 }

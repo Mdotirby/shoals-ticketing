@@ -42,11 +42,10 @@ export async function exportContractPDF(
     venueSlug: venue.slug,
     showBuyerInfo: true,
     buyerInfo: {
-      agency: offer.agency,
-      agent: offer.agent_name,
-      phone: offer.agent_phone,
-      email: offer.agent_email,
-      artist: artistName,
+      company: venue.name,
+      contact: venue.buyer_name || offer.agent_name,
+      phone: venue.buyer_phone || offer.agent_phone,
+      email: venue.buyer_email || offer.agent_email,
     },
   });
 

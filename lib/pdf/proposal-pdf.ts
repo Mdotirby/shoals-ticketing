@@ -58,8 +58,8 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
     venueSlug: data.venue_slug,
     showBuyerInfo: true,
     buyerInfo: {
-      agent: data.client_name,
-      agency: data.client_company,
+      contact: data.client_name,
+      company: data.client_company,
       phone: data.client_phone,
       email: data.client_email,
     },
