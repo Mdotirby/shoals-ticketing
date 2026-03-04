@@ -49,6 +49,32 @@ export default function AdminCreateOfferPage() {
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [isOwnerRole, setIsOwnerRole] = useState(false);
 
+  // Resolved venue_id — from cookie or admin_users table
+  const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
+
+  // Resolve venue_id from cookie or admin_users table (ensures offers are tagged correctly)
+  useEffect(() => {
+    const cookieVenueId = getCookie("venue-id");
+    if (cookieVenueId) {
+      setResolvedVenueId(cookieVenueId);
+    } else {
+      // Fallback: resolve from admin_users record
+      import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
+        const supabase = getSupabaseBrowser();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) return;
+        const { data: adminRecord } = await supabase
+          .from("admin_users")
+          .select("venue_id")
+          .eq("id", authData.user.id)
+          .single();
+        if (adminRecord?.venue_id) {
+          setResolvedVenueId(adminRecord.venue_id);
+        }
+      });
+    }
+  }, []);
+
   // Venue info
   const [venueName, setVenueName] = useState("");
   const [venueAddressField, setVenueAddressField] = useState("");
@@ -63,12 +89,11 @@ export default function AdminCreateOfferPage() {
   const [promoterAddress, setPromoterAddress] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
 
-  // Fetch agents + buyer info on mount
+  // Fetch agents + buyer info once resolvedVenueId is available
   useEffect(() => {
-    const venueId = getCookie("venue-id");
     const role = getCookie("user-role") || "";
     setIsOwnerRole(role === "owner");
-    const params = venueId ? `?venue_id=${venueId}` : "";
+    const params = resolvedVenueId ? `?venue_id=${resolvedVenueId}` : "";
 
     // Fetch agents
     fetch(`/api/agents${params}`)
@@ -103,12 +128,12 @@ export default function AdminCreateOfferPage() {
       .catch(() => {});
 
     // Auto-fill buyer info from venue (for venue_admin) or admin_users (for owner)
-    if (venueId) {
+    if (resolvedVenueId) {
       fetch("/api/venues")
         .then((r) => r.json())
         .then((venues: Array<Record<string, string | number | null>>) => {
           if (!Array.isArray(venues)) return;
-          const v = venues.find((x) => x.id === venueId);
+          const v = venues.find((x) => x.id === resolvedVenueId);
           if (v) {
             setBuyerName(String(v.buyer_name || ""));
             setContractSignatory(String(v.contract_signatory || ""));
@@ -154,7 +179,7 @@ export default function AdminCreateOfferPage() {
         })
         .catch(() => {});
     }
-  }, []);
+  }, [resolvedVenueId]);
 
   const selectEventVenue = (venueId: string) => {
     const v = eventVenues.find((x) => x.id === venueId);
@@ -314,14 +339,12 @@ export default function AdminCreateOfferPage() {
     if (!artistName.trim()) { setError("Artist name is required."); return; }
     setLoading(true);
 
-    const venueId = getCookie("venue-id");
-
     // Auto-save agent for future use
     if (agency && agentName) {
       fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail, venue_id: venueId || null }),
+        body: JSON.stringify({ agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail, venue_id: resolvedVenueId || null }),
       }).catch(() => {}); // fire-and-forget
     }
 
@@ -350,7 +373,7 @@ export default function AdminCreateOfferPage() {
           venue_address: venueAddressField || null,
           venue_contact: venueContact || null,
           venue_phone: venuePhone || null,
-          venue_id: venueId || null,
+          venue_id: resolvedVenueId || null,
           event_date: eventDate || null,
           agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail,
           day_of_event: dayOfEvent, num_shows: parseInt(numShows) || 1,
