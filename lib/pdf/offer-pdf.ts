@@ -120,7 +120,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     // Label
     doc.setFont("helvetica", "bold");
     doc.setFontSize(LABEL_FONT);
-    doc.setTextColor(80, 80, 80);
+    doc.setTextColor(...(valueColor || [80, 80, 80]));
     doc.text(`${label}:`, labelX, yPos);
 
     // Value
@@ -364,15 +364,18 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     const artistTotal = splitpoint * backendPct;
     const backendVS = Math.max(artistTotal - guarantee, 0);
     y = labelVal("Backend (VS)", `$${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
     y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   } else if (dealType === "PLUS") {
     // PLUS: Backend = Splitpoint × Backend%, Artist Total = Guarantee + Backend
     const backendPlus = splitpoint * backendPct;
     const artistTotal = guarantee + backendPlus;
     y = labelVal("Backend (PLUS)", `$${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
     y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   } else {
     // FLAT — no backend, Artist Total = Guarantee
+    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
     y = labelVal("Artist Total", `$${guarantee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
   }
   y += 4;

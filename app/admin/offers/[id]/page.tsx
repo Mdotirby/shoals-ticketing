@@ -417,7 +417,7 @@ export default function AdminOfferDetailPage() {
               const backendVS = Math.max(artistTotal - Number(form.guarantee || 0), 0);
               return <>
                 <div className="offer-potential-row"><span>Backend (VS):</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>;
             })()}
             {form.deal_type === "PLUS" && (() => {
@@ -427,11 +427,11 @@ export default function AdminOfferDetailPage() {
               const artistTotal = Number(form.guarantee || 0) + backendPlus;
               return <>
                 <div className="offer-potential-row"><span>Backend (PLUS):</span><strong>${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>;
             })()}
             {form.deal_type === "FLAT" && (
-              <div className="offer-potential-row" style={{ color: "#c5a44e" }}><span>Artist Total:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
         </div>
