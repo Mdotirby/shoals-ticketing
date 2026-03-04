@@ -117,7 +117,10 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
 
     doc.setTextColor(...DARK);
     doc.text(`${i + 1}`, MARGIN + 3, y + 4);
-    doc.text(item.description || "—", MARGIN + 12, y + 4);
+    // Truncate description to fit before category column
+    const descMaxW = 110 - 12 - 3;
+    const desc: string = doc.splitTextToSize(item.description || "—", descMaxW)[0] || item.description || "—";
+    doc.text(desc, MARGIN + 12, y + 4);
     doc.setTextColor(102, 102, 102);
     doc.text(item.category || "", MARGIN + 110, y + 4);
     doc.setTextColor(...DARK);

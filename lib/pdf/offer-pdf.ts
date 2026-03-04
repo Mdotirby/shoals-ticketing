@@ -1,6 +1,11 @@
 /**
  * Offer PDF Generator — compact single-page layout.
  * Uses shared header utility with compact mode.
+ *
+ * All 2-column sections track separate leftY/rightY and advance
+ * to Math.max(leftY, rightY) before the next section. Long text
+ * values are wrapped via splitTextToSize() so nothing overflows
+ * its designated column.
  */
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem } from "../types/offer";
 import type { Venue } from "../types/venue";
@@ -96,45 +101,51 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     },
   });
 
-  // ── Compact label:value helper ──
-  const LABEL_FONT = 7;
-  const VALUE_FONT = 7.5;
-  const ROW_H = 3.8;
+  // ── Font size constants (compact for single-page fit) ──
+  const LABEL_FONT = 6.5;
+  const VALUE_FONT = 7;
+  const ROW_H = 3.5;
 
-  const labelVal = (label: string, val: string, x: number, yPos: number, labelW: number = 38): number => {
+  // ── Column geometry ──
+  const halfW = CONTENT_WIDTH / 2 - 2;
+  const leftX = MARGIN + 2;
+  const rightX = MARGIN + halfW + 4;
+
+  /**
+   * Draw a label:value pair at (x, yPos) with text wrapping.
+   * Returns the new Y position after the row (accounting for multi-line wrap).
+   * `maxValW` = maximum width available for the value text.
+   */
+  const labelVal = (
+    label: string, val: string, x: number, yPos: number,
+    labelW: number = 30, maxValW?: number,
+  ): number => {
+    // Default max value width: half column minus label minus small padding
+    const valWidth = maxValW ?? (halfW - labelW - 4);
+
+    // Draw label
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80, 80, 80);
     doc.setFontSize(LABEL_FONT);
     doc.text(`${label}:`, x, yPos);
+
+    // Wrap value text to fit within column
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(VALUE_FONT);
-    doc.text(val, x + labelW, yPos);
-    return yPos + ROW_H;
+    const lines: string[] = doc.splitTextToSize(val, valWidth);
+    for (let i = 0; i < lines.length; i++) {
+      doc.text(lines[i], x + labelW, yPos + i * ROW_H);
+    }
+    return yPos + Math.max(1, lines.length) * ROW_H;
   };
-
-  // ── Full-width label:value (for single-column sections) ──
-  const labelValFull = (label: string, val: string): void => {
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(LABEL_FONT);
-    doc.text(`${label}:`, MARGIN + 2, y);
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(VALUE_FONT);
-    doc.text(val, MARGIN + 38, y);
-    y += ROW_H;
-  };
-
-  const halfW = CONTENT_WIDTH / 2 - 2;
-  const leftX = MARGIN + 2;
-  const rightX = MARGIN + halfW + 4;
 
   // ════════════════════════════════════════════════════════
   //  VENUE + AGENCY/ARTIST — side by side
   // ════════════════════════════════════════════════════════
   // Left: Venue header
   y = drawCompactSectionHeader(doc, "Venue", y, halfW);
-  // Right: Agency/Artist header (at same Y)
-  const savedY = y;
+  // Right: Agency/Artist header (at same Y as left header produced)
+  const venueAgencyStartY = y;
   doc.setFillColor(...DARK);
   doc.rect(rightX - 2, y - 8, halfW, 6, "F");
   doc.setFont("helvetica", "bold");
@@ -144,27 +155,28 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setTextColor(...DARK);
 
   // Left column: Venue info
-  let leftY = y;
-  leftY = labelVal("Venue", String(data.venue || "—"), leftX, leftY, 32);
-  leftY = labelVal("Address", String(data.venue_address || "—"), leftX, leftY, 32);
-  if (data.venue_contact) leftY = labelVal("Contact", String(data.venue_contact), leftX, leftY, 32);
-  if (data.venue_phone) leftY = labelVal("Phone", String(data.venue_phone), leftX, leftY, 32);
-  if (data.venue_capacity) leftY = labelVal("Capacity", String(data.venue_capacity), leftX, leftY, 32);
+  let leftY = venueAgencyStartY;
+  leftY = labelVal("Venue", String(data.venue || "—"), leftX, leftY, 30);
+  leftY = labelVal("Address", String(data.venue_address || "—"), leftX, leftY, 30);
+  if (data.venue_contact) leftY = labelVal("Contact", String(data.venue_contact), leftX, leftY, 30);
+  if (data.venue_phone) leftY = labelVal("Phone", String(data.venue_phone), leftX, leftY, 30);
+  if (data.venue_capacity) leftY = labelVal("Capacity", String(data.venue_capacity), leftX, leftY, 30);
 
   // Right column: Agency/Artist info
-  let rightY = savedY;
-  rightY = labelVal("Artist", String(data.artist_name || "—"), rightX, rightY, 28);
-  rightY = labelVal("Agency", String(data.agency || "—"), rightX, rightY, 28);
-  rightY = labelVal("Agent", String(data.agent_name || "—"), rightX, rightY, 28);
-  rightY = labelVal("Phone", String(data.agent_phone || "—"), rightX, rightY, 28);
-  rightY = labelVal("Email", String(data.agent_email || "—"), rightX, rightY, 28);
+  let rightY = venueAgencyStartY;
+  rightY = labelVal("Artist", String(data.artist_name || "—"), rightX, rightY, 26);
+  rightY = labelVal("Agency", String(data.agency || "—"), rightX, rightY, 26);
+  rightY = labelVal("Agent", String(data.agent_name || "—"), rightX, rightY, 26);
+  rightY = labelVal("Phone", String(data.agent_phone || "—"), rightX, rightY, 26);
+  rightY = labelVal("Email", String(data.agent_email || "—"), rightX, rightY, 26);
   const dateStr = data.event_date
     ? new Date(String(data.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString()
     : "TBD";
-  rightY = labelVal("Date", dateStr, rightX, rightY, 28);
-  rightY = labelVal("Shows", `${data.num_shows || 1} | ${data.show_length || "—"} | ${formatTime12hr(String(data.show_time || ""))}`, rightX, rightY, 28);
-  rightY = labelVal("Billing", String(data.billing || "—"), rightX, rightY, 28);
+  rightY = labelVal("Date", dateStr, rightX, rightY, 26);
+  rightY = labelVal("Shows", `${data.num_shows || 1} | ${data.show_length || "—"} | ${formatTime12hr(String(data.show_time || ""))}`, rightX, rightY, 26);
+  rightY = labelVal("Billing", String(data.billing || "—"), rightX, rightY, 26);
 
+  // Next section starts after the taller column
   y = Math.max(leftY, rightY) + 2;
 
   // ════════════════════════════════════════════════════════
@@ -174,43 +186,22 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   // Left sub-column
   let dealLeftY = y;
-  dealLeftY = labelVal("Guarantee", `$${Number(data.guarantee || 0).toLocaleString()}`, leftX, dealLeftY, 34);
-  dealLeftY = labelVal("Deal Type", String(data.deal_type || "FLAT"), leftX, dealLeftY, 34);
-  dealLeftY = labelVal("Backend", `${data.backend_percentage || 0}%`, leftX, dealLeftY, 34);
-  dealLeftY = labelVal("Radius", `${data.radius_distance || "—"} mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, leftX, dealLeftY, 34);
-  dealLeftY = labelVal("Production", String(data.production_by || "—"), leftX, dealLeftY, 34);
-
-  // Other Terms — wrap long text to avoid overflow into right column
-  const otherText = String(data.other_terms || "—");
-  const otherMaxW = halfW - 34 - 4; // available width in left column after label
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(VALUE_FONT);
-  const otherLines: string[] = doc.splitTextToSize(otherText, otherMaxW);
-  if (otherLines.length <= 1) {
-    dealLeftY = labelVal("Other", otherText, leftX, dealLeftY, 34);
-  } else {
-    // Draw label
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(80, 80, 80);
-    doc.setFontSize(LABEL_FONT);
-    doc.text("Other:", leftX, dealLeftY);
-    // Draw wrapped value lines
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(VALUE_FONT);
-    for (const line of otherLines) {
-      doc.text(line, leftX + 34, dealLeftY);
-      dealLeftY += ROW_H;
-    }
-  }
+  dealLeftY = labelVal("Guarantee", `$${Number(data.guarantee || 0).toLocaleString()}`, leftX, dealLeftY, 30);
+  dealLeftY = labelVal("Deal Type", String(data.deal_type || "FLAT"), leftX, dealLeftY, 30);
+  dealLeftY = labelVal("Backend", `${data.backend_percentage || 0}%`, leftX, dealLeftY, 30);
+  dealLeftY = labelVal("Radius", `${data.radius_distance || "—"} mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, leftX, dealLeftY, 30);
+  dealLeftY = labelVal("Production", String(data.production_by || "—"), leftX, dealLeftY, 30);
+  // Other Terms — already wraps via labelVal's splitTextToSize
+  dealLeftY = labelVal("Other", String(data.other_terms || "—"), leftX, dealLeftY, 30);
 
   // Right sub-column
   let dealRightY = y;
-  dealRightY = labelVal("Deposit", `$${Number(data.deposit_amount || 0).toLocaleString()} (${data.deposit_pct || 0}%) | Due: ${data.deposit_due || "—"}`, rightX, dealRightY, 28);
-  dealRightY = labelVal("Balance", String(data.balance_due || "Day of Show"), rightX, dealRightY, 28);
-  dealRightY = labelVal("Merch", `${data.merch_split || "—"} | Sells: ${data.merch_seller || "—"}`, rightX, dealRightY, 28);
-  dealRightY = labelVal("Total Comps", String(data.comps || 0), rightX, dealRightY, 28);
-  dealRightY = labelVal("Artist Comps", String(data.artist_comps || 0), rightX, dealRightY, 28);
-  dealRightY = labelVal("Mktg Comps", String(data.marketing_comps || 0), rightX, dealRightY, 28);
+  dealRightY = labelVal("Deposit", `$${Number(data.deposit_amount || 0).toLocaleString()} (${data.deposit_pct || 0}%) | Due: ${data.deposit_due || "—"}`, rightX, dealRightY, 26);
+  dealRightY = labelVal("Balance", String(data.balance_due || "Day of Show"), rightX, dealRightY, 26);
+  dealRightY = labelVal("Merch", `${data.merch_split || "—"} | Sells: ${data.merch_seller || "—"}`, rightX, dealRightY, 26);
+  dealRightY = labelVal("Total Comps", String(data.comps || 0), rightX, dealRightY, 26);
+  dealRightY = labelVal("Artist Comps", String(data.artist_comps || 0), rightX, dealRightY, 26);
+  dealRightY = labelVal("Mktg Comps", String(data.marketing_comps || 0), rightX, dealRightY, 26);
 
   y = Math.max(dealLeftY, dealRightY) + 2;
 
@@ -245,20 +236,23 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     tHeaders.forEach((h, i) => doc.text(h, tCols[i], y + 1));
     y += 4;
 
-    // Data rows
+    // Data rows — truncate tier name to column width
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.5);
     doc.setTextColor(0, 0, 0);
+    const tierMaxW = tCols[1] - tCols[0] - 2; // max width for tier name
     for (const r of scaling) {
       const facFee = r.facility_fee || 0;
       const tktFee = r.price - (r.net_price || 0) - facFee;
+      // Truncate tier name to fit column
+      const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
       const values = [
-        r.name, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap),
+        tierName, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap),
         `$${(r.net_price || 0).toFixed(2)}`, `$${facFee.toFixed(2)}`, `$${(tktFee > 0 ? tktFee : 0).toFixed(2)}`,
         `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`
       ];
       values.forEach((v, i) => doc.text(v, tCols[i], y));
-      y += 3.5;
+      y += ROW_H;
     }
     y += 1;
   }
@@ -270,6 +264,9 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const fe = (data.fixed_expenses || []) as ExpenseItem[];
   const ve = (data.variable_expenses || []) as VariableExpenseItem[];
   const expStartY = y;
+
+  // Max width for expense names (left column)
+  const expNameMaxW = 48;
 
   // ── Fixed Expenses (left column) ──
   doc.setFont("helvetica", "bold");
@@ -283,7 +280,9 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setTextColor(0, 0, 0);
   for (const e of fe) {
     if (e.amount > 0) {
-      doc.text(e.name, leftX, fixY);
+      // Truncate name to fit column
+      const name = doc.splitTextToSize(e.name, expNameMaxW)[0] || e.name;
+      doc.text(name, leftX, fixY);
       doc.text(`$${e.amount.toFixed(0)}`, leftX + 52, fixY);
       fixY += 3;
     }
@@ -305,9 +304,11 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(0, 0, 0);
+  const varNameMaxW = 42;
   for (const e of ve) {
     if (e.amount > 0) {
-      doc.text(e.name, rightX, varY);
+      const name = doc.splitTextToSize(e.name, varNameMaxW)[0] || e.name;
+      doc.text(name, rightX, varY);
       doc.text(`${(e.rate * 100).toFixed(2)}%`, rightX + 45, varY);
       doc.text(`$${e.amount.toFixed(0)}`, rightX + 60, varY);
       varY += 3;
@@ -318,6 +319,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.text(`$${Number(data.total_variable || 0).toLocaleString()}`, rightX + 60, varY);
   varY += 3;
 
+  // Next section after taller expenses column
   y = Math.max(fixY, varY) + 1;
 
   // Total expenses bar
@@ -352,23 +354,23 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const totalFacilityFeeRevenue = totalSellable * pdfFacilityFee;
   const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
 
-  let revY = y;
-  revY = labelVal("Fac Fee/tkt", `$${pdfFacilityFee.toFixed(2)}`, leftX, revY, 36);
-  revY = labelVal("Total Fac Fee", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 36);
-  revY = labelVal("Tkt Fee/tkt", `$${pdfTicketingFee.toFixed(2)}`, leftX, revY, 36);
-  revY = labelVal("Total Tkt Fee", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 36);
-  revY = labelVal("Combined Fees", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 36);
+  let revY = revSavedY;
+  revY = labelVal("Fac Fee/tkt", `$${pdfFacilityFee.toFixed(2)}`, leftX, revY, 32);
+  revY = labelVal("Total Fac Fee", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 32);
+  revY = labelVal("Tkt Fee/tkt", `$${pdfTicketingFee.toFixed(2)}`, leftX, revY, 32);
+  revY = labelVal("Total Tkt Fee", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 32);
+  revY = labelVal("Combined Fees", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, leftX, revY, 32);
 
   // Right: Potential at Sellout
   let potY = revSavedY;
-  potY = labelVal("Gross Potential", `$${Number(data.gross_potential || 0).toLocaleString()}`, rightX, potY, 36);
-  potY = labelVal("Adj. Gross", `$${Number(data.adj_gross || 0).toLocaleString()}`, rightX, potY, 36);
+  potY = labelVal("Gross Potential", `$${Number(data.gross_potential || 0).toLocaleString()}`, rightX, potY, 32);
+  potY = labelVal("Adj. Gross", `$${Number(data.adj_gross || 0).toLocaleString()}`, rightX, potY, 32);
   const taxPct = Number(data.tax_rate || 0) * 100;
-  potY = labelVal(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(data.adj_gross || 0) * Number(data.tax_rate || 0)).toFixed(2)}`, rightX, potY, 36);
-  potY = labelVal("Net Potential", `$${Number(data.net_potential || 0).toLocaleString()}`, rightX, potY, 36);
-  potY = labelVal("Total Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, rightX, potY, 36);
+  potY = labelVal(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(data.adj_gross || 0) * Number(data.tax_rate || 0)).toFixed(2)}`, rightX, potY, 32);
+  potY = labelVal("Net Potential", `$${Number(data.net_potential || 0).toLocaleString()}`, rightX, potY, 32);
+  potY = labelVal("Total Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, rightX, potY, 32);
   if (data.deal_type !== "FLAT") {
-    potY = labelVal("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, rightX, potY, 36);
+    potY = labelVal("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, rightX, potY, 32);
   }
 
   y = Math.max(revY, potY) + 2;
@@ -378,7 +380,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   y = drawCompactSectionHeader(doc, "Artist Potential at Sellout", y);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(VALUE_FONT);
   doc.setTextColor(...DARK);
   doc.text(`Guarantee: $${Number(data.guarantee || 0).toLocaleString()}`, leftX, y);
   if (data.deal_type !== "FLAT") {

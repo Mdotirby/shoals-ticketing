@@ -96,16 +96,20 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
   y = ensureSpace(doc, 7, y);
+  const partyValMaxW = CONTENT_WIDTH - 50 - 3; // max width for party info values
   doc.text("VENUE (\"Licensor\"):", MARGIN + 3, y);
   doc.setFont("helvetica", "normal");
-  doc.text(data.venue_name, MARGIN + 50, y);
+  const vNameTrunc: string = doc.splitTextToSize(data.venue_name, partyValMaxW)[0] || data.venue_name;
+  doc.text(vNameTrunc, MARGIN + 50, y);
   y += 5;
   if (data.venue_address) {
-    doc.text(data.venue_address, MARGIN + 50, y);
+    const vAddrTrunc: string = doc.splitTextToSize(data.venue_address, partyValMaxW)[0] || data.venue_address;
+    doc.text(vAddrTrunc, MARGIN + 50, y);
     y += 5;
   }
   if (data.venue_contact) {
-    doc.text(`Contact: ${data.venue_contact}`, MARGIN + 50, y);
+    const vContactTrunc: string = doc.splitTextToSize(`Contact: ${data.venue_contact}`, partyValMaxW)[0] || `Contact: ${data.venue_contact}`;
+    doc.text(vContactTrunc, MARGIN + 50, y);
     y += 5;
   }
   y += 3;
@@ -115,18 +119,22 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   y = ensureSpace(doc, 7, y);
   doc.text("CLIENT (\"Licensee\"):", MARGIN + 3, y);
   doc.setFont("helvetica", "normal");
-  doc.text(data.client_name, MARGIN + 50, y);
+  const cNameTrunc: string = doc.splitTextToSize(data.client_name, partyValMaxW)[0] || data.client_name;
+  doc.text(cNameTrunc, MARGIN + 50, y);
   y += 5;
   if (data.client_company) {
-    doc.text(data.client_company, MARGIN + 50, y);
+    const cCompTrunc: string = doc.splitTextToSize(data.client_company, partyValMaxW)[0] || data.client_company;
+    doc.text(cCompTrunc, MARGIN + 50, y);
     y += 5;
   }
   if (data.client_address) {
-    doc.text(data.client_address, MARGIN + 50, y);
+    const cAddrTrunc: string = doc.splitTextToSize(data.client_address, partyValMaxW)[0] || data.client_address;
+    doc.text(cAddrTrunc, MARGIN + 50, y);
     y += 5;
   }
   if (data.client_email) {
-    doc.text(`Email: ${data.client_email}`, MARGIN + 50, y);
+    const cEmailTrunc: string = doc.splitTextToSize(`Email: ${data.client_email}`, partyValMaxW)[0] || `Email: ${data.client_email}`;
+    doc.text(cEmailTrunc, MARGIN + 50, y);
     y += 5;
   }
   if (data.client_phone) {
@@ -178,7 +186,10 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
       doc.rect(MARGIN, y - 1, CONTENT_WIDTH, 7, "F");
     }
     doc.setTextColor(...DARK);
-    doc.text(item.description, MARGIN + 3, y + 4);
+    // Truncate description to avoid overlapping the right-aligned amount
+    const lineDescMaxW = CONTENT_WIDTH - 50;
+    const lineDesc: string = doc.splitTextToSize(item.description, lineDescMaxW)[0] || item.description;
+    doc.text(lineDesc, MARGIN + 3, y + 4);
     doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 3, y + 4, { align: "right" });
     y += 7;
   }

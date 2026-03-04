@@ -267,8 +267,12 @@ function drawTierRow(doc: Doc, tier: TierRow, y: number, alt: boolean): number {
   doc.setFontSize(7.5);
   doc.setTextColor(...WHITE);
 
+  // Truncate tier name to fit within its column width
+  const tierNameMaxW = COL_WIDTHS[0] - 4;
+  const truncTierName: string = doc.splitTextToSize(tier.tier_name, tierNameMaxW)[0] || tier.tier_name;
+
   const values = [
-    tier.tier_name,
+    truncTierName,
     String(tier.capacity),
     String(tier.qty_sold),
     pct(tier.pct_house),
@@ -306,8 +310,12 @@ function drawSubtotalRow(
   doc.setFontSize(7.5);
   doc.setTextColor(...GOLD);
 
+  // Truncate subtotal label to fit within first column
+  const subtitleMaxW = COL_WIDTHS[0] - 4;
+  const truncSubtitle: string = doc.splitTextToSize(`${eventTitle} — SUBTOTAL`, subtitleMaxW)[0] || `${eventTitle} — SUBTOTAL`;
+
   const values = [
-    `${eventTitle} — SUBTOTAL`,
+    truncSubtitle,
     String(sub.capacity),
     String(sub.qty_sold),
     pct(sub.pct_house),

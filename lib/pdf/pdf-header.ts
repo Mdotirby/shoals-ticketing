@@ -111,19 +111,30 @@ export function drawCompactSectionHeader(doc: Doc, title: string, y: number, wid
   return y + 8;
 }
 
-/** Draw label: value row */
+/** Draw label: value row with automatic text wrapping for long values */
 export function drawLabelValue(doc: Doc, label: string, value: string, y: number): number {
-  y = ensureSpace(doc, 7, y);
+  const labelX = MARGIN + 3;
+  const valueX = MARGIN + 50;
+  const maxValueW = CONTENT_WIDTH - 50 - 3; // available width for value text
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const lines: string[] = doc.splitTextToSize(value || "—", maxValueW);
+  const totalH = Math.max(7, lines.length * LINE_H + 2);
+
+  y = ensureSpace(doc, totalH, y);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text(`${label}:`, MARGIN + 3, y + 4);
+  doc.text(`${label}:`, labelX, y + 4);
   doc.setFont("helvetica", "normal");
-  doc.text(value || "—", MARGIN + 50, y + 4);
-  return y + 7;
+  for (let i = 0; i < lines.length; i++) {
+    doc.text(lines[i], valueX, y + 4 + i * LINE_H);
+  }
+  return y + totalH;
 }
 
-/** Draw label: value row with custom positions */
+/** Draw label: value row with custom positions. Long labels are truncated to avoid overlapping the right-aligned value. */
 export function drawRow(doc: Doc, label: string, value: string, y: number, opts?: { bold?: boolean; indent?: number; highlight?: boolean }): number {
   y = ensureSpace(doc, 7, y);
   const indent = opts?.indent ?? 0;
@@ -135,7 +146,10 @@ export function drawRow(doc: Doc, label: string, value: string, y: number, opts?
   doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text(label, MARGIN + 3 + indent, y + 4);
+  // Truncate label to avoid overlapping with value (leave ~50mm for value on right)
+  const maxLabelW = CONTENT_WIDTH - indent - 55;
+  const truncatedLabel: string = doc.splitTextToSize(label, maxLabelW)[0] || label;
+  doc.text(truncatedLabel, MARGIN + 3 + indent, y + 4);
   doc.text(value, MARGIN + CONTENT_WIDTH - 3, y + 4, { align: "right" });
   return y + 7;
 }

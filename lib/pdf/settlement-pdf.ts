@@ -81,10 +81,12 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   let totalCap = 0, totalSold = 0, totalComps = 0, totalGross = 0;
+  const tierNameMaxW = colX[1] - colX[0] - 5; // max width for tier name before next column
 
   for (const r of rows) {
     y = ensureSpace(doc, 7, y);
-    doc.text(r.tier, colX[0], y + 4);
+    const tierName: string = doc.splitTextToSize(r.tier, tierNameMaxW)[0] || r.tier;
+    doc.text(tierName, colX[0], y + 4);
     doc.text(String(r.capacity), colX[1], y + 4, { align: "right" });
     doc.text(String(r.sold), colX[2], y + 4, { align: "right" });
     doc.text(String(r.comps), colX[3], y + 4, { align: "right" });

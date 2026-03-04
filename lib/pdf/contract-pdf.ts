@@ -121,10 +121,12 @@ export async function exportContractPDF(
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
+    const tierNameMaxW = colX[1] - colX[0] - 3; // max width before next column
     for (const r of offer.ticket_scaling) {
       y = ensureSpace(doc, 6, y);
       const ticketingFee = r.price - (r.net_price || 0) - (r.facility_fee || 0);
-      doc.text(r.name, colX[0], y + 4);
+      const tierName: string = doc.splitTextToSize(r.name, tierNameMaxW)[0] || r.name;
+      doc.text(tierName, colX[0], y + 4);
       doc.text(String(r.seats), colX[1], y + 4, { align: "right" });
       doc.text(String(r.comps), colX[2], y + 4, { align: "right" });
       doc.text(String(r.kills), colX[3], y + 4, { align: "right" });
@@ -166,6 +168,7 @@ export async function exportContractPDF(
     const startY = y;
 
     // Fixed Expenses (left column)
+    const fixedNameMaxW = colMid - MARGIN - 40; // available width for expense name
     if (fixedRows.length) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
@@ -176,7 +179,8 @@ export async function exportContractPDF(
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       for (const e of fixedRows) {
-        doc.text(e.name, MARGIN + 5, y + 4);
+        const eName: string = doc.splitTextToSize(e.name, fixedNameMaxW)[0] || e.name;
+        doc.text(eName, MARGIN + 5, y + 4);
         doc.text(fmt(e.amount), colMid - 8, y + 4, { align: "right" });
         y += 5;
       }
@@ -192,6 +196,7 @@ export async function exportContractPDF(
 
     // Variable Expenses (right column)
     y = startY;
+    const varNameMaxW = CONTENT_WIDTH - (colMid - MARGIN) - 40; // available width for var expense name
     if (varRows.length) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7.5);
@@ -202,7 +207,9 @@ export async function exportContractPDF(
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       for (const e of varRows) {
-        doc.text(`${e.name} (${(e.rate * 100).toFixed(2)}%)`, colMid + 5, y + 4);
+        const varLabel = `${e.name} (${(e.rate * 100).toFixed(2)}%)`;
+        const truncVarLabel: string = doc.splitTextToSize(varLabel, varNameMaxW)[0] || varLabel;
+        doc.text(truncVarLabel, colMid + 5, y + 4);
         doc.text(fmt(e.amount), MARGIN + CONTENT_WIDTH - 3, y + 4, { align: "right" });
         y += 5;
       }
