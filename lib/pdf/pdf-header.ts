@@ -179,51 +179,38 @@ export function drawFooter(doc: Doc, documentTitle?: string) {
   }
 }
 
-// ── Logo Loading (optimized for file size) ───────────────────────────
+// ── Logo Loading ─────────────────────────────────────────────────────
 
 /**
- * Load an image from a URL and return as a compressed JPEG data URL.
- * Uses reduced quality (0.6) and scales to max 80px height for small file size.
+ * Load an image from a URL and return as a PNG data URL directly.
+ * Uses fetch + Blob + FileReader — no canvas conversion.
  */
 export async function loadLogoAsDataURL(url: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
-    // First verify the URL is reachable via fetch (avoids silent Image failures)
     const resp = await fetch(url, { mode: "cors" }).catch(() => null);
     if (!resp || !resp.ok) return null;
 
-    const img = new Image();
-    img.crossOrigin = "anonymous";
+    const blob = await resp.blob();
 
+    // Convert blob to data URL via FileReader
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("FileReader failed"));
+      reader.readAsDataURL(blob);
+    });
+
+    // Load into an Image to get natural dimensions for PDF layout
+    const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error("Image load failed"));
-      // Set src AFTER attaching listeners to avoid missing cached loads
-      img.src = url;
-      // Timeout fallback
+      img.src = dataUrl;
       setTimeout(() => reject(new Error("Image load timeout")), 5000);
     });
 
     if (img.naturalWidth > 0) {
-      // Scale to max 80px height while maintaining aspect ratio
-      const MAX_H = 80;
-      let w = img.naturalWidth;
-      let h = img.naturalHeight;
-      if (h > MAX_H) {
-        w = Math.round(w * (MAX_H / h));
-        h = MAX_H;
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        // Fill white background first (avoids black bg from PNG transparency -> JPEG)
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
-        return { dataUrl, width: w, height: h };
-      }
+      return { dataUrl, width: img.naturalWidth, height: img.naturalHeight };
     }
   } catch {
     // Silently fall through to return null
@@ -332,7 +319,7 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
       logoW = maxLogoW;
     }
     const logoY = 4;
-    doc.addImage(logo.dataUrl, "JPEG", MARGIN, logoY, logoW, logoH);
+    doc.addImage(logo.dataUrl, "PNG", MARGIN, logoY, logoW, logoH);
   }
 
   // ── Venue name (right-aligned, large) ──
@@ -438,7 +425,7 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
       logoH = logoH * (maxLogoW / logoW);
       logoW = maxLogoW;
     }
-    doc.addImage(logo.dataUrl, "JPEG", MARGIN, 4, logoW, logoH);
+    doc.addImage(logo.dataUrl, "PNG", MARGIN, 4, logoW, logoH);
   }
 
   // ── Right side: venue name + address ──
