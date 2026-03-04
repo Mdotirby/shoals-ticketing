@@ -43,6 +43,9 @@ export default function AdminCreateEventPage() {
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
 
+  // Resolved venue_id — from cookie or admin_users table
+  const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
+
   const [form, setForm] = useState({
     title: "",
     venue: "",
@@ -61,6 +64,29 @@ export default function AdminCreateEventPage() {
   const [revenueItems, setRevenueItems] = useState<RevenueItem[]>(
     REVENUE_CATEGORIES.map((c) => ({ category: c.value, amount: "" }))
   );
+
+  // Resolve venue_id from cookie or admin_users table (ensures events are tagged correctly)
+  useEffect(() => {
+    const cookieVenueId = getCookie("venue-id");
+    if (cookieVenueId) {
+      setResolvedVenueId(cookieVenueId);
+    } else {
+      // Fallback: resolve from admin_users record
+      import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
+        const supabase = getSupabaseBrowser();
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData?.user) return;
+        const { data: adminRecord } = await supabase
+          .from("admin_users")
+          .select("venue_id")
+          .eq("id", authData.user.id)
+          .single();
+        if (adminRecord?.venue_id) {
+          setResolvedVenueId(adminRecord.venue_id);
+        }
+      });
+    }
+  }, []);
 
   // Load event venues for dropdown
   useEffect(() => {
@@ -208,9 +234,6 @@ export default function AdminCreateEventPage() {
         ? Math.min(...tiers.map((t) => parseFloat(t.price) || 0))
         : 0;
 
-      // Auto-assign venue_id from logged-in admin's session
-      const venueId = getCookie("venue-id");
-
       const res = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -222,7 +245,7 @@ export default function AdminCreateEventPage() {
           description: form.description || null,
           image_url: form.image_url || null,
           status: "published",
-          venue_id: venueId || null,
+          venue_id: resolvedVenueId || null,
           event_venue_id: selectedEventVenueId || null,
           event_type: form.event_type,
           booking_status: form.booking_status,
@@ -248,14 +271,14 @@ export default function AdminCreateEventPage() {
       const event = await res.json();
 
       // Save private event revenue items if applicable
-      if (form.event_type === "private" && venueId && event.id) {
+      if (form.event_type === "private" && resolvedVenueId && event.id) {
         const revenueToSave = revenueItems.filter((r) => r.amount && parseFloat(r.amount) > 0);
         if (revenueToSave.length > 0) {
           await fetch(`/api/private-events/${event.id}/revenue`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              venue_id: venueId,
+              venue_id: resolvedVenueId,
               items: revenueToSave.map((r, i) => ({
                 category: r.category,
                 amount: parseFloat(r.amount),

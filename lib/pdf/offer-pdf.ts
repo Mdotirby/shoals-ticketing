@@ -71,10 +71,11 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
 
   const venueSlug = venue?.slug || "";
-  const venueName = String(venue?.name || data.venue || "Venue");
+  // Use the offer's event venue name (from the form) for the header, not the admin's venue
+  const venueName = String(data.venue || venue?.name || "Venue");
   const venueAddr = String(
-    [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip]
-      .filter(Boolean).join(", ") || data.venue_address || ""
+    data.venue_address || [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip]
+      .filter(Boolean).join(", ") || ""
   );
 
   // ── COMPACT HEADER (promoter/buyer info, NOT agent info) ──
@@ -178,7 +179,29 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   dealLeftY = labelVal("Backend", `${data.backend_percentage || 0}%`, leftX, dealLeftY, 34);
   dealLeftY = labelVal("Radius", `${data.radius_distance || "—"} mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, leftX, dealLeftY, 34);
   dealLeftY = labelVal("Production", String(data.production_by || "—"), leftX, dealLeftY, 34);
-  dealLeftY = labelVal("Other", String(data.other_terms || "—"), leftX, dealLeftY, 34);
+
+  // Other Terms — wrap long text to avoid overflow into right column
+  const otherText = String(data.other_terms || "—");
+  const otherMaxW = halfW - 34 - 4; // available width in left column after label
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(VALUE_FONT);
+  const otherLines: string[] = doc.splitTextToSize(otherText, otherMaxW);
+  if (otherLines.length <= 1) {
+    dealLeftY = labelVal("Other", otherText, leftX, dealLeftY, 34);
+  } else {
+    // Draw label
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(LABEL_FONT);
+    doc.text("Other:", leftX, dealLeftY);
+    // Draw wrapped value lines
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(VALUE_FONT);
+    for (const line of otherLines) {
+      doc.text(line, leftX + 34, dealLeftY);
+      dealLeftY += ROW_H;
+    }
+  }
 
   // Right sub-column
   let dealRightY = y;

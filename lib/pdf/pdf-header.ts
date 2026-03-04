@@ -187,15 +187,23 @@ export function drawFooter(doc: Doc, documentTitle?: string) {
  */
 export async function loadLogoAsDataURL(url: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
+    // First verify the URL is reachable via fetch (avoids silent Image failures)
+    const resp = await fetch(url, { mode: "cors" }).catch(() => null);
+    if (!resp || !resp.ok) return null;
+
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = url;
+
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject();
-      setTimeout(reject, 3000);
+      img.onerror = () => reject(new Error("Image load failed"));
+      // Set src AFTER attaching listeners to avoid missing cached loads
+      img.src = url;
+      // Timeout fallback
+      setTimeout(() => reject(new Error("Image load timeout")), 5000);
     });
-    if (img.complete && img.naturalWidth > 0) {
+
+    if (img.naturalWidth > 0) {
       // Scale to max 80px height while maintaining aspect ratio
       const MAX_H = 80;
       let w = img.naturalWidth;
@@ -209,13 +217,17 @@ export async function loadLogoAsDataURL(url: string): Promise<{ dataUrl: string;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        // Fill white background first (avoids black bg from PNG transparency -> JPEG)
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0, w, h);
-        // Use JPEG at 0.6 quality for smaller file size
         const dataUrl = canvas.toDataURL("image/jpeg", 0.6);
         return { dataUrl, width: w, height: h };
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    // Silently fall through to return null
+  }
   return null;
 }
 
