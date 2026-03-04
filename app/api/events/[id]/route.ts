@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email")
     .eq("id", id)
     .single();
 
@@ -46,6 +46,11 @@ export async function PUT(
   if (body.image_url !== undefined) updates.image_url = body.image_url;
   if (body.status !== undefined) updates.status = body.status;
   if (body.event_venue_id !== undefined) updates.event_venue_id = body.event_venue_id;
+  if (body.event_type !== undefined) updates.event_type = body.event_type;
+  if (body.booking_status !== undefined) updates.booking_status = body.booking_status;
+  if (body.contact_name !== undefined) updates.contact_name = body.contact_name;
+  if (body.contact_phone !== undefined) updates.contact_phone = body.contact_phone;
+  if (body.contact_email !== undefined) updates.contact_email = body.contact_email;
 
   const { data, error } = await admin
     .from("events")

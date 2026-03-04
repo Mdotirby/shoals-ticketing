@@ -10,7 +10,7 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -55,17 +55,51 @@ export async function POST(request: Request) {
       }
     }
 
+    // ── Promo code validation ──
+    let promoCodeId = "";
+    let promoCodeStr = "";
+    let discountCentsPerTicket = 0;
+
+    if (promo_code) {
+      const { data: promo } = await admin
+        .from("promo_codes")
+        .select("*")
+        .eq("event_id", event_id)
+        .eq("code", promo_code.toUpperCase().trim())
+        .eq("active", true)
+        .single();
+
+      if (promo) {
+        // Check expiry
+        const notExpired = !promo.expires_at || new Date(promo.expires_at) >= new Date();
+        // Check max uses
+        const hasUsesLeft = promo.max_uses === null || promo.current_uses < promo.max_uses;
+
+        if (notExpired && hasUsesLeft) {
+          promoCodeId = promo.id;
+          promoCodeStr = promo.code;
+
+          if (promo.discount_type === "fixed") {
+            discountCentsPerTicket = Math.round(parseFloat(promo.discount_value) * 100);
+          } else if (promo.discount_type === "percentage") {
+            discountCentsPerTicket = Math.round(event.price * 100 * (parseFloat(promo.discount_value) / 100));
+          }
+        }
+      }
+    }
+
     const stripe = getStripe();
 
     const ticketPriceCents = Math.round(event.price * 100);
+    const discountedTicketPriceCents = Math.max(0, ticketPriceCents - discountCentsPerTicket);
     const ticketingFeeCents = Math.round(ticketingFee * 100);
     const facilityFeeCents = Math.round(facilityFee * 100);
 
-    // Calculate tax on ticket price
-    const taxCents = Math.round(ticketPriceCents * taxRate);
+    // Calculate tax on discounted ticket price
+    const taxCents = Math.round(discountedTicketPriceCents * taxRate);
 
-    // Calculate Stripe processing fee on the total (ticket + ticketing fee + facility fee + tax)
-    const subtotalBeforeStripeFee = (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
+    // Calculate Stripe processing fee on the total (discounted ticket + ticketing fee + facility fee + tax)
+    const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
     const stripeFeeCents = Math.round(
       subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
     );
@@ -89,11 +123,30 @@ export async function POST(request: Request) {
             name: `${event.title} — General Admission`,
             description: `${event.venue} • ${new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
           },
-          unit_amount: ticketPriceCents,
+          unit_amount: discountedTicketPriceCents,
         },
         quantity,
       },
     ];
+
+    // Add discount as a visible line item (negative amounts not supported in Stripe line items,
+    // so we show the discounted price above and add an informational $0 line if there's a discount)
+    if (discountCentsPerTicket > 0 && promoCodeStr) {
+      const totalDiscountCents = discountCentsPerTicket * quantity;
+      // Stripe doesn't support negative line items in embedded checkout,
+      // so we already applied the discount to the ticket price above.
+      // Add a $0 informational line item showing what was saved
+      lineItems.push({
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Promo: ${promoCodeStr} (−$${(totalDiscountCents / 100).toFixed(2)} saved)`,
+          },
+          unit_amount: 0,
+        },
+        quantity: 1,
+      });
+    }
 
     if (ticketingFeeCents > 0) {
       lineItems.push({
@@ -159,6 +212,9 @@ export async function POST(request: Request) {
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
         fwb_opt_in: fwb_opt_in ? "true" : "false",
+        source: "online",
+        promo_code: promoCodeStr,
+        promo_code_id: promoCodeId,
       },
     };
 

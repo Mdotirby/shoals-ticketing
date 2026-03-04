@@ -19,8 +19,9 @@ export async function GET(req: NextRequest) {
   const endDate = new Date(year, mon, 0);
   endDate.setDate(endDate.getDate() + 7); // 7 days after month end
 
-  // Try full column set first; fall back to basic columns if migration hasn't run
-  const fullColumns = "id, title, venue, date, end_time, price, status, event_type, notes, calendar_color, image_url, venue_id";
+  // Full column set including new private event / booking_status fields
+  const fullColumns = "id, title, venue, date, end_time, price, status, event_type, booking_status, contact_name, contact_phone, contact_email, notes, calendar_color, image_url, venue_id";
+  const fallbackColumns = "id, title, venue, date, end_time, price, status, event_type, notes, calendar_color, image_url, venue_id";
   const basicColumns = "id, title, venue, date, price, status, image_url, venue_id";
 
   let query = admin
@@ -37,12 +38,12 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let { data, error } = await query as { data: any[] | null; error: any };
 
-  // If columns don't exist yet, fall back to basic select
+  // If new columns don't exist yet, fall back progressively
   if (error && error.message?.includes("column")) {
-    console.warn("Calendar: new columns not found, using basic select");
+    console.warn("Calendar: new columns not found, trying fallback select");
     let fallback = admin
       .from("events")
-      .select(basicColumns)
+      .select(fallbackColumns)
       .gte("date", startDate.toISOString())
       .lte("date", endDate.toISOString())
       .order("date", { ascending: true });
@@ -50,14 +51,42 @@ export async function GET(req: NextRequest) {
     if (venueId) fallback = fallback.eq("venue_id", venueId);
 
     const result = await fallback;
-    data = (result.data ?? []).map((e: Record<string, unknown>) => ({
-      ...e,
-      end_time: null,
-      event_type: "ticketed",
-      notes: null,
-      calendar_color: null,
-    }));
-    error = result.error;
+
+    if (result.error && result.error.message?.includes("column")) {
+      // Try basic columns
+      console.warn("Calendar: fallback columns not found, using basic select");
+      let basic = admin
+        .from("events")
+        .select(basicColumns)
+        .gte("date", startDate.toISOString())
+        .lte("date", endDate.toISOString())
+        .order("date", { ascending: true });
+
+      if (venueId) basic = basic.eq("venue_id", venueId);
+
+      const basicResult = await basic;
+      data = (basicResult.data ?? []).map((e: Record<string, unknown>) => ({
+        ...e,
+        end_time: null,
+        event_type: "hard_ticket",
+        booking_status: "confirmed",
+        contact_name: null,
+        contact_phone: null,
+        contact_email: null,
+        notes: null,
+        calendar_color: null,
+      }));
+      error = basicResult.error;
+    } else {
+      data = (result.data ?? []).map((e: Record<string, unknown>) => ({
+        ...e,
+        booking_status: "confirmed",
+        contact_name: null,
+        contact_phone: null,
+        contact_email: null,
+      }));
+      error = result.error;
+    }
   }
 
   if (error) {
@@ -68,7 +97,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data ?? []);
 }
 
-// POST /api/calendar — Create a calendar event (non-ticketed or private)
+// POST /api/calendar — Create a calendar event (non-ticketed, private, or hard_ticket)
 export async function POST(req: NextRequest) {
   const admin = createAdminClient();
   const body = await req.json();
@@ -80,10 +109,14 @@ export async function POST(req: NextRequest) {
     venue: body.venue || "",
     date: body.date,
     end_time: body.end_time || null,
-    price: eventType === "ticketed" ? (body.price || 0) : 0,
+    price: eventType === "hard_ticket" || eventType === "ticketed" ? (body.price || 0) : 0,
     description: body.description || null,
     notes: body.notes || null,
     event_type: eventType,
+    booking_status: body.booking_status || "confirmed",
+    contact_name: body.contact_name || null,
+    contact_phone: body.contact_phone || null,
+    contact_email: body.contact_email || null,
     calendar_color: body.calendar_color || null,
     status: body.status || "published",
     venue_id: body.venue_id || null,
@@ -120,6 +153,10 @@ export async function PUT(req: NextRequest) {
   if (body.description !== undefined) updates.description = body.description;
   if (body.notes !== undefined) updates.notes = body.notes;
   if (body.event_type !== undefined) updates.event_type = body.event_type;
+  if (body.booking_status !== undefined) updates.booking_status = body.booking_status;
+  if (body.contact_name !== undefined) updates.contact_name = body.contact_name;
+  if (body.contact_phone !== undefined) updates.contact_phone = body.contact_phone;
+  if (body.contact_email !== undefined) updates.contact_email = body.contact_email;
   if (body.calendar_color !== undefined) updates.calendar_color = body.calendar_color;
   if (body.status !== undefined) updates.status = body.status;
 

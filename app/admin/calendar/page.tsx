@@ -14,6 +14,10 @@ type CalendarEvent = {
   price: number;
   status: string;
   event_type: string | null;
+  booking_status: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
   notes: string | null;
   calendar_color: string | null;
   image_url: string | null;
@@ -27,19 +31,39 @@ type EventForm = {
   end_time: string;
   venue: string;
   event_type: string;
+  booking_status: string;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
   notes: string;
   calendar_color: string;
   status: string;
   description: string;
 };
 
-const EVENT_COLORS: Record<string, string> = {
-  ticketed: "rgba(208,194,144,0.85)",
+// Booking status colors (primary color coding for calendar)
+const BOOKING_STATUS_COLORS: Record<string, string> = {
+  confirmed: "rgba(80,200,120,0.9)",   // green
+  hold: "rgba(255,200,50,0.9)",        // yellow
+  cancelled: "rgba(255,80,80,0.9)",    // red
+};
+
+const BOOKING_STATUS_BG: Record<string, string> = {
+  confirmed: "rgba(80,200,120,0.12)",
+  hold: "rgba(255,200,50,0.12)",
+  cancelled: "rgba(255,80,80,0.12)",
+};
+
+// Event type indicator (secondary - shown as small badge)
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  hard_ticket: "rgba(208,194,144,0.85)",
+  ticketed: "rgba(208,194,144,0.85)",    // legacy support
   non_ticketed: "rgba(100,149,237,0.85)",
   private: "rgba(180,100,200,0.85)",
 };
 
-const EVENT_BG: Record<string, string> = {
+const EVENT_TYPE_BG: Record<string, string> = {
+  hard_ticket: "rgba(208,194,144,0.15)",
   ticketed: "rgba(208,194,144,0.15)",
   non_ticketed: "rgba(100,149,237,0.15)",
   private: "rgba(180,100,200,0.15)",
@@ -47,6 +71,27 @@ const EVENT_BG: Record<string, string> = {
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+
+/**
+ * Safely parse a date string into a local-time Date object.
+ * Handles both "YYYY-MM-DD" (date-only) and full ISO timestamps.
+ * Avoids the timezone pitfall where `new Date("2026-03-15")` is parsed as UTC midnight.
+ */
+function safeDate(d: string): Date {
+  if (!d) return new Date();
+  // Date-only string: add noon to avoid UTC-midnight timezone shift
+  if (d.length === 10 && d[4] === "-") {
+    return new Date(d + "T12:00:00");
+  }
+  // Full timestamp: strip timezone offset so it's treated as local time
+  return new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
+}
+
+/** Extract a YYYY-MM-DD key from a date string using local-time-safe parsing */
+function dateKey(d: string): string {
+  const dt = safeDate(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
 
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(false);
@@ -67,6 +112,10 @@ function emptyForm(dateStr?: string): EventForm {
     end_time: "",
     venue: "",
     event_type: "non_ticketed",
+    booking_status: "confirmed",
+    contact_name: "",
+    contact_phone: "",
+    contact_email: "",
     notes: "",
     calendar_color: "",
     status: "published",
@@ -173,12 +222,11 @@ export default function CalendarPage() {
     return days;
   }, [currentMonth]);
 
-  // Group events by date string
+  // Group events by date string — uses safe date parsing to avoid timezone bugs
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     events.forEach((e) => {
-      const d = new Date(e.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const key = dateKey(e.date);
       if (!map[key]) map[key] = [];
       map[key].push(e);
     });
@@ -219,14 +267,18 @@ export default function CalendarPage() {
   // Open modal for editing
   const openEditEvent = (event: CalendarEvent) => {
     setEditingEvent(event);
-    const eventDate = new Date(event.date);
+    const eventDate = safeDate(event.date);
     setForm({
       title: event.title,
-      date: eventDate.toISOString().split("T")[0],
+      date: `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, "0")}-${String(eventDate.getDate()).padStart(2, "0")}`,
       time: eventDate.toTimeString().slice(0, 5),
-      end_time: event.end_time ? new Date(event.end_time).toTimeString().slice(0, 5) : "",
+      end_time: event.end_time ? safeDate(event.end_time).toTimeString().slice(0, 5) : "",
       venue: event.venue || "",
-      event_type: event.event_type || "ticketed",
+      event_type: event.event_type || "hard_ticket",
+      booking_status: event.booking_status || "confirmed",
+      contact_name: event.contact_name || "",
+      contact_phone: event.contact_phone || "",
+      contact_email: event.contact_email || "",
       notes: event.notes || "",
       calendar_color: event.calendar_color || "",
       status: event.status || "published",
@@ -249,6 +301,10 @@ export default function CalendarPage() {
       end_time: endTime,
       venue: form.venue || venueName,
       event_type: form.event_type,
+      booking_status: form.booking_status,
+      contact_name: form.contact_name || null,
+      contact_phone: form.contact_phone || null,
+      contact_email: form.contact_email || null,
       notes: form.notes || null,
       calendar_color: form.calendar_color || null,
       status: form.status,
@@ -294,6 +350,19 @@ export default function CalendarPage() {
     }
   };
 
+  /** Get the display color for an event based on booking_status (primary) */
+  const getEventColor = (ev: CalendarEvent) => {
+    if (ev.calendar_color) return ev.calendar_color;
+    const bs = ev.booking_status || "confirmed";
+    return BOOKING_STATUS_COLORS[bs] || BOOKING_STATUS_COLORS.confirmed;
+  };
+
+  const getEventBg = (ev: CalendarEvent) => {
+    if (ev.calendar_color) return ev.calendar_color.replace("0.85", "0.12").replace("0.9", "0.12");
+    const bs = ev.booking_status || "confirmed";
+    return BOOKING_STATUS_BG[bs] || BOOKING_STATUS_BG.confirmed;
+  };
+
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
@@ -310,15 +379,26 @@ export default function CalendarPage() {
         </p>
       )}
 
-      {/* Legend */}
+      {/* Legend — Booking Status */}
       <div style={{ display: "flex", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
         {[
-          { label: "Ticketed", type: "ticketed" },
+          { label: "Confirmed", status: "confirmed" },
+          { label: "Hold", status: "hold" },
+          { label: "Cancelled", status: "cancelled" },
+        ].map((l) => (
+          <div key={l.status} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.5)" }}>
+            <div style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, borderRadius: 3, background: BOOKING_STATUS_COLORS[l.status] }} />
+            {l.label}
+          </div>
+        ))}
+        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+        {[
+          { label: "Hard Ticket", type: "hard_ticket" },
           { label: "Non-Ticketed", type: "non_ticketed" },
           { label: "Private", type: "private" },
         ].map((l) => (
-          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.5)" }}>
-            <div style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, borderRadius: 3, background: EVENT_COLORS[l.type] }} />
+          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.35)" }}>
+            <div style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8, borderRadius: "50%", background: EVENT_TYPE_COLORS[l.type] }} />
             {l.label}
           </div>
         ))}
@@ -339,7 +419,7 @@ export default function CalendarPage() {
               Events List
             </Link>
             <Link href="/admin/events/new" style={{ padding: "8px 16px", fontSize: 12, color: "#d0c290", textDecoration: "none", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, background: "rgba(208,194,144,0.08)", display: "inline-flex", alignItems: "center" }}>
-              + Ticketed Event
+              + Hard Ticket Event
             </Link>
           </>
         )}
@@ -388,7 +468,6 @@ export default function CalendarPage() {
               key={i}
               onClick={() => {
                 if (isMobile && dayEvents.length > 0) {
-                  // On mobile, tapping a day with events opens the first event
                   openEditEvent(dayEvents[0]);
                 } else {
                   openNewEvent(key);
@@ -431,12 +510,11 @@ export default function CalendarPage() {
 
               {/* Events on this day */}
               {isMobile ? (
-                /* Mobile: show colored dots */
+                /* Mobile: show colored dots based on booking_status */
                 dayEvents.length > 0 && (
                   <div style={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
                     {dayEvents.slice(0, 4).map((ev) => {
-                      const type = ev.event_type || "ticketed";
-                      const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
+                      const color = getEventColor(ev);
                       return (
                         <div
                           key={ev.id}
@@ -453,12 +531,13 @@ export default function CalendarPage() {
                   </div>
                 )
               ) : (
-                /* Desktop: show event labels */
+                /* Desktop: show event labels with booking_status color + event type indicator */
                 <>
                   {dayEvents.slice(0, 3).map((ev) => {
-                    const type = ev.event_type || "ticketed";
-                    const color = ev.calendar_color || EVENT_COLORS[type] || EVENT_COLORS.ticketed;
-                    const bg = EVENT_BG[type] || EVENT_BG.ticketed;
+                    const color = getEventColor(ev);
+                    const bg = getEventBg(ev);
+                    const type = ev.event_type || "hard_ticket";
+                    const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
                     return (
                       <div
                         key={ev.id}
@@ -466,7 +545,7 @@ export default function CalendarPage() {
                           e.stopPropagation();
                           openEditEvent(ev);
                         }}
-                        title={`${ev.title}${ev.notes ? ` — ${ev.notes}` : ""}`}
+                        title={`${ev.title} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
                         style={{
                           fontSize: 10,
                           padding: "2px 6px",
@@ -480,8 +559,15 @@ export default function CalendarPage() {
                           textOverflow: "ellipsis",
                           cursor: "pointer",
                           fontWeight: 500,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4,
                         }}
                       >
+                        <span style={{
+                          width: 5, height: 5, borderRadius: "50%",
+                          background: typeColor, flexShrink: 0,
+                        }} />
                         {ev.title}
                       </div>
                     );
@@ -521,7 +607,7 @@ export default function CalendarPage() {
               border: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)",
               padding: isMobile ? "20px 16px" : 28,
               width: "100%",
-              maxWidth: isMobile ? "100%" : 500,
+              maxWidth: isMobile ? "100%" : 540,
               height: isMobile ? "100%" : "auto",
               maxHeight: isMobile ? "100%" : "90vh",
               overflowY: "auto",
@@ -547,7 +633,7 @@ export default function CalendarPage() {
               {[
                 { value: "non_ticketed", label: "Non-Ticketed" },
                 { value: "private", label: "Private" },
-                { value: "ticketed", label: "Ticketed" },
+                { value: "hard_ticket", label: "Hard Ticket" },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -557,9 +643,39 @@ export default function CalendarPage() {
                     flex: 1,
                     padding: "8px 12px",
                     borderRadius: 8,
-                    border: `1px solid ${form.event_type === opt.value ? EVENT_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
-                    background: form.event_type === opt.value ? EVENT_BG[opt.value] : "transparent",
-                    color: form.event_type === opt.value ? EVENT_COLORS[opt.value] : "rgba(255,255,255,0.5)",
+                    border: `1px solid ${form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.1)"}`,
+                    background: form.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(208,194,144,0.15)") : "transparent",
+                    color: form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.5)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Booking Status */}
+            <label style={labelStyle}>Booking Status</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[
+                { value: "confirmed", label: "Confirmed" },
+                { value: "hold", label: "Hold" },
+                ...(editingEvent ? [{ value: "cancelled", label: "Cancelled" }] : []),
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm({ ...form, booking_status: opt.value })}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
+                    background: form.booking_status === opt.value ? BOOKING_STATUS_BG[opt.value] : "transparent",
+                    color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -615,6 +731,46 @@ export default function CalendarPage() {
               style={{ width: "100%", marginBottom: 14 }}
             />
 
+            {/* Contact Fields (shown for private events) */}
+            {form.event_type === "private" && (
+              <div style={{ marginBottom: 14, padding: 12, borderRadius: 8, background: "rgba(180,100,200,0.06)", border: "1px solid rgba(180,100,200,0.15)" }}>
+                <label style={{ ...labelStyle, color: "rgba(180,100,200,0.7)" }}>Client Contact Info</label>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginTop: 6 }}>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Contact Name</label>
+                    <input
+                      className="admin-form-input"
+                      value={form.contact_name}
+                      onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
+                      placeholder="Client name"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Phone</label>
+                    <input
+                      className="admin-form-input"
+                      value={form.contact_phone}
+                      onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div style={isMobile ? {} : { gridColumn: "span 2" }}>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Email</label>
+                    <input
+                      className="admin-form-input"
+                      type="email"
+                      value={form.contact_email}
+                      onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
+                      placeholder="client@example.com"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Notes */}
             <label style={labelStyle}>Internal Notes</label>
             <textarea
@@ -638,9 +794,9 @@ export default function CalendarPage() {
             />
 
             {/* Color */}
-            <label style={labelStyle}>Calendar Color (optional)</label>
+            <label style={labelStyle}>Custom Calendar Color (optional — overrides status color)</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              {["", "#d0c290", "#6495ed", "#b464c8", "#50c878", "#ff6b6b", "#ffa500"].map((c) => (
+              {["", "#50c878", "#ffc832", "#ff6b6b", "#d0c290", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -659,7 +815,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Status */}
-            <label style={labelStyle}>Status</label>
+            <label style={labelStyle}>Visibility</label>
             <select
               className="admin-form-input"
               value={form.status}
@@ -713,8 +869,8 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            {/* Link to full event editor for ticketed events */}
-            {editingEvent && (editingEvent.event_type === "ticketed" || !editingEvent.event_type) && (
+            {/* Link to full event editor for hard ticket events */}
+            {editingEvent && (editingEvent.event_type === "hard_ticket" || editingEvent.event_type === "ticketed" || !editingEvent.event_type) && (
               <p style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
                 <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
                   Open full event editor →

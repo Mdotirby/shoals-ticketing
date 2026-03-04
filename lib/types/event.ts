@@ -10,7 +10,12 @@ export type Event = {
   image_crop_data?: ImageCropData;
   status: "draft" | "published";
   venue_id?: string;
-  event_type?: "ticketed" | "non_ticketed" | "private";
+  event_type?: "hard_ticket" | "ticketed" | "non_ticketed" | "private";
+  booking_status?: "confirmed" | "hold" | "cancelled";
+  contact_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  capacity?: number;
   notes?: string;
   calendar_color?: string;
 };

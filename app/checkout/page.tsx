@@ -27,6 +27,43 @@ function CheckoutContent() {
   const [agreed, setAgreed] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
+  // Promo code state
+  const [showPromo, setShowPromo] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoValid, setPromoValid] = useState<null | { discount_type: string; discount_value: number }>(null);
+  const [promoError, setPromoError] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim() || !eventId) return;
+    setPromoLoading(true);
+    setPromoError("");
+    setPromoValid(null);
+    try {
+      const res = await fetch("/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim(), event_id: eventId }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setPromoValid({ discount_type: data.discount_type, discount_value: data.discount_value });
+      } else {
+        setPromoError(data.error || "Invalid promo code");
+      }
+    } catch {
+      setPromoError("Failed to validate promo code");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setPromoCode("");
+    setPromoValid(null);
+    setPromoError("");
+  };
+
   const handleContinue = () => {
     if (!buyerName.trim() || !buyerEmail.trim()) {
       setError("Name and email are required.");
@@ -56,6 +93,7 @@ function CheckoutContent() {
         buyer_email: buyerEmail.trim(),
         buyer_phone: buyerPhone.trim(),
         fwb_opt_in: fwbOptIn,
+        promo_code: promoValid ? promoCode.trim() : undefined,
       }),
     });
 
@@ -118,6 +156,90 @@ function CheckoutContent() {
               onChange={(e) => setBuyerPhone(e.target.value)}
               placeholder="(555) 555-1234"
             />
+          </div>
+
+          {/* Promo Code Section */}
+          <div style={{ margin: "16px 0 12px" }}>
+            {!showPromo ? (
+              <button
+                type="button"
+                onClick={() => setShowPromo(true)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "rgba(208,194,144,0.7)",
+                  fontSize: 13,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  padding: 0,
+                }}
+              >
+                Have a promo code?
+              </button>
+            ) : (
+              <div>
+                <label style={{ display: "block", fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
+                  Promo Code
+                </label>
+                {promoValid ? (
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    background: "rgba(80,200,120,0.08)",
+                    border: "1px solid rgba(80,200,120,0.3)",
+                    borderRadius: 8, padding: "8px 12px",
+                  }}>
+                    <span style={{ color: "#50c878", fontSize: 13, fontWeight: 600, flex: 1 }}>
+                      ✓ {promoCode.toUpperCase()} — {promoValid.discount_type === "fixed"
+                        ? `$${promoValid.discount_value.toFixed(2)} off`
+                        : `${promoValid.discount_value}% off`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemovePromo}
+                      style={{
+                        background: "transparent", border: "none",
+                        color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 13,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                      placeholder="Enter code"
+                      style={{
+                        flex: 1, padding: "8px 12px", borderRadius: 8,
+                        border: "1px solid rgba(208,194,144,0.2)",
+                        background: "rgba(255,255,255,0.05)",
+                        color: "#fff", fontSize: 14, textTransform: "uppercase",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || !promoCode.trim()}
+                      style={{
+                        padding: "8px 16px", borderRadius: 8,
+                        border: "1px solid rgba(208,194,144,0.3)",
+                        background: "rgba(208,194,144,0.1)",
+                        color: "#d0c290", fontSize: 13, fontWeight: 600,
+                        cursor: promoLoading || !promoCode.trim() ? "not-allowed" : "pointer",
+                        opacity: promoLoading || !promoCode.trim() ? 0.5 : 1,
+                      }}
+                    >
+                      {promoLoading ? "..." : "Apply"}
+                    </button>
+                  </div>
+                )}
+                {promoError && (
+                  <p style={{ color: "#ff6b6b", fontSize: 12, margin: "6px 0 0" }}>{promoError}</p>
+                )}
+              </div>
+            )}
           </div>
 
           <label className="pre-checkout-checkbox">

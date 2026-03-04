@@ -4,11 +4,32 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
+import { getCookie } from "@/lib/cookies";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
 
+type RevenueItem = {
+  id?: string;
+  category: string;
+  amount: string;
+};
+
 const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
 const MAX_TIERS = 8;
+
+const REVENUE_CATEGORIES = [
+  { value: "room_rental", label: "Room Rental" },
+  { value: "production", label: "Production" },
+  { value: "food_beverage", label: "Food & Beverage" },
+  { value: "setup", label: "Setup - Tables & Chairs" },
+  { value: "labor", label: "Labor" },
+];
+
+const BOOKING_STATUS_COLORS: Record<string, string> = {
+  confirmed: "#50c878",
+  hold: "#ffc832",
+  cancelled: "#ff6b6b",
+};
 
 function emptyTier(): TicketTierDraft {
   return { tier_name: "", price: "", capacity: "" };
@@ -33,15 +54,40 @@ export default function AdminEditEventPage() {
     time: "",
     description: "",
     image_url: "",
+    event_type: "hard_ticket",
+    booking_status: "confirmed",
+    contact_name: "",
+    contact_phone: "",
+    contact_email: "",
   });
 
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
+
+  // Revenue items for private events
+  const [revenueItems, setRevenueItems] = useState<RevenueItem[]>(
+    REVENUE_CATEGORIES.map((c) => ({ category: c.value, amount: "" }))
+  );
+
+  // Promo codes state
+  type PromoCode = {
+    id: string;
+    code: string;
+    discount_type: string;
+    discount_value: number;
+    max_uses: number | null;
+    current_uses: number;
+    active: boolean;
+    expires_at: string | null;
+  };
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [newPromo, setNewPromo] = useState({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
+  const [promoLoading, setPromoLoading] = useState(false);
 
   // Cropper state
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // ── Fetch existing event + tiers ──
+  // ── Fetch existing event + tiers + revenue ──
   useEffect(() => {
     setLoading(true);
 
@@ -55,12 +101,11 @@ export default function AdminEditEventPage() {
           return;
         }
 
-        // Parse date + time from raw string (handles "T" or space separator, with or without tz)
+        // Parse date + time from raw string
         const raw = event.date || "";
         const dateStr = raw.length >= 10 ? raw.slice(0, 10) : "";
         const sep = raw.length > 10 ? raw[10] : "";
         let timeStr = raw.length >= 16 && (sep === "T" || sep === " ") ? raw.slice(11, 16) : "";
-        // Treat midnight (00:00) as "no time set"
         if (timeStr === "00:00") timeStr = "";
 
         setForm({
@@ -70,18 +115,22 @@ export default function AdminEditEventPage() {
           time: timeStr,
           description: event.description || "",
           image_url: event.image_url || "",
+          event_type: event.event_type || "hard_ticket",
+          booking_status: event.booking_status || "confirmed",
+          contact_name: event.contact_name || "",
+          contact_phone: event.contact_phone || "",
+          contact_email: event.contact_email || "",
         });
 
         if (event.image_url) {
           setPreviewUrl(event.image_url);
         }
 
-        // Set existing event_venue_id
         if (event.event_venue_id) {
           setSelectedEventVenueId(event.event_venue_id);
         }
 
-        // Map existing tiers to draft format
+        // Map existing tiers
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
             tierData.map((t: { tier_name: string; price: number; capacity: number }) => ({
@@ -91,7 +140,6 @@ export default function AdminEditEventPage() {
             }))
           );
         } else {
-          // No tiers yet — create a default based on event price
           setTiers([
             {
               tier_name: "General Admission",
@@ -100,11 +148,38 @@ export default function AdminEditEventPage() {
             },
           ]);
         }
+
+        // Fetch private event revenue if applicable
+        if (event.event_type === "private") {
+          fetch(`/api/private-events/${id}/revenue`)
+            .then((r) => r.json())
+            .then((revData) => {
+              if (Array.isArray(revData) && revData.length > 0) {
+                // Merge existing revenue with default categories
+                const merged = REVENUE_CATEGORIES.map((c) => {
+                  const existing = revData.find((r: { category: string; amount: number; id: string }) => r.category === c.value);
+                  return {
+                    id: existing?.id,
+                    category: c.value,
+                    amount: existing ? String(existing.amount) : "",
+                  };
+                });
+                setRevenueItems(merged);
+              }
+            })
+            .catch(() => { /* revenue API might not exist yet */ });
+        }
       })
       .catch(() => setError("Failed to load event"))
       .finally(() => setLoading(false));
 
-    // Load event venues for dropdown
+    // Load promo codes for this event
+    fetch(`/api/promo-codes?event_id=${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setPromoCodes(data); })
+      .catch(() => {});
+
+    // Load event venues
     import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
       getSupabaseBrowser()
         .from("event_venues")
@@ -117,7 +192,7 @@ export default function AdminEditEventPage() {
   }, [id]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -201,25 +276,29 @@ export default function AdminEditEventPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // ── Submit (update event + tiers) ──
+  // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validate tiers
-    for (let i = 0; i < tiers.length; i++) {
-      const t = tiers[i];
-      if (!t.tier_name.trim()) {
-        setError(`Tier ${i + 1}: name is required.`);
-        return;
-      }
-      if (!t.price || isNaN(parseFloat(t.price)) || parseFloat(t.price) < 0) {
-        setError(`Tier ${i + 1}: price must be a valid number.`);
-        return;
-      }
-      if (!t.capacity || isNaN(parseInt(t.capacity)) || parseInt(t.capacity) < 1) {
-        setError(`Tier ${i + 1}: capacity must be at least 1.`);
-        return;
+    const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+
+    // Validate tiers only for hard ticket
+    if (isHardTicket) {
+      for (let i = 0; i < tiers.length; i++) {
+        const t = tiers[i];
+        if (!t.tier_name.trim()) {
+          setError(`Tier ${i + 1}: name is required.`);
+          return;
+        }
+        if (!t.price || isNaN(parseFloat(t.price)) || parseFloat(t.price) < 0) {
+          setError(`Tier ${i + 1}: price must be a valid number.`);
+          return;
+        }
+        if (!t.capacity || isNaN(parseInt(t.capacity)) || parseInt(t.capacity) < 1) {
+          setError(`Tier ${i + 1}: capacity must be at least 1.`);
+          return;
+        }
       }
     }
 
@@ -230,7 +309,11 @@ export default function AdminEditEventPage() {
         ? `${form.date}T${form.time}:00`
         : `${form.date}T19:00:00`;
 
-      const lowestPrice = Math.min(...tiers.map((t) => parseFloat(t.price)));
+      const lowestPrice = isHardTicket
+        ? Math.min(...tiers.map((t) => parseFloat(t.price) || 0))
+        : 0;
+
+      const venueId = getCookie("venue-id");
 
       // 1. Update event
       const eventRes = await fetch(`/api/events/${id}`, {
@@ -244,6 +327,11 @@ export default function AdminEditEventPage() {
           description: form.description || null,
           image_url: form.image_url || null,
           event_venue_id: selectedEventVenueId || null,
+          event_type: form.event_type,
+          booking_status: form.booking_status,
+          contact_name: form.contact_name || null,
+          contact_phone: form.contact_phone || null,
+          contact_email: form.contact_email || null,
         }),
       });
 
@@ -252,23 +340,44 @@ export default function AdminEditEventPage() {
         throw new Error(data.error || "Failed to update event");
       }
 
-      // 2. Replace tiers
-      const tiersRes = await fetch(`/api/events/${id}/ticket-types`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tiers: tiers.map((t, i) => ({
-            tier_name: t.tier_name.trim(),
-            price: parseFloat(t.price),
-            capacity: parseInt(t.capacity),
-            sort_order: i,
-          })),
-        }),
-      });
+      // 2. Replace tiers (only for hard ticket)
+      if (isHardTicket) {
+        const tiersRes = await fetch(`/api/events/${id}/ticket-types`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tiers: tiers.map((t, i) => ({
+              tier_name: t.tier_name.trim(),
+              price: parseFloat(t.price),
+              capacity: parseInt(t.capacity),
+              sort_order: i,
+            })),
+          }),
+        });
 
-      if (!tiersRes.ok) {
-        const data = await tiersRes.json();
-        throw new Error(data.error || "Failed to update tiers");
+        if (!tiersRes.ok) {
+          const data = await tiersRes.json();
+          throw new Error(data.error || "Failed to update tiers");
+        }
+      }
+
+      // 3. Save private event revenue items
+      if (form.event_type === "private" && venueId) {
+        const revenueToSave = revenueItems.filter((r) => r.amount && parseFloat(r.amount) > 0);
+        if (revenueToSave.length > 0) {
+          await fetch(`/api/private-events/${id}/revenue`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venue_id: venueId,
+              items: revenueToSave.map((r, i) => ({
+                category: r.category,
+                amount: parseFloat(r.amount),
+                sort_order: i,
+              })),
+            }),
+          });
+        }
       }
 
       router.push("/admin/events");
@@ -278,6 +387,9 @@ export default function AdminEditEventPage() {
       setSaving(false);
     }
   };
+
+  const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+  const isPrivate = form.event_type === "private";
 
   if (loading) {
     return (
@@ -296,6 +408,70 @@ export default function AdminEditEventPage() {
 
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
+
+        {/* Event Type Selector */}
+        <div className="admin-form-label admin-form-full">
+          Event Type
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            {[
+              { value: "hard_ticket", label: "Hard Ticket" },
+              { value: "non_ticketed", label: "Non-Ticketed" },
+              { value: "private", label: "Private Event" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm({ ...form, event_type: opt.value })}
+                style={{
+                  flex: 1,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.1)"}`,
+                  background: form.event_type === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
+                  color: form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Booking Status */}
+        <div className="admin-form-label admin-form-full">
+          Booking Status
+          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+            {[
+              { value: "confirmed", label: "Confirmed" },
+              { value: "hold", label: "Hold" },
+              { value: "cancelled", label: "Cancelled" },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setForm({ ...form, booking_status: opt.value })}
+                style={{
+                  flex: 1,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
+                  background: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] + "18" : "transparent",
+                  color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="admin-form-grid">
           <label className="admin-form-label">
@@ -380,70 +556,323 @@ export default function AdminEditEventPage() {
 
         </div>
 
-        {/* ── Ticket Tiers ── */}
-        <div className="admin-form-label admin-form-full">
-          Ticket Tiers *
-          <div className="admin-tiers-list">
-            {tiers.map((tier, i) => (
-              <div key={i} className="admin-tier-row">
-                <span className="admin-tier-number">Tier {i + 1}</span>
+        {/* Contact Fields — shown for private events */}
+        {isPrivate && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(180,100,200,0.06)",
+            border: "1px solid rgba(180,100,200,0.15)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+              Client Contact Info
+            </span>
+            <div className="admin-form-grid">
+              <label className="admin-form-label">
+                Contact Name
                 <input
                   type="text"
-                  className="admin-form-input admin-tier-input"
-                  placeholder="Tier name (e.g. GA, VIP)"
-                  value={tier.tier_name}
-                  onChange={(e) =>
-                    handleTierChange(i, "tier_name", e.target.value)
-                  }
-                  required
+                  name="contact_name"
+                  className="admin-form-input"
+                  value={form.contact_name}
+                  onChange={handleChange}
+                  placeholder="Client name"
                 />
+              </label>
+              <label className="admin-form-label">
+                Phone
                 <input
-                  type="number"
-                  className="admin-form-input admin-tier-input admin-tier-price"
-                  placeholder="Price"
-                  value={tier.price}
-                  onChange={(e) =>
-                    handleTierChange(i, "price", e.target.value)
-                  }
-                  step="0.01"
-                  min="0"
-                  required
+                  type="tel"
+                  name="contact_phone"
+                  className="admin-form-input"
+                  value={form.contact_phone}
+                  onChange={handleChange}
+                  placeholder="(555) 123-4567"
                 />
+              </label>
+              <label className="admin-form-label" style={{ gridColumn: "span 2" }}>
+                Email
                 <input
-                  type="number"
-                  className="admin-form-input admin-tier-input admin-tier-capacity"
-                  placeholder="Capacity"
-                  value={tier.capacity}
-                  onChange={(e) =>
-                    handleTierChange(i, "capacity", e.target.value)
-                  }
-                  min="1"
-                  step="1"
-                  required
+                  type="email"
+                  name="contact_email"
+                  className="admin-form-input"
+                  value={form.contact_email}
+                  onChange={handleChange}
+                  placeholder="client@example.com"
                 />
-                {tiers.length > 1 && (
-                  <button
-                    type="button"
-                    className="admin-tier-remove-btn"
-                    onClick={() => removeTier(i)}
-                    title="Remove tier"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
+              </label>
+            </div>
           </div>
-          {tiers.length < MAX_TIERS && (
-            <button
-              type="button"
-              className="admin-tier-add-btn"
-              onClick={addTier}
-            >
-              + Add Tier
-            </button>
-          )}
-        </div>
+        )}
+
+        {/* ── Ticket Tiers (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full">
+            Ticket Tiers *
+            <div className="admin-tiers-list">
+              {tiers.map((tier, i) => (
+                <div key={i} className="admin-tier-row">
+                  <span className="admin-tier-number">Tier {i + 1}</span>
+                  <input
+                    type="text"
+                    className="admin-form-input admin-tier-input"
+                    placeholder="Tier name (e.g. GA, VIP)"
+                    value={tier.tier_name}
+                    onChange={(e) =>
+                      handleTierChange(i, "tier_name", e.target.value)
+                    }
+                    required
+                  />
+                  <input
+                    type="number"
+                    className="admin-form-input admin-tier-input admin-tier-price"
+                    placeholder="Price"
+                    value={tier.price}
+                    onChange={(e) =>
+                      handleTierChange(i, "price", e.target.value)
+                    }
+                    step="0.01"
+                    min="0"
+                    required
+                  />
+                  <input
+                    type="number"
+                    className="admin-form-input admin-tier-input admin-tier-capacity"
+                    placeholder="Capacity"
+                    value={tier.capacity}
+                    onChange={(e) =>
+                      handleTierChange(i, "capacity", e.target.value)
+                    }
+                    min="1"
+                    step="1"
+                    required
+                  />
+                  {tiers.length > 1 && (
+                    <button
+                      type="button"
+                      className="admin-tier-remove-btn"
+                      onClick={() => removeTier(i)}
+                      title="Remove tier"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {tiers.length < MAX_TIERS && (
+              <button
+                type="button"
+                className="admin-tier-add-btn"
+                onClick={addTier}
+              >
+                + Add Tier
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Promo Codes (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(208,194,144,0.04)",
+            border: "1px solid rgba(208,194,144,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "#d0c290", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+              Promo Codes
+            </span>
+
+            {/* Existing promo codes */}
+            {promoCodes.length > 0 && (
+              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {promoCodes.map((pc) => (
+                  <div key={pc.id} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "8px 12px", borderRadius: 8,
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                  }}>
+                    <span style={{ fontWeight: 700, color: "#d0c290", fontSize: 13, minWidth: 80 }}>{pc.code}</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1 }}>
+                      {pc.discount_type === "fixed" ? `$${pc.discount_value}` : `${pc.discount_value}%`} off
+                      {pc.max_uses ? ` · ${pc.current_uses}/${pc.max_uses} used` : ` · ${pc.current_uses} used`}
+                      {pc.expires_at ? ` · Exp ${new Date(pc.expires_at).toLocaleDateString()}` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await fetch(`/api/promo-codes?id=${pc.id}`, { method: "DELETE" });
+                        setPromoCodes((prev) => prev.filter((p) => p.id !== pc.id));
+                      }}
+                      style={{
+                        background: "transparent", border: "none",
+                        color: "rgba(255,107,107,0.7)", cursor: "pointer", fontSize: 14,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new promo code */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 120px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Code</label>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newPromo.code}
+                  onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g. VIP20"
+                  style={{ textTransform: "uppercase" }}
+                />
+              </div>
+              <div style={{ flex: "0 0 100px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Type</label>
+                <select
+                  className="admin-form-input"
+                  value={newPromo.discount_type}
+                  onChange={(e) => setNewPromo({ ...newPromo, discount_type: e.target.value })}
+                >
+                  <option value="fixed">Fixed $</option>
+                  <option value="percentage">Percent %</option>
+                </select>
+              </div>
+              <div style={{ flex: "0 0 80px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Value</label>
+                <input
+                  type="number"
+                  className="admin-form-input"
+                  value={newPromo.discount_value}
+                  onChange={(e) => setNewPromo({ ...newPromo, discount_value: e.target.value })}
+                  placeholder="10"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div style={{ flex: "0 0 70px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Max Uses</label>
+                <input
+                  type="number"
+                  className="admin-form-input"
+                  value={newPromo.max_uses}
+                  onChange={(e) => setNewPromo({ ...newPromo, max_uses: e.target.value })}
+                  placeholder="∞"
+                  min="1"
+                />
+              </div>
+              <div style={{ flex: "0 0 130px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Expires</label>
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  value={newPromo.expires_at}
+                  onChange={(e) => setNewPromo({ ...newPromo, expires_at: e.target.value })}
+                />
+              </div>
+              <button
+                type="button"
+                disabled={promoLoading || !newPromo.code.trim() || !newPromo.discount_value}
+                onClick={async () => {
+                  setPromoLoading(true);
+                  try {
+                    const res = await fetch("/api/promo-codes", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        event_id: id,
+                        code: newPromo.code.trim(),
+                        discount_type: newPromo.discount_type,
+                        discount_value: newPromo.discount_value,
+                        max_uses: newPromo.max_uses || null,
+                        expires_at: newPromo.expires_at ? `${newPromo.expires_at}T23:59:59Z` : null,
+                      }),
+                    });
+                    if (res.ok) {
+                      const created = await res.json();
+                      setPromoCodes((prev) => [created, ...prev]);
+                      setNewPromo({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
+                    } else {
+                      const err = await res.json();
+                      setError(err.error || "Failed to create promo code");
+                    }
+                  } catch {
+                    setError("Failed to create promo code");
+                  } finally {
+                    setPromoLoading(false);
+                  }
+                }}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  border: "1px solid rgba(208,194,144,0.3)",
+                  background: "rgba(208,194,144,0.1)",
+                  color: "#d0c290", fontSize: 12, fontWeight: 600,
+                  cursor: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? "not-allowed" : "pointer",
+                  opacity: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {promoLoading ? "..." : "+ Add"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Private Event Revenue Fields ── */}
+        {isPrivate && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(180,100,200,0.04)",
+            border: "1px solid rgba(180,100,200,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+              Revenue Line Items
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {revenueItems.map((item, i) => {
+                const label = REVENUE_CATEGORIES.find((c) => c.value === item.category)?.label || item.category;
+                return (
+                  <div key={item.category} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{label}</span>
+                    <div style={{ position: "relative", width: 140 }}>
+                      <span style={{
+                        position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                        color: "rgba(255,255,255,0.3)", fontSize: 13, pointerEvents: "none",
+                      }}>$</span>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        value={item.amount}
+                        onChange={(e) => {
+                          const updated = [...revenueItems];
+                          updated[i] = { ...updated[i], amount: e.target.value };
+                          setRevenueItems(updated);
+                        }}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        style={{ width: "100%", paddingLeft: 24 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {(() => {
+              const total = revenueItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+              return total > 0 ? (
+                <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#d0c290" }}>
+                  Total: ${total.toFixed(2)}
+                </div>
+              ) : null;
+            })()}
+          </div>
+        )}
 
         {/* Image upload section */}
         <div className="admin-form-label admin-form-full">

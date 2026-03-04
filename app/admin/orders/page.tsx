@@ -121,8 +121,7 @@ export default function AdminSalesPage() {
         <h1 className="admin-page-title">Sales</h1>
         {isOwner && venues.length > 1 && (
           <select
-            className="admin-form-input"
-            style={{ maxWidth: 200 }}
+            className="admin-form-input admin-venue-filter-select"
             value={venueFilter}
             onChange={(e) => setVenueFilter(e.target.value)}
           >
@@ -191,10 +190,10 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
   const pct = sold > 0 ? Math.min(scanned / sold, 1) : 0;
-  const offset = circ * (1 - pct);
+  const offset = circ * (1 - pct) + circ * 0.25;
 
   return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+    <svg width={size} height={size}>
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
@@ -206,7 +205,6 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
         x={size / 2} y={size / 2}
         textAnchor="middle" dominantBaseline="central"
         fill="#ffffff" fontSize="12" fontWeight="700"
-        style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
       >
         {scanned}
       </text>
@@ -221,12 +219,12 @@ function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
   const radius = (size - stroke) / 2;
   const circ = 2 * Math.PI * radius;
   const pct = capacity > 0 ? Math.min(sold / capacity, 1) : 0;
-  const offset = circ * (1 - pct);
+  const offset = circ * (1 - pct) + circ * 0.25;
   const pctDisplay = Math.round(pct * 100);
   const isSoldOut = pctDisplay >= 100;
 
   return (
-    <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
+    <svg width={size} height={size}>
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
@@ -238,7 +236,6 @@ function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
         x={size / 2} y={size / 2}
         textAnchor="middle" dominantBaseline="central"
         fill="#ffffff" fontSize="11" fontWeight="700"
-        style={{ transform: "rotate(90deg)", transformOrigin: "center" }}
       >
         {pctDisplay}%
       </text>

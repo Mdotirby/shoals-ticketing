@@ -32,7 +32,7 @@ export default function VenueMarketingPage() {
       </p>
 
       {activeTab === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+        <div className="admin-marketing-grid">
           {sections.map((s) => (
             <Link
               key={s.key}

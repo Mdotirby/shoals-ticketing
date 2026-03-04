@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getCookie } from "@/lib/cookies";
 
-type OnboardingType = "venue" | "organizer" | "artist" | "partner";
+type OnboardingType = "venue" | "organizer" | "artist" | "partner" | "agent";
 type Step = "form" | "admin" | "done";
 
 export default function AdminOnboardingPage() {
@@ -61,6 +61,15 @@ export default function AdminOnboardingPage() {
     email: "",
     phone: "",
     tier: "standard",
+  });
+
+  // Agent form
+  const [agent, setAgent] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
+    agency_name: "",
   });
 
   // Admin form (step 2 for venue/organizer/partner)
@@ -302,6 +311,65 @@ export default function AdminOnboardingPage() {
     }
   };
 
+  // ── AGENT CREATION ──
+  const handleCreateAgent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      // 1. Create admin_users record with role='agent'
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: agent.email,
+          password: "TempPass123!",
+          first_name: agent.first_name,
+          last_name: agent.last_name,
+          role: "agent",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create agent user");
+      }
+
+      const newUser = await res.json();
+
+      // 2. Create agents record linked to admin_users
+      const agentRes = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency: agent.agency_name,
+          agent_name: `${agent.first_name} ${agent.last_name}`.trim(),
+          agent_phone: agent.phone || null,
+          agent_email: agent.email || null,
+          venue_id: null,
+        }),
+      });
+
+      if (!agentRes.ok) {
+        throw new Error("Failed to create agent record");
+      }
+
+      const newAgent = await agentRes.json();
+
+      // 3. Link agent record to admin user by updating user_id
+      // (The portal API will auto-link on first login via email match)
+
+      setCreatedEntityId(newAgent.id || newUser.id);
+      setCreatedEntityName(`${agent.first_name} ${agent.last_name}`.trim());
+      setStep("done");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const resetAll = () => {
     setStep("form");
     setError("");
@@ -312,6 +380,7 @@ export default function AdminOnboardingPage() {
     setOrganizer({ company_name: "", slug: "", contact_first: "", contact_last: "", email: "", phone: "" });
     setArtist({ name: "", genre: "", mgmt_email: "", mgmt_phone: "", instagram: "", spotify: "", website: "", bio: "" });
     setPartner({ company_name: "", contact_first: "", contact_last: "", email: "", phone: "", tier: "standard" });
+    setAgent({ first_name: "", last_name: "", email: "", phone: "", agency_name: "" });
     setAdmin({ email: "", password: "", first_name: "", last_name: "" });
   };
 
@@ -320,6 +389,7 @@ export default function AdminOnboardingPage() {
     organizer: "Organizer",
     artist: "Artist",
     partner: "Partner",
+    agent: "Agent",
   };
 
   return (
@@ -344,6 +414,7 @@ export default function AdminOnboardingPage() {
               <option value="venue">Venue</option>
               <option value="organizer">Organizer</option>
               <option value="artist">Artist</option>
+              <option value="agent">Agent</option>
               <option value="partner">Partner</option>
             </select>
           </label>
@@ -402,11 +473,13 @@ export default function AdminOnboardingPage() {
               <input type="number" className="admin-form-input" value={venue.facility_fee} onChange={(e) => setVenue({ ...venue, facility_fee: e.target.value })} step="0.01" min="0" placeholder="0.00" />
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Per-ticket facility fee included in ticket price</span>
             </label>
-            <label className="admin-form-label">
-              Venue Rebate ($)
-              <input type="number" className="admin-form-input" value={venue.venue_rebate} onChange={(e) => setVenue({ ...venue, venue_rebate: e.target.value })} step="0.01" min="0" placeholder="0.00" />
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Quarterly rebate per ticket — incentive for platform use</span>
-            </label>
+            {role === "owner" && (
+              <label className="admin-form-label">
+                Venue Rebate ($)
+                <input type="number" className="admin-form-input" value={venue.venue_rebate} onChange={(e) => setVenue({ ...venue, venue_rebate: e.target.value })} step="0.01" min="0" placeholder="0.00" />
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>Quarterly rebate per ticket — incentive for platform use</span>
+              </label>
+            )}
             <label className="admin-form-label">
               Tax Rate (decimal)
               <input type="number" className="admin-form-input" value={venue.tax_rate} onChange={(e) => setVenue({ ...venue, tax_rate: e.target.value })} step="0.01" min="0" placeholder="0.09" />
@@ -562,6 +635,47 @@ export default function AdminOnboardingPage() {
       )}
 
       {/* ═══════════════════════════════════
+           AGENT FORM
+          ═══════════════════════════════════ */}
+      {step === "form" && onboardingType === "agent" && (
+        <form className="admin-form" onSubmit={handleCreateAgent}>
+          {error && <div className="admin-form-error">{error}</div>}
+
+          <h2 className="admin-form-section-title">Agent Information</h2>
+          <div className="admin-form-grid">
+            <label className="admin-form-label">
+              First Name *
+              <input type="text" className="admin-form-input" value={agent.first_name} onChange={(e) => setAgent({ ...agent, first_name: e.target.value })} required />
+            </label>
+            <label className="admin-form-label">
+              Last Name *
+              <input type="text" className="admin-form-input" value={agent.last_name} onChange={(e) => setAgent({ ...agent, last_name: e.target.value })} required />
+            </label>
+            <label className="admin-form-label">
+              Email *
+              <input type="email" className="admin-form-input" value={agent.email} onChange={(e) => setAgent({ ...agent, email: e.target.value })} required />
+            </label>
+            <label className="admin-form-label">
+              Phone
+              <input type="tel" className="admin-form-input" value={agent.phone} onChange={(e) => setAgent({ ...agent, phone: e.target.value })} />
+            </label>
+            <label className="admin-form-label admin-form-full">
+              Agency Name *
+              <input type="text" className="admin-form-input" value={agent.agency_name} onChange={(e) => setAgent({ ...agent, agency_name: e.target.value })} placeholder="e.g. William Morris Endeavor, Creative Artists Agency" required />
+            </label>
+          </div>
+
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 8 }}>
+            A login account will be created with a temporary password (TempPass123!). The agent will be prompted to change it on first login.
+          </p>
+
+          <button type="submit" className="admin-form-submit" disabled={loading} style={{ marginTop: 16 }}>
+            {loading ? "Creating Agent..." : "Create Agent"}
+          </button>
+        </form>
+      )}
+
+      {/* ═══════════════════════════════════
            PARTNER FORM
           ═══════════════════════════════════ */}
       {step === "form" && onboardingType === "partner" && (
@@ -676,6 +790,7 @@ export default function AdminOnboardingPage() {
             {onboardingType === "partner" && " The partner can now log in with their email and temporary password (TempPass123!)."}
             {(onboardingType === "venue" || onboardingType === "organizer") && " The admin can now log in."}
             {onboardingType === "artist" && " The artist has been added to the system."}
+            {onboardingType === "agent" && " The agent can now log in with their email and temporary password (TempPass123!) at /agent."}
           </div>
           <button className="admin-form-submit" onClick={resetAll}>
             Onboard Another {typeLabels[onboardingType]}

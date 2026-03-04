@@ -4510,6 +4510,266 @@ select.admin-form-input {
   color: rgba(255, 255, 255, 0.3);
 }
 
+/* ── Report Cards Grid ─────────────────────────────────────────── */
+.report-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.report-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(208, 194, 144, 0.15);
+  border-radius: 12px;
+  padding: 24px;
+  transition: border-color 0.2s;
+}
+
+.report-card:hover {
+  border-color: rgba(208, 194, 144, 0.3);
+}
+
+.report-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.report-card-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.report-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #d0c290;
+  margin: 0 0 4px;
+}
+
+.report-card-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Card Filters ──────────────────────────────────────────────── */
+.report-card-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.report-card-filter-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  min-width: 140px;
+  flex: 1;
+  max-width: 220px;
+}
+
+.report-card-filter-label .admin-form-input {
+  min-width: 0;
+  font-size: 13px;
+}
+
+/* ── Card Actions ──────────────────────────────────────────────── */
+.report-card-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.report-card-btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.report-card-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.report-card-btn-generate {
+  background: rgba(208, 194, 144, 0.15);
+  border-color: rgba(208, 194, 144, 0.3);
+  color: #d0c290;
+}
+
+.report-card-btn-generate:hover:not(:disabled) {
+  background: rgba(208, 194, 144, 0.25);
+}
+
+.report-card-btn-csv {
+  background: rgba(80, 200, 120, 0.1);
+  border-color: rgba(80, 200, 120, 0.25);
+  color: #6fcf97;
+}
+
+.report-card-btn-csv:hover:not(:disabled) {
+  background: rgba(80, 200, 120, 0.2);
+}
+
+.report-card-btn-pdf {
+  background: rgba(100, 130, 255, 0.1);
+  border-color: rgba(100, 130, 255, 0.25);
+  color: #91a7ff;
+}
+
+.report-card-btn-pdf:hover:not(:disabled) {
+  background: rgba(100, 130, 255, 0.2);
+}
+
+/* ── Card Error / Empty ────────────────────────────────────────── */
+.report-card-error {
+  background: rgba(255, 80, 80, 0.1);
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  color: #ff6b6b;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.report-card-empty {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+  padding: 16px 0;
+  text-align: center;
+}
+
+.report-card-truncated {
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ── Card Preview ──────────────────────────────────────────────── */
+.report-card-preview {
+  margin-top: 16px;
+  border-top: 1px solid rgba(208, 194, 144, 0.1);
+  padding-top: 16px;
+}
+
+/* ── Report Table: Event group rows ────────────────────────────── */
+.report-table-event-row td {
+  background: rgba(208, 194, 144, 0.1) !important;
+  color: #d0c290 !important;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 12px !important;
+}
+
+.report-table-event-date {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.report-table-subtotal-row td {
+  background: rgba(208, 194, 144, 0.06) !important;
+  color: #d0c290 !important;
+  font-weight: 600;
+  border-top: 1px solid rgba(208, 194, 144, 0.15);
+}
+
+.report-table-grand-row td {
+  background: rgba(208, 194, 144, 0.12) !important;
+  color: #d0c290 !important;
+  font-weight: 700;
+  font-size: 13px;
+  border-top: 2px solid rgba(208, 194, 144, 0.3);
+}
+
+/* ── Mini Sections (Revenue Preview) ───────────────────────────── */
+.report-revenue-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.report-mini-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.report-mini-section h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #d0c290;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-mini-totals {
+  border-color: rgba(208, 194, 144, 0.2);
+  background: rgba(208, 194, 144, 0.04);
+}
+
+.report-kv-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.report-kv-grid span:nth-child(even) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-kv-bold {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.report-kv-gold {
+  color: #d0c290 !important;
+  font-weight: 600;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .report-card {
+    padding: 16px;
+  }
+
+  .report-card-filters {
+    flex-direction: column;
+  }
+
+  .report-card-filter-label {
+    max-width: 100%;
+  }
+
+  .report-card-actions {
+    flex-direction: column;
+  }
+
+  .report-card-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
 @media (max-width: 768px) {
   .report-tabs {
     overflow-x: auto;
@@ -7951,4 +8211,469 @@ select.admin-form-input {
 .pre-checkout-continue-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================================================
+   ADMIN — New Utility Classes (replacing inline styles)
+   ============================================================ */
+
+.admin-page-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-header-btn-outline {
+  background: rgba(208, 194, 144, 0.1);
+  color: #d0c290;
+  border: 1px solid rgba(208, 194, 144, 0.2);
+}
+
+.admin-venue-filter-select {
+  max-width: 200px;
+}
+
+.admin-marketing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* ============================================================
+   ADMIN MOBILE RESPONSIVE — Comprehensive Rules
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+  /* ── Global Admin Layout ── */
+  .admin-form-page {
+    gap: 16px;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .admin-page-title {
+    font-size: 1.5rem;
+  }
+
+  .admin-page-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .admin-page-header > div {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Buttons — full-width or compact ── */
+  .admin-header-btn {
+    flex: 1 1 auto;
+    text-align: center;
+    padding: 10px 14px;
+    font-size: 12px;
+    min-width: 0;
+  }
+
+  .admin-btn {
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+
+  .admin-btn-primary {
+    width: 100%;
+    text-align: center;
+  }
+
+  .admin-sponsor-edit-btn,
+  .admin-sponsor-delete-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+
+  /* ── Forms — full width inputs ── */
+  .admin-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .admin-form-input,
+  .admin-form-textarea,
+  select.admin-form-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    font-size: 14px;
+  }
+
+  .admin-form-label {
+    font-size: 12px;
+  }
+
+  .admin-form {
+    gap: 16px;
+  }
+
+  .admin-form-error {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* ── KPI / Stat Cards — 2-column grid ── */
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .dash-kpi-card {
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .dash-kpi-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+
+  .dash-kpi-value {
+    font-size: 1.3rem;
+  }
+
+  .dash-kpi-label {
+    font-size: 11px;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .admin-stat-card {
+    padding: 16px 14px;
+  }
+
+  .admin-stat-value {
+    font-size: 1.5rem;
+  }
+
+  .admin-stat-label {
+    font-size: 12px;
+  }
+
+  /* ── Tables — horizontal scroll ── */
+  .report-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+
+  .dash-table,
+  .report-table {
+    min-width: 580px;
+    font-size: 12px;
+  }
+
+  .dash-table th,
+  .dash-table td,
+  .report-table th,
+  .report-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  /* ── Sales Page — Event Cards ── */
+  .sales-event-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .sales-event-info {
+    width: 100%;
+  }
+
+  .sales-event-name {
+    font-size: 15px;
+  }
+
+  .sales-event-meta {
+    font-size: 12px;
+  }
+
+  .sales-event-stats {
+    width: 100%;
+    justify-content: space-around;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .sales-stat-value {
+    font-size: 18px;
+  }
+
+  .sales-stat-label {
+    font-size: 10px;
+  }
+
+  .sales-progress-wrapper {
+    min-width: 100px;
+  }
+
+  /* ── Events List Cards ── */
+  .admin-event-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .admin-event-info {
+    width: 100%;
+  }
+
+  .admin-event-name {
+    font-size: 15px;
+  }
+
+  .admin-event-meta {
+    font-size: 12px;
+  }
+
+  .admin-event-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .admin-event-price {
+    font-size: 14px;
+  }
+
+  .admin-event-thumb {
+    width: 48px;
+    height: 48px;
+  }
+
+  /* ── Report Page ── */
+  .report-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .report-tab {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 8px 12px;
+    flex-shrink: 0;
+  }
+
+  .report-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .report-filter-label {
+    font-size: 12px;
+  }
+
+  .report-filter-label .admin-form-input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .report-export-btns {
+    margin-left: 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .report-export-btn {
+    flex: 1;
+    font-size: 12px;
+    padding: 8px 12px;
+    text-align: center;
+  }
+
+  /* ── Auction Cards ── */
+  .auction-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auction-card {
+    padding: 14px;
+  }
+
+  .auction-card-title {
+    font-size: 16px;
+  }
+
+  .auction-card-dates {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .auction-card-date {
+    font-size: 12px;
+  }
+
+  .auction-card-meta {
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+
+  .auction-card-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .auction-card-actions .admin-btn,
+  .auction-card-actions .admin-btn-sm {
+    flex: 1 1 auto;
+    text-align: center;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* ── Portal / Settings Cards ── */
+  .portal-card {
+    padding: 16px;
+  }
+
+  .portal-card-title {
+    font-size: 15px;
+  }
+
+  .portal-inline-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .portal-inline-form input,
+  .portal-inline-form select {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* ── Sponsor Cards ── */
+  .admin-sponsor-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .admin-sponsor-info {
+    width: 100%;
+  }
+
+  .admin-sponsor-actions {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  /* ── Onboarding Page ── */
+  .admin-form-page .admin-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Tier Builder ── */
+  .admin-tier-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .admin-tier-name,
+  .admin-tier-price,
+  .admin-tier-capacity {
+    max-width: none !important;
+    flex-basis: 100% !important;
+    width: 100% !important;
+  }
+
+  /* ── Marketing Grid (inline-styled) ── */
+  .admin-form-page [style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Settlement / Contract detail ── */
+  .settlement-header,
+  .contract-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .settlement-header-actions,
+  .contract-header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* ── Offer form ── */
+  .offer-scaling-row,
+  .offer-expense-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .offer-scaling-row .admin-form-input,
+  .offer-expense-row .admin-form-input {
+    width: 100% !important;
+  }
+
+  /* ── General Typography Scaling ── */
+  .admin-form-section-title {
+    font-size: 14px;
+  }
+
+  .admin-content h2 {
+    font-size: 1.1rem;
+  }
+
+  /* ── Misc tighter padding ── */
+  .admin-content {
+    padding: 16px 12px;
+  }
+
+  /* ── Guest List Page ── */
+  .guest-list-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── New Utility Classes — mobile overrides ── */
+  .admin-page-header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .admin-venue-filter-select {
+    max-width: 100%;
+  }
+
+  .admin-marketing-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  /* ── Scan Page ── */
+  .scan-container {
+    padding: 16px;
+  }
 }

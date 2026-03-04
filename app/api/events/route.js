@@ -7,14 +7,23 @@ export async function GET(request) {
   const venueSlug = searchParams.get("venue_slug");
   const showAll = searchParams.get("all"); // for admin: show all statuses
 
+  const eventTypeFilter = searchParams.get("event_type"); // for admin filtering
+
   let query = admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id")
+    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status")
     .order("date", { ascending: true });
 
   // Filter by status for public pages (not admin)
   if (!showAll) {
     query = query.or("status.eq.published,status.is.null");
+    // Public API: exclude private events — they should never appear on the public site
+    query = query.neq("event_type", "private");
+  }
+
+  // Admin event_type filter
+  if (eventTypeFilter && eventTypeFilter !== "all") {
+    query = query.eq("event_type", eventTypeFilter);
   }
 
   // Filter by venue_id directly
@@ -65,6 +74,11 @@ export async function POST(request) {
       status: body.status || "published",
       venue_id: body.venue_id || null,
       event_venue_id: body.event_venue_id || null,
+      event_type: body.event_type || "hard_ticket",
+      booking_status: body.booking_status || "confirmed",
+      contact_name: body.contact_name || null,
+      contact_phone: body.contact_phone || null,
+      contact_email: body.contact_email || null,
     })
     .select()
     .single();

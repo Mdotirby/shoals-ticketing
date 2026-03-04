@@ -240,6 +240,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
+    // ── Handle Invoice Payment ──
+    if (session.metadata?.type === "invoice") {
+      const invoiceId = session.metadata.invoice_id;
+      if (invoiceId) {
+        const paymentAmount = (session.amount_total || 0) / 100;
+
+        // Create payment record
+        await admin
+          .from("invoice_payments")
+          .insert({
+            invoice_id: invoiceId,
+            venue_id: session.metadata.venue_id,
+            amount: paymentAmount,
+            payment_method: "stripe",
+            type: "payment",
+            stripe_payment_intent_id: session.payment_intent as string,
+            stripe_charge_id: session.id,
+            notes: `Stripe checkout payment`,
+            received_at: new Date().toISOString(),
+          });
+
+        // Update invoice totals
+        const { data: invoice } = await admin
+          .from("invoices")
+          .select("total, amount_paid")
+          .eq("id", invoiceId)
+          .single();
+
+        if (invoice) {
+          const newAmountPaid = Number(invoice.amount_paid || 0) + paymentAmount;
+          const newBalanceDue = Number(invoice.total) - newAmountPaid;
+          const newStatus = newBalanceDue <= 0 ? "paid" : "partial";
+
+          await admin
+            .from("invoices")
+            .update({
+              amount_paid: newAmountPaid,
+              balance_due: Math.max(0, newBalanceDue),
+              status: newStatus,
+              ...(newStatus === "paid" ? { paid_at: new Date().toISOString() } : {}),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", invoiceId);
+
+          console.log(`Invoice ${invoiceId} payment of $${paymentAmount} recorded — status: ${newStatus}`);
+        }
+      }
+      return NextResponse.json({ received: true });
+    }
+
     // ── Handle Event Ticket Checkout ──
     const eventId = session.metadata?.event_id;
     const quantity = parseInt(session.metadata?.quantity || "1");
@@ -248,6 +298,9 @@ export async function POST(request: Request) {
     const customerPhone = session.metadata?.buyer_phone || session.customer_details?.phone || "";
     const fwbOptIn = session.metadata?.fwb_opt_in === "true";
     const totalAmount = (session.amount_total || 0) / 100;
+    const source = session.metadata?.source || "online";
+    const promoCodeId = session.metadata?.promo_code_id || null;
+    const promoCode = session.metadata?.promo_code || null;
 
     if (!eventId) {
       console.error("No event_id in session metadata");
@@ -297,6 +350,8 @@ export async function POST(request: Request) {
           stripe_checkout_session_id: session.id,
           status: "paid",
           fwb_opt_in: fwbOptIn,
+          source,
+          promo_code_id: promoCodeId || null,
         })
         .select()
         .single();
@@ -375,6 +430,22 @@ export async function POST(request: Request) {
         net_to_platform: totalTicketingFee - venueRebate,
         type: "sale",
       });
+
+      // Increment promo code usage if applicable
+      if (promoCodeId && promoCode) {
+        const { data: currentPromo } = await admin
+          .from("promo_codes")
+          .select("current_uses")
+          .eq("id", promoCodeId)
+          .single();
+        if (currentPromo) {
+          await admin
+            .from("promo_codes")
+            .update({ current_uses: (currentPromo.current_uses || 0) + 1 })
+            .eq("id", promoCodeId);
+        }
+        console.log(`🏷️ Promo code ${promoCode} usage incremented`);
+      }
 
       console.log(`✅ Order ${order.id} + ledger entry created for event ${eventId}`);
 

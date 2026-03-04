@@ -159,7 +159,7 @@ export default function EventSalesDetailPage() {
             </p>
           )}
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div className="admin-page-header-actions">
           {orders.length > 0 && (
             <button className="admin-header-btn" onClick={() => setShowPreview(true)}>
               🖨 Print Orders Report

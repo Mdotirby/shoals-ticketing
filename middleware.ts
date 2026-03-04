@@ -71,7 +71,7 @@ export async function middleware(request: NextRequest) {
   // ── Auth check only for protected routes ──
   const isLoginPage = pathname === "/login" || pathname === "/admin/login";
   const isProtectedRoute =
-    pathname.startsWith("/admin") || pathname.startsWith("/portal");
+    pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname.startsWith("/agent");
 
   if (isProtectedRoute && !isLoginPage && !user) {
     const loginUrl = new URL("/login", request.url);

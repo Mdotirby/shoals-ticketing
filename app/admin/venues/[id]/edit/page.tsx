@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { getCookie } from "@/lib/cookies";
 
 export default function AdminEditVenuePage() {
   const { id } = useParams() as { id: string };
@@ -10,6 +11,7 @@ export default function AdminEditVenuePage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const userRole = getCookie("user-role");
   const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState({
@@ -156,7 +158,9 @@ export default function AdminEditVenuePage() {
         <div className="admin-form-grid">
           <label className="admin-form-label">Ticketing Fee ($)<input type="number" className="admin-form-input" value={form.ticketing_fee} onChange={(e) => setForm({ ...form, ticketing_fee: e.target.value })} step="0.01" /></label>
           <label className="admin-form-label">Facility Fee ($)<input type="number" className="admin-form-input" value={form.facility_fee} onChange={(e) => setForm({ ...form, facility_fee: e.target.value })} step="0.01" min="0" /></label>
-          <label className="admin-form-label">Venue Rebate ($)<input type="number" className="admin-form-input" value={form.venue_rebate} onChange={(e) => setForm({ ...form, venue_rebate: e.target.value })} step="0.01" /></label>
+          {userRole === "owner" && (
+            <label className="admin-form-label">Venue Rebate ($)<input type="number" className="admin-form-input" value={form.venue_rebate} onChange={(e) => setForm({ ...form, venue_rebate: e.target.value })} step="0.01" /></label>
+          )}
           <label className="admin-form-label">Tax Rate (decimal)<input type="number" className="admin-form-input" value={form.tax_rate} onChange={(e) => setForm({ ...form, tax_rate: e.target.value })} step="0.01" /></label>
         </div>
 
