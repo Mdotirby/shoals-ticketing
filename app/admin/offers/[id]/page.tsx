@@ -7,6 +7,7 @@ import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, Variab
 import type { Venue } from "@/lib/types/venue";
 import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
+import { exportOfferPDF } from "@/lib/pdf/offer-pdf";
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -198,198 +199,58 @@ export default function AdminOfferDetailPage() {
     finally { setSaving(false); }
   };
 
-  // ── PDF Export (clean, no cells, one page) ──
+  // ── PDF Export (uses shared offer-pdf module with pagination) ──
   const exportPDF = async () => {
     if (!offer) return;
     setExporting(true);
     try {
-      const { default: jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-      const pc = "#d0c290";
-      const sc = "#0b0d1d";
-      const hex = (h: string) => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)] as [number,number,number];
-      const W = 215.9; // letter width mm
-      let y = 0;
-
-      // ─── HEADER BAR (venue branding) ───
-      doc.setFillColor(...hex(sc));
-      doc.rect(0, 0, W, 26, "F");
-      doc.setFillColor(...hex(pc));
-      doc.rect(0, 26, W, 1.5, "F");
-
-      // Venue logo (top-left of header) — try slug logo, fall back to default
-      try {
-        const slugForLogo = venue?.slug || "";
-        const logoUrls = slugForLogo
-          ? [`/logos/${slugForLogo}/logo.png`, "/logos/default/logo.png"]
-          : ["/logos/default/logo.png"];
-
-        let logoLoaded = false;
-        for (const logoUrl of logoUrls) {
-          if (logoLoaded) break;
-          try {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = logoUrl;
-            await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; setTimeout(reject, 2000); });
-            if (img.complete && img.naturalWidth > 0) {
-              const canvas = document.createElement("canvas");
-              canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
-              canvas.getContext("2d")?.drawImage(img, 0, 0);
-              doc.addImage(canvas.toDataURL("image/png"), "PNG", 8, 3, 20, 20);
-              logoLoaded = true;
-            }
-          } catch { /* try next logo */ }
-        }
-      } catch {}
-
-      // Venue info (top-right): Use offer venue fields first, then fall back to venue object
-      const pdfVenueName = String(form.venue || venue?.name || "Venue");
-      const pdfVenueAddr = String(form.venue_address || [venue?.address_street, venue?.address_city, venue?.address_state, venue?.address_zip].filter(Boolean).join(", ") || "");
-
-      doc.setTextColor(...hex(pc));
-      doc.setFontSize(16);
-      doc.text(pdfVenueName, W - 10, 10, { align: "right" });
-      doc.setFontSize(9);
-      if (pdfVenueAddr) doc.text(pdfVenueAddr, W - 10, 16, { align: "right" });
-      if (venue?.capacity) {
-        doc.text(`Venue Capacity: ${venue.capacity}`, W - 10, pdfVenueAddr ? 21 : 16, { align: "right" });
-      }
-
-      y = 32;
-
-      // Helpers
-      const sectionTitle = (title: string) => { doc.setFillColor(...hex(pc)); doc.rect(10, y - 1, W - 20, 5, "F"); doc.setTextColor(...hex(sc)); doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(title, 12, y + 2.5); doc.setFont("helvetica", "normal"); y += 7; };
-      const labelVal = (label: string, val: string, x1 = 10, x2 = 50) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); y += 3.8; };
-      const labelValR = (label: string, val: string, x1: number, x2: number) => { doc.setTextColor(60,60,60); doc.setFontSize(7); doc.text(`${label}:`, x1, y); doc.setTextColor(0,0,0); doc.setFontSize(7.5); doc.text(val, x2, y); };
-
-      // ─── VENUE INFO ───
-      if (form.venue || form.venue_address) {
-        sectionTitle("Venue");
-        labelVal("Venue", String(form.venue || "—"));
-        labelVal("Address", String(form.venue_address || "—"));
-        if (form.venue_contact) labelVal("Contact", String(form.venue_contact));
-        if (form.venue_phone) labelVal("Phone", String(form.venue_phone));
-        y += 2;
-      }
-
-      // ─── AGENCY & ARTIST ───
-      sectionTitle("Agency / Artist");
-      labelVal("Agency", String(form.agency || "—"));
-      labelVal("Agent", String(form.agent_name || "—"));
-      labelVal("Phone", String(form.agent_phone || "—"));
-      labelVal("Email", String(form.agent_email || "—"));
-      labelVal("Artist", String(form.artist_name || "—"));
-      labelVal("Date", form.event_date ? new Date(String(form.event_date).slice(0,10) + "T12:00:00").toLocaleDateString() : "MA");
-      labelVal("Shows", `${form.num_shows || 1}  |  Length: ${form.show_length || "—"}  |  Time: ${formatTime12hr(String(form.show_time || ""))}`);
-      labelVal("Billing", String(form.billing || "—"));
-      y += 2;
-
-      // ─── DEAL ───
-      sectionTitle("Deal");
-      labelVal("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      labelVal("Type", `${form.deal_type || "FLAT"}`);
-      labelVal("Backend", `${form.backend_percentage || "0"}%`);
-      labelVal("Other Terms", String(form.other_terms || "—"));
-      labelVal("Radius", `${form.radius_distance || "—"} mi  |  ${form.radius_days_prior || "—"} days prior  |  ${form.radius_days_after || "—"} days after`);
-      labelVal("Production", String(form.production_by || "—"));
-      labelVal("Deposit", `$${Number(form.deposit_amount || 0).toLocaleString()} (${form.deposit_pct || 0}%)  |  Due: ${form.deposit_due || "—"}`);
-      labelVal("Balance", String(form.balance_due || "Day of Show"));
-      labelVal("Merch", `${form.merch_split || "—"}  |  Sells: ${form.merch_seller || "—"}`);
-      labelVal("Total Comps", String(form.comps || 0));
-      labelVal("Artist Comps", String(form.artist_comps || 0));
-      labelVal("Marketing Comps", String(form.marketing_comps || 0));
-      y += 2;
-
-      // ─── TICKET SCALING ───
-      const scaling = (form.ticket_scaling || []) as TicketScalingRow[];
-      if (scaling.length > 0) {
-        sectionTitle("Ticket Scaling");
-        // Column headers
-        doc.setTextColor(80,80,80); doc.setFontSize(6);
-        const cols = [10, 35, 52, 65, 80, 100, 120, 140, 160, 185];
-        ["Scaling", "# Seats", "Comps", "Kills", "Sellable", "Net Price", "Fac. Fee", "Tkt Fee", "Price", "Gross"].forEach((h, i) => doc.text(h, cols[i], y));
-        y += 3.5;
-        doc.setTextColor(0,0,0); doc.setFontSize(7);
-        scaling.forEach((r) => {
-          const facFee = r.facility_fee || 0;
-          const tktFee = r.price - (r.net_price || 0) - facFee;
-          [r.name, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap), `$${r.net_price?.toFixed(2)}`, `$${facFee.toFixed(2)}`, `$${tktFee.toFixed(2)}`, `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`].forEach((v, i) => doc.text(v, cols[i], y));
-          y += 3.5;
-        });
-        y += 2;
-      }
-
-      // ─── EXPENSES (two columns) ───
-      sectionTitle("Expenses");
-      const fe = (form.fixed_expenses || []) as ExpenseItem[];
-      const ve = (form.variable_expenses || []) as VariableExpenseItem[];
-      const startY = y;
-
-      // Fixed (left)
-      doc.setTextColor(80,80,80); doc.setFontSize(6); doc.text("Fixed Expenses", 10, y); doc.text("Est.", 60, y); y += 3.5;
-      doc.setFontSize(7); doc.setTextColor(0,0,0);
-      fe.forEach((e) => { if (e.amount > 0) { doc.text(e.name, 10, y); doc.text(`$${e.amount.toFixed(2)}`, 60, y); y += 3.2; } });
-      doc.setFont("helvetica", "bold"); doc.text("Fixed Total", 10, y); doc.text(`$${Number(form.total_fixed || 0).toFixed(2)}`, 60, y); doc.setFont("helvetica", "normal");
-      const fixedEndY = y + 4;
-
-      // Variable (right)
-      y = startY;
-      doc.setTextColor(80,80,80); doc.setFontSize(6); doc.text("Variable Expenses", 110, y); doc.text("Rate", 160, y); doc.text("$", 180, y); y += 3.5;
-      doc.setFontSize(7); doc.setTextColor(0,0,0);
-      ve.forEach((e) => { if (e.amount > 0) { doc.text(e.name, 110, y); doc.text(`${(e.rate * 100).toFixed(2)}%`, 160, y); doc.text(`$${e.amount.toFixed(2)}`, 180, y); y += 3.2; } });
-      doc.setFont("helvetica", "bold"); doc.text("Variable Total", 110, y); doc.text(`$${Number(form.total_variable || 0).toFixed(2)}`, 180, y); doc.setFont("helvetica", "normal");
-
-      y = Math.max(fixedEndY, y + 4) + 2;
-      doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-      doc.text(`Total Expenses:  $${Number(form.total_expenses || 0).toLocaleString()}`, 10, y);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-
-      // ─── REVENUE BREAKDOWN (Facility Fees & Ticketing Fees) ───
-      sectionTitle("Revenue Breakdown");
-      // Calculate total sellable tickets
-      const totalSellable = scaling.reduce((s: number, r: TicketScalingRow) => s + (r.sellable_cap || 0), 0);
-      // Facility fee per ticket (from scaling rows or 0)
-      const pdfFacilityFee = scaling.length > 0 ? (scaling[0] as TicketScalingRow).facility_fee || 0 : 0;
-      // Ticketing fee: derive from price - net_price - facility_fee
-      const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee) : 0;
-      const totalFacilityFeeRevenue = totalSellable * pdfFacilityFee;
-      const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
-
-      labelVal("Facility Fee (per ticket)", `$${pdfFacilityFee.toFixed(2)}`);
-      labelVal("Total Facility Fee Revenue", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
-      labelVal("Ticketing Fee (per ticket)", `$${pdfTicketingFee.toFixed(2)}`);
-      labelVal("Total Ticketing Fee Revenue", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
-      labelVal("Combined Fee Revenue", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
-      y += 2;
-
-      // ─── POTENTIAL AT SELLOUT ───
-      sectionTitle("Potential at Sellout");
-      labelVal("Gross Potential", `$${Number(form.gross_potential || 0).toLocaleString()}`);
-      labelVal("Adj. Gross", `$${Number(form.adj_gross || 0).toLocaleString()}`);
-      const taxPct = Number(form.tax_rate || 0) * 100;
-      labelVal(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(form.adj_gross || 0) * Number(form.tax_rate || 0)).toFixed(2)}`);
-      labelVal("Net Potential", `$${Number(form.net_potential || 0).toLocaleString()}`);
-      labelVal("Total Expenses", `$${Number(form.total_expenses || 0).toLocaleString()}`);
-      if (form.deal_type !== "FLAT") labelVal("Splitpoint", `$${Number(form.splitpoint || 0).toLocaleString()}`);
-      y += 2;
-
-      // ─── ARTIST POTENTIAL ───
-      sectionTitle("Artist Potential at Sellout");
-      labelVal("Guarantee", `$${Number(form.guarantee || 0).toLocaleString()}`);
-      if (form.deal_type !== "FLAT") labelVal("Backend", `$${Number(form.artist_backend || 0).toLocaleString()}`);
-      y += 5;
-
-      // ─── FOOTER ───
-      doc.setFontSize(7); doc.setTextColor(120,120,120);
-      doc.text(`Offer Good for ${form.offer_valid_days || 14} days from Today     ${new Date().toLocaleDateString()}`, 10, y);
-
-      // Save
-      const dateStr = form.event_date ? new Date(String(form.event_date).slice(0,10) + "T12:00:00").toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" }).replace(/\//g, ".") : "TBD";
-      const city = venue?.address_city || "City";
-      const state = venue?.address_state || "ST";
-      doc.save(`${String(form.artist_name || "Offer").replace(/\s+/g, "_")}.${dateStr}.${city},${state}.pdf`);
+      await exportOfferPDF({
+        venue: form.venue as string,
+        venue_address: form.venue_address as string,
+        venue_contact: form.venue_contact as string,
+        venue_phone: form.venue_phone as string,
+        venue_capacity: venue?.capacity ?? undefined,
+        agency: form.agency as string,
+        agent_name: form.agent_name as string,
+        agent_phone: form.agent_phone as string,
+        agent_email: form.agent_email as string,
+        artist_name: form.artist_name as string,
+        event_date: form.event_date as string,
+        num_shows: form.num_shows as number,
+        show_length: form.show_length as string,
+        show_time: form.show_time as string,
+        billing: form.billing as string,
+        guarantee: form.guarantee as number,
+        deal_type: form.deal_type as string,
+        backend_percentage: form.backend_percentage as number,
+        other_terms: form.other_terms as string,
+        radius_distance: form.radius_distance as string,
+        radius_days_prior: form.radius_days_prior as number,
+        radius_days_after: form.radius_days_after as number,
+        production_by: form.production_by as string,
+        deposit_amount: form.deposit_amount as number,
+        deposit_pct: form.deposit_pct as number,
+        deposit_due: form.deposit_due as string,
+        balance_due: form.balance_due as string,
+        merch_split: form.merch_split as string,
+        merch_seller: form.merch_seller as string,
+        comps: form.comps as number,
+        artist_comps: form.artist_comps as number,
+        marketing_comps: form.marketing_comps as number,
+        ticket_scaling: form.ticket_scaling as TicketScalingRow[],
+        fixed_expenses: form.fixed_expenses as ExpenseItem[],
+        variable_expenses: form.variable_expenses as VariableExpenseItem[],
+        total_fixed: form.total_fixed as number,
+        total_variable: form.total_variable as number,
+        total_expenses: form.total_expenses as number,
+        gross_potential: form.gross_potential as number,
+        adj_gross: form.adj_gross as number,
+        tax_rate: form.tax_rate as number,
+        net_potential: form.net_potential as number,
+        splitpoint: form.splitpoint as number,
+        artist_backend: form.artist_backend as number,
+        offer_valid_days: form.offer_valid_days as number,
+      }, venue);
     } catch (err) { console.error("PDF failed:", err); }
     finally { setExporting(false); }
   };

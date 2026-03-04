@@ -1,34 +1,20 @@
+/**
+ * Settlement PDF Generator — uses shared header utility.
+ * Both Artist and Venue settlement exports. NO buyer info in header.
+ */
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
+import {
+  addPdfHeader, drawFooter, ensureSpace, drawSectionHeader, drawRow, drawDivider,
+  fmt, sanitize,
+  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, WHITE, MID_GRAY, LIGHT_GRAY,
+  type Doc,
+} from "./pdf-header";
 
-// ── Brand constants ──────────────────────────────────────────────────
-const GOLD = "#d0c290";
-const DARK = "#0b0d1d";
-const WHITE = "#ffffff";
-const LIGHT_GRAY = "#f5f5f0";
-const MID_GRAY = "#cccccc";
-const PAGE_W = 215.9; // Letter width mm
-const PAGE_H = 279.4; // Letter height mm
-const MARGIN = 18;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-
-// ── Helpers ──────────────────────────────────────────────────────────
-function fmt(n: number): string {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
-
-function sanitize(s: string): string {
-  return (s ?? "").replace(/[^a-zA-Z0-9_\- ]/g, "").replace(/\s+/g, "_");
-}
-
-function venueAddress(v: VenueInfo): string {
-  const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
-  return parts.join(", ");
-}
-
-// ── Types (matching spec) ────────────────────────────────────────────
+// ── Types ────────────────────────────────────────────────────────────
 type VenueInfo = {
   name: string;
+  slug?: string;
   address_street?: string | null;
   address_city?: string | null;
   address_state?: string | null;
@@ -40,89 +26,8 @@ type VenueInfo = {
 type ExpenseRow = { name: string; category: string; actual_amount: number };
 type DepositRow = { type: string; amount: number; date?: string; notes?: string };
 
-// ── Shared drawing helpers ───────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Doc = any; // jsPDF instance
-
-function ensureSpace(doc: Doc, needed: number, y: number): number {
-  if (y + needed > PAGE_H - MARGIN) {
-    doc.addPage();
-    return MARGIN + 5;
-  }
-  return y;
-}
-
-function drawSectionHeader(doc: Doc, title: string, y: number): number {
-  y = ensureSpace(doc, 12, y);
-  doc.setFillColor(DARK);
-  doc.rect(MARGIN, y, CONTENT_W, 8, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(GOLD);
-  doc.text(title.toUpperCase(), MARGIN + 3, y + 5.5);
-  doc.setTextColor(DARK);
-  return y + 12;
-}
-
-function drawRow(doc: Doc, label: string, value: string, y: number, opts?: { bold?: boolean; indent?: number; highlight?: boolean }): number {
-  y = ensureSpace(doc, 7, y);
-  const indent = opts?.indent ?? 0;
-  if (opts?.highlight) {
-    doc.setFillColor(GOLD);
-    doc.rect(MARGIN, y - 1, CONTENT_W, 7, "F");
-    doc.setTextColor(DARK);
-  }
-  doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(DARK);
-  doc.text(label, MARGIN + 3 + indent, y + 4);
-  doc.text(value, MARGIN + CONTENT_W - 3, y + 4, { align: "right" });
-  return y + 7;
-}
-
-function drawDivider(doc: Doc, y: number): number {
-  doc.setDrawColor(MID_GRAY);
-  doc.setLineWidth(0.3);
-  doc.line(MARGIN, y, MARGIN + CONTENT_W, y);
-  return y + 3;
-}
-
-function drawHeader(doc: Doc, title: string, venue: VenueInfo, eventTitle: string, eventDate: string): number {
-  // Dark header bar
-  doc.setFillColor(DARK);
-  doc.rect(0, 0, PAGE_W, 42, "F");
-
-  // Gold accent line
-  doc.setFillColor(GOLD);
-  doc.rect(0, 42, PAGE_W, 1.5, "F");
-
-  // Title
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(GOLD);
-  doc.text(title, MARGIN, 16);
-
-  // Venue info
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(WHITE);
-  doc.text(venue.name, MARGIN, 24);
-  const addr = venueAddress(venue);
-  if (addr) doc.text(addr, MARGIN, 29);
-  const contactParts = [venue.buyer_phone, venue.buyer_email].filter(Boolean);
-  if (contactParts.length) doc.text(contactParts.join("  |  "), MARGIN, 34);
-
-  // Event info (right side)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(GOLD);
-  doc.text(eventTitle, MARGIN + CONTENT_W, 24, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(WHITE);
-  doc.text(eventDate, MARGIN + CONTENT_W, 30, { align: "right" });
-
-  return 50;
+function venueAddress(v: VenueInfo): string {
+  return [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean).join(", ");
 }
 
 function drawSignatureLines(doc: Doc, y: number): number {
@@ -130,15 +35,15 @@ function drawSignatureLines(doc: Doc, y: number): number {
   y = drawSectionHeader(doc, "Signatures", y);
   y += 5;
 
-  const lineW = (CONTENT_W - 10) / 2;
-  doc.setDrawColor(DARK);
+  const lineW = (CONTENT_WIDTH - 10) / 2;
+  doc.setDrawColor(...DARK);
   doc.setLineWidth(0.4);
 
   // Left: Artist / Agent
   doc.line(MARGIN, y + 15, MARGIN + lineW, y + 15);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(DARK);
+  doc.setTextColor(...DARK);
   doc.text("Artist / Agent", MARGIN, y + 20);
   doc.line(MARGIN, y + 32, MARGIN + lineW, y + 32);
   doc.text("Date", MARGIN, y + 37);
@@ -153,30 +58,19 @@ function drawSignatureLines(doc: Doc, y: number): number {
   return y + 42;
 }
 
-function drawFooter(doc: Doc) {
-  const pages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= pages; i++) {
-    doc.setPage(i);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(MID_GRAY);
-    doc.text(`Generated by VenueCore  •  Page ${i} of ${pages}`, PAGE_W / 2, PAGE_H - 8, { align: "center" });
-  }
-}
-
 // ── Ticket Audit Table ───────────────────────────────────────────────
 function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: number): number {
   y = drawSectionHeader(doc, "Ticket Audit", y);
   const cols = ["Tier", "Cap", "Sold", "Comps", "Price", "Facility Fee", "Gross"];
-  const colX = [MARGIN + 3, MARGIN + 42, MARGIN + 60, MARGIN + 78, MARGIN + 98, MARGIN + 125, MARGIN + CONTENT_W - 3];
+  const colX = [MARGIN + 3, MARGIN + 42, MARGIN + 60, MARGIN + 78, MARGIN + 98, MARGIN + 125, MARGIN + CONTENT_WIDTH - 3];
 
   // Header row
   y = ensureSpace(doc, 8, y);
-  doc.setFillColor(LIGHT_GRAY);
-  doc.rect(MARGIN, y, CONTENT_W, 7, "F");
+  doc.setFillColor(...LIGHT_GRAY);
+  doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(DARK);
+  doc.setTextColor(...DARK);
   cols.forEach((c, i) => {
     const align = i >= 1 ? "right" : undefined;
     doc.text(c, colX[i], y + 5, align ? { align } : undefined);
@@ -206,11 +100,11 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
 
   // Totals row
   y = ensureSpace(doc, 8, y);
-  doc.setFillColor(DARK);
-  doc.rect(MARGIN, y, CONTENT_W, 7, "F");
+  doc.setFillColor(...DARK);
+  doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(WHITE);
+  doc.setTextColor(...WHITE);
   doc.text("TOTAL", colX[0], y + 5);
   doc.text(String(totalCap), colX[1], y + 5, { align: "right" });
   doc.text(String(totalSold), colX[2], y + 5, { align: "right" });
@@ -218,7 +112,7 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   doc.text("", colX[4], y + 5);
   doc.text("", colX[5], y + 5);
   doc.text(fmt(totalGross), colX[6], y + 5, { align: "right" });
-  doc.setTextColor(DARK);
+  doc.setTextColor(...DARK);
 
   return y + 12;
 }
@@ -233,10 +127,11 @@ export async function exportArtistSettlementPDF(
   deposits: (SettlementDeposit | DepositRow)[]
 ): Promise<void> {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: [PAGE_W, PAGE_H] });
+  const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
 
   const v: VenueInfo = {
     name: venue.name,
+    slug: (venue as Venue).slug ?? undefined,
     address_street: venue.address_street ?? undefined,
     address_city: venue.address_city ?? undefined,
     address_state: venue.address_state ?? undefined,
@@ -248,11 +143,19 @@ export async function exportArtistSettlementPDF(
   const eventTitle = settlement.artist_name ?? "Event";
   const eventDate = (settlement as unknown as { event_date?: string }).event_date ?? new Date().toLocaleDateString();
 
-  let y = drawHeader(doc, "ARTIST SETTLEMENT", v, eventTitle, eventDate);
+  // ── HEADER (NO buyer info for settlements) ──
+  let y = await addPdfHeader(doc, {
+    title: `Artist Settlement — ${eventTitle}`,
+    venueName: v.name,
+    venueAddress: venueAddress(v),
+    venueSlug: v.slug,
+    showBuyerInfo: false,
+  });
 
   // ── Deal Terms ──
   y = drawSectionHeader(doc, "Deal Terms", y);
   y = drawRow(doc, "Artist", settlement.artist_name ?? "—", y, { bold: true });
+  y = drawRow(doc, "Event Date", eventDate, y);
   y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
   y = drawRow(doc, "Deal Type", settlement.deal_type ?? "—", y);
   y = drawRow(doc, "Backend %", `${settlement.backend_percentage}%`, y);
@@ -325,7 +228,7 @@ export async function exportArtistSettlementPDF(
   y = drawSignatureLines(doc, y);
 
   // Footer
-  drawFooter(doc);
+  drawFooter(doc, "Artist Settlement");
 
   // Save
   const filename = `${sanitize(settlement.artist_name ?? "Artist")}-${sanitize(eventDate)}-${sanitize(venue.name)}-Artist_Settlement.pdf`;
@@ -342,10 +245,11 @@ export async function exportVenueSettlementPDF(
   deposits: (SettlementDeposit | DepositRow)[]
 ): Promise<void> {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: [PAGE_W, PAGE_H] });
+  const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
 
   const v: VenueInfo = {
     name: venue.name,
+    slug: (venue as Venue).slug ?? undefined,
     address_street: venue.address_street ?? undefined,
     address_city: venue.address_city ?? undefined,
     address_state: venue.address_state ?? undefined,
@@ -357,11 +261,19 @@ export async function exportVenueSettlementPDF(
   const eventTitle = settlement.artist_name ?? "Event";
   const eventDate = (settlement as unknown as { event_date?: string }).event_date ?? new Date().toLocaleDateString();
 
-  let y = drawHeader(doc, "VENUE SETTLEMENT", v, eventTitle, eventDate);
+  // ── HEADER (NO buyer info for settlements) ──
+  let y = await addPdfHeader(doc, {
+    title: `Venue Settlement — ${eventTitle}`,
+    venueName: v.name,
+    venueAddress: venueAddress(v),
+    venueSlug: v.slug,
+    showBuyerInfo: false,
+  });
 
   // ── Deal Terms ──
   y = drawSectionHeader(doc, "Deal Terms", y);
   y = drawRow(doc, "Artist", settlement.artist_name ?? "—", y, { bold: true });
+  y = drawRow(doc, "Event Date", eventDate, y);
   y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
   y = drawRow(doc, "Deal Type", settlement.deal_type ?? "—", y);
   y = drawRow(doc, "Backend %", `${settlement.backend_percentage}%`, y);
@@ -478,7 +390,7 @@ export async function exportVenueSettlementPDF(
   y = drawSignatureLines(doc, y);
 
   // Footer
-  drawFooter(doc);
+  drawFooter(doc, "Venue Settlement");
 
   // Save
   const filename = `${sanitize(eventTitle)}-${sanitize(eventDate)}-Venue_Settlement.pdf`;
