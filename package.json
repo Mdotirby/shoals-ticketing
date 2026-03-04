@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest",
+    "test:fwb": "jest __tests__/fwb"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^5.6.0",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.19.33",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode": "^1.5.6",
@@ -41,8 +44,10 @@
     "autoprefixer": "^10.4.24",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "jest": "^29.7.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.0",
+    "ts-jest": "^29.4.6",
     "typescript": "5.9.3"
   }
 }
