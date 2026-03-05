@@ -803,6 +803,35 @@ function BillingTab({
     });
   };
 
+  const handleDownloadInvoicePDF = async (inv: Invoice) => {
+    const { exportInvoicePDF } = await import("@/lib/pdf/invoice-pdf");
+    const clientName = event.client_name || event.contact_name || "Client";
+    const paymentUrl = `${window.location.origin}/pay/${inv.id}`;
+    await exportInvoicePDF({
+      invoice_number: inv.invoice_number,
+      invoice_date: new Date(inv.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      due_date: new Date(inv.due_date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      client_name: inv.client_name || clientName,
+      client_email: inv.client_email || event.client_email || event.contact_email,
+      client_phone: inv.client_phone || event.client_phone || event.contact_phone,
+      client_company: event.client_company,
+      client_address: event.client_billing_address,
+      event_name: event.title,
+      event_date: safeDate(event.date),
+      line_items: inv.line_items || [],
+      subtotal: Number(inv.subtotal),
+      tax_rate: Number(inv.tax_rate),
+      tax_amount: Number(inv.tax_amount),
+      total: Number(inv.total),
+      amount_paid: Number(inv.amount_paid),
+      balance_due: Number(inv.balance_due),
+      tax_exempt: event.tax_exempt || false,
+      payment_url: paymentUrl,
+      venue_name: event.venue,
+      venue_slug: venueSlug,
+    });
+  };
+
   const copyPaymentLink = (invoiceId: string) => {
     const url = `${window.location.origin}/pay/${invoiceId}`;
     navigator.clipboard.writeText(url);
@@ -944,6 +973,9 @@ function BillingTab({
                   style={{ ...btnSecondary, padding: "6px 14px", fontSize: 12, textDecoration: "none", display: "inline-block" }}>
                   Open Payment Page
                 </a>
+                <button style={{ ...btnSecondary, padding: "6px 14px", fontSize: 12 }} onClick={() => handleDownloadInvoicePDF(inv)}>
+                  📄 PDF
+                </button>
               </div>
             </div>
           ))}
