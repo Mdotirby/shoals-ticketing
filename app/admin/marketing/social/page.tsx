@@ -1,8 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getCookie } from "@/lib/cookies";
 import Link from "next/link";
+
+type SyncStatus = {
+  configured: boolean;
+  last_sync: string | null;
+  metric_count: number;
+  instructions?: string;
+};
+
+type SyncResult = {
+  success?: boolean;
+  error?: string;
+  details?: string;
+  facebook?: {
+    impressions: number;
+    engaged_users: number;
+    new_fans: number;
+    page_views: number;
+    post_engagements: number;
+  };
+  instagram?: {
+    reach: number;
+    impressions: number;
+    accounts_engaged: number;
+    follower_count: number;
+  };
+  posts?: Array<{
+    id: string;
+    message: string;
+    created_time: string;
+    likes: number;
+    comments: number;
+    shares: number;
+  }>;
+  synced_at?: string;
+};
 
 type SocialMetric = {
   id: string;
@@ -18,184 +53,288 @@ type SocialMetric = {
   notes: string | null;
 };
 
-type EventOption = { id: string; title: string; date: string };
-
-const platformLabels: Record<string, string> = {
-  instagram: "Instagram",
-  tiktok: "TikTok",
-  twitter: "X (Twitter)",
-  facebook: "Facebook",
-  youtube: "YouTube",
-  other: "Other",
-};
-
 export default function SocialPage() {
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [metrics, setMetrics] = useState<SocialMetric[]>([]);
-  const [events, setEvents] = useState<EventOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    event_id: "", platform: "instagram", hashtag: "",
-    impressions: "", engagements: "", shares: "", mentions: "",
-    recorded_date: new Date().toISOString().split("T")[0], notes: "",
-  });
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const role = getCookie("user-role");
   if (role !== "owner") {
     return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
   }
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/marketing/social").then((r) => r.json()),
-      fetch("/api/events?all=1").then((r) => r.json()),
-    ]).then(([sData, evData]) => {
-      if (Array.isArray(sData)) setMetrics(sData);
-      if (Array.isArray(evData)) setEvents(evData.map((e: EventOption) => ({ id: e.id, title: e.title, date: e.date })));
-    }).finally(() => setLoading(false));
+  const fetchData = useCallback(async () => {
+    try {
+      const [statusRes, metricsRes] = await Promise.all([
+        fetch("/api/marketing/social-sync").then((r) => r.json()),
+        fetch("/api/marketing/social").then((r) => r.json()),
+      ]);
+      setSyncStatus(statusRes);
+      if (Array.isArray(metricsRes)) setMetrics(metricsRes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load data");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setError(null);
     try {
-      const res = await fetch("/api/marketing/social", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event_id: form.event_id || null,
-          platform: form.platform,
-          hashtag: form.hashtag || null,
-          impressions: parseInt(form.impressions) || 0,
-          engagements: parseInt(form.engagements) || 0,
-          shares: parseInt(form.shares) || 0,
-          mentions: parseInt(form.mentions) || 0,
-          recorded_date: form.recorded_date,
-          notes: form.notes || null,
-        }),
-      });
-      if (res.ok) {
-        const newMetric = await res.json();
-        setMetrics([newMetric, ...metrics]);
-        setShowForm(false);
-        setForm({ event_id: "", platform: "instagram", hashtag: "", impressions: "", engagements: "", shares: "", mentions: "", recorded_date: new Date().toISOString().split("T")[0], notes: "" });
+      const res = await fetch("/api/marketing/social-sync", { method: "POST" });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error + (data.details ? `: ${data.details}` : ""));
+      } else {
+        setSyncResult(data);
+        // Refresh stored data
+        const metricsRes = await fetch("/api/marketing/social").then((r) => r.json());
+        if (Array.isArray(metricsRes)) setMetrics(metricsRes);
+        setSyncStatus((prev) => prev ? { ...prev, last_sync: data.synced_at } : prev);
       }
-    } finally { setSaving(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
   };
 
-  const totalImpressions = metrics.reduce((s, m) => s + (m.impressions || 0), 0);
-  const totalEngagements = metrics.reduce((s, m) => s + (m.engagements || 0), 0);
-  const totalShares = metrics.reduce((s, m) => s + (m.shares || 0), 0);
-  const avgEngRate = totalImpressions > 0 ? ((totalEngagements / totalImpressions) * 100).toFixed(2) : "0";
+  // Compute aggregates from sync result or stored metrics
+  const fb = syncResult?.facebook || null;
+  const ig = syncResult?.instagram || null;
+  const posts = syncResult?.posts || [];
+
+  const totalReach = (fb?.impressions || 0) + (ig?.reach || 0);
+  const totalEngagement = (fb?.post_engagements || 0) + (ig?.accounts_engaged || 0);
+  const totalFollowers = (fb?.new_fans || 0) + (ig?.follower_count || 0);
+  const totalPageViews = fb?.page_views || 0;
+
+  // Fallback from stored metrics if no sync result
+  const storedImpressions = metrics.reduce((s, m) => s + (m.impressions || 0), 0);
+  const storedEngagements = metrics.reduce((s, m) => s + (m.engagements || 0), 0);
+
+  // Daily reach bars from FB insights (last 7 stored metrics)
+  const recentMetrics = metrics.slice(0, 14);
+  const maxImp = Math.max(...recentMetrics.map((m) => m.impressions || 0), 1);
 
   return (
-    <div className="admin-form-page">
+    <div style={{ minHeight: "100vh", background: "#111", padding: "24px 20px", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
       <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
-      <h1 className="admin-page-title" style={{ marginTop: 8 }}>Social Performance</h1>
+      <h1 style={{ color: "#fff", fontSize: 28, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>Social Performance</h1>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 24 }}>
+        Meta social insights — Facebook & Instagram
+      </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginBottom: 24 }}>
-        <StatCard label="Total Impressions" value={totalImpressions.toLocaleString()} />
-        <StatCard label="Total Engagements" value={totalEngagements.toLocaleString()} />
-        <StatCard label="Total Shares" value={totalShares.toLocaleString()} />
-        <StatCard label="Avg Engagement Rate" value={`${avgEngRate}%`} />
-        <StatCard label="Entries" value={metrics.length.toString()} />
+      {/* Sync Controls */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+        <button
+          onClick={handleSync}
+          disabled={syncing || !syncStatus?.configured}
+          style={{
+            background: syncing ? "rgba(208,194,144,0.2)" : "linear-gradient(135deg,#d0c290,#b8a870)",
+            color: syncing ? "rgba(255,255,255,0.5)" : "#1a1a1a",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 20px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: syncing ? "not-allowed" : "pointer",
+          }}
+        >
+          {syncing ? "Syncing..." : "\uD83D\uDD04 Sync Now"}
+        </button>
+        {syncStatus?.last_sync && (
+          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
+            Last sync: {new Date(syncStatus.last_sync).toLocaleString()}
+          </span>
+        )}
       </div>
 
-      <button onClick={() => setShowForm(!showForm)} className="admin-form-submit" style={{ marginBottom: 16, padding: "10px 20px", fontSize: 13 }}>
-        {showForm ? "Cancel" : "+ Add Social Metrics"}
-      </button>
+      {/* Not configured message */}
+      {syncStatus && !syncStatus.configured && (
+        <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 20, marginBottom: 24 }}>
+          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>⚠️ Meta Not Connected</div>
+          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>
+            Connect your Meta account to see social insights. Set <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_SYSTEM_TOKEN</code> in Vercel env vars.
+            Optionally set <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_PAGE_ID</code> and <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_IG_USER_ID</code>.
+          </p>
+        </div>
+      )}
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="admin-form" style={{ marginBottom: 24 }}>
-          <div className="admin-form-grid">
-            <label className="admin-form-label">
-              Platform *
-              <select className="admin-form-input" value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })}>
-                {Object.entries(platformLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </label>
-            <label className="admin-form-label">
-              Event
-              <select className="admin-form-input" value={form.event_id} onChange={(e) => setForm({ ...form, event_id: e.target.value })}>
-                <option value="">— General —</option>
-                {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title} ({new Date(ev.date).toLocaleDateString()})</option>)}
-              </select>
-            </label>
-            <label className="admin-form-label">
-              Hashtag
-              <input type="text" className="admin-form-input" value={form.hashtag} onChange={(e) => setForm({ ...form, hashtag: e.target.value })} placeholder="#YourHashtag" />
-            </label>
-            <label className="admin-form-label">
-              Impressions
-              <input type="number" className="admin-form-input" value={form.impressions} onChange={(e) => setForm({ ...form, impressions: e.target.value })} min="0" />
-            </label>
-            <label className="admin-form-label">
-              Engagements
-              <input type="number" className="admin-form-input" value={form.engagements} onChange={(e) => setForm({ ...form, engagements: e.target.value })} min="0" />
-            </label>
-            <label className="admin-form-label">
-              Shares
-              <input type="number" className="admin-form-input" value={form.shares} onChange={(e) => setForm({ ...form, shares: e.target.value })} min="0" />
-            </label>
-            <label className="admin-form-label">
-              Mentions
-              <input type="number" className="admin-form-input" value={form.mentions} onChange={(e) => setForm({ ...form, mentions: e.target.value })} min="0" />
-            </label>
-            <label className="admin-form-label">
-              Date
-              <input type="date" className="admin-form-input" value={form.recorded_date} onChange={(e) => setForm({ ...form, recorded_date: e.target.value })} />
-            </label>
-          </div>
-          <button type="submit" className="admin-form-submit" disabled={saving} style={{ marginTop: 12 }}>
-            {saving ? "Saving..." : "Save Metrics"}
-          </button>
-        </form>
+      {/* Error */}
+      {error && (
+        <div style={{ background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.2)", borderRadius: 10, padding: 16, marginBottom: 24 }}>
+          <p style={{ color: "#ff5050", fontSize: 13, margin: 0 }}>{error}</p>
+        </div>
       )}
 
       {loading ? (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>Loading social data...</p>
-      ) : metrics.length === 0 ? (
-        <p style={{ color: "rgba(255,255,255,0.4)" }}>No social metrics tracked yet.</p>
       ) : (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Platform</th>
-                <th style={thStyle}>Hashtag</th>
-                <th style={thStyle}>Event</th>
-                <th style={thStyle}>Impressions</th>
-                <th style={thStyle}>Engagements</th>
-                <th style={thStyle}>Shares</th>
-                <th style={thStyle}>Eng. Rate</th>
-                <th style={thStyle}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.map((m) => {
-                const engRate = m.impressions > 0 ? ((m.engagements / m.impressions) * 100).toFixed(2) : "—";
-                return (
-                  <tr key={m.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <td style={tdStyle}>
-                      <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, background: "rgba(208,194,144,0.1)", color: "rgba(208,194,144,0.8)" }}>
-                        {platformLabels[m.platform] || m.platform}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>{m.hashtag || "—"}</td>
-                    <td style={tdStyle}>{m.events?.title || "General"}</td>
-                    <td style={tdStyle}>{(m.impressions || 0).toLocaleString()}</td>
-                    <td style={tdStyle}>{(m.engagements || 0).toLocaleString()}</td>
-                    <td style={tdStyle}>{(m.shares || 0).toLocaleString()}</td>
-                    <td style={tdStyle}>{engRate}%</td>
-                    <td style={tdStyle}>{m.recorded_date ? new Date(m.recorded_date).toLocaleDateString() : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Overview Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 32 }}>
+            <StatCard label="Total Reach (30d)" value={syncResult ? totalReach.toLocaleString() : storedImpressions.toLocaleString()} />
+            <StatCard label="Engagement (30d)" value={syncResult ? totalEngagement.toLocaleString() : storedEngagements.toLocaleString()} />
+            <StatCard label="Followers / New Fans" value={totalFollowers.toLocaleString()} />
+            <StatCard label="Page Views (30d)" value={totalPageViews.toLocaleString()} />
+          </div>
+
+          {/* Facebook Section */}
+          {fb && (
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
+                <span style={{ marginRight: 8 }}>📘</span>Facebook
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
+                <MiniCard label="Impressions" value={fb.impressions.toLocaleString()} />
+                <MiniCard label="Post Engagements" value={fb.post_engagements.toLocaleString()} />
+                <MiniCard label="Engaged Users" value={fb.engaged_users.toLocaleString()} />
+                <MiniCard label="New Fans" value={fb.new_fans.toLocaleString()} />
+                <MiniCard label="Page Views" value={fb.page_views.toLocaleString()} />
+              </div>
+            </div>
+          )}
+
+          {/* Instagram Section */}
+          {ig && (ig.reach > 0 || ig.impressions > 0) && (
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
+                <span style={{ marginRight: 8 }}>📸</span>Instagram
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
+                <MiniCard label="Reach" value={ig.reach.toLocaleString()} />
+                <MiniCard label="Impressions" value={ig.impressions.toLocaleString()} />
+                <MiniCard label="Engaged Accounts" value={ig.accounts_engaged.toLocaleString()} />
+                <MiniCard label="Followers" value={ig.follower_count.toLocaleString()} />
+              </div>
+            </div>
+          )}
+
+          {/* Daily Reach Chart (CSS bars) */}
+          {recentMetrics.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Daily Impressions</h2>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 120, padding: "0 4px" }}>
+                {recentMetrics.reverse().map((m, i) => {
+                  const pct = maxImp > 0 ? ((m.impressions || 0) / maxImp) * 100 : 0;
+                  return (
+                    <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                      <div
+                        style={{
+                          width: "100%",
+                          maxWidth: 32,
+                          height: `${Math.max(pct, 2)}%`,
+                          background: m.platform === "instagram" ? "rgba(225,48,108,0.6)" : "rgba(66,103,178,0.6)",
+                          borderRadius: "4px 4px 0 0",
+                          minHeight: 2,
+                        }}
+                        title={`${m.recorded_date}: ${(m.impressions || 0).toLocaleString()}`}
+                      />
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", marginTop: 4, transform: "rotate(-45deg)", transformOrigin: "center" }}>
+                        {m.recorded_date?.slice(5) || ""}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Posts Table */}
+          {posts.length > 0 && (
+            <div style={{ marginBottom: 32 }}>
+              <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Recent Posts</h2>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Post</th>
+                      <th style={thStyle}>Date</th>
+                      <th style={thStyle}>Likes</th>
+                      <th style={thStyle}>Comments</th>
+                      <th style={thStyle}>Shares</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts.map((p) => (
+                      <tr key={p.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ ...tdStyle, maxWidth: 300 }}>
+                          {p.message ? (p.message.length > 80 ? p.message.slice(0, 80) + "…" : p.message) : "(no text)"}
+                        </td>
+                        <td style={tdStyle}>{p.created_time ? new Date(p.created_time).toLocaleDateString() : "—"}</td>
+                        <td style={tdStyle}>{p.likes.toLocaleString()}</td>
+                        <td style={tdStyle}>{p.comments.toLocaleString()}</td>
+                        <td style={tdStyle}>{p.shares.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Stored Metrics Table */}
+          {metrics.length > 0 && (
+            <div>
+              <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>Stored Metrics History</h2>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Platform</th>
+                      <th style={thStyle}>Date</th>
+                      <th style={thStyle}>Impressions</th>
+                      <th style={thStyle}>Engagements</th>
+                      <th style={thStyle}>Shares</th>
+                      <th style={thStyle}>Eng. Rate</th>
+                      <th style={thStyle}>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.slice(0, 50).map((m) => {
+                      const engRate = m.impressions > 0 ? ((m.engagements / m.impressions) * 100).toFixed(2) : "—";
+                      return (
+                        <tr key={m.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                          <td style={tdStyle}>
+                            <span style={{
+                              fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                              background: m.platform === "instagram" ? "rgba(225,48,108,0.12)" : "rgba(66,103,178,0.12)",
+                              color: m.platform === "instagram" ? "#e1306c" : "#4267b2",
+                            }}>
+                              {m.platform}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>{m.recorded_date ? new Date(m.recorded_date).toLocaleDateString() : "—"}</td>
+                          <td style={tdStyle}>{(m.impressions || 0).toLocaleString()}</td>
+                          <td style={tdStyle}>{(m.engagements || 0).toLocaleString()}</td>
+                          <td style={tdStyle}>{(m.shares || 0).toLocaleString()}</td>
+                          <td style={tdStyle}>{engRate}%</td>
+                          <td style={{ ...tdStyle, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {m.notes || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {!syncResult && metrics.length === 0 && (
+            <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", padding: 40 }}>
+              No social data yet. Click &quot;Sync Now&quot; to pull insights from Meta, or add metrics manually via the API.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
@@ -206,6 +345,15 @@ function StatCard({ label, value }: { label: string; value: string }) {
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
       <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
+    </div>
+  );
+}
+
+function MiniCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 8, padding: "12px 10px" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>{value}</div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{label}</div>
     </div>
   );
 }

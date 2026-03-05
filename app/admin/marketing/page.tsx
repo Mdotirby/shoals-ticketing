@@ -222,10 +222,10 @@ export default function MarketingHubPage() {
   const totalSold = events.reduce((s, e) => s + e.total_sold, 0);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 md:p-8">
+    <div className="min-h-screen bg-gray-900 text-white p-8 md:p-10">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl md:text-3xl font-bold mb-1">📣 Marketing Hub</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-1">Marketing Hub</h1>
         <p className="text-gray-400 text-sm">
           Event performance, campaigns, and audience insights
         </p>

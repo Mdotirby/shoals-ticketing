@@ -54,7 +54,7 @@ export function normalizeTicketmasterEvent(
     venue_name: venue?.name ?? 'Unknown Venue',
     venue_city: venue?.city?.name ?? 'Unknown',
     venue_state: venue?.state?.stateCode ?? 'Unknown',
-    venue_capacity: null, // Ticketmaster doesn't expose capacity directly
+    venue_capacity: venue?.capacity ?? venue?.maximumCapacity ?? null,
     event_date: eventDate,
     announce_date: announceDate,
     ticket_price_low: raw.priceRanges?.[0]?.min ?? null,

@@ -72,12 +72,12 @@ export async function POST() {
   try {
     /* ── Fetch campaign insights from Meta ─────────────────── */
     const today = new Date().toISOString().split("T")[0];
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0];
 
     const timeRange = JSON.stringify({
-      since: thirtyDaysAgo,
+      since: ninetyDaysAgo,
       until: today,
     });
 

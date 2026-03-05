@@ -154,9 +154,11 @@ export interface RawTicketmasterEvent {
       city?: { name: string };
       state?: { stateCode: string };
       location?: { latitude: string; longitude: string };
-      generalInfo?: { generalRule?: string };
+      generalInfo?: { generalRule?: string; childRule?: string };
       boxOfficeInfo?: { phoneNumberDetail?: string };
       upcomingEvents?: { _total?: number };
+      capacity?: number;
+      maximumCapacity?: number;
     }>;
     attractions?: Array<{
       name: string;

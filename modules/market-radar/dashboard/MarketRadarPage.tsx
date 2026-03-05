@@ -54,23 +54,19 @@ export default function MarketRadarPage() {
     setScanning(true);
     setScanResult(null);
     try {
-      const res = await fetch('/api/cron/scan-events', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${prompt('Enter your CRON_SECRET:')}` },
-      });
+      const res = await fetch('/api/market-radar/scan', { method: 'POST' });
       const data = await res.json();
       if (data.error) {
         setScanResult(`Error: ${data.error}`);
       } else {
         const c = data.collection || {};
         setScanResult(`Scan complete: ${c.inserted || 0} new events, ${c.duplicates || 0} duplicates, ${data.routing?.clustersFound || 0} routing clusters`);
-        // Refresh data
         fetchEvents();
         fetchClusters();
         fetchCompetitions();
       }
     } catch {
-      setScanResult('Scan failed — check CRON_SECRET');
+      setScanResult('Scan failed — check server logs');
     } finally {
       setScanning(false);
     }
@@ -189,11 +185,11 @@ export default function MarketRadarPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-gray-900 text-white p-8 md:p-10">
       {/* Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">🎯 Market Radar</h1>
+          <h1 className="text-3xl font-bold">Market Radar</h1>
           <p className="text-gray-400 mt-1">Live event intelligence for the Shoals region</p>
         </div>
         <button

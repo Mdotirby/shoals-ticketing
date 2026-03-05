@@ -99,26 +99,49 @@ export function isValidCapacity(capacity: number): boolean {
 
 /**
  * Deduplicate an array of normalised events using a composite key
- * of `(artist_name, venue_name, event_date)`.
+ * of `(artist_name, venue_name, event_date)` with improved normalisation.
  *
- * When duplicates are found the **first** occurrence is kept.
+ * - Artist names: lowercased, trimmed, "the " prefix removed, non-alphanumeric stripped
+ * - Venue names: lowercased, trimmed, non-alphanumeric stripped
+ * - Dates: normalised to YYYY-MM-DD via {@link formatEventDate}
+ *
+ * When duplicates are found, the event from the highest-priority source wins
+ * (ticketmaster > bandsintown > venue_scrape).
  *
  * @param events - Array of normalised events
  * @returns Deduplicated array
  */
 export function deduplicateEvents(events: NormalizedEvent[]): NormalizedEvent[] {
-  const seen = new Set<string>();
-  return events.filter((event) => {
-    const key = [
-      event.artist_name.toLowerCase().trim(),
-      event.venue_name.toLowerCase().trim(),
-      event.event_date,
-    ].join('|');
+  const seen = new Map<string, NormalizedEvent>();
 
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  for (const event of events) {
+    // Normalize for comparison
+    const artistKey = (event.artist_name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/^the\s+/, '')
+      .replace(/[^a-z0-9\s]/g, '');
+    const venueKey = (event.venue_name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s]/g, '');
+    const dateKey = formatEventDate(event.event_date ? new Date(event.event_date) : new Date());
+
+    const key = `${artistKey}|${venueKey}|${dateKey}`;
+
+    if (!seen.has(key)) {
+      seen.set(key, event);
+    } else {
+      // Prefer ticketmaster data over bandsintown over venue_scrape
+      const existing = seen.get(key)!;
+      const sourcePriority: Record<string, number> = { ticketmaster: 3, bandsintown: 2, venue_scrape: 1 };
+      if ((sourcePriority[event.source] || 0) > (sourcePriority[existing.source] || 0)) {
+        seen.set(key, event);
+      }
+    }
+  }
+
+  return Array.from(seen.values());
 }
 
 // ============================================================
