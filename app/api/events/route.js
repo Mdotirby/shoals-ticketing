@@ -18,7 +18,8 @@ export async function GET(request) {
   if (!showAll) {
     query = query.or("status.eq.published,status.is.null");
     // Public API: exclude private events — they should never appear on the public site
-    query = query.neq("event_type", "private");
+    // Use .or() instead of .neq() because PostgreSQL's != excludes NULLs
+    query = query.or("event_type.is.null,event_type.neq.private");
   }
 
   // Admin event_type filter
