@@ -35,3 +35,4 @@ CREATE POLICY "Allow all access to private_event_attachments"
   FOR ALL
   USING (true)
   WITH CHECK (true);
+

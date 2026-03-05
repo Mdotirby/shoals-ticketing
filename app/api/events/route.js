@@ -59,35 +59,42 @@ export async function POST(request) {
   const admin = createAdminClient();
   const body = await request.json();
 
-  // 1. Insert the event (includes venue_id if provided)
+  // 1. Build the event row — only include start_time/end_time when provided
+  //    (these are TEXT columns added by private-events-v2 migration; omitting
+  //    them avoids errors if the migration hasn't been run yet or if an older
+  //    schema has TIMESTAMPTZ columns with the same name).
+  const eventRow = {
+    title: body.title,
+    venue: body.venue,
+    date: body.date,
+    price: body.price,
+    ticketing_fee: body.ticketing_fee ?? 3.0,
+    venue_rebate: body.venue_rebate ?? 0,
+    description: body.description || null,
+    image_url: body.image_url || null,
+    status: body.status || "published",
+    venue_id: body.venue_id || null,
+    event_venue_id: body.event_venue_id || null,
+    event_type: body.event_type || "hard_ticket",
+    booking_status: body.booking_status || "confirmed",
+    contact_name: body.contact_name || null,
+    contact_phone: body.contact_phone || null,
+    contact_email: body.contact_email || null,
+    client_name: body.client_name || null,
+    client_email: body.client_email || null,
+    client_phone: body.client_phone || null,
+    client_billing_address: body.client_billing_address || null,
+    client_company: body.client_company || null,
+    tax_exempt: body.tax_exempt ?? false,
+  };
+
+  // Only send start_time / end_time when they contain a real value
+  if (body.start_time) eventRow.start_time = body.start_time;
+  if (body.end_time) eventRow.end_time = body.end_time;
+
   const { data: event, error: eventError } = await admin
     .from("events")
-    .insert({
-      title: body.title,
-      venue: body.venue,
-      date: body.date,
-      price: body.price,
-      ticketing_fee: body.ticketing_fee ?? 3.0,
-      venue_rebate: body.venue_rebate ?? 0,
-      description: body.description || null,
-      image_url: body.image_url || null,
-      status: body.status || "published",
-      venue_id: body.venue_id || null,
-      event_venue_id: body.event_venue_id || null,
-      event_type: body.event_type || "hard_ticket",
-      booking_status: body.booking_status || "confirmed",
-      contact_name: body.contact_name || null,
-      contact_phone: body.contact_phone || null,
-      contact_email: body.contact_email || null,
-      client_name: body.client_name || null,
-      client_email: body.client_email || null,
-      client_phone: body.client_phone || null,
-      client_billing_address: body.client_billing_address || null,
-      client_company: body.client_company || null,
-      tax_exempt: body.tax_exempt ?? false,
-      start_time: body.start_time || null,
-      end_time: body.end_time || null,
-    })
+    .insert(eventRow)
     .select()
     .single();
 
