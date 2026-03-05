@@ -60,12 +60,22 @@ export async function PUT(
   if (body.start_time !== undefined) updates.start_time = body.start_time;
   if (body.end_time !== undefined) updates.end_time = body.end_time;
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("events")
     .update(updates)
     .eq("id", id)
     .select()
     .single();
+
+  // Retry without start_time/end_time if they caused a type/column error
+  if (error && (error.message.includes("start_time") || error.message.includes("end_time") || error.message.includes("timestamp"))) {
+    console.warn("Retrying event update without start_time/end_time:", error.message);
+    delete updates.start_time;
+    delete updates.end_time;
+    const retry = await admin.from("events").update(updates).eq("id", id).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     return NextResponse.json(

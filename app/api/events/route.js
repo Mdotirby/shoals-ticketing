@@ -88,15 +88,27 @@ export async function POST(request) {
     tax_exempt: body.tax_exempt ?? false,
   };
 
-  // Only send start_time / end_time when they contain a real value
+  // Attempt insert — if start_time/end_time columns exist (TEXT type from
+  // private-events-v2 migration), include them. If the insert fails because
+  // the columns don't exist or are the wrong type, retry without them.
   if (body.start_time) eventRow.start_time = body.start_time;
   if (body.end_time) eventRow.end_time = body.end_time;
 
-  const { data: event, error: eventError } = await admin
+  let { data: event, error: eventError } = await admin
     .from("events")
     .insert(eventRow)
     .select()
     .single();
+
+  // Retry without start_time/end_time if they caused the failure
+  if (eventError && (eventError.message.includes("start_time") || eventError.message.includes("end_time") || eventError.message.includes("timestamp"))) {
+    console.warn("Retrying event insert without start_time/end_time:", eventError.message);
+    delete eventRow.start_time;
+    delete eventRow.end_time;
+    const retry = await admin.from("events").insert(eventRow).select().single();
+    event = retry.data;
+    eventError = retry.error;
+  }
 
   if (eventError) {
     return new Response(JSON.stringify({ error: eventError.message }), { status: 500 });
