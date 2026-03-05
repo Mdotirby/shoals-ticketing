@@ -58,6 +58,15 @@ export default function AdminCreateEventPage() {
     contact_name: "",
     contact_phone: "",
     contact_email: "",
+    // Private event client fields
+    client_name: "",
+    client_email: "",
+    client_phone: "",
+    client_billing_address: "",
+    client_company: "",
+    tax_exempt: false,
+    start_time: "",
+    end_time: "",
   });
 
   // Revenue items for private events
@@ -242,8 +251,8 @@ export default function AdminCreateEventPage() {
           venue: form.venue,
           date: dateTime,
           price: lowestPrice,
-          description: form.description || null,
-          image_url: form.image_url || null,
+          description: isPrivate ? null : (form.description || null),
+          image_url: isPrivate ? null : (form.image_url || null),
           status: "published",
           venue_id: resolvedVenueId || null,
           event_venue_id: selectedEventVenueId || null,
@@ -252,6 +261,15 @@ export default function AdminCreateEventPage() {
           contact_name: form.contact_name || null,
           contact_phone: form.contact_phone || null,
           contact_email: form.contact_email || null,
+          // Private event client fields
+          client_name: isPrivate ? (form.client_name || null) : null,
+          client_email: isPrivate ? (form.client_email || null) : null,
+          client_phone: isPrivate ? (form.client_phone || null) : null,
+          client_billing_address: isPrivate ? (form.client_billing_address || null) : null,
+          client_company: isPrivate ? (form.client_company || null) : null,
+          tax_exempt: isPrivate ? form.tax_exempt : false,
+          start_time: isPrivate ? (form.start_time || null) : null,
+          end_time: isPrivate ? (form.end_time || null) : null,
           tiers: isHardTicket
             ? tiers.map((t, i) => ({
                 tier_name: t.tier_name.trim(),
@@ -289,7 +307,12 @@ export default function AdminCreateEventPage() {
         }
       }
 
-      router.push("/admin/events");
+      // Redirect private events to management hub, others to events list
+      if (form.event_type === "private") {
+        router.push(`/admin/private-events/${event.id}`);
+      } else {
+        router.push("/admin/events");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create event");
     } finally {
@@ -456,7 +479,7 @@ export default function AdminCreateEventPage() {
 
         </div>
 
-        {/* Contact Fields — shown for private events */}
+        {/* Client Fields — shown for private events */}
         {isPrivate && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
@@ -465,43 +488,120 @@ export default function AdminCreateEventPage() {
             marginTop: 8,
           }}>
             <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Client Contact Info
+              Client Information
             </span>
             <div className="admin-form-grid">
               <label className="admin-form-label">
-                Contact Name
+                Client Name *
                 <input
                   type="text"
-                  name="contact_name"
+                  name="client_name"
                   className="admin-form-input"
-                  value={form.contact_name}
+                  value={form.client_name}
                   onChange={handleChange}
                   placeholder="Client name"
+                  required
                 />
               </label>
               <label className="admin-form-label">
-                Phone
-                <input
-                  type="tel"
-                  name="contact_phone"
-                  className="admin-form-input"
-                  value={form.contact_phone}
-                  onChange={handleChange}
-                  placeholder="(555) 123-4567"
-                />
-              </label>
-              <label className="admin-form-label" style={{ gridColumn: "span 2" }}>
-                Email
+                Client Email
                 <input
                   type="email"
-                  name="contact_email"
+                  name="client_email"
                   className="admin-form-input"
-                  value={form.contact_email}
+                  value={form.client_email}
                   onChange={handleChange}
                   placeholder="client@example.com"
                 />
               </label>
+              <label className="admin-form-label">
+                Client Phone
+                <input
+                  type="tel"
+                  name="client_phone"
+                  className="admin-form-input"
+                  value={form.client_phone}
+                  onChange={handleChange}
+                  placeholder="(555) 123-4567"
+                />
+              </label>
+              <label className="admin-form-label">
+                Client Company
+                <input
+                  type="text"
+                  name="client_company"
+                  className="admin-form-input"
+                  value={form.client_company}
+                  onChange={handleChange}
+                  placeholder="Company name (optional)"
+                />
+              </label>
+              <label className="admin-form-label" style={{ gridColumn: "span 2" }}>
+                Client Billing Address
+                <input
+                  type="text"
+                  name="client_billing_address"
+                  className="admin-form-input"
+                  value={form.client_billing_address}
+                  onChange={handleChange}
+                  placeholder="123 Main St, City, ST 12345"
+                />
+              </label>
             </div>
+
+            <div style={{ display: "flex", gap: 16, marginTop: 12, alignItems: "center" }}>
+              <label className="admin-form-label" style={{ flex: 1 }}>
+                Start Time
+                <select
+                  name="start_time"
+                  className="admin-form-input"
+                  value={form.start_time}
+                  onChange={(e) => setForm({ ...form, start_time: e.target.value })}
+                >
+                  <option value="">— Select —</option>
+                  {Array.from({ length: 30 }, (_, i) => {
+                    const h24 = Math.floor(i / 2) + 10;
+                    const m = i % 2 === 0 ? "00" : "30";
+                    const h12 = h24 > 12 ? h24 - 12 : h24;
+                    const ampm = h24 >= 12 ? "PM" : "AM";
+                    const val = `${String(h24).padStart(2, "0")}:${m}`;
+                    return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+                  })}
+                </select>
+              </label>
+              <label className="admin-form-label" style={{ flex: 1 }}>
+                End Time
+                <select
+                  name="end_time"
+                  className="admin-form-input"
+                  value={form.end_time}
+                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
+                >
+                  <option value="">— Select —</option>
+                  {Array.from({ length: 30 }, (_, i) => {
+                    const h24 = Math.floor(i / 2) + 10;
+                    const m = i % 2 === 0 ? "00" : "30";
+                    const h12 = h24 > 12 ? h24 - 12 : h24;
+                    const ampm = h24 >= 12 ? "PM" : "AM";
+                    const val = `${String(h24).padStart(2, "0")}:${m}`;
+                    return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+                  })}
+                </select>
+              </label>
+            </div>
+
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, marginTop: 14,
+              color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer",
+            }}>
+              <input
+                type="checkbox"
+                checked={form.tax_exempt}
+                onChange={(e) => setForm({ ...form, tax_exempt: e.target.checked })}
+                style={{ width: 18, height: 18, accentColor: "#d0c290" }}
+              />
+              Tax Exempt
+            </label>
           </div>
         )}
 
@@ -589,60 +689,8 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
-        {/* ── Private Event Revenue Fields ── */}
-        {isPrivate && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(180,100,200,0.04)",
-            border: "1px solid rgba(180,100,200,0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Revenue Line Items
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {revenueItems.map((item, i) => {
-                const label = REVENUE_CATEGORIES.find((c) => c.value === item.category)?.label || item.category;
-                return (
-                  <div key={item.category} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{label}</span>
-                    <div style={{ position: "relative", width: 140 }}>
-                      <span style={{
-                        position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                        color: "rgba(255,255,255,0.3)", fontSize: 13, pointerEvents: "none",
-                      }}>$</span>
-                      <input
-                        type="number"
-                        className="admin-form-input"
-                        value={item.amount}
-                        onChange={(e) => {
-                          const updated = [...revenueItems];
-                          updated[i] = { ...updated[i], amount: e.target.value };
-                          setRevenueItems(updated);
-                        }}
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        style={{ width: "100%", paddingLeft: 24 }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {(() => {
-              const total = revenueItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-              return total > 0 ? (
-                <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#d0c290" }}>
-                  Total: ${total.toFixed(2)}
-                </div>
-              ) : null;
-            })()}
-          </div>
-        )}
-
-        {/* Image upload section */}
-        <div className="admin-form-label admin-form-full">
+        {/* Image upload section — hidden for private events */}
+        {!isPrivate && <div className="admin-form-label admin-form-full">
           Event Image
           <div className="admin-image-upload-area">
             {previewUrl ? (
@@ -688,19 +736,21 @@ export default function AdminCreateEventPage() {
               className="admin-image-file-input"
             />
           </div>
-        </div>
+        </div>}
 
-        <label className="admin-form-label admin-form-full">
-          Description
-          <textarea
-            name="description"
-            className="admin-form-textarea"
-            value={form.description}
-            onChange={handleChange}
-            placeholder="Event description..."
-            rows={4}
-          />
-        </label>
+        {!isPrivate && (
+          <label className="admin-form-label admin-form-full">
+            Description
+            <textarea
+              name="description"
+              className="admin-form-textarea"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Event description..."
+              rows={4}
+            />
+          </label>
+        )}
 
         <button
           type="submit"

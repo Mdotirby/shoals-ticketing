@@ -79,6 +79,14 @@ export async function POST(request) {
       contact_name: body.contact_name || null,
       contact_phone: body.contact_phone || null,
       contact_email: body.contact_email || null,
+      client_name: body.client_name || null,
+      client_email: body.client_email || null,
+      client_phone: body.client_phone || null,
+      client_billing_address: body.client_billing_address || null,
+      client_company: body.client_company || null,
+      tax_exempt: body.tax_exempt ?? false,
+      start_time: body.start_time || null,
+      end_time: body.end_time || null,
     })
     .select()
     .single();

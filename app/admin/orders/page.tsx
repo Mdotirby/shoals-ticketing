@@ -71,10 +71,10 @@ export default function AdminSalesPage() {
         if (Array.isArray(venuesData)) setVenues(venuesData);
         if (!Array.isArray(eventsData)) return;
 
-        // Filter to artist's assigned events if applicable
-        const filteredEventsData = artistEventIds
-          ? eventsData.filter((ev: Record<string, unknown>) => artistEventIds!.includes(ev.id as string))
-          : eventsData;
+        // Filter to artist's assigned events if applicable, and always exclude private events from sales
+        const filteredEventsData = eventsData
+          .filter((ev: Record<string, unknown>) => ev.event_type !== "private")
+          .filter((ev: Record<string, unknown>) => artistEventIds ? artistEventIds!.includes(ev.id as string) : true);
 
         // Fetch ticket tiers for each event to get capacity + sold count
         const supabase = getSupabaseBrowser();

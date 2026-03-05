@@ -24,6 +24,9 @@ export type RentalContractData = {
   venue_phone?: string;
   venue_email?: string;
   venue_slug?: string;
+  // Lessor (configurable per venue)
+  lessor_name?: string;       // e.g. "John Smith" — defaults to "Management"
+  lessor_company?: string;    // e.g. "ABC LLC" — defaults to venue_name
   // Client
   client_name: string;
   client_email?: string;
@@ -88,19 +91,22 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   y += 6;
 
   // ── PREAMBLE ──
+  const lessorName = data.lessor_name || "Management";
+  const lessorCompany = data.lessor_company || data.venue_name;
   y = drawParagraph(doc, `This Rental Agreement ("Agreement") is entered into as of ${data.date} by and between:`, y, { fontSize: 9, indent: 0 });
   y += 3;
 
-  // Venue party
+  // Lessor party
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
   y = ensureSpace(doc, 7, y);
   const partyValMaxW = CONTENT_WIDTH - 50 - 3; // max width for party info values
-  doc.text("VENUE (\"Licensor\"):", MARGIN + 3, y);
+  doc.text("LESSOR:", MARGIN + 3, y);
   doc.setFont("helvetica", "normal");
-  const vNameTrunc: string = doc.splitTextToSize(data.venue_name, partyValMaxW)[0] || data.venue_name;
-  doc.text(vNameTrunc, MARGIN + 50, y);
+  const lessorLine = `${lessorName} on behalf of ${lessorCompany}`;
+  const lessorTrunc: string = doc.splitTextToSize(lessorLine, partyValMaxW)[0] || lessorLine;
+  doc.text(lessorTrunc, MARGIN + 50, y);
   y += 5;
   if (data.venue_address) {
     const vAddrTrunc: string = doc.splitTextToSize(data.venue_address, partyValMaxW)[0] || data.venue_address;
@@ -114,10 +120,10 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   }
   y += 3;
 
-  // Client party
+  // Lessee party
   doc.setFont("helvetica", "bold");
   y = ensureSpace(doc, 7, y);
-  doc.text("CLIENT (\"Licensee\"):", MARGIN + 3, y);
+  doc.text("LESSEE:", MARGIN + 3, y);
   doc.setFont("helvetica", "normal");
   const cNameTrunc: string = doc.splitTextToSize(data.client_name, partyValMaxW)[0] || data.client_name;
   doc.text(cNameTrunc, MARGIN + 50, y);
@@ -147,7 +153,7 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   let clauseNum = 1;
   const timeRange = [data.event_time_start, data.event_time_end].filter(Boolean).join(" – ") || "TBD";
   y = drawClause(doc, clauseNum++, "Event Details",
-    `The Licensor agrees to make available the designated space for the following event:\n` +
+    `The Lessor agrees to make available the designated space for the following event:\n` +
     `Event: ${data.event_name}\n` +
     `Date: ${data.event_date}\n` +
     `Time: ${timeRange}\n` +
@@ -239,28 +245,34 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
     `• More than 60 days before event: Full refund minus deposit\n` +
     `• 30–60 days before event: 50% refund of amounts paid (excluding deposit)\n` +
     `• Less than 30 days before event: No refund\n` +
-    `The Licensor reserves the right to cancel this Agreement due to force majeure events, in which case a full refund (including deposit) will be issued.`;
+    `The Lessor reserves the right to cancel this Agreement due to force majeure events, in which case a full refund (including deposit) will be issued.`;
   y = drawClause(doc, clauseNum++, "Cancellation Policy", data.cancellation_policy || defaultCancellation, y);
 
   // ── §6 INSURANCE ──
   const insuranceText = data.insurance_required
-    ? (data.insurance_details || `The Licensee shall obtain and maintain general liability insurance with a minimum coverage of $1,000,000 per occurrence, naming the Licensor as an additional insured. Proof of insurance must be provided no later than fourteen (14) days prior to the event.`)
-    : `Insurance is not required for this event; however, the Licensee is encouraged to obtain event liability coverage. The Licensor is not responsible for any damage to, or loss of, Licensee's property.`;
+    ? (data.insurance_details || `The Lessee shall obtain and maintain general liability insurance with a minimum coverage of $1,000,000 per occurrence, naming the Lessor as an additional insured. Proof of insurance must be provided no later than fourteen (14) days prior to the event.`)
+    : `Insurance is not required for this event; however, the Lessee is encouraged to obtain event liability coverage. The Lessor is not responsible for any damage to, or loss of, Lessee's property.`;
   y = drawClause(doc, clauseNum++, "Insurance", insuranceText, y);
 
   // ── §7 INDEMNIFICATION ──
   y = drawClause(doc, clauseNum++, "Indemnification",
-    `The Licensee agrees to indemnify, defend, and hold harmless the Licensor, its officers, employees, and agents from and against any and all claims, damages, losses, and expenses (including reasonable attorney fees) arising out of or resulting from the Licensee's use of the premises, except to the extent caused by the gross negligence or willful misconduct of the Licensor.`,
+    `The Lessee agrees to indemnify, defend, and hold harmless the Lessor, its officers, employees, and agents from and against any and all claims, damages, losses, and expenses (including reasonable attorney fees) arising out of or resulting from the Lessee's use of the premises, except to the extent caused by the gross negligence or willful misconduct of the Lessor.`,
     y
   );
 
-  // ── §8 USE OF PREMISES ──
+  // ── §8 LICENSING & PERMITS ──
+  y = drawClause(doc, clauseNum++, "Licensing & Permits",
+    `The Lessee shall be responsible for obtaining all necessary licenses, permits, and approvals required by local, state, and federal authorities for the event, including but not limited to entertainment permits, liquor licenses (if applicable), and health department approvals. The Lessee shall provide copies of all required permits to the Lessor no later than seven (7) days prior to the event. Failure to obtain required permits may result in cancellation of the event with no refund.`,
+    y
+  );
+
+  // ── §9 USE OF PREMISES ──
   y = drawClause(doc, clauseNum++, "Use of Premises",
-    `The Licensee shall use the premises only for the purpose stated in this Agreement. The Licensee shall comply with all applicable laws, regulations, and venue policies. No alterations to the premises are permitted without prior written consent. The premises must be returned to their original condition at the conclusion of the event.`,
+    `The Lessee shall use the premises only for the purpose stated in this Agreement. The Lessee shall comply with all applicable laws, regulations, and venue policies. No alterations to the premises are permitted without prior written consent. The premises must be returned to their original condition at the conclusion of the event.`,
     y
   );
 
-  // ── §9 ADDITIONAL TERMS ──
+  // ── §10 ADDITIONAL TERMS ──
   if (data.additional_terms) {
     y = drawClause(doc, clauseNum++, "Additional Terms", data.additional_terms, y);
   }
@@ -286,23 +298,23 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   doc.setDrawColor(...DARK);
   doc.setLineWidth(0.3);
 
-  // Licensor
+  // Lessor
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(...DARK);
-  doc.text("LICENSOR (Venue):", MARGIN + 3, y);
+  doc.text("LESSOR:", MARGIN + 3, y);
   y += 8;
   doc.line(MARGIN + 3, y + 12, MARGIN + 80, y + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.text("Signature", MARGIN + 3, y + 17);
-  doc.text("Name: " + (data.venue_contact || "___________________"), MARGIN + 3, y + 23);
+  doc.text("Name: " + (data.venue_contact || lessorName || "___________________"), MARGIN + 3, y + 23);
   doc.text("Date: _______________", MARGIN + 3, y + 29);
 
-  // Licensee
+  // Lessee
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("LICENSEE (Client):", MARGIN + 100, y - 8);
+  doc.text("LESSEE:", MARGIN + 100, y - 8);
   doc.line(MARGIN + 100, y + 12, MARGIN + CONTENT_WIDTH - 3, y + 12);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);

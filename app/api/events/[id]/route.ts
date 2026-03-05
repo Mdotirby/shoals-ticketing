@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time")
     .eq("id", id)
     .single();
 
@@ -51,6 +51,14 @@ export async function PUT(
   if (body.contact_name !== undefined) updates.contact_name = body.contact_name;
   if (body.contact_phone !== undefined) updates.contact_phone = body.contact_phone;
   if (body.contact_email !== undefined) updates.contact_email = body.contact_email;
+  if (body.client_name !== undefined) updates.client_name = body.client_name;
+  if (body.client_email !== undefined) updates.client_email = body.client_email;
+  if (body.client_phone !== undefined) updates.client_phone = body.client_phone;
+  if (body.client_billing_address !== undefined) updates.client_billing_address = body.client_billing_address;
+  if (body.client_company !== undefined) updates.client_company = body.client_company;
+  if (body.tax_exempt !== undefined) updates.tax_exempt = body.tax_exempt;
+  if (body.start_time !== undefined) updates.start_time = body.start_time;
+  if (body.end_time !== undefined) updates.end_time = body.end_time;
 
   const { data, error } = await admin
     .from("events")

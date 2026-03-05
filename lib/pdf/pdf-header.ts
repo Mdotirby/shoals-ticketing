@@ -282,6 +282,7 @@ export type PdfHeaderOptions = {
     contact?: string;      // buyer/promoter contact name
     phone?: string;        // buyer phone
     email?: string;        // buyer email
+    address?: string;      // buyer billing address
   };
 };
 
@@ -361,23 +362,26 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   });
   doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, venueAddress ? 26 : 20, { align: "right" });
 
-  // ── Buyer/Promoter info block (only for offers & performance agreements) ──
+  // ── Buyer/Promoter info block (positioned under logo, left-aligned) ──
   if (showBuyerInfo && buyerInfo) {
-    let infoY = 30;
+    let infoY = 28; // below logo area
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(...WHITE);
 
     if (buyerInfo.company) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.text(buyerInfo.company, MARGIN, infoY);
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      infoY += 5;
+      infoY += 4;
     }
     if (buyerInfo.contact) {
-      doc.text(`Buyer: ${buyerInfo.contact}`, MARGIN, infoY);
+      doc.text(buyerInfo.contact, MARGIN, infoY);
+      infoY += 4;
+    }
+    if (buyerInfo.address) {
+      doc.text(buyerInfo.address, MARGIN, infoY);
       infoY += 4;
     }
     const contactParts: string[] = [];
