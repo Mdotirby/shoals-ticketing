@@ -37,6 +37,7 @@ export type ArtistOffer = {
   venue_phone?: string;
   event_date?: string;
   venue_id?: string;
+  event_venue_id?: string;
 
   // Agency
   agency?: string;

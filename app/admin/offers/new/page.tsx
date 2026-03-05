@@ -34,7 +34,7 @@ const DEFAULT_VARIABLE: VariableExpenseItem[] = [
 ];
 
 function emptyScalingRow(): TicketScalingRow {
-  return { name: "P1", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 };
+  return { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 };
 }
 
 function emptyLineup(): ShowLineupItem {
@@ -80,6 +80,7 @@ export default function AdminCreateOfferPage() {
   const [venueAddressField, setVenueAddressField] = useState("");
   const [venueContact, setVenueContact] = useState("");
   const [venuePhone, setVenuePhone] = useState("");
+  const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
 
   // Purchaser info (auto-filled from settings)
   const [buyerName, setBuyerName] = useState("");
@@ -184,6 +185,7 @@ export default function AdminCreateOfferPage() {
   const selectEventVenue = (venueId: string) => {
     const v = eventVenues.find((x) => x.id === venueId);
     if (v) {
+      setSelectedEventVenueId(v.id);
       setVenueName(v.name);
       setVenueAddressField(v.full_address || "");
       setVenueContact(v.contact_name || "");
@@ -374,6 +376,7 @@ export default function AdminCreateOfferPage() {
           venue_contact: venueContact || null,
           venue_phone: venuePhone || null,
           venue_id: resolvedVenueId || null,
+          event_venue_id: selectedEventVenueId || null,
           event_date: eventDate || null,
           agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail,
           day_of_event: dayOfEvent, num_shows: parseInt(numShows) || 1,
@@ -551,7 +554,7 @@ export default function AdminCreateOfferPage() {
           ))}
         </div>
         <div className="offer-scaling-footer">
-          <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: `P${p.length + 1}` }])}>+ Add Tier</button>
+          <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: "General Admission" }])}>+ Add Tier</button>
           <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={facilityFee} onChange={(e) => { if (!isOwnerRole) return; setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
           <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={ticketingFee} onChange={(e) => { if (!isOwnerRole) return; setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
         </div>

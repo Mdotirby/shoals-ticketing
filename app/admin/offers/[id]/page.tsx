@@ -162,9 +162,9 @@ export default function AdminOfferDetailPage() {
         const scaling = Array.isArray(updated.ticket_scaling) ? updated.ticket_scaling : [];
         const tiers = scaling
           .filter((r: { sellable_cap: number; price: number }) => r.sellable_cap > 0)
-          .map((r: { name: string; price: number; sellable_cap: number }) => ({
+          .map((r: { name: string; price: number; net_price?: number; sellable_cap: number }) => ({
             tier_name: r.name || "General Admission",
-            price: r.price || 0,
+            price: r.net_price ?? r.price ?? 0,
             capacity: r.sellable_cap || 500,
           }));
 
@@ -182,13 +182,14 @@ export default function AdminOfferDetailPage() {
             date: eventDate,
             price: displayPrice,
             venue_id: updated.venue_id || getCookie("venue-id") || null,
-            status: "draft",
+            event_venue_id: updated.event_venue_id || null,
+            status: "published",
             description: `${updated.artist_name} - ${updated.billing || "Live Performance"}`,
             tiers: tiers.length > 0 ? tiers : undefined,
           }),
         });
         if (eventRes.ok) {
-          setSuccess("Offer confirmed & event created with ticket tiers! Go to Events to add an image and publish.");
+          setSuccess("Offer confirmed & event published with ticket tiers! Go to Events to add an image.");
         } else {
           setSuccess("Offer confirmed but event creation failed. Create manually.");
         }
@@ -298,6 +299,7 @@ export default function AdminOfferDetailPage() {
             <select className="admin-form-input" onChange={(e) => {
               const v = eventVenues.find((x) => x.id === e.target.value);
               if (v) {
+                updateField("event_venue_id", v.id);
                 updateField("venue", v.name);
                 updateField("venue_address", v.full_address || "");
                 updateField("venue_contact", v.contact_name || "");
@@ -368,7 +370,7 @@ export default function AdminOfferDetailPage() {
               <span className="offer-calc-cell" style={{ minWidth: 50, fontSize: 12 }}>{r.sellable_cap || 0} sell</span>
             </div>
           ))}
-          <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: `P${((form.ticket_scaling as [])?.length || 0) + 1}`, seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 }])}>+ Add Tier</button>
+          <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 }])}>+ Add Tier</button>
         </div>
 
         {/* ── Fixed Expenses ── */}

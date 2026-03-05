@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       venue_phone: body.venue_phone || null,
       event_date: body.event_date || null,
       venue_id: body.venue_id || null,
+      event_venue_id: body.event_venue_id || null,
       // Agency
       agency: body.agency || null,
       agent_name: body.agent_name || null,
