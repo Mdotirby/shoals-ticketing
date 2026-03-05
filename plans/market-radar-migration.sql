@@ -1,17 +1,13 @@
 -- Market Radar Module Migration
--- Creates schema, tables, indexes, triggers, and RLS policies
-
--- ============================================================
--- SCHEMA
--- ============================================================
-CREATE SCHEMA IF NOT EXISTS market_radar;
+-- Creates tables in the PUBLIC schema with market_radar_ prefix
+-- (Supabase JS client only queries public schema by default)
 
 -- ============================================================
 -- TABLES
 -- ============================================================
 
 -- Events table: stores normalized event data from all sources
-CREATE TABLE IF NOT EXISTS market_radar.events (
+CREATE TABLE IF NOT EXISTS market_radar_events (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   artist_name TEXT NOT NULL,
   event_name TEXT,
@@ -44,7 +40,7 @@ CREATE TABLE IF NOT EXISTS market_radar.events (
 );
 
 -- Routing clusters: groups of nearby shows suggesting a tour route
-CREATE TABLE IF NOT EXISTS market_radar.routing_clusters (
+CREATE TABLE IF NOT EXISTS market_radar_routing_clusters (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   artist_name TEXT NOT NULL,
   cluster_start_date DATE NOT NULL,
@@ -53,17 +49,17 @@ CREATE TABLE IF NOT EXISTS market_radar.routing_clusters (
   confidence_score NUMERIC(5,2) NOT NULL,
   avg_distance_between_stops DOUBLE PRECISION,
   cities TEXT[],
-  nearest_event_id UUID REFERENCES market_radar.events(id),
+  nearest_event_id UUID REFERENCES market_radar_events(id),
   nearest_distance DOUBLE PRECISION,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Competition: pairwise competition analysis between events
-CREATE TABLE IF NOT EXISTS market_radar.competition (
+CREATE TABLE IF NOT EXISTS market_radar_competition (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  event_id UUID NOT NULL REFERENCES market_radar.events(id) ON DELETE CASCADE,
-  competing_event_id UUID NOT NULL REFERENCES market_radar.events(id) ON DELETE CASCADE,
+  event_id UUID NOT NULL REFERENCES market_radar_events(id) ON DELETE CASCADE,
+  competing_event_id UUID NOT NULL REFERENCES market_radar_events(id) ON DELETE CASCADE,
   distance_between DOUBLE PRECISION NOT NULL,
   date_overlap BOOLEAN DEFAULT TRUE,
   price_similarity NUMERIC(5,2),
@@ -77,24 +73,24 @@ CREATE TABLE IF NOT EXISTS market_radar.competition (
 -- INDEXES
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_events_artist ON market_radar.events(artist_name);
-CREATE INDEX IF NOT EXISTS idx_events_date ON market_radar.events(event_date);
-CREATE INDEX IF NOT EXISTS idx_events_city ON market_radar.events(venue_city);
-CREATE INDEX IF NOT EXISTS idx_events_source ON market_radar.events(source);
-CREATE INDEX IF NOT EXISTS idx_events_routing_cluster ON market_radar.events(routing_cluster_id);
-CREATE INDEX IF NOT EXISTS idx_events_competition_score ON market_radar.events(competition_score);
+CREATE INDEX IF NOT EXISTS idx_mr_events_artist ON market_radar_events(artist_name);
+CREATE INDEX IF NOT EXISTS idx_mr_events_date ON market_radar_events(event_date);
+CREATE INDEX IF NOT EXISTS idx_mr_events_city ON market_radar_events(venue_city);
+CREATE INDEX IF NOT EXISTS idx_mr_events_source ON market_radar_events(source);
+CREATE INDEX IF NOT EXISTS idx_mr_events_routing_cluster ON market_radar_events(routing_cluster_id);
+CREATE INDEX IF NOT EXISTS idx_mr_events_competition_score ON market_radar_events(competition_score);
 
-CREATE INDEX IF NOT EXISTS idx_routing_artist ON market_radar.routing_clusters(artist_name);
-CREATE INDEX IF NOT EXISTS idx_routing_dates ON market_radar.routing_clusters(cluster_start_date, cluster_end_date);
+CREATE INDEX IF NOT EXISTS idx_mr_routing_artist ON market_radar_routing_clusters(artist_name);
+CREATE INDEX IF NOT EXISTS idx_mr_routing_dates ON market_radar_routing_clusters(cluster_start_date, cluster_end_date);
 
-CREATE INDEX IF NOT EXISTS idx_competition_event ON market_radar.competition(event_id);
-CREATE INDEX IF NOT EXISTS idx_competition_competing ON market_radar.competition(competing_event_id);
+CREATE INDEX IF NOT EXISTS idx_mr_competition_event ON market_radar_competition(event_id);
+CREATE INDEX IF NOT EXISTS idx_mr_competition_competing ON market_radar_competition(competing_event_id);
 
 -- ============================================================
 -- UPDATED_AT TRIGGER
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION market_radar.set_updated_at()
+CREATE OR REPLACE FUNCTION set_mr_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -102,61 +98,68 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_events_updated_at
-  BEFORE UPDATE ON market_radar.events
+DROP TRIGGER IF EXISTS trg_mr_events_updated_at ON market_radar_events;
+CREATE TRIGGER trg_mr_events_updated_at
+  BEFORE UPDATE ON market_radar_events
   FOR EACH ROW
-  EXECUTE FUNCTION market_radar.set_updated_at();
+  EXECUTE FUNCTION set_mr_updated_at();
 
-CREATE TRIGGER trg_routing_clusters_updated_at
-  BEFORE UPDATE ON market_radar.routing_clusters
+DROP TRIGGER IF EXISTS trg_mr_routing_clusters_updated_at ON market_radar_routing_clusters;
+CREATE TRIGGER trg_mr_routing_clusters_updated_at
+  BEFORE UPDATE ON market_radar_routing_clusters
   FOR EACH ROW
-  EXECUTE FUNCTION market_radar.set_updated_at();
+  EXECUTE FUNCTION set_mr_updated_at();
 
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 
--- Enable RLS on all tables
-ALTER TABLE market_radar.events ENABLE ROW LEVEL SECURITY;
-ALTER TABLE market_radar.routing_clusters ENABLE ROW LEVEL SECURITY;
-ALTER TABLE market_radar.competition ENABLE ROW LEVEL SECURITY;
+ALTER TABLE market_radar_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE market_radar_routing_clusters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE market_radar_competition ENABLE ROW LEVEL SECURITY;
 
 -- Authenticated users: read-only SELECT
-CREATE POLICY "Authenticated users can read events"
-  ON market_radar.events
+DROP POLICY IF EXISTS "mr_auth_read_events" ON market_radar_events;
+CREATE POLICY "mr_auth_read_events"
+  ON market_radar_events
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Authenticated users can read routing_clusters"
-  ON market_radar.routing_clusters
+DROP POLICY IF EXISTS "mr_auth_read_routing_clusters" ON market_radar_routing_clusters;
+CREATE POLICY "mr_auth_read_routing_clusters"
+  ON market_radar_routing_clusters
   FOR SELECT
   TO authenticated
   USING (true);
 
-CREATE POLICY "Authenticated users can read competition"
-  ON market_radar.competition
+DROP POLICY IF EXISTS "mr_auth_read_competition" ON market_radar_competition;
+CREATE POLICY "mr_auth_read_competition"
+  ON market_radar_competition
   FOR SELECT
   TO authenticated
   USING (true);
 
 -- Service role: full access on all tables
-CREATE POLICY "Service role full access on events"
-  ON market_radar.events
+DROP POLICY IF EXISTS "mr_service_full_events" ON market_radar_events;
+CREATE POLICY "mr_service_full_events"
+  ON market_radar_events
   FOR ALL
   TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Service role full access on routing_clusters"
-  ON market_radar.routing_clusters
+DROP POLICY IF EXISTS "mr_service_full_routing_clusters" ON market_radar_routing_clusters;
+CREATE POLICY "mr_service_full_routing_clusters"
+  ON market_radar_routing_clusters
   FOR ALL
   TO service_role
   USING (true)
   WITH CHECK (true);
 
-CREATE POLICY "Service role full access on competition"
-  ON market_radar.competition
+DROP POLICY IF EXISTS "mr_service_full_competition" ON market_radar_competition;
+CREATE POLICY "mr_service_full_competition"
+  ON market_radar_competition
   FOR ALL
   TO service_role
   USING (true)

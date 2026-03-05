@@ -47,6 +47,15 @@ export async function GET(request: Request) {
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    // Check if the table doesn't exist yet
+    if (message.includes('relation') && message.includes('does not exist')) {
+      return NextResponse.json({
+        error: 'Market Radar tables not created yet. Run the migration SQL in Supabase SQL Editor: plans/market-radar-migration.sql',
+        events: [],
+        total: 0,
+        needsMigration: true,
+      });
+    }
     return NextResponse.json(
       { error: message, events: [], total: 0 },
       { status: 500 }

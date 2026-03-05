@@ -47,6 +47,34 @@ export default function MarketRadarPage() {
   const [cities, setCities] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<string | null>(null);
+
+  const runScan = async () => {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const res = await fetch('/api/cron/scan-events', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${prompt('Enter your CRON_SECRET:')}` },
+      });
+      const data = await res.json();
+      if (data.error) {
+        setScanResult(`Error: ${data.error}`);
+      } else {
+        const c = data.collection || {};
+        setScanResult(`Scan complete: ${c.inserted || 0} new events, ${c.duplicates || 0} duplicates, ${data.routing?.clustersFound || 0} routing clusters`);
+        // Refresh data
+        fetchEvents();
+        fetchClusters();
+        fetchCompetitions();
+      }
+    } catch {
+      setScanResult('Scan failed — check CRON_SECRET');
+    } finally {
+      setScanning(false);
+    }
+  };
 
   // Fetch events
   const fetchEvents = useCallback(async () => {
@@ -163,10 +191,24 @@ export default function MarketRadarPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">🎯 Market Radar</h1>
-        <p className="text-gray-400 mt-1">Live event intelligence for the Shoals region</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">🎯 Market Radar</h1>
+          <p className="text-gray-400 mt-1">Live event intelligence for the Shoals region</p>
+        </div>
+        <button
+          onClick={runScan}
+          disabled={scanning}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+        >
+          {scanning ? '⏳ Scanning...' : '🔄 Run Scan'}
+        </button>
       </div>
+      {scanResult && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${scanResult.startsWith('Error') || scanResult.startsWith('Scan failed') ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`}>
+          {scanResult}
+        </div>
+      )}
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
