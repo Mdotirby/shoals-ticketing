@@ -77,11 +77,19 @@ export const COMPETITION_RADIUS_MILES = 50;
 // Scheduling
 // ============================================================
 
-/** How often (hours) the event scan job runs */
-export const SCAN_INTERVAL_HOURS = 6;
+/**
+ * How often (hours) the event scan job runs.
+ * Set to 24 for Vercel Hobby plan (min frequency = once/day).
+ * Reduce to 6 if upgrading to Vercel Pro.
+ */
+export const SCAN_INTERVAL_HOURS = 24;
 
-/** How often (hours) metrics / competition scoring runs */
-export const METRICS_INTERVAL_HOURS = 12;
+/**
+ * How often (hours) metrics / competition scoring runs.
+ * Set to 24 for Vercel Hobby plan (min frequency = once/day).
+ * Reduce to 12 if upgrading to Vercel Pro.
+ */
+export const METRICS_INTERVAL_HOURS = 24;
 
 // ============================================================
 // Notifications

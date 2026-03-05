@@ -5,11 +5,11 @@
   "crons": [
     {
       "path": "/api/cron/scan-events",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/update-metrics",
-      "schedule": "0 */12 * * *"
+      "schedule": "0 18 * * *"
     }
   ]
 }
