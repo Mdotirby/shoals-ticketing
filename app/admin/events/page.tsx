@@ -167,10 +167,10 @@ export default function AdminEventsPage() {
                     ${ev.price?.toFixed(2)}
                   </span>
                   <Link
-                    href={`/admin/events/${ev.id}/edit`}
+                    href={eventType === 'private' ? `/admin/private-events/${ev.id}` : `/admin/events/${ev.id}/edit`}
                     className="admin-sponsor-edit-btn"
                   >
-                    Edit
+                    {eventType === 'private' ? 'Manage' : 'Edit'}
                   </Link>
                   <button
                     className="admin-sponsor-delete-btn"

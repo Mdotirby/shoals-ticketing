@@ -104,7 +104,7 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   const partyValMaxW = CONTENT_WIDTH - 50 - 3; // max width for party info values
   doc.text("LESSOR:", MARGIN + 3, y);
   doc.setFont("helvetica", "normal");
-  const lessorLine = `${lessorName} on behalf of ${lessorCompany}`;
+  const lessorLine = `${lessorName} c/o ${lessorCompany}`;
   const lessorTrunc: string = doc.splitTextToSize(lessorLine, partyValMaxW)[0] || lessorLine;
   doc.text(lessorTrunc, MARGIN + 50, y);
   y += 5;

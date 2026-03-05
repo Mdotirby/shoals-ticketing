@@ -90,9 +90,10 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     showBuyerInfo: true,
     buyerInfo: {
       company: venue?.name || String(data.venue || ""),
-      contact: venue?.buyer_name || data.venue_contact || undefined,
-      phone: venue?.buyer_phone || data.venue_phone || undefined,
+      contact: venue?.contract_signatory || venue?.buyer_name || data.venue_contact || undefined,
       email: venue?.buyer_email || undefined,
+      phone: venue?.buyer_phone || data.venue_phone || undefined,
+      address: venue?.promoter_address || undefined,
     },
   });
 
@@ -101,9 +102,9 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const M = 7.5;    // medium text
   const H = 8;      // section header text
   const RH = 3.8;   // row height
-  const halfW = CONTENT_WIDTH / 2 - 3;
+  const halfW = CONTENT_WIDTH / 2 - 4;
   const leftX = MARGIN + 2;
-  const rightX = MARGIN + halfW + 6;
+  const rightX = MARGIN + halfW + 8;
 
   /** Draw a compact section header bar */
   const secH = (title: string, yPos: number, width?: number): number => {
@@ -118,11 +119,11 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     return yPos + 7;
   };
 
-  /** Draw compact label:value pair. Returns new Y. */
+  /** Draw compact label:value pair with text wrapping. Returns new Y. */
   const lv = (label: string, val: string, yPos: number, opts?: { x?: number; valX?: number; maxW?: number; color?: [number, number, number] }): number => {
     const x = opts?.x ?? leftX;
     const valXPos = opts?.valX ?? (x + 28);
-    const maxW = opts?.maxW ?? 55;
+    const maxW = opts?.maxW ?? 52;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(S);
     doc.setTextColor(80, 80, 80);
@@ -131,9 +132,11 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setFontSize(M);
     doc.setTextColor(...(opts?.color || [0, 0, 0]));
     const lines: string[] = doc.splitTextToSize(val || "—", maxW);
-    doc.text(lines[0], valXPos, yPos);
+    for (let i = 0; i < lines.length; i++) {
+      doc.text(lines[i], valXPos, yPos + i * RH);
+    }
     doc.setTextColor(0, 0, 0);
-    return yPos + RH;
+    return yPos + Math.max(1, lines.length) * RH;
   };
 
   // ════════════════════════════════════════════════════════

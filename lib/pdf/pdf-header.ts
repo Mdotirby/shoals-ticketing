@@ -363,6 +363,7 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, venueAddress ? 26 : 20, { align: "right" });
 
   // ── Buyer/Promoter info block (positioned under logo, left-aligned) ──
+  // Order: Company, Contract Signator, Email, Phone, Address
   if (showBuyerInfo && buyerInfo) {
     let infoY = 28; // below logo area
     doc.setFont("helvetica", "normal");
@@ -380,15 +381,16 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
       doc.text(buyerInfo.contact, MARGIN, infoY);
       infoY += 4;
     }
-    if (buyerInfo.address) {
-      doc.text(buyerInfo.address, MARGIN, infoY);
+    if (buyerInfo.email) {
+      doc.text(buyerInfo.email, MARGIN, infoY);
       infoY += 4;
     }
-    const contactParts: string[] = [];
-    if (buyerInfo.phone) contactParts.push(buyerInfo.phone);
-    if (buyerInfo.email) contactParts.push(buyerInfo.email);
-    if (contactParts.length) {
-      doc.text(contactParts.join("  |  "), MARGIN, infoY);
+    if (buyerInfo.phone) {
+      doc.text(buyerInfo.phone, MARGIN, infoY);
+      infoY += 4;
+    }
+    if (buyerInfo.address) {
+      doc.text(buyerInfo.address, MARGIN, infoY);
     }
   }
 
@@ -450,6 +452,7 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   }
 
   // ── LEFT side: Buyer info (below logo) ──
+  // Order: Company, Contract Signator, Email, Phone, Address
   if (showBuyerInfo && buyerInfo) {
     let infoY = logoBottomY;
     doc.setFontSize(7);
@@ -465,15 +468,16 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
       doc.text(buyerInfo.contact, MARGIN, infoY);
       infoY += 3.5;
     }
-    if (buyerInfo.address) {
-      doc.text(buyerInfo.address, MARGIN, infoY);
+    if (buyerInfo.email) {
+      doc.text(buyerInfo.email, MARGIN, infoY);
       infoY += 3.5;
     }
-    const contactParts: string[] = [];
-    if (buyerInfo.phone) contactParts.push(buyerInfo.phone);
-    if (buyerInfo.email) contactParts.push(buyerInfo.email);
-    if (contactParts.length) {
-      doc.text(contactParts.join("  |  "), MARGIN, infoY);
+    if (buyerInfo.phone) {
+      doc.text(buyerInfo.phone, MARGIN, infoY);
+      infoY += 3.5;
+    }
+    if (buyerInfo.address) {
+      doc.text(buyerInfo.address, MARGIN, infoY);
     }
   }
 

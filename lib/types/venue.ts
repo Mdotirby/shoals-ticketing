@@ -14,6 +14,8 @@ export type Venue = {
   buyer_phone: string | null;
   buyer_email: string | null;
   promoter_address: string | null;
+  lessor_name: string | null;
+  lessor_company: string | null;
   ticketing_fee: number | null;
   facility_fee: number | null;
   tax_rate: number | null;

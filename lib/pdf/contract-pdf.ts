@@ -34,18 +34,27 @@ export async function exportContractPDF(
   const eventVenueName = offer.venue ?? venue.name;
   const eventVenueAddr = offer.venue_address ?? venueFullAddress(venue);
 
+  // ── Lessor formatted name ──
+  const lessorFormatted = venue.lessor_name && venue.lessor_company
+    ? `${venue.lessor_name} c/o ${venue.lessor_company}`
+    : venue.lessor_name
+      ? `${venue.lessor_name} c/o ${venue.name}`
+      : venue.name;
+
   // ── HEADER ──
   let y = await addPdfHeader(doc, {
     title: "Performance Agreement",
     venueName: venue.name,
     venueAddress: venueFullAddress(venue),
     venueSlug: venue.slug,
+    logoUrl: venue.logo_url,
     showBuyerInfo: true,
     buyerInfo: {
-      company: venue.name,
-      contact: venue.buyer_name || offer.agent_name,
-      phone: venue.buyer_phone || offer.agent_phone,
-      email: venue.buyer_email || offer.agent_email,
+      company: lessorFormatted,
+      contact: venue.contract_signatory || venue.buyer_name || undefined,
+      email: venue.buyer_email || undefined,
+      phone: venue.buyer_phone || undefined,
+      address: venue.promoter_address || venueFullAddress(venue),
     },
   });
 
@@ -55,7 +64,7 @@ export async function exportContractPDF(
   doc.setTextColor(...DARK);
   y = drawParagraph(doc, `This Performance Agreement ("Agreement") is entered into by and between:`, y);
   y += 2;
-  y = drawParagraph(doc, `BUYER / PROMOTER: ${buyerName}, ${buyerAddr}`, y, { bold: true, indent: 5 });
+  y = drawParagraph(doc, `BUYER / PROMOTER: ${lessorFormatted}, ${buyerAddr}`, y, { bold: true, indent: 5 });
   y += 2;
   y = drawParagraph(doc, `ARTIST / PERFORMER: ${artistName}${offer.agency ? `, c/o ${offer.agency}` : ""}${offer.agent_name ? ` (Agent: ${offer.agent_name})` : ""}`, y, { bold: true, indent: 5 });
   y += 5;

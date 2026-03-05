@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Link from "next/link";
@@ -35,6 +36,9 @@ type EventForm = {
   contact_name: string;
   contact_phone: string;
   contact_email: string;
+  contact_company: string;
+  billing_address: string;
+  tax_exempt: boolean;
   notes: string;
   calendar_color: string;
   status: string;
@@ -116,6 +120,9 @@ function emptyForm(dateStr?: string): EventForm {
     contact_name: "",
     contact_phone: "",
     contact_email: "",
+    contact_company: "",
+    billing_address: "",
+    tax_exempt: false,
     notes: "",
     calendar_color: "",
     status: "published",
@@ -124,6 +131,7 @@ function emptyForm(dateStr?: string): EventForm {
 }
 
 export default function CalendarPage() {
+  const router = useRouter();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -279,6 +287,9 @@ export default function CalendarPage() {
       contact_name: event.contact_name || "",
       contact_phone: event.contact_phone || "",
       contact_email: event.contact_email || "",
+      contact_company: "",
+      billing_address: "",
+      tax_exempt: false,
       notes: event.notes || "",
       calendar_color: event.calendar_color || "",
       status: event.status || "published",
@@ -305,6 +316,9 @@ export default function CalendarPage() {
       contact_name: form.contact_name || null,
       contact_phone: form.contact_phone || null,
       contact_email: form.contact_email || null,
+      client_company: form.contact_company || null,
+      client_billing_address: form.billing_address || null,
+      tax_exempt: form.tax_exempt || false,
       notes: form.notes || null,
       calendar_color: form.calendar_color || null,
       status: form.status,
@@ -321,11 +335,20 @@ export default function CalendarPage() {
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch("/api/calendar", {
+        const res = await fetch("/api/calendar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        // Redirect to management hub for private events
+        if (form.event_type === "private" && res.ok) {
+          const created = await res.json().catch(() => null);
+          if (created?.id) {
+            setShowModal(false);
+            router.push(`/admin/private-events/${created.id}`);
+            return;
+          }
+        }
       }
       setShowModal(false);
       fetchEvents();
@@ -734,7 +757,7 @@ export default function CalendarPage() {
             {/* Contact Fields (shown for private events) */}
             {form.event_type === "private" && (
               <div style={{ marginBottom: 14, padding: 12, borderRadius: 8, background: "rgba(180,100,200,0.06)", border: "1px solid rgba(180,100,200,0.15)" }}>
-                <label style={{ ...labelStyle, color: "rgba(180,100,200,0.7)" }}>Client Contact Info</label>
+                <label style={{ ...labelStyle, color: "rgba(180,100,200,0.7)" }}>Client Information</label>
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginTop: 6 }}>
                   <div>
                     <label style={{ ...labelStyle, fontSize: 10 }}>Contact Name</label>
@@ -743,6 +766,27 @@ export default function CalendarPage() {
                       value={form.contact_name}
                       onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
                       placeholder="Client name"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Company</label>
+                    <input
+                      className="admin-form-input"
+                      value={form.contact_company}
+                      onChange={(e) => setForm({ ...form, contact_company: e.target.value })}
+                      placeholder="Company name"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Email</label>
+                    <input
+                      className="admin-form-input"
+                      type="email"
+                      value={form.contact_email}
+                      onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
+                      placeholder="client@example.com"
                       style={{ width: "100%" }}
                     />
                   </div>
@@ -757,17 +801,36 @@ export default function CalendarPage() {
                     />
                   </div>
                   <div style={isMobile ? {} : { gridColumn: "span 2" }}>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Email</label>
+                    <label style={{ ...labelStyle, fontSize: 10 }}>Billing Address</label>
                     <input
                       className="admin-form-input"
-                      type="email"
-                      value={form.contact_email}
-                      onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-                      placeholder="client@example.com"
+                      value={form.billing_address}
+                      onChange={(e) => setForm({ ...form, billing_address: e.target.value })}
+                      placeholder="123 Main St, City, State 12345"
                       style={{ width: "100%" }}
                     />
                   </div>
+                  <div style={isMobile ? {} : { gridColumn: "span 2" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                      <input
+                        type="checkbox"
+                        checked={form.tax_exempt}
+                        onChange={(e) => setForm({ ...form, tax_exempt: e.target.checked })}
+                        style={{ accentColor: "rgba(180,100,200,0.7)" }}
+                      />
+                      Tax Exempt
+                    </label>
+                  </div>
                 </div>
+                <p style={{ marginTop: 8, fontSize: 10, color: "rgba(180,100,200,0.5)" }}>
+                  <a
+                    href={`/admin/events/new?date=${form.date}&type=private`}
+                    style={{ color: "rgba(180,100,200,0.7)", textDecoration: "underline" }}
+                    onClick={(e) => { e.preventDefault(); setShowModal(false); router.push(`/admin/events/new?date=${form.date}&type=private`); }}
+                  >
+                    Need more fields? Use the full event form →
+                  </a>
+                </p>
               </div>
             )}
 
@@ -869,12 +932,18 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            {/* Link to full event editor for hard ticket events */}
-            {editingEvent && (editingEvent.event_type === "hard_ticket" || editingEvent.event_type === "ticketed" || !editingEvent.event_type) && (
+            {/* Link to full event editor / management hub */}
+            {editingEvent && (
               <p style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
-                  Open full event editor →
-                </a>
+                {editingEvent.event_type === "private" ? (
+                  <a href={`/admin/private-events/${editingEvent.id}`} style={{ color: "rgba(180,100,200,0.6)", textDecoration: "underline" }}>
+                    Open Private Event Management Hub →
+                  </a>
+                ) : (
+                  <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
+                    Open full event editor →
+                  </a>
+                )}
               </p>
             )}
           </div>
