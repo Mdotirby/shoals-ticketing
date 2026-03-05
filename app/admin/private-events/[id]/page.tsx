@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useVenue } from "@/app/components/VenueContext";
 import Link from "next/link";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 // ── Types ──────────────────────────────────────────────────────────
 type EventData = {
@@ -492,7 +493,7 @@ function ClientDetailsTab({ event, onUpdate }: { event: EventData; onUpdate: () 
           </div>
           <div>
             <label style={labelStyle}>Phone</label>
-            <input style={inputStyle} value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: e.target.value })} />
+            <input style={inputStyle} value={form.client_phone} onChange={(e) => setForm({ ...form, client_phone: formatPhoneNumber(e.target.value) })} />
           </div>
           <div style={{ gridColumn: "1 / -1" }}>
             <label style={labelStyle}>Billing Address</label>

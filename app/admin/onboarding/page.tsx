@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 type OnboardingType = "venue" | "organizer" | "artist" | "partner" | "agent";
 type Step = "form" | "admin" | "done";
@@ -545,7 +546,7 @@ export default function AdminOnboardingPage() {
             </label>
             <label className="admin-form-label">
               Phone
-              <input type="tel" className="admin-form-input" value={organizer.phone} onChange={(e) => setOrganizer({ ...organizer, phone: e.target.value })} />
+              <input type="tel" className="admin-form-input" value={organizer.phone} onChange={(e) => setOrganizer({ ...organizer, phone: formatPhoneNumber(e.target.value) })} />
             </label>
           </div>
 
@@ -598,7 +599,7 @@ export default function AdminOnboardingPage() {
             </label>
             <label className="admin-form-label">
               Management Phone
-              <input type="tel" className="admin-form-input" value={artist.mgmt_phone} onChange={(e) => setArtist({ ...artist, mgmt_phone: e.target.value })} />
+              <input type="tel" className="admin-form-input" value={artist.mgmt_phone} onChange={(e) => setArtist({ ...artist, mgmt_phone: formatPhoneNumber(e.target.value) })} />
             </label>
           </div>
 
@@ -657,7 +658,7 @@ export default function AdminOnboardingPage() {
             </label>
             <label className="admin-form-label">
               Phone
-              <input type="tel" className="admin-form-input" value={agent.phone} onChange={(e) => setAgent({ ...agent, phone: e.target.value })} />
+              <input type="tel" className="admin-form-input" value={agent.phone} onChange={(e) => setAgent({ ...agent, phone: formatPhoneNumber(e.target.value) })} />
             </label>
             <label className="admin-form-label admin-form-full">
               Agency Name *
@@ -714,7 +715,7 @@ export default function AdminOnboardingPage() {
             </label>
             <label className="admin-form-label">
               Phone
-              <input type="tel" className="admin-form-input" value={partner.phone} onChange={(e) => setPartner({ ...partner, phone: e.target.value })} />
+              <input type="tel" className="admin-form-input" value={partner.phone} onChange={(e) => setPartner({ ...partner, phone: formatPhoneNumber(e.target.value) })} />
             </label>
           </div>
 

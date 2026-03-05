@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { startSessionManager, touchActivity } from "@/lib/sessionManager";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import Footer from "@/app/components/Footer";
 import ImageCropper from "@/app/components/ImageCropper";
 
@@ -577,7 +578,7 @@ export default function PortalPage() {
               <div className="admin-form-grid" style={{ marginTop: 8 }}>
                 <label className="admin-form-label">Buyer Name<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={venueForm.buyer_name} onChange={(e) => setVenueForm({ ...venueForm, buyer_name: e.target.value })} /></label>
                 <label className="admin-form-label">Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={venueForm.contract_signatory} onChange={(e) => setVenueForm({ ...venueForm, contract_signatory: e.target.value })} /></label>
-                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={venueForm.buyer_phone} onChange={(e) => setVenueForm({ ...venueForm, buyer_phone: e.target.value })} /></label>
+                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={venueForm.buyer_phone} onChange={(e) => setVenueForm({ ...venueForm, buyer_phone: formatPhoneNumber(e.target.value) })} /></label>
                 <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={venueForm.buyer_email} onChange={(e) => setVenueForm({ ...venueForm, buyer_email: e.target.value })} /></label>
                 <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={venueForm.promoter_address} onChange={(e) => setVenueForm({ ...venueForm, promoter_address: e.target.value })} /></label>
               </div>
@@ -627,7 +628,7 @@ export default function PortalPage() {
               <div className="admin-form-grid" style={{ marginTop: 8 }}>
                 <label className="admin-form-label">Buyer Name<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={ownerBuyer.buyer_name} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_name: e.target.value })} /></label>
                 <label className="admin-form-label">Contract Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={ownerBuyer.contract_signatory} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, contract_signatory: e.target.value })} /></label>
-                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={ownerBuyer.buyer_phone} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_phone: e.target.value })} /></label>
+                <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={ownerBuyer.buyer_phone} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_phone: formatPhoneNumber(e.target.value) })} /></label>
                 <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={ownerBuyer.buyer_email} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, buyer_email: e.target.value })} /></label>
                 <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={ownerBuyer.promoter_address} onChange={(e) => setOwnerBuyer({ ...ownerBuyer, promoter_address: e.target.value })} /></label>
               </div>

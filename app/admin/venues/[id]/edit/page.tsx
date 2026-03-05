@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 export default function AdminEditVenuePage() {
   const { id } = useParams() as { id: string };
@@ -168,7 +169,7 @@ export default function AdminEditVenuePage() {
         <div className="admin-form-grid">
           <label className="admin-form-label">Buyer Name<input type="text" className="admin-form-input" value={form.buyer_name} onChange={(e) => setForm({ ...form, buyer_name: e.target.value })} /></label>
           <label className="admin-form-label">Signatory<input type="text" className="admin-form-input" value={form.contract_signatory} onChange={(e) => setForm({ ...form, contract_signatory: e.target.value })} /></label>
-          <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" value={form.buyer_phone} onChange={(e) => setForm({ ...form, buyer_phone: e.target.value })} /></label>
+          <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" value={form.buyer_phone} onChange={(e) => setForm({ ...form, buyer_phone: formatPhoneNumber(e.target.value) })} /></label>
           <label className="admin-form-label">Email<input type="email" className="admin-form-input" value={form.buyer_email} onChange={(e) => setForm({ ...form, buyer_email: e.target.value })} /></label>
           <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" value={form.promoter_address} onChange={(e) => setForm({ ...form, promoter_address: e.target.value })} /></label>
         </div>

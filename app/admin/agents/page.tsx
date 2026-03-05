@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 type Agent = {
   id: string;
@@ -269,7 +270,7 @@ export default function AdminAgentsPage() {
                 <label className="admin-form-label">
                   Phone
                   <input type="tel" className="admin-form-input" value={editForm.agent_phone}
-                    onChange={(e) => setEditForm({ ...editForm, agent_phone: e.target.value })} />
+                    onChange={(e) => setEditForm({ ...editForm, agent_phone: formatPhoneNumber(e.target.value) })} />
                 </label>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 16 }}>

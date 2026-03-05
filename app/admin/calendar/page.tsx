@@ -371,7 +371,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="admin-form-page">
+    <div className="admin-form-page" style={{ maxWidth: "100%" }}>
       <h1 className="admin-page-title" style={isMobile ? { fontSize: 20, marginBottom: 4 } : undefined}>Calendar</h1>
       {!isMobile && (
         <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>

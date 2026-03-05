@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   EmbeddedCheckoutProvider,
@@ -376,8 +377,8 @@ function BoxOfficeContent() {
             <input
               type="tel"
               value={buyerPhone}
-              onChange={(e) => setBuyerPhone(e.target.value)}
-              placeholder="(555) 555-1234"
+              onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
+              placeholder="(555)-555-1234"
               style={{
                 width: "100%",
                 padding: "12px 14px",

@@ -8,6 +8,7 @@ import type { Venue } from "@/lib/types/venue";
 import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { exportOfferPDF } from "@/lib/pdf/offer-pdf";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -317,7 +318,7 @@ export default function AdminOfferDetailPage() {
           <label className="admin-form-label">Venue<input type="text" className="admin-form-input" value={String(form.venue || "")} onChange={(e) => updateField("venue", e.target.value)} /></label>
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" value={String(form.venue_address || "")} onChange={(e) => updateField("venue_address", e.target.value)} /></label>
           <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" value={String(form.venue_contact || "")} onChange={(e) => updateField("venue_contact", e.target.value)} /></label>
-          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" value={String(form.venue_phone || "")} onChange={(e) => updateField("venue_phone", e.target.value)} /></label>
+          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" value={String(form.venue_phone || "")} onChange={(e) => updateField("venue_phone", formatPhoneNumber(e.target.value))} /></label>
         </div>
 
         <h2 className="admin-form-section-title">Agency & Artist</h2>
@@ -325,7 +326,7 @@ export default function AdminOfferDetailPage() {
           <label className="admin-form-label">Artist Name<input type="text" className="admin-form-input" value={String(form.artist_name || "")} onChange={(e) => updateField("artist_name", e.target.value)} /></label>
           <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={String(form.agency || "")} onChange={(e) => updateField("agency", e.target.value)} /></label>
           <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={String(form.agent_name || "")} onChange={(e) => updateField("agent_name", e.target.value)} /></label>
-          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={String(form.agent_phone || "")} onChange={(e) => updateField("agent_phone", e.target.value)} /></label>
+          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={String(form.agent_phone || "")} onChange={(e) => updateField("agent_phone", formatPhoneNumber(e.target.value))} /></label>
           <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={String(form.agent_email || "")} onChange={(e) => updateField("agent_email", e.target.value)} /></label>
           <label className="admin-form-label">Event Date
             <select className="admin-form-input" value={form.event_date ? "date" : "ma"} onChange={(e) => { if (e.target.value === "ma") updateField("event_date", null); }}>
@@ -370,7 +371,7 @@ export default function AdminOfferDetailPage() {
               <span className="offer-calc-cell" style={{ minWidth: 50, fontSize: 12 }}>{r.sellable_cap || 0} sell</span>
             </div>
           ))}
-          <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 }])}>+ Add Tier</button>
+          <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0, ticketing_fee: 0 }])}>+ Add Tier</button>
         </div>
 
         {/* ── Fixed Expenses ── */}

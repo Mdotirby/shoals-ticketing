@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useState } from "react";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -153,8 +154,8 @@ function CheckoutContent() {
               id="buyer-phone"
               type="tel"
               value={buyerPhone}
-              onChange={(e) => setBuyerPhone(e.target.value)}
-              placeholder="(555) 555-1234"
+              onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
+              placeholder="(555)-555-1234"
             />
           </div>
 

@@ -6,7 +6,7 @@
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem } from "../types/offer";
 import type { Venue } from "../types/venue";
 import {
-  addPdfHeader, drawFooter, drawSectionHeader, ensureSpace,
+  addPdfHeader, drawFooter,
   sanitize, formatTime12hr,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -78,7 +78,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
       .filter(Boolean).join(", ") || ""
   );
 
-  // ── HEADER (keep existing compact header) ──
+  // ── HEADER (compact with buyer info LEFT, venue RIGHT) ──
   let y = await addPdfHeader(doc, {
     title: "Artist Offer",
     venueName,
@@ -96,135 +96,142 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     },
   });
 
-  // ── Font constants (readable multi-page sizes) ──
-  const LABEL_FONT = 9;
-  const VALUE_FONT = 10;
-  const ROW_H = 5.5;
+  // ── Compact font constants for 1-page layout ──
+  const S = 7;      // small text
+  const M = 7.5;    // medium text
+  const H = 8;      // section header text
+  const RH = 3.8;   // row height
+  const halfW = CONTENT_WIDTH / 2 - 3;
+  const leftX = MARGIN + 2;
+  const rightX = MARGIN + halfW + 6;
 
-  // Label-value positions (full-width single column)
-  const labelX = MARGIN + 3;
-  const valueX = MARGIN + 50;
-  const maxValueW = CONTENT_WIDTH - 50 - 3;
-
-  /**
-   * Draw a label:value row at full width with text wrapping.
-   * Returns the new Y position.
-   */
-  const labelVal = (label: string, val: string, yPos: number, valueColor?: [number, number, number]): number => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(VALUE_FONT);
-    const lines: string[] = doc.splitTextToSize(val || "—", maxValueW);
-    const totalH = Math.max(ROW_H, lines.length * ROW_H);
-    yPos = ensureSpace(doc, totalH + 1, yPos);
-
-    // Label
+  /** Draw a compact section header bar */
+  const secH = (title: string, yPos: number, width?: number): number => {
+    const w = width ?? CONTENT_WIDTH;
+    doc.setFillColor(...DARK);
+    doc.rect(MARGIN, yPos, w, 5.5, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(LABEL_FONT);
-    doc.setTextColor(...(valueColor || [80, 80, 80]));
-    doc.text(`${label}:`, labelX, yPos);
+    doc.setFontSize(H);
+    doc.setTextColor(...GOLD);
+    doc.text(title.toUpperCase(), MARGIN + 2, yPos + 3.8);
+    doc.setTextColor(...DARK);
+    return yPos + 7;
+  };
 
-    // Value
-    doc.setFont("helvetica", valueColor ? "bold" : "normal");
-    doc.setFontSize(VALUE_FONT);
-    doc.setTextColor(...(valueColor || [0, 0, 0]));
-    for (let i = 0; i < lines.length; i++) {
-      doc.text(lines[i], valueX, yPos + i * ROW_H);
-    }
+  /** Draw compact label:value pair. Returns new Y. */
+  const lv = (label: string, val: string, yPos: number, opts?: { x?: number; valX?: number; maxW?: number; color?: [number, number, number] }): number => {
+    const x = opts?.x ?? leftX;
+    const valXPos = opts?.valX ?? (x + 28);
+    const maxW = opts?.maxW ?? 55;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(S);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`${label}:`, x, yPos);
+    doc.setFont("helvetica", opts?.color ? "bold" : "normal");
+    doc.setFontSize(M);
+    doc.setTextColor(...(opts?.color || [0, 0, 0]));
+    const lines: string[] = doc.splitTextToSize(val || "—", maxW);
+    doc.text(lines[0], valXPos, yPos);
     doc.setTextColor(0, 0, 0);
-    return yPos + totalH;
+    return yPos + RH;
   };
 
   // ════════════════════════════════════════════════════════
-  //  VENUE — full-width section
+  //  VENUE + AGENCY/ARTIST — two columns
   // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Venue", y);
-  y = labelVal("Venue", String(data.venue || "—"), y);
-  y = labelVal("Address", String(data.venue_address || "—"), y);
-  if (data.venue_contact) y = labelVal("Contact", String(data.venue_contact), y);
-  if (data.venue_phone) y = labelVal("Phone", String(data.venue_phone), y);
-  if (data.venue_capacity) y = labelVal("Capacity", String(data.venue_capacity), y);
-  y += 2;
+  y = secH("Venue & Artist", y);
+  const infoStartY = y;
 
-  // ════════════════════════════════════════════════════════
-  //  AGENCY / ARTIST — full-width section
-  // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Agency / Artist", y);
-  y = labelVal("Artist", String(data.artist_name || "—"), y);
-  y = labelVal("Agency", String(data.agency || "—"), y);
-  y = labelVal("Agent", String(data.agent_name || "—"), y);
-  y = labelVal("Phone", String(data.agent_phone || "—"), y);
-  y = labelVal("Email", String(data.agent_email || "—"), y);
+  // Left column: Venue
+  let ly = infoStartY;
+  ly = lv("Venue", String(data.venue || "—"), ly);
+  ly = lv("Address", String(data.venue_address || "—"), ly, { maxW: 50 });
+  if (data.venue_contact) ly = lv("Contact", String(data.venue_contact), ly);
+  if (data.venue_phone) ly = lv("Phone", String(data.venue_phone), ly);
+  if (data.venue_capacity) ly = lv("Capacity", String(data.venue_capacity), ly);
+
+  // Right column: Agency/Artist
+  let ry = infoStartY;
+  const rValX = rightX + 24;
+  ry = lv("Artist", String(data.artist_name || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Agency", String(data.agency || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Agent", String(data.agent_name || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Phone", String(data.agent_phone || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Email", String(data.agent_email || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
   const dateStr = data.event_date
     ? new Date(String(data.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString()
     : "TBD";
-  y = labelVal("Date", dateStr, y);
-  y = labelVal("# of Shows", String(data.num_shows || 1), y);
-  y = labelVal("Show Length", String(data.show_length || "—"), y);
-  y = labelVal("Show Time", formatTime12hr(String(data.show_time || "")) || "—", y);
-  y = labelVal("Billing", String(data.billing || "—"), y);
-  y += 2;
+  ry = lv("Date", dateStr, ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Shows", `${data.num_shows || 1} × ${data.show_length || "—"}`, ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Show Time", formatTime12hr(String(data.show_time || "")) || "—", ry, { x: rightX, valX: rValX, maxW: 50 });
+  ry = lv("Billing", String(data.billing || "—"), ry, { x: rightX, valX: rValX, maxW: 50 });
+
+  y = Math.max(ly, ry) + 1;
 
   // ════════════════════════════════════════════════════════
-  //  DEAL — full-width section, single column
+  //  DEAL — two columns (left/right split)
   // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Deal", y);
-  y = labelVal("Guarantee", `$${Number(data.guarantee || 0).toLocaleString()}`, y);
-  y = labelVal("Deal Type", String(data.deal_type || "FLAT"), y);
-  y = labelVal("Backend %", `${data.backend_percentage || 0}%`, y);
-  y = labelVal("Radius", `${data.radius_distance || "—"} miles  |  ${data.radius_days_prior || "—"} days prior  |  ${data.radius_days_after || "—"} days after`, y);
-  y = labelVal("Production By", String(data.production_by || "—"), y);
-  y = labelVal("Other Terms", String(data.other_terms || "—"), y);
-  y = labelVal("Deposit", `$${Number(data.deposit_amount || 0).toLocaleString()} (${data.deposit_pct || 0}%)`, y);
-  y = labelVal("Deposit Due", String(data.deposit_due || "—"), y);
-  y = labelVal("Balance Due", String(data.balance_due || "Day of Show"), y);
-  y = labelVal("Merch Split", String(data.merch_split || "—"), y);
-  y = labelVal("Merch Seller", String(data.merch_seller || "—"), y);
-  y = labelVal("Total Comps", String(data.comps || 0), y);
-  y = labelVal("Artist Comps", String(data.artist_comps || 0), y);
-  y = labelVal("Marketing Comps", String(data.marketing_comps || 0), y);
-  y += 2;
+  y = secH("Deal", y);
+  const dealStartY = y;
+
+  // Left column
+  let dlY = dealStartY;
+  dlY = lv("Guarantee", `$${Number(data.guarantee || 0).toLocaleString()}`, dlY);
+  dlY = lv("Deal Type", String(data.deal_type || "FLAT"), dlY);
+  dlY = lv("Backend %", `${data.backend_percentage || 0}%`, dlY);
+  dlY = lv("Radius", `${data.radius_distance || "—"}mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, dlY, { maxW: 50 });
+  dlY = lv("Production", String(data.production_by || "—"), dlY);
+  dlY = lv("Other Terms", String(data.other_terms || "—"), dlY, { maxW: 50 });
+
+  // Right column
+  let drY = dealStartY;
+  drY = lv("Deposit", `$${Number(data.deposit_amount || 0).toLocaleString()} (${data.deposit_pct || 0}%)`, drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Dep. Due", String(data.deposit_due || "—"), drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Bal. Due", String(data.balance_due || "Day of Show"), drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Merch", String(data.merch_split || "—"), drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Seller", String(data.merch_seller || "—"), drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Comps", `${data.comps || 0} total | ${data.artist_comps || 0} artist | ${data.marketing_comps || 0} mktg`, drY, { x: rightX, valX: rValX, maxW: 50 });
+
+  y = Math.max(dlY, drY) + 1;
 
   // ════════════════════════════════════════════════════════
-  //  TICKET SCALING — full-width table
+  //  TICKET SCALING — compact table
   // ════════════════════════════════════════════════════════
   const scaling = (data.ticket_scaling || []) as TicketScalingRow[];
   if (scaling.length > 0) {
-    y = drawSectionHeader(doc, "Ticket Scaling", y);
+    y = secH("Ticket Scaling", y);
 
-    // Column positions across full width
     const tCols = [
       MARGIN + 2,    // Tier name
-      MARGIN + 38,   // Seats
-      MARGIN + 54,   // Comps
-      MARGIN + 68,   // Kills
-      MARGIN + 82,   // Sellable
-      MARGIN + 100,  // Net Price
-      MARGIN + 118,  // Fac. Fee
-      MARGIN + 136,  // Tkt Fee
-      MARGIN + 152,  // Price
-      MARGIN + 168,  // Gross
+      MARGIN + 32,   // Seats
+      MARGIN + 46,   // Comps
+      MARGIN + 58,   // Kills
+      MARGIN + 70,   // Sellable
+      MARGIN + 86,   // Net Price
+      MARGIN + 104,  // Fac. Fee
+      MARGIN + 120,  // Tkt Fee
+      MARGIN + 136,  // Price
+      MARGIN + 154,  // Gross
     ];
-    const tHeaders = ["Scaling", "# Seats", "Comps", "Kills", "Sellable", "Net Price", "Fac. Fee", "Tkt Fee", "Price", "Gross"];
+    const tHeaders = ["Scaling", "Seats", "Comps", "Kills", "Sell", "Net $", "Fac.", "Tkt.", "Price", "Gross"];
 
-    // Header row with background
-    y = ensureSpace(doc, 10, y);
+    // Header row
     doc.setFillColor(...LIGHT_GRAY);
-    doc.rect(MARGIN, y - 2, CONTENT_WIDTH, 6, "F");
+    doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 4.5, "F");
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
+    doc.setFontSize(6.5);
     doc.setTextColor(80, 80, 80);
-    tHeaders.forEach((h, i) => doc.text(h, tCols[i], y + 2));
-    y += 7;
+    tHeaders.forEach((h, i) => doc.text(h, tCols[i], y + 1.5));
+    y += 5;
 
     // Data rows
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setTextColor(0, 0, 0);
     const tierMaxW = tCols[1] - tCols[0] - 2;
     for (const r of scaling) {
-      y = ensureSpace(doc, ROW_H + 1, y);
       const facFee = r.facility_fee || 0;
-      const tktFee = r.price - (r.net_price || 0) - facFee;
+      const tktFee = r.ticketing_fee || (r.price - (r.net_price || 0) - facFee);
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
       const values = [
         tierName, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap),
@@ -232,164 +239,186 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
         `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`
       ];
       values.forEach((v, i) => doc.text(v, tCols[i], y));
-      y += ROW_H;
+      y += RH;
     }
-    y += 3;
+    y += 1;
   }
 
   // ════════════════════════════════════════════════════════
   //  EXPENSES — two columns (fixed left, variable right)
   // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Expenses", y);
+  y = secH("Expenses", y);
   const fe = (data.fixed_expenses || []) as ExpenseItem[];
   const ve = (data.variable_expenses || []) as VariableExpenseItem[];
 
-  const halfW = CONTENT_WIDTH / 2 - 2;
-  const leftX = MARGIN + 2;
-  const rightX = MARGIN + halfW + 6;
   const expStartY = y;
 
   // ── Fixed Expenses (left column) ──
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(6.5);
   doc.setTextColor(80, 80, 80);
-  doc.text("FIXED EXPENSES", leftX, y);
-  doc.text("Est.", leftX + 68, y);
-  let fixY = y + ROW_H;
+  doc.text("FIXED", leftX, y);
+  doc.text("Est.", leftX + 60, y);
+  let fixY = y + RH;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
   for (const e of fe) {
     if (e.amount > 0) {
-      fixY = ensureSpace(doc, ROW_H + 1, fixY);
-      const name = doc.splitTextToSize(e.name, 64)[0] || e.name;
+      const name = doc.splitTextToSize(e.name, 56)[0] || e.name;
       doc.text(name, leftX, fixY);
-      doc.text(`$${e.amount.toLocaleString()}`, leftX + 68, fixY);
-      fixY += ROW_H;
+      doc.text(`$${e.amount.toLocaleString()}`, leftX + 60, fixY);
+      fixY += RH;
     }
   }
-  fixY += 1;
+  fixY += 0.5;
   doc.setFont("helvetica", "bold");
   doc.text("Fixed Total", leftX, fixY);
-  doc.text(`$${Number(data.total_fixed || 0).toLocaleString()}`, leftX + 68, fixY);
-  fixY += ROW_H;
+  doc.text(`$${Number(data.total_fixed || 0).toLocaleString()}`, leftX + 60, fixY);
+  fixY += RH;
 
   // ── Variable Expenses (right column) ──
   let varY = expStartY;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(6.5);
   doc.setTextColor(80, 80, 80);
-  doc.text("VARIABLE EXPENSES", rightX, varY);
-  doc.text("Rate", rightX + 55, varY);
-  doc.text("$", rightX + 72, varY);
-  varY += ROW_H;
+  doc.text("VARIABLE", rightX, varY);
+  doc.text("Rate", rightX + 48, varY);
+  doc.text("$", rightX + 64, varY);
+  varY += RH;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(7);
   doc.setTextColor(0, 0, 0);
   for (const e of ve) {
     if (e.amount > 0) {
-      varY = ensureSpace(doc, ROW_H + 1, varY);
-      const name = doc.splitTextToSize(e.name, 52)[0] || e.name;
+      const name = doc.splitTextToSize(e.name, 44)[0] || e.name;
       doc.text(name, rightX, varY);
-      doc.text(`${(e.rate * 100).toFixed(2)}%`, rightX + 55, varY);
-      doc.text(`$${e.amount.toLocaleString()}`, rightX + 72, varY);
-      varY += ROW_H;
+      doc.text(`${(e.rate * 100).toFixed(2)}%`, rightX + 48, varY);
+      doc.text(`$${e.amount.toLocaleString()}`, rightX + 64, varY);
+      varY += RH;
     }
   }
-  varY += 1;
+  varY += 0.5;
   doc.setFont("helvetica", "bold");
   doc.text("Variable Total", rightX, varY);
-  doc.text(`$${Number(data.total_variable || 0).toLocaleString()}`, rightX + 72, varY);
-  varY += ROW_H;
+  doc.text(`$${Number(data.total_variable || 0).toLocaleString()}`, rightX + 64, varY);
+  varY += RH;
 
-  // Next section after taller expenses column
-  y = Math.max(fixY, varY) + 3;
+  y = Math.max(fixY, varY) + 1;
 
   // Total expenses highlight bar
-  y = ensureSpace(doc, 10, y);
   doc.setFillColor(...GOLD);
-  doc.rect(MARGIN, y - 1, CONTENT_WIDTH, 8, "F");
+  doc.rect(MARGIN, y - 0.5, CONTENT_WIDTH, 5.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(8);
   doc.setTextColor(...DARK);
-  doc.text(`Total Expenses:  $${Number(data.total_expenses || 0).toLocaleString()}`, MARGIN + 4, y + 4.5);
-  y += 12;
+  doc.text(`Total Expenses:  $${Number(data.total_expenses || 0).toLocaleString()}`, MARGIN + 3, y + 3);
+  y += 7.5;
 
   // ════════════════════════════════════════════════════════
-  //  REVENUE BREAKDOWN — full-width section
+  //  REVENUE BREAKDOWN + POTENTIAL AT SELLOUT — side by side
   // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Revenue Breakdown", y);
+  const revStartY = y;
+
+  // ── Left: Revenue Breakdown ──
+  const secHLeft = (title: string, yPos: number): number => {
+    doc.setFillColor(...DARK);
+    doc.rect(MARGIN, yPos, halfW + 2, 5.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(H);
+    doc.setTextColor(...GOLD);
+    doc.text(title.toUpperCase(), MARGIN + 2, yPos + 3.8);
+    doc.setTextColor(...DARK);
+    return yPos + 7;
+  };
+  const secHRight = (title: string, yPos: number): number => {
+    doc.setFillColor(...DARK);
+    doc.rect(rightX - 4, yPos, halfW + 5, 5.5, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(H);
+    doc.setTextColor(...GOLD);
+    doc.text(title.toUpperCase(), rightX - 2, yPos + 3.8);
+    doc.setTextColor(...DARK);
+    return yPos + 7;
+  };
+
+  let revY = secHLeft("Revenue Breakdown", revStartY);
   const totalSellable = scaling.reduce((s: number, r: TicketScalingRow) => s + (r.sellable_cap || 0), 0);
   const pdfFacilityFee = scaling.length > 0 ? (scaling[0] as TicketScalingRow).facility_fee || 0 : 0;
-  const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee) : 0;
+  const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).ticketing_fee || ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee)) : 0;
   const totalFacilityFeeRevenue = totalSellable * pdfFacilityFee;
   const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
 
-  y = labelVal("Facility Fee / Ticket", `$${pdfFacilityFee.toFixed(2)}`, y);
-  y = labelVal("Total Facility Fee Revenue", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-  y = labelVal("Ticketing Fee / Ticket", `$${pdfTicketingFee.toFixed(2)}`, y);
-  y = labelVal("Total Ticketing Fee Revenue", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-  y = labelVal("Combined Fee Revenue", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-  y += 2;
+  revY = lv("Fac. Fee/Tkt", `$${pdfFacilityFee.toFixed(2)}`, revY);
+  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
+  revY = lv("Tkt Fee/Tkt", `$${pdfTicketingFee.toFixed(2)}`, revY);
+  revY = lv("Total Tkt Rev", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
+  revY = lv("Combined Rev", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
 
-  // ════════════════════════════════════════════════════════
-  //  POTENTIAL AT SELLOUT — full-width section
-  // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Potential at Sellout", y);
-  y = labelVal("Gross Potential", `$${Number(data.gross_potential || 0).toLocaleString()}`, y);
-  y = labelVal("Adjusted Gross", `$${Number(data.adj_gross || 0).toLocaleString()}`, y);
+  // ── Right: Potential at Sellout ──
+  let potY = secHRight("Potential at Sellout", revStartY);
+  potY = lv("Gross Pot.", `$${Number(data.gross_potential || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Adj. Gross", `$${Number(data.adj_gross || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   const taxPct = Number(data.tax_rate || 0) * 100;
-  y = labelVal(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(data.adj_gross || 0) * Number(data.tax_rate || 0)).toFixed(2)}`, y);
-  y = labelVal("Net Potential", `$${Number(data.net_potential || 0).toLocaleString()}`, y);
-  y = labelVal("Total Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, y);
+  potY = lv(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(data.adj_gross || 0) * Number(data.tax_rate || 0)).toFixed(2)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Net Pot.", `$${Number(data.net_potential || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   if (data.deal_type !== "FLAT") {
-    y = labelVal("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, y);
+    potY = lv("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   }
-  y += 2;
+
+  y = Math.max(revY, potY) + 1;
 
   // ════════════════════════════════════════════════════════
-  //  ARTIST POTENTIAL AT SELLOUT — full-width section
+  //  ARTIST POTENTIAL AT SELLOUT — compact
   // ════════════════════════════════════════════════════════
-  y = drawSectionHeader(doc, "Artist Potential at Sellout", y);
+  y = secH("Artist Potential at Sellout", y);
 
   const guarantee = Number(data.guarantee || 0);
   const splitpoint = Number(data.splitpoint || 0);
   const backendPct = Number(data.backend_percentage || 0) / 100;
   const dealType = String(data.deal_type || "FLAT").toUpperCase();
 
-  y = labelVal("Guarantee", `$${guarantee.toLocaleString()}`, y);
+  // Draw inline: Guarantee + Backend + Artist Total on one or two lines
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(M);
+  doc.setTextColor(0, 0, 0);
+
+  let artistTotal = guarantee;
+  let backendAmt = 0;
+  let backendLabel = "";
 
   if (dealType === "VS") {
-    // VS: Artist Total = Splitpoint × Backend%, Backend = Artist Total - Guarantee
-    const artistTotal = splitpoint * backendPct;
-    const backendVS = Math.max(artistTotal - guarantee, 0);
-    y = labelVal("Backend (VS)", `$${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
-    y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
+    artistTotal = splitpoint * backendPct;
+    backendAmt = Math.max(artistTotal - guarantee, 0);
+    backendLabel = "Backend (VS)";
   } else if (dealType === "PLUS") {
-    // PLUS: Backend = Splitpoint × Backend%, Artist Total = Guarantee + Backend
-    const backendPlus = splitpoint * backendPct;
-    const artistTotal = guarantee + backendPlus;
-    y = labelVal("Backend (PLUS)", `$${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
-    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
-    y = labelVal("Artist Total", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
-  } else {
-    // FLAT — no backend, Artist Total = Guarantee
-    y += 2; doc.setDrawColor(...GOLD); doc.setLineWidth(0.3); doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y); y += 3;
-    y = labelVal("Artist Total", `$${guarantee.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, GOLD);
+    backendAmt = splitpoint * backendPct;
+    artistTotal = guarantee + backendAmt;
+    backendLabel = "Backend (PLUS)";
   }
-  y += 4;
+
+  y = lv("Guarantee", `$${guarantee.toLocaleString()}`, y);
+  if (backendLabel) {
+    y = lv(backendLabel, `$${backendAmt.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+  }
+  // Gold highlight for artist total
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.3);
+  doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
+  y += 1.5;
+  y = lv("ARTIST TOTAL", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, { color: GOLD });
+  y += 2;
 
   // ════════════════════════════════════════════════════════
-  //  OFFER VALIDITY — ensure it's visible (not cut off)
+  //  OFFER VALIDITY
   // ════════════════════════════════════════════════════════
-  y = ensureSpace(doc, 14, y);
   doc.setDrawColor(...MID_GRAY);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
-  y += 5;
+  y += 3;
   doc.setFont("helvetica", "italic");
-  doc.setFontSize(10);
+  doc.setFontSize(7);
   doc.setTextColor(100, 100, 100);
   doc.text(
     `Offer valid for ${data.offer_valid_days || 14} days from today: ${new Date().toLocaleDateString()}`,

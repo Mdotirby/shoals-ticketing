@@ -15,6 +15,7 @@ export type TicketScalingRow = {
   price: number;
   net_price: number;
   facility_fee: number;
+  ticketing_fee: number;
 };
 
 export type ExpenseItem = {

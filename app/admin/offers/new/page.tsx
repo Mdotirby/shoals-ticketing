@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
@@ -34,7 +35,7 @@ const DEFAULT_VARIABLE: VariableExpenseItem[] = [
 ];
 
 function emptyScalingRow(): TicketScalingRow {
-  return { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0 };
+  return { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0, ticketing_fee: 0 };
 }
 
 function emptyLineup(): ShowLineupItem {
@@ -224,7 +225,7 @@ export default function AdminCreateOfferPage() {
   const [guarantee, setGuarantee] = useState("");
   const [dealType, setDealType] = useState("FLAT");
   const [backendPct, setBackendPct] = useState("");
-  const [otherTerms, setOtherTerms] = useState("");
+  const [otherTerms, setOtherTerms] = useState("After taxes and approved expenses, Promoter to cover up to 3 hotel rooms (pending availability)");
   const [radiusDistance, setRadiusDistance] = useState("");
   const [radiusDaysPrior, setRadiusDaysPrior] = useState("");
   const [radiusDaysAfter, setRadiusDaysAfter] = useState("");
@@ -233,7 +234,7 @@ export default function AdminCreateOfferPage() {
   const [depositAmount, setDepositAmount] = useState("");
   const [depositDue, setDepositDue] = useState("");
   const [balanceDue, setBalanceDue] = useState("Day of Show");
-  const [merchSplit, setMerchSplit] = useState("100% Merch");
+  const [merchSplit, setMerchSplit] = useState("80/20 Soft, 90/10 Hard | Sells: Artist");
   const [merchSeller, setMerchSeller] = useState("Artist");
   const [comps, setComps] = useState("0");
   const [artistComps, setArtistComps] = useState("0");
@@ -327,6 +328,8 @@ export default function AdminCreateOfferPage() {
         if (i !== index) return r;
         const updated = { ...r, [field]: value };
         updated.sellable_cap = updated.seats - updated.comps - updated.kills;
+        updated.facility_fee = ff;
+        updated.ticketing_fee = tf;
         // Price = net_price + facility_fee + ticketing_fee
         updated.price = updated.net_price + ff + tf;
         return updated;
@@ -442,7 +445,7 @@ export default function AdminCreateOfferPage() {
           <label className="admin-form-label">Venue *<input type="text" className="admin-form-input" placeholder="e.g. The Shoals Theatre" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></label>
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Florence, AL 35630" value={venueAddressField} onChange={(e) => setVenueAddressField(e.target.value)} /></label>
           <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" placeholder="e.g. John Smith" value={venueContact} onChange={(e) => setVenueContact(e.target.value)} /></label>
-          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={venuePhone} onChange={(e) => setVenuePhone(e.target.value)} /></label>
+          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={venuePhone} onChange={(e) => setVenuePhone(formatPhoneNumber(e.target.value))} /></label>
         </div>
 
         {/* ═══ SECTION 1: Agency & Artist ═══ */}
@@ -461,7 +464,7 @@ export default function AdminCreateOfferPage() {
         <div className="admin-form-grid">
           <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={agency} onChange={(e) => setAgency(e.target.value)} /></label>
           <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
-          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(e.target.value)} /></label>
+          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(formatPhoneNumber(e.target.value))} /></label>
           <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} /></label>
           <label className="admin-form-label">Artist Name *<input type="text" className="admin-form-input" value={artistName} onChange={(e) => setArtistName(e.target.value)} required /></label>
           <label className="admin-form-label">Date of Engagement
@@ -501,7 +504,7 @@ export default function AdminCreateOfferPage() {
         <div className="admin-form-grid">
           <label className="admin-form-label">Buyer<input type="text" className="admin-form-input" placeholder="e.g. Acme Entertainment LLC" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} /></label>
           <label className="admin-form-label">Contract Signatory<input type="text" className="admin-form-input" placeholder="e.g. Jane Smith" value={contractSignatory} onChange={(e) => setContractSignatory(e.target.value)} /></label>
-          <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. 555-123-4567" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} /></label>
+          <label className="admin-form-label">Phone<input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={buyerPhone} onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))} /></label>
           <label className="admin-form-label">Email<input type="email" className="admin-form-input" placeholder="e.g. booking@company.com" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} /></label>
           <label className="admin-form-label admin-form-full">Promoter Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Nashville, TN 37201" value={promoterAddress} onChange={(e) => setPromoterAddress(e.target.value)} /></label>
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="Auto-filled from venue settings" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} /></label>
@@ -537,7 +540,7 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Ticket Scaling</h2>
         <div className="offer-scaling-table">
           <div className="offer-scaling-header">
-            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Price</span><span>Gross</span>
+            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Gross</span>
           </div>
           {scaling.map((r, i) => (
             <div key={i} className="offer-scaling-row">
@@ -547,6 +550,8 @@ export default function AdminCreateOfferPage() {
               <input type="number" className="admin-form-input" value={r.kills || ""} onChange={(e) => updateScaling(i, "kills", parseInt(e.target.value) || 0)} />
               <span className="offer-calc-cell">{r.sellable_cap}</span>
               <input type="number" className="admin-form-input" value={r.net_price || ""} onChange={(e) => updateScaling(i, "net_price", parseFloat(e.target.value) || 0)} step="0.01" />
+              <span className="offer-calc-cell">${(r.facility_fee || 0).toFixed(2)}</span>
+              <span className="offer-calc-cell">${(r.ticketing_fee || 0).toFixed(2)}</span>
               <span className="offer-calc-cell">${r.price.toFixed(2)}</span>
               <span className="offer-calc-cell">${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setScaling((p) => p.filter((_, j) => j !== i))}>✕</button>}
@@ -556,7 +561,7 @@ export default function AdminCreateOfferPage() {
         <div className="offer-scaling-footer">
           <button type="button" className="admin-tier-add-btn" onClick={() => setScaling((p) => [...p, { ...emptyScalingRow(), name: "General Admission" }])}>+ Add Tier</button>
           <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={facilityFee} onChange={(e) => { if (!isOwnerRole) return; setFacilityFee(e.target.value); const fee = parseFloat(e.target.value) || 0; const tFee = parseFloat(ticketingFee || "0"); setScaling((p) => p.map((r) => ({ ...r, facility_fee: fee, price: r.net_price + fee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
-          <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={ticketingFee} onChange={(e) => { if (!isOwnerRole) return; setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, price: r.net_price + fFee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
+          <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80, opacity: isOwnerRole ? 1 : 0.5 }} value={ticketingFee} onChange={(e) => { if (!isOwnerRole) return; setTicketingFee(e.target.value); const tFee = parseFloat(e.target.value) || 0; const fFee = parseFloat(facilityFee || "0"); setScaling((p) => p.map((r) => ({ ...r, ticketing_fee: tFee, price: r.net_price + fFee + tFee }))); }} readOnly={!isOwnerRole} step="0.01" title={isOwnerRole ? "" : "Set by platform owner"} /></label>
         </div>
         <div className="offer-totals-row">
           <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>

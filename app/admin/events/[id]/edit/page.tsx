@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
 
@@ -586,8 +587,8 @@ export default function AdminEditEventPage() {
                   name="contact_phone"
                   className="admin-form-input"
                   value={form.contact_phone}
-                  onChange={handleChange}
-                  placeholder="(555) 123-4567"
+                  onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
+                  placeholder="(555)-123-4567"
                 />
               </label>
               <label className="admin-form-label" style={{ gridColumn: "span 2" }}>

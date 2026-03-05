@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getCookie } from "@/lib/cookies";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -257,7 +258,7 @@ export default function AdminSettingsPage() {
               type="tel"
               className="admin-form-input"
               value={buyer.buyer_phone}
-              onChange={(e) => setBuyer({ ...buyer, buyer_phone: e.target.value })}
+              onChange={(e) => setBuyer({ ...buyer, buyer_phone: formatPhoneNumber(e.target.value) })}
             />
           </label>
           <label className="admin-form-label">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { BidderSession } from "@/lib/types/auction";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 
 export default function AuctionRegisterPage() {
   const params = useParams();
@@ -174,9 +175,9 @@ export default function AuctionRegisterPage() {
               type="tel"
               name="phone"
               value={form.phone}
-              onChange={handleChange}
+              onChange={(e) => setForm({ ...form, phone: formatPhoneNumber(e.target.value) })}
               className="auction-input"
-              placeholder="(555) 123-4567"
+              placeholder="(555)-123-4567"
               required
             />
           </div>

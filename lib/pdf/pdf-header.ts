@@ -408,7 +408,8 @@ export async function addPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
 
 /**
  * Compact header for single-page PDFs (offers).
- * ~22mm tall with logo, venue, buyer info, and NO title below.
+ * LEFT side: Logo on top, then buyer company, contact, phone | email
+ * RIGHT side: Venue name (large), venue address, generated date
  */
 async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise<number> {
   const {
@@ -420,7 +421,7 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
     buyerInfo,
   } = options;
 
-  const headerHeight = 22;
+  const headerHeight = 28;
 
   // ── Dark header background ──
   doc.setFillColor(...DARK);
@@ -433,9 +434,10 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
 
   // ── Logo (left, compact) ──
   const logo = await loadVenueLogo(venueSlug, logoUrl);
+  let logoBottomY = 4;
   if (logo) {
-    const maxLogoH = 14; // mm — compact
-    const maxLogoW = 32; // mm
+    const maxLogoH = 12; // mm — compact
+    const maxLogoW = 30; // mm
     const pxPerMm = logo.height / maxLogoH;
     let logoW = logo.width / pxPerMm;
     let logoH = maxLogoH;
@@ -443,36 +445,62 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
       logoH = logoH * (maxLogoW / logoW);
       logoW = maxLogoW;
     }
-    doc.addImage(logo.dataUrl, "PNG", MARGIN, 4, logoW, logoH);
+    doc.addImage(logo.dataUrl, "PNG", MARGIN, 3, logoW, logoH);
+    logoBottomY = 3 + logoH + 1;
   }
 
-  // ── Right side: venue name + address ──
+  // ── LEFT side: Buyer info (below logo) ──
+  if (showBuyerInfo && buyerInfo) {
+    let infoY = logoBottomY;
+    doc.setFontSize(7);
+    doc.setTextColor(...WHITE);
+
+    if (buyerInfo.company) {
+      doc.setFont("helvetica", "bold");
+      doc.text(buyerInfo.company, MARGIN, infoY);
+      doc.setFont("helvetica", "normal");
+      infoY += 3.5;
+    }
+    if (buyerInfo.contact) {
+      doc.text(buyerInfo.contact, MARGIN, infoY);
+      infoY += 3.5;
+    }
+    if (buyerInfo.address) {
+      doc.text(buyerInfo.address, MARGIN, infoY);
+      infoY += 3.5;
+    }
+    const contactParts: string[] = [];
+    if (buyerInfo.phone) contactParts.push(buyerInfo.phone);
+    if (buyerInfo.email) contactParts.push(buyerInfo.email);
+    if (contactParts.length) {
+      doc.text(contactParts.join("  |  "), MARGIN, infoY);
+    }
+  }
+
+  // ── RIGHT side: venue name (large) + address + date ──
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setTextColor(...GOLD);
-  doc.text(venueName, PAGE_WIDTH - MARGIN, 8, { align: "right" });
+  doc.text(venueName, PAGE_WIDTH - MARGIN, 10, { align: "right" });
 
   if (venueAddress) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...WHITE);
-    doc.text(venueAddress, PAGE_WIDTH - MARGIN, 13, { align: "right" });
+    doc.text(venueAddress, PAGE_WIDTH - MARGIN, 15, { align: "right" });
   }
 
-  // ── Buyer info (right-aligned, small) ──
-  if (showBuyerInfo && buyerInfo) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    doc.setTextColor(...LIGHT_TEXT);
-    const parts: string[] = [];
-    if (buyerInfo.contact) parts.push(buyerInfo.contact);
-    if (buyerInfo.phone) parts.push(buyerInfo.phone);
-    if (buyerInfo.email) parts.push(buyerInfo.email);
-    if (parts.length) {
-      doc.text(parts.join("  |  "), PAGE_WIDTH - MARGIN, 18, { align: "right" });
-    }
-  }
+  // Generated date
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...LIGHT_TEXT);
+  const dateStr = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, 20, { align: "right" });
 
   // No title below the header — saves vertical space
-  return headerHeight + 3;
+  return headerHeight + 2;
 }
