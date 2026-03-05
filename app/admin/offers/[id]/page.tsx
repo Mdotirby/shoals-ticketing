@@ -479,6 +479,8 @@ export default function AdminOfferDetailPage() {
                   buyer_phone: String(form.venue_phone || "") || null,
                   buyer_email: null,
                   promoter_address: null,
+                  lessor_name: "",
+                  lessor_company: "",
                   ticketing_fee: null,
                   facility_fee: null,
                   tax_rate: null,
