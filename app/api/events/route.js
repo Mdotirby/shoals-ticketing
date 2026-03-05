@@ -63,15 +63,16 @@ export async function POST(request) {
   //    (these are TEXT columns added by private-events-v2 migration; omitting
   //    them avoids errors if the migration hasn't been run yet or if an older
   //    schema has TIMESTAMPTZ columns with the same name).
+  const isPrivate = body.event_type === "private";
   const eventRow = {
     title: body.title,
     venue: body.venue,
     date: body.date,
-    price: body.price,
+    price: body.price ?? (isPrivate ? 0 : 0),
     ticketing_fee: body.ticketing_fee ?? 3.0,
     venue_rebate: body.venue_rebate ?? 0,
-    description: body.description || null,
-    image_url: body.image_url || null,
+    description: body.description || (isPrivate ? "" : null),
+    image_url: body.image_url || (isPrivate ? "" : null),
     status: body.status || "published",
     venue_id: body.venue_id || null,
     event_venue_id: body.event_venue_id || null,

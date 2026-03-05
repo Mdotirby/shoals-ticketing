@@ -1,6 +1,10 @@
 -- Private Events V2 Migration
 -- Adds client fields to events, lessor fields to venues, and attachments table
 
+-- Allow image_url and description to be NULL (private events don't require them)
+ALTER TABLE events ALTER COLUMN image_url DROP NOT NULL;
+ALTER TABLE events ALTER COLUMN description DROP NOT NULL;
+
 -- Venues: add lessor fields
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS lessor_name TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS lessor_company TEXT;
