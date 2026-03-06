@@ -21,6 +21,88 @@ const SE_US_STATES = new Set([
   'AL', 'TN', 'GA', 'MS', 'AR', 'KY', 'SC', 'NC', 'VA', 'FL',
 ]);
 
+/**
+ * Map of full US state names → two-letter codes.
+ * Bandsintown returns full state names in venue.region (e.g. "Alabama")
+ * while our filter uses two-letter codes (e.g. "AL").
+ */
+const STATE_NAME_TO_CODE: Record<string, string> = {
+  'alabama': 'AL',
+  'alaska': 'AK',
+  'arizona': 'AZ',
+  'arkansas': 'AR',
+  'california': 'CA',
+  'colorado': 'CO',
+  'connecticut': 'CT',
+  'delaware': 'DE',
+  'florida': 'FL',
+  'georgia': 'GA',
+  'hawaii': 'HI',
+  'idaho': 'ID',
+  'illinois': 'IL',
+  'indiana': 'IN',
+  'iowa': 'IA',
+  'kansas': 'KS',
+  'kentucky': 'KY',
+  'louisiana': 'LA',
+  'maine': 'ME',
+  'maryland': 'MD',
+  'massachusetts': 'MA',
+  'michigan': 'MI',
+  'minnesota': 'MN',
+  'mississippi': 'MS',
+  'missouri': 'MO',
+  'montana': 'MT',
+  'nebraska': 'NE',
+  'nevada': 'NV',
+  'new hampshire': 'NH',
+  'new jersey': 'NJ',
+  'new mexico': 'NM',
+  'new york': 'NY',
+  'north carolina': 'NC',
+  'north dakota': 'ND',
+  'ohio': 'OH',
+  'oklahoma': 'OK',
+  'oregon': 'OR',
+  'pennsylvania': 'PA',
+  'rhode island': 'RI',
+  'south carolina': 'SC',
+  'south dakota': 'SD',
+  'tennessee': 'TN',
+  'texas': 'TX',
+  'utah': 'UT',
+  'vermont': 'VT',
+  'virginia': 'VA',
+  'washington': 'WA',
+  'west virginia': 'WV',
+  'wisconsin': 'WI',
+  'wyoming': 'WY',
+  'district of columbia': 'DC',
+};
+
+/**
+ * Normalise a Bandsintown region string to a two-letter US state code.
+ *
+ * Handles both cases:
+ *  - Already a 2-letter code (e.g. "AL") → returns uppercased
+ *  - Full state name (e.g. "Alabama") → looks up in STATE_NAME_TO_CODE
+ *
+ * @returns Two-letter state code, or `null` if unrecognised
+ */
+function normalizeRegionToStateCode(region: string | undefined): string | null {
+  if (!region) return null;
+  const trimmed = region.trim();
+
+  // Already a 2-letter code?
+  if (trimmed.length === 2) {
+    return trimmed.toUpperCase();
+  }
+
+  // Try full state name lookup
+  const code = STATE_NAME_TO_CODE[trimmed.toLowerCase()];
+  return code ?? null;
+}
+
 /** Bandsintown API base URL */
 const BIT_BASE_URL = 'https://rest.bandsintown.com/artists';
 
@@ -92,8 +174,10 @@ export async function fetchBandsintownEvents(
       const response = await fetch(url);
 
       if (!response.ok) {
+        const body = await response.text().catch(() => '(unreadable)');
         console.error(
-          `[Bandsintown] HTTP ${response.status} for "${artist}": ${response.statusText}`
+          `[Bandsintown] HTTP ${response.status} for "${artist}": ${response.statusText}. ` +
+          `Body preview: ${body.slice(0, 200)}`
         );
         continue;
       }
@@ -103,19 +187,36 @@ export async function fetchBandsintownEvents(
       // The API returns an array of event objects (or an error object)
       if (!Array.isArray(json)) {
         console.warn(
-          `[Bandsintown] Unexpected response for "${artist}":`,
-          typeof json === 'object' ? JSON.stringify(json).slice(0, 200) : json
+          `[Bandsintown] Unexpected non-array response for "${artist}" ` +
+          `(type=${typeof json}): ${JSON.stringify(json).slice(0, 300)}`
         );
         continue;
       }
 
-      const events = json as RawBandsintownEvent[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events = json as any[];
 
-      // Filter to Southeast US states
-      const seEvents = events.filter((evt) => {
-        const region = evt.venue?.region?.toUpperCase().trim();
-        return region !== undefined && SE_US_STATES.has(region);
-      });
+      if (events.length === 0) {
+        console.log(`[Bandsintown] 0 events returned for "${artist}"`);
+        continue;
+      }
+
+      // Log first event shape for debugging field mapping
+      console.log(
+        `[Bandsintown] ${events.length} events returned for "${artist}". ` +
+        `First event keys: ${Object.keys(events[0]).join(', ')}. ` +
+        `Region sample: "${events[0]?.venue?.region}"`
+      );
+
+      // Filter to Southeast US states — normalise region to 2-letter code
+      const seEvents: RawBandsintownEvent[] = [];
+      for (const evt of events) {
+        const stateCode = normalizeRegionToStateCode(evt.venue?.region);
+        if (stateCode && SE_US_STATES.has(stateCode)) {
+          // Coerce the raw event into our typed shape, patching known field differences
+          seEvents.push(normalizeBandsintownRaw(evt));
+        }
+      }
 
       console.log(
         `[Bandsintown] ${seEvents.length}/${events.length} events in SE US for "${artist}"`
@@ -125,7 +226,7 @@ export async function fetchBandsintownEvents(
     } catch (err) {
       console.error(
         `[Bandsintown] Error fetching events for "${artist}":`,
-        err instanceof Error ? err.message : err
+        err instanceof Error ? `${err.message}\n${err.stack}` : err
       );
       // Continue with remaining artists — never throw
     }
@@ -136,4 +237,41 @@ export async function fetchBandsintownEvents(
   );
 
   return allEvents;
+}
+
+// ============================================================
+// Raw Response Normalisation
+// ============================================================
+
+/**
+ * Patch the raw Bandsintown API response object into the shape
+ * expected by {@link RawBandsintownEvent}.
+ *
+ * Key differences from the real API vs our original type:
+ *  - `id` is a number in the API → coerce to string
+ *  - `artist_id` doesn't exist as a flat field; artist info is in `artist.name`
+ *  - `tracker_count` may be on `artist` sub-object, not event root
+ *  - `venue.region` may be a full state name → normalise to 2-letter code
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeBandsintownRaw(raw: any): RawBandsintownEvent {
+  return {
+    id: String(raw.id ?? ''),
+    artist_id: raw.artist?.name ?? raw.artist_id ?? '',
+    url: raw.url ?? '',
+    datetime: raw.datetime ?? raw.starts_at ?? '',
+    title: raw.title ?? '',
+    description: raw.description ?? '',
+    venue: {
+      name: raw.venue?.name ?? 'Unknown Venue',
+      city: raw.venue?.city ?? 'Unknown',
+      region: normalizeRegionToStateCode(raw.venue?.region) ?? raw.venue?.region ?? 'Unknown',
+      country: raw.venue?.country ?? '',
+      latitude: String(raw.venue?.latitude ?? ''),
+      longitude: String(raw.venue?.longitude ?? ''),
+    },
+    lineup: Array.isArray(raw.lineup) ? raw.lineup : [],
+    offers: Array.isArray(raw.offers) ? raw.offers : [],
+    tracker_count: raw.tracker_count ?? raw.artist?.tracker_count ?? undefined,
+  };
 }

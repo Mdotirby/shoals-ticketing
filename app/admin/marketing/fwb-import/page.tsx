@@ -2,6 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { getCookie } from '@/lib/cookies';
+import { getSupabaseBrowser } from '@/lib/supabase-browser';
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const supabase = getSupabaseBrowser();
+  const { data: session } = await supabase.auth.getSession();
+  const token = session.session?.access_token || '';
+  const venueId = getCookie('venue-id') || '';
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    'x-venue-id': venueId,
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -105,7 +119,8 @@ export default function FWBImportPage() {
     setLoading(true);
     setPreviewError('');
     try {
-      const res = await fetch('/api/fwb/admin/import-subscribers');
+      const headers = await getAuthHeaders();
+      const res = await fetch('/api/fwb/admin/import-subscribers', { headers });
       const data = await res.json();
       if (data.error) {
         setPreviewError(data.error);
@@ -124,9 +139,10 @@ export default function FWBImportPage() {
     setLoading(true);
     setDryRunResult(null);
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/fwb/admin/import-subscribers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ dry_run: true, welcome_points: welcomePoints }),
       });
       const data = await res.json();
@@ -150,9 +166,10 @@ export default function FWBImportPage() {
     setImportError('');
     setImportResult(null);
     try {
+      const headers = await getAuthHeaders();
       const res = await fetch('/api/fwb/admin/import-subscribers', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ dry_run: false, welcome_points: welcomePoints }),
       });
       const data = await res.json();

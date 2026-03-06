@@ -93,9 +93,13 @@ export function normalizeBandsintownEvent(
   const lat = raw.venue?.latitude ? parseFloat(raw.venue.latitude) : null;
   const lng = raw.venue?.longitude ? parseFloat(raw.venue.longitude) : null;
 
+  // Filter out invalid 0,0 coordinates (Bandsintown sometimes returns these)
+  const validLat = lat !== null && lat !== 0 ? lat : null;
+  const validLng = lng !== null && lng !== 0 ? lng : null;
+
   const distanceFromShoals =
-    lat !== null && lng !== null
-      ? calculateDistance(FLORENCE_LAT, FLORENCE_LNG, lat, lng)
+    validLat !== null && validLng !== null
+      ? calculateDistance(FLORENCE_LAT, FLORENCE_LNG, validLat, validLng)
       : null;
 
   const eventDate = raw.datetime ? formatEventDate(raw.datetime) : '';
@@ -104,14 +108,20 @@ export function normalizeBandsintownEvent(
   // standard event object, so we leave it null.
   const announceDate: string | null = null;
 
-  const artistName = raw.lineup?.[0] ?? raw.artist_id ?? 'Unknown Artist';
+  // artist_id is patched by normalizeBandsintownRaw() in the scraper to
+  // contain the artist name (from raw.artist.name). Fall back to lineup[0].
+  const artistName = raw.artist_id || raw.lineup?.[0] || 'Unknown Artist';
+
+  // venue.region is already normalised to a 2-letter state code by the
+  // scraper's normalizeBandsintownRaw() function.
+  const venueState = raw.venue?.region ?? 'Unknown';
 
   return {
     artist_name: artistName,
     event_name: raw.title || artistName,
     venue_name: raw.venue?.name ?? 'Unknown Venue',
     venue_city: raw.venue?.city ?? 'Unknown',
-    venue_state: raw.venue?.region ?? 'Unknown',
+    venue_state: venueState,
     venue_capacity: null,
     event_date: eventDate,
     announce_date: announceDate,
@@ -119,8 +129,8 @@ export function normalizeBandsintownEvent(
     ticket_price_high: null,
     ticket_url: raw.offers?.[0]?.url ?? raw.url ?? null,
     ticket_provider: 'Bandsintown',
-    latitude: lat,
-    longitude: lng,
+    latitude: validLat,
+    longitude: validLng,
     distance_from_shoals: distanceFromShoals,
     tracker_count: raw.tracker_count ?? null,
     rsvp_count: null,
@@ -130,7 +140,7 @@ export function normalizeBandsintownEvent(
     competition_score: null,
     routing_cluster_id: null,
     source: 'bandsintown',
-    source_event_id: raw.id,
+    source_event_id: String(raw.id),
     raw_data: raw as unknown as Record<string, unknown>,
   };
 }

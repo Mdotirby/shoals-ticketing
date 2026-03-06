@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { verifyAdminAuth } from "@/lib/fwb/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,12 @@ export const dynamic = "force-dynamic";
 /*  GET — Preview: which subscribers are eligible for import           */
 /* ------------------------------------------------------------------ */
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
   const supabase = createAdminClient();
 
   // 1. Get all newsletter subscribers
@@ -76,6 +82,12 @@ export async function GET() {
 /* ------------------------------------------------------------------ */
 
 export async function POST(request: Request) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authorized) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const venueId = auth.venueId!;
   const supabase = createAdminClient();
 
   let dryRun = false;
@@ -173,6 +185,7 @@ export async function POST(request: Request) {
           email,
           first_name: sub.first_name || null,
           last_name: sub.last_name || null,
+          venue_id: venueId,
           current_benefits_balance: welcomePoints,
           lifetime_benefits_earned: welcomePoints,
           current_tier: "casual_friend",
