@@ -57,7 +57,7 @@ export async function verifyAdminAuth(request: Request): Promise<AdminAuthResult
     return { authorized: false, userId: user.id, role: null, venueId: headerVenueId, error: "No admin role assigned for this account", status: 403 };
   }
 
-  const allowedRoles = ["admin", "super_admin"];
+  const allowedRoles = ["owner", "super_admin", "full_admin", "venue_admin"];
   if (!allowedRoles.includes(adminRecord.role)) {
     return { authorized: false, userId: user.id, role: adminRecord.role, venueId: headerVenueId, error: "Insufficient permissions", status: 403 };
   }
