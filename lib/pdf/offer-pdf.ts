@@ -116,7 +116,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setTextColor(...GOLD);
     doc.text(title.toUpperCase(), MARGIN + 2, yPos + 3.8);
     doc.setTextColor(...DARK);
-    return yPos + 7;
+    return yPos + 9;
   };
 
   /** Draw compact label:value pair with text wrapping. Returns new Y. */
@@ -342,7 +342,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setTextColor(...GOLD);
     doc.text(title.toUpperCase(), MARGIN + 2, yPos + 3.8);
     doc.setTextColor(...DARK);
-    return yPos + 7;
+    return yPos + 9;
   };
   const secHRight = (title: string, yPos: number): number => {
     doc.setFillColor(...DARK);
@@ -352,7 +352,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setTextColor(...GOLD);
     doc.text(title.toUpperCase(), rightX - 2, yPos + 3.8);
     doc.setTextColor(...DARK);
-    return yPos + 7;
+    return yPos + 9;
   };
 
   let revY = secHLeft("Revenue Breakdown", revStartY);
@@ -420,7 +420,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
-  y += 1.5;
+  y += 3;
   y = lv("ARTIST TOTAL", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, { color: GOLD });
   y += 2;
 
