@@ -49,7 +49,7 @@ export default function DemographicsPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
+      <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Demographics & Heatmaps</h1>
 
       {/* Event selector */}
@@ -83,7 +83,7 @@ export default function DemographicsPage() {
           {/* Zip Code Heatmap (bar representation — replace with Mapbox when key is configured) */}
           {data.zips.length > 0 && (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 4px", fontWeight: 600 }}>Ticket Buyer Locations (by Zip Code)</h3>
+              <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 4px", fontWeight: 600 }}>Ticket Buyer Locations (by Zip Code)</h3>
               <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "0 0 16px" }}>
                 Top {Math.min(data.zips.length, 20)} zip codes · Full heatmap available with Mapbox integration
               </p>
@@ -96,7 +96,7 @@ export default function DemographicsPage() {
                       <div style={{
                         width: `${Math.max(pct, 2)}%`,
                         height: "100%",
-                        background: `linear-gradient(90deg, rgba(208,194,144,0.3), rgba(208,194,144,${0.3 + (pct / 100) * 0.6}))`,
+                        background: `linear-gradient(90deg, rgba(96,165,250,0.3), rgba(96,165,250,${0.3 + (pct / 100) * 0.6}))`,
                         borderRadius: 4,
                       }} />
                     </div>
@@ -112,7 +112,7 @@ export default function DemographicsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
               {/* Age Range */}
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
-                <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Age Range</h3>
+                <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Age Range</h3>
                 {Object.entries(data.surveys.age_range).map(([range, count]) => {
                   const pct = data.surveys.total > 0 ? (count / data.surveys.total) * 100 : 0;
                   return (
@@ -129,7 +129,7 @@ export default function DemographicsPage() {
 
               {/* Gender */}
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
-                <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Gender</h3>
+                <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Gender</h3>
                 {Object.entries(data.surveys.gender).map(([g, count]) => {
                   const pct = data.surveys.total > 0 ? (count / data.surveys.total) * 100 : 0;
                   const label = g === "non_binary" ? "Non-binary" : g === "prefer_not_to_say" ? "Prefer not to say" : g.charAt(0).toUpperCase() + g.slice(1);
@@ -137,7 +137,7 @@ export default function DemographicsPage() {
                     <div key={g} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <span style={{ width: 120, fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{label}</span>
                       <div style={{ flex: 1, height: 16, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", background: "rgba(208,194,144,0.4)", borderRadius: 4 }} />
+                        <div style={{ width: `${pct}%`, height: "100%", background: "rgba(96,165,250,0.4)", borderRadius: 4 }} />
                       </div>
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 40, textAlign: "right" }}>{pct.toFixed(0)}%</span>
                     </div>
@@ -163,7 +163,7 @@ export default function DemographicsPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
     </div>
   );

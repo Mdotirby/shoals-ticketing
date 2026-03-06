@@ -53,7 +53,7 @@ export default function EmailKPIsPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
+      <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Email KPIs</h1>
       <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
         Track open rates, click-through rates, and bounce rates across all email campaigns.
@@ -78,13 +78,13 @@ export default function EmailKPIsPage() {
           {/* Visual bar */}
           {data.total_sent > 0 && (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 16px", fontWeight: 600 }}>Email Funnel</h3>
+              <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 16px", fontWeight: 600 }}>Email Funnel</h3>
               <div style={{ display: "flex", gap: 8 }}>
                 {[
                   { label: "Sent", value: data.total_sent, color: "rgba(255,255,255,0.2)" },
                   { label: "Delivered", value: data.total_delivered, color: "rgba(100,149,237,0.4)" },
                   { label: "Opened", value: data.total_opened, color: "rgba(80,200,120,0.4)" },
-                  { label: "Clicked", value: data.total_clicked, color: "rgba(208,194,144,0.5)" },
+                  { label: "Clicked", value: data.total_clicked, color: "rgba(96,165,250,0.5)" },
                 ].map((step) => {
                   const pct = data.total_sent > 0 ? (step.value / data.total_sent) * 100 : 0;
                   return (
@@ -105,7 +105,7 @@ export default function EmailKPIsPage() {
           {/* Campaign table */}
           {data.campaigns.length > 0 ? (
             <div style={{ overflowX: "auto" }}>
-              <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Campaign Breakdown</h3>
+              <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Campaign Breakdown</h3>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr>
@@ -153,7 +153,7 @@ export default function EmailKPIsPage() {
 function StatCard({ label, value, benchmark, good }: { label: string; value: string; benchmark?: string; good?: boolean }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
       {benchmark && (
         <div style={{ fontSize: 10, color: good ? "rgba(80,200,120,0.7)" : "rgba(255,180,80,0.7)", marginTop: 4 }}>

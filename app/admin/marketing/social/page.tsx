@@ -126,7 +126,7 @@ export default function SocialPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#111", padding: "24px 20px", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
-      <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
+      <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 style={{ color: "#fff", fontSize: 28, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>Social Performance</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 24 }}>
         Meta social insights — Facebook & Instagram
@@ -138,8 +138,8 @@ export default function SocialPage() {
           onClick={handleSync}
           disabled={syncing || !syncStatus?.configured}
           style={{
-            background: syncing ? "rgba(208,194,144,0.2)" : "linear-gradient(135deg,#d0c290,#b8a870)",
-            color: syncing ? "rgba(255,255,255,0.5)" : "#1a1a1a",
+            background: syncing ? "rgba(96,165,250,0.2)" : "#2563eb",
+            color: "#fff",
             border: "none",
             borderRadius: 8,
             padding: "10px 20px",
@@ -343,7 +343,7 @@ export default function SocialPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
     </div>
   );

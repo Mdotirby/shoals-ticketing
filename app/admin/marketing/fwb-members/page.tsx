@@ -149,7 +149,7 @@ export default function FWBMembersPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
         <Link
           href="/admin/marketing/fwb"
-          style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}
+          style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}
         >
           ← FWB Loyalty Hub
         </Link>

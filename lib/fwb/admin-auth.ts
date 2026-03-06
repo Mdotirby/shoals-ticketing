@@ -69,8 +69,8 @@ export async function verifyAdminAuth(request: Request): Promise<AdminAuthResult
     return { authorized: false, userId: user.id, role: adminRecord.role, venueId: null, error: "No venue_id found. Set venue_id in admin_users or pass x-venue-id header.", status: 400 };
   }
 
-  // If not super_admin, verify they belong to the requested venue
-  if (adminRecord.role !== "super_admin" && adminRecord.venue_id && adminRecord.venue_id !== resolvedVenueId) {
+  // If not super_admin or owner, verify they belong to the requested venue
+  if (adminRecord.role !== "super_admin" && adminRecord.role !== "owner" && adminRecord.venue_id && adminRecord.venue_id !== resolvedVenueId) {
     return { authorized: false, userId: user.id, role: adminRecord.role, venueId: resolvedVenueId, error: "Not authorized for this venue", status: 403 };
   }
 

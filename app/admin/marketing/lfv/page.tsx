@@ -23,7 +23,7 @@ type LFVData = {
 };
 
 const segmentColors: Record<string, { bg: string; text: string; label: string }> = {
-  whale: { bg: "rgba(208,194,144,0.15)", text: "#d0c290", label: "Whale" },
+  whale: { bg: "rgba(96,165,250,0.15)", text: "#60a5fa", label: "Whale" },
   loyalist: { bg: "rgba(80,200,120,0.1)", text: "rgba(80,200,120,0.8)", label: "Loyalist" },
   repeat: { bg: "rgba(100,149,237,0.1)", text: "rgba(100,149,237,0.8)", label: "Repeat" },
   one_timer: { bg: "rgba(255,255,255,0.05)", text: "rgba(255,255,255,0.4)", label: "One-Timer" },
@@ -55,7 +55,7 @@ export default function LFVPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
+      <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Lifetime Fan Value</h1>
 
       {loading ? (
@@ -132,7 +132,7 @@ export default function LFVPage() {
                       <td style={tdStyle}>{i + 1}</td>
                       <td style={tdStyle}>{c.name || "—"}</td>
                       <td style={tdStyle}>{c.email}</td>
-                      <td style={{ ...tdStyle, fontWeight: 600, color: "#d0c290" }}>${c.total_spend.toFixed(2)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "#60a5fa" }}>${c.total_spend.toFixed(2)}</td>
                       <td style={tdStyle}>{c.order_count}</td>
                       <td style={tdStyle}>{c.events_attended}</td>
                       <td style={tdStyle}>
@@ -157,7 +157,7 @@ export default function LFVPage() {
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
       {sub && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.25)", marginTop: 2 }}>{sub}</div>}
     </div>

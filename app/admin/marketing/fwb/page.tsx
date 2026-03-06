@@ -484,7 +484,7 @@ export default function FWBAdminPage() {
     <div className="admin-form-page">
       {/* Breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-        <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>
+        <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>
           ← Marketing Hub
         </Link>
       </div>
@@ -515,10 +515,10 @@ export default function FWBAdminPage() {
               padding: "10px 18px",
               fontSize: 13,
               fontWeight: activeTab === tab.key ? 600 : 400,
-              color: activeTab === tab.key ? "#d0c290" : "rgba(255,255,255,0.5)",
-              background: activeTab === tab.key ? "rgba(208,194,144,0.1)" : "transparent",
+              color: activeTab === tab.key ? "#60a5fa" : "rgba(255,255,255,0.5)",
+              background: activeTab === tab.key ? "rgba(96,165,250,0.1)" : "transparent",
               border: "none",
-              borderBottom: activeTab === tab.key ? "2px solid #d0c290" : "2px solid transparent",
+              borderBottom: activeTab === tab.key ? "2px solid #60a5fa" : "2px solid transparent",
               borderRadius: "6px 6px 0 0",
               cursor: "pointer",
               whiteSpace: "nowrap",
@@ -634,9 +634,9 @@ function OverviewTab({
             padding: "8px 16px",
             fontSize: 13,
             fontWeight: 600,
-            color: "#d0c290",
-            background: "rgba(208,194,144,0.1)",
-            border: "1px solid rgba(208,194,144,0.25)",
+            color: "#60a5fa",
+            background: "rgba(96,165,250,0.1)",
+            border: "1px solid rgba(96,165,250,0.25)",
             borderRadius: 8,
             textDecoration: "none",
             transition: "background 0.15s",
@@ -665,13 +665,13 @@ function OverviewTab({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {analytics.monthly_earn_trend.map((m) => (
               <div key={m.month} style={{
-                background: "rgba(208,194,144,0.08)",
+                background: "rgba(96,165,250,0.08)",
                 borderRadius: 8,
                 padding: "8px 14px",
                 textAlign: "center",
               }}>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 2 }}>{m.month}</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#d0c290" }}>{m.benefits_earned.toLocaleString()}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#60a5fa" }}>{m.benefits_earned.toLocaleString()}</div>
               </div>
             ))}
           </div>
@@ -695,7 +695,7 @@ function OverviewTab({
                 borderRadius: 6,
               }}>
                 <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>
-                  <span style={{ color: "#d0c290", fontWeight: 600, marginRight: 8 }}>#{i + 1}</span>
+                  <span style={{ color: "#60a5fa", fontWeight: 600, marginRight: 8 }}>#{i + 1}</span>
                   {r.reward_name}
                 </span>
                 <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{r.redemption_count} redemptions</span>
@@ -842,7 +842,7 @@ function RewardsTab({
                     <RewardTypeBadge type={r.reward_type} />
                   </Td>
                   <Td>
-                    <span style={{ color: "#d0c290", fontWeight: 600 }}>{r.reward_cost_in_benefits}</span>
+                    <span style={{ color: "#60a5fa", fontWeight: 600 }}>{r.reward_cost_in_benefits}</span>
                   </Td>
                   <Td>
                     {r.inventory_limit ? (
@@ -890,9 +890,9 @@ function RewardsTab({
                         style={{
                           padding: "4px 10px",
                           fontSize: 11,
-                          background: "rgba(208,194,144,0.1)",
-                          border: "1px solid rgba(208,194,144,0.2)",
-                          color: "#d0c290",
+                          background: "rgba(96,165,250,0.1)",
+                          border: "1px solid rgba(96,165,250,0.2)",
+                          color: "#60a5fa",
                           borderRadius: 4,
                           cursor: "pointer",
                         }}
@@ -1220,9 +1220,9 @@ function TierPerksTab({
                     style={{
                       padding: "3px 8px",
                       fontSize: 11,
-                      background: "rgba(208,194,144,0.1)",
-                      border: "1px solid rgba(208,194,144,0.2)",
-                      color: "#d0c290",
+                      background: "rgba(96,165,250,0.1)",
+                      border: "1px solid rgba(96,165,250,0.2)",
+                      color: "#60a5fa",
                       borderRadius: 4,
                       cursor: "pointer",
                     }}
@@ -1588,7 +1588,7 @@ function AnalyticsTab({ analytics }: { analytics: FWBAnalytics | null }) {
                 {analytics.popular_rewards.map((r, i) => (
                   <tr key={r.reward_id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                     <Td>
-                      <span style={{ color: "#d0c290", fontWeight: 600 }}>#{i + 1}</span>
+                      <span style={{ color: "#60a5fa", fontWeight: 600 }}>#{i + 1}</span>
                     </Td>
                     <Td>{r.reward_name}</Td>
                     <Td>
@@ -1668,7 +1668,7 @@ function MonthlyBarChart({ data }: { data: { month: string; benefits_earned: num
             <div style={{
               width: "70%",
               height: `${barHeight}%`,
-              background: "linear-gradient(180deg, #d0c290 0%, rgba(208,194,144,0.4) 100%)",
+              background: "linear-gradient(180deg, #60a5fa 0%, rgba(96,165,250,0.4) 100%)",
               borderRadius: "4px 4px 0 0",
               minHeight: 4,
             }} />

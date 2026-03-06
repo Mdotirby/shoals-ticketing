@@ -147,7 +147,7 @@ export default function AdSpendPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#111", padding: "24px 20px", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
-      <Link href="/admin/marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
+      <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 style={{ color: "#fff", fontSize: 28, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>Digital Ad Spend / ROAS</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 24 }}>
         Campaign performance from Meta Ads and manual entries
@@ -159,8 +159,8 @@ export default function AdSpendPage() {
           onClick={handleSync}
           disabled={syncing || !syncStatus?.configured}
           style={{
-            background: syncing ? "rgba(208,194,144,0.2)" : "linear-gradient(135deg,#d0c290,#b8a870)",
-            color: syncing ? "rgba(255,255,255,0.5)" : "#1a1a1a",
+            background: syncing ? "rgba(96,165,250,0.2)" : "#2563eb",
+            color: "#fff",
             border: "none", borderRadius: 8, padding: "10px 20px", fontSize: 14, fontWeight: 600,
             cursor: syncing ? "not-allowed" : "pointer",
           }}
@@ -248,7 +248,7 @@ export default function AdSpendPage() {
             </label>
           </div>
           <button type="submit" disabled={saving} style={{
-            marginTop: 12, background: "linear-gradient(135deg,#d0c290,#b8a870)", color: "#1a1a1a",
+            marginTop: 12, background: "#2563eb", color: "#fff",
             border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer",
           }}>
             {saving ? "Saving..." : "Save Campaign"}
@@ -279,13 +279,13 @@ export default function AdSpendPage() {
                   const pct = (spend / maxSpend) * 100;
                   return (
                     <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                      <div style={{ fontSize: 9, color: "rgba(208,194,144,0.7)", marginBottom: 2 }}>
+                      <div style={{ fontSize: 9, color: "rgba(96,165,250,0.7)", marginBottom: 2 }}>
                         ${spend.toFixed(0)}
                       </div>
                       <div
                         style={{
                           width: "100%", maxWidth: 28, height: `${Math.max(pct, 3)}%`,
-                          background: "rgba(208,194,144,0.5)", borderRadius: "4px 4px 0 0", minHeight: 3,
+                          background: "rgba(96,165,250,0.5)", borderRadius: "4px 4px 0 0", minHeight: 3,
                         }}
                         title={`${date}: $${spend.toFixed(2)}`}
                       />
@@ -330,14 +330,14 @@ export default function AdSpendPage() {
                           <td style={tdStyle}>
                             <span style={{
                               fontSize: 11, padding: "2px 8px", borderRadius: 6,
-                              background: c.platform === "meta" ? "rgba(66,103,178,0.12)" : "rgba(208,194,144,0.1)",
-                              color: c.platform === "meta" ? "#4267b2" : "rgba(208,194,144,0.8)",
+                              background: c.platform === "meta" ? "rgba(66,103,178,0.12)" : "rgba(96,165,250,0.1)",
+                              color: c.platform === "meta" ? "#4267b2" : "rgba(96,165,250,0.8)",
                             }}>
                               {platformLabels[c.platform] || c.platform}
                             </span>
                           </td>
                           <td style={tdStyle}>{c.events?.title || (c.event_id ? "Linked" : "General")}</td>
-                          <td style={{ ...tdStyle, fontWeight: 600, color: "#d0c290" }}>${Number(c.spend).toFixed(2)}</td>
+                          <td style={{ ...tdStyle, fontWeight: 600, color: "#60a5fa" }}>${Number(c.spend).toFixed(2)}</td>
                           <td style={tdStyle}>{(c.impressions || 0).toLocaleString()}</td>
                           <td style={tdStyle}>{(c.clicks || 0).toLocaleString()}</td>
                           <td style={tdStyle}>${cpc.toFixed(2)}</td>
@@ -368,7 +368,7 @@ export default function AdSpendPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#60a5fa" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
     </div>
   );
