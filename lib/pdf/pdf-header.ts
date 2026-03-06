@@ -423,7 +423,17 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
     buyerInfo,
   } = options;
 
-  const headerHeight = 28;
+  // Calculate dynamic header height based on buyer info lines
+  let buyerLineCount = 0;
+  if (showBuyerInfo && buyerInfo) {
+    if (buyerInfo.company) buyerLineCount++;
+    if (buyerInfo.contact) buyerLineCount++;
+    if (buyerInfo.email) buyerLineCount++;
+    if (buyerInfo.phone) buyerLineCount++;
+    if (buyerInfo.address) buyerLineCount++;
+  }
+  const baseHeight = 18; // logo area + padding
+  const headerHeight = Math.max(28, baseHeight + buyerLineCount * 3.5);
 
   // ── Dark header background ──
   doc.setFillColor(...DARK);

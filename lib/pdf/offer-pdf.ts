@@ -6,7 +6,7 @@
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem } from "../types/offer";
 import type { Venue } from "../types/venue";
 import {
-  addPdfHeader, drawFooter,
+  addPdfHeader, drawFooter, ensureSpace,
   sanitize, formatTime12hr,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -124,6 +124,9 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     const x = opts?.x ?? leftX;
     const valXPos = opts?.valX ?? (x + 28);
     const maxW = opts?.maxW ?? 52;
+    const lines: string[] = doc.splitTextToSize(val || "—", maxW);
+    const neededHeight = Math.max(1, lines.length) * RH;
+    yPos = ensureSpace(doc, neededHeight, yPos);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(S);
     doc.setTextColor(80, 80, 80);
@@ -131,17 +134,17 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setFont("helvetica", opts?.color ? "bold" : "normal");
     doc.setFontSize(M);
     doc.setTextColor(...(opts?.color || [0, 0, 0]));
-    const lines: string[] = doc.splitTextToSize(val || "—", maxW);
     for (let i = 0; i < lines.length; i++) {
       doc.text(lines[i], valXPos, yPos + i * RH);
     }
     doc.setTextColor(0, 0, 0);
-    return yPos + Math.max(1, lines.length) * RH;
+    return yPos + neededHeight;
   };
 
   // ════════════════════════════════════════════════════════
   //  VENUE + AGENCY/ARTIST — two columns
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 10, y);
   y = secH("Venue & Artist", y);
   const infoStartY = y;
 
@@ -174,6 +177,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   //  DEAL — two columns (left/right split)
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 10, y);
   y = secH("Deal", y);
   const dealStartY = y;
 
@@ -202,6 +206,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   const scaling = (data.ticket_scaling || []) as TicketScalingRow[];
   if (scaling.length > 0) {
+    y = ensureSpace(doc, 10, y);
     y = secH("Ticket Scaling", y);
 
     const tCols = [
@@ -233,6 +238,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     doc.setTextColor(0, 0, 0);
     const tierMaxW = tCols[1] - tCols[0] - 2;
     for (const r of scaling) {
+      y = ensureSpace(doc, RH + 1, y);
       const facFee = r.facility_fee || 0;
       const tktFee = r.ticketing_fee || (r.price - (r.net_price || 0) - facFee);
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
@@ -250,6 +256,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   //  EXPENSES — two columns (fixed left, variable right)
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 10, y);
   y = secH("Expenses", y);
   const fe = (data.fixed_expenses || []) as ExpenseItem[];
   const ve = (data.variable_expenses || []) as VariableExpenseItem[];
@@ -268,6 +275,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setTextColor(0, 0, 0);
   for (const e of fe) {
     if (e.amount > 0) {
+      fixY = ensureSpace(doc, RH + 1, fixY);
       const name = doc.splitTextToSize(e.name, 56)[0] || e.name;
       doc.text(name, leftX, fixY);
       doc.text(`$${e.amount.toLocaleString()}`, leftX + 60, fixY);
@@ -294,6 +302,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setTextColor(0, 0, 0);
   for (const e of ve) {
     if (e.amount > 0) {
+      varY = ensureSpace(doc, RH + 1, varY);
       const name = doc.splitTextToSize(e.name, 44)[0] || e.name;
       doc.text(name, rightX, varY);
       doc.text(`${(e.rate * 100).toFixed(2)}%`, rightX + 48, varY);
@@ -321,6 +330,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   //  REVENUE BREAKDOWN + POTENTIAL AT SELLOUT — side by side
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 10, y);
   const revStartY = y;
 
   // ── Left: Revenue Breakdown ──
@@ -375,6 +385,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   //  ARTIST POTENTIAL AT SELLOUT — compact
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 10, y);
   y = secH("Artist Potential at Sellout", y);
 
   const guarantee = Number(data.guarantee || 0);
@@ -416,6 +427,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   // ════════════════════════════════════════════════════════
   //  OFFER VALIDITY
   // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 8, y);
   doc.setDrawColor(...MID_GRAY);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
