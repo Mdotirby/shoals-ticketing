@@ -276,7 +276,7 @@ export default function MarketRadarPage() {
             <label className="block text-xs text-gray-400 mb-1">Capacity Min</label>
             <input
               type="number"
-              placeholder="0"
+              placeholder="No min"
               value={pendingFilters.capacityMin}
               onChange={(e) => setPendingFilters({ ...pendingFilters, capacityMin: e.target.value })}
               className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
@@ -287,7 +287,7 @@ export default function MarketRadarPage() {
             <label className="block text-xs text-gray-400 mb-1">Capacity Max</label>
             <input
               type="number"
-              placeholder="∞"
+              placeholder="No max"
               value={pendingFilters.capacityMax}
               onChange={(e) => setPendingFilters({ ...pendingFilters, capacityMax: e.target.value })}
               className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"

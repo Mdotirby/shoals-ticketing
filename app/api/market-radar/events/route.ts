@@ -26,8 +26,12 @@ export async function GET(request: Request) {
     if (city) query = query.eq('venue_city', city);
     if (dateFrom) query = query.gte('event_date', dateFrom);
     if (dateTo) query = query.lte('event_date', dateTo);
-    if (capacityMin) query = query.gte('venue_capacity', parseInt(capacityMin, 10));
-    if (capacityMax) query = query.lte('venue_capacity', parseInt(capacityMax, 10));
+    if (capacityMin) {
+      query = query.or(`venue_capacity.gte.${parseInt(capacityMin, 10)},venue_capacity.is.null`);
+    }
+    if (capacityMax) {
+      query = query.or(`venue_capacity.lte.${parseInt(capacityMax, 10)},venue_capacity.is.null`);
+    }
     if (competitionMin) query = query.gte('competition_score', parseInt(competitionMin, 10));
     if (source) query = query.eq('source', source);
 

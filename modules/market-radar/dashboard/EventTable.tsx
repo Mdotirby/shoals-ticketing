@@ -66,6 +66,7 @@ export default function EventTable({ events, loading }: EventTableProps) {
     { key: 'artist_name', label: 'Artist' },
     { key: 'event_name', label: 'Event' },
     { key: 'venue_name', label: 'Venue / City' },
+    { key: 'venue_capacity', label: 'Capacity' },
     { key: 'event_date', label: 'Date' },
     { key: 'ticket_price_low', label: 'Price Range' },
     { key: 'distance_from_shoals', label: 'Distance' },
@@ -124,6 +125,11 @@ export default function EventTable({ events, loading }: EventTableProps) {
               <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
                 <div>{event.venue_name}</div>
                 <div className="text-xs text-gray-500">{event.venue_city}, {event.venue_state}</div>
+              </td>
+              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                {event.venue_capacity != null
+                  ? event.venue_capacity.toLocaleString('en-US')
+                  : '—'}
               </td>
               <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
                 {new Date(event.event_date).toLocaleDateString('en-US', {
