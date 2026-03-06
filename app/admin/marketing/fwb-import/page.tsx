@@ -5,11 +5,36 @@ import Link from 'next/link';
 import { getCookie } from '@/lib/cookies';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
 
+// Cache resolved venue ID so we only fetch /api/venues once per page load
+let _resolvedVenueId: string | null = null;
+
+async function resolveVenueId(): Promise<string> {
+  const fromCookie = getCookie('venue-id');
+  if (fromCookie) return fromCookie;
+
+  // Owner role has no venue-id cookie — resolve from /api/venues
+  if (_resolvedVenueId) return _resolvedVenueId;
+
+  try {
+    const res = await fetch('/api/venues');
+    if (res.ok) {
+      const venues = await res.json();
+      if (Array.isArray(venues) && venues.length > 0) {
+        _resolvedVenueId = venues[0].id;
+        return _resolvedVenueId!;
+      }
+    }
+  } catch {
+    /* venue resolution failed — fall through to empty */
+  }
+  return '';
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const supabase = getSupabaseBrowser();
   const { data: session } = await supabase.auth.getSession();
   const token = session.session?.access_token || '';
-  const venueId = getCookie('venue-id') || '';
+  const venueId = await resolveVenueId();
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
