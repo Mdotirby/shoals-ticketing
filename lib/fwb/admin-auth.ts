@@ -19,12 +19,14 @@ interface AdminAuthResult {
  * Verify that the request comes from an authenticated admin user.
  * Checks authorization header → Supabase auth → admin_users table.
  * Returns the user's ID, role, and venue_id if authorized.
+ *
+ * venue_id resolution order:
+ *  1. x-venue-id header (if provided and non-empty)
+ *  2. admin_users.venue_id from the database
+ *  3. If neither exists, returns 400
  */
 export async function verifyAdminAuth(request: Request): Promise<AdminAuthResult> {
-  const venueId = request.headers.get("x-venue-id");
-  if (!venueId) {
-    return { authorized: false, userId: null, role: null, venueId: null, error: "x-venue-id header is required", status: 400 };
-  }
+  const headerVenueId = request.headers.get("x-venue-id");
 
   const authHeader = request.headers.get("authorization");
   if (!authHeader) {
@@ -52,18 +54,25 @@ export async function verifyAdminAuth(request: Request): Promise<AdminAuthResult
     .single();
 
   if (adminError || !adminRecord) {
-    return { authorized: false, userId: user.id, role: null, venueId, error: "No admin role assigned for this account", status: 403 };
+    return { authorized: false, userId: user.id, role: null, venueId: headerVenueId, error: "No admin role assigned for this account", status: 403 };
   }
 
   const allowedRoles = ["admin", "super_admin"];
   if (!allowedRoles.includes(adminRecord.role)) {
-    return { authorized: false, userId: user.id, role: adminRecord.role, venueId, error: "Insufficient permissions", status: 403 };
+    return { authorized: false, userId: user.id, role: adminRecord.role, venueId: headerVenueId, error: "Insufficient permissions", status: 403 };
+  }
+
+  // Resolve venue_id: prefer header, fall back to admin_users record
+  const resolvedVenueId = (headerVenueId && headerVenueId.trim()) || adminRecord.venue_id || null;
+
+  if (!resolvedVenueId) {
+    return { authorized: false, userId: user.id, role: adminRecord.role, venueId: null, error: "No venue_id found. Set venue_id in admin_users or pass x-venue-id header.", status: 400 };
   }
 
   // If not super_admin, verify they belong to the requested venue
-  if (adminRecord.role !== "super_admin" && adminRecord.venue_id && adminRecord.venue_id !== venueId) {
-    return { authorized: false, userId: user.id, role: adminRecord.role, venueId, error: "Not authorized for this venue", status: 403 };
+  if (adminRecord.role !== "super_admin" && adminRecord.venue_id && adminRecord.venue_id !== resolvedVenueId) {
+    return { authorized: false, userId: user.id, role: adminRecord.role, venueId: resolvedVenueId, error: "Not authorized for this venue", status: 403 };
   }
 
-  return { authorized: true, userId: user.id, role: adminRecord.role, venueId, error: null, status: 200 };
+  return { authorized: true, userId: user.id, role: adminRecord.role, venueId: resolvedVenueId, error: null, status: 200 };
 }

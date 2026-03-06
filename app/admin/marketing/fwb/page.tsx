@@ -54,16 +54,37 @@ const REWARD_TYPES: FWBRewardType[] = ["ticket", "bar_tab", "hotel", "merch", "e
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-// Cache resolved venue ID so we only fetch /api/venues once per page load
+// Cache resolved venue ID so we only resolve once per page load
 let _resolvedVenueId: string | null = null;
 
 async function resolveVenueId(): Promise<string> {
+  // 1. Check cookie (set for non-owner roles at login)
   const fromCookie = getCookie("venue-id");
   if (fromCookie) return fromCookie;
 
-  // Owner role has no venue-id cookie — resolve from /api/venues
+  // 2. Return cached value if we already resolved
   if (_resolvedVenueId) return _resolvedVenueId;
 
+  // 3. Owner role has no venue-id cookie — look up from admin_users table
+  try {
+    const supabase = getSupabaseBrowser();
+    const { data: authData } = await supabase.auth.getUser();
+    if (authData?.user) {
+      const { data: adminRecord } = await supabase
+        .from("admin_users")
+        .select("venue_id")
+        .eq("id", authData.user.id)
+        .single();
+      if (adminRecord?.venue_id) {
+        _resolvedVenueId = adminRecord.venue_id;
+        return _resolvedVenueId!;
+      }
+    }
+  } catch {
+    /* admin_users lookup failed — try /api/venues as last resort */
+  }
+
+  // 4. Last resort: fetch first venue from /api/venues
   try {
     const res = await fetch("/api/venues");
     if (res.ok) {
@@ -600,6 +621,29 @@ function OverviewTab({
         <StatCard label="Benefits Outstanding" value={outstanding.toLocaleString()} />
         <StatCard label="Avg Benefits/Member" value={avgBenefits.toLocaleString()} />
         <StatCard label="Redemption Rate" value={`${(redemptionRate * 100).toFixed(1)}%`} />
+      </div>
+
+      {/* View Members Link */}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <Link
+          href="/admin/marketing/fwb-members"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 16px",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#d0c290",
+            background: "rgba(208,194,144,0.1)",
+            border: "1px solid rgba(208,194,144,0.25)",
+            borderRadius: 8,
+            textDecoration: "none",
+            transition: "background 0.15s",
+          }}
+        >
+          View All Members →
+        </Link>
       </div>
 
       {/* Tier Distribution */}
