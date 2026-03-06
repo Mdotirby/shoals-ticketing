@@ -277,6 +277,7 @@ export type PdfHeaderOptions = {
   compact?: boolean;       // compact header for single-page layouts (offers)
   showTitle?: boolean;     // show title below header bar (default: true)
   showBuyerInfo?: boolean; // only true for offers/performance agreements
+  offerValidDays?: number; // show "Offer valid for X days" in compact header
   buyerInfo?: {
     company?: string;      // promoter company name
     contact?: string;      // buyer/promoter contact name
@@ -497,11 +498,25 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
   doc.setTextColor(...GOLD);
   doc.text(venueName, PAGE_WIDTH - MARGIN, 10, { align: "right" });
 
+  let rightInfoY = 15;
   if (venueAddress) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(...WHITE);
-    doc.text(venueAddress, PAGE_WIDTH - MARGIN, 15, { align: "right" });
+    doc.text(venueAddress, PAGE_WIDTH - MARGIN, rightInfoY, { align: "right" });
+    rightInfoY += 4;
+  }
+
+  // Offer validity line (if provided)
+  if (options.offerValidDays != null) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...LIGHT_TEXT);
+    doc.text(
+      `Offer valid for ${options.offerValidDays} days from ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+      PAGE_WIDTH - MARGIN, rightInfoY, { align: "right" }
+    );
+    rightInfoY += 4;
   }
 
   // Generated date
@@ -513,7 +528,7 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
     month: "long",
     day: "numeric",
   });
-  doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, 20, { align: "right" });
+  doc.text(`Generated: ${dateStr}`, PAGE_WIDTH - MARGIN, rightInfoY, { align: "right" });
 
   // No title below the header — saves vertical space
   return headerHeight + 2;

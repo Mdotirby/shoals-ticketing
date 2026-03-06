@@ -88,6 +88,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     compact: true,
     showTitle: false,
     showBuyerInfo: true,
+    offerValidDays: data.offer_valid_days || 14,
     buyerInfo: {
       company: venue?.name || String(data.venue || ""),
       contact: venue?.contract_signatory || venue?.buyer_name || data.venue_contact || undefined,
@@ -363,10 +364,10 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
 
   revY = lv("Fac. Fee/Tkt", `$${pdfFacilityFee.toFixed(2)}`, revY);
-  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
+  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
   revY = lv("Tkt Fee/Tkt", `$${pdfTicketingFee.toFixed(2)}`, revY);
-  revY = lv("Total Tkt Rev", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
-  revY = lv("Combined Rev", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2 })}`, revY);
+  revY = lv("Total Tkt Rev", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
+  revY = lv("Combined Rev", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
 
   // ── Right: Potential at Sellout ──
   let potY = secHRight("Potential at Sellout", revStartY);
@@ -414,31 +415,15 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   y = lv("Guarantee", `$${guarantee.toLocaleString()}`, y);
   if (backendLabel) {
-    y = lv(backendLabel, `$${backendAmt.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y);
+    y = lv(backendLabel, `$${backendAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
   }
   // Gold highlight for artist total
   doc.setDrawColor(...GOLD);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
   y += 3;
-  y = lv("ARTIST TOTAL", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, y, { color: GOLD });
+  y = lv("ARTIST TOTAL", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y, { color: GOLD });
   y += 2;
-
-  // ════════════════════════════════════════════════════════
-  //  OFFER VALIDITY
-  // ════════════════════════════════════════════════════════
-  y = ensureSpace(doc, 8, y);
-  doc.setDrawColor(...MID_GRAY);
-  doc.setLineWidth(0.3);
-  doc.line(MARGIN, y, MARGIN + CONTENT_WIDTH, y);
-  y += 3;
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    `Offer valid for ${data.offer_valid_days || 14} days from today: ${new Date().toLocaleDateString()}`,
-    MARGIN + 3, y
-  );
 
   drawFooter(doc, "Artist Offer");
 
