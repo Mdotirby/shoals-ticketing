@@ -167,15 +167,19 @@ export async function POST(request: Request) {
 
     try {
       // Create FWB wallet
-      const { error: walletError } = await supabase
+      const { data: newWallet, error: walletError } = await supabase
         .from("fwb_wallets")
         .insert({
           email,
           first_name: sub.first_name || null,
           last_name: sub.last_name || null,
-          balance: welcomePoints,
-          tier: "casual_friend",
-        });
+          current_benefits_balance: welcomePoints,
+          lifetime_benefits_earned: welcomePoints,
+          current_tier: "casual_friend",
+          current_streak_count: 0,
+        })
+        .select("id")
+        .single();
 
       if (walletError) {
         // Might be a duplicate race condition
@@ -190,11 +194,12 @@ export async function POST(request: Request) {
       // Create welcome bonus transaction
       try {
         await supabase.from("fwb_transactions").insert({
-          email,
-          type: "earn",
-          points: welcomePoints,
+          wallet_id: newWallet.id,
+          transaction_type: "earn",
+          amount: welcomePoints,
           description: "Welcome bonus — imported from newsletter",
           balance_after: welcomePoints,
+          multiplier_applied: 1,
         });
       } catch {
         // Transaction logging is non-critical
