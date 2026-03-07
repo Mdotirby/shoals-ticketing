@@ -187,17 +187,17 @@ export default function MarketRadarPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8 md:p-10">
+    <div className="min-h-screen bg-gray-900 text-white px-4 py-6 md:p-10">
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Market Radar</h1>
-          <p className="text-gray-400 mt-1">Live event intelligence for the Shoals region</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Market Radar</h1>
+          <p className="text-gray-400 mt-1 text-sm sm:text-base">Live event intelligence for the Shoals region</p>
         </div>
         <button
           onClick={runScan}
           disabled={scanning}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg font-medium transition-colors"
+          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg font-medium transition-colors text-sm"
         >
           {scanning ? '⏳ Scanning...' : '🔄 Run Scan'}
         </button>
@@ -236,8 +236,8 @@ export default function MarketRadarPage() {
       )}
 
       {/* Filter bar */}
-      <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="bg-gray-800 rounded-lg p-3 sm:p-4 mb-6 border border-gray-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
           <div>
             <label className="block text-xs text-gray-400 mb-1">City</label>
             <select
@@ -327,13 +327,13 @@ export default function MarketRadarPage() {
         <div className="flex gap-2 mt-3">
           <button
             onClick={handleApplyFilters}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-1.5 rounded transition-colors"
+            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 sm:py-1.5 rounded transition-colors"
           >
             Apply Filters
           </button>
           <button
             onClick={handleResetFilters}
-            className="bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm px-4 py-1.5 rounded transition-colors"
+            className="flex-1 sm:flex-none bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm px-4 py-2 sm:py-1.5 rounded transition-colors"
           >
             Reset
           </button>
@@ -341,12 +341,12 @@ export default function MarketRadarPage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 border-b border-gray-700">
+      <div className="flex gap-1 mb-6 border-b border-gray-700 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-t transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.key
                 ? 'bg-gray-800 text-white border-b-2 border-blue-500'
                 : 'text-gray-400 hover:text-gray-200'
@@ -372,9 +372,9 @@ export default function MarketRadarPage() {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-      <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+    <div className="bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-700">
+      <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-lg sm:text-2xl font-bold mt-1 truncate">{value}</p>
     </div>
   );
 }

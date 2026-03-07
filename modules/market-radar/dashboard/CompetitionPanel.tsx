@@ -82,75 +82,12 @@ export default function CompetitionPanel({ competitions, loading }: CompetitionP
       {competitions.map((comp) => (
         <div
           key={comp.id}
-          className="bg-gray-800 rounded-lg border border-gray-700 px-4 py-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center"
+          className="bg-gray-800 rounded-lg border border-gray-700 px-3 sm:px-4 py-3"
         >
-          {/* Event 1 */}
-          <div className="md:col-span-3">
-            <p className="text-white font-medium text-sm">
-              {comp.event?.artist_name || 'Unknown'}
-            </p>
-            <p className="text-xs text-gray-400">
-              {comp.event?.venue_name || '—'} · {comp.event?.venue_city || ''}
-            </p>
-            {comp.event?.ticket_url && (
-              <a
-                href={comp.event.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                View Event 1 ↗
-              </a>
-            )}
-          </div>
-
-          {/* VS */}
-          <div className="md:col-span-1 text-center">
-            <span className="text-gray-500 text-xs font-bold">VS</span>
-          </div>
-
-          {/* Event 2 */}
-          <div className="md:col-span-3">
-            <p className="text-white font-medium text-sm">
-              {comp.competing_event?.artist_name || 'Unknown'}
-            </p>
-            <p className="text-xs text-gray-400">
-              {comp.competing_event?.venue_name || '—'} · {comp.competing_event?.venue_city || ''}
-            </p>
-            {comp.competing_event?.ticket_url && (
-              <a
-                href={comp.competing_event.ticket_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:text-blue-300"
-              >
-                View Event 2 ↗
-              </a>
-            )}
-          </div>
-
-          {/* Same date */}
-          <div className="md:col-span-1 text-center">
-            {comp.date_overlap ? (
-              <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Same Day</span>
-            ) : (
-              <span className="text-xs text-gray-500">Diff. Day</span>
-            )}
-          </div>
-
-          {/* Distance */}
-          <div className="md:col-span-1 text-center text-sm text-gray-300">
-            {Math.round(comp.distance_between)} mi
-          </div>
-
-          {/* Price similarity */}
-          <div className="md:col-span-1 text-center text-sm text-gray-300">
-            {comp.price_similarity !== null ? `${comp.price_similarity}%` : '—'}
-          </div>
-
-          {/* Competition score */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2">
+          {/* Mobile layout */}
+          <div className="md:hidden">
+            {/* Competition score bar at top on mobile */}
+            <div className="flex items-center gap-2 mb-3">
               <div className="flex-1 bg-gray-700 rounded-full h-2">
                 <div
                   className={`h-2 rounded-full ${scoreColor(comp.competition_score)}`}
@@ -160,6 +97,103 @@ export default function CompetitionPanel({ competitions, loading }: CompetitionP
               <span className={`text-sm font-semibold ${scoreTextColor(comp.competition_score)}`}>
                 {comp.competition_score}
               </span>
+            </div>
+
+            {/* Event 1 */}
+            <div className="mb-2">
+              <p className="text-white font-medium text-sm">{comp.event?.artist_name || 'Unknown'}</p>
+              <p className="text-xs text-gray-400">{comp.event?.venue_name || '—'} · {comp.event?.venue_city || ''}</p>
+            </div>
+
+            <div className="text-center my-1">
+              <span className="text-gray-500 text-[10px] font-bold tracking-wider">VS</span>
+            </div>
+
+            {/* Event 2 */}
+            <div className="mb-3">
+              <p className="text-white font-medium text-sm">{comp.competing_event?.artist_name || 'Unknown'}</p>
+              <p className="text-xs text-gray-400">{comp.competing_event?.venue_name || '—'} · {comp.competing_event?.venue_city || ''}</p>
+            </div>
+
+            {/* Meta row */}
+            <div className="flex items-center gap-3 text-xs flex-wrap">
+              {comp.date_overlap ? (
+                <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Same Day</span>
+              ) : (
+                <span className="text-gray-500">Diff. Day</span>
+              )}
+              <span className="text-gray-400">{Math.round(comp.distance_between)} mi</span>
+              <span className="text-gray-400">
+                Price: {comp.price_similarity !== null ? `${comp.price_similarity}%` : '—'}
+              </span>
+              <div className="flex gap-2 ml-auto">
+                {comp.event?.ticket_url && (
+                  <a href={comp.event.ticket_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">E1 ↗</a>
+                )}
+                {comp.competing_event?.ticket_url && (
+                  <a href={comp.competing_event.ticket_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">E2 ↗</a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop layout */}
+          <div className="hidden md:grid grid-cols-12 gap-3 items-center">
+            {/* Event 1 */}
+            <div className="col-span-3">
+              <p className="text-white font-medium text-sm">{comp.event?.artist_name || 'Unknown'}</p>
+              <p className="text-xs text-gray-400">{comp.event?.venue_name || '—'} · {comp.event?.venue_city || ''}</p>
+              {comp.event?.ticket_url && (
+                <a href={comp.event.ticket_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300">View Event 1 ↗</a>
+              )}
+            </div>
+
+            {/* VS */}
+            <div className="col-span-1 text-center">
+              <span className="text-gray-500 text-xs font-bold">VS</span>
+            </div>
+
+            {/* Event 2 */}
+            <div className="col-span-3">
+              <p className="text-white font-medium text-sm">{comp.competing_event?.artist_name || 'Unknown'}</p>
+              <p className="text-xs text-gray-400">{comp.competing_event?.venue_name || '—'} · {comp.competing_event?.venue_city || ''}</p>
+              {comp.competing_event?.ticket_url && (
+                <a href={comp.competing_event.ticket_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300">View Event 2 ↗</a>
+              )}
+            </div>
+
+            {/* Same date */}
+            <div className="col-span-1 text-center">
+              {comp.date_overlap ? (
+                <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded">Same Day</span>
+              ) : (
+                <span className="text-xs text-gray-500">Diff. Day</span>
+              )}
+            </div>
+
+            {/* Distance */}
+            <div className="col-span-1 text-center text-sm text-gray-300">
+              {Math.round(comp.distance_between)} mi
+            </div>
+
+            {/* Price similarity */}
+            <div className="col-span-1 text-center text-sm text-gray-300">
+              {comp.price_similarity !== null ? `${comp.price_similarity}%` : '—'}
+            </div>
+
+            {/* Competition score */}
+            <div className="col-span-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-gray-700 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full ${scoreColor(comp.competition_score)}`}
+                    style={{ width: `${Math.min(comp.competition_score, 100)}%` }}
+                  />
+                </div>
+                <span className={`text-sm font-semibold ${scoreTextColor(comp.competition_score)}`}>
+                  {comp.competition_score}
+                </span>
+              </div>
             </div>
           </div>
         </div>

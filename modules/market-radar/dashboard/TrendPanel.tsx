@@ -47,8 +47,8 @@ export default function TrendPanel() {
   return (
     <div>
       {/* Capacity Filter */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Capacity:</span>
+      <div className="flex flex-wrap gap-2 sm:gap-3 mb-6 items-center">
+        <span className="text-gray-400 text-xs sm:text-sm w-full sm:w-auto">Capacity:</span>
         {[
           { label: '350–800', min: 350, max: 800 },
           { label: '300–500', min: 300, max: 500 },
@@ -58,8 +58,8 @@ export default function TrendPanel() {
           <button
             key={opt.label}
             onClick={() => { setCapMin(opt.min); setCapMax(opt.max); }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
             style={{
-              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
               border: capMin === opt.min && capMax === opt.max ? `1px solid ${GOLD}` : '1px solid rgba(255,255,255,0.1)',
               background: capMin === opt.min && capMax === opt.max ? 'rgba(208,194,144,0.15)' : 'rgba(255,255,255,0.03)',
               color: capMin === opt.min && capMax === opt.max ? GOLD : 'rgba(255,255,255,0.5)',
@@ -68,15 +68,15 @@ export default function TrendPanel() {
             {opt.label}
           </button>
         ))}
-        <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>
+        <span className="sm:ml-auto text-gray-500 text-xs">
           {data.total_events} events in range
         </span>
       </div>
 
       {/* Day of Week + Monthly Volume Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Events by Day of Week</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+          <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Events by Day of Week</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data.day_of_week}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -88,8 +88,8 @@ export default function TrendPanel() {
           </ResponsiveContainer>
         </div>
 
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Monthly Event Volume</h3>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+          <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Monthly Event Volume</h3>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={data.monthly_volume}>
               <defs>
@@ -109,9 +109,9 @@ export default function TrendPanel() {
       </div>
 
       {/* Lead Time + Pricing */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Announce Lead Time</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+          <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Announce Lead Time</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data.lead_time}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -123,30 +123,30 @@ export default function TrendPanel() {
           </ResponsiveContainer>
         </div>
 
-        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Pricing by Venue Size</h3>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: GOLD, fontSize: 24, fontWeight: 700 }}>${data.pricing.average}</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Avg Price</div>
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+          <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Pricing by Venue Size</h3>
+          <div className="flex gap-4 sm:gap-6 mb-4">
+            <div className="text-center">
+              <div style={{ color: GOLD }} className="text-xl sm:text-2xl font-bold">${data.pricing.average}</div>
+              <div className="text-gray-400 text-[10px] sm:text-xs">Avg Price</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#fff', fontSize: 24, fontWeight: 700 }}>${data.pricing.median}</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Median</div>
+            <div className="text-center">
+              <div className="text-white text-xl sm:text-2xl font-bold">${data.pricing.median}</div>
+              <div className="text-gray-400 text-[10px] sm:text-xs">Median</div>
             </div>
           </div>
           {data.pricing.by_capacity.map((tier) => (
-            <div key={tier.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>{tier.label}</span>
-              <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>${tier.avgPrice} avg ({tier.count} events)</span>
+            <div key={tier.label} className="flex justify-between py-2 border-b border-white/5 text-xs sm:text-[13px]">
+              <span className="text-gray-400">{tier.label}</span>
+              <span className="text-white font-semibold">${tier.avgPrice} avg ({tier.count})</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Top Artists */}
-      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Top Artists by Demand (350-800 Cap Rooms)</h3>
+      <div className="mb-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+        <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Top Artists by Demand (350-800 Cap Rooms)</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -172,8 +172,8 @@ export default function TrendPanel() {
       </div>
 
       {/* Top Venues */}
-      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 20 }}>
-        <h3 style={{ color: '#fff', fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Most Active Comp Venues</h3>
+      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+        <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">Most Active Comp Venues</h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -204,11 +204,11 @@ export default function TrendPanel() {
 }
 
 const thStyle: React.CSSProperties = {
-  textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600,
+  textAlign: 'left', padding: '8px 8px', fontSize: 10, fontWeight: 600,
   color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px',
-  borderBottom: '1px solid rgba(255,255,255,0.1)',
+  borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap',
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: '10px 12px', fontSize: 13, color: 'rgba(255,255,255,0.7)',
+  padding: '8px 8px', fontSize: 12, color: 'rgba(255,255,255,0.7)',
 };

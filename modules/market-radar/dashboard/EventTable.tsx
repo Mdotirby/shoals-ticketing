@@ -94,81 +94,171 @@ export default function EventTable({ events, loading }: EventTableProps) {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-700">
+    <>
+      {/* Mobile card layout */}
+      <div className="md:hidden space-y-3">
+        {/* Mobile sort control */}
+        <div className="flex items-center gap-2 mb-2">
+          <label className="text-xs text-gray-400">Sort:</label>
+          <select
+            value={sortKey}
+            onChange={(e) => handleSort(e.target.value as SortKey)}
+            className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white flex-1"
+          >
             {columns.map((col) => (
-              <th
-                key={col.key}
-                onClick={() => handleSort(col.key)}
-                className="text-left px-3 py-3 text-gray-400 font-medium cursor-pointer hover:text-white select-none whitespace-nowrap"
-              >
-                {col.label}
-                {sortKey === col.key && (
-                  <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
-                )}
-              </th>
+              <option key={col.key} value={col.key}>{col.label}</option>
             ))}
-            <th className="px-3 py-3 text-gray-400 font-medium">Link</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((event) => (
-            <tr key={event.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
-              <td className="px-3 py-3 font-medium text-white whitespace-nowrap">
-                {event.artist_name}
-              </td>
-              <td className="px-3 py-3 text-gray-300 max-w-[200px] truncate">
-                {event.event_name || '—'}
-              </td>
-              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
-                <div>{event.venue_name}</div>
-                <div className="text-xs text-gray-500">{event.venue_city}, {event.venue_state}</div>
-              </td>
-              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
-                {event.venue_capacity != null
-                  ? event.venue_capacity.toLocaleString('en-US')
-                  : '—'}
-              </td>
-              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
-                {new Date(event.event_date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </td>
-              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
-                {event.ticket_price_low !== null || event.ticket_price_high !== null
-                  ? `$${event.ticket_price_low ?? '?'} – $${event.ticket_price_high ?? '?'}`
-                  : '—'}
-              </td>
-              <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
-                {event.distance_from_shoals !== null
-                  ? `${Math.round(event.distance_from_shoals)} mi`
-                  : '—'}
-              </td>
-              <td className="px-3 py-3">{sourceBadge(event.source)}</td>
-              <td className="px-3 py-3">{competitionBadge(event.competition_score)}</td>
-              <td className="px-3 py-3">
-                {event.ticket_url ? (
+          </select>
+          <button
+            onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+            className="bg-gray-700 border border-gray-600 rounded px-2 py-1 text-xs text-white"
+          >
+            {sortDir === 'asc' ? '↑ Asc' : '↓ Desc'}
+          </button>
+        </div>
+
+        {sorted.map((event) => (
+          <div key={event.id} className="bg-gray-800 rounded-lg border border-gray-700 p-3">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{event.artist_name}</p>
+                {event.event_name && (
+                  <p className="text-gray-400 text-xs truncate">{event.event_name}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {sourceBadge(event.source)}
+                {event.ticket_url && (
                   <a
                     href={event.ticket_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300"
+                    className="text-blue-400 hover:text-blue-300 text-sm"
                     title="View tickets"
                   >
                     ↗
                   </a>
-                ) : (
-                  <span className="text-gray-600">—</span>
                 )}
-              </td>
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-400 mb-2">
+              {event.venue_name} · {event.venue_city}, {event.venue_state}
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Date</span>
+                <span className="text-gray-300">
+                  {new Date(event.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Capacity</span>
+                <span className="text-gray-300">
+                  {event.venue_capacity != null ? event.venue_capacity.toLocaleString('en-US') : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Price</span>
+                <span className="text-gray-300">
+                  {event.ticket_price_low !== null || event.ticket_price_high !== null
+                    ? `$${event.ticket_price_low ?? '?'} – $${event.ticket_price_high ?? '?'}`
+                    : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Distance</span>
+                <span className="text-gray-300">
+                  {event.distance_from_shoals !== null ? `${Math.round(event.distance_from_shoals)} mi` : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-gray-500">Competition</span>
+                {competitionBadge(event.competition_score)}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop table layout */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-700">
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  onClick={() => handleSort(col.key)}
+                  className="text-left px-3 py-3 text-gray-400 font-medium cursor-pointer hover:text-white select-none whitespace-nowrap"
+                >
+                  {col.label}
+                  {sortKey === col.key && (
+                    <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                  )}
+                </th>
+              ))}
+              <th className="px-3 py-3 text-gray-400 font-medium">Link</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {sorted.map((event) => (
+              <tr key={event.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
+                <td className="px-3 py-3 font-medium text-white whitespace-nowrap">
+                  {event.artist_name}
+                </td>
+                <td className="px-3 py-3 text-gray-300 max-w-[200px] truncate">
+                  {event.event_name || '—'}
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  <div>{event.venue_name}</div>
+                  <div className="text-xs text-gray-500">{event.venue_city}, {event.venue_state}</div>
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  {event.venue_capacity != null
+                    ? event.venue_capacity.toLocaleString('en-US')
+                    : '—'}
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  {new Date(event.event_date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  {event.ticket_price_low !== null || event.ticket_price_high !== null
+                    ? `$${event.ticket_price_low ?? '?'} – $${event.ticket_price_high ?? '?'}`
+                    : '—'}
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  {event.distance_from_shoals !== null
+                    ? `${Math.round(event.distance_from_shoals)} mi`
+                    : '—'}
+                </td>
+                <td className="px-3 py-3">{sourceBadge(event.source)}</td>
+                <td className="px-3 py-3">{competitionBadge(event.competition_score)}</td>
+                <td className="px-3 py-3">
+                  {event.ticket_url ? (
+                    <a
+                      href={event.ticket_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300"
+                      title="View tickets"
+                    >
+                      ↗
+                    </a>
+                  ) : (
+                    <span className="text-gray-600">—</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
