@@ -83,7 +83,7 @@ export default function OrderSummary({
           </div>
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Venue ticketing fee</span>
+              <span className="order-summary-line-label">Ticketing Service Fee</span>
               <span className="order-summary-line-value">$ {totalTicketingFee.toFixed(2)}</span>
             </div>
           )}
