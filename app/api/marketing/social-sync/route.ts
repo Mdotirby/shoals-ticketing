@@ -15,8 +15,50 @@ export async function GET() {
 
   let lastSync: string | null = null;
   let metricCount = 0;
+  let tokenStatus: "valid" | "expired" | "invalid" | "unknown" = "unknown";
+  let tokenError: string | null = null;
+  let pages: string[] = [];
+  let igConnected = false;
 
   if (configured) {
+    // Test token validity by calling /me
+    try {
+      const meRes = await fetch(`https://graph.facebook.com/v21.0/me?access_token=${token}`);
+      if (meRes.ok) {
+        tokenStatus = "valid";
+
+        // Check for pages
+        const acctRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?access_token=${token}`);
+        if (acctRes.ok) {
+          const acctData = (await acctRes.json()) as { data?: Array<{ name: string; id: string }> };
+          pages = (acctData.data || []).map((p) => `${p.name} (${p.id})`);
+
+          // Check for IG connection on first page
+          if (acctData.data && acctData.data.length > 0) {
+            const pageId = acctData.data[0].id;
+            const igRes = await fetch(`https://graph.facebook.com/v21.0/${pageId}?fields=instagram_business_account&access_token=${token}`);
+            if (igRes.ok) {
+              const igData = (await igRes.json()) as { instagram_business_account?: { id: string } };
+              igConnected = !!igData.instagram_business_account;
+            }
+          }
+        }
+      } else {
+        const err = await meRes.json().catch(() => ({}));
+        const metaErr = (err as Record<string, unknown>)?.error as Record<string, unknown> | undefined;
+        const code = metaErr?.code as number | undefined;
+        if (meRes.status === 401 || code === 190) {
+          tokenStatus = "expired";
+          tokenError = "Token expired. Generate a new System User Token in Meta Business Manager.";
+        } else {
+          tokenStatus = "invalid";
+          tokenError = (metaErr?.message as string) || `HTTP ${meRes.status}`;
+        }
+      }
+    } catch (e) {
+      tokenError = e instanceof Error ? e.message : "Network error testing token";
+    }
+
     try {
       const supabase = createAdminClient();
       const { data } = await supabase
@@ -41,6 +83,10 @@ export async function GET() {
 
   return NextResponse.json({
     configured,
+    token_status: tokenStatus,
+    token_error: tokenError,
+    pages,
+    ig_connected: igConnected,
     last_sync: lastSync,
     metric_count: metricCount,
     instructions: configured

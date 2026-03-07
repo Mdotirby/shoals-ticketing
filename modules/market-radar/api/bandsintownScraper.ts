@@ -106,11 +106,16 @@ function normalizeRegionToStateCode(region: string | undefined): string | null {
 /** Bandsintown API base URL */
 const BIT_BASE_URL = 'https://rest.bandsintown.com/artists';
 
-/** App ID sent with every request */
-const APP_ID = 'VenueCoreRadar';
+/**
+ * App ID sent with every request.
+ * Note: Bandsintown requires a registered app ID. The public API
+ * accepts any non-empty string but may rate-limit unregistered IDs.
+ * If results are empty, try registering at https://artists.bandsintown.com/
+ */
+const APP_ID = process.env.BANDSINTOWN_APP_ID || 'VenueCoreRadar';
 
-/** Delay between API requests (ms) */
-const THROTTLE_MS = 300;
+/** Delay between API requests (ms) — increased to avoid rate limiting */
+const THROTTLE_MS = 500;
 
 // ============================================================
 // Artist Seed List
@@ -123,6 +128,7 @@ const THROTTLE_MS = 300;
  */
 export function getArtistSeedList(): string[] {
   return [
+    // Americana / Country / Roots — headliner tier for 350-800 cap
     'Tyler Childers',
     'Jason Isbell',
     'Sturgill Simpson',
@@ -136,13 +142,38 @@ export function getArtistSeedList(): string[] {
     'Blackberry Smoke',
     'Drive-By Truckers',
     'St. Paul and the Broken Bones',
-    'Alabama Shakes',
     'Lucero',
     'Old Crow Medicine Show',
     'Turnpike Troubadours',
     'Morgan Wade',
     'Marcus King',
     'Cody Jinks',
+    // Additional acts sized for 350-800 cap rooms
+    'Caamp',
+    'Trampled by Turtles',
+    'Shakey Graves',
+    'Arlo McKinley',
+    'Shane Smith and the Saints',
+    'Drayton Farley',
+    'Brent Cobb',
+    'Cody Johnson',
+    'Zach Top',
+    'Hayes Carll',
+    'Caitlin Rose',
+    'Ruston Kelly',
+    'Lainey Wilson',
+    'Dylan Gossett',
+    'The Red Clay Strays',
+    'American Aquarium',
+    'Muscadine Bloodline',
+    'Vandoliers',
+    'Joshua Ray Walker',
+    'Paul Cauthen',
+    'Flatland Cavalry',
+    'Houndmouth',
+    'Rayland Baxter',
+    'Adia Victoria',
+    'Joy Oladokun',
   ];
 }
 
@@ -161,6 +192,7 @@ export async function fetchBandsintownEvents(
   artistNames: string[]
 ): Promise<RawBandsintownEvent[]> {
   const allEvents: RawBandsintownEvent[] = [];
+  const scanErrors: { artist: string; status: number; message: string }[] = [];
 
   for (const artist of artistNames) {
     try {
@@ -171,7 +203,12 @@ export async function fetchBandsintownEvents(
 
       console.log(`[Bandsintown] Fetching events for "${artist}"…`);
 
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'VenueCore-MarketRadar/1.0 (event intelligence)',
+          'Accept': 'application/json',
+        },
+      });
 
       if (!response.ok) {
         const body = await response.text().catch(() => '(unreadable)');
@@ -179,6 +216,8 @@ export async function fetchBandsintownEvents(
           `[Bandsintown] HTTP ${response.status} for "${artist}": ${response.statusText}. ` +
           `Body preview: ${body.slice(0, 200)}`
         );
+        // Track this failure for diagnostics
+        scanErrors.push({ artist, status: response.status, message: response.statusText });
         continue;
       }
 
@@ -232,8 +271,15 @@ export async function fetchBandsintownEvents(
     }
   }
 
+  if (scanErrors.length > 0) {
+    console.warn(
+      `[Bandsintown] ${scanErrors.length} artists failed:`,
+      scanErrors.map((e) => `${e.artist} (${e.status})`).join(', ')
+    );
+  }
+
   console.log(
-    `[Bandsintown] Returning ${allEvents.length} total SE US events`
+    `[Bandsintown] Returning ${allEvents.length} total SE US events (${scanErrors.length} errors)`
   );
 
   return allEvents;

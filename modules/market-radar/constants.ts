@@ -35,6 +35,46 @@ export const MAX_VENUE_CAPACITY = 3000;
 export const EXCLUDED_CITIES: string[] = ['Nashville'];
 
 // ============================================================
+// Comp Venues (350–800 capacity)
+// ============================================================
+
+export interface CompVenue {
+  /** Venue display name */
+  name: string;
+  /** City */
+  city: string;
+  /** US state code */
+  state: string;
+  /** Approximate capacity */
+  capacity: number;
+  /** Ticketmaster venue ID (if known — used for direct TM venue queries) */
+  tmVenueId?: string;
+  /** Latitude */
+  lat: number;
+  /** Longitude */
+  lng: number;
+}
+
+/** Comp venues in the 350–800 cap range for SE US market analysis */
+export const COMP_VENUES: CompVenue[] = [
+  { name: 'Saturn', city: 'Birmingham', state: 'AL', capacity: 800, lat: 33.5093, lng: -86.8022, tmVenueId: 'KovZpZAFnkEA' },
+  { name: 'Zydeco', city: 'Birmingham', state: 'AL', capacity: 500, lat: 33.5086, lng: -86.8009 },
+  { name: 'WorkPlay', city: 'Birmingham', state: 'AL', capacity: 350, lat: 33.5033, lng: -86.7918 },
+  { name: 'The Camp', city: 'Muscle Shoals', state: 'AL', capacity: 500, lat: 34.7448, lng: -87.6676 },
+  { name: 'Track 29', city: 'Chattanooga', state: 'TN', capacity: 800, lat: 35.0574, lng: -85.3110 },
+  { name: 'The Basement East', city: 'Nashville', state: 'TN', capacity: 800, lat: 36.1753, lng: -86.7390 },
+  { name: '3rd & Lindsley', city: 'Nashville', state: 'TN', capacity: 400, lat: 36.1540, lng: -86.7730 },
+  { name: 'Cannery Ballroom', city: 'Nashville', state: 'TN', capacity: 675, lat: 36.1478, lng: -86.7945 },
+  { name: 'Exit/In', city: 'Nashville', state: 'TN', capacity: 475, lat: 36.1520, lng: -86.8037 },
+  { name: 'The Grey Eagle', city: 'Asheville', state: 'NC', capacity: 375, lat: 35.5787, lng: -82.5653 },
+  { name: 'The Orange Peel', city: 'Asheville', state: 'NC', capacity: 950, lat: 35.5910, lng: -82.5556 },
+  { name: 'SweetWater', city: 'Atlanta', state: 'GA', capacity: 350, lat: 33.7979, lng: -84.4127 },
+  { name: 'The Eastern', city: 'Atlanta', state: 'GA', capacity: 700, lat: 33.7562, lng: -84.3518 },
+  { name: 'Terminal West', city: 'Atlanta', state: 'GA', capacity: 1000, lat: 33.7823, lng: -84.4100 },
+  { name: 'Duling Hall', city: 'Jackson', state: 'MS', capacity: 500, lat: 32.3147, lng: -90.1828 },
+];
+
+// ============================================================
 // Ticketmaster Search Cities
 // ============================================================
 

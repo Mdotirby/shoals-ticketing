@@ -1,241 +1,286 @@
 /**
- * Market Radar — Venue Scraper Data Source Connector
+ * Market Radar — Venue Event Fetcher
  *
- * Scrapes venue calendar pages for event listings. Currently uses a
- * placeholder approach — each venue needs site-specific CSS selectors
- * or API integration to extract structured event data.
+ * Fetches events at comp venues using two strategies:
+ * 1. Ticketmaster API venue/city queries (primary — works for most venues)
+ * 2. Direct venue URL fetch with basic HTML extraction (fallback)
+ *
+ * Replaces the original placeholder implementation.
  */
 
 import type { RawVenueScrapedEvent } from '../types';
+import { COMP_VENUES } from '../constants';
+import type { CompVenue } from '../constants';
 
 // ============================================================
 // Internal Helpers
 // ============================================================
 
-/** Simple async sleep for rate-limiting */
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Delay between venue requests (ms) */
-const THROTTLE_MS = 500;
+const THROTTLE_MS = 300;
+
+/** Format a Date as YYYY-MM-DDTHH:mm:ssZ */
+const toISOParam = (d: Date): string =>
+  d.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // ============================================================
-// Tracked Venues
+// Ticketmaster Venue Search
 // ============================================================
-
-/** Scraping strategy for a venue */
-export type VenueScraperType = 'css_selector' | 'rss' | 'json_api';
-
-/** A venue whose calendar we track for events */
-export interface TrackedVenue {
-  /** Venue display name */
-  name: string;
-  /** City */
-  city: string;
-  /** US state code */
-  state: string;
-  /** URL to the venue's event calendar / listing page */
-  url: string;
-  /** Venue latitude */
-  latitude: number;
-  /** Venue longitude */
-  longitude: number;
-  /** Approximate capacity */
-  capacity: number;
-  /** How we scrape this venue */
-  type: VenueScraperType;
-}
 
 /**
- * Southeast venues in the 300–3 000 capacity range that we track
- * for upcoming events. Excludes venues above 3 000 cap and those
- * in excluded cities (e.g. Nashville).
+ * Query Ticketmaster for events at a specific venue's city.
+ * Uses the keyword parameter to match venue name.
  */
-export const TRACKED_VENUES: TrackedVenue[] = [
-  {
-    name: 'Saturn',
-    city: 'Birmingham',
-    state: 'AL',
-    url: 'https://www.saturnbirmingham.com/events',
-    latitude: 33.5093,
-    longitude: -86.8022,
-    capacity: 800,
-    type: 'css_selector',
-  },
-  {
-    name: 'Iron City',
-    city: 'Birmingham',
-    state: 'AL',
-    url: 'https://ironcitybham.com/events',
-    latitude: 33.5139,
-    longitude: -86.8024,
-    capacity: 1200,
-    type: 'css_selector',
-  },
-  {
-    name: 'The Caverns',
-    city: 'Pelham',
-    state: 'TN',
-    url: 'https://www.thecaverns.com/events',
-    latitude: 35.2852,
-    longitude: -85.8196,
-    capacity: 900,
-    type: 'css_selector',
-  },
-  {
-    name: 'Minglewood Hall',
-    city: 'Memphis',
-    state: 'TN',
-    url: 'https://www.minglewoodhall.com/events',
-    latitude: 35.1404,
-    longitude: -89.9905,
-    capacity: 1500,
-    type: 'css_selector',
-  },
-  {
-    name: 'Variety Playhouse',
-    city: 'Atlanta',
-    state: 'GA',
-    url: 'https://www.varietyplayhouse.com/events',
-    latitude: 33.7640,
-    longitude: -84.3493,
-    capacity: 1100,
-    type: 'css_selector',
-  },
-  {
-    name: 'Terminal West',
-    city: 'Atlanta',
-    state: 'GA',
-    url: 'https://www.terminalwestatl.com/events',
-    latitude: 33.7823,
-    longitude: -84.4100,
-    capacity: 1000,
-    type: 'css_selector',
-  },
-  {
-    name: 'Track 29',
-    city: 'Chattanooga',
-    state: 'TN',
-    url: 'https://www.track29.co/events',
-    latitude: 35.0574,
-    longitude: -85.3110,
-    capacity: 800,
-    type: 'css_selector',
-  },
-  {
-    name: 'The Camp',
-    city: 'Muscle Shoals',
-    state: 'AL',
-    url: 'https://www.thecampmuscleshoals.com/events',
-    latitude: 34.7448,
-    longitude: -87.6676,
-    capacity: 500,
-    type: 'css_selector',
-  },
-  {
-    name: 'Duling Hall',
-    city: 'Jackson',
-    state: 'MS',
-    url: 'https://www.dulinghall.com/events',
-    latitude: 32.3147,
-    longitude: -90.1828,
-    capacity: 500,
-    type: 'css_selector',
-  },
-  {
-    name: 'The Grey Eagle',
-    city: 'Asheville',
-    state: 'NC',
-    url: 'https://www.thegreyeagle.com/events',
-    latitude: 35.5787,
-    longitude: -82.5653,
-    capacity: 375,
-    type: 'css_selector',
-  },
-];
+async function fetchTMEventsForVenue(
+  venue: CompVenue,
+  apiKey: string,
+  startDateTime: string,
+  endDateTime: string,
+): Promise<RawVenueScrapedEvent[]> {
+  const events: RawVenueScrapedEvent[] = [];
+
+  try {
+    await sleep(THROTTLE_MS);
+
+    // If we have a TM venue ID, query directly
+    const params = new URLSearchParams({
+      apikey: apiKey,
+      classificationName: 'music',
+      size: '100',
+      sort: 'date,asc',
+      startDateTime,
+      endDateTime,
+    });
+
+    if (venue.tmVenueId) {
+      params.set('venueId', venue.tmVenueId);
+    } else {
+      // Search by city + keyword matching venue name
+      params.set('city', venue.city);
+      params.set('stateCode', venue.state);
+      params.set('radius', '10');
+      params.set('unit', 'miles');
+      params.set('keyword', venue.name);
+    }
+
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?${params.toString()}`;
+    console.log(`[VenueScraper] Querying TM for "${venue.name}" (${venue.city}, ${venue.state})…`);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.warn(`[VenueScraper] TM HTTP ${response.status} for "${venue.name}": ${response.statusText}`);
+      return events;
+    }
+
+    const json = (await response.json()) as {
+      _embedded?: {
+        events?: Array<{
+          id: string;
+          name: string;
+          dates: { start: { localDate: string; localTime?: string } };
+          _embedded?: {
+            venues?: Array<{
+              name: string;
+              city?: { name: string };
+              state?: { stateCode: string };
+              location?: { latitude: string; longitude: string };
+            }>;
+            attractions?: Array<{ name: string }>;
+          };
+          priceRanges?: Array<{ min: number; max: number }>;
+          url?: string;
+        }>;
+      };
+    };
+
+    const tmEvents = json._embedded?.events ?? [];
+
+    for (const evt of tmEvents) {
+      const tmVenue = evt._embedded?.venues?.[0];
+      const venueName = tmVenue?.name ?? venue.name;
+      const artistName = evt._embedded?.attractions?.[0]?.name ?? evt.name;
+
+      events.push({
+        artist_name: artistName,
+        event_name: evt.name,
+        venue_name: venueName,
+        venue_city: tmVenue?.city?.name ?? venue.city,
+        venue_state: tmVenue?.state?.stateCode ?? venue.state,
+        venue_capacity: venue.capacity,
+        event_date: evt.dates.start.localDate,
+        ticket_price_low: evt.priceRanges?.[0]?.min,
+        ticket_price_high: evt.priceRanges?.[0]?.max,
+        ticket_url: evt.url,
+        source_url: `https://www.ticketmaster.com/event/${evt.id}`,
+      });
+    }
+
+    console.log(`[VenueScraper] ${events.length} events found at "${venue.name}" via TM`);
+  } catch (err) {
+    console.error(
+      `[VenueScraper] Error querying TM for "${venue.name}":`,
+      err instanceof Error ? err.message : err
+    );
+  }
+
+  return events;
+}
+
+// ============================================================
+// Fallback: Basic HTML extraction
+// ============================================================
+
+/**
+ * Attempt to extract events from a venue's HTML calendar page.
+ * Uses basic regex patterns — not as reliable as TM but catches
+ * non-TM events.
+ */
+async function fetchHTMLEvents(venue: CompVenue & { url?: string }): Promise<RawVenueScrapedEvent[]> {
+  if (!('url' in venue) || !venue.url) return [];
+
+  try {
+    await sleep(THROTTLE_MS);
+
+    const response = await fetch(venue.url, {
+      headers: {
+        'User-Agent': 'VenueCore-MarketRadar/1.0 (venue calendar aggregation)',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`[VenueScraper] HTML HTTP ${response.status} for "${venue.name}"`);
+      return [];
+    }
+
+    const html = await response.text();
+
+    // Basic extraction: look for JSON-LD structured data (common on modern venue sites)
+    const events: RawVenueScrapedEvent[] = [];
+    const jsonLdMatches = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi);
+
+    if (jsonLdMatches) {
+      for (const match of jsonLdMatches) {
+        try {
+          const jsonStr = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+          const ld = JSON.parse(jsonStr);
+
+          // Handle both single objects and arrays
+          const items = Array.isArray(ld) ? ld : [ld];
+
+          for (const item of items) {
+            if (item['@type'] === 'MusicEvent' || item['@type'] === 'Event') {
+              events.push({
+                artist_name: item.performer?.name ?? item.name ?? 'Unknown',
+                event_name: item.name,
+                venue_name: item.location?.name ?? venue.name,
+                venue_city: venue.city,
+                venue_state: venue.state,
+                venue_capacity: venue.capacity,
+                event_date: item.startDate?.split('T')[0] ?? '',
+                ticket_price_low: item.offers?.lowPrice,
+                ticket_price_high: item.offers?.highPrice,
+                ticket_url: item.offers?.url ?? item.url,
+                source_url: venue.url || '',
+              });
+            }
+          }
+        } catch {
+          // JSON parse error — skip this block
+        }
+      }
+    }
+
+    console.log(`[VenueScraper] ${events.length} events extracted from "${venue.name}" HTML (JSON-LD)`);
+    return events;
+  } catch (err) {
+    console.error(`[VenueScraper] HTML error for "${venue.name}":`, err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
+// ============================================================
+// Legacy venue URLs for HTML fallback
+// ============================================================
+
+const VENUE_URLS: Record<string, string> = {
+  'Saturn': 'https://www.saturnbirmingham.com/events',
+  'The Camp': 'https://www.thecampmuscleshoals.com/events',
+  'The Grey Eagle': 'https://www.thegreyeagle.com/events',
+  'Track 29': 'https://www.track29.co/events',
+  'Duling Hall': 'https://www.dulinghall.com/events',
+  'The Orange Peel': 'https://www.theorangepeel.net/events',
+  'Terminal West': 'https://www.terminalwestatl.com/events',
+};
 
 // ============================================================
 // Public API
 // ============================================================
 
 /**
- * Scrape tracked venue calendar pages for upcoming events.
+ * Fetch events from comp venues using Ticketmaster API (primary)
+ * and HTML extraction (fallback for venues with known URLs).
  *
- * **Current implementation is a placeholder.** Each venue requires
- * site-specific CSS selectors, RSS parsing, or JSON API integration
- * to reliably extract event data. For now the function attempts to
- * fetch each venue URL and logs the result, but returns an empty
- * array until per-venue parsers are built.
- *
- * @returns Array of scraped venue events (currently empty — placeholder)
+ * @returns Array of venue-sourced events
  */
 export async function fetchVenueScrapedEvents(): Promise<RawVenueScrapedEvent[]> {
+  const apiKey = process.env.TICKETMASTER_API_KEY;
   const allEvents: RawVenueScrapedEvent[] = [];
 
-  for (const venue of TRACKED_VENUES) {
-    try {
-      await sleep(THROTTLE_MS);
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setMonth(endDate.getMonth() + 4);
+  const startDateTime = toISOParam(now);
+  const endDateTime = toISOParam(endDate);
 
-      console.log(
-        `[VenueScraper] Attempting fetch for "${venue.name}" (${venue.city}, ${venue.state}) — ${venue.url}`
-      );
+  // Strategy 1: Ticketmaster venue queries (if API key available)
+  if (apiKey) {
+    for (const venue of COMP_VENUES) {
+      const events = await fetchTMEventsForVenue(venue, apiKey, startDateTime, endDateTime);
+      allEvents.push(...events);
+    }
+  } else {
+    console.warn('[VenueScraper] No TICKETMASTER_API_KEY — skipping TM venue queries');
+  }
 
-      const response = await fetch(venue.url, {
-        headers: {
-          'User-Agent':
-            'VenueCore-MarketRadar/1.0 (venue calendar aggregation)',
-        },
-      });
-
-      if (!response.ok) {
-        console.warn(
-          `[VenueScraper] HTTP ${response.status} for "${venue.name}": ${response.statusText}`
+  // Strategy 2: HTML extraction for venues with known URLs
+  for (const venue of COMP_VENUES) {
+    const url = VENUE_URLS[venue.name];
+    if (url) {
+      const htmlEvents = await fetchHTMLEvents({ ...venue, url });
+      // Only add events not already found via TM (dedupe by artist+date)
+      for (const evt of htmlEvents) {
+        const isDupe = allEvents.some(
+          (e) =>
+            e.artist_name.toLowerCase() === evt.artist_name.toLowerCase() &&
+            e.event_date === evt.event_date &&
+            e.venue_name.toLowerCase().includes(venue.name.toLowerCase())
         );
-        continue;
+        if (!isDupe) {
+          allEvents.push(evt);
+        }
       }
-
-      const contentType = response.headers.get('content-type') ?? '';
-      const body = await response.text();
-
-      console.log(
-        `[VenueScraper] ✓ "${venue.name}" responded (${contentType}, ${body.length} bytes)`
-      );
-
-      // TODO: Implement site-specific parsing for each venue.
-      // Each venue's calendar page has a unique DOM structure.
-      // Parsers should extract: artist_name, event_date, ticket_url,
-      // ticket_price_low/high from the HTML.
-      //
-      // Possible strategies per venue.type:
-      //   'css_selector' — use a DOM parser (e.g. cheerio) with venue-specific selectors
-      //   'rss'          — parse the venue's RSS/Atom feed
-      //   'json_api'     — call the venue's public JSON API (e.g. Eventbrite widget)
-      //
-      // For now we log the fetch attempt and return no events.
-
-      // Placeholder: attempt basic pattern detection on HTML responses
-      if (contentType.includes('text/html')) {
-        // TODO: Replace with per-venue CSS selector parsing (e.g. cheerio).
-        // Common patterns to look for:
-        //   - <time datetime="..."> elements
-        //   - <h2>/<h3> headings with artist names
-        //   - <a href="..."> links to ticket pages
-        console.log(
-          `[VenueScraper] ⚠ "${venue.name}" — HTML parsing not yet implemented. Skipping event extraction.`
-        );
-      }
-    } catch (err) {
-      console.error(
-        `[VenueScraper] Error scraping "${venue.name}" (${venue.city}, ${venue.state}):`,
-        err instanceof Error ? err.message : err
-      );
-      // Continue with remaining venues — never throw
     }
   }
 
+  // Deduplicate by artist+date+venue combo
+  const seen = new Set<string>();
+  const deduped = allEvents.filter((evt) => {
+    const key = `${evt.artist_name.toLowerCase()}|${evt.event_date}|${evt.venue_name.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   console.log(
-    `[VenueScraper] Scrape complete. ${TRACKED_VENUES.length} venues attempted, ${allEvents.length} events extracted.`
+    `[VenueScraper] Complete. ${COMP_VENUES.length} venues queried, ${deduped.length} unique events found.`
   );
 
-  return allEvents;
+  return deduped;
 }
+
+// Re-export for backwards compatibility
+export { COMP_VENUES as TRACKED_VENUES } from '../constants';
+export type { CompVenue as TrackedVenue } from '../constants';

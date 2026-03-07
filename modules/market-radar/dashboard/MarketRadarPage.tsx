@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import EventTable from './EventTable';
 import RoutingPanel from './RoutingPanel';
 import CompetitionPanel from './CompetitionPanel';
+import TrendPanel from './TrendPanel';
 import type { MarketRadarEvent, MarketRadarRoutingCluster, MarketRadarCompetition } from '@/modules/market-radar/types';
 
-type Tab = 'events' | 'routing' | 'competition';
+type Tab = 'events' | 'routing' | 'competition' | 'trends';
 
 interface Filters {
   city: string;
@@ -182,6 +183,7 @@ export default function MarketRadarPage() {
     { key: 'events', label: 'Events' },
     { key: 'routing', label: 'Routing' },
     { key: 'competition', label: 'Competition' },
+    { key: 'trends', label: 'Trends & Comp Venues' },
   ];
 
   return (
@@ -362,6 +364,7 @@ export default function MarketRadarPage() {
         {activeTab === 'competition' && (
           <CompetitionPanel competitions={competitions} loading={competitionsLoading} />
         )}
+        {activeTab === 'trends' && <TrendPanel />}
       </div>
     </div>
   );

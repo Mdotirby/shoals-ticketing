@@ -6,6 +6,10 @@ import Link from "next/link";
 
 type SyncStatus = {
   configured: boolean;
+  token_status?: "valid" | "expired" | "invalid" | "unknown";
+  token_error?: string | null;
+  pages?: string[];
+  ig_connected?: boolean;
   last_sync: string | null;
   metric_count: number;
   instructions?: string;
@@ -125,7 +129,7 @@ export default function SocialPage() {
   const maxImp = Math.max(...recentMetrics.map((m) => m.impressions || 0), 1);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111", padding: "24px 20px", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "transparent", padding: "24px 20px", fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif" }}>
       <Link href="/admin/marketing" style={{ color: "rgba(96,165,250,0.7)", textDecoration: "none", fontSize: 13 }}>← Marketing Hub</Link>
       <h1 style={{ color: "#fff", fontSize: 28, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>Social Performance</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 24 }}>
@@ -160,10 +164,37 @@ export default function SocialPage() {
       {/* Not configured message */}
       {syncStatus && !syncStatus.configured && (
         <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 20, marginBottom: 24 }}>
-          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>⚠️ Meta Not Connected</div>
+          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>Meta Not Connected</div>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>
             Connect your Meta account to see social insights. Set <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_SYSTEM_TOKEN</code> in Vercel env vars.
             Optionally set <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_PAGE_ID</code> and <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_IG_USER_ID</code>.
+          </p>
+        </div>
+      )}
+
+      {/* Token diagnostics */}
+      {syncStatus && syncStatus.configured && (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: 16, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{
+              display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+              background: syncStatus.token_status === "valid" ? "#22c55e" : syncStatus.token_status === "expired" ? "#ef4444" : "#f59e0b",
+            }} />
+            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 600 }}>
+              Token: {syncStatus.token_status === "valid" ? "Valid" : syncStatus.token_status === "expired" ? "Expired" : syncStatus.token_status === "invalid" ? "Invalid" : "Unknown"}
+            </span>
+          </div>
+          {syncStatus.token_error && (
+            <p style={{ color: "#ef4444", fontSize: 12, margin: "0 0 8px" }}>{syncStatus.token_error}</p>
+          )}
+          {syncStatus.pages && syncStatus.pages.length > 0 && (
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: "0 0 4px" }}>
+              Pages: {syncStatus.pages.join(", ")}
+            </p>
+          )}
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0 }}>
+            Instagram: {syncStatus.ig_connected ? "Connected" : "Not connected"}
+            {!syncStatus.ig_connected && " — Link an IG Business Account to your FB Page"}
           </p>
         </div>
       )}
