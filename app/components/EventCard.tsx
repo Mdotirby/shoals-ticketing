@@ -55,7 +55,7 @@ export default function EventCard({ event }: EventCardProps) {
 
         <div className="event-meta-badges">
           <span className="event-badge event-price-badge">
-            <span className="badge-text">${event.price}</span>
+            <span className="badge-text">${Number(event.price).toFixed(2)}</span>
           </span>
           <span className="event-badge event-date-badge">
             <span className="badge-text">{formatEventDate(event.date)}</span>
