@@ -95,6 +95,46 @@ async function trackEmailSend(recipientEmail: string, recipientName: string, res
   }
 }
 
+// GET /api/newsletter?list=true — Return all subscribers (admin)
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const isList = searchParams.get("list") === "true";
+
+  if (!isList) {
+    return NextResponse.json({ error: "Use ?list=true to fetch subscribers" }, { status: 400 });
+  }
+
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("newsletter_subscribers")
+      .select("id, first_name, last_name, email, subscribed_at, unsubscribed_at, venue_slug, source")
+      .is("unsubscribed_at", null)
+      .order("subscribed_at", { ascending: false });
+
+    if (error) {
+      console.error("[newsletter GET] Supabase error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Map to expected shape (the page expects created_at, not subscribed_at)
+    const subscribers = (data || []).map((s: Record<string, unknown>) => ({
+      id: s.id,
+      first_name: s.first_name,
+      last_name: s.last_name,
+      email: s.email,
+      created_at: s.subscribed_at,
+      venue_slug: s.venue_slug,
+      source: s.source,
+    }));
+
+    return NextResponse.json({ subscribers });
+  } catch (err) {
+    console.error("[newsletter GET] Error:", err);
+    return NextResponse.json({ error: "Failed to fetch subscribers" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
