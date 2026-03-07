@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("newsletter_subscribers")
-      .select("id, first_name, last_name, email, subscribed_at, unsubscribed_at, venue_slug, source")
+      .select("id, first_name, last_name, email, subscribed_at, unsubscribed_at")
       .is("unsubscribed_at", null)
       .order("subscribed_at", { ascending: false });
 
@@ -124,8 +124,6 @@ export async function GET(req: NextRequest) {
       last_name: s.last_name,
       email: s.email,
       created_at: s.subscribed_at,
-      venue_slug: s.venue_slug,
-      source: s.source,
     }));
 
     return NextResponse.json({ subscribers });
