@@ -104,12 +104,15 @@ export async function POST(req: NextRequest) {
 
   const eventType = body.event_type || "non_ticketed";
   
+  const isPrivate = eventType === "private";
   const insertData: Record<string, unknown> = {
     title: body.title,
     venue: body.venue || "",
     date: body.date,
     end_time: body.end_time || null,
-    price: eventType === "hard_ticket" || eventType === "ticketed" ? (body.price || 0) : 0,
+    price: isPrivate ? null : (eventType === "hard_ticket" || eventType === "ticketed" ? (body.price || 0) : 0),
+    ticketing_fee: isPrivate ? null : undefined,
+    venue_rebate: isPrivate ? null : undefined,
     description: body.description || null,
     notes: body.notes || null,
     event_type: eventType,
@@ -117,10 +120,19 @@ export async function POST(req: NextRequest) {
     contact_name: body.contact_name || null,
     contact_phone: body.contact_phone || null,
     contact_email: body.contact_email || null,
+    client_name: body.client_name || null,
+    client_email: body.client_email || null,
+    client_phone: body.client_phone || null,
+    client_company: body.client_company || null,
+    client_billing_address: body.client_billing_address || null,
+    tax_exempt: body.tax_exempt || false,
+    start_time: body.start_time || null,
     calendar_color: body.calendar_color || null,
     status: body.status || "published",
     venue_id: body.venue_id || null,
   };
+  // Remove undefined values so they don't get sent to Supabase
+  Object.keys(insertData).forEach(k => { if (insertData[k] === undefined) delete insertData[k]; });
 
   const { data, error } = await admin
     .from("events")
@@ -159,6 +171,16 @@ export async function PUT(req: NextRequest) {
   if (body.contact_email !== undefined) updates.contact_email = body.contact_email;
   if (body.calendar_color !== undefined) updates.calendar_color = body.calendar_color;
   if (body.status !== undefined) updates.status = body.status;
+  if (body.start_time !== undefined) updates.start_time = body.start_time;
+  if (body.client_name !== undefined) updates.client_name = body.client_name;
+  if (body.client_email !== undefined) updates.client_email = body.client_email;
+  if (body.client_phone !== undefined) updates.client_phone = body.client_phone;
+  if (body.client_company !== undefined) updates.client_company = body.client_company;
+  if (body.client_billing_address !== undefined) updates.client_billing_address = body.client_billing_address;
+  if (body.tax_exempt !== undefined) updates.tax_exempt = body.tax_exempt;
+  if (body.price !== undefined) updates.price = body.price;
+  if (body.ticketing_fee !== undefined) updates.ticketing_fee = body.ticketing_fee;
+  if (body.venue_rebate !== undefined) updates.venue_rebate = body.venue_rebate;
 
   const { data, error } = await admin
     .from("events")

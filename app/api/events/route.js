@@ -69,9 +69,9 @@ export async function POST(request) {
     title: body.title,
     venue: body.venue,
     date: body.date,
-    price: body.price ?? (isPrivate ? 0 : 0),
-    ticketing_fee: body.ticketing_fee ?? 3.0,
-    venue_rebate: body.venue_rebate ?? 0,
+    price: isPrivate ? null : (body.price ?? 0),
+    ticketing_fee: isPrivate ? null : (body.ticketing_fee ?? 3.0),
+    venue_rebate: isPrivate ? null : (body.venue_rebate ?? 0),
     description: body.description || (isPrivate ? "" : null),
     image_url: body.image_url || (isPrivate ? "" : null),
     status: body.status || "published",
@@ -90,27 +90,15 @@ export async function POST(request) {
     tax_exempt: body.tax_exempt ?? false,
   };
 
-  // Attempt insert — if start_time/end_time columns exist (TEXT type from
-  // private-events-v2 migration), include them. If the insert fails because
-  // the columns don't exist or are the wrong type, retry without them.
-  if (body.start_time) eventRow.start_time = body.start_time;
-  if (body.end_time) eventRow.end_time = body.end_time;
+  // Always include start_time/end_time (TEXT columns from private-events-v2 migration)
+  eventRow.start_time = body.start_time || null;
+  eventRow.end_time = body.end_time || null;
 
-  let { data: event, error: eventError } = await admin
+  const { data: event, error: eventError } = await admin
     .from("events")
     .insert(eventRow)
     .select()
     .single();
-
-  // Retry without start_time/end_time if they caused the failure
-  if (eventError && (eventError.message.includes("start_time") || eventError.message.includes("end_time") || eventError.message.includes("timestamp"))) {
-    console.warn("Retrying event insert without start_time/end_time:", eventError.message);
-    delete eventRow.start_time;
-    delete eventRow.end_time;
-    const retry = await admin.from("events").insert(eventRow).select().single();
-    event = retry.data;
-    eventError = retry.error;
-  }
 
   if (eventError) {
     return new Response(JSON.stringify({ error: eventError.message }), { status: 500 });

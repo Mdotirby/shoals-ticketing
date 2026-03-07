@@ -60,6 +60,15 @@ export default function AdminEditEventPage() {
     contact_name: "",
     contact_phone: "",
     contact_email: "",
+    // Private event fields
+    client_name: "",
+    client_email: "",
+    client_phone: "",
+    client_billing_address: "",
+    client_company: "",
+    tax_exempt: false,
+    start_time: "",
+    end_time: "",
   });
 
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
@@ -121,6 +130,14 @@ export default function AdminEditEventPage() {
           contact_name: event.contact_name || "",
           contact_phone: event.contact_phone || "",
           contact_email: event.contact_email || "",
+          client_name: event.client_name || "",
+          client_email: event.client_email || "",
+          client_phone: event.client_phone || "",
+          client_billing_address: event.client_billing_address || "",
+          client_company: event.client_company || "",
+          tax_exempt: event.tax_exempt || false,
+          start_time: event.start_time || "",
+          end_time: event.end_time || "",
         });
 
         if (event.image_url) {
@@ -283,6 +300,7 @@ export default function AdminEditEventPage() {
     setError("");
 
     const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+    const isPrivate = form.event_type === "private";
 
     // Validate tiers only for hard ticket
     if (isHardTicket) {
@@ -324,7 +342,9 @@ export default function AdminEditEventPage() {
           title: form.title,
           venue: form.venue,
           date: dateTime,
-          price: lowestPrice,
+          price: isPrivate ? null : lowestPrice,
+          ticketing_fee: isPrivate ? null : undefined,
+          venue_rebate: isPrivate ? null : undefined,
           description: form.description || null,
           image_url: form.image_url || null,
           event_venue_id: selectedEventVenueId || null,
@@ -333,6 +353,15 @@ export default function AdminEditEventPage() {
           contact_name: form.contact_name || null,
           contact_phone: form.contact_phone || null,
           contact_email: form.contact_email || null,
+          // Private event fields
+          client_name: isPrivate ? (form.client_name || null) : null,
+          client_email: isPrivate ? (form.client_email || null) : null,
+          client_phone: isPrivate ? (form.client_phone || null) : null,
+          client_billing_address: isPrivate ? (form.client_billing_address || null) : null,
+          client_company: isPrivate ? (form.client_company || null) : null,
+          tax_exempt: isPrivate ? form.tax_exempt : false,
+          start_time: isPrivate ? (form.start_time || null) : null,
+          end_time: isPrivate ? (form.end_time || null) : null,
         }),
       });
 

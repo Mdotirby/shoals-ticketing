@@ -306,6 +306,7 @@ export default function CalendarPage() {
     const dateTime = `${form.date}T${form.time || "00:00"}:00`;
     const endTime = form.end_time ? `${form.date}T${form.end_time}:00` : null;
 
+    const isPrivateEvent = form.event_type === "private";
     const payload: Record<string, unknown> = {
       title: form.title.trim(),
       date: dateTime,
@@ -324,6 +325,9 @@ export default function CalendarPage() {
       status: form.status,
       description: form.description || null,
       venue_id: venueId,
+      // Private events: set start_time/end_time as TEXT and null out pricing
+      start_time: isPrivateEvent ? (form.time || null) : null,
+      ...(isPrivateEvent ? { price: null, ticketing_fee: null, venue_rebate: null } : {}),
     };
 
     try {

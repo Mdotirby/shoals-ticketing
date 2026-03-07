@@ -78,3 +78,30 @@ export async function PUT(
 
   return NextResponse.json(data);
 }
+
+// DELETE: Delete invoice and its payments
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const admin = createAdminClient();
+
+  // Delete associated payments first
+  await admin
+    .from("invoice_payments")
+    .delete()
+    .eq("invoice_id", id);
+
+  // Delete the invoice
+  const { error } = await admin
+    .from("invoices")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ deleted: true }, { status: 200 });
+}

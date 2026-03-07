@@ -145,6 +145,8 @@ export default function AdminEventsPage() {
                         fontSize: 10, padding: "2px 8px", borderRadius: 4,
                         background: "rgba(255,255,255,0.06)",
                         color: "rgba(255,255,255,0.5)",
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: "1.4",
                       }}>
                         {EVENT_TYPE_LABELS[eventType] || eventType}
                       </span>
@@ -153,6 +155,8 @@ export default function AdminEventsPage() {
                         background: statusColor + "18",
                         color: statusColor,
                         fontWeight: 600,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        lineHeight: "1.4",
                       }}>
                         {bookingStatus}
                       </span>
@@ -163,9 +167,11 @@ export default function AdminEventsPage() {
                   </div>
                 </div>
                 <div className="admin-event-actions">
-                  <span className="admin-event-price">
-                    ${ev.price?.toFixed(2)}
-                  </span>
+                  {eventType !== 'private' && (
+                    <span className="admin-event-price">
+                      ${ev.price?.toFixed(2)}
+                    </span>
+                  )}
                   <Link
                     href={eventType === 'private' ? `/admin/private-events/${ev.id}` : `/admin/events/${ev.id}/edit`}
                     className="admin-sponsor-edit-btn"

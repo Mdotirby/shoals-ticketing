@@ -652,6 +652,7 @@ function BillingTab({
 }) {
   const [showNewInvoice, setShowNewInvoice] = useState(false);
   const [savingInvoice, setSavingInvoice] = useState(false);
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<string | null>(null);
 
   // ── Line items state (editable) ──
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
@@ -714,6 +715,23 @@ function BillingTab({
       setEditingItems(false);
       onRevenueUpdate();
     } catch { alert("Failed to save line items"); }
+  };
+
+  // ── Delete Invoice ──
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this invoice? This cannot be undone.")) return;
+    setDeletingInvoiceId(invoiceId);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
+      if (res.ok) {
+        onInvoiceCreated(); // refresh invoices list
+      } else {
+        alert("Failed to delete invoice");
+      }
+    } catch {
+      alert("Failed to delete invoice");
+    }
+    setDeletingInvoiceId(null);
   };
 
   // ── Generate Proposal PDF ──
@@ -975,7 +993,14 @@ function BillingTab({
                   Open Payment Page
                 </a>
                 <button style={{ ...btnSecondary, padding: "6px 14px", fontSize: 12 }} onClick={() => handleDownloadInvoicePDF(inv)}>
-                  📄 PDF
+                  PDF
+                </button>
+                <button
+                  style={{ ...btnDanger, padding: "6px 14px", fontSize: 12 }}
+                  onClick={() => handleDeleteInvoice(inv.id)}
+                  disabled={deletingInvoiceId === inv.id}
+                >
+                  {deletingInvoiceId === inv.id ? "Deleting..." : "Delete Invoice"}
                 </button>
               </div>
             </div>
