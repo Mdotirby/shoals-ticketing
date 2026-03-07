@@ -136,8 +136,8 @@ export default function AdminEditEventPage() {
           client_billing_address: event.client_billing_address || "",
           client_company: event.client_company || "",
           tax_exempt: event.tax_exempt || false,
-          start_time: event.start_time || "",
-          end_time: event.end_time || "",
+          start_time: event.start_time ? (event.start_time.match(/T(\d{2}:\d{2})/)?.[1] || event.start_time) : "",
+          end_time: event.end_time ? (event.end_time.match(/T(\d{2}:\d{2})/)?.[1] || event.end_time) : "",
         });
 
         if (event.image_url) {
@@ -360,8 +360,8 @@ export default function AdminEditEventPage() {
           client_billing_address: isPrivate ? (form.client_billing_address || null) : null,
           client_company: isPrivate ? (form.client_company || null) : null,
           tax_exempt: isPrivate ? form.tax_exempt : false,
-          start_time: isPrivate ? (form.start_time || null) : null,
-          end_time: isPrivate ? (form.end_time || null) : null,
+          start_time: isPrivate && form.start_time ? `${form.date}T${form.start_time}:00` : null,
+          end_time: isPrivate && form.end_time ? `${form.date}T${form.end_time}:00` : null,
         }),
       });
 

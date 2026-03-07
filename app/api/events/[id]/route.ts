@@ -60,6 +60,11 @@ export async function PUT(
   if (body.start_time !== undefined) updates.start_time = body.start_time;
   if (body.end_time !== undefined) updates.end_time = body.end_time;
 
+  console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
+  if (updates.start_time !== undefined || updates.end_time !== undefined) {
+    console.log(`  start_time: ${JSON.stringify(updates.start_time)}, end_time: ${JSON.stringify(updates.end_time)}`);
+  }
+
   const { data, error } = await admin
     .from("events")
     .update(updates)
@@ -68,12 +73,14 @@ export async function PUT(
     .single();
 
   if (error) {
+    console.error(`PUT /api/events/${id} — error:`, error.message, error.code, error.details);
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
     );
   }
 
+  console.log(`PUT /api/events/${id} — success, start_time=${data?.start_time}, end_time=${data?.end_time}`);
   return NextResponse.json(data, { status: 200 });
 }
 

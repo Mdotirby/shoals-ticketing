@@ -138,7 +138,11 @@ function safeDate(d: string) {
 
 function formatTime12hr(time: string | undefined) {
   if (!time) return "—";
-  const match = time.match(/^(\d{1,2}):(\d{2})/);
+  // Handle full timestamps like "2026-03-31T12:30:00+00:00"
+  let timeStr = time;
+  const tMatch = time.match(/T(\d{2}:\d{2})/);
+  if (tMatch) timeStr = tMatch[1];
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})/);
   if (!match) return time;
   let hours = parseInt(match[1]);
   const minutes = match[2];
@@ -314,11 +318,26 @@ export default function PrivateEventManagement() {
 function EventDetailsTab({ event, onUpdate }: { event: EventData; onUpdate: () => void }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  // Extract HH:MM from timestamptz values (e.g. "2026-03-31T12:30:00+00:00" → "12:30")
+  const extractTime = (val?: string | null) => {
+    if (!val) return "";
+    // If it's already HH:MM format
+    if (/^\d{2}:\d{2}$/.test(val)) return val;
+    // If it's a full timestamp, extract time portion
+    const match = val.match(/T(\d{2}:\d{2})/);
+    if (match) return match[1];
+    // If it looks like a time with seconds
+    const timeMatch = val.match(/^(\d{2}:\d{2}):\d{2}/);
+    if (timeMatch) return timeMatch[1];
+    return val;
+  };
+
   const [form, setForm] = useState({
     title: event.title,
     date: event.date?.split("T")[0] || "",
-    start_time: event.start_time || "",
-    end_time: event.end_time || "",
+    start_time: extractTime(event.start_time),
+    end_time: extractTime(event.end_time),
     venue: event.venue,
     booking_status: event.booking_status || "confirmed",
     description: event.description || "",
@@ -326,29 +345,48 @@ function EventDetailsTab({ event, onUpdate }: { event: EventData; onUpdate: () =
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError("");
     try {
       const dateTime = form.start_time
         ? `${form.date}T${form.start_time}:00`
         : `${form.date}T19:00:00`;
 
+      // Build full timestamps for start_time/end_time (timestamptz columns need date+time)
+      const startTimestamp = form.start_time ? `${form.date}T${form.start_time}:00` : null;
+      const endTimestamp = form.end_time ? `${form.date}T${form.end_time}:00` : null;
+
+      const payload = {
+        title: form.title,
+        date: dateTime,
+        venue: form.venue,
+        booking_status: form.booking_status,
+        description: form.description || null,
+        start_time: startTimestamp,
+        end_time: endTimestamp,
+      };
+
+      console.log("Saving event details:", payload);
+
       const res = await fetch(`/api/events/${event.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: form.title,
-          date: dateTime,
-          venue: form.venue,
-          booking_status: form.booking_status,
-          description: form.description || null,
-          start_time: form.start_time || null,
-          end_time: form.end_time || null,
-        }),
+        body: JSON.stringify(payload),
       });
+
       if (res.ok) {
+        const result = await res.json();
+        console.log("Event saved successfully:", result);
         setEditing(false);
         onUpdate();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Event save failed:", res.status, errData);
+        setSaveError(errData.error || `Save failed (${res.status})`);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error("Event save error:", err);
+      setSaveError("Network error — could not save");
+    }
     setSaving(false);
   };
 
@@ -392,6 +430,7 @@ function EventDetailsTab({ event, onUpdate }: { event: EventData; onUpdate: () =
               onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
         </div>
+        {saveError && <p style={{ color: "#ef4444", fontSize: 13, marginTop: 8 }}>{saveError}</p>}
         <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
           <button style={btnPrimary} onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}

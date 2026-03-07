@@ -269,8 +269,8 @@ export default function AdminCreateEventPage() {
           client_billing_address: isPrivate ? (form.client_billing_address || null) : null,
           client_company: isPrivate ? (form.client_company || null) : null,
           tax_exempt: isPrivate ? form.tax_exempt : false,
-          start_time: isPrivate ? (form.start_time || null) : null,
-          end_time: isPrivate ? (form.end_time || null) : null,
+          start_time: isPrivate && form.start_time ? `${form.date}T${form.start_time}:00` : null,
+          end_time: isPrivate && form.end_time ? `${form.date}T${form.end_time}:00` : null,
           tiers: isHardTicket
             ? tiers.map((t, i) => ({
                 tier_name: t.tier_name.trim(),
