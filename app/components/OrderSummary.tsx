@@ -72,25 +72,25 @@ export default function OrderSummary({
               {selectedTicket.name}
               {quantity > 1 ? ` × ${quantity}` : ""}
             </span>
-            <span className="order-summary-line-value">$ {subtotal.toFixed(2)}</span>
+            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
           </div>
 
           <div className="order-summary-divider" />
 
           <div className="order-summary-line order-summary-line-sub">
             <span className="order-summary-line-label">Subtotal</span>
-            <span className="order-summary-line-value">$ {subtotal.toFixed(2)}</span>
+            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
           </div>
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Ticketing Service Fee</span>
-              <span className="order-summary-line-value">$ {totalTicketingFee.toFixed(2)}</span>
+              <span className="order-summary-line-value">${totalTicketingFee.toFixed(2)}</span>
             </div>
           )}
           {totalFacilityFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Facility fee</span>
-              <span className="order-summary-line-value">$ {totalFacilityFee.toFixed(2)}</span>
+              <span className="order-summary-line-value">${totalFacilityFee.toFixed(2)}</span>
             </div>
           )}
           {tax > 0 && (
@@ -98,7 +98,7 @@ export default function OrderSummary({
               <span className="order-summary-line-label">
                 Sales tax ({(rate * 100).toFixed(2).replace(/\.?0+$/, "")}%)
               </span>
-              <span className="order-summary-line-value">$ {tax.toFixed(2)}</span>
+              <span className="order-summary-line-value">${tax.toFixed(2)}</span>
             </div>
           )}
           {processingFee > 0 && (
@@ -106,7 +106,7 @@ export default function OrderSummary({
               <span className="order-summary-line-label">
                 Processing fee (2.9% + $0.30)
               </span>
-              <span className="order-summary-line-value">$ {processingFee.toFixed(2)}</span>
+              <span className="order-summary-line-value">${processingFee.toFixed(2)}</span>
             </div>
           )}
 
@@ -114,7 +114,7 @@ export default function OrderSummary({
 
           <div className="order-summary-line order-summary-total">
             <span className="order-summary-line-label">Total</span>
-            <span className="order-summary-line-value">$ {total.toFixed(2)}</span>
+            <span className="order-summary-line-value">${total.toFixed(2)}</span>
           </div>
         </div>
       )}

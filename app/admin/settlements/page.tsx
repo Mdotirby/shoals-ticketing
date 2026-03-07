@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
+import { formatEventDateShort } from "@/lib/dates";
 import type { Settlement } from "@/lib/types/settlement";
 
 type EventRow = {
@@ -19,16 +20,6 @@ const STATUS_COLORS: Record<string, string> = {
   draft: "status-draft",
   finalized: "status-published",
 };
-
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
-
-function formatDate(d: string) {
-  return safeDate(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default function AdminSettlementsPage() {
   const [events, setEvents] = useState<EventRow[]>([]);
@@ -117,7 +108,7 @@ export default function AdminSettlementsPage() {
                   <div>
                     <h3 className="admin-event-name">{evt.title}</h3>
                     <span className="admin-event-meta">
-                      {evt.venue || "—"} · {evt.date ? formatDate(evt.date) : "No date"}
+                      {evt.venue || "—"} · {evt.date ? formatEventDateShort(evt.date) : "No date"}
                     </span>
                     <span
                       className={`admin-event-status ${STATUS_COLORS[status] || "status-draft"}`}

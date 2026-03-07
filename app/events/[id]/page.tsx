@@ -9,6 +9,7 @@ import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
+import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
 
 type FeaturedArtist = {
   id: string;
@@ -45,30 +46,7 @@ type EventData = {
   artists?: Artist[];
 };
 
-/** Parse date strings safely — strips timezone so stored time is treated as intended local display time */
-function safeDate(date: string) {
-  if (date && date.length === 10 && date[4] === "-") return new Date(date + "T12:00:00");
-  return new Date(date.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
-}
-
-function formatDate(date: string) {
-  return safeDate(date).toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatTime(date: string): string | null {
-  const d = safeDate(date);
-  if (d.getHours() === 0 && d.getMinutes() === 0) return null;
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
+// Date helpers imported from @/lib/dates
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -257,7 +235,7 @@ export default function EventDetailPage() {
     );
   }
 
-  const showTime = formatTime(event.date);
+  const showTime = formatEventTime(event.date);
   const mapSrc = event.venue_lat && event.venue_lng
     ? `https://maps.google.com/maps?q=${event.venue_lat},${event.venue_lng}&z=15&output=embed`
     : event.venue_address
@@ -297,7 +275,7 @@ export default function EventDetailPage() {
                 <div className="ticket-card-body">
                   <h1 className="ticket-hero-title">{event.title}</h1>
                   <p className="ticket-event-meta">
-                    <span className="ticket-event-date">{formatDate(event.date)}</span>
+                    <span className="ticket-event-date">{formatEventDateFull(event.date)}</span>
                     {showTime && (
                       <>
                         <span className="ticket-event-meta-sep">·</span>
@@ -456,30 +434,6 @@ export default function EventDetailPage() {
                   </div>
                 )}
               </div>
-            </div>
-          </section>
-        )}
-
-        {/* ── Talent Section ── */}
-        {event.artists && event.artists.length > 0 && (
-          <section className="event-talent-section">
-            <h2 className="event-talent-heading">Performing</h2>
-            <div className="event-talent-grid">
-              {event.artists.map((artist) => (
-                <div key={artist.id} className="event-talent-card">
-                  {artist.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={artist.image_url}
-                      alt={artist.name}
-                      className="event-talent-img"
-                    />
-                  ) : (
-                    <div className="event-talent-img event-talent-img-placeholder" />
-                  )}
-                  <span className="event-talent-name">{artist.name}</span>
-                </div>
-              ))}
             </div>
           </section>
         )}

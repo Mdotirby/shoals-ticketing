@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -13,6 +13,8 @@ const navItems = [
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  const hamburgerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +24,25 @@ export default function Header() {
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Close mobile nav when clicking outside
+  const handleOutsideClick = useCallback((e: MouseEvent) => {
+    if (
+      navRef.current &&
+      !navRef.current.contains(e.target as Node) &&
+      hamburgerRef.current &&
+      !hamburgerRef.current.contains(e.target as Node)
+    ) {
+      setIsMenuOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleOutsideClick);
+    }
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [isMenuOpen, handleOutsideClick]);
 
   return (
     <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
@@ -38,6 +59,7 @@ export default function Header() {
         </Link>
 
         <button
+          ref={hamburgerRef}
           type="button"
           className="hamburger"
           aria-label="Toggle navigation menu"
@@ -49,7 +71,7 @@ export default function Header() {
           <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
         </button>
 
-        <nav className={`header-nav ${isMenuOpen ? "open" : ""}`}>
+        <nav ref={navRef} className={`header-nav ${isMenuOpen ? "open" : ""}`}>
           {navItems.map((item) => (
             <Link
               key={item.label}

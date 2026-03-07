@@ -5,6 +5,7 @@ import "./styles/globals.css";
 import Header from "./components/Header";
 import VenueThemeProvider from "./components/VenueThemeProvider";
 import { VenueProvider } from "./components/VenueContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 
 const geistSans = Geist({
@@ -63,8 +64,10 @@ export default async function RootLayout({
       >
         <VenueProvider venueSlug={venueSlug}>
           <VenueThemeProvider>
-            <Header />
-            {children}
+            <ErrorBoundary>
+              <Header />
+              {children}
+            </ErrorBoundary>
           </VenueThemeProvider>
         </VenueProvider>
       </body>

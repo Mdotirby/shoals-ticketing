@@ -88,15 +88,7 @@ export default function HomePage() {
               See What&apos;s Coming <span className="cta-arrow">→</span>
             </Link>
 
-            <div className="home-hero-partners">
-              <span className="partners-label">Trusted by our partners</span>
-              <div className="partners-logos">
-                {/* Replace with actual partner logos */}
-                <span className="partner-logo-placeholder">🎵 Logoipsum</span>
-                <span className="partner-logo-placeholder">🎸 LOGOIPSUM</span>
-                <span className="partner-logo-placeholder">🎶 Logoipsum</span>
-              </div>
-            </div>
+            {/* Partner logos — hidden until real sponsors are configured */}
           </div>
         </section>
 

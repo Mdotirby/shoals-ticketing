@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import EventTable from './EventTable';
 import RoutingPanel from './RoutingPanel';
 import CompetitionPanel from './CompetitionPanel';
-import type { MarketRadarEvent } from '@/modules/market-radar/types';
+import type { MarketRadarEvent, MarketRadarRoutingCluster, MarketRadarCompetition } from '@/modules/market-radar/types';
 
 type Tab = 'events' | 'routing' | 'competition';
 
@@ -38,10 +38,10 @@ export default function MarketRadarPage() {
   const [eventsTotal, setEventsTotal] = useState(0);
   const [eventsLoading, setEventsLoading] = useState(true);
 
-  const [clusters, setClusters] = useState<any[]>([]);
+  const [clusters, setClusters] = useState<MarketRadarRoutingCluster[]>([]);
   const [clustersLoading, setClustersLoading] = useState(true);
 
-  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [competitions, setCompetitions] = useState<(MarketRadarCompetition & { event?: MarketRadarEvent; competing_event?: MarketRadarEvent })[]>([]);
   const [competitionsLoading, setCompetitionsLoading] = useState(true);
 
   const [cities, setCities] = useState<string[]>([]);

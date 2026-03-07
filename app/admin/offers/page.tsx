@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArtistOffer } from "@/lib/types/offer";
 import { getCookie } from "@/lib/cookies";
+import { formatEventDateShort } from "@/lib/dates";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "status-draft",
@@ -12,16 +13,6 @@ const STATUS_COLORS: Record<string, string> = {
   declined: "status-declined",
   expired: "status-declined",
 };
-
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
-
-function formatDate(date: string) {
-  return safeDate(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 export default function AdminOffersPage() {
   const [offers, setOffers] = useState<ArtistOffer[]>([]);
@@ -81,7 +72,7 @@ export default function AdminOffersPage() {
                   <span className="admin-event-meta">
                     {offer.venue || "No venue"} ·{" "}
                     {offer.event_date
-                      ? formatDate(offer.event_date)
+                      ? formatEventDateShort(offer.event_date)
                       : "No date"}
                   </span>
                   <span

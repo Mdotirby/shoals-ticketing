@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useVenue } from "@/app/components/VenueContext";
+import { useState, useEffect } from "react";
 
 const serviceLinks = [
   { label: "Concert Promotion", href: "/about" },
@@ -22,13 +24,35 @@ const managementLinks = [
   { label: "For Agents", href: "/agent" },
 ];
 
-const connectLinks = [
+const DEFAULT_CONNECT_LINKS = [
   { label: "Instagram", href: "https://instagram.com" },
   { label: "Facebook", href: "https://facebook.com" },
   { label: "Email Us", href: "mailto:info@west72entertainment.com" },
 ];
 
 export default function Footer() {
+  const { venueSlug, isVenueSubdomain } = useVenue();
+  const [connectLinks, setConnectLinks] = useState(DEFAULT_CONNECT_LINKS);
+
+  // Load venue-specific social links when on a venue subdomain
+  useEffect(() => {
+    if (!isVenueSubdomain) return;
+    fetch("/api/venues")
+      .then((r) => r.json())
+      .then((venues: Array<Record<string, unknown>>) => {
+        if (!Array.isArray(venues)) return;
+        const v = venues.find((x) => x.slug === venueSlug);
+        if (v) {
+          const links = [];
+          if (v.instagram_url) links.push({ label: "Instagram", href: v.instagram_url as string });
+          if (v.facebook_url) links.push({ label: "Facebook", href: v.facebook_url as string });
+          if (v.buyer_email) links.push({ label: "Email Us", href: `mailto:${v.buyer_email}` });
+          else links.push({ label: "Email Us", href: "mailto:info@west72entertainment.com" });
+          if (links.length > 0) setConnectLinks(links.length >= 2 ? links : DEFAULT_CONNECT_LINKS);
+        }
+      })
+      .catch(() => {});
+  }, [venueSlug, isVenueSubdomain]);
   return (
     <footer className="site-footer">
       <div className="footer-content">

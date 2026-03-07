@@ -1,11 +1,11 @@
 "use client";
 
+import { safeDate } from "@/lib/dates";
+
 type EventBadgesProps = {
   eventDate: string;        // ISO string e.g. "2025-11-08T20:00:00"
   ageRestriction?: string;  // "all_ages" | "18+" | "21+" — default all_ages
 };
-
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d); }
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString("en-US", {

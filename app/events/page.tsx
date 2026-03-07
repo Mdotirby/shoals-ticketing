@@ -5,25 +5,9 @@ import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { useVenue } from "@/app/components/VenueContext";
 import Footer from "@/app/components/Footer";
+import { formatEventDateShort, formatEventTime } from "@/lib/dates";
 
 type FilterType = "all" | "event" | "artist" | "venue" | "city";
-
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
-
-function formatEventDate(date: string) {
-  return safeDate(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function formatEventTime(date: string) {
-  if (date && date.length === 10) return null;
-  const d = safeDate(date);
-  if (d.getHours() === 0 && d.getMinutes() === 0) return null;
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-}
 
 function matchesFilter(event: Event, query: string, filter: FilterType): boolean {
   const q = query.toLowerCase();
@@ -112,7 +96,7 @@ export default function EventsPage() {
                 <span className="elc-price-badge">${event.price.toFixed(2)}</span>
                 <h2 className="elc-title">{event.title}</h2>
                 <p className="elc-date">
-                  {formatEventDate(event.date)}
+                  {formatEventDateShort(event.date)}
                   {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
                 </p>
                 <span className="elc-venue-badge">

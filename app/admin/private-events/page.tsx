@@ -33,7 +33,7 @@ function statusBadge(status: string) {
   );
 }
 
-function safeDate(d: string) {
+function safeFormatDate(d: string) {
   if (!d) return "—";
   return new Date(d.length === 10 ? d + "T12:00:00" : d).toLocaleDateString("en-US", {
     month: "short", day: "numeric", year: "numeric",
@@ -120,7 +120,7 @@ export default function PrivateEventsListPage() {
               {statusBadge(event.booking_status || "confirmed")}
             </div>
             <div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
-              <span>{safeDate(event.date)}</span>
+              <span>{safeFormatDate(event.date)}</span>
               <span>{event.venue}</span>
               {event.contact_email && <span>{event.contact_email}</span>}
             </div>
