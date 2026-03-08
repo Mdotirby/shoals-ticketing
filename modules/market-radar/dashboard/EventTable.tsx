@@ -35,6 +35,25 @@ function competitionBadge(score: number | null) {
   return <span className={`font-semibold ${color}`}>{score}</span>;
 }
 
+function sellThroughBar(sold: number | null, capacity: number | null) {
+  if (sold === null || capacity === null || capacity <= 0) {
+    return <span className="text-gray-500 text-xs">—</span>;
+  }
+  const pct = Math.min(100, Math.round((sold / capacity) * 100));
+  let barColor = 'bg-emerald-500';
+  if (pct >= 85) barColor = 'bg-red-500';
+  else if (pct >= 60) barColor = 'bg-amber-500';
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex-1 bg-gray-700 rounded-full h-1.5 min-w-[40px]">
+        <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs text-gray-300 whitespace-nowrap">{sold}/{capacity}</span>
+    </div>
+  );
+}
+
 export default function EventTable({ events, loading }: EventTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>('event_date');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -69,6 +88,8 @@ export default function EventTable({ events, loading }: EventTableProps) {
     { key: 'venue_capacity', label: 'Capacity' },
     { key: 'event_date', label: 'Date' },
     { key: 'ticket_price_low', label: 'Price Range' },
+    { key: 'estimated_tickets_sold', label: 'Est. Sold' },
+    { key: 'sale_velocity', label: 'Velocity' },
     { key: 'distance_from_shoals', label: 'Distance' },
     { key: 'source', label: 'Source' },
     { key: 'competition_score', label: 'Competition' },
@@ -174,6 +195,18 @@ export default function EventTable({ events, loading }: EventTableProps) {
                 </span>
               </div>
               <div className="flex justify-between col-span-2">
+                <span className="text-gray-500">Est. Sold</span>
+                <span className="text-gray-300">
+                  {sellThroughBar(event.estimated_tickets_sold, event.venue_capacity)}
+                </span>
+              </div>
+              {event.sale_velocity != null && event.sale_velocity > 0 && (
+                <div className="flex justify-between col-span-2">
+                  <span className="text-gray-500">Velocity</span>
+                  <span className="text-gray-300">{event.sale_velocity}/day</span>
+                </div>
+              )}
+              <div className="flex justify-between col-span-2">
                 <span className="text-gray-500">Competition</span>
                 {competitionBadge(event.competition_score)}
               </div>
@@ -230,6 +263,14 @@ export default function EventTable({ events, loading }: EventTableProps) {
                 <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
                   {event.ticket_price_low !== null || event.ticket_price_high !== null
                     ? `$${event.ticket_price_low ?? '?'} – $${event.ticket_price_high ?? '?'}`
+                    : '—'}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap min-w-[120px]">
+                  {sellThroughBar(event.estimated_tickets_sold, event.venue_capacity)}
+                </td>
+                <td className="px-3 py-3 text-gray-300 whitespace-nowrap">
+                  {event.sale_velocity != null && event.sale_velocity > 0
+                    ? `${event.sale_velocity}/day`
                     : '—'}
                 </td>
                 <td className="px-3 py-3 text-gray-300 whitespace-nowrap">

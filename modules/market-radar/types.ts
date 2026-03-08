@@ -150,6 +150,7 @@ export interface RawTicketmasterEvent {
   /** Embedded resources (venues, attractions) */
   _embedded?: {
     venues?: Array<{
+      id?: string;
       name: string;
       city?: { name: string };
       state?: { stateCode: string };
@@ -174,15 +175,54 @@ export interface RawTicketmasterEvent {
     min: number;
     max: number;
   }>;
+  /** Products / offers (secondary pricing data) */
+  products?: Array<{
+    id: string;
+    name: string;
+    type: { id: string; name: string };
+  }>;
+  /** Seat map information */
+  seatmap?: {
+    staticUrl?: string;
+    id?: string;
+  };
+  /** Accessibility information (sometimes includes ticket limits) */
+  accessibility?: {
+    ticketLimit?: number;
+    info?: string;
+  };
+  /** Ticket limit for the event */
+  ticketLimit?: {
+    info?: string;
+  };
   /** Sales / presale windows */
   sales?: {
     public?: {
       startDateTime?: string;
       endDateTime?: string;
+      startTBD?: boolean;
     };
+    presales?: Array<{
+      name?: string;
+      startDateTime?: string;
+      endDateTime?: string;
+    }>;
   };
   /** Direct URL to the event on Ticketmaster */
   url?: string;
+}
+
+/**
+ * Enriched Ticketmaster event — the raw event plus additional data
+ * fetched from the event detail and venue detail endpoints.
+ */
+export interface EnrichedTicketmasterEvent extends RawTicketmasterEvent {
+  /** Venue capacity resolved from venue detail lookup or COMP_VENUES */
+  _resolvedVenueCapacity?: number | null;
+  /** Venue ID from TM for detail lookups */
+  _tmVenueId?: string | null;
+  /** Whether prices were enriched from the detail endpoint */
+  _priceEnriched?: boolean;
 }
 
 /** Shape of a Bandsintown API event object (relevant fields) */

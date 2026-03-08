@@ -4,10 +4,15 @@
  * Fetches events from the Ticketmaster Discovery API v2,
  * querying multiple cities defined in constants. Implements
  * rate-limiting, caching, and graceful error handling.
+ *
+ * Enhanced with:
+ *  - Event detail fetching for price enrichment
+ *  - Venue detail fetching for capacity estimation
+ *  - Cross-reference with COMP_VENUES for known capacities
  */
 
-import type { RawTicketmasterEvent } from '../types';
-import { TICKETMASTER_CITIES, MAX_VENUE_CAPACITY } from '../constants';
+import type { RawTicketmasterEvent, EnrichedTicketmasterEvent } from '../types';
+import { TICKETMASTER_CITIES, MAX_VENUE_CAPACITY, COMP_VENUES } from '../constants';
 
 // ============================================================
 // Internal Helpers
@@ -26,11 +31,14 @@ const toISOParam = (d: Date): string =>
 // ============================================================
 
 interface CacheEntry {
-  data: RawTicketmasterEvent[];
+  data: EnrichedTicketmasterEvent[];
   timestamp: number;
 }
 
 const cache = new Map<string, CacheEntry>();
+
+/** Venue capacity cache — keyed by TM venue ID */
+const venueCapacityCache = new Map<string, number | null>();
 
 /** Cache time-to-live in milliseconds (1 hour) */
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -43,13 +51,116 @@ const isCacheFresh = (entry: CacheEntry): boolean =>
 // Constants
 // ============================================================
 
-const TM_BASE_URL = 'https://app.ticketmaster.com/discovery/v2/events.json';
+const TM_BASE_URL = 'https://app.ticketmaster.com/discovery/v2';
 
 /** Rate-limit delay between requests (200 ms ≈ 5 req/s) */
-const THROTTLE_MS = 200;
+const THROTTLE_MS = 250;
 
 /** How many months ahead to search */
 const LOOKAHEAD_MONTHS = 6;
+
+/** Max events to enrich with detail endpoint per scan (avoid rate limits) */
+const MAX_DETAIL_ENRICHMENTS = 50;
+
+// ============================================================
+// Venue Capacity Resolution
+// ============================================================
+
+/**
+ * Attempt to resolve venue capacity from multiple sources:
+ * 1. COMP_VENUES known list (fast, no API call)
+ * 2. TM venue detail endpoint (API call, cached)
+ * 3. TM event venue data (capacity / maximumCapacity fields)
+ */
+function resolveCompVenueCapacity(venueName: string, cityName: string): number | null {
+  const normalizedName = venueName.toLowerCase().trim();
+  const normalizedCity = cityName.toLowerCase().trim();
+
+  for (const cv of COMP_VENUES) {
+    const cvName = cv.name.toLowerCase().trim();
+    const cvCity = cv.city.toLowerCase().trim();
+
+    // Match by name similarity + city
+    if (
+      (normalizedName.includes(cvName) || cvName.includes(normalizedName)) &&
+      normalizedCity === cvCity
+    ) {
+      return cv.capacity;
+    }
+  }
+  return null;
+}
+
+/**
+ * Fetch venue details from TM API to get capacity.
+ * Results are cached in-memory by venue ID.
+ */
+async function fetchVenueCapacity(
+  venueId: string,
+  apiKey: string,
+): Promise<number | null> {
+  // Check cache first
+  if (venueCapacityCache.has(venueId)) {
+    return venueCapacityCache.get(venueId) ?? null;
+  }
+
+  try {
+    await sleep(THROTTLE_MS);
+
+    const url = `${TM_BASE_URL}/venues/${venueId}.json?apikey=${apiKey}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      venueCapacityCache.set(venueId, null);
+      return null;
+    }
+
+    const venueData = (await response.json()) as {
+      capacity?: number;
+      maximumCapacity?: number;
+      generalInfo?: { generalRule?: string };
+      boxOfficeInfo?: { openHoursDetail?: string };
+    };
+
+    const capacity = venueData.capacity ?? venueData.maximumCapacity ?? null;
+    venueCapacityCache.set(venueId, capacity);
+
+    if (capacity) {
+      console.log(`[Ticketmaster] Venue ${venueId} capacity: ${capacity}`);
+    }
+
+    return capacity;
+  } catch {
+    venueCapacityCache.set(venueId, null);
+    return null;
+  }
+}
+
+// ============================================================
+// Event Detail Enrichment
+// ============================================================
+
+/**
+ * Fetch individual event details to enrich with price ranges and
+ * additional data not available in the list endpoint.
+ */
+async function fetchEventDetails(
+  eventId: string,
+  apiKey: string,
+): Promise<RawTicketmasterEvent | null> {
+  try {
+    await sleep(THROTTLE_MS);
+
+    const url = `${TM_BASE_URL}/events/${eventId}.json?apikey=${apiKey}`;
+    const response = await fetch(url);
+
+    if (!response.ok) return null;
+
+    return (await response.json()) as RawTicketmasterEvent;
+  } catch {
+    return null;
+  }
+}
 
 // ============================================================
 // Public API
@@ -60,9 +171,13 @@ const LOOKAHEAD_MONTHS = 6;
  * configured cities. Results are cached per-city for 1 hour and
  * deduplicated by event ID before returning.
  *
- * @returns Combined, deduplicated array of raw Ticketmaster events
+ * Events are enriched with:
+ * - Venue capacity from COMP_VENUES cross-reference + TM venue detail
+ * - Price ranges from individual event detail endpoint (for events missing prices)
+ *
+ * @returns Combined, deduplicated array of enriched Ticketmaster events
  */
-export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]> {
+export async function fetchTicketmasterEvents(): Promise<EnrichedTicketmasterEvent[]> {
   const apiKey = process.env.TICKETMASTER_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -78,7 +193,7 @@ export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]>
   const startDateTime = toISOParam(now);
   const endDateTime = toISOParam(endDate);
 
-  const allEvents: RawTicketmasterEvent[] = [];
+  const allEvents: EnrichedTicketmasterEvent[] = [];
 
   for (const { city, stateCode } of TICKETMASTER_CITIES) {
     // Check cache first
@@ -106,7 +221,7 @@ export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]>
         endDateTime,
       });
 
-      const url = `${TM_BASE_URL}?${params.toString()}`;
+      const url = `${TM_BASE_URL}/events.json?${params.toString()}`;
       console.log(`[Ticketmaster] Fetching events for ${city}, ${stateCode}…`);
 
       const response = await fetch(url);
@@ -126,24 +241,44 @@ export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]>
 
       // Filter out events at venues larger than MAX_VENUE_CAPACITY (3 000)
       events = events.filter((evt) => {
-        const total = evt._embedded?.venues?.[0]?.upcomingEvents?._total;
-        // upcomingEvents._total is NOT capacity; Ticketmaster doesn't always
-        // expose capacity directly. We use the generalInfo field or skip if
-        // unavailable. For now, only filter when we can detect capacity.
-        // A future normaliser will handle stricter filtering.
-        if (total !== undefined && total > MAX_VENUE_CAPACITY) {
+        const venue = evt._embedded?.venues?.[0];
+        const knownCapacity = venue?.capacity ?? venue?.maximumCapacity;
+        if (knownCapacity && knownCapacity > MAX_VENUE_CAPACITY) {
           return false;
         }
         return true;
       });
 
+      // Enrich each event with venue capacity resolution
+      const enriched: EnrichedTicketmasterEvent[] = events.map((evt) => {
+        const venue = evt._embedded?.venues?.[0];
+        const venueName = venue?.name ?? '';
+        const venueCity = venue?.city?.name ?? '';
+        const venueId = venue?.id ?? null;
+
+        // Try COMP_VENUES first (no API call)
+        let resolvedCapacity = resolveCompVenueCapacity(venueName, venueCity);
+
+        // Fall back to TM venue data
+        if (!resolvedCapacity) {
+          resolvedCapacity = venue?.capacity ?? venue?.maximumCapacity ?? null;
+        }
+
+        return {
+          ...evt,
+          _resolvedVenueCapacity: resolvedCapacity,
+          _tmVenueId: venueId,
+          _priceEnriched: false,
+        };
+      });
+
       // Store in cache
-      cache.set(city, { data: events, timestamp: Date.now() });
+      cache.set(city, { data: enriched, timestamp: Date.now() });
       console.log(
-        `[Ticketmaster] ${events.length} events retrieved for ${city}, ${stateCode}`
+        `[Ticketmaster] ${enriched.length} events retrieved for ${city}, ${stateCode}`
       );
 
-      allEvents.push(...events);
+      allEvents.push(...enriched);
     } catch (err) {
       console.error(
         `[Ticketmaster] Error fetching events for ${city}, ${stateCode}:`,
@@ -155,7 +290,7 @@ export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]>
 
   // Deduplicate by event ID
   const seen = new Set<string>();
-  const deduplicated: RawTicketmasterEvent[] = [];
+  const deduplicated: EnrichedTicketmasterEvent[] = [];
   for (const evt of allEvents) {
     if (!seen.has(evt.id)) {
       seen.add(evt.id);
@@ -165,6 +300,67 @@ export async function fetchTicketmasterEvents(): Promise<RawTicketmasterEvent[]>
 
   console.log(
     `[Ticketmaster] Returning ${deduplicated.length} unique events (${allEvents.length} total before dedup)`
+  );
+
+  // ── Enrich events missing prices or capacity via detail endpoint ──
+  const needsEnrichment = deduplicated.filter(
+    (evt) => !evt.priceRanges?.length || !evt._resolvedVenueCapacity
+  );
+
+  const toEnrich = needsEnrichment.slice(0, MAX_DETAIL_ENRICHMENTS);
+  if (toEnrich.length > 0) {
+    console.log(
+      `[Ticketmaster] Enriching ${toEnrich.length} events with detail endpoint…`
+    );
+
+    let enrichedCount = 0;
+    for (const evt of toEnrich) {
+      const detail = await fetchEventDetails(evt.id, apiKey);
+      if (!detail) continue;
+
+      // Enrich price ranges
+      if (!evt.priceRanges?.length && detail.priceRanges?.length) {
+        evt.priceRanges = detail.priceRanges;
+        evt._priceEnriched = true;
+        enrichedCount++;
+      }
+
+      // Enrich seatmap
+      if (!evt.seatmap && detail.seatmap) {
+        evt.seatmap = detail.seatmap;
+      }
+
+      // Enrich accessibility / ticket limit
+      if (!evt.accessibility && detail.accessibility) {
+        evt.accessibility = detail.accessibility;
+      }
+
+      // Try to get venue capacity from detail if still missing
+      if (!evt._resolvedVenueCapacity) {
+        const detailVenue = detail._embedded?.venues?.[0];
+        const detailCapacity = detailVenue?.capacity ?? detailVenue?.maximumCapacity;
+        if (detailCapacity) {
+          evt._resolvedVenueCapacity = detailCapacity;
+        }
+
+        // Last resort: fetch venue detail by ID
+        if (!evt._resolvedVenueCapacity && evt._tmVenueId) {
+          const venueCapacity = await fetchVenueCapacity(evt._tmVenueId, apiKey);
+          if (venueCapacity) {
+            evt._resolvedVenueCapacity = venueCapacity;
+          }
+        }
+      }
+    }
+
+    console.log(`[Ticketmaster] Price enrichment complete: ${enrichedCount} events got prices`);
+  }
+
+  // Log pricing stats
+  const withPrices = deduplicated.filter((e) => e.priceRanges?.length).length;
+  const withCapacity = deduplicated.filter((e) => e._resolvedVenueCapacity).length;
+  console.log(
+    `[Ticketmaster] Final stats: ${withPrices}/${deduplicated.length} have prices, ${withCapacity}/${deduplicated.length} have capacity`
   );
 
   return deduplicated;

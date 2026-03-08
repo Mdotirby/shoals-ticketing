@@ -8,6 +8,7 @@
 
 import type {
   RawTicketmasterEvent,
+  EnrichedTicketmasterEvent,
   RawBandsintownEvent,
   RawVenueScrapedEvent,
   NormalizedEvent,
@@ -16,17 +17,55 @@ import { FLORENCE_LAT, FLORENCE_LNG } from '../constants';
 import { calculateDistance, formatEventDate } from '../utils';
 
 // ============================================================
+// Price Range Helpers
+// ============================================================
+
+/**
+ * Extract the best price range from a Ticketmaster event.
+ * Prefers 'standard' type, then falls back to any type.
+ * Aggregates across all price range entries for the widest range.
+ */
+function extractPriceRange(
+  priceRanges?: Array<{ type: string; currency: string; min: number; max: number }>,
+): { low: number | null; high: number | null } {
+  if (!priceRanges || priceRanges.length === 0) {
+    return { low: null, high: null };
+  }
+
+  // Prefer 'standard' type price ranges (not 'including fees')
+  const standard = priceRanges.filter(
+    (pr) => pr.type === 'standard' || pr.type === 'Standard'
+  );
+  const source = standard.length > 0 ? standard : priceRanges;
+
+  let low: number | null = null;
+  let high: number | null = null;
+
+  for (const pr of source) {
+    if (pr.min != null && (low === null || pr.min < low)) low = pr.min;
+    if (pr.max != null && (high === null || pr.max > high)) high = pr.max;
+  }
+
+  return { low, high };
+}
+
+// ============================================================
 // Ticketmaster
 // ============================================================
 
 /**
- * Normalise a raw Ticketmaster Discovery API event into the unified format.
+ * Normalise a raw/enriched Ticketmaster Discovery API event into the unified format.
  *
- * @param raw - Raw event payload from the Ticketmaster API
+ * Enhanced to:
+ * - Parse all priceRanges entries (preferring 'standard' type)
+ * - Use _resolvedVenueCapacity from enrichment pipeline
+ * - Extract tracker/demand signals from attractions
+ *
+ * @param raw - Raw or enriched event payload from the Ticketmaster API
  * @returns A {@link NormalizedEvent} ready for DB upsert
  */
 export function normalizeTicketmasterEvent(
-  raw: RawTicketmasterEvent,
+  raw: RawTicketmasterEvent | EnrichedTicketmasterEvent,
 ): NormalizedEvent {
   const venue = raw._embedded?.venues?.[0];
   const attraction = raw._embedded?.attractions?.[0];
@@ -48,23 +87,37 @@ export function normalizeTicketmasterEvent(
     ? formatEventDate(raw.sales.public.startDateTime)
     : null;
 
+  // Extract best price range across all entries
+  const prices = extractPriceRange(raw.priceRanges);
+
+  // Use enriched venue capacity if available, fall back to raw venue data
+  const enriched = raw as EnrichedTicketmasterEvent;
+  const venueCapacity =
+    enriched._resolvedVenueCapacity ??
+    venue?.capacity ??
+    venue?.maximumCapacity ??
+    null;
+
+  // Extract tracker count from attraction's upcoming events as a demand signal
+  const attractionTrackerCount = attraction?.upcomingEvents?._total ?? null;
+
   return {
     artist_name: attraction?.name ?? raw.name,
     event_name: raw.name,
     venue_name: venue?.name ?? 'Unknown Venue',
     venue_city: venue?.city?.name ?? 'Unknown',
     venue_state: venue?.state?.stateCode ?? 'Unknown',
-    venue_capacity: venue?.capacity ?? venue?.maximumCapacity ?? null,
+    venue_capacity: venueCapacity,
     event_date: eventDate,
     announce_date: announceDate,
-    ticket_price_low: raw.priceRanges?.[0]?.min ?? null,
-    ticket_price_high: raw.priceRanges?.[0]?.max ?? null,
+    ticket_price_low: prices.low,
+    ticket_price_high: prices.high,
     ticket_url: raw.url ?? null,
     ticket_provider: 'Ticketmaster',
     latitude: lat,
     longitude: lng,
     distance_from_shoals: distanceFromShoals,
-    tracker_count: null,
+    tracker_count: attractionTrackerCount,
     rsvp_count: null,
     estimated_tickets_sold: null,
     estimated_tickets_remaining: null,

@@ -2,11 +2,13 @@ import { collectAllEvents } from '../services/eventCollector';
 import { detectRoutingClusters } from '../services/routingDetector';
 import { analyzeCompetition } from '../services/competitionAnalyzer';
 import { sendMarketRadarAlerts } from '../notifications/emailAlerts';
+import { runMetricsJob } from './updateEventMetrics';
 
 export async function runScanJob(): Promise<{
   collection: { inserted: number; duplicates: number; errors: string[] };
   routing: { clustersFound: number };
   competition: { pairsAnalyzed: number; highCompetition: number };
+  metrics: { eventsUpdated: number };
   notifications: { sent: boolean };
 }> {
   const startTime = Date.now();
@@ -29,7 +31,12 @@ export async function runScanJob(): Promise<{
     const competition = await analyzeCompetition();
     console.log(`[Market Radar] Competition analysis complete: ${competition.pairsAnalyzed} pairs analyzed, ${competition.highCompetition} high-competition`);
 
-    // Step 4: Send email alerts for notable findings
+    // Step 4: Update sales metrics estimates (capacity, velocity, etc.)
+    console.log('[Market Radar] Updating sales metrics...');
+    const metrics = await runMetricsJob();
+    console.log(`[Market Radar] Metrics update complete: ${metrics.eventsUpdated} events updated`);
+
+    // Step 5: Send email alerts for notable findings
     console.log('[Market Radar] Sending alerts...');
     const notifications = await sendMarketRadarAlerts({
       collection,
@@ -41,7 +48,7 @@ export async function runScanJob(): Promise<{
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[Market Radar] Scan job completed in ${elapsed}s`);
 
-    return { collection, routing, competition, notifications };
+    return { collection, routing, competition, metrics, notifications };
   } catch (error) {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.error(`[Market Radar] Scan job failed after ${elapsed}s:`, error);

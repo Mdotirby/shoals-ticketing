@@ -26,6 +26,7 @@ import {
   isValidCapacity,
   deduplicateEvents,
 } from '../utils';
+import { COMP_VENUES } from '../constants';
 
 // ============================================================
 // Table name
@@ -109,6 +110,25 @@ export async function collectAllEvents(): Promise<CollectResult> {
     const msg = `Venue scraper failed: ${String(vsResult.reason)}`;
     errors.push(msg);
     console.error(`[MarketRadar] ${msg}`);
+  }
+
+  // ── Enrich capacity from COMP_VENUES for events still missing it ──
+  for (const event of allNormalized) {
+    if (!event.venue_capacity) {
+      const normalizedName = event.venue_name.toLowerCase().trim();
+      const normalizedCity = event.venue_city.toLowerCase().trim();
+      for (const cv of COMP_VENUES) {
+        const cvName = cv.name.toLowerCase().trim();
+        const cvCity = cv.city.toLowerCase().trim();
+        if (
+          (normalizedName.includes(cvName) || cvName.includes(normalizedName)) &&
+          normalizedCity === cvCity
+        ) {
+          event.venue_capacity = cv.capacity;
+          break;
+        }
+      }
+    }
   }
 
   // ── Filter ───────────────────────────────────────────────────

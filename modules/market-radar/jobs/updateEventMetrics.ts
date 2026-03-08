@@ -1,5 +1,83 @@
 import { createAdminClient } from '@/lib/supabase-server';
 
+/**
+ * Estimate ticket sales using a multi-signal model:
+ *
+ * 1. **Lifecycle position** — how far through the on-sale window we are
+ *    (early = fewer sold, closer to show = more sold). Uses an S-curve
+ *    rather than linear to model real-world front-loading of sales.
+ *
+ * 2. **Tracker / demand signal** — TM attraction upcoming event count or
+ *    Bandsintown tracker_count as a demand proxy.
+ *
+ * 3. **Price signal** — higher average prices correlate with slower
+ *    sell-through rates for smaller venues (300–800 cap).
+ *
+ * The model blends these signals into a single estimated sold number
+ * bounded by [0, venueCapacity].
+ */
+function estimateTicketsSold(
+  venueCapacity: number,
+  announceDate: Date,
+  eventDate: Date,
+  currentDate: Date,
+  trackerCount: number | null,
+  priceLow: number | null,
+  priceHigh: number | null,
+): { sold: number; remaining: number; velocity: number; sellThroughPct: number } {
+  const totalDays = Math.max(
+    1,
+    (eventDate.getTime() - announceDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const daysSinceAnnounce = Math.max(
+    0,
+    (currentDate.getTime() - announceDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  const daysUntilEvent = Math.max(
+    0,
+    (eventDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  // S-curve lifecycle (front-loaded sales + last-minute bump)
+  const t = Math.min(1, daysSinceAnnounce / totalDays);
+  const sCurve = 1 / (1 + Math.exp(-10 * (t - 0.4))); // sigmoid centered at 40%
+  const lifecyclePct = 0.15 + 0.70 * sCurve; // range: 15% to 85%
+
+  // Demand signal from trackers (normalize: 50+ events = high demand artist)
+  let demandMultiplier = 1.0;
+  if (trackerCount !== null && trackerCount > 0) {
+    if (trackerCount >= 50) demandMultiplier = 1.15;
+    else if (trackerCount >= 20) demandMultiplier = 1.05;
+    else if (trackerCount <= 5) demandMultiplier = 0.85;
+  }
+
+  // Price signal: higher prices = slightly slower sell-through
+  let priceMultiplier = 1.0;
+  const avgPrice = priceLow && priceHigh ? (priceLow + priceHigh) / 2 : priceLow ?? priceHigh;
+  if (avgPrice !== null) {
+    if (avgPrice > 80) priceMultiplier = 0.90;
+    else if (avgPrice > 50) priceMultiplier = 0.95;
+    else if (avgPrice < 25) priceMultiplier = 1.10;
+  }
+
+  // Last-minute urgency boost (within 7 days)
+  const urgencyBoost = daysUntilEvent <= 7 ? 1.05 : 1.0;
+
+  const sellThroughPct = Math.min(
+    0.95,
+    lifecyclePct * demandMultiplier * priceMultiplier * urgencyBoost,
+  );
+
+  const sold = Math.round(venueCapacity * sellThroughPct);
+  const remaining = Math.max(0, venueCapacity - sold);
+  const velocity =
+    daysSinceAnnounce > 0
+      ? Math.round((sold / daysSinceAnnounce) * 100) / 100
+      : 0;
+
+  return { sold, remaining, velocity, sellThroughPct };
+}
+
 export async function runMetricsJob(): Promise<{ eventsUpdated: number }> {
   const startTime = Date.now();
   console.log('[Market Radar] Starting metrics update job...');
@@ -33,57 +111,84 @@ export async function runMetricsJob(): Promise<{ eventsUpdated: number }> {
       sale_velocity: number;
     }> = [];
 
+    const currentDate = new Date();
+
     for (const event of events) {
       const venueCapacity = event.venue_capacity;
       if (!venueCapacity || venueCapacity <= 0) continue;
 
+      const announceDate = event.announce_date
+        ? new Date(event.announce_date)
+        : new Date(event.discovered_at || event.created_at);
+      const eventDate = new Date(event.event_date);
+
       if (event.source === 'ticketmaster' && event.source_event_id) {
-        // Estimate sales based on lifecycle position
-        const announceDate = event.announce_date
-          ? new Date(event.announce_date)
-          : new Date(event.discovered_at || event.created_at);
-        const eventDate = new Date(event.event_date);
-        const currentDate = new Date();
-
-        const totalDays = Math.max(
-          1,
-          (eventDate.getTime() - announceDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const daysSinceAnnounce = Math.max(
-          0,
-          (currentDate.getTime() - announceDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
-
-        // Simple decay model: 30% base + 50% scaled by lifecycle position
-        const lifecyclePosition = Math.min(1, daysSinceAnnounce / totalDays);
-        const estimatedTicketsSold = Math.round(
-          venueCapacity * (0.3 + 0.5 * lifecyclePosition)
-        );
-        const estimatedTicketsRemaining = Math.max(0, venueCapacity - estimatedTicketsSold);
-        const saleVelocity =
-          daysSinceAnnounce > 0
-            ? Math.round((estimatedTicketsSold / daysSinceAnnounce) * 100) / 100
-            : 0;
-
-        updates.push({
-          id: event.id,
-          estimated_tickets_sold: estimatedTicketsSold,
-          estimated_tickets_remaining: estimatedTicketsRemaining,
-          sale_velocity: saleVelocity,
-        });
-      } else if (event.source === 'bandsintown' && event.tracker_count) {
-        // Use tracker_count as a rough proxy for interest
-        const estimatedTicketsSold = Math.min(
+        const { sold, remaining, velocity } = estimateTicketsSold(
           venueCapacity,
-          Math.round(event.tracker_count * 0.15)
+          announceDate,
+          eventDate,
+          currentDate,
+          event.tracker_count,
+          event.ticket_price_low,
+          event.ticket_price_high,
         );
-        const estimatedTicketsRemaining = Math.max(0, venueCapacity - estimatedTicketsSold);
 
         updates.push({
           id: event.id,
-          estimated_tickets_sold: estimatedTicketsSold,
-          estimated_tickets_remaining: estimatedTicketsRemaining,
-          sale_velocity: 0,
+          estimated_tickets_sold: sold,
+          estimated_tickets_remaining: remaining,
+          sale_velocity: velocity,
+        });
+      } else if (event.source === 'bandsintown') {
+        // Use tracker_count + lifecycle for Bandsintown
+        const trackerBasedSold = event.tracker_count
+          ? Math.round(event.tracker_count * 0.15)
+          : 0;
+
+        const { sold: lifecycleSold } = estimateTicketsSold(
+          venueCapacity,
+          announceDate,
+          eventDate,
+          currentDate,
+          event.tracker_count,
+          event.ticket_price_low,
+          event.ticket_price_high,
+        );
+
+        // Blend tracker-based and lifecycle estimates
+        const blended = Math.round(
+          Math.min(venueCapacity, (trackerBasedSold + lifecycleSold) / 2),
+        );
+        const remaining = Math.max(0, venueCapacity - blended);
+
+        const daysSinceAnnounce = Math.max(
+          1,
+          (currentDate.getTime() - announceDate.getTime()) / (1000 * 60 * 60 * 24),
+        );
+
+        updates.push({
+          id: event.id,
+          estimated_tickets_sold: blended,
+          estimated_tickets_remaining: remaining,
+          sale_velocity: Math.round((blended / daysSinceAnnounce) * 100) / 100,
+        });
+      } else {
+        // Venue scrape — basic lifecycle only
+        const { sold, remaining, velocity } = estimateTicketsSold(
+          venueCapacity,
+          announceDate,
+          eventDate,
+          currentDate,
+          null,
+          event.ticket_price_low,
+          event.ticket_price_high,
+        );
+
+        updates.push({
+          id: event.id,
+          estimated_tickets_sold: sold,
+          estimated_tickets_remaining: remaining,
+          sale_velocity: velocity,
         });
       }
     }

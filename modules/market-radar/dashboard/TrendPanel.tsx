@@ -23,7 +23,7 @@ type TrendData = {
   };
   top_artists: { name: string; eventCount: number; totalDemand: number; avgPrice: number }[];
   top_venues: { name: string; city: string; state: string; capacity: number; eventCount: number; avgDemand: number }[];
-  velocity_insights: { artist: string; venue: string; date: string; velocity: number; trackerCount: number; estimatedSold: number; capacity: number }[];
+  velocity_insights: { artist: string; venue: string; date: string; velocity: number; trackerCount: number; estimatedSold: number; estimatedRemaining: number; capacity: number }[];
 };
 
 export default function TrendPanel() {
@@ -170,6 +170,63 @@ export default function TrendPanel() {
           </table>
         </div>
       </div>
+
+      {/* Velocity Insights — Fastest Selling Events */}
+      {data.velocity_insights.length > 0 && (
+        <div className="mb-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
+          <h3 className="text-white text-sm sm:text-[15px] font-semibold mb-4">🔥 Fastest Selling Events</h3>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Artist</th>
+                  <th style={thStyle}>Venue</th>
+                  <th style={thStyle}>Date</th>
+                  <th style={thStyle}>Velocity</th>
+                  <th style={thStyle}>Est. Sold</th>
+                  <th style={thStyle}>Capacity</th>
+                  <th style={thStyle}>Sell-Through</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.velocity_insights.slice(0, 15).map((v, i) => {
+                  const pct = v.capacity > 0 ? Math.round((v.estimatedSold / v.capacity) * 100) : 0;
+                  let pctColor = 'rgba(34,197,94,0.8)';
+                  if (pct >= 85) pctColor = 'rgba(239,68,68,0.8)';
+                  else if (pct >= 60) pctColor = 'rgba(245,158,11,0.8)';
+
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <td style={tdStyle}>{v.artist}</td>
+                      <td style={tdStyle}>{v.venue}</td>
+                      <td style={tdStyle}>
+                        {new Date(v.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </td>
+                      <td style={{ ...tdStyle, color: '#d0c290', fontWeight: 600 }}>
+                        {v.velocity}/day
+                      </td>
+                      <td style={tdStyle}>
+                        {v.estimatedSold?.toLocaleString() ?? '—'}
+                      </td>
+                      <td style={tdStyle}>
+                        {v.capacity?.toLocaleString() ?? '—'}
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 4, height: 6, minWidth: 40 }}>
+                            <div style={{ width: `${pct}%`, height: 6, borderRadius: 4, background: pctColor }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: pctColor, fontWeight: 600, whiteSpace: 'nowrap' }}>{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Top Venues */}
       <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 16 }}>
