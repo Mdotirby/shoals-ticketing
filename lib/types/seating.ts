@@ -55,6 +55,7 @@ export type SeatReservation = {
   event_id: string;
   user_id?: string;
   session_id?: string;
+  order_id?: string;
   reservation_expires: string;
   status: "held" | "purchased" | "expired";
   created_at: string;

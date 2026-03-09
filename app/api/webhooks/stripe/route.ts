@@ -20,6 +20,7 @@ function ticketEmailHtml({
   totalAmount,
   qrDataUrl,
   ticketUrl,
+  seatAssignments,
 }: {
   customerName: string;
   eventTitle: string;
@@ -29,6 +30,7 @@ function ticketEmailHtml({
   totalAmount: number;
   qrDataUrl: string;
   ticketUrl: string;
+  seatAssignments?: { section: string; row: string; seat: string }[];
 }) {
   const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
@@ -76,6 +78,21 @@ function ticketEmailHtml({
                   </td>
                 </tr>
               </table>
+
+              ${seatAssignments && seatAssignments.length > 0 ? `
+              <!-- Assigned Seats -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:16px 20px;">
+                    <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#818cf8;">Your Assigned Seats</p>
+                    ${seatAssignments.map((s) => `
+                    <p style="margin:4px 0;font-size:14px;color:rgba(255,255,255,0.7);">
+                      <span style="color:#d0c290;font-weight:600;">${s.section}</span> &middot; Row ${s.row} &middot; Seat ${s.seat}
+                    </p>`).join("")}
+                  </td>
+                </tr>
+              </table>
+              ` : ""}
 
               <!-- QR code -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
@@ -135,6 +152,7 @@ async function sendTicketEmail({
   qrDataUrl,
   ticketId,
   venueSlug,
+  seatAssignments,
 }: {
   to: string;
   customerName: string;
@@ -146,6 +164,7 @@ async function sendTicketEmail({
   qrDataUrl: string;
   ticketId: string;
   venueSlug: string;
+  seatAssignments?: { section: string; row: string; seat: string }[];
 }) {
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
@@ -166,6 +185,7 @@ async function sendTicketEmail({
     totalAmount,
     qrDataUrl,
     ticketUrl,
+    seatAssignments,
   });
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -373,10 +393,10 @@ export async function POST(request: Request) {
               .update({ status: "sold" })
               .in("id", seatIds);
 
-            // Mark reservations as purchased
+            // Mark reservations as purchased and link to order
             await admin
               .from("seat_reservations")
-              .update({ status: "purchased" })
+              .update({ status: "purchased", order_id: order.id })
               .in("seat_id", seatIds)
               .eq("event_id", eventId)
               .eq("status", "held");
@@ -538,7 +558,58 @@ export async function POST(request: Request) {
         console.log(`📬 FWB opt-in for ${customerEmail}`);
       }
 
-      // 8. Send confirmation email via Resend
+      // 8. Look up reserved seat details if applicable
+      let seatAssignments: { section: string; row: string; seat: string }[] | undefined;
+      if (seatIdsRaw) {
+        try {
+          const parsedSeatIds: string[] = JSON.parse(seatIdsRaw);
+          if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
+            // Fetch seat details with row and section info
+            const { data: seatDetails } = await admin
+              .from("seating_seats")
+              .select("id, seat_number, row_id")
+              .in("id", parsedSeatIds);
+
+            if (seatDetails && seatDetails.length > 0) {
+              const rowIds = [...new Set(seatDetails.map((s) => s.row_id))];
+              const { data: rows } = await admin
+                .from("seating_rows")
+                .select("id, row_label, section_id")
+                .in("id", rowIds);
+
+              const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
+              const { data: sections } = await admin
+                .from("seating_sections")
+                .select("id, section_name")
+                .in("id", sectionIds);
+
+              const rowMap = new Map((rows || []).map((r) => [r.id, r]));
+              const sectionMap = new Map((sections || []).map((s) => [s.id, s]));
+
+              seatAssignments = seatDetails.map((seat) => {
+                const row = rowMap.get(seat.row_id);
+                const section = row ? sectionMap.get(row.section_id) : undefined;
+                return {
+                  section: section?.section_name || "General",
+                  row: row?.row_label || "?",
+                  seat: seat.seat_number,
+                };
+              });
+
+              // Sort by section, row, seat
+              seatAssignments.sort((a, b) =>
+                a.section.localeCompare(b.section) ||
+                a.row.localeCompare(b.row) ||
+                a.seat.localeCompare(b.seat, undefined, { numeric: true })
+              );
+            }
+          }
+        } catch (e) {
+          console.error("Failed to look up seat assignments for email:", e);
+        }
+      }
+
+      // 9. Send confirmation email via Resend
       if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
         await sendTicketEmail({
           to: customerEmail,
@@ -551,6 +622,7 @@ export async function POST(request: Request) {
           qrDataUrl: createdTickets[0].qr_data_url,
           ticketId: createdTickets[0].qr_code,
           venueSlug,
+          seatAssignments,
         });
       }
     } catch (err) {

@@ -7,6 +7,7 @@ type ScanResult = {
   reason?: string;
   customer_name?: string;
   event_title?: string;
+  seat_assignments?: { section: string; row: string; seat: string }[];
 };
 
 export default function AdminScanPage() {
@@ -166,6 +167,22 @@ export default function AdminScanPage() {
               <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>
                 <p style={{ fontSize: 22, fontWeight: 700, margin: "4px 0" }}>{result.customer_name}</p>
                 <p style={{ fontSize: 16, opacity: 0.8, margin: "4px 0" }}>{result.event_title}</p>
+                {result.seat_assignments && result.seat_assignments.length > 0 && (
+                  <div style={{
+                    marginTop: 10, padding: "8px 14px", borderRadius: 8,
+                    background: "rgba(99,102,241,0.15)",
+                    border: "1px solid rgba(99,102,241,0.3)",
+                  }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#818cf8", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 1 }}>
+                      Assigned Seats
+                    </p>
+                    {result.seat_assignments.map((s, i) => (
+                      <p key={i} style={{ fontSize: 14, margin: "2px 0", color: "#fff" }}>
+                        <strong style={{ color: "#d0c290" }}>{s.section}</strong> &middot; Row {s.row} &middot; Seat {s.seat}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>

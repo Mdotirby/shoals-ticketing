@@ -13,6 +13,12 @@ type SiblingTicket = {
   is_scanned: boolean;
 };
 
+type SeatAssignment = {
+  section: string;
+  row: string;
+  seat: string;
+};
+
 type TicketData = {
   id: string;
   qr_code: string;
@@ -24,6 +30,7 @@ type TicketData = {
   created_at: string;
   events?: { title: string; venue: string; date: string };
   siblings: SiblingTicket[];
+  seatAssignments?: SeatAssignment[];
 };
 
 function safeDate(d: string) {
@@ -152,6 +159,36 @@ export default function TicketViewPage() {
                       weekday: "long", month: "long", day: "numeric", year: "numeric",
                     })}
                   </p>
+                )}
+
+                {/* Seat assignments */}
+                {ticket.seatAssignments && ticket.seatAssignments.length > 0 && (
+                  <div style={{
+                    margin: "16px 0", padding: "12px 16px", borderRadius: 10,
+                    background: "rgba(99,102,241,0.08)",
+                    border: "1px solid rgba(99,102,241,0.2)",
+                  }}>
+                    <span style={{
+                      display: "block", fontSize: 10, fontWeight: 700,
+                      color: "#818cf8", textTransform: "uppercase",
+                      letterSpacing: 1, marginBottom: 8,
+                    }}>
+                      Your Assigned Seats
+                    </span>
+                    {ticket.seatAssignments.map((s, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: 6,
+                        color: "rgba(255,255,255,0.8)", fontSize: 14,
+                        marginBottom: 4,
+                      }}>
+                        <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.section}</span>
+                        <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
+                        <span>Row {s.row}</span>
+                        <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
+                        <span>Seat {s.seat}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
 
                 <div className="digital-ticket-holder">
