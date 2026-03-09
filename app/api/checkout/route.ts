@@ -10,7 +10,7 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -86,6 +86,31 @@ export async function POST(request: Request) {
           }
         }
       }
+    }
+
+    // ── Reserved seating: hold seats if seat_ids provided ──
+    let reservedSeatIds: string[] = [];
+    if (Array.isArray(seat_ids) && seat_ids.length > 0) {
+      // Reserve seats via the seating API
+      const reserveRes = await fetch(
+        `${request.headers.get("origin") || "https://shoals-ticketing.vercel.app"}/api/seating/events/${event_id}/reserve`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            seat_ids,
+            session_id: buyerSessionId || null,
+          }),
+        }
+      );
+      if (!reserveRes.ok) {
+        const reserveData = await reserveRes.json();
+        return NextResponse.json(
+          { error: reserveData.error || "Failed to reserve seats" },
+          { status: 409 }
+        );
+      }
+      reservedSeatIds = seat_ids;
     }
 
     const stripe = getStripe();
@@ -215,6 +240,7 @@ export async function POST(request: Request) {
         source: "online",
         promo_code: promoCodeStr,
         promo_code_id: promoCodeId,
+        seat_ids: reservedSeatIds.length > 0 ? JSON.stringify(reservedSeatIds) : "",
       },
     };
 

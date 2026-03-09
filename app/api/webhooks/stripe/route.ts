@@ -361,6 +361,31 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true, error: orderError.message });
       }
 
+      // ── Finalize reserved seats if seat_ids present ──
+      const seatIdsRaw = session.metadata?.seat_ids;
+      if (seatIdsRaw) {
+        try {
+          const seatIds: string[] = JSON.parse(seatIdsRaw);
+          if (Array.isArray(seatIds) && seatIds.length > 0) {
+            // Mark seats as sold
+            await admin
+              .from("seating_seats")
+              .update({ status: "sold" })
+              .in("id", seatIds);
+
+            // Mark reservations as purchased
+            await admin
+              .from("seat_reservations")
+              .update({ status: "purchased" })
+              .in("seat_id", seatIds)
+              .eq("event_id", eventId)
+              .eq("status", "held");
+          }
+        } catch (e) {
+          console.error("Failed to finalize reserved seats:", e);
+        }
+      }
+
       // 2. Look up the default ticket tier for this event
       const { data: defaultTier } = await admin
         .from("ticket_tiers")

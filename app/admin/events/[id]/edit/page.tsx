@@ -73,6 +73,28 @@ export default function AdminEditEventPage() {
 
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
 
+  // Reserved seating state
+  const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
+  const [seatingCharts, setSeatingCharts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedChartId, setSelectedChartId] = useState<string | null>(null);
+
+  // Load seating charts + existing map
+  useEffect(() => {
+    fetch("/api/seating/charts")
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setSeatingCharts(data); })
+      .catch(() => {});
+    fetch(`/api/seating/events/${id}/map`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.reserved_seating_enabled) {
+          setReservedSeatingEnabled(true);
+          setSelectedChartId(data.chart_id || null);
+        }
+      })
+      .catch(() => {});
+  }, [id]);
+
   // Revenue items for private events
   const [revenueItems, setRevenueItems] = useState<RevenueItem[]>(
     REVENUE_CATEGORIES.map((c) => ({ category: c.value, amount: "" }))
@@ -410,6 +432,22 @@ export default function AdminEditEventPage() {
         }
       }
 
+      // Save or remove seating map
+      if (reservedSeatingEnabled && selectedChartId) {
+        await fetch(`/api/seating/events/${id}/map`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chart_id: selectedChartId,
+            reserved_seating_enabled: true,
+          }),
+        }).catch(() => {});
+      } else if (!reservedSeatingEnabled) {
+        await fetch(`/api/seating/events/${id}/map`, {
+          method: "DELETE",
+        }).catch(() => {});
+      }
+
       router.push("/admin/events");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update event");
@@ -698,6 +736,64 @@ export default function AdminEditEventPage() {
               >
                 + Add Tier
               </button>
+            )}
+          </div>
+        )}
+
+        {/* ── Reserved Seating (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(208,194,144,0.04)",
+            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(208,194,144,0.12)"}`,
+            marginTop: 8,
+          }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+              color: reservedSeatingEnabled ? "#818cf8" : "rgba(255,255,255,0.6)",
+              fontWeight: 700, fontSize: 13,
+            }}>
+              <input
+                type="checkbox"
+                checked={reservedSeatingEnabled}
+                onChange={(e) => {
+                  setReservedSeatingEnabled(e.target.checked);
+                  if (!e.target.checked) setSelectedChartId(null);
+                }}
+                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
+              />
+              Enable Reserved Seating
+            </label>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+              When enabled, buyers will select specific seats from a seating chart instead of general admission tickets.
+            </p>
+
+            {reservedSeatingEnabled && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Seating Chart
+                </label>
+                {seatingCharts.length > 0 ? (
+                  <select
+                    className="admin-form-input"
+                    value={selectedChartId || ""}
+                    onChange={(e) => setSelectedChartId(e.target.value || null)}
+                    style={{ maxWidth: 400 }}
+                  >
+                    <option value="">— Select a seating chart —</option>
+                    {seatingCharts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                    No seating charts yet.{" "}
+                    <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
+                      Create one in Seating Management
+                    </a>
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}

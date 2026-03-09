@@ -11,6 +11,7 @@
     "test:fwb": "jest __tests__/fwb"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",
     "@supabase/ssr": "^0.8.0",

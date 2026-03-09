@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
+import SeatingChartViewer, { SelectedSeat } from "@/app/components/seating/SeatingChartViewer";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
@@ -61,6 +62,8 @@ export default function EventDetailPage() {
   const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
+  const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -91,6 +94,18 @@ export default function EventDetailPage() {
     fetch(`/api/sponsors?event_id=${eventId}`)
       .then((res) => res.json())
       .then((data) => { if (Array.isArray(data)) setSponsors(data); })
+      .catch(() => {});
+  }, [eventId]);
+
+  // Check if reserved seating is enabled for this event
+  useEffect(() => {
+    fetch(`/api/seating/events/${eventId}/map`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.reserved_seating_enabled) {
+          setReservedSeatingEnabled(true);
+        }
+      })
       .catch(() => {});
   }, [eventId]);
 
@@ -291,25 +306,34 @@ export default function EventDetailPage() {
                     ageRestriction={event.age_restriction}
                   />
 
-                  {/* Ticket type dropdown + quantity selector */}
-                  <div className="ticket-selector-row">
-                    <select
-                      className="ticket-type-select"
-                      value={selectedTicketId ?? ""}
-                      onChange={(e) => setSelectedTicketId(e.target.value)}
-                    >
-                      {ticketTypes.map((tt) => (
-                        <option key={tt.id} value={tt.id}>
-                          {tt.name} — ${tt.price.toFixed(2)}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="ticket-qty-control">
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
-                      <span className="ticket-qty-value">{quantity}</span>
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
+                  {/* Ticket type dropdown + quantity selector OR Seating Chart */}
+                  {reservedSeatingEnabled ? (
+                    <div style={{ marginTop: 16 }}>
+                      <SeatingChartViewer
+                        eventId={eventId}
+                        onSelectionChange={(seats) => setSelectedSeats(seats)}
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="ticket-selector-row">
+                      <select
+                        className="ticket-type-select"
+                        value={selectedTicketId ?? ""}
+                        onChange={(e) => setSelectedTicketId(e.target.value)}
+                      >
+                        {ticketTypes.map((tt) => (
+                          <option key={tt.id} value={tt.id}>
+                            {tt.name} — ${tt.price.toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="ticket-qty-control">
+                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
+                        <span className="ticket-qty-value">{quantity}</span>
+                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
+                      </div>
+                    </div>
+                  )}
 
                   {event.description && (
                     <p className="ticket-event-description">{event.description}</p>
