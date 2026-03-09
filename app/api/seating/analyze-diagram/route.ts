@@ -68,6 +68,43 @@ export async function POST(request: Request) {
       apiKey,
     });
 
+    // Determine if the file is a PDF or an image based on URL extension
+    const isPdf = image_url.toLowerCase().endsWith(".pdf");
+
+    // Build the content block based on file type
+    let fileContent: Anthropic.Messages.ContentBlockParam;
+
+    if (isPdf) {
+      // For PDFs: fetch the file and send as base64 document
+      const pdfResponse = await fetch(image_url);
+      if (!pdfResponse.ok) {
+        return NextResponse.json(
+          { error: "Failed to fetch uploaded PDF. Ensure the storage bucket is public." },
+          { status: 500 }
+        );
+      }
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      const base64Data = Buffer.from(pdfBuffer).toString("base64");
+
+      fileContent = {
+        type: "document",
+        source: {
+          type: "base64",
+          media_type: "application/pdf",
+          data: base64Data,
+        },
+      } as unknown as Anthropic.Messages.ContentBlockParam;
+    } else {
+      // For images: send as image URL
+      fileContent = {
+        type: "image",
+        source: {
+          type: "url",
+          url: image_url,
+        },
+      } as unknown as Anthropic.Messages.ContentBlockParam;
+    }
+
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 2000,
@@ -76,13 +113,7 @@ export async function POST(request: Request) {
         {
           role: "user",
           content: [
-            {
-              type: "image",
-              source: {
-                type: "url",
-                url: image_url,
-              },
-            },
+            fileContent,
             {
               type: "text",
               text: "Analyze this seating chart and return the seating structure.",
@@ -155,8 +186,22 @@ export async function POST(request: Request) {
         total_seats: totalSeats,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Analyze diagram error:", err);
-    return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Analysis failed";
+    // Surface common issues
+    if (message.includes("Could not process image") || message.includes("invalid_image")) {
+      return NextResponse.json(
+        { error: "Claude could not process this file. Try uploading a PNG or JPG image instead of a PDF." },
+        { status: 422 }
+      );
+    }
+    if (message.includes("authentication") || message.includes("api_key") || message.includes("401")) {
+      return NextResponse.json(
+        { error: "Anthropic API key is invalid or expired. Check ANTHROPIC_API_KEY in environment variables." },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({ error: message || "Analysis failed" }, { status: 500 });
   }
 }
