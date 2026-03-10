@@ -278,7 +278,7 @@ export default function OrderSummary({
           {tax > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">
-                Sales tax ({(rate * 100).toFixed(2).replace(/\.?0+$/, "")}%)
+                Sales tax
               </span>
               <span className="order-summary-line-value">${tax.toFixed(2)}</span>
             </div>
@@ -286,7 +286,7 @@ export default function OrderSummary({
           {processingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">
-                Processing fee (2.9% + $0.30)
+                Processing fee
               </span>
               <span className="order-summary-line-value">${processingFee.toFixed(2)}</span>
             </div>
