@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { SelectedSeat } from "./SeatingChartViewer";
 
 type SeatData = {
@@ -97,6 +98,37 @@ function SeatButton({
 
 export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: Props) {
   const selectedIds = new Set(selectedSeats.map((s) => s.seatId));
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  const sections = chart.sections;
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const updateScale = () => {
+      const containerWidth = container.clientWidth;
+      const contentWidth = content.scrollWidth;
+      setContentHeight(content.scrollHeight);
+      if (contentWidth > containerWidth) {
+        setScale(Math.max(0.35, containerWidth / contentWidth));
+      } else {
+        setScale(1);
+      }
+    };
+
+    // Initial calculation (allow layout to settle)
+    requestAnimationFrame(updateScale);
+
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, [sections]);
 
   // Group sections: consecutive row-type sections go side-by-side; table sections standalone
   type SectionGroup = { type: "row-group" | "table"; sections: SectionData[] };
@@ -116,7 +148,16 @@ export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: 
   }
 
   return (
-    <div style={{ overflowX: "auto" }}>
+    <div ref={containerRef} style={{ overflow: "hidden" }}>
+      <div
+        ref={contentRef}
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: "top center",
+          transition: "transform 0.2s ease",
+          height: scale < 1 ? `${contentHeight * scale}px` : "auto",
+        }}
+      >
       {/* Stage indicator */}
       <div
         style={{
@@ -274,6 +315,7 @@ export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: 
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

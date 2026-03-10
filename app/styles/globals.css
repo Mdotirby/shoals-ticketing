@@ -323,15 +323,17 @@ body {
 
 .event-card-title {
   width: 100%;
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
-  line-height: 1;
+  line-height: 1.2;
   font-family: var(--font-bayon), sans-serif;
   font-size: 32px;
   margin: 0;
   color: #ffffff;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .event-meta-badges {
@@ -644,6 +646,12 @@ body {
   .ticket-qty-value {
     min-width: 28px;
     padding: 8px 2px;
+  }
+  .ticket-hero-image-wrap {
+    height: 180px;
+  }
+  .ticket-hero-title {
+    font-size: 1.3rem;
   }
 }
 
@@ -1684,16 +1692,27 @@ body {
 }
 
 /* ============================================================
+   TABLET RESPONSIVE — TICKET PAGE LAYOUT
+   ============================================================ */
+
+@media (max-width: 1024px) {
+  .ticket-selection-layout {
+    flex-direction: column;
+  }
+  .order-summary-column {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* ============================================================
    MOBILE RESPONSIVE — TICKET PAGE + FOOTER
    ============================================================ */
 
 @media (max-width: 768px) {
   .ticket-hero {
     padding: 32px 20px 12px;
-  }
-
-  .ticket-hero-title {
-    font-size: 2.2rem;
   }
 
   .ticket-selection-layout { flex-direction: column; }
@@ -1915,7 +1934,7 @@ body {
   line-height: 1.2;
   position: relative;
   font-family: var(--font-bayon), sans-serif;
-  font-size: 80px;
+  font-size: clamp(2.4rem, 8vw, 80px);
   background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -2256,6 +2275,9 @@ border-radius: 0px 0px 0px 0px;
   color: #fff;
   font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
   letter-spacing: 0.5px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.25;
 }
 
 .elc-date {

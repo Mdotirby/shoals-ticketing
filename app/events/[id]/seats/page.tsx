@@ -115,7 +115,7 @@ export default function SeatsPage() {
 
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
+          <h1 style={{ fontSize: "clamp(20px, 5vw, 28px)", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
             {event.title}
           </h1>
           <p style={{ fontSize: 15, color: "#a1a1aa", marginTop: 6 }}>
@@ -131,7 +131,7 @@ export default function SeatsPage() {
           background: "#111118",
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.06)",
-          padding: 24,
+          padding: "clamp(8px, 3vw, 24px)",
           marginBottom: 24,
         }}>
           <SeatingChartViewer
@@ -145,7 +145,7 @@ export default function SeatsPage() {
           background: "#111118",
           borderRadius: 16,
           border: "1px solid rgba(255,255,255,0.06)",
-          padding: 24,
+          padding: "clamp(12px, 3vw, 24px)",
         }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>
             Selected Seats
@@ -187,13 +187,15 @@ export default function SeatsPage() {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: 4,
                             padding: "10px 14px",
                             background: "rgba(255,255,255,0.03)",
                             borderRadius: 10,
                             border: "1px solid rgba(255,255,255,0.06)",
                           }}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                             <span
                               style={{
                                 width: 12,
@@ -223,13 +225,15 @@ export default function SeatsPage() {
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 4,
                               padding: "10px 14px",
                               background: "rgba(255,255,255,0.03)",
                               borderRadius: 10,
                               border: "1px solid rgba(255,255,255,0.06)",
                             }}
                           >
-                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                               <span
                                 style={{
                                   width: 12,
@@ -262,13 +266,15 @@ export default function SeatsPage() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
+                          flexWrap: "wrap",
+                          gap: 4,
                           padding: "10px 14px",
                           background: "rgba(255,255,255,0.03)",
                           borderRadius: 10,
                           border: "1px solid rgba(255,255,255,0.06)",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                           <span
                             style={{
                               width: 12,

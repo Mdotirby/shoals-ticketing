@@ -120,6 +120,14 @@ export default function AdminEditEventPage() {
   const [newPromo, setNewPromo] = useState({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
   const [promoLoading, setPromoLoading] = useState(false);
 
+  // Trackable links state
+  const [trackableLinks, setTrackableLinks] = useState<any[]>([]);
+  const [newLink, setNewLink] = useState({ label: "", slug: "", source: "", medium: "", campaign: "" });
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null);
+  const [linkAnalytics, setLinkAnalytics] = useState<Record<string, any>>({});
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+
   // Cropper state
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -261,6 +269,15 @@ export default function AdminEditEventPage() {
       .catch(() => {});
   }, []);
 
+  // Fetch trackable links
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/events/${id}/trackable-links`)
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setTrackableLinks(data); })
+      .catch(() => {});
+  }, [id]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -345,6 +362,70 @@ export default function AdminEditEventPage() {
     setPreviewUrl(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  // ── Trackable link helpers ──
+  async function createTrackableLink() {
+    if (!newLink.label || !newLink.slug) return;
+    setCreatingLink(true);
+    try {
+      const res = await fetch(`/api/events/${id}/trackable-links`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLink),
+      });
+      if (res.ok) {
+        const link = await res.json();
+        setTrackableLinks(prev => [link, ...prev]);
+        setNewLink({ label: "", slug: "", source: "", medium: "", campaign: "" });
+      }
+    } catch (e) {}
+    setCreatingLink(false);
+  }
+
+  async function deleteTrackableLink(linkId: string) {
+    try {
+      await fetch(`/api/events/${id}/trackable-links?linkId=${linkId}`, { method: "DELETE" });
+      setTrackableLinks(prev => prev.filter(l => l.id !== linkId));
+      if (expandedLinkId === linkId) setExpandedLinkId(null);
+    } catch (e) {}
+  }
+
+  async function toggleLinkActive(linkId: string, currentActive: boolean) {
+    try {
+      const res = await fetch(`/api/events/${id}/trackable-links/${linkId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: !currentActive }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTrackableLinks(prev => prev.map(l => l.id === linkId ? updated : l));
+      }
+    } catch (e) {}
+  }
+
+  async function loadLinkAnalytics(linkId: string) {
+    if (linkAnalytics[linkId]) return;
+    try {
+      const res = await fetch(`/api/events/${id}/trackable-links/${linkId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLinkAnalytics(prev => ({ ...prev, [linkId]: data }));
+      }
+    } catch (e) {}
+  }
+
+  function copyTrackableLink(slug: string, linkId: string) {
+    const url = `${window.location.origin}/t/${slug}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLinkId(linkId);
+    setTimeout(() => setCopiedLinkId(null), 2000);
+  }
+
+  function handleLinkLabelChange(label: string) {
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    setNewLink(prev => ({ ...prev, label, slug }));
+  }
 
   // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1057,6 +1138,257 @@ export default function AdminEditEventPage() {
                 }}
               >
                 {promoLoading ? "..." : "+ Add"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Trackable Links (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(6,182,212,0.04)",
+            border: "1px solid rgba(6,182,212,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "#06b6d4", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+              🔗 Trackable Links
+            </span>
+
+            {/* Existing trackable links */}
+            {trackableLinks.length > 0 && (
+              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                {trackableLinks.map((link) => (
+                  <div key={link.id}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 12px", borderRadius: 8,
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.06)",
+                      flexWrap: "wrap",
+                    }}>
+                      <span style={{ fontWeight: 700, color: "#06b6d4", fontSize: 13, minWidth: 100 }}>{link.label}</span>
+                      <span style={{
+                        fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace",
+                        background: "rgba(6,182,212,0.08)", padding: "2px 8px", borderRadius: 4,
+                      }}>
+                        /t/{link.slug}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyTrackableLink(link.slug, link.id)}
+                        style={{
+                          background: copiedLinkId === link.id ? "rgba(34,197,94,0.15)" : "rgba(6,182,212,0.1)",
+                          border: `1px solid ${copiedLinkId === link.id ? "rgba(34,197,94,0.3)" : "rgba(6,182,212,0.2)"}`,
+                          color: copiedLinkId === link.id ? "#22c55e" : "#06b6d4",
+                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {copiedLinkId === link.id ? "Copied!" : "Copy"}
+                      </button>
+                      {link.source && (
+                        <span style={{
+                          fontSize: 10, color: "rgba(6,182,212,0.8)", background: "rgba(6,182,212,0.1)",
+                          padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                        }}>
+                          {link.source}
+                        </span>
+                      )}
+                      {link.medium && (
+                        <span style={{
+                          fontSize: 10, color: "rgba(6,182,212,0.7)", background: "rgba(6,182,212,0.07)",
+                          padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                        }}>
+                          {link.medium}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: "auto" }}>
+                        {link.total_clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleLinkActive(link.id, link.is_active !== false)}
+                        style={{
+                          background: link.is_active !== false ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                          border: `1px solid ${link.is_active !== false ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                          color: link.is_active !== false ? "#22c55e" : "rgba(255,255,255,0.4)",
+                          fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {link.is_active !== false ? "Active" : "Off"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextId = expandedLinkId === link.id ? null : link.id;
+                          setExpandedLinkId(nextId);
+                          if (nextId) loadLinkAnalytics(nextId);
+                        }}
+                        style={{
+                          background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)",
+                          color: "#06b6d4", fontSize: 10, fontWeight: 600, padding: "2px 6px",
+                          borderRadius: 4, cursor: "pointer",
+                        }}
+                      >
+                        {expandedLinkId === link.id ? "▲" : "▼"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteTrackableLink(link.id)}
+                        style={{
+                          background: "transparent", border: "none",
+                          color: "rgba(255,107,107,0.7)", cursor: "pointer", fontSize: 14,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Expanded Analytics Dashboard */}
+                    {expandedLinkId === link.id && (
+                      <div style={{
+                        padding: 14, marginTop: 4, borderRadius: 8,
+                        background: "rgba(6,182,212,0.03)",
+                        border: "1px solid rgba(6,182,212,0.08)",
+                      }}>
+                        {linkAnalytics[link.id] ? (() => {
+                          const a = linkAnalytics[link.id];
+                          const stats = a.analytics || a;
+                          const dailyClicks: { date: string; count: number }[] = stats.daily_clicks || [];
+                          const maxClicks = Math.max(...dailyClicks.map((d: { count: number }) => d.count), 1);
+                          const convRate = stats.total_clicks > 0
+                            ? ((stats.conversions || 0) / stats.total_clicks * 100).toFixed(1)
+                            : "0.0";
+                          return (
+                            <>
+                              <div style={{
+                                display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14,
+                              }}>
+                                {[
+                                  { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
+                                  { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
+                                  { label: "Conversions", value: stats.conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
+                                  { label: "Revenue", value: `$${Number(stats.revenue ?? 0).toFixed(2)}`, bg: "rgba(208,194,144,0.1)" },
+                                  { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },
+                                ].map((s) => (
+                                  <div key={s.label} style={{
+                                    background: s.bg, borderRadius: 8, padding: "10px 8px", textAlign: "center",
+                                  }}>
+                                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{s.value}</div>
+                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{s.label}</div>
+                                  </div>
+                                ))}
+                              </div>
+                              {dailyClicks.length > 0 && (
+                                <>
+                                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, fontWeight: 600 }}>
+                                    Clicks — Last 30 Days
+                                  </div>
+                                  <div style={{
+                                    display: "flex", alignItems: "flex-end", gap: 2, height: 60,
+                                  }}>
+                                    {dailyClicks.map((d: { date: string; count: number }, i: number) => (
+                                      <div
+                                        key={i}
+                                        title={`${d.date}: ${d.count} clicks`}
+                                        style={{
+                                          flex: 1, minWidth: 4,
+                                          height: `${Math.max((d.count / maxClicks) * 100, 4)}%`,
+                                          background: d.count > 0
+                                            ? "rgba(6,182,212,0.6)"
+                                            : "rgba(255,255,255,0.05)",
+                                          borderRadius: 2,
+                                          transition: "height 0.2s",
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                            </>
+                          );
+                        })() : (
+                          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading analytics…</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new trackable link */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+              <div style={{ flex: "1 1 160px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Label</label>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newLink.label}
+                  onChange={(e) => handleLinkLabelChange(e.target.value)}
+                  placeholder="e.g. Facebook Ad - Spring Show"
+                />
+              </div>
+              <div style={{ flex: "0 0 140px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newLink.slug}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="auto-generated"
+                />
+              </div>
+              <div style={{ flex: "0 0 120px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Source</label>
+                <select
+                  className="admin-form-input"
+                  value={newLink.source}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, source: e.target.value }))}
+                >
+                  <option value="">— Source —</option>
+                  {["facebook", "instagram", "twitter", "email", "flyer", "radio", "tv", "website", "other"].map((s) => (
+                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: "0 0 100px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Medium</label>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newLink.medium}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, medium: e.target.value }))}
+                  placeholder="e.g. paid"
+                />
+              </div>
+              <div style={{ flex: "0 0 100px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Campaign</label>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={newLink.campaign}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, campaign: e.target.value }))}
+                  placeholder="optional"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={creatingLink || !newLink.label.trim() || !newLink.slug.trim()}
+                onClick={createTrackableLink}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  border: "1px solid rgba(6,182,212,0.3)",
+                  background: "rgba(6,182,212,0.1)",
+                  color: "#06b6d4", fontSize: 12, fontWeight: 600,
+                  cursor: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? "not-allowed" : "pointer",
+                  opacity: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {creatingLink ? "..." : "+ Create Link"}
               </button>
             </div>
           </div>
