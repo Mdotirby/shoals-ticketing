@@ -60,6 +60,7 @@ export default function EventDetailPage() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtist[]>([]);
   const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 });
+  const [hostedByName, setHostedByName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
@@ -134,6 +135,8 @@ export default function EventDetailPage() {
               if (!Array.isArray(venues)) return;
               const v = venues.find((x) => x.id === data.venue_id);
               if (v) {
+                // Save hosted by name from the venues (client/promoter) table
+                if (v.name) setHostedByName(v.name as string);
                 setVenueFees({
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
                   facility_fee: Number(v.facility_fee) || 0,
@@ -153,7 +156,7 @@ export default function EventDetailPage() {
             .catch(() => {});
         }
 
-        // Fetch event venue data (non-platform venues)
+        // Fetch event venue data (non-platform venues) — also read fees
         if (data.event_venue_id) {
           import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
             const sb = getSupabaseBrowser();
@@ -163,6 +166,12 @@ export default function EventDetailPage() {
               .single()
               .then(({ data: ev }: { data: Record<string, unknown> | null }) => {
                 if (ev) {
+                  // Update fees from event_venues if present
+                  setVenueFees((prev) => ({
+                    ticketing_fee: ev.ticketing_fee != null ? Number(ev.ticketing_fee) : prev.ticketing_fee,
+                    facility_fee: ev.facility_fee != null ? Number(ev.facility_fee) : prev.facility_fee,
+                    tax_rate: ev.tax_rate != null ? Number(ev.tax_rate) : prev.tax_rate,
+                  }));
                   setEvent((prev) => prev ? {
                     ...prev,
                     venue_address: (ev.full_address as string) || prev.venue_address,
@@ -239,6 +248,28 @@ export default function EventDetailPage() {
     window.location.href = url;
   };
 
+  const handleFreeCheckout = async (name: string, email: string) => {
+    try {
+      const res = await fetch("/api/checkout/free", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: eventId,
+          buyer_name: name,
+          buyer_email: email,
+          quantity,
+          promo_code: appliedPromoRef.current,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.ticket_url) {
+        window.location.href = data.ticket_url;
+      }
+    } catch {
+      // silently fail — user can retry
+    }
+  };
+
   if (isLoading) {
     return (
       <main className="ticket-page">
@@ -305,6 +336,11 @@ export default function EventDetailPage() {
                     <span className="ticket-event-meta-sep">·</span>
                     <span className="ticket-event-venue">{event.venue}</span>
                   </p>
+                  {hostedByName && (
+                    <p className="ticket-event-hosted-by" style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", margin: "4px 0 8px" }}>
+                      Hosted by {hostedByName}
+                    </p>
+                  )}
 
                   <EventBadges
                     eventDate={event.date}
@@ -385,6 +421,7 @@ export default function EventDetailPage() {
                 taxRate={venueFees.tax_rate}
                 onCheckout={reservedSeatingEnabled ? () => { window.location.href = `/events/${eventId}/seats`; } : handleCheckout}
                 onPromoApplied={(code) => { appliedPromoRef.current = code; }}
+                onFreeCheckout={handleFreeCheckout}
               />
               {reservedSeatingEnabled && (
                 <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id")
+      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled")
       .eq("id", event_id)
       .single();
 
@@ -34,13 +34,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Fetch venue-specific fees
+    // Fetch venue-specific fees — prefer event_venues, fall back to venues
     let ticketingFee = 3.0;
     let facilityFee = 0;
     let venueRebate = 0;
     let taxRate = 0.095;
+    let feesResolved = false;
 
-    if (event.venue_id) {
+    // 1. Try event_venues first (per physical venue)
+    if (event.event_venue_id) {
+      const { data: evData } = await admin
+        .from("event_venues")
+        .select("ticketing_fee, facility_fee, tax_rate")
+        .eq("id", event.event_venue_id)
+        .single();
+      if (evData) {
+        if (evData.ticketing_fee != null) { ticketingFee = evData.ticketing_fee; feesResolved = true; }
+        if (evData.facility_fee != null && event.facility_fee_enabled !== false) { facilityFee = evData.facility_fee; }
+        if (evData.tax_rate != null) { taxRate = evData.tax_rate; feesResolved = true; }
+      }
+    }
+
+    // 2. Fall back to venues table if event_venues didn't resolve fees
+    if (!feesResolved && event.venue_id) {
       const { data: venueData } = await admin
         .from("venues")
         .select("ticketing_fee, facility_fee, venue_rebate, tax_rate")
@@ -53,6 +69,11 @@ export async function POST(request: Request) {
         venueRebate = venueData.venue_rebate ?? 0;
         taxRate = venueData.tax_rate ?? 0.095;
       }
+    }
+
+    // 3. If facility_fee_enabled is false, force facilityFee = 0
+    if (event.facility_fee_enabled === false) {
+      facilityFee = 0;
     }
 
     // ── Promo code validation ──

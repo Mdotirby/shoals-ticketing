@@ -7,7 +7,7 @@ import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
-type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
+type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null };
 
 type RevenueItem = {
   id?: string;
@@ -47,6 +47,8 @@ export default function AdminEditEventPage() {
   const [error, setError] = useState("");
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
+  const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
+  const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
 
   const [form, setForm] = useState({
     title: "",
@@ -172,6 +174,10 @@ export default function AdminEditEventPage() {
           setSelectedEventVenueId(event.event_venue_id);
         }
 
+        if (event.facility_fee_enabled === false) {
+          setFacilityFeeEnabled(false);
+        }
+
         // Map existing tiers
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
@@ -225,13 +231,20 @@ export default function AdminEditEventPage() {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
       getSupabaseBrowser()
         .from("event_venues")
-        .select("id, name, full_address, contact_name, phone")
+        .select("id, name, full_address, contact_name, phone, facility_fee, ticketing_fee, tax_rate")
         .order("name")
         .then(({ data }: { data: EventVenue[] | null }) => {
-          if (data) setEventVenues(data);
+          if (data) {
+            setEventVenues(data);
+            // If we already have a selected venue, populate its fees
+            if (selectedEventVenueId) {
+              const v = data.find((x) => x.id === selectedEventVenueId);
+              if (v) setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+            }
+          }
         });
     });
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -372,6 +385,7 @@ export default function AdminEditEventPage() {
           description: form.description || null,
           image_url: form.image_url || null,
           event_venue_id: selectedEventVenueId || null,
+          facility_fee_enabled: facilityFeeEnabled,
           event_type: form.event_type,
           booking_status: form.booking_status,
           contact_name: form.contact_name || null,
@@ -589,8 +603,10 @@ export default function AdminEditEventPage() {
                   if (v) {
                     setSelectedEventVenueId(v.id);
                     setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
+                    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
                   } else {
                     setSelectedEventVenueId(null);
+                    setSelectedVenueFees({ facility_fee: null });
                   }
                 }}
                 style={{ marginBottom: 6 }}
@@ -609,6 +625,7 @@ export default function AdminEditEventPage() {
               onChange={(e) => {
                 handleChange(e);
                 setSelectedEventVenueId(null);
+                setSelectedVenueFees({ facility_fee: null });
               }}
               required
             />
@@ -772,6 +789,33 @@ export default function AdminEditEventPage() {
                 + Add Tier
               </button>
             )}
+          </div>
+        )}
+
+        {/* ── Facility Fee Toggle (only for hard ticket events) ── */}
+        {isHardTicket && selectedVenueFees.facility_fee != null && selectedVenueFees.facility_fee > 0 && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
+            border: `1px solid ${facilityFeeEnabled ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            marginTop: 8,
+          }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+              color: facilityFeeEnabled ? "#22c55e" : "rgba(255,255,255,0.6)",
+              fontWeight: 700, fontSize: 13,
+            }}>
+              <input
+                type="checkbox"
+                checked={facilityFeeEnabled}
+                onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
+              />
+              Apply Facility Fee — ${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket
+            </label>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+              When enabled, the venue&apos;s facility fee will be added to each ticket sold.
+            </p>
           </div>
         )}
 

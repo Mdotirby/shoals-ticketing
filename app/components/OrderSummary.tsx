@@ -21,6 +21,8 @@ type OrderSummaryProps = {
   onCheckout: () => void;
   /** Called when a promo code is applied or removed. Passes the code string or null. */
   onPromoApplied?: (promoCode: string | null) => void;
+  /** Called when total is $0 and user claims free tickets */
+  onFreeCheckout?: (name: string, email: string) => void;
 };
 
 export default function OrderSummary({
@@ -31,9 +33,15 @@ export default function OrderSummary({
   taxRate,
   onCheckout,
   onPromoApplied,
+  onFreeCheckout,
 }: OrderSummaryProps) {
   const rate = normalizeTaxRate(taxRate);
   const hasSelection = selectedTicket !== null && quantity > 0;
+
+  // ── Free checkout state ──
+  const [freeName, setFreeName] = useState("");
+  const [freeEmail, setFreeEmail] = useState("");
+  const [freeLoading, setFreeLoading] = useState(false);
 
   // ── Promo code state ──
   const [showPromoInput, setShowPromoInput] = useState(false);
@@ -98,16 +106,18 @@ export default function OrderSummary({
   // ── Totals ──
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
   const discountedSubtotal = Math.max(subtotal - totalDiscount, 0);
-  const totalTicketingFee = hasSelection ? ticketingFee * quantity : 0;
-  const totalFacilityFee = hasSelection ? facilityFee * quantity : 0;
-  const tax = hasSelection
+  const isFreeOrder = discountedSubtotal <= 0 && appliedPromo !== null;
+
+  const totalTicketingFee = isFreeOrder ? 0 : (hasSelection ? ticketingFee * quantity : 0);
+  const totalFacilityFee = isFreeOrder ? 0 : (hasSelection ? facilityFee * quantity : 0);
+  const tax = isFreeOrder ? 0 : (hasSelection
     ? Math.round(discountedSubtotal * rate * 100) / 100
-    : 0;
+    : 0);
   const subtotalBeforeStripe = discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
-  const processingFee = hasSelection
+  const processingFee = isFreeOrder ? 0 : (hasSelection
     ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
-    : 0;
-  const total = subtotalBeforeStripe + processingFee;
+    : 0);
+  const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;
 
   return (
     <div className="order-summary">
@@ -286,23 +296,80 @@ export default function OrderSummary({
 
           <div className="order-summary-line order-summary-total">
             <span className="order-summary-line-label">Total</span>
-            <span className="order-summary-line-value">${total.toFixed(2)}</span>
+            <span className="order-summary-line-value">
+              {isFreeOrder ? (
+                <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span>
+              ) : (
+                `$${total.toFixed(2)}`
+              )}
+            </span>
           </div>
         </div>
       )}
 
-      <button
-        type="button"
-        className="order-summary-checkout-btn"
-        disabled={!hasSelection}
-        onClick={onCheckout}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M2 10h20" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-        Secure Your Spot
-      </button>
+      {isFreeOrder && hasSelection ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+          <input
+            type="text"
+            placeholder="Your name"
+            value={freeName}
+            onChange={(e) => setFreeName(e.target.value)}
+            className="admin-form-input"
+            style={{
+              padding: "10px 14px",
+              fontSize: 14,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8,
+              color: "#fff",
+            }}
+          />
+          <input
+            type="email"
+            placeholder="Your email"
+            value={freeEmail}
+            onChange={(e) => setFreeEmail(e.target.value)}
+            className="admin-form-input"
+            style={{
+              padding: "10px 14px",
+              fontSize: 14,
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 8,
+              color: "#fff",
+            }}
+          />
+          <button
+            type="button"
+            className="order-summary-checkout-btn"
+            disabled={!freeName.trim() || !freeEmail.trim() || freeLoading}
+            onClick={async () => {
+              setFreeLoading(true);
+              try {
+                await onFreeCheckout?.(freeName.trim(), freeEmail.trim());
+              } finally {
+                setFreeLoading(false);
+              }
+            }}
+            style={{ opacity: (!freeName.trim() || !freeEmail.trim() || freeLoading) ? 0.5 : 1 }}
+          >
+            {freeLoading ? "Claiming..." : "Claim Free Tickets"}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="order-summary-checkout-btn"
+          disabled={!hasSelection}
+          onClick={onCheckout}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M2 10h20" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          Secure Your Spot
+        </button>
+      )}
 
       <p className="order-summary-terms">
         By completing your purchase you agree to our{" "}

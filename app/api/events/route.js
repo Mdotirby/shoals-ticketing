@@ -90,6 +90,7 @@ export async function POST(request) {
     client_billing_address: body.client_billing_address || null,
     client_company: body.client_company || null,
     tax_exempt: body.tax_exempt ?? false,
+    facility_fee_enabled: body.facility_fee_enabled ?? true,
   };
 
   // Always include start_time/end_time (TEXT columns from private-events-v2 migration)
