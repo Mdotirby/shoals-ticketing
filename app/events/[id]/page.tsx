@@ -324,13 +324,11 @@ export default function EventDetailPage() {
                         </option>
                       ))}
                     </select>
-                    {!reservedSeatingEnabled && (
-                      <div className="ticket-qty-control">
-                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
-                        <span className="ticket-qty-value">{quantity}</span>
-                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
-                      </div>
-                    )}
+                    <div className="ticket-qty-control">
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
+                      <span className="ticket-qty-value">{quantity}</span>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
+                    </div>
                   </div>
 
                   {/* Reserved seating: "Pick Your Seats" CTA */}
