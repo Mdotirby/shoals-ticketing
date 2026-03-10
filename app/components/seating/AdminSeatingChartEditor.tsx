@@ -458,10 +458,11 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
 
 /** Mini preview renderer for the seating chart */
 function SeatingPreview({ data }: { data: Record<string, unknown> }) {
-  const sections = (data.sections || []) as Array<{
+  type PreviewSection = {
     section_name: string;
     color: string;
     price_tier: number;
+    layout_type?: string;
     rows: Array<{
       row_label: string;
       seats: Array<{
@@ -472,47 +473,131 @@ function SeatingPreview({ data }: { data: Record<string, unknown> }) {
         status: string;
       }>;
     }>;
-  }>;
+  };
+
+  const sections = (data.sections || []) as PreviewSection[];
 
   if (sections.length === 0) {
     return <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>No sections to preview.</p>;
   }
 
+  const isSectionTable = (sec: PreviewSection) =>
+    sec.layout_type === "tables" || (sec.rows.length > 0 && sec.rows[0].row_label.startsWith("T"));
+
+  // Group consecutive row sections side-by-side; table sections standalone
+  type PreviewGroup = { type: "row-group" | "table"; sections: PreviewSection[] };
+  const groups: PreviewGroup[] = [];
+  for (const sec of sections) {
+    if (isSectionTable(sec)) {
+      groups.push({ type: "table", sections: [sec] });
+    } else {
+      const last = groups[groups.length - 1];
+      if (last && last.type === "row-group") {
+        last.sections.push(sec);
+      } else {
+        groups.push({ type: "row-group", sections: [sec] });
+      }
+    }
+  }
+
+  const renderSectionHeader = (section: PreviewSection) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <div style={{ width: 12, height: 12, borderRadius: 3, background: section.color }} />
+      <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>
+        {section.section_name} — ${section.price_tier}
+      </span>
+    </div>
+  );
+
+  const seatColor = (status: string, color: string) =>
+    status === "sold" ? "rgba(255,255,255,0.15)" : status === "held" ? "#f59e0b" : color;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {sections.map((section, sIdx) => (
-        <div key={sIdx}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <div style={{ width: 12, height: 12, borderRadius: 3, background: section.color }} />
-            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>
-              {section.section_name} — ${section.price_tier}
-            </span>
-          </div>
-          {section.rows.map((row, rIdx) => (
-            <div key={rIdx} style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 2 }}>
-              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, width: 20, textAlign: "right", marginRight: 4 }}>
-                {row.row_label}
-              </span>
-              {row.seats.map((seat) => (
-                <div
-                  key={seat.id}
-                  title={`${section.section_name} Row ${row.row_label} Seat ${seat.seat_number}`}
-                  style={{
-                    width: 14, height: 14, borderRadius: 3,
-                    background: seat.status === "sold"
-                      ? "rgba(255,255,255,0.15)"
-                      : seat.status === "held"
-                      ? "#f59e0b"
-                      : section.color,
-                    opacity: seat.status === "sold" ? 0.3 : 0.8,
-                    cursor: "default",
-                  }}
-                />
-              ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {groups.map((group, gIdx) => {
+        if (group.type === "table") {
+          const section = group.sections[0];
+          return (
+            <div key={`g-${gIdx}`}>
+              {renderSectionHeader(section)}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 24, padding: "8px 0" }}>
+                {section.rows.map((table, tIdx) => {
+                  const seatCount = table.seats.length;
+                  const tableRadius = 24;
+                  const seatOrbit = 42;
+                  const seatSize = 14;
+                  const containerSize = (seatOrbit + seatSize) * 2 + 4;
+
+                  return (
+                    <div key={tIdx} style={{ position: "relative", width: containerSize, height: containerSize }}>
+                      <div style={{
+                        position: "absolute", left: "50%", top: "50%",
+                        transform: "translate(-50%, -50%)",
+                        width: tableRadius * 2, height: tableRadius * 2,
+                        borderRadius: "50%",
+                        background: section.color + "20",
+                        border: `1.5px solid ${section.color}40`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <span style={{ color: section.color, fontSize: 10, fontWeight: 700 }}>
+                          {table.row_label}
+                        </span>
+                      </div>
+                      {table.seats.map((seat, seatIdx) => {
+                        const angle = (2 * Math.PI * seatIdx) / seatCount - Math.PI / 2;
+                        const cx = containerSize / 2 + seatOrbit * Math.cos(angle) - seatSize / 2;
+                        const cy = containerSize / 2 + seatOrbit * Math.sin(angle) - seatSize / 2;
+                        return (
+                          <div
+                            key={seat.id}
+                            title={`${section.section_name} ${table.row_label} Seat ${seat.seat_number}`}
+                            style={{
+                              position: "absolute", left: cx, top: cy,
+                              width: seatSize, height: seatSize, borderRadius: "50%",
+                              background: seatColor(seat.status, section.color),
+                              opacity: seat.status === "sold" ? 0.3 : 0.8,
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ))}
-        </div>
-      ))}
+          );
+        }
+
+        // Row group: render side-by-side with aisle
+        return (
+          <div key={`g-${gIdx}`} style={{ display: "flex", gap: 32, justifyContent: "center" }}>
+            {group.sections.map((section, sIdx) => (
+              <div key={sIdx}>
+                {renderSectionHeader(section)}
+                {section.rows.map((row, rIdx) => (
+                  <div key={rIdx} style={{ display: "flex", alignItems: "center", gap: 2, marginBottom: 2 }}>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, width: 20, textAlign: "right", marginRight: 4 }}>
+                      {row.row_label}
+                    </span>
+                    {row.seats.map((seat) => (
+                      <div
+                        key={seat.id}
+                        title={`${section.section_name} Row ${row.row_label} Seat ${seat.seat_number}`}
+                        style={{
+                          width: 14, height: 14, borderRadius: 3,
+                          background: seatColor(seat.status, section.color),
+                          opacity: seat.status === "sold" ? 0.3 : 0.8,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+
       <div style={{ display: "flex", gap: 16, marginTop: 8 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
           <div style={{ width: 10, height: 10, borderRadius: 2, background: "#6366f1" }} /> Available
