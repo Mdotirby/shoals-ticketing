@@ -38,6 +38,8 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
   const [savedChartId, setSavedChartId] = useState<string | null>(chartId || null);
   const [previewData, setPreviewData] = useState<Record<string, unknown> | null>(null);
   const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
   // Load existing chart if editing
   useEffect(() => {
@@ -350,14 +352,41 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
           {sections.map((section, i) => (
             <div
               key={i}
+              draggable
+              onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; setDragIdx(i); }}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(i); }}
+              onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+              onDrop={() => {
+                if (dragIdx !== null && dragIdx !== i) {
+                  const newSections = [...sections];
+                  const [moved] = newSections.splice(dragIdx, 1);
+                  newSections.splice(i, 0, moved);
+                  setSections(newSections);
+                }
+                setDragIdx(null);
+                setDragOverIdx(null);
+              }}
               style={{
                 padding: 10, borderRadius: 8, marginBottom: 8,
-                background: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: dragIdx === i ? "rgba(99,102,241,0.08)" : "rgba(255,255,255,0.02)",
+                border: dragOverIdx === i && dragIdx !== null && dragIdx !== i
+                  ? "1px solid rgba(99,102,241,0.5)"
+                  : "1px solid rgba(255,255,255,0.06)",
+                opacity: dragIdx === i ? 0.5 : 1,
+                transition: "border 0.15s, opacity 0.15s, background 0.15s",
               }}
             >
-              {/* Row 1: Color, Name, Price, Type dropdown, Remove */}
+              {/* Row 1: Drag handle, Color, Name, Price, Type dropdown, Remove */}
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <div
+                  style={{
+                    cursor: "grab", color: "rgba(255,255,255,0.3)", fontSize: 16,
+                    flexShrink: 0, userSelect: "none", lineHeight: 1,
+                  }}
+                  title="Drag to reorder"
+                >
+                  ⠿
+                </div>
                 <div
                   style={{
                     width: 20, height: 20, borderRadius: 4, flexShrink: 0,

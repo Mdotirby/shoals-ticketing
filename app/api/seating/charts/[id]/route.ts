@@ -71,7 +71,7 @@ export async function GET(
   return NextResponse.json({ ...chart, sections: enrichedSections });
 }
 
-/** PUT /api/seating/charts/[id] — update chart metadata */
+/** PUT /api/seating/charts/[id] — update chart metadata + sections */
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -84,7 +84,8 @@ export async function PUT(
   if (body.name !== undefined) updates.name = body.name;
   if (body.venue_name !== undefined) updates.venue_name = body.venue_name;
   if (body.chart_data !== undefined) updates.chart_data = body.chart_data;
-  if (body.total_sections !== undefined) updates.total_sections = body.total_sections;
+  if (body.sections !== undefined) updates.total_sections = body.sections.length;
+  else if (body.total_sections !== undefined) updates.total_sections = body.total_sections;
 
   const { data, error } = await admin
     .from("seating_charts")
@@ -96,6 +97,48 @@ export async function PUT(
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  // If sections are provided, delete old ones (cascades to rows/seats) and re-insert
+  if (Array.isArray(body.sections) && body.sections.length > 0) {
+    // Delete existing sections (cascade deletes rows and seats)
+    const { error: delError } = await admin
+      .from("seating_sections")
+      .delete()
+      .eq("chart_id", id);
+
+    if (delError) {
+      return NextResponse.json({ error: delError.message }, { status: 500 });
+    }
+
+    // Re-insert updated sections
+    const sectionRows = body.sections.map(
+      (s: {
+        section_name: string;
+        color?: string;
+        price_tier: number;
+        layout_type?: string;
+        row_count: number;
+        seats_per_row: number;
+      }) => ({
+        chart_id: id,
+        section_name: s.section_name,
+        color: s.color || "#6366f1",
+        price_tier: s.price_tier,
+        layout_type: s.layout_type || "rows",
+        row_count: s.row_count,
+        seat_count: s.row_count * s.seats_per_row,
+      })
+    );
+
+    const { error: secError } = await admin
+      .from("seating_sections")
+      .insert(sectionRows);
+
+    if (secError) {
+      return NextResponse.json({ error: secError.message }, { status: 500 });
+    }
+  }
+
   return NextResponse.json(data);
 }
 
