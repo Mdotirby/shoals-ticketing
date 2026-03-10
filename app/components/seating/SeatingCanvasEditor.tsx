@@ -61,6 +61,11 @@ export default function SeatingCanvasEditor({ items, onItemsChange }: Props) {
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
+  // Track drag distance to distinguish click vs drag
+  const dragDistanceRef = useRef(0);
+  const didDragRef = useRef(false);
+  const activeItemIdRef = useRef<string | null>(null);
+
   // ── Drag handlers ──
 
   const handlePointerDown = useCallback(
@@ -72,12 +77,14 @@ export default function SeatingCanvasEditor({ items, onItemsChange }: Props) {
       if (!item || !canvasRef.current) return;
 
       const rect = canvasRef.current.getBoundingClientRect();
+      dragDistanceRef.current = 0;
+      didDragRef.current = false;
+      activeItemIdRef.current = id;
       setDragging({
         id,
         offsetX: clientX - rect.left - item.x,
         offsetY: clientY - rect.top - item.y,
       });
-      setSelectedId(id);
     },
     []
   );
@@ -96,8 +103,16 @@ export default function SeatingCanvasEditor({ items, onItemsChange }: Props) {
       const newX = Math.max(0, pos.clientX - rect.left - dragging.offsetX);
       const newY = Math.max(0, pos.clientY - rect.top - dragging.offsetY);
 
-      const updated = itemsRef.current.map((item) =>
-        item.id === dragging.id ? { ...item, x: Math.round(newX), y: Math.round(newY) } : item
+      const item = itemsRef.current.find((i) => i.id === dragging.id);
+      if (item) {
+        const dx = Math.abs(Math.round(newX) - item.x);
+        const dy = Math.abs(Math.round(newY) - item.y);
+        dragDistanceRef.current += dx + dy;
+        if (dragDistanceRef.current > 5) didDragRef.current = true;
+      }
+
+      const updated = itemsRef.current.map((i) =>
+        i.id === dragging.id ? { ...i, x: Math.round(newX), y: Math.round(newY) } : i
       );
       onItemsChange(updated);
     },
@@ -105,7 +120,13 @@ export default function SeatingCanvasEditor({ items, onItemsChange }: Props) {
   );
 
   const handlePointerUp = useCallback(() => {
+    const itemId = activeItemIdRef.current;
+    if (!didDragRef.current && itemId) {
+      // It was a click, not a drag — toggle selection
+      setSelectedId((prev) => (prev === itemId ? null : itemId));
+    }
     setDragging(null);
+    activeItemIdRef.current = null;
   }, []);
 
   useEffect(() => {

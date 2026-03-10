@@ -43,7 +43,7 @@ export default function AdminSeatingPage() {
 
   if (showEditor) {
     return (
-      <div className="admin-form-page">
+      <div className="admin-form-page" style={{ maxWidth: "100%", width: "100%" }}>
         <button
           onClick={() => { setShowEditor(false); setEditingChartId(null); loadCharts(); }}
           style={{
@@ -63,7 +63,7 @@ export default function AdminSeatingPage() {
   }
 
   return (
-    <div className="admin-form-page">
+    <div className="admin-form-page" style={{ maxWidth: "100%", width: "100%" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h1 className="admin-page-title" style={{ margin: 0 }}>Seating Charts</h1>
         <button

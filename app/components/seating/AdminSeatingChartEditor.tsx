@@ -297,7 +297,7 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
   }, 0);
 
   return (
-    <div>
+    <div style={{ maxWidth: "100%", width: "100%" }}>
       <h1 className="admin-page-title">
         {chartId ? "Edit Seating Chart" : "Create Seating Chart"}
       </h1>
