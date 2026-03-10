@@ -146,15 +146,19 @@ export default function EventDetailPage() {
                 if (data.facility_fee_enabled === false) {
                   setVenueFees(prev => ({ ...prev, facility_fee: 0 }));
                 }
-                // Enrich event with venue location data
-                const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
-                const fullAddress = parts.length > 0 ? parts.join(", ") : "";
-                setEvent((prev) => prev ? {
-                  ...prev,
-                  venue_address: fullAddress || prev.venue_address,
-                  venue_phone: (v.buyer_phone as string) || prev.venue_phone,
-                  venue_email: (v.buyer_email as string) || prev.venue_email,
-                } : prev);
+                // Only use venues table address as fallback when there is NO event_venue_id.
+                // The venues table holds the business/host address — customers should see
+                // the event_venues location instead.
+                if (!data.event_venue_id) {
+                  const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
+                  const fullAddress = parts.length > 0 ? parts.join(", ") : "";
+                  setEvent((prev) => prev ? {
+                    ...prev,
+                    venue_address: fullAddress || prev.venue_address,
+                    venue_phone: (v.buyer_phone as string) || prev.venue_phone,
+                    venue_email: (v.buyer_email as string) || prev.venue_email,
+                  } : prev);
+                }
               }
             })
             .catch(() => {});
@@ -182,6 +186,8 @@ export default function EventDetailPage() {
                   }
                   setEvent((prev) => prev ? {
                     ...prev,
+                    // Use event_venues name as the customer-facing venue name
+                    venue: (ev.name as string) || prev.venue,
                     venue_address: (ev.full_address as string) || prev.venue_address,
                     venue_lat: (ev.lat as number) || prev.venue_lat,
                     venue_lng: (ev.lng as number) || prev.venue_lng,
