@@ -792,8 +792,8 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
-        {/* ── Facility Fee Toggle (only for hard ticket events) ── */}
-        {isHardTicket && selectedVenueFees.facility_fee != null && selectedVenueFees.facility_fee > 0 && (
+        {/* ── Facility Fee Toggle (only for hard ticket events with a venue selected) ── */}
+        {isHardTicket && selectedEventVenueId && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
             background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
@@ -811,7 +811,7 @@ export default function AdminEditEventPage() {
                 onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
                 style={{ width: 18, height: 18, accentColor: "#22c55e" }}
               />
-              Apply Facility Fee — ${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket
+              Apply Facility Fee{selectedVenueFees.facility_fee != null && selectedVenueFees.facility_fee > 0 ? ` — $${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket` : ""}
             </label>
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
               When enabled, the venue&apos;s facility fee will be added to each ticket sold.
