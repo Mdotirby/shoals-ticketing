@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     }
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 2000,
       system: SYSTEM_PROMPT,
       messages: [
@@ -200,6 +200,12 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Anthropic API key is invalid or expired. Check ANTHROPIC_API_KEY in environment variables." },
         { status: 500 }
+      );
+    }
+    if (message.includes("credit") || message.includes("billing") || message.includes("balance")) {
+      return NextResponse.json(
+        { error: "Anthropic API credits are insufficient. Please add credits at console.anthropic.com → Plans & Billing. Make sure the API key matches the workspace with credits." },
+        { status: 402 }
       );
     }
     return NextResponse.json({ error: message || "Analysis failed" }, { status: 500 });

@@ -19,8 +19,11 @@ function emptySection(index: number): SeatingSectionDraft {
     section_name: "",
     color: SECTION_COLORS[index % SECTION_COLORS.length],
     price_tier: "",
+    layout_type: "rows",
     row_count: "",
     seats_per_row: "",
+    table_count: "",
+    seats_per_table: "",
   };
 }
 
@@ -48,13 +51,20 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
             data.sections.map((s: {
               section_name: string; color: string; price_tier: number;
               row_count: number; seat_count: number;
-            }, i: number) => ({
-              section_name: s.section_name,
-              color: s.color || SECTION_COLORS[i % SECTION_COLORS.length],
-              price_tier: String(s.price_tier),
-              row_count: String(s.row_count),
-              seats_per_row: s.row_count > 0 ? String(Math.floor(s.seat_count / s.row_count)) : "0",
-            }))
+            }, i: number) => {
+              // Detect if this is a table-based section (row_count=0 or section name hints at tables)
+              const isTable = s.row_count === 0 && s.seat_count > 0;
+              return {
+                section_name: s.section_name,
+                color: s.color || SECTION_COLORS[i % SECTION_COLORS.length],
+                price_tier: String(s.price_tier),
+                layout_type: isTable ? "tables" as const : "rows" as const,
+                row_count: isTable ? "" : String(s.row_count),
+                seats_per_row: isTable ? "" : (s.row_count > 0 ? String(Math.floor(s.seat_count / s.row_count)) : "0"),
+                table_count: isTable ? String(s.seat_count > 0 ? Math.ceil(s.seat_count / 8) : 0) : "",
+                seats_per_table: isTable ? "8" : "",
+              };
+            })
           );
         }
       })
@@ -90,13 +100,24 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
         setError(`Section ${i + 1}: name is required`);
         return;
       }
-      if (!s.row_count || parseInt(s.row_count) < 1) {
-        setError(`Section ${i + 1}: row count must be at least 1`);
-        return;
-      }
-      if (!s.seats_per_row || parseInt(s.seats_per_row) < 1) {
-        setError(`Section ${i + 1}: seats per row must be at least 1`);
-        return;
+      if (s.layout_type === "rows") {
+        if (!s.row_count || parseInt(s.row_count) < 1) {
+          setError(`Section ${i + 1}: row count must be at least 1`);
+          return;
+        }
+        if (!s.seats_per_row || parseInt(s.seats_per_row) < 1) {
+          setError(`Section ${i + 1}: seats per row must be at least 1`);
+          return;
+        }
+      } else {
+        if (!s.table_count || parseInt(s.table_count) < 1) {
+          setError(`Section ${i + 1}: table count must be at least 1`);
+          return;
+        }
+        if (!s.seats_per_table || parseInt(s.seats_per_table) < 1) {
+          setError(`Section ${i + 1}: seats per table must be at least 1`);
+          return;
+        }
       }
     }
 
@@ -111,8 +132,11 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
           section_name: s.section_name.trim(),
           color: s.color,
           price_tier: parseFloat(s.price_tier) || 0,
-          row_count: parseInt(s.row_count),
-          seats_per_row: parseInt(s.seats_per_row),
+          layout_type: s.layout_type,
+          // For rows: row_count and seats_per_row
+          // For tables: table_count as row_count, seats_per_table as seats_per_row
+          row_count: s.layout_type === "rows" ? parseInt(s.row_count) : parseInt(s.table_count),
+          seats_per_row: s.layout_type === "rows" ? parseInt(s.seats_per_row) : parseInt(s.seats_per_table),
         })),
       };
 
@@ -178,10 +202,12 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
     await loadPreview(savedChartId);
   };
 
-  const totalSeats = sections.reduce(
-    (sum, s) => sum + (parseInt(s.row_count) || 0) * (parseInt(s.seats_per_row) || 0),
-    0
-  );
+  const totalSeats = sections.reduce((sum, s) => {
+    if (s.layout_type === "tables") {
+      return sum + (parseInt(s.table_count) || 0) * (parseInt(s.seats_per_table) || 0);
+    }
+    return sum + (parseInt(s.row_count) || 0) * (parseInt(s.seats_per_row) || 0);
+  }, 0);
 
   return (
     <div>
@@ -238,87 +264,135 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
             <div
               key={i}
               style={{
-                display: "grid",
-                gridTemplateColumns: "24px 1fr 80px 80px 80px 80px 32px",
-                gap: 8,
-                alignItems: "center",
-                marginBottom: 8,
+                padding: 10, borderRadius: 8, marginBottom: 8,
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {/* Color indicator */}
-              <div
-                style={{
-                  width: 20, height: 20, borderRadius: 4,
-                  background: section.color, cursor: "pointer",
-                }}
-                onClick={() => {
-                  const nextColor = SECTION_COLORS[(SECTION_COLORS.indexOf(section.color) + 1) % SECTION_COLORS.length];
-                  handleSectionChange(i, "color", nextColor);
-                }}
-                title="Click to change color"
-              />
-
-              <input
-                type="text"
-                className="admin-form-input"
-                value={section.section_name}
-                onChange={(e) => handleSectionChange(i, "section_name", e.target.value)}
-                placeholder="Section name"
-                style={{ fontSize: 13 }}
-              />
-              <input
-                type="number"
-                className="admin-form-input"
-                value={section.price_tier}
-                onChange={(e) => handleSectionChange(i, "price_tier", e.target.value)}
-                placeholder="Price"
-                min="0"
-                step="0.01"
-                style={{ fontSize: 13 }}
-              />
-              <input
-                type="number"
-                className="admin-form-input"
-                value={section.row_count}
-                onChange={(e) => handleSectionChange(i, "row_count", e.target.value)}
-                placeholder="Rows"
-                min="1"
-                step="1"
-                style={{ fontSize: 13 }}
-              />
-              <input
-                type="number"
-                className="admin-form-input"
-                value={section.seats_per_row}
-                onChange={(e) => handleSectionChange(i, "seats_per_row", e.target.value)}
-                placeholder="Seats/Row"
-                min="1"
-                step="1"
-                style={{ fontSize: 13 }}
-              />
-              <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, textAlign: "center" }}>
-                {(parseInt(section.row_count) || 0) * (parseInt(section.seats_per_row) || 0)}
-              </span>
-              {sections.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeSection(i)}
+              {/* Row 1: Color, Name, Price, Type dropdown, Remove */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+                <div
                   style={{
-                    background: "none", border: "none", color: "#ff6b6b",
-                    cursor: "pointer", fontSize: 16,
+                    width: 20, height: 20, borderRadius: 4, flexShrink: 0,
+                    background: section.color, cursor: "pointer",
                   }}
+                  onClick={() => {
+                    const nextColor = SECTION_COLORS[(SECTION_COLORS.indexOf(section.color) + 1) % SECTION_COLORS.length];
+                    handleSectionChange(i, "color", nextColor);
+                  }}
+                  title="Click to change color"
+                />
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={section.section_name}
+                  onChange={(e) => handleSectionChange(i, "section_name", e.target.value)}
+                  placeholder="Section name"
+                  style={{ fontSize: 13, flex: 1 }}
+                />
+                <input
+                  type="number"
+                  className="admin-form-input"
+                  value={section.price_tier}
+                  onChange={(e) => handleSectionChange(i, "price_tier", e.target.value)}
+                  placeholder="Price ($)"
+                  min="0"
+                  step="0.01"
+                  style={{ fontSize: 13, width: 80 }}
+                />
+                <select
+                  className="admin-form-input"
+                  value={section.layout_type}
+                  onChange={(e) => handleSectionChange(i, "layout_type", e.target.value)}
+                  style={{ fontSize: 12, width: 130, padding: "6px 8px" }}
                 >
-                  ✕
-                </button>
-              )}
+                  <option value="rows">Individual Seats</option>
+                  <option value="tables">Tables</option>
+                </select>
+                {sections.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSection(i)}
+                    style={{
+                      background: "none", border: "none", color: "#ff6b6b",
+                      cursor: "pointer", fontSize: 16, flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Row 2: Conditional fields based on layout type */}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 28 }}>
+                {section.layout_type === "rows" ? (
+                  <>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Rows</span>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        value={section.row_count}
+                        onChange={(e) => handleSectionChange(i, "row_count", e.target.value)}
+                        placeholder="Rows"
+                        min="1"
+                        step="1"
+                        style={{ fontSize: 13, width: 70 }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Seats/Row</span>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        value={section.seats_per_row}
+                        onChange={(e) => handleSectionChange(i, "seats_per_row", e.target.value)}
+                        placeholder="Seats/Row"
+                        min="1"
+                        step="1"
+                        style={{ fontSize: 13, width: 70 }}
+                      />
+                    </label>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
+                      = {(parseInt(section.row_count) || 0) * (parseInt(section.seats_per_row) || 0)} seats
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Tables</span>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        value={section.table_count}
+                        onChange={(e) => handleSectionChange(i, "table_count", e.target.value)}
+                        placeholder="# Tables"
+                        min="1"
+                        step="1"
+                        style={{ fontSize: 13, width: 70 }}
+                      />
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>Seats/Table</span>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        value={section.seats_per_table}
+                        onChange={(e) => handleSectionChange(i, "seats_per_table", e.target.value)}
+                        placeholder="Seats/Table"
+                        min="1"
+                        step="1"
+                        style={{ fontSize: 13, width: 70 }}
+                      />
+                    </label>
+                    <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
+                      = {(parseInt(section.table_count) || 0) * (parseInt(section.seats_per_table) || 0)} seats
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           ))}
-
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>
-              Headers: Color · Name · Price ($) · Rows · Seats/Row · Total
-            </span>
-          </div>
 
           <button
             type="button"

@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         section_name: string;
         color?: string;
         price_tier: number;
+        layout_type?: string;
         row_count: number;
         seats_per_row: number;
       }) => ({
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
         section_name: s.section_name,
         color: s.color || "#6366f1",
         price_tier: s.price_tier,
+        layout_type: s.layout_type || "rows",
         row_count: s.row_count,
         seat_count: s.row_count * s.seats_per_row,
       })

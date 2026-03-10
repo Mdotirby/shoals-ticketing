@@ -17,6 +17,7 @@ export type SeatingSection = {
   section_name: string;
   color: string;
   price_tier: number;
+  layout_type: "rows" | "tables";
   row_count: number;
   seat_count: number;
 };
@@ -67,8 +68,11 @@ export type SeatingSectionDraft = {
   section_name: string;
   color: string;
   price_tier: string; // string for form input
+  layout_type: "rows" | "tables";
   row_count: string;
   seats_per_row: string;
+  table_count: string;
+  seats_per_table: string;
 };
 
 export type SeatingChartDraft = {

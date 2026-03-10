@@ -39,6 +39,7 @@ export async function POST(
     const section = sections[sIdx];
     const rowCount = section.row_count || 0;
     const seatsPerRow = rowCount > 0 ? Math.floor(section.seat_count / rowCount) : 0;
+    const isTable = section.layout_type === "tables";
 
     if (rowCount === 0 || seatsPerRow === 0) continue;
 
@@ -46,7 +47,8 @@ export async function POST(
     const sectionYOffset = sIdx * (rowCount * ROW_SPACING_Y + 60);
 
     for (let r = 0; r < rowCount; r++) {
-      const rowLabel = String.fromCharCode(65 + r); // A, B, C, ...
+      // Tables use T1, T2, T3... labels; rows use A, B, C...
+      const rowLabel = isTable ? `T${r + 1}` : String.fromCharCode(65 + r);
 
       // Insert the row
       const { data: row, error: rowError } = await admin
