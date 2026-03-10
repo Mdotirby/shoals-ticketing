@@ -48,6 +48,7 @@ export default function AdminCreateEventPage() {
 
   // Resolved venue_id — from cookie or admin_users table
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
+  const [availableHosts, setAvailableHosts] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -99,6 +100,14 @@ export default function AdminCreateEventPage() {
         }
       });
     }
+  }, []);
+
+  // Fetch all venues (hosts) for the host selector dropdown
+  useEffect(() => {
+    fetch("/api/venues")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setAvailableHosts(data.map((v: { id: string; name: string }) => ({ id: v.id, name: v.name }))); })
+      .catch(() => {});
   }, []);
 
   // Load event venues for dropdown
@@ -412,6 +421,25 @@ export default function AdminCreateEventPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Host / Organization Selector */}
+        <div className="admin-form-label admin-form-full">
+          Host / Organization
+          <select
+            className="admin-form-input"
+            value={resolvedVenueId || ""}
+            onChange={(e) => setResolvedVenueId(e.target.value || null)}
+            style={{ marginTop: 6 }}
+          >
+            <option value="">— Select host —</option>
+            {availableHosts.map((h) => (
+              <option key={h.id} value={h.id}>{h.name}</option>
+            ))}
+          </select>
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
+            The organization, promoter, or venue hosting this event
+          </p>
         </div>
 
         {/* Booking Status */}

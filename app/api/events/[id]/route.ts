@@ -60,6 +60,7 @@ export async function PUT(
   if (body.start_time !== undefined) updates.start_time = body.start_time;
   if (body.end_time !== undefined) updates.end_time = body.end_time;
   if (body.facility_fee_enabled !== undefined) updates.facility_fee_enabled = body.facility_fee_enabled;
+  if (body.venue_id !== undefined) updates.venue_id = body.venue_id;
 
   console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
   if (updates.start_time !== undefined || updates.end_time !== undefined) {

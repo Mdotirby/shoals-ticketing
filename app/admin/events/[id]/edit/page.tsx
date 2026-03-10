@@ -49,6 +49,8 @@ export default function AdminEditEventPage() {
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
   const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
+  const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
+  const [availableHosts, setAvailableHosts] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
     title: "",
@@ -178,6 +180,11 @@ export default function AdminEditEventPage() {
           setFacilityFeeEnabled(false);
         }
 
+        // Pre-select the host (venue_id) from loaded event
+        if (event.venue_id) {
+          setResolvedVenueId(event.venue_id);
+        }
+
         // Map existing tiers
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
@@ -245,6 +252,14 @@ export default function AdminEditEventPage() {
         });
     });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch all venues (hosts) for the host selector dropdown
+  useEffect(() => {
+    fetch("/api/venues")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setAvailableHosts(data.map((v: { id: string; name: string }) => ({ id: v.id, name: v.name }))); })
+      .catch(() => {});
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -386,6 +401,7 @@ export default function AdminEditEventPage() {
           image_url: form.image_url || null,
           event_venue_id: selectedEventVenueId || null,
           facility_fee_enabled: facilityFeeEnabled,
+          venue_id: resolvedVenueId || null,
           event_type: form.event_type,
           booking_status: form.booking_status,
           contact_name: form.contact_name || null,
@@ -545,6 +561,25 @@ export default function AdminEditEventPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Host / Organization Selector */}
+        <div className="admin-form-label admin-form-full">
+          Host / Organization
+          <select
+            className="admin-form-input"
+            value={resolvedVenueId || ""}
+            onChange={(e) => setResolvedVenueId(e.target.value || null)}
+            style={{ marginTop: 6 }}
+          >
+            <option value="">— Select host —</option>
+            {availableHosts.map((h) => (
+              <option key={h.id} value={h.id}>{h.name}</option>
+            ))}
+          </select>
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
+            The organization, promoter, or venue hosting this event
+          </p>
         </div>
 
         {/* Booking Status */}

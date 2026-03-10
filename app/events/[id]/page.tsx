@@ -125,7 +125,7 @@ export default function EventDetailPage() {
         if (!res.ok) throw new Error("Event not found");
         return res.json();
       })
-      .then((data: EventData) => {
+      .then((data: EventData & { facility_fee_enabled?: boolean }) => {
         setEvent(data);
 
         if (data.venue_id) {
@@ -142,6 +142,10 @@ export default function EventDetailPage() {
                   facility_fee: Number(v.facility_fee) || 0,
                   tax_rate: Number(v.tax_rate) || 0.095,
                 });
+                // Override facility fee if disabled on this event
+                if (data.facility_fee_enabled === false) {
+                  setVenueFees(prev => ({ ...prev, facility_fee: 0 }));
+                }
                 // Enrich event with venue location data
                 const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
                 const fullAddress = parts.length > 0 ? parts.join(", ") : "";
@@ -172,6 +176,10 @@ export default function EventDetailPage() {
                     facility_fee: ev.facility_fee != null ? Number(ev.facility_fee) : prev.facility_fee,
                     tax_rate: ev.tax_rate != null ? Number(ev.tax_rate) : prev.tax_rate,
                   }));
+                  // Override facility fee if disabled on this event
+                  if (data.facility_fee_enabled === false) {
+                    setVenueFees(prev => ({ ...prev, facility_fee: 0 }));
+                  }
                   setEvent((prev) => prev ? {
                     ...prev,
                     venue_address: (ev.full_address as string) || prev.venue_address,
