@@ -69,6 +69,7 @@ export default function AdminEditEventPage() {
     tax_exempt: false,
     start_time: "",
     end_time: "",
+    venue_address: "",
   });
 
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
@@ -160,6 +161,7 @@ export default function AdminEditEventPage() {
           tax_exempt: event.tax_exempt || false,
           start_time: event.start_time ? (event.start_time.match(/T(\d{2}:\d{2})/)?.[1] || event.start_time) : "",
           end_time: event.end_time ? (event.end_time.match(/T(\d{2}:\d{2})/)?.[1] || event.end_time) : "",
+          venue_address: "",
         });
 
         if (event.image_url) {
@@ -432,6 +434,28 @@ export default function AdminEditEventPage() {
         }
       }
 
+      // Auto-save manually typed venue to event_venues table
+      if (!selectedEventVenueId && form.venue.trim()) {
+        const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+        const supabase = getSupabaseBrowser();
+        const { data: newVenue } = await supabase
+          .from("event_venues")
+          .insert({
+            name: form.venue.trim(),
+            full_address: form.venue_address.trim() || null,
+          })
+          .select("id")
+          .single();
+
+        // Link the new venue to the event
+        if (newVenue?.id) {
+          await supabase
+            .from("events")
+            .update({ event_venue_id: newVenue.id })
+            .eq("id", id);
+        }
+      }
+
       // Save or remove seating map
       if (reservedSeatingEnabled && selectedChartId) {
         await fetch(`/api/seating/events/${id}/map`, {
@@ -564,7 +588,7 @@ export default function AdminEditEventPage() {
                   const v = eventVenues.find((x) => x.id === e.target.value);
                   if (v) {
                     setSelectedEventVenueId(v.id);
-                    setForm((prev) => ({ ...prev, venue: v.name }));
+                    setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
                   } else {
                     setSelectedEventVenueId(null);
                   }
@@ -588,6 +612,17 @@ export default function AdminEditEventPage() {
               }}
               required
             />
+            {!selectedEventVenueId && form.venue && (
+              <input
+                type="text"
+                name="venue_address"
+                className="admin-form-input"
+                value={form.venue_address}
+                onChange={handleChange}
+                placeholder="e.g. 1001 Main St, Florence, AL 35630"
+                style={{ marginTop: 6 }}
+              />
+            )}
           </label>
 
           <label className="admin-form-label">

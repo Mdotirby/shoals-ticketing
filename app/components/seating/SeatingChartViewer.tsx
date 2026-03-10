@@ -44,6 +44,8 @@ export type SelectedSeat = {
   seatNumber: string;
   price: number;
   color: string;
+  /** Total seats at this table (only set for table rows starting with "T") */
+  totalTableSeats?: number;
 };
 
 export default function SeatingChartViewer({ eventId, onSelectionChange }: Props) {
@@ -151,6 +153,7 @@ export default function SeatingChartViewer({ eventId, onSelectionChange }: Props
               seatNumber: seat.seat_number,
               price: section.price_tier,
               color: section.color,
+              ...(row.row_label.startsWith("T") ? { totalTableSeats: row.seats.length } : {}),
             },
           ];
         }
@@ -195,7 +198,33 @@ export default function SeatingChartViewer({ eventId, onSelectionChange }: Props
       </div>
 
       {/* Selection summary */}
-      {selectedSeats.length > 0 && (
+      {selectedSeats.length > 0 && (() => {
+        // Group table seats vs individual seats for display
+        const tableGroups = new Map<string, SelectedSeat[]>();
+        const individualSeats: SelectedSeat[] = [];
+        for (const s of selectedSeats) {
+          if (s.rowLabel.startsWith("T")) {
+            const key = `${s.sectionName}-${s.rowLabel}`;
+            if (!tableGroups.has(key)) tableGroups.set(key, []);
+            tableGroups.get(key)!.push(s);
+          } else {
+            individualSeats.push(s);
+          }
+        }
+
+        // Check which table groups are full tables
+        const tableSeatCounts = new Map<string, number>();
+        if (chart) {
+          for (const sec of chart.sections) {
+            for (const row of sec.rows) {
+              if (row.row_label.startsWith("T")) {
+                tableSeatCounts.set(`${sec.section_name}-${row.row_label}`, row.seats.length);
+              }
+            }
+          }
+        }
+
+        return (
         <div
           style={{
             marginTop: 16,
@@ -209,7 +238,48 @@ export default function SeatingChartViewer({ eventId, onSelectionChange }: Props
             Selected Seats ({selectedSeats.length})
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {selectedSeats.map((s) => (
+            {/* Full table groups */}
+            {Array.from(tableGroups.entries()).map(([key, seats]) => {
+              const totalForTable = tableSeatCounts.get(key) || 0;
+              const isFullTable = seats.length === totalForTable && totalForTable > 0;
+              const tableTotal = seats.reduce((sum, s) => sum + s.price, 0);
+              if (isFullTable) {
+                return (
+                  <span
+                    key={key}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      background: seats[0].color + "20",
+                      border: `1px solid ${seats[0].color}40`,
+                      color: "rgba(255,255,255,0.8)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {seats[0].sectionName} · Table {seats[0].rowLabel} (Full Table) — ${tableTotal.toFixed(2)}
+                  </span>
+                );
+              }
+              // Partial table — show individual seats
+              return seats.map((s) => (
+                <span
+                  key={s.seatId}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    background: s.color + "20",
+                    border: `1px solid ${s.color}40`,
+                    color: "rgba(255,255,255,0.8)",
+                    fontSize: 12,
+                  }}
+                >
+                  {s.sectionName} · {s.rowLabel} · Seat {s.seatNumber} — ${s.price}
+                </span>
+              ));
+            })}
+            {/* Individual row seats */}
+            {individualSeats.map((s) => (
               <span
                 key={s.seatId}
                 style={{
@@ -229,7 +299,8 @@ export default function SeatingChartViewer({ eventId, onSelectionChange }: Props
             Total: ${selectedSeats.reduce((sum, s) => sum + s.price, 0).toFixed(2)}
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

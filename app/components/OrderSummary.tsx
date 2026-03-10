@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
 
 // Stripe charges 2.9% + $0.30 per transaction
@@ -18,6 +19,8 @@ type OrderSummaryProps = {
   facilityFee: number;    // flat dollar per ticket (venue facility_fee)
   taxRate: number;        // venue_tax_rate — accepts 9.5 or 0.095
   onCheckout: () => void;
+  /** Called when a promo code is applied or removed. Passes the code string or null. */
+  onPromoApplied?: (promoCode: string | null) => void;
 };
 
 export default function OrderSummary({
@@ -27,16 +30,80 @@ export default function OrderSummary({
   facilityFee,
   taxRate,
   onCheckout,
+  onPromoApplied,
 }: OrderSummaryProps) {
   const rate = normalizeTaxRate(taxRate);
   const hasSelection = selectedTicket !== null && quantity > 0;
+
+  // ── Promo code state ──
+  const [showPromoInput, setShowPromoInput] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discount_type: "fixed" | "percentage";
+    discount_value: number;
+  } | null>(null);
+
+  const eventId = selectedTicket?.event_id ?? "";
+
+  const validatePromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    setPromoError("");
+    try {
+      const res = await fetch("/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim(), event_id: eventId }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        const promo = {
+          code: promoCode.trim().toUpperCase(),
+          discount_type: data.discount_type as "fixed" | "percentage",
+          discount_value: parseFloat(data.discount_value),
+        };
+        setAppliedPromo(promo);
+        setPromoError("");
+        onPromoApplied?.(promo.code);
+      } else {
+        setPromoError(data.error || "Invalid promo code");
+        setAppliedPromo(null);
+        onPromoApplied?.(null);
+      }
+    } catch {
+      setPromoError("Failed to validate code");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode("");
+    setPromoError("");
+    onPromoApplied?.(null);
+  };
+
+  // ── Discount calculation ──
+  const discountPerTicket = appliedPromo
+    ? appliedPromo.discount_type === "fixed"
+      ? appliedPromo.discount_value
+      : (selectedTicket?.price || 0) * (appliedPromo.discount_value / 100)
+    : 0;
+  const totalDiscount = hasSelection ? discountPerTicket * quantity : 0;
+
+  // ── Totals ──
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
+  const discountedSubtotal = Math.max(subtotal - totalDiscount, 0);
   const totalTicketingFee = hasSelection ? ticketingFee * quantity : 0;
   const totalFacilityFee = hasSelection ? facilityFee * quantity : 0;
   const tax = hasSelection
-    ? Math.round(subtotal * rate * 100) / 100
+    ? Math.round(discountedSubtotal * rate * 100) / 100
     : 0;
-  const subtotalBeforeStripe = subtotal + totalTicketingFee + totalFacilityFee + tax;
+  const subtotalBeforeStripe = discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
   const processingFee = hasSelection
     ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0;
@@ -81,6 +148,111 @@ export default function OrderSummary({
             <span className="order-summary-line-label">Subtotal</span>
             <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
           </div>
+
+          {/* ── Promo Code Section ── */}
+          {!appliedPromo ? (
+            <div style={{ margin: "8px 0" }}>
+              {!showPromoInput ? (
+                <button
+                  type="button"
+                  onClick={() => setShowPromoInput(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#d0c290",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    padding: 0,
+                    textDecoration: "underline",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Use Promo Code
+                </button>
+              ) : (
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        validatePromo();
+                      }
+                    }}
+                    placeholder="Enter code"
+                    className="admin-form-input"
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      fontSize: 13,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      borderRadius: 6,
+                      color: "#fff",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={validatePromo}
+                    disabled={promoLoading || !promoCode.trim()}
+                    style={{
+                      padding: "6px 14px",
+                      fontSize: 13,
+                      background: "#d0c290",
+                      color: "#1a1a2e",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: promoLoading || !promoCode.trim() ? "not-allowed" : "pointer",
+                      fontWeight: 600,
+                      opacity: promoLoading || !promoCode.trim() ? 0.5 : 1,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {promoLoading ? "…" : "Apply"}
+                  </button>
+                </div>
+              )}
+              {promoError && (
+                <p style={{ color: "#ef4444", fontSize: 12, margin: "4px 0 0" }}>{promoError}</p>
+              )}
+            </div>
+          ) : (
+            <div style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#22c55e", fontSize: 13 }}>
+                ✓ {appliedPromo.code} applied — ${totalDiscount.toFixed(2)} off
+              </span>
+              <button
+                type="button"
+                onClick={removePromo}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#ef4444",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  padding: 0,
+                  textDecoration: "underline",
+                  fontFamily: "inherit",
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          )}
+
+          {totalDiscount > 0 && (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label" style={{ color: "#22c55e" }}>
+                Discount
+              </span>
+              <span className="order-summary-line-value" style={{ color: "#22c55e" }}>
+                -${totalDiscount.toFixed(2)}
+              </span>
+            </div>
+          )}
+
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Ticketing Service Fee</span>

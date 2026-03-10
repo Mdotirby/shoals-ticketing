@@ -56,6 +56,12 @@ export async function GET(
     const row = rowMap.get(seat.row_id);
     if (row) row.seats.push(seat);
   }
+  // Sort seats numerically within each row (seat_number is TEXT, so default order is alphabetical)
+  for (const row of rowMap.values()) {
+    (row.seats as Array<{ seat_number: string }>).sort(
+      (a, b) => parseInt(a.seat_number) - parseInt(b.seat_number)
+    );
+  }
 
   const enrichedSections = (sections || []).map((sec: { id: string }) => ({
     ...sec,

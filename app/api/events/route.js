@@ -20,6 +20,8 @@ export async function GET(request) {
     // Public API: exclude private events — they should never appear on the public site
     // Use .or() instead of .neq() because PostgreSQL's != excludes NULLs
     query = query.or("event_type.is.null,event_type.neq.private");
+    // Exclude events on hold — only confirmed (or unset) booking_status should be public
+    query = query.or("booking_status.eq.confirmed,booking_status.is.null");
   }
 
   // Admin event_type filter

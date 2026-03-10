@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SeatingSectionDraft } from "@/lib/types/seating";
+import SeatingCanvasEditor, { CanvasItem } from "./SeatingCanvasEditor";
 
 type Props = {
   chartId?: string | null;
@@ -36,6 +37,7 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
   const [error, setError] = useState("");
   const [savedChartId, setSavedChartId] = useState<string | null>(chartId || null);
   const [previewData, setPreviewData] = useState<Record<string, unknown> | null>(null);
+  const [canvasItems, setCanvasItems] = useState<CanvasItem[]>([]);
 
   // Load existing chart if editing
   useEffect(() => {
@@ -124,10 +126,17 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
     setSaving(true);
 
     try {
+      // Build canvas position data for chart_data
+      const canvasPositions: Record<string, { x: number; y: number; rotation: number }> = {};
+      for (const ci of canvasItems) {
+        canvasPositions[ci.id] = { x: ci.x, y: ci.y, rotation: ci.rotation };
+      }
+
       const payload = {
         name: name.trim(),
         venue_name: venueName.trim() || null,
         venue_id: venueId || null,
+        chart_data: canvasItems.length > 0 ? canvasPositions : undefined,
         sections: sections.map((s) => ({
           section_name: s.section_name.trim(),
           color: s.color,
@@ -196,6 +205,84 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
       // Non-critical
     }
   };
+
+  // Derive canvas items from preview data
+  const deriveCanvasItems = useCallback((data: Record<string, unknown>): CanvasItem[] => {
+    type PreviewSection = {
+      section_name: string;
+      color: string;
+      price_tier: number;
+      layout_type?: string;
+      rows: Array<{
+        row_label: string;
+        seats: Array<{ id: string; seat_number: string }>;
+      }>;
+    };
+
+    const secs = (data.sections || []) as PreviewSection[];
+    if (secs.length === 0) return [];
+
+    const isSectionTable = (sec: PreviewSection) =>
+      sec.layout_type === "tables" || (sec.rows.length > 0 && sec.rows[0].row_label.startsWith("T"));
+
+    // Check if we have saved positions in chart_data
+    const chartData = (data.chart_data || {}) as Record<string, { x: number; y: number; rotation: number }>;
+
+    const items: CanvasItem[] = [];
+    let xOffset = 20;
+    let tableX = 20;
+    const tableY = 320;
+
+    for (let i = 0; i < secs.length; i++) {
+      const sec = secs[i];
+      const isTable = isSectionTable(sec);
+      const totalSeats = sec.rows.reduce((s, r) => s + r.seats.length, 0);
+      const id = `section-${i}`;
+      const saved = chartData[id];
+
+      if (isTable) {
+        // Each table is its own canvas item
+        for (let t = 0; t < sec.rows.length; t++) {
+          const table = sec.rows[t];
+          const tableId = `table-${i}-${t}`;
+          const tableSaved = chartData[tableId];
+          items.push({
+            id: tableId,
+            type: "table",
+            label: `${sec.section_name} ${table.row_label}`,
+            color: sec.color,
+            x: tableSaved?.x ?? tableX,
+            y: tableSaved?.y ?? tableY,
+            rotation: tableSaved?.rotation ?? 0,
+            seatCount: table.seats.length,
+          });
+          tableX += 120;
+        }
+      } else {
+        items.push({
+          id,
+          type: "row-group",
+          label: sec.section_name,
+          color: sec.color,
+          x: saved?.x ?? xOffset,
+          y: saved?.y ?? 20,
+          rotation: saved?.rotation ?? 0,
+          seatCount: totalSeats,
+          rows: sec.rows.map((r) => ({ label: r.row_label, seats: r.seats.length })),
+        });
+        const maxSeats = Math.max(...sec.rows.map((r) => r.seats.length), 8);
+        xOffset += Math.max(100, maxSeats * 14 + 40) + 20;
+      }
+    }
+    return items;
+  }, []);
+
+  // Update canvas items when preview data changes
+  useEffect(() => {
+    if (previewData) {
+      setCanvasItems(deriveCanvasItems(previewData));
+    }
+  }, [previewData, deriveCanvasItems]);
 
   const handlePreview = async () => {
     if (!savedChartId) return;
@@ -407,8 +494,39 @@ export default function AdminSeatingChartEditor({ chartId, venueId, onSaved }: P
           </button>
         </div>
 
-        {/* Preview area */}
-        {previewData && (
+        {/* Interactive Canvas Editor */}
+        {previewData && canvasItems.length > 0 && (
+          <div style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(208,194,144,0.04)",
+            border: "1px solid rgba(208,194,144,0.12)",
+          }}>
+            <span style={{ color: "#d0c290", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
+              Layout Editor — Drag to reposition, use toolbar to rotate
+            </span>
+            <SeatingCanvasEditor
+              items={canvasItems}
+              onItemsChange={(updated) => {
+                setCanvasItems(updated);
+                // Persist positions to chart_data
+                if (savedChartId) {
+                  const positions: Record<string, { x: number; y: number; rotation: number }> = {};
+                  for (const item of updated) {
+                    positions[item.id] = { x: item.x, y: item.y, rotation: item.rotation };
+                  }
+                  fetch(`/api/seating/charts/${savedChartId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ chart_data: positions }),
+                  }).catch(() => { /* silent */ });
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Static fallback preview (shown when no canvas items derived yet) */}
+        {previewData && canvasItems.length === 0 && (
           <div style={{
             padding: 16, borderRadius: 10,
             background: "rgba(208,194,144,0.04)",
@@ -579,7 +697,7 @@ function SeatingPreview({ data }: { data: Record<string, unknown> }) {
                     <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 10, width: 20, textAlign: "right", marginRight: 4 }}>
                       {row.row_label}
                     </span>
-                    {row.seats.map((seat) => (
+                    {[...row.seats].sort((a, b) => parseInt(a.seat_number) - parseInt(b.seat_number)).map((seat) => (
                       <div
                         key={seat.id}
                         title={`${section.section_name} Row ${row.row_label} Seat ${seat.seat_number}`}

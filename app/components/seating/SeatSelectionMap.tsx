@@ -146,21 +146,51 @@ export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: 
               <div key={`g-${gIdx}`}>
                 <SectionHeader section={section} />
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 20, justifyContent: "center" }}>
-                  {section.rows.map((table) => (
+                  {section.rows.map((table) => {
+                    const allAvailableForTable = table.seats.every(
+                      (s) => s.status === "available" || selectedIds.has(s.id)
+                    );
+                    const allSelected = table.seats.every((s) => selectedIds.has(s.id));
+
+                    return (
                     <div key={table.id} style={{ position: "relative", width: containerSize, height: containerSize }}>
-                      {/* Round table */}
-                      <div style={{
-                        position: "absolute", left: "50%", top: "50%",
-                        transform: "translate(-50%, -50%)",
-                        width: TABLE_RADIUS * 2, height: TABLE_RADIUS * 2,
-                        borderRadius: "50%",
-                        background: section.color + "18",
-                        border: `1.5px solid ${section.color}40`,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
+                      {/* Round table center — click to buy/deselect full table */}
+                      <div
+                        onClick={() => {
+                          if (!allAvailableForTable) return;
+                          if (allSelected) {
+                            table.seats.forEach((seat) => {
+                              if (selectedIds.has(seat.id)) onSeatClick(seat, section, table);
+                            });
+                          } else {
+                            table.seats.forEach((seat) => {
+                              if (!selectedIds.has(seat.id) && seat.status === "available") {
+                                onSeatClick(seat, section, table);
+                              }
+                            });
+                          }
+                        }}
+                        style={{
+                          position: "absolute", left: "50%", top: "50%",
+                          transform: "translate(-50%, -50%)",
+                          width: TABLE_RADIUS * 2, height: TABLE_RADIUS * 2,
+                          borderRadius: "50%",
+                          background: section.color + "18",
+                          border: `1.5px solid ${section.color}40`,
+                          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                          cursor: allAvailableForTable ? "pointer" : "not-allowed",
+                          transition: "background 0.15s ease",
+                        }}
+                        title={allAvailableForTable ? (allSelected ? "Deselect full table" : "Buy full table") : "Some seats are unavailable"}
+                      >
                         <span style={{ color: section.color, fontSize: 11, fontWeight: 700 }}>
                           {table.row_label}
                         </span>
+                        {allAvailableForTable && (
+                          <span style={{ color: section.color, fontSize: 7, marginTop: 2, opacity: 0.8 }}>
+                            {allSelected ? "Deselect" : "Buy Table"}
+                          </span>
+                        )}
                       </div>
                       {/* Orbiting chairs */}
                       {table.seats.map((seat, seatIdx) => {
@@ -200,7 +230,8 @@ export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: 
                         );
                       })}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -221,7 +252,7 @@ export default function SeatSelectionMap({ chart, selectedSeats, onSeatClick }: 
                         }}>
                           {row.row_label}
                         </span>
-                        {row.seats.map((seat) => (
+                        {[...row.seats].sort((a, b) => parseInt(a.seat_number) - parseInt(b.seat_number)).map((seat) => (
                           <SeatButton
                             key={seat.id}
                             seat={seat} section={section} row={row}

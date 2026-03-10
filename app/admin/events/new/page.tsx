@@ -68,6 +68,7 @@ export default function AdminCreateEventPage() {
     tax_exempt: false,
     start_time: "",
     end_time: "",
+    venue_address: "",
   });
 
   // Revenue items for private events
@@ -302,6 +303,28 @@ export default function AdminCreateEventPage() {
 
       const event = await res.json();
 
+      // Auto-save manually typed venue to event_venues table
+      if (!selectedEventVenueId && form.venue.trim()) {
+        const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+        const supabase = getSupabaseBrowser();
+        const { data: newVenue } = await supabase
+          .from("event_venues")
+          .insert({
+            name: form.venue.trim(),
+            full_address: form.venue_address.trim() || null,
+          })
+          .select("id")
+          .single();
+
+        // Link the new venue to the event
+        if (newVenue?.id && event.id) {
+          await supabase
+            .from("events")
+            .update({ event_venue_id: newVenue.id })
+            .eq("id", event.id);
+        }
+      }
+
       // Save private event revenue items if applicable
       if (form.event_type === "private" && resolvedVenueId && event.id) {
         const revenueToSave = revenueItems.filter((r) => r.amount && parseFloat(r.amount) > 0);
@@ -443,7 +466,7 @@ export default function AdminCreateEventPage() {
                   const v = eventVenues.find((x) => x.id === e.target.value);
                   if (v) {
                     setSelectedEventVenueId(v.id);
-                    setForm((prev) => ({ ...prev, venue: v.name }));
+                    setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
                   } else {
                     setSelectedEventVenueId(null);
                   }
@@ -469,6 +492,17 @@ export default function AdminCreateEventPage() {
               placeholder="e.g. Singin River Live"
               required
             />
+            {!selectedEventVenueId && form.venue && (
+              <input
+                type="text"
+                name="venue_address"
+                className="admin-form-input"
+                value={form.venue_address}
+                onChange={handleChange}
+                placeholder="e.g. 1001 Main St, Florence, AL 35630"
+                style={{ marginTop: 6 }}
+              />
+            )}
           </label>
 
           <label className="admin-form-label">

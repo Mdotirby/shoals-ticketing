@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
@@ -228,10 +228,15 @@ export default function EventDetailPage() {
   }, [eventId]);
 
   const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
+  const appliedPromoRef = useRef<string | null>(null);
 
   const handleCheckout = () => {
     if (!selectedTicket || !event) return;
-    window.location.href = `/checkout?event=${eventId}&qty=${quantity}`;
+    let url = `/checkout?event=${eventId}&qty=${quantity}`;
+    if (appliedPromoRef.current) {
+      url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
+    }
+    window.location.href = url;
   };
 
   if (isLoading) {
@@ -306,32 +311,62 @@ export default function EventDetailPage() {
                     ageRestriction={event.age_restriction}
                   />
 
-                  {/* Ticket type dropdown + quantity selector OR Seating Chart */}
-                  {reservedSeatingEnabled ? (
-                    <div style={{ marginTop: 16 }}>
-                      <SeatingChartViewer
-                        eventId={eventId}
-                        onSelectionChange={(seats) => setSelectedSeats(seats)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="ticket-selector-row">
-                      <select
-                        className="ticket-type-select"
-                        value={selectedTicketId ?? ""}
-                        onChange={(e) => setSelectedTicketId(e.target.value)}
-                      >
-                        {ticketTypes.map((tt) => (
-                          <option key={tt.id} value={tt.id}>
-                            {tt.name} — ${tt.price.toFixed(2)}
-                          </option>
-                        ))}
-                      </select>
+                  {/* Ticket type dropdown + quantity selector */}
+                  <div className="ticket-selector-row">
+                    <select
+                      className="ticket-type-select"
+                      value={selectedTicketId ?? ""}
+                      onChange={(e) => setSelectedTicketId(e.target.value)}
+                    >
+                      {ticketTypes.map((tt) => (
+                        <option key={tt.id} value={tt.id}>
+                          {tt.name} — ${tt.price.toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                    {!reservedSeatingEnabled && (
                       <div className="ticket-qty-control">
                         <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
                         <span className="ticket-qty-value">{quantity}</span>
                         <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Reserved seating: "Pick Your Seats" CTA */}
+                  {reservedSeatingEnabled && (
+                    <div style={{ marginTop: 16 }}>
+                      <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 10 }}>
+                        🪑 This is a reserved seating event — choose your exact seats
+                      </p>
+                      <a
+                        href={`/events/${eventId}/seats`}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "center",
+                          padding: "14px 24px",
+                          background: "linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #7c3aed 100%)",
+                          color: "#fff",
+                          fontWeight: 700,
+                          fontSize: 16,
+                          borderRadius: 12,
+                          textDecoration: "none",
+                          letterSpacing: "0.02em",
+                          boxShadow: "0 4px 14px rgba(99,102,241,0.4)",
+                          transition: "transform 0.15s, box-shadow 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-1px)";
+                          e.currentTarget.style.boxShadow = "0 6px 20px rgba(99,102,241,0.5)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 4px 14px rgba(99,102,241,0.4)";
+                        }}
+                      >
+                        🎫 Pick Your Seats
+                      </a>
                     </div>
                   )}
 
@@ -350,8 +385,14 @@ export default function EventDetailPage() {
                 ticketingFee={venueFees.ticketing_fee}
                 facilityFee={venueFees.facility_fee}
                 taxRate={venueFees.tax_rate}
-                onCheckout={handleCheckout}
+                onCheckout={reservedSeatingEnabled ? () => { window.location.href = `/events/${eventId}/seats`; } : handleCheckout}
+                onPromoApplied={(code) => { appliedPromoRef.current = code; }}
               />
+              {reservedSeatingEnabled && (
+                <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+                  Final price depends on seat selection
+                </p>
+              )}
             </div>
           </div>
         </section>
