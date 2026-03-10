@@ -335,7 +335,7 @@ export default function EventDetailPage() {
                   {reservedSeatingEnabled && (
                     <div style={{ marginTop: 16 }}>
                       <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 10 }}>
-                        🪑 This is a reserved seating event — choose your exact seats
+                        This is a reserved seating event — choose your seats
                       </p>
                       <a
                         href={`/events/${eventId}/seats`}
@@ -469,7 +469,7 @@ export default function EventDetailPage() {
                     <h3 className="venue-directions-card-title">Directions &amp; Parking</h3>
                     {event.venue_directions_car && (
                       <div className="venue-directions-info-block">
-                        <span className="venue-directions-info-icon">🚗</span>
+                        
                         <div>
                           <strong className="venue-directions-info-label">By Car</strong>
                           <p className="venue-directions-card-text">{event.venue_directions_car}</p>
@@ -478,7 +478,7 @@ export default function EventDetailPage() {
                     )}
                     {event.venue_parking_info && (
                       <div className="venue-directions-info-block">
-                        <span className="venue-directions-info-icon">🅿️</span>
+
                         <div>
                           <strong className="venue-directions-info-label">Parking</strong>
                           <p className="venue-directions-card-text">{event.venue_parking_info}</p>
