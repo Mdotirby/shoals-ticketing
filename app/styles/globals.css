@@ -568,7 +568,7 @@ body {
 
 .ticket-type-select {
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
@@ -631,17 +631,23 @@ body {
     height: 10px;
   }
   .ticket-selector-row {
-    flex-wrap: nowrap;
+    flex-direction: column;
     gap: 8px;
   }
   .ticket-type-select {
     min-width: 0;
+    width: 100%;
     font-size: 13px;
     padding: 10px 10px;
+  }
+  .ticket-qty-control {
+    width: 100%;
+    justify-content: center;
   }
   .ticket-qty-btn {
     padding: 8px 12px;
     font-size: 16px;
+    flex: 1;
   }
   .ticket-qty-value {
     min-width: 28px;
@@ -1716,11 +1722,25 @@ body {
   }
 
   .ticket-selection-layout { flex-direction: column; }
-  .order-summary-column { flex: none; width: 100%; position: static; }
+  .order-summary-column { flex: none; width: 100%; min-width: 0; position: static; }
+  .order-summary { min-width: 0; padding: 20px 16px; }
   .ticket-selection-heading { font-size: 1.5rem; }
   .ticket-hero-image-wrap { height: 220px; }
   .ticket-card-body { padding: 20px; }
-  .ticket-hero-title { font-size: 1.6rem; }
+  .ticket-hero-title { display: none; }
+
+  .ticket-selector-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ticket-type-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .ticket-qty-control {
+    width: 100%;
+    justify-content: center;
+  }
 
   .purchase-ticket-card {
     padding: 16px 18px 14px;
