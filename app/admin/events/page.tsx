@@ -76,23 +76,23 @@ export default function AdminEventsPage() {
       </div>
 
       {/* Event Type Filter */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         {[
           { value: "all", label: "All Events" },
           { value: "hard_ticket", label: "Hard Ticket" },
-          { value: "private", label: "Private Events" },
+          { value: "private", label: "Private" },
           { value: "non_ticketed", label: "Non-Ticketed" },
         ].map((opt) => (
           <button
             key={opt.value}
             onClick={() => setEventTypeFilter(opt.value)}
             style={{
-              padding: "6px 14px",
-              borderRadius: 8,
+              padding: "6px 12px",
+              borderRadius: 6,
               border: `1px solid ${eventTypeFilter === opt.value ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.1)"}`,
               background: eventTypeFilter === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
               color: eventTypeFilter === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
               cursor: "pointer",
               transition: "all 0.15s",
@@ -140,9 +140,9 @@ export default function AdminEventsPage() {
                     <span className="admin-event-meta">
                       {ev.venue} · {formatDate(ev.date)}
                     </span>
-                    <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
                       <span style={{
-                        fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                        fontSize: 9, padding: "1px 6px", borderRadius: 3,
                         background: "rgba(255,255,255,0.06)",
                         color: "rgba(255,255,255,0.5)",
                         display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -151,7 +151,7 @@ export default function AdminEventsPage() {
                         {EVENT_TYPE_LABELS[eventType] || eventType}
                       </span>
                       <span style={{
-                        fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                        fontSize: 9, padding: "1px 6px", borderRadius: 3,
                         background: statusColor + "18",
                         color: statusColor,
                         fontWeight: 600,

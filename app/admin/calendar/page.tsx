@@ -459,157 +459,209 @@ export default function CalendarPage() {
         </button>
       </div>
 
-      {/* Calendar Grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(7, 1fr)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}>
-        {/* Day headers */}
-        {(isMobile ? DAYS_SHORT : DAYS).map((d, idx) => (
-          <div key={idx} style={{
-            padding: isMobile ? "6px 2px" : "10px 8px",
-            textAlign: "center",
-            fontSize: isMobile ? 10 : 11,
-            fontWeight: 600,
-            color: "rgba(255,255,255,0.4)",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-            background: "rgba(255,255,255,0.03)",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-          }}>
-            {d}
-          </div>
-        ))}
+      {/* Calendar: Mobile List View / Desktop Grid */}
+      {isMobile ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
+          {(() => {
+            const monthEvents = events
+              .filter(e => e.date && dateKey(e.date).startsWith(currentMonth))
+              .sort((a, b) => (dateKey(a.date)).localeCompare(dateKey(b.date)));
 
-        {/* Calendar cells */}
-        {calendarDays.map((day, i) => {
-          const key = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, "0")}-${String(day.date.getDate()).padStart(2, "0")}`;
-          const dayEvents = eventsByDate[key] || [];
-          const isToday = key === todayStr;
+            if (monthEvents.length === 0) {
+              return (
+                <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 14 }}>
+                  No events this month
+                </div>
+              );
+            }
 
-          return (
-            <div
-              key={i}
-              onClick={() => {
-                if (isMobile && dayEvents.length > 0) {
-                  openEditEvent(dayEvents[0]);
-                } else {
-                  openNewEvent(key);
-                }
-              }}
-              style={{
-                minHeight: isMobile ? 48 : 100,
-                padding: isMobile ? "3px 2px" : "4px 6px",
-                background: isToday
-                  ? "rgba(208,194,144,0.06)"
-                  : day.inMonth
-                  ? "rgba(255,255,255,0.01)"
-                  : "rgba(0,0,0,0.15)",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                borderRight: "1px solid rgba(255,255,255,0.04)",
-                cursor: "pointer",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => { if (!isMobile) e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
-              onMouseLeave={(e) => {
-                if (!isMobile) e.currentTarget.style.background = isToday
-                  ? "rgba(208,194,144,0.06)"
-                  : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
-              }}
-            >
-              {/* Date number */}
-              <div style={{
-                fontSize: isMobile ? 11 : 12,
-                fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
-                color: isToday
-                  ? "#d0c290"
-                  : day.inMonth
-                  ? "rgba(255,255,255,0.6)"
-                  : "rgba(255,255,255,0.2)",
-                marginBottom: isMobile ? 2 : 4,
-                textAlign: isMobile ? "center" : "left",
-              }}>
-                {day.date.getDate()}
-              </div>
+            return monthEvents.map((ev) => {
+              const d = safeDate(ev.date);
+              const dayNum = d.getDate();
+              const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
+              const monthName = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
 
-              {/* Events on this day */}
-              {isMobile ? (
-                /* Mobile: show colored dots based on booking_status */
-                dayEvents.length > 0 && (
-                  <div style={{ display: "flex", gap: 2, justifyContent: "center", flexWrap: "wrap" }}>
-                    {dayEvents.slice(0, 4).map((ev) => {
-                      const color = getEventColor(ev);
-                      return (
-                        <div
-                          key={ev.id}
-                          style={{
-                            width: 6, height: 6, borderRadius: "50%",
-                            background: color,
-                          }}
-                        />
-                      );
-                    })}
-                    {dayEvents.length > 4 && (
-                      <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", lineHeight: "6px" }}>+</span>
-                    )}
-                  </div>
-                )
-              ) : (
-                /* Desktop: show event labels with booking_status color + event type indicator */
-                <>
-                  {dayEvents.slice(0, 3).map((ev) => {
-                    const color = getEventColor(ev);
-                    const bg = getEventBg(ev);
-                    const type = ev.event_type || "hard_ticket";
-                    const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
-                    return (
-                      <div
-                        key={ev.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditEvent(ev);
-                        }}
-                        title={`${ev.title} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
-                        style={{
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          marginBottom: 2,
-                          borderRadius: 4,
-                          background: bg,
-                          color,
-                          borderLeft: `3px solid ${color}`,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          cursor: "pointer",
-                          fontWeight: 500,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <span style={{
-                          width: 5, height: 5, borderRadius: "50%",
-                          background: typeColor, flexShrink: 0,
-                        }} />
-                        {ev.title}
-                      </div>
-                    );
-                  })}
-                  {dayEvents.length > 3 && (
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
-                      +{dayEvents.length - 3} more
+              const typeColor = EVENT_TYPE_COLORS[ev.event_type || ""] || "#888";
+              const statusColor = BOOKING_STATUS_COLORS[ev.booking_status || ""] || "#888";
+
+              return (
+                <div
+                  key={ev.id}
+                  onClick={() => openEditEvent(ev)}
+                  style={{
+                    display: "flex",
+                    gap: 14,
+                    padding: "14px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
+                    cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {/* Date column */}
+                  <div style={{ width: 52, flexShrink: 0, textAlign: "center" }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>
+                      {monthName}
                     </div>
-                  )}
-                </>
-              )}
+                    <div style={{ fontSize: 26, fontWeight: 700, color: "#d0c290", lineHeight: 1.1 }}>
+                      {dayNum}
+                    </div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
+                      {dayName}
+                    </div>
+                  </div>
+
+                  {/* Event info column */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {ev.title}
+                    </div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
+                      {ev.venue || "No venue"}
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                      {/* Event type badge */}
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", gap: 4,
+                        fontSize: 10, padding: "1px 7px", borderRadius: 3,
+                        background: typeColor.replace(/[\d.]+\)$/, "0.15)"), color: typeColor, fontWeight: 600,
+                      }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: typeColor }} />
+                        {(ev.event_type || "event").replace("_", " ")}
+                      </span>
+                      {/* Booking status badge */}
+                      <span style={{
+                        fontSize: 10, padding: "1px 7px", borderRadius: 3,
+                        background: statusColor.replace(/[\d.]+\)$/, "0.15)"), color: statusColor, fontWeight: 600,
+                      }}>
+                        {ev.booking_status || "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      ) : (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}>
+          {/* Day headers */}
+          {DAYS.map((d, idx) => (
+            <div key={idx} style={{
+              padding: "10px 8px",
+              textAlign: "center",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.4)",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              background: "rgba(255,255,255,0.03)",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+            }}>
+              {d}
             </div>
-          );
-        })}
-      </div>
+          ))}
+
+          {/* Calendar cells */}
+          {calendarDays.map((day, i) => {
+            const key = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, "0")}-${String(day.date.getDate()).padStart(2, "0")}`;
+            const dayEvents = eventsByDate[key] || [];
+            const isToday = key === todayStr;
+
+            return (
+              <div
+                key={i}
+                onClick={() => openNewEvent(key)}
+                style={{
+                  minHeight: 100,
+                  padding: "4px 6px",
+                  background: isToday
+                    ? "rgba(208,194,144,0.06)"
+                    : day.inMonth
+                    ? "rgba(255,255,255,0.01)"
+                    : "rgba(0,0,0,0.15)",
+                  borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  borderRight: "1px solid rgba(255,255,255,0.04)",
+                  cursor: "pointer",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isToday
+                    ? "rgba(208,194,144,0.06)"
+                    : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
+                }}
+              >
+                {/* Date number */}
+                <div style={{
+                  fontSize: 12,
+                  fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
+                  color: isToday
+                    ? "#d0c290"
+                    : day.inMonth
+                    ? "rgba(255,255,255,0.6)"
+                    : "rgba(255,255,255,0.2)",
+                  marginBottom: 4,
+                  textAlign: "left",
+                }}>
+                  {day.date.getDate()}
+                </div>
+
+                {/* Desktop: show event labels with booking_status color + event type indicator */}
+                {dayEvents.slice(0, 3).map((ev) => {
+                  const color = getEventColor(ev);
+                  const bg = getEventBg(ev);
+                  const type = ev.event_type || "hard_ticket";
+                  const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
+                  return (
+                    <div
+                      key={ev.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditEvent(ev);
+                      }}
+                      title={`${ev.title} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
+                      style={{
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        marginBottom: 2,
+                        borderRadius: 4,
+                        background: bg,
+                        color,
+                        borderLeft: `3px solid ${color}`,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        cursor: "pointer",
+                        fontWeight: 500,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <span style={{
+                        width: 5, height: 5, borderRadius: "50%",
+                        background: typeColor, flexShrink: 0,
+                      }} />
+                      {ev.title}
+                    </div>
+                  );
+                })}
+                {dayEvents.length > 3 && (
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
+                    +{dayEvents.length - 3} more
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {loading && (
         <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 16 }}>Loading events...</p>

@@ -4946,7 +4946,7 @@ select.admin-form-input {
 
   .admin-event-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: space-between;
   }
 }
 
@@ -8471,39 +8471,61 @@ select.admin-form-input {
   }
 
   /* ── Events List Cards ── */
+  .admin-events-list {
+    gap: 8px;
+  }
+
   .admin-event-card {
     flex-direction: column;
     align-items: flex-start;
-    padding: 14px;
-    gap: 12px;
+    padding: 12px;
+    gap: 8px;
+    border-radius: 10px;
   }
 
   .admin-event-info {
     width: 100%;
+    gap: 10px;
+  }
+
+  .admin-event-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    flex-shrink: 0;
   }
 
   .admin-event-name {
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.2;
   }
 
   .admin-event-meta {
-    font-size: 12px;
+    font-size: 11px;
+    margin-top: 1px;
   }
 
   .admin-event-actions {
     width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
     gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 2px;
   }
 
   .admin-event-price {
     font-size: 14px;
+    font-weight: 700;
   }
 
-  .admin-event-thumb {
-    width: 48px;
-    height: 48px;
+  /* Make edit/delete buttons smaller on mobile */
+  .admin-event-actions .admin-sponsor-edit-btn,
+  .admin-event-actions .admin-sponsor-delete-btn {
+    font-size: 11px;
+    padding: 4px 10px;
   }
 
   /* ── Report Page ── */
