@@ -934,7 +934,7 @@ export default function AdminOfferDetailPage() {
               <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Artist Pot (at Walkout):</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Avg Ticket Price (Net):</span><strong>${avgTicketPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row highlight" style={{ background: "rgba(208,194,144,0.15)" }}>
+              <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>Breakeven:</span>
                 <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
               </div>
@@ -950,7 +950,7 @@ export default function AdminOfferDetailPage() {
               <div className="offer-potential-row"><span>Tax Rate: {taxRate}%</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row highlight" style={{ background: pnlOffer >= 0 ? "rgba(100,200,100,0.1)" : "rgba(255,100,100,0.1)" }}>
+              <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>P&amp;L (Offer):</span>
                 <strong style={{ color: pnlOffer >= 0 ? "#7ddb7d" : "#ff9a9a" }}>{fmtDollar(pnlOffer)}</strong>
               </div>
@@ -1047,12 +1047,12 @@ export default function AdminOfferDetailPage() {
                 <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               )}
               <div className="offer-potential-row"><span>Show Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row highlight" style={{ background: "rgba(255,100,100,0.1)" }}>
+              <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>Total Expenses:</span>
                 <strong style={{ color: "#ff9a9a" }}>${totalAllExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </div>
               <div style={{ height: 12 }} />
-              <div className="offer-potential-row highlight" style={{ background: finalPnl >= 0 ? "rgba(100,200,100,0.15)" : "rgba(255,100,100,0.15)", padding: "12px 16px" }}>
+              <div className="offer-potential-row" style={{ padding: "12px 16px" }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>P&amp;L:</span>
                 <strong style={{ color: finalPnl >= 0 ? "#7ddb7d" : "#ff9a9a", fontSize: 16 }}>{fmtDollar(finalPnl)}</strong>
               </div>
