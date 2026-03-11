@@ -8507,7 +8507,8 @@ select.admin-form-input {
 
   .admin-event-actions {
     width: 100%;
-    justify-content: space-between;
+    display: flex;
+    justify-content: flex-end;
     align-items: center;
     flex-wrap: nowrap;
     gap: 8px;
@@ -8519,6 +8520,7 @@ select.admin-form-input {
   .admin-event-price {
     font-size: 14px;
     font-weight: 700;
+    margin-right: auto;
   }
 
   /* Make edit/delete buttons smaller on mobile */
