@@ -87,6 +87,7 @@ export type ArtistOffer = {
   gross_potential?: number;
   adj_gross?: number;
   tax_rate?: number;
+  tax_method?: "divisor" | "multiplier";
   net_potential?: number;
   splitpoint?: number;
   artist_backend?: number;

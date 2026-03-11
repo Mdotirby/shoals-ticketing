@@ -60,6 +60,7 @@ export type OfferPdfData = {
   gross_potential?: number;
   adj_gross?: number;
   tax_rate?: number;
+  tax_method?: "divisor" | "multiplier";
   net_potential?: number;
   splitpoint?: number;
   artist_backend?: number;
@@ -370,12 +371,36 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   revY = lv("Combined Rev", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
 
   // ── Right: Potential at Sellout ──
+  // Compute gross & adj gross from tier data so the PDF is always correct
+  const grossPotential = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + (t.sellable_cap * t.price), 0)
+    : Number(data.gross_potential || 0);
+  const adjGross = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + (t.sellable_cap * (t.net_price || 0)), 0)
+    : Number(data.adj_gross || 0);
+  const rawTaxRate = Number(data.tax_rate || 0);
+  // Normalize: if stored as percentage (e.g. 9.5), convert to decimal (0.095)
+  const taxRateDecimal = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
+  const taxMethod = data.tax_method || "divisor";
+  let netPotential: number;
+  let taxAmount: number;
+  if (taxMethod === "divisor") {
+    netPotential = adjGross / (1 + taxRateDecimal);
+    taxAmount = adjGross - netPotential;
+  } else {
+    taxAmount = adjGross * taxRateDecimal;
+    netPotential = adjGross - taxAmount;
+  }
+  // Round to 2 decimal places
+  netPotential = Math.round(netPotential * 100) / 100;
+  taxAmount = Math.round(taxAmount * 100) / 100;
+
   let potY = secHRight("Potential at Sellout", revStartY);
-  potY = lv("Gross Pot.", `$${Number(data.gross_potential || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Adj. Gross", `$${Number(data.adj_gross || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  const taxPct = Number(data.tax_rate || 0) * 100;
-  potY = lv(`Tax (${taxPct.toFixed(1)}%)`, `$${(Number(data.adj_gross || 0) * Number(data.tax_rate || 0)).toFixed(2)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Net Pot.", `$${Number(data.net_potential || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Gross Pot.", `$${grossPotential.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Adj. Gross", `$${adjGross.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  const taxPct = taxRateDecimal * 100;
+  potY = lv(`Tax (${taxPct.toFixed(1)}% ${taxMethod})`, `$${taxAmount.toFixed(2)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Net Pot.", `$${netPotential.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   potY = lv("Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   if (data.deal_type !== "FLAT") {
     potY = lv("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });

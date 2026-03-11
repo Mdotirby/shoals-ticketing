@@ -260,6 +260,7 @@ export default function AdminOfferDetailPage() {
         gross_potential: form.gross_potential as number,
         adj_gross: form.adj_gross as number,
         tax_rate: form.tax_rate as number,
+        tax_method: (form.tax_method as "divisor" | "multiplier") || "divisor",
         net_potential: form.net_potential as number,
         splitpoint: form.splitpoint as number,
         artist_backend: form.artist_backend as number,
@@ -438,6 +439,22 @@ export default function AdminOfferDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── Tax Method ── */}
+        <h2 className="admin-form-section-title">Tax</h2>
+        <div className="admin-form-grid">
+          <label className="admin-form-label">
+            Tax Method
+            <select className="admin-form-input" value={String(form.tax_method || "divisor")} onChange={(e) => updateField("tax_method", e.target.value)}>
+              <option value="divisor">Divisor (default)</option>
+              <option value="multiplier">Multiplier</option>
+            </select>
+          </label>
+          <label className="admin-form-label">
+            Tax Rate (%)
+            <input type="number" className="admin-form-input" value={(() => { const r = Number(form.tax_rate || 0); return r > 0 && r < 1 ? r * 100 : r; })()} onChange={(e) => updateField("tax_rate", parseFloat(e.target.value) / 100 || 0)} step="0.5" min="0" placeholder="9.5" />
+          </label>
         </div>
 
         {/* ── Financials Summary ── */}
@@ -878,8 +895,17 @@ export default function AdminOfferDetailPage() {
         const rawTaxRate = Number(form.tax_rate) || 0;
         // Handle tax_rate stored as decimal (0.095) or percentage (9.5)
         const taxRate = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
-        const taxAmount = adjGross * (taxRate / 100);
-        const netPotential = adjGross - taxAmount;
+        const taxRateDecimal = taxRate / 100;
+        const taxMethod = (form.tax_method as string) || "divisor";
+        let netPotential: number;
+        let taxAmount: number;
+        if (taxMethod === "divisor") {
+          netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
+          taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
+        } else {
+          taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
+          netPotential = Math.round((adjGross - taxAmount) * 100) / 100;
+        }
 
         const guarantee = Number(form.guarantee) || 0;
         const backendPct = Number(form.backend_percentage) || 0;
@@ -947,7 +973,7 @@ export default function AdminOfferDetailPage() {
             <div className="offer-potential-col">
               <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Adj. Gross Potential:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Tax Rate: {taxRate}%</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Tax ({taxRate}% — {taxMethod}):</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row">

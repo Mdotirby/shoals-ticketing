@@ -251,7 +251,7 @@ export default function AdminCreateOfferPage() {
 
   // ── Section 6: Tax ──
   const [taxRate, setTaxRate] = useState("9.5"); // percentage (e.g., 9.5 = 9.5%)
-  const [taxMode, setTaxMode] = useState<"imposed" | "absorbed">("imposed");
+  const [taxMode, setTaxMode] = useState<"divisor" | "multiplier">("divisor");
 
   // ── Section 7: Offer Validity ──
   const [offerValidDays, setOfferValidDays] = useState("14");
@@ -274,18 +274,16 @@ export default function AdminCreateOfferPage() {
   const totalFees = scaling.reduce((sum, r) => sum + ((r.ticketing_fee || 0) + (r.facility_fee || 0)) * r.sellable_cap, 0);
   const adjGross = grossPotential - totalFees;
 
-  // Tax: imposed = divisor (adjGross / (1 + rate)), absorbed = multiplier (adjGross - adjGross * rate)
+  // Tax: divisor (adjGross / (1 + rate)), multiplier (adjGross * rate)
   const taxRateDecimal = parseFloat(taxRate || "0") / 100;
   let netPotential: number;
   let taxAmount: number;
-  if (taxMode === "imposed") {
-    // Ticket buyer pays tax — divisor method
-    netPotential = adjGross / (1 + taxRateDecimal);
-    taxAmount = adjGross - netPotential;
+  if (taxMode === "divisor") {
+    netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
+    taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
   } else {
-    // Promoter absorbs tax — multiplier method
-    taxAmount = adjGross * taxRateDecimal;
-    netPotential = adjGross - taxAmount;
+    taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
+    netPotential = Math.round((adjGross - taxAmount) * 100) / 100;
   }
 
   const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
@@ -413,7 +411,7 @@ export default function AdminCreateOfferPage() {
           ticket_scaling: scaling, fixed_expenses: fixedExpenses, variable_expenses: variableExpenses,
           total_fixed: totalFixed, total_variable: totalVariable, total_expenses: totalExpenses,
           gross_potential: grossPotential, adj_gross: adjGross,
-          tax_rate: taxRateDecimal, net_potential: netPotential,
+          tax_rate: taxRateDecimal, tax_method: taxMode, net_potential: netPotential,
           splitpoint, artist_backend: artistBackend, pot_walkout: potWalkout,
           offer_valid_days: parseInt(offerValidDays) || 14,
           status: "draft",
@@ -646,9 +644,9 @@ export default function AdminCreateOfferPage() {
         <div className="admin-form-grid">
           <label className="admin-form-label">
             Tax Method
-            <select className="admin-form-input" value={taxMode} onChange={(e) => setTaxMode(e.target.value as "imposed" | "absorbed")}>
-              <option value="imposed">Tax imposed on ticket buyer (divisor)</option>
-              <option value="absorbed">Tax absorbed by promoter (multiplier)</option>
+            <select className="admin-form-input" value={taxMode} onChange={(e) => setTaxMode(e.target.value as "divisor" | "multiplier")}>
+              <option value="divisor">Divisor (default)</option>
+              <option value="multiplier">Multiplier</option>
             </select>
           </label>
           <label className="admin-form-label">
