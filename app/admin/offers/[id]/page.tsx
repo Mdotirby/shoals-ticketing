@@ -964,6 +964,10 @@ export default function AdminOfferDetailPage() {
                 <span style={{ fontWeight: 700 }}>Breakeven:</span>
                 <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
               </div>
+              <div className="offer-potential-row">
+                <span style={{ fontWeight: 700 }}>Tickets to Pay Band:</span>
+                <strong style={{ color: "#d0c290", fontSize: 16 }}>{avgTicketPrice > 0 ? (guarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
+              </div>
             </div>
           </div>
 

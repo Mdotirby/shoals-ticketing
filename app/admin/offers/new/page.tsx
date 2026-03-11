@@ -10,15 +10,15 @@ type Agent = { id: string; agency: string; agent_name: string; agent_phone: stri
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
 
 const DEFAULT_FIXED: ExpenseItem[] = [
-  { name: "Rent", amount: 0 },
-  { name: "Production", amount: 0 },
+  { name: "Rent", amount: 500 },
+  { name: "Production", amount: 1000 },
   { name: "Catering", amount: 0 },
-  { name: "Hospitality", amount: 0 },
-  { name: "Support", amount: 0 },
+  { name: "Hospitality", amount: 250 },
+  { name: "Support", amount: 250 },
   { name: "Talent", amount: 0 },
-  { name: "Marketing", amount: 0 },
+  { name: "Marketing", amount: 1000 },
   { name: "Labor", amount: 0 },
-  { name: "Insurance", amount: 0 },
+  { name: "Insurance", amount: 400 },
   { name: "Security", amount: 0 },
   { name: "Ushers", amount: 0 },
   { name: "Police", amount: 0 },
@@ -755,6 +755,10 @@ export default function AdminCreateOfferPage() {
               <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>Breakeven:</span>
                 <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
+              </div>
+              <div className="offer-potential-row">
+                <span style={{ fontWeight: 700 }}>Tickets to Pay Band:</span>
+                <strong style={{ color: "#d0c290", fontSize: 16 }}>{avgTicketPrice > 0 ? (pnlGuarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
               </div>
             </div>
           </div>
