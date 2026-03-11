@@ -432,7 +432,7 @@ export default function AdminCreateOfferPage() {
   };
 
   return (
-    <div className="admin-form-page">
+    <div className="admin-form-page" style={{ maxWidth: 1100 }}>
       <h1 className="admin-page-title">New Offer</h1>
 
       {/* Tab Bar */}
@@ -467,61 +467,67 @@ export default function AdminCreateOfferPage() {
       <form className="admin-form offer-form" onSubmit={(e) => e.preventDefault()} onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.preventDefault(); }}>
         {error && <div className="admin-form-error">{error}</div>}
 
-        {/* ═══ VENUE INFO ═══ */}
-        <h2 className="admin-form-section-title">Venue Info</h2>
-        {eventVenues.length > 0 && (
-          <label className="admin-form-label" style={{ marginBottom: 12 }}>
-            Select Previous Venue
-            <select className="admin-form-input" onChange={(e) => selectEventVenue(e.target.value)} defaultValue="">
-              <option value="" disabled>— Choose a venue —</option>
-              {eventVenues.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <div className="admin-form-grid">
-          <label className="admin-form-label">Venue *<input type="text" className="admin-form-input" placeholder="e.g. The Shoals Theatre" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></label>
-          <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Florence, AL 35630" value={venueAddressField} onChange={(e) => setVenueAddressField(e.target.value)} /></label>
-          <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" placeholder="e.g. John Smith" value={venueContact} onChange={(e) => setVenueContact(e.target.value)} /></label>
-          <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={venuePhone} onChange={(e) => setVenuePhone(formatPhoneNumber(e.target.value))} /></label>
-        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+          {/* ═══ VENUE INFO ═══ */}
+          <div>
+            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Venue Info</h2>
+            {eventVenues.length > 0 && (
+              <label className="admin-form-label" style={{ marginBottom: 12 }}>
+                Select Previous Venue
+                <select className="admin-form-input" onChange={(e) => selectEventVenue(e.target.value)} defaultValue="">
+                  <option value="" disabled>— Choose a venue —</option>
+                  {eventVenues.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className="admin-form-grid">
+              <label className="admin-form-label">Venue *<input type="text" className="admin-form-input" placeholder="e.g. The Shoals Theatre" value={venueName} onChange={(e) => setVenueName(e.target.value)} required /></label>
+              <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="e.g. 123 Main St, Florence, AL 35630" value={venueAddressField} onChange={(e) => setVenueAddressField(e.target.value)} /></label>
+              <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" placeholder="e.g. John Smith" value={venueContact} onChange={(e) => setVenueContact(e.target.value)} /></label>
+              <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" placeholder="e.g. (555)-123-4567" value={venuePhone} onChange={(e) => setVenuePhone(formatPhoneNumber(e.target.value))} /></label>
+            </div>
+          </div>
 
-        {/* ═══ SECTION 1: Agency & Artist ═══ */}
-        <h2 className="admin-form-section-title">Agency & Artist</h2>
-        {agents.length > 0 && (
-          <label className="admin-form-label" style={{ marginBottom: 12 }}>
-            Select Previous Agent
-            <select className="admin-form-input" onChange={(e) => selectAgent(e.target.value)} defaultValue="">
-              <option value="" disabled>— Choose an agent —</option>
-              {agents.map((a) => (
-                <option key={a.id} value={a.id}>{a.agent_name} ({a.agency})</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <div className="admin-form-grid">
-          <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={agency} onChange={(e) => setAgency(e.target.value)} /></label>
-          <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
-          <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(formatPhoneNumber(e.target.value))} /></label>
-          <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} /></label>
-          <label className="admin-form-label">Artist Name *<input type="text" className="admin-form-input" value={artistName} onChange={(e) => setArtistName(e.target.value)} required /></label>
-          <label className="admin-form-label">Date of Engagement
-            <select className="admin-form-input" value={dateMode} onChange={(e) => { const m = e.target.value as "ma" | "date"; setDateMode(m); if (m === "ma") setEventDate(""); }} style={{ marginBottom: 6 }}>
-              <option value="ma">MA — No date attached</option>
-              <option value="date">Specific date</option>
-            </select>
-          </label>
-          {dateMode === "date" && (
-            <label className="admin-form-label">Event Date<input type="date" className="admin-form-input" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
-          )}
-          <label className="admin-form-label">Day of Event<input type="text" className="admin-form-input" value={dayOfEvent} onChange={(e) => setDayOfEvent(e.target.value)} placeholder="e.g. Saturday" /></label>
-          <label className="admin-form-label"># of Shows<input type="number" className="admin-form-input" value={numShows} onChange={(e) => setNumShows(e.target.value)} min="1" /></label>
-          <label className="admin-form-label">Length of Show<input type="text" className="admin-form-input" value={showLength} onChange={(e) => setShowLength(e.target.value)} placeholder="75-90" /></label>
-          <label className="admin-form-label">Time of Show<input type="time" className="admin-form-input" value={showTime} onChange={(e) => setShowTime(e.target.value)} /></label>
-          <label className="admin-form-label">Billing<select className="admin-form-input" value={billing} onChange={(e) => setBilling(e.target.value)}>
-            <option>100% Headline</option><option>Co-Headline</option><option>Support</option>
-          </select></label>
+          {/* ═══ SECTION 1: Agency & Artist ═══ */}
+          <div>
+            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Agency & Artist</h2>
+            {agents.length > 0 && (
+              <label className="admin-form-label" style={{ marginBottom: 12 }}>
+                Select Previous Agent
+                <select className="admin-form-input" onChange={(e) => selectAgent(e.target.value)} defaultValue="">
+                  <option value="" disabled>— Choose an agent —</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>{a.agent_name} ({a.agency})</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <div className="admin-form-grid">
+              <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={agency} onChange={(e) => setAgency(e.target.value)} /></label>
+              <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={agentName} onChange={(e) => setAgentName(e.target.value)} /></label>
+              <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={agentPhone} onChange={(e) => setAgentPhone(formatPhoneNumber(e.target.value))} /></label>
+              <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={agentEmail} onChange={(e) => setAgentEmail(e.target.value)} /></label>
+              <label className="admin-form-label">Artist Name *<input type="text" className="admin-form-input" value={artistName} onChange={(e) => setArtistName(e.target.value)} required /></label>
+              <label className="admin-form-label">Date of Engagement
+                <select className="admin-form-input" value={dateMode} onChange={(e) => { const m = e.target.value as "ma" | "date"; setDateMode(m); if (m === "ma") setEventDate(""); }} style={{ marginBottom: 6 }}>
+                  <option value="ma">MA — No date attached</option>
+                  <option value="date">Specific date</option>
+                </select>
+              </label>
+              {dateMode === "date" && (
+                <label className="admin-form-label">Event Date<input type="date" className="admin-form-input" value={eventDate} onChange={(e) => setEventDate(e.target.value)} /></label>
+              )}
+              <label className="admin-form-label">Day of Event<input type="text" className="admin-form-input" value={dayOfEvent} onChange={(e) => setDayOfEvent(e.target.value)} placeholder="e.g. Saturday" /></label>
+              <label className="admin-form-label"># of Shows<input type="number" className="admin-form-input" value={numShows} onChange={(e) => setNumShows(e.target.value)} min="1" /></label>
+              <label className="admin-form-label">Length of Show<input type="text" className="admin-form-input" value={showLength} onChange={(e) => setShowLength(e.target.value)} placeholder="75-90" /></label>
+              <label className="admin-form-label">Time of Show<input type="time" className="admin-form-input" value={showTime} onChange={(e) => setShowTime(e.target.value)} /></label>
+              <label className="admin-form-label">Billing<select className="admin-form-input" value={billing} onChange={(e) => setBilling(e.target.value)}>
+                <option>100% Headline</option><option>Co-Headline</option><option>Support</option>
+              </select></label>
+            </div>
+          </div>
         </div>
 
         {/* ═══ SECTION 2: Show Lineup ═══ */}
@@ -549,30 +555,51 @@ export default function AdminCreateOfferPage() {
           <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" placeholder="Auto-filled from venue settings" value={venueAddress} onChange={(e) => setVenueAddress(e.target.value)} /></label>
         </div>
 
-        {/* ═══ SECTION 3: Deal Terms ═══ */}
-        <h2 className="admin-form-section-title">Deal</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">Guarantee ($)<input type="number" className="admin-form-input" value={guarantee} onChange={(e) => setGuarantee(e.target.value)} step="0.01" min="0" /></label>
-          <label className="admin-form-label">Deal Type<select className="admin-form-input" value={dealType} onChange={(e) => setDealType(e.target.value)}>
-            <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
-          </select></label>
-          <label className="admin-form-label">Backend %<input type="text" className="admin-form-input" value={backendPct} onChange={(e) => setBackendPct(e.target.value)} placeholder="80" /></label>
-          <label className="admin-form-label admin-form-full">Other Terms<input type="text" className="admin-form-input" value={otherTerms} onChange={(e) => setOtherTerms(e.target.value)} /></label>
-          <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" value={radiusDistance} onChange={(e) => setRadiusDistance(e.target.value)} /></label>
-          <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" value={radiusDaysPrior} onChange={(e) => setRadiusDaysPrior(e.target.value)} /></label>
-          <label className="admin-form-label">Days After<input type="number" className="admin-form-input" value={radiusDaysAfter} onChange={(e) => setRadiusDaysAfter(e.target.value)} /></label>
-          <label className="admin-form-label">Production By<input type="text" className="admin-form-input" value={productionBy} onChange={(e) => setProductionBy(e.target.value)} /></label>
-          <label className="admin-form-label">Deposit %<input type="number" className="admin-form-input" value={depositPct} onChange={(e) => { setDepositPct(e.target.value); const pct = parseFloat(e.target.value) / 100; setDepositAmount(String(Math.round(guaranteeNum * pct * 100) / 100)); }} step="0.01" /></label>
-          <label className="admin-form-label">Deposit $<input type="number" className="admin-form-input" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} step="0.01" /></label>
-          <label className="admin-form-label">Deposit Due<input type="text" className="admin-form-input" value={depositDue} onChange={(e) => setDepositDue(e.target.value)} placeholder="30 Days w/ FEC" /></label>
-          <label className="admin-form-label">Balance Due<input type="text" className="admin-form-input" value={balanceDue} onChange={(e) => setBalanceDue(e.target.value)} /></label>
-          <label className="admin-form-label">Merch<input type="text" className="admin-form-input" value={merchSplit} onChange={(e) => setMerchSplit(e.target.value)} /></label>
-          <label className="admin-form-label">Who Sells<select className="admin-form-input" value={merchSeller} onChange={(e) => setMerchSeller(e.target.value)}>
-            <option>Artist</option><option>Venue</option><option>Split</option>
-          </select></label>
-          <label className="admin-form-label">Total Comps<input type="number" className="admin-form-input" value={comps} onChange={(e) => setComps(e.target.value)} min="0" /></label>
-          <label className="admin-form-label">Artist Comps<input type="number" className="admin-form-input" value={artistComps} onChange={(e) => setArtistComps(e.target.value)} min="0" /></label>
-          <label className="admin-form-label">Marketing Comps<input type="number" className="admin-form-input" value={marketingComps} onChange={(e) => setMarketingComps(e.target.value)} min="0" /></label>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+          {/* ═══ SECTION 3: Deal Terms ═══ */}
+          <div>
+            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Deal</h2>
+            <div className="admin-form-grid">
+              <label className="admin-form-label">Guarantee ($)<input type="number" className="admin-form-input" value={guarantee} onChange={(e) => setGuarantee(e.target.value)} step="0.01" min="0" /></label>
+              <label className="admin-form-label">Deal Type<select className="admin-form-input" value={dealType} onChange={(e) => setDealType(e.target.value)}>
+                <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
+              </select></label>
+              <label className="admin-form-label">Backend %<input type="text" className="admin-form-input" value={backendPct} onChange={(e) => setBackendPct(e.target.value)} placeholder="80" /></label>
+              <label className="admin-form-label admin-form-full">Other Terms<input type="text" className="admin-form-input" value={otherTerms} onChange={(e) => setOtherTerms(e.target.value)} /></label>
+              <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" value={radiusDistance} onChange={(e) => setRadiusDistance(e.target.value)} /></label>
+              <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" value={radiusDaysPrior} onChange={(e) => setRadiusDaysPrior(e.target.value)} /></label>
+              <label className="admin-form-label">Days After<input type="number" className="admin-form-input" value={radiusDaysAfter} onChange={(e) => setRadiusDaysAfter(e.target.value)} /></label>
+              <label className="admin-form-label">Production By<input type="text" className="admin-form-input" value={productionBy} onChange={(e) => setProductionBy(e.target.value)} /></label>
+              <label className="admin-form-label">Deposit %<input type="number" className="admin-form-input" value={depositPct} onChange={(e) => { setDepositPct(e.target.value); const pct = parseFloat(e.target.value) / 100; setDepositAmount(String(Math.round(guaranteeNum * pct * 100) / 100)); }} step="0.01" /></label>
+              <label className="admin-form-label">Deposit $<input type="number" className="admin-form-input" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} step="0.01" /></label>
+              <label className="admin-form-label">Deposit Due<input type="text" className="admin-form-input" value={depositDue} onChange={(e) => setDepositDue(e.target.value)} placeholder="30 Days w/ FEC" /></label>
+              <label className="admin-form-label">Balance Due<input type="text" className="admin-form-input" value={balanceDue} onChange={(e) => setBalanceDue(e.target.value)} /></label>
+              <label className="admin-form-label">Merch<input type="text" className="admin-form-input" value={merchSplit} onChange={(e) => setMerchSplit(e.target.value)} /></label>
+              <label className="admin-form-label">Who Sells<select className="admin-form-input" value={merchSeller} onChange={(e) => setMerchSeller(e.target.value)}>
+                <option>Artist</option><option>Venue</option><option>Split</option>
+              </select></label>
+              <label className="admin-form-label">Total Comps<input type="number" className="admin-form-input" value={comps} onChange={(e) => setComps(e.target.value)} min="0" /></label>
+              <label className="admin-form-label">Artist Comps<input type="number" className="admin-form-input" value={artistComps} onChange={(e) => setArtistComps(e.target.value)} min="0" /></label>
+              <label className="admin-form-label">Marketing Comps<input type="number" className="admin-form-input" value={marketingComps} onChange={(e) => setMarketingComps(e.target.value)} min="0" /></label>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Tax</h2>
+            <div className="admin-form-grid">
+              <label className="admin-form-label">
+                Tax Method
+                <select className="admin-form-input" value={taxMode} onChange={(e) => setTaxMode(e.target.value as "divisor" | "multiplier")}>
+                  <option value="divisor">Divisor (default)</option>
+                  <option value="multiplier">Multiplier</option>
+                </select>
+              </label>
+              <label className="admin-form-label">
+                Tax Rate (%)
+                <input type="number" className="admin-form-input" style={{ opacity: isOwnerRole ? 1 : 0.5 }} value={taxRate} onChange={(e) => { if (!isOwnerRole) return; setTaxRate(e.target.value); }} readOnly={!isOwnerRole} step="0.5" min="0" placeholder="9.5" title={isOwnerRole ? "" : "Set by platform owner"} />
+              </label>
+            </div>
+          </div>
         </div>
 
         {/* ═══ SECTION 4: Ticket Scaling ═══ */}
@@ -639,21 +666,7 @@ export default function AdminCreateOfferPage() {
         </div>
         <div className="offer-total-expenses">Total Expenses: <strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
 
-        {/* ═══ Tax Mode ═══ */}
-        <h2 className="admin-form-section-title">Tax</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Tax Method
-            <select className="admin-form-input" value={taxMode} onChange={(e) => setTaxMode(e.target.value as "divisor" | "multiplier")}>
-              <option value="divisor">Divisor (default)</option>
-              <option value="multiplier">Multiplier</option>
-            </select>
-          </label>
-          <label className="admin-form-label">
-            Tax Rate (%)
-            <input type="number" className="admin-form-input" style={{ opacity: isOwnerRole ? 1 : 0.5 }} value={taxRate} onChange={(e) => { if (!isOwnerRole) return; setTaxRate(e.target.value); }} readOnly={!isOwnerRole} step="0.5" min="0" placeholder="9.5" title={isOwnerRole ? "" : "Set by platform owner"} />
-          </label>
-        </div>
+
 
         {/* ═══ SECTION 6: Potential at Sellout ═══ */}
         <h2 className="admin-form-section-title">Potential at Sellout</h2>
@@ -745,48 +758,54 @@ export default function AdminCreateOfferPage() {
         return (
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-          {/* ── Section A: Breakeven Point ── */}
-          <h2 className="admin-form-section-title">Breakeven Point (Based on Offer)</h2>
-          <div className="offer-potential-grid">
-            <div className="offer-potential-col">
-              <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Artist Pot (at Walkout):</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Avg Ticket Price (Net):</span><strong>${avgTicketPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row">
-                <span style={{ fontWeight: 700 }}>Breakeven:</span>
-                <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
-              </div>
-              <div className="offer-potential-row">
-                <span style={{ fontWeight: 700 }}>Tickets to Pay Band:</span>
-                <strong style={{ color: "#d0c290", fontSize: 16 }}>{avgTicketPrice > 0 ? (pnlGuarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+            {/* ── Section A: Breakeven Point ── */}
+            <div>
+              <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Breakeven Point (Based on Offer)</h2>
+              <div className="offer-potential-grid">
+                <div className="offer-potential-col">
+                  <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Artist Pot (at Walkout):</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Avg Ticket Price (Net):</span><strong>${avgTicketPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row">
+                    <span style={{ fontWeight: 700 }}>Breakeven:</span>
+                    <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
+                  </div>
+                  <div className="offer-potential-row">
+                    <span style={{ fontWeight: 700 }}>Tickets to Pay Band:</span>
+                    <strong style={{ color: "#d0c290", fontSize: 16 }}>{avgTicketPrice > 0 ? (pnlGuarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Section B: Potential at Sellout ── */}
-          <h2 className="admin-form-section-title">Potential at Sellout (Based on Offer)</h2>
-          <div className="offer-potential-grid">
-            <div className="offer-potential-col">
-              <div className="offer-potential-row"><span>Gross Potential:</span><strong>${pnlGrossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Adj. Gross Potential:</span><strong>${pnlAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Tax Rate: {pnlTaxRate}%</span><strong>${pnlTaxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Net Potential:</span><strong>${pnlNetPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              <div className="offer-potential-row">
-                <span style={{ fontWeight: 700 }}>P&amp;L (Offer):</span>
-                <strong style={{ color: pnlOffer >= 0 ? "#7ddb7d" : "#ff9a9a" }}>{fmtDollar(pnlOffer)}</strong>
+            {/* ── Section B: Potential at Sellout ── */}
+            <div>
+              <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Potential at Sellout (Based on Offer)</h2>
+              <div className="offer-potential-grid">
+                <div className="offer-potential-col">
+                  <div className="offer-potential-row"><span>Gross Potential:</span><strong>${pnlGrossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Adj. Gross Potential:</span><strong>${pnlAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Tax Rate: {pnlTaxRate}%</span><strong>${pnlTaxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Net Potential:</span><strong>${pnlNetPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  <div className="offer-potential-row">
+                    <span style={{ fontWeight: 700 }}>P&amp;L (Offer):</span>
+                    <strong style={{ color: pnlOffer >= 0 ? "#7ddb7d" : "#ff9a9a" }}>{fmtDollar(pnlOffer)}</strong>
+                  </div>
+                </div>
+                <div className="offer-potential-col">
+                  <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
+                  <div className="offer-potential-row"><span>Guarantee:</span><strong>${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  {pnlDealType !== "FLAT" && (
+                    <div className="offer-potential-row"><span>Backend ({pnlDealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  )}
+                  <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  {pnlDealType !== "FLAT" && (
+                    <div className="offer-potential-row"><span>Artist Lift:</span><strong style={{ color: "#d0c290" }}>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="offer-potential-col">
-              <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
-              <div className="offer-potential-row"><span>Guarantee:</span><strong>${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              {pnlDealType !== "FLAT" && (
-                <div className="offer-potential-row"><span>Backend ({pnlDealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              )}
-              <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              {pnlDealType !== "FLAT" && (
-                <div className="offer-potential-row"><span>Artist Lift:</span><strong style={{ color: "#d0c290" }}>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              )}
             </div>
           </div>
 
