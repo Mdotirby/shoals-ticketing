@@ -325,7 +325,7 @@ export default function AdminOfferDetailPage() {
               transition: "all 0.15s",
             }}
           >
-            {tab === "details" ? "📋 Offer Details" : "📊 P&L / Breakeven"}
+            {tab === "details" ? "Offer Details" : "P&L / Breakeven"}
           </button>
         ))}
       </div>
@@ -873,8 +873,11 @@ export default function AdminOfferDetailPage() {
         const totalExpenses = totalFixed + totalVariable;
 
         const grossPotential = scaling.reduce((s, r) => s + (Number(r.sellable_cap) || 0) * (Number(r.price) || 0), 0);
-        const adjGross = grossPotential;
-        const taxRate = Number(form.tax_rate) || 0;
+        const totalFees = scaling.reduce((s, r) => s + ((Number(r.ticketing_fee) || 0) + (Number(r.facility_fee) || 0)) * (Number(r.sellable_cap) || 0), 0);
+        const adjGross = grossPotential - totalFees;
+        const rawTaxRate = Number(form.tax_rate) || 0;
+        // Handle tax_rate stored as decimal (0.095) or percentage (9.5)
+        const taxRate = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
         const taxAmount = adjGross * (taxRate / 100);
         const netPotential = adjGross - taxAmount;
 
@@ -913,7 +916,7 @@ export default function AdminOfferDetailPage() {
         const finalPnl = (netTicketRevenue + ancillaryTotal) - totalAllExpenses;
 
         // P&L at sellout (without ancillary)
-        const pnlOffer = netPotential - totalExpenses;
+        const pnlOffer = netPotential - totalAllExpenses;
 
         const fmtDollar = (v: number) => {
           const abs = Math.abs(v);

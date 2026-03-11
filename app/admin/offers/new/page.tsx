@@ -256,11 +256,23 @@ export default function AdminCreateOfferPage() {
   // ── Section 7: Offer Validity ──
   const [offerValidDays, setOfferValidDays] = useState("14");
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"details" | "pnl">("details");
+
+  // Ancillary revenue state (P&L tab)
+  const [ancillaryItems, setAncillaryItems] = useState([
+    { name: "Concessions", income: 0, expenses: 0 },
+    { name: "Bars", income: 0, expenses: 0 },
+    { name: "Catering/F&B", income: 0, expenses: 0 },
+    { name: "Merch", income: 0, expenses: 0 },
+    { name: "Venue Merch", income: 0, expenses: 0 },
+  ]);
+
   // ── Calculated values ──
   const grossPotential = scaling.reduce((sum, r) => sum + r.sellable_cap * r.price, 0);
-  // Adj Gross = Gross - ticketing fees (facility fee stays in)
-  const tfNum = parseFloat(ticketingFee || "0");
-  const adjGross = grossPotential - scaling.reduce((sum, r) => sum + r.sellable_cap * tfNum, 0);
+  // Adj Gross = Gross - all ticketing + facility fees per seat
+  const totalFees = scaling.reduce((sum, r) => sum + ((r.ticketing_fee || 0) + (r.facility_fee || 0)) * r.sellable_cap, 0);
+  const adjGross = grossPotential - totalFees;
 
   // Tax: imposed = divisor (adjGross / (1 + rate)), absorbed = multiplier (adjGross - adjGross * rate)
   const taxRateDecimal = parseFloat(taxRate || "0") / 100;
@@ -425,6 +437,35 @@ export default function AdminCreateOfferPage() {
     <div className="admin-form-page">
       <h1 className="admin-page-title">New Offer</h1>
 
+      {/* Tab Bar */}
+      <div style={{
+        display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.1)",
+        marginBottom: 20, marginTop: 8,
+      }}>
+        {(["details", "pnl"] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: "10px 20px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: activeTab === tab ? "#d0c290" : "rgba(255,255,255,0.4)",
+              background: "transparent",
+              border: "none",
+              borderBottom: activeTab === tab ? "2px solid #d0c290" : "2px solid transparent",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            {tab === "details" ? "Offer Details" : "P&L / Breakeven"}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "details" && (
+      <>
       <form className="admin-form offer-form" onSubmit={(e) => e.preventDefault()} onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.preventDefault(); }}>
         {error && <div className="admin-form-error">{error}</div>}
 
@@ -649,6 +690,199 @@ export default function AdminCreateOfferPage() {
           {loading ? "Creating…" : "Create Offer"}
         </button>
       </form>
+      </>
+      )}
+
+      {activeTab === "pnl" && (() => {
+        // ── P&L Calculations (use already-computed values from this page) ──
+        const pnlTotalFixed = totalFixed;
+        const pnlTotalVariable = totalVariable;
+        const pnlTotalExpenses = totalExpenses;
+        const pnlGrossPotential = grossPotential;
+        const pnlAdjGross = adjGross;
+        const pnlTaxRate = parseFloat(taxRate || "0");
+        const pnlTaxAmount = taxAmount;
+        const pnlNetPotential = netPotential;
+        const pnlGuarantee = guaranteeNum;
+        const pnlDealType = dealType;
+
+        // Artist backend calculation (mirrors details tab logic)
+        let backendAmount = 0;
+        let pnlArtistTotal = pnlGuarantee;
+        if (pnlDealType === "VS") {
+          pnlArtistTotal = splitpoint * (backendNum);
+          backendAmount = Math.max(pnlArtistTotal - pnlGuarantee, 0);
+        } else if (pnlDealType === "PLUS" || pnlDealType === "BONUS") {
+          backendAmount = splitpoint * (backendNum);
+          pnlArtistTotal = pnlGuarantee + backendAmount;
+        }
+        // FLAT: backendAmount = 0, pnlArtistTotal = guarantee
+
+        // Breakeven
+        const tierCount = scaling.length || 1;
+        const avgTicketPrice = tierCount > 0
+          ? scaling.reduce((s, r) => s + (r.net_price || 0), 0) / tierCount
+          : 0;
+        const breakevenOffer = avgTicketPrice > 0
+          ? Math.round(((pnlTotalExpenses + pnlArtistTotal) / avgTicketPrice) * 100) / 100
+          : 0;
+
+        // Ancillary totals
+        const ancillaryTotal = ancillaryItems.reduce((s, item) => s + (item.income - item.expenses), 0);
+
+        // Final P&L
+        const netTicketRevenue = pnlNetPotential;
+        const totalAllExpenses = pnlGuarantee + backendAmount + pnlTotalExpenses;
+        const finalPnl = (netTicketRevenue + ancillaryTotal) - totalAllExpenses;
+
+        // P&L at sellout (without ancillary)
+        const pnlOffer = pnlNetPotential - totalAllExpenses;
+
+        const fmtDollar = (v: number) => {
+          const abs = Math.abs(v);
+          const formatted = abs.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return v < 0 ? `$(${formatted})` : `$${formatted}`;
+        };
+
+        return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* ── Section A: Breakeven Point ── */}
+          <h2 className="admin-form-section-title">Breakeven Point (Based on Offer)</h2>
+          <div className="offer-potential-grid">
+            <div className="offer-potential-col">
+              <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Artist Pot (at Walkout):</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Avg Ticket Price (Net):</span><strong>${avgTicketPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight" style={{ background: "rgba(208,194,144,0.15)" }}>
+                <span style={{ fontWeight: 700 }}>Breakeven:</span>
+                <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section B: Potential at Sellout ── */}
+          <h2 className="admin-form-section-title">Potential at Sellout (Based on Offer)</h2>
+          <div className="offer-potential-grid">
+            <div className="offer-potential-col">
+              <div className="offer-potential-row"><span>Gross Potential:</span><strong>${pnlGrossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Adj. Gross Potential:</span><strong>${pnlAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Tax Rate: {pnlTaxRate}%</span><strong>${pnlTaxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Net Potential:</span><strong>${pnlNetPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Total Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight" style={{ background: pnlOffer >= 0 ? "rgba(100,200,100,0.1)" : "rgba(255,100,100,0.1)" }}>
+                <span style={{ fontWeight: 700 }}>P&amp;L (Offer):</span>
+                <strong style={{ color: pnlOffer >= 0 ? "#7ddb7d" : "#ff9a9a" }}>{fmtDollar(pnlOffer)}</strong>
+              </div>
+            </div>
+            <div className="offer-potential-col">
+              <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
+              <div className="offer-potential-row"><span>Guarantee:</span><strong>${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              {pnlDealType !== "FLAT" && (
+                <div className="offer-potential-row"><span>Backend ({pnlDealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              )}
+              <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${pnlArtistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              {pnlDealType !== "FLAT" && (
+                <div className="offer-potential-row"><span>Artist Lift:</span><strong style={{ color: "#d0c290" }}>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section C: Ancillary Revenue ── */}
+          <h2 className="admin-form-section-title">Ancillary Revenue</h2>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                  <th style={{ textAlign: "left", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Category</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Income</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Expenses</th>
+                  <th style={{ textAlign: "right", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ancillaryItems.map((item, idx) => (
+                  <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <td style={{ padding: "6px 12px", color: "rgba(255,255,255,0.8)" }}>{item.name}</td>
+                    <td style={{ padding: "6px 12px", textAlign: "right" }}>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 13 }}
+                        value={item.income || ""}
+                        onChange={(e) => {
+                          const updated = [...ancillaryItems];
+                          updated[idx] = { ...updated[idx], income: parseFloat(e.target.value) || 0 };
+                          setAncillaryItems(updated);
+                        }}
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td style={{ padding: "6px 12px", textAlign: "right" }}>
+                      <input
+                        type="number"
+                        className="admin-form-input"
+                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 13 }}
+                        value={item.expenses || ""}
+                        onChange={(e) => {
+                          const updated = [...ancillaryItems];
+                          updated[idx] = { ...updated[idx], expenses: parseFloat(e.target.value) || 0 };
+                          setAncillaryItems(updated);
+                        }}
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </td>
+                    <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: (item.income - item.expenses) >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+                      {fmtDollar(item.income - item.expenses)}
+                    </td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: "2px solid rgba(255,255,255,0.15)" }}>
+                  <td style={{ padding: "8px 12px", fontWeight: 700, color: "#fff" }}>Total</td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#fff" }}>
+                    ${ancillaryItems.reduce((s, i) => s + i.income, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#fff" }}>
+                    ${ancillaryItems.reduce((s, i) => s + i.expenses, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: ancillaryTotal >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+                    {fmtDollar(ancillaryTotal)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Section D: Profit & Loss Summary ── */}
+          <h2 className="admin-form-section-title">Profit &amp; Loss (Based on Actuals / Offer)</h2>
+          <div className="offer-potential-grid">
+            <div className="offer-potential-col">
+              <div className="offer-potential-row"><span>Net Ticket Revenue:</span><strong>${netTicketRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Ancillary Revenue:</span><strong>{fmtDollar(ancillaryTotal)}</strong></div>
+              <div style={{ height: 12 }} />
+              <div className="offer-potential-row"><span>Artist Guarantee:</span><strong>${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              {pnlDealType !== "FLAT" && (
+                <div className="offer-potential-row"><span>Backend ({pnlDealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              )}
+              <div className="offer-potential-row"><span>Show Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight" style={{ background: "rgba(255,100,100,0.1)" }}>
+                <span style={{ fontWeight: 700 }}>Total Expenses:</span>
+                <strong style={{ color: "#ff9a9a" }}>${totalAllExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+              </div>
+              <div style={{ height: 12 }} />
+              <div className="offer-potential-row highlight" style={{ background: finalPnl >= 0 ? "rgba(100,200,100,0.15)" : "rgba(255,100,100,0.15)", padding: "12px 16px" }}>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>P&amp;L:</span>
+                <strong style={{ color: finalPnl >= 0 ? "#7ddb7d" : "#ff9a9a", fontSize: 16 }}>{fmtDollar(finalPnl)}</strong>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        );
+      })()}
+
     </div>
   );
 }
