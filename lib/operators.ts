@@ -35,7 +35,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     domain: "venuecore.live",
     logo: "/VenueCore_VenueCore-FullLogo.png",
     logoAlt: "VenueCore Logo",
-    favicon: "/favicon-32x32.png",
+    favicon: "/favicons/venuecore.ico",
     supportEmail: "support@venuecore.live",
     contactEmail: "contact@venuecore.live",
     privacyEmail: "privacy@venuecore.com",

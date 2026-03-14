@@ -15,6 +15,52 @@ body {
   --background: #0b0d1d;
   --foreground: #ffffff;
   --gold: #d0c290;
+
+  /* ── Design System Tokens ── */
+
+  /* Surfaces */
+  --vc-bg:              #0b0d1d;
+  --vc-surface:         rgba(255, 255, 255, 0.04);
+  --vc-surface-hover:   rgba(255, 255, 255, 0.07);
+  --vc-surface-active:  rgba(208, 194, 144, 0.10);
+  --vc-surface-subtle:  rgba(255, 255, 255, 0.025);
+
+  /* Borders */
+  --vc-border:          rgba(255, 255, 255, 0.09);
+  --vc-border-hover:    rgba(208, 194, 144, 0.20);
+  --vc-border-subtle:   rgba(255, 255, 255, 0.06);
+
+  /* Text */
+  --vc-text:            #ffffff;
+  --vc-text-secondary:  rgba(255, 255, 255, 0.5);
+  --vc-text-muted:      rgba(255, 255, 255, 0.3);
+  --vc-text-disabled:   rgba(255, 255, 255, 0.2);
+
+  /* Accent */
+  --vc-gold:            #d0c290;
+  --vc-gold-hover:      #e0d4a8;
+  --vc-gold-muted:      rgba(208, 194, 144, 0.15);
+
+  /* Status */
+  --vc-success:         #10b981;
+  --vc-warning:         #f59e0b;
+  --vc-danger:          #ef4444;
+  --vc-info:            #7eb8da;
+
+  /* Shadows */
+  --vc-shadow-glass:       0 4px 24px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --vc-shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --vc-shadow-glass-lg:    0 8px 40px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* Radius */
+  --vc-radius-sm:  8px;
+  --vc-radius-md:  12px;
+  --vc-radius-lg:  14px;
+  --vc-radius-xl:  16px;
+
+  /* Blur */
+  --vc-blur:       blur(16px);
+  --vc-blur-heavy: blur(24px);
 }
 
 body {
@@ -739,7 +785,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 20px 24px 16px;
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   cursor: pointer;
@@ -912,7 +958,7 @@ body {
   box-sizing: border-box;
   width: 100%;
   padding: 28px 24px 20px;
-  background: linear-gradient(180deg, #151533 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   display: flex;
@@ -1842,7 +1888,7 @@ body {
   box-sizing: border-box;
   width: 100%;
   padding: 48px 36px;
-  background: linear-gradient(180deg, #151533 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 20px;
   display: flex;
@@ -2549,14 +2595,14 @@ border-radius: 0px 0px 0px 0px;
 .admin-shell {
   display: flex;
   min-height: 100vh;
-  background: #0b0d1d;
+  background: var(--vc-bg);
 }
 
 .admin-sidebar {
   box-sizing: border-box;
   width: 240px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #0e1028 0%, #151533 100%);
+  background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   padding: 24px 16px;
   display: flex;
@@ -2591,8 +2637,8 @@ border-radius: 0px 0px 0px 0px;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.5);
+  border-radius: var(--vc-radius-sm);
+  color: var(--vc-text-secondary);
   text-decoration: none;
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
@@ -2601,13 +2647,13 @@ border-radius: 0px 0px 0px 0px;
 }
 
 .admin-sidebar-link:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
+  background: var(--vc-surface);
+  color: var(--vc-text);
 }
 
 .admin-sidebar-link.active {
-  background: rgba(208, 194, 144, 0.1);
-  color: #d0c290;
+  background: var(--vc-surface-active);
+  color: var(--vc-gold);
 }
 
 .admin-sidebar-icon {
@@ -2637,7 +2683,7 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 2rem;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1.1;
 }
 
@@ -2650,23 +2696,32 @@ border-radius: 0px 0px 0px 0px;
 .admin-stat-card {
   box-sizing: border-box;
   padding: 24px 20px;
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
+  background: var(--vc-surface);
+  backdrop-filter: var(--vc-blur);
+  -webkit-backdrop-filter: var(--vc-blur);
+  border: 1px solid var(--vc-border);
+  box-shadow: var(--vc-shadow-glass);
+  border-radius: var(--vc-radius-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-stat-card:hover {
+  border-color: var(--vc-border-hover);
+  box-shadow: var(--vc-shadow-glass-hover);
 }
 
 .admin-stat-label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
 }
 
 .admin-stat-value {
   font-family: var(--font-bayon), sans-serif;
   font-size: 2rem;
-  color: #ffffff;
+  color: var(--vc-text);
   line-height: 1;
 }
 
@@ -2699,7 +2754,7 @@ border-radius: 0px 0px 0px 0px;
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
 }
 
 .admin-form-full {
@@ -2711,10 +2766,12 @@ border-radius: 0px 0px 0px 0px;
   box-sizing: border-box;
   width: 100%;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #ffffff;
+  background: var(--vc-surface);
+  backdrop-filter: var(--vc-blur);
+  -webkit-backdrop-filter: var(--vc-blur);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius-sm);
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
   transition: border-color 180ms ease;
@@ -2723,12 +2780,12 @@ border-radius: 0px 0px 0px 0px;
 .admin-form-input:focus,
 .admin-form-textarea:focus {
   outline: none;
-  border-color: #d0c290;
+  border-color: var(--vc-gold);
 }
 
 .admin-form-input::placeholder,
 .admin-form-textarea::placeholder {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--vc-text-disabled);
 }
 
 .admin-form-textarea {
@@ -2738,9 +2795,9 @@ border-radius: 0px 0px 0px 0px;
 
 .admin-form-error {
   padding: 10px 14px;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.3);
-  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--vc-radius-sm);
   font-size: 13px;
   color: #fca5a5;
 }
@@ -2749,9 +2806,9 @@ border-radius: 0px 0px 0px 0px;
   width: fit-content;
   padding: 12px 32px;
   border: none;
-  border-radius: 10px;
-  background: #d0c290;
-  color: #0b0d1d;
+  border-radius: var(--vc-radius-sm);
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -2760,7 +2817,7 @@ border-radius: 0px 0px 0px 0px;
 }
 
 .admin-form-submit:hover {
-  background: #c4b57e;
+  background: var(--vc-gold-hover);
 }
 
 .admin-form-submit:disabled {
@@ -3117,8 +3174,11 @@ select.admin-form-input {
 }
 
 .portal-card {
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   padding: 28px;
 }
@@ -3640,9 +3700,9 @@ select.admin-form-input {
 
 .dash-action-btn {
   padding: 8px 18px;
-  border: 1px solid rgba(208,194,144,0.3);
-  border-radius: 8px;
-  color: rgba(255,255,255,0.7);
+  border: 1px solid var(--vc-border-hover);
+  border-radius: var(--vc-radius-sm);
+  color: var(--vc-text-secondary);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
@@ -3651,21 +3711,21 @@ select.admin-form-input {
 }
 
 .dash-action-btn:hover {
-  border-color: var(--gold);
-  color: #fff;
-  background: rgba(208,194,144,0.08);
+  border-color: var(--vc-gold);
+  color: var(--vc-text);
+  background: var(--vc-gold-muted);
 }
 
 .dash-action-primary {
-  background: linear-gradient(135deg, #d0c290 0%, #b5a66e 100%);
+  background: var(--vc-gold);
   border-color: transparent;
-  color: #0b0d1d;
+  color: var(--vc-bg);
 }
 
 .dash-action-primary:hover {
   opacity: 0.9;
-  color: #0b0d1d;
-  background: linear-gradient(135deg, #d0c290 0%, #b5a66e 100%);
+  color: var(--vc-bg);
+  background: var(--vc-gold-hover);
 }
 
 /* Loading State */
@@ -3705,14 +3765,18 @@ select.admin-form-input {
   align-items: flex-start;
   gap: 14px;
   padding: 20px;
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  background: var(--vc-surface);
+  backdrop-filter: var(--vc-blur);
+  -webkit-backdrop-filter: var(--vc-blur);
+  border: 1px solid var(--vc-border);
+  box-shadow: var(--vc-shadow-glass);
+  border-radius: var(--vc-radius-lg);
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .dash-kpi-card:hover {
-  border-color: rgba(208,194,144,0.15);
+  border-color: var(--vc-border-hover);
+  box-shadow: var(--vc-shadow-glass-hover);
   transform: translateY(-2px);
 }
 
@@ -3756,6 +3820,7 @@ select.admin-form-input {
 }
 
 .dash-kpi-label {
+  color: var(--vc-text-secondary);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 11px;
   font-weight: 600;
@@ -3822,7 +3887,7 @@ select.admin-form-input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
 }
 
 .dash-lifetime-value {
@@ -3853,9 +3918,12 @@ select.admin-form-input {
 
 /* Panel */
 .dash-panel {
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
+  background: var(--vc-surface);
+  backdrop-filter: var(--vc-blur);
+  -webkit-backdrop-filter: var(--vc-blur);
+  border: 1px solid var(--vc-border);
+  box-shadow: var(--vc-shadow-glass);
+  border-radius: var(--vc-radius-lg);
   padding: 20px;
   overflow: hidden;
 }
@@ -3990,7 +4058,7 @@ select.admin-form-input {
 }
 
 .dash-event-row:hover {
-  background: rgba(255,255,255,0.03);
+  background: var(--vc-surface);
 }
 
 .dash-event-date-badge {
@@ -4012,7 +4080,7 @@ select.admin-form-input {
 
 .dash-event-date-text {
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .dash-event-info {
@@ -4026,7 +4094,7 @@ select.admin-form-input {
 .dash-event-name {
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--vc-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4034,7 +4102,7 @@ select.admin-form-input {
 
 .dash-event-venue {
   font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .dash-event-stats {
@@ -4075,7 +4143,7 @@ select.admin-form-input {
 }
 
 .dash-order-row:hover {
-  background: rgba(255,255,255,0.03);
+  background: var(--vc-surface);
 }
 
 .dash-order-avatar {
@@ -4103,7 +4171,7 @@ select.admin-form-input {
 .dash-order-name {
   font-size: 13px;
   font-weight: 600;
-  color: #fff;
+  color: var(--vc-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4111,7 +4179,7 @@ select.admin-form-input {
 
 .dash-order-event {
   font-size: 11px;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4128,18 +4196,61 @@ select.admin-form-input {
 .dash-order-amount {
   font-size: 13px;
   font-weight: 700;
-  color: #4ade80;
+  color: var(--vc-success);
 }
 
 .dash-order-time {
   font-size: 10px;
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
 }
 
 /* Dashboard Responsive */
 @media (max-width: 1024px) {
   .dash-main-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .dash-kpi-card {
+    padding: 16px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .dash-header-actions {
+    width: 100%;
+  }
+
+  .dash-action-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .dash-event-stats {
+    display: none;
+  }
+
+  .dash-order-meta {
+    min-width: 60px;
+  }
+
+  .dash-lifetime-banner {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .dash-lifetime-divider {
+    display: none;
   }
 }
 
@@ -4249,7 +4360,7 @@ select.admin-form-input {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: linear-gradient(180deg, #0e1028 0%, #151533 100%);
+  background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: sticky;
   top: 0;
@@ -4883,14 +4994,18 @@ select.admin-form-input {
   justify-content: space-between;
   gap: 16px;
   padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  transition: border-color 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
 .admin-event-card:hover {
-  border-color: rgba(208, 194, 144, 0.15);
+  border-color: rgba(208, 194, 144, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .admin-event-info {
@@ -5413,8 +5528,8 @@ select.admin-form-input {
   left: 0;
   bottom: 0;
   width: 240px;
-  background: linear-gradient(180deg, #0e1028 0%, #151533 60%, #0b0d1d 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--vc-surface-subtle);
+  border-right: 1px solid var(--vc-border-subtle);
   z-index: 0;
   pointer-events: none;
 }
@@ -5434,7 +5549,7 @@ select.admin-form-input {
   left: 0;
   right: 0;
   height: 60px;
-  background: linear-gradient(to top, #0b0d1d 0%, transparent 100%);
+  background: linear-gradient(to top, rgba(11, 13, 29, 0.9) 0%, transparent 100%);
   pointer-events: none;
   z-index: 2;
 }
@@ -5446,8 +5561,10 @@ select.admin-form-input {
   }
 
   .admin-sidebar {
-    background: linear-gradient(180deg, #0e1028 0%, #151533 100%);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(14, 16, 40, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .admin-sidebar::after {
@@ -5578,7 +5695,7 @@ select.admin-form-input {
 }
 
 .digital-ticket-card {
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(208, 194, 144, 0.2);
   border-radius: 20px;
   padding: 32px 24px;
@@ -5905,11 +6022,11 @@ select.admin-form-input {
 
 /* Sidebar full-height background */
 .admin-shell::before {
-  background: linear-gradient(180deg, var(--venue-secondary) 0%, var(--venue-accent) 60%, var(--venue-secondary) 100%);
+  background: var(--vc-surface-subtle);
 }
 
 /* Admin content area */
-.admin-shell { background: var(--venue-secondary); }
+.admin-shell { background: var(--vc-bg); }
 
 /* ── Toggle Switch (Apple-style) ── */
 .toggle-switch {
@@ -6783,7 +6900,7 @@ select.admin-form-input {
 
 /* Panel sections */
 .auction-create-panel {
-  background: linear-gradient(145deg, #1a1a3e 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 14px;
   padding: 24px;
@@ -8196,7 +8313,7 @@ select.admin-form-input {
   max-width: 520px;
   margin: 0 auto 32px;
   padding: 28px 32px;
-  background: linear-gradient(180deg, #151533 0%, #0e1028 100%);
+  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
 }
