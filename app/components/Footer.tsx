@@ -3,14 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useVenue } from "@/app/components/VenueContext";
+import { useOperator } from "@/app/components/OperatorContext";
 import { useState, useEffect } from "react";
-
-const serviceLinks = [
-  { label: "Concert Promotion", href: "/about" },
-  { label: "Talent Buying", href: "/about" },
-  { label: "Ticketing", href: "/events" },
-  { label: "Auctions", href: "/auctions" },
-];
 
 const infoLinks = [
   { label: "About", href: "/about" },
@@ -24,15 +18,33 @@ const managementLinks = [
   { label: "For Agents", href: "/agent" },
 ];
 
-const DEFAULT_CONNECT_LINKS = [
-  { label: "Instagram", href: "https://instagram.com" },
-  { label: "Facebook", href: "https://facebook.com" },
-  { label: "Email Us", href: "mailto:info@west72entertainment.com" },
-];
-
 export default function Footer() {
+  const operator = useOperator();
   const { venueSlug, isVenueSubdomain } = useVenue();
-  const [connectLinks, setConnectLinks] = useState(DEFAULT_CONNECT_LINKS);
+
+  // Service links vary by operator
+  const serviceLinks =
+    operator.slug === "venuecore"
+      ? [
+          { label: "Ticketing", href: "/events" },
+          { label: "Venue Management", href: "/about" },
+          { label: "Artist Deals", href: "/about" },
+          { label: "Auctions", href: "/auctions" },
+        ]
+      : [
+          { label: "Concert Promotion", href: "/about" },
+          { label: "Talent Buying", href: "/about" },
+          { label: "Ticketing", href: "/events" },
+          { label: "Auctions", href: "/auctions" },
+        ];
+
+  const defaultConnectLinks = [
+    { label: "Instagram", href: operator.instagramUrl },
+    { label: "Facebook", href: operator.facebookUrl },
+    { label: "Email Us", href: `mailto:${operator.contactEmail}` },
+  ];
+
+  const [connectLinks, setConnectLinks] = useState(defaultConnectLinks);
 
   // Load venue-specific social links when on a venue subdomain
   useEffect(() => {
@@ -47,29 +59,26 @@ export default function Footer() {
           if (v.instagram_url) links.push({ label: "Instagram", href: v.instagram_url as string });
           if (v.facebook_url) links.push({ label: "Facebook", href: v.facebook_url as string });
           if (v.buyer_email) links.push({ label: "Email Us", href: `mailto:${v.buyer_email}` });
-          else links.push({ label: "Email Us", href: "mailto:info@west72entertainment.com" });
-          if (links.length > 0) setConnectLinks(links.length >= 2 ? links : DEFAULT_CONNECT_LINKS);
+          else links.push({ label: "Email Us", href: `mailto:${operator.contactEmail}` });
+          if (links.length > 0) setConnectLinks(links.length >= 2 ? links : defaultConnectLinks);
         }
       })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [venueSlug, isVenueSubdomain]);
+
   return (
     <footer className="site-footer">
       <div className="footer-content">
         <div className="footer-brand">
           <Image
-            src="/VenueCore_VenueCore-FullLogo.png"
-            alt="VenueCore Logo"
+            src={operator.logo}
+            alt={operator.logoAlt}
             width={127}
             height={127}
             className="footer-logo"
           />
-          <p className="footer-description">
-            Discover. Grab. Experience. Live.  
-            VenueCore makes it easy to find upcoming shows, buy tickets in seconds, 
-            and enjoy seamless entry at the door—plus VIP packages 
-            and live auctions for the ultimate experience.
-          </p>
+          <p className="footer-description">{operator.footerDescription}</p>
         </div>
 
         <div className="footer-links-group">
@@ -113,8 +122,7 @@ export default function Footer() {
 
       <div className="footer-bottom">
         <p className="footer-copyright">
-          Copyright {new Date().getFullYear()} West 72 Entertainment. All Rights
-          Reserved.
+          Copyright {new Date().getFullYear()} {operator.copyright}. All Rights Reserved.
         </p>
         <div className="footer-legal">
           <Link href="/do-not-sell" className="footer-legal-link">

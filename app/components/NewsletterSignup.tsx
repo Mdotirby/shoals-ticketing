@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useVenue } from "@/app/components/VenueContext";
+import { useOperator } from "@/app/components/OperatorContext";
 
 export default function NewsletterSignup() {
   const { venueSlug } = useVenue();
+  const operator = useOperator();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -92,12 +94,12 @@ export default function NewsletterSignup() {
               <p className="newsletter-error">{message}</p>
             )}
             <p className="newsletter-disclaimer">
-              By signing up, you&apos;ll receive updates and offers from VenueCore
+              By signing up, you&apos;ll receive updates and offers from {operator.shortName}
             </p>
             <p className="newsletter-privacy-link">
               Privacy Policy:{" "}
               <Link href="/privacy" className="newsletter-link">
-                VenueCore
+                {operator.shortName}
               </Link>
             </p>
           </form>

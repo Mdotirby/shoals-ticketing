@@ -5,7 +5,9 @@ import "./styles/globals.css";
 import Header from "./components/Header";
 import VenueThemeProvider from "./components/VenueThemeProvider";
 import { VenueProvider } from "./components/VenueContext";
+import { OperatorProvider } from "./components/OperatorContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { getOperator } from "@/lib/operators";
 
 
 const geistSans = Geist({
@@ -37,17 +39,23 @@ const bayon = Bayon({
 });
 
 
-export const metadata: Metadata = {
-  title: "VenueCore",
-  description: "One Platform. Every Ticket.",
-  icons: {
-    icon: [
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
-    ],
-    apple: "/apple-touch-icon.png",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
+  const operator = getOperator(operatorSlug);
+
+  return {
+    title: operator.name,
+    description: operator.tagline,
+    icons: {
+      icon: [
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      ],
+      apple: "/apple-touch-icon.png",
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -56,20 +64,23 @@ export default async function RootLayout({
 }) {
   const cookieStore = await cookies();
   const venueSlug = cookieStore.get("venueSlug")?.value ?? "default";
+  const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
 
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
-        <VenueProvider venueSlug={venueSlug}>
-          <VenueThemeProvider>
-            <ErrorBoundary>
-              <Header />
-              {children}
-            </ErrorBoundary>
-          </VenueThemeProvider>
-        </VenueProvider>
+        <OperatorProvider operatorSlug={operatorSlug}>
+          <VenueProvider venueSlug={venueSlug}>
+            <VenueThemeProvider>
+              <ErrorBoundary>
+                <Header />
+                {children}
+              </ErrorBoundary>
+            </VenueThemeProvider>
+          </VenueProvider>
+        </OperatorProvider>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useOperator } from "./OperatorContext";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -11,6 +12,7 @@ const navItems = [
 ];
 
 export default function Header() {
+  const operator = useOperator();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navRef = useRef<HTMLElement>(null);
@@ -49,8 +51,8 @@ export default function Header() {
       <div className="header-inner">
         <Link href="/" className="header-logo" aria-label="Go to homepage">
           <Image
-            src="/VenueCore_VenueCore-FullLogo.png"
-            alt="VenueCore Logo"
+            src={operator.logo}
+            alt={operator.logoAlt}
             width={200}
             height={200}
             priority

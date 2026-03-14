@@ -1,26 +1,47 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
-// Domains that are NOT venue subdomains
-const ROOT_DOMAINS = ["venuecore.live", "localhost", "vercel.app"];
-
-function extractVenueSlug(host: string): string | null {
+/**
+ * Extract both operatorSlug and venueSlug from the incoming hostname.
+ *
+ * Examples:
+ *   venuecore.live           → { operatorSlug: "venuecore", venueSlug: null }
+ *   west72ent.com            → { operatorSlug: "west72",    venueSlug: null }
+ *   shoals.venuecore.live    → { operatorSlug: "venuecore", venueSlug: "shoals" }
+ *   shoals.west72ent.com     → { operatorSlug: "west72",    venueSlug: "shoals" }
+ *   localhost / vercel.app   → { operatorSlug: "venuecore", venueSlug: null }
+ */
+function extractSlugs(host: string): { operatorSlug: string; venueSlug: string | null } {
   const hostname = host.split(":")[0];
-  for (const root of ROOT_DOMAINS) {
-    if (hostname === root || hostname === `www.${root}`) return null;
-    if (hostname.endsWith(`.${root}`)) {
-      const sub = hostname.replace(`.${root}`, "");
-      if (sub && sub !== "www") return sub;
+
+  // Walk each known operator root domain
+  for (const [rootDomain, operatorSlug] of Object.entries(OPERATOR_DOMAIN_MAP)) {
+    if (hostname === rootDomain || hostname === `www.${rootDomain}`) {
+      return { operatorSlug, venueSlug: null };
+    }
+    if (hostname.endsWith(`.${rootDomain}`)) {
+      const sub = hostname.replace(`.${rootDomain}`, "");
+      if (sub && sub !== "www") {
+        return { operatorSlug, venueSlug: sub };
+      }
     }
   }
-  return null;
+
+  // localhost / vercel preview — default to venuecore operator, no venue subdomain
+  return { operatorSlug: "venuecore", venueSlug: null };
+}
+
+// Keep the old helper around so any existing code that imports it still compiles
+function extractVenueSlug(host: string): string | null {
+  return extractSlugs(host).venueSlug;
 }
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
-  const venueSlug = extractVenueSlug(host);
+  const { operatorSlug, venueSlug } = extractSlugs(host);
 
   // Skip middleware for static files and API routes
   const isApiRoute = pathname.startsWith("/api/");
@@ -64,6 +85,12 @@ export async function middleware(request: NextRequest) {
 
   // Set venueSlug cookie — subdomain or "default"
   response.cookies.set("venueSlug", venueSlug || "default", {
+    path: "/",
+    sameSite: "lax",
+  });
+
+  // Set operatorSlug cookie — which brand/operator owns this domain
+  response.cookies.set("operatorSlug", operatorSlug, {
     path: "/",
     sameSite: "lax",
   });
