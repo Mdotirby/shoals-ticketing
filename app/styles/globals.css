@@ -19,7 +19,7 @@ body {
   /* ── Design System Tokens ── */
 
   /* Surfaces */
-  --vc-bg:              #0b0d1d;
+  --vc-bg:              #111827;
   --vc-surface:         rgba(255, 255, 255, 0.04);
   --vc-surface-hover:   rgba(255, 255, 255, 0.07);
   --vc-surface-active:  rgba(208, 194, 144, 0.10);
@@ -1448,7 +1448,7 @@ body {
 .newsletter-submit {
   padding: 12px 28px;
   background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  color: var(--vc-bg);
   font-weight: 700;
   font-size: 14px;
   border: none;
@@ -2951,7 +2951,7 @@ select.admin-form-input {
 
 .image-cropper-btn.confirm {
   background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  color: var(--vc-bg);
 }
 
 /* ============================================================
@@ -3105,7 +3105,7 @@ select.admin-form-input {
   border: none;
   border-radius: 10px;
   background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -5864,7 +5864,7 @@ select.admin-form-input {
 
 :root {
   --venue-primary: #d0c290;
-  --venue-secondary: #0b0d1d;
+  --venue-secondary: #111827;
   --venue-accent: #202045;
 }
 
@@ -6197,7 +6197,7 @@ select.admin-form-input {
 
 .auction-nav-checkout:hover {
   background: var(--vc-gold-hover);
-  color: #0b0d1d;
+  color: var(--vc-bg);
 }
 
 .auction-back-link {
@@ -8083,7 +8083,7 @@ select.admin-form-input {
   background: linear-gradient(135deg, #d0c290 0%, #b5a66e 100%);
   border: none;
   border-radius: 8px;
-  color: #0b0d1d;
+  color: var(--vc-bg);
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
