@@ -12,7 +12,7 @@ body {
 }
 
 :root {
-  --background: #0b0d1d;
+  --background: var(--vc-bg);
   --foreground: #ffffff;
   --gold: #d0c290;
 
@@ -65,7 +65,7 @@ body {
 
 body {
   font-family: var(--font-urbanist), sans-serif;
-  background: #0b0d1d;
+  background: var(--vc-bg);
   color: var(--foreground);
   margin: 0;
   padding: 0;
@@ -116,7 +116,7 @@ body {
 
 .header-nav-link {
   position: relative;
-  color: #ffffff;
+  color: var(--vc-text);
   text-decoration: none;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -147,7 +147,7 @@ body {
   font-size: 26px;
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--vc-text);
   cursor: pointer;
 }
 
@@ -196,7 +196,7 @@ body {
   line-height: 1;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(2rem, 4vw, 3.4rem);
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .events-eyebrow {
@@ -240,7 +240,7 @@ body {
 
 .events-eyebrow-text {
   white-space: pre;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1.2;
   position: relative;
   font-family: var(--font-cairo), sans-serif;
@@ -380,7 +380,7 @@ body {
   font-family: var(--font-bayon), sans-serif;
   font-size: 32px;
   margin: 0;
-  color: #ffffff;
+  color: var(--vc-text);
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -421,7 +421,7 @@ body {
 
 .badge-text {
   white-space: pre;
-  color: #ffffff;
+  color: var(--vc-text);
   line-height: 1.2;
   font-family: var(--font-cairo), sans-serif;
   font-weight: 700;
@@ -462,7 +462,7 @@ body {
     top: 100%;
     left: 0;
     padding: 16px;
-    background: #0b0d1d;
+    background: var(--vc-bg);
     border-bottom: 1px solid rgba(208,194,144,0.08);
     z-index: 999;
   }
@@ -530,7 +530,7 @@ body {
 .ticket-page-loading {
   padding: 80px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   font-size: 16px;
 }
 
@@ -586,7 +586,7 @@ body {
   font-size: 2.2rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 8px;
   font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
 }
@@ -603,7 +603,7 @@ body {
 .ticket-event-meta-sep { opacity: 0.3; margin: 0 4px; }
 
 .ticket-event-description {
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   font-size: 14px;
   line-height: 1.6;
   margin: 16px 0 0;
@@ -624,7 +624,7 @@ body {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 14px;
   padding: 12px 16px;
   outline: none;
@@ -661,7 +661,7 @@ body {
 .ticket-qty-value {
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: var(--vc-text);
   min-width: 32px;
   text-align: center;
   padding: 10px 4px;
@@ -737,7 +737,7 @@ body {
   text-transform: uppercase;
   font-size: 12px;
   letter-spacing: 3px;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin-bottom: 8px;
 }
 
@@ -745,7 +745,7 @@ body {
   font-size: 2rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0;
   font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
 }
@@ -792,7 +792,7 @@ body {
   position: relative;
   overflow: hidden;
   text-align: left;
-  color: #ffffff;
+  color: var(--vc-text);
   transition: border-color 220ms ease, box-shadow 220ms ease;
   font-family: var(--font-urbanist), sans-serif;
 }
@@ -829,8 +829,8 @@ body {
 }
 
 .purchase-ticket-card.selected .ptc-bubble {
-  background-color: #d0c290;
-  border-color: #d0c290;
+  background-color: var(--vc-gold);
+  border-color: var(--vc-gold);
 }
 
 .ptc-name {
@@ -838,7 +838,7 @@ body {
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.2rem, 2vw, 1.6rem);
   line-height: 1;
-  color: #ffffff;
+  color: var(--vc-text);
   flex: 1;
   background: linear-gradient(180deg, #888888 0%, #e0e0e0 35%, #ffffff 55%, #b0b0b0 80%, #ffffff 100%);
   -webkit-background-clip: text;
@@ -879,7 +879,7 @@ body {
 }
 
 .ptc-venue-icon {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
   flex-shrink: 0;
 }
 
@@ -896,7 +896,7 @@ body {
 
 .ptc-perks-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
 }
 
 .ptc-perks-badges {
@@ -914,7 +914,7 @@ body {
   border-radius: 20px;
   font-size: 11px;
   font-weight: 500;
-  color: #d0c290;
+  color: var(--vc-gold);
   white-space: nowrap;
 }
 
@@ -970,7 +970,7 @@ body {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.5rem;
-  color: #ffffff;
+  color: var(--vc-text);
   line-height: 1;
 }
 
@@ -983,13 +983,13 @@ body {
 }
 
 .order-summary-cart-icon {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--vc-text-disabled);
 }
 
 .order-summary-empty-text {
   margin: 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
 }
 
 .order-summary-details {
@@ -1007,37 +1007,37 @@ body {
 .order-summary-line-label {
   font-size: 15px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .order-summary-line-value {
   font-size: 15px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .order-summary-line-sub .order-summary-line-label {
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .order-summary-line-sub .order-summary-line-value {
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .order-summary-total .order-summary-line-label {
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.2rem;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .order-summary-total .order-summary-line-value {
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.2rem;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .order-summary-divider {
@@ -1055,8 +1055,8 @@ body {
   padding: 14px 20px;
   border: none;
   border-radius: 10px;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -1065,7 +1065,7 @@ body {
 }
 
 .order-summary-checkout-btn:hover {
-  background: #c4b57e;
+  background: var(--vc-gold-hover);
 }
 
 .order-summary-checkout-btn:disabled {
@@ -1077,7 +1077,7 @@ body {
   margin: 0;
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
 }
 
 /* ============================================================
@@ -1109,7 +1109,7 @@ body {
   text-align: center;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
-  color: #ffffff;
+  color: var(--vc-text);
   line-height: 1.1;
 }
 
@@ -1156,7 +1156,7 @@ body {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 16px;
-  color: #ffffff;
+  color: var(--vc-text);
   letter-spacing: 0.5px;
 }
 
@@ -1171,7 +1171,7 @@ body {
   margin: 0;
   font-size: 12.5px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .venue-directions-card-link {
@@ -1182,7 +1182,7 @@ body {
 }
 
 .venue-directions-card-link:hover {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .venue-directions-info-block {
@@ -1253,7 +1253,7 @@ body {
   text-align: center;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
-  color: #ffffff;
+  color: var(--vc-text);
   line-height: 1.1;
 }
 
@@ -1299,7 +1299,7 @@ body {
   padding: 14px 18px;
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 500;
@@ -1318,7 +1318,7 @@ body {
 
 .faq-card-chevron {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
   transition: transform 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
@@ -1335,7 +1335,7 @@ body {
   padding: 0 18px 16px;
   font-size: 12.5px;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 /* ============================================================
@@ -1381,7 +1381,7 @@ body {
   font-family: var(--font-bayon), sans-serif;
   font-size: 0.85rem;
   letter-spacing: 3px;
-  color: #d0c290;
+  color: var(--vc-gold);
   text-transform: uppercase;
   margin-bottom: 12px;
 }
@@ -1389,14 +1389,14 @@ body {
 .newsletter-title {
   font-family: var(--font-bayon), sans-serif;
   font-size: 2.2rem;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 12px;
   line-height: 1.15;
 }
 
 .newsletter-subtitle {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--vc-text-secondary);
   line-height: 1.7;
   margin: 0;
 }
@@ -1425,14 +1425,14 @@ body {
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 14px;
   outline: none;
   transition: border-color 200ms ease, background 200ms ease;
 }
 
 .newsletter-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
 }
 
 .newsletter-input:focus {
@@ -1471,31 +1471,31 @@ body {
 
 .newsletter-disclaimer {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
   margin: 4px 0 0;
   line-height: 1.5;
 }
 
 .newsletter-privacy-link {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
   margin: 0;
 }
 
 .newsletter-link {
-  color: #d0c290;
+  color: var(--vc-gold);
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 180ms ease;
 }
 
 .newsletter-link:hover {
-  color: #e8dbb5;
+  color: var(--vc-gold-hover);
 }
 
 .newsletter-error {
   font-size: 13px;
-  color: #f87171;
+  color: var(--vc-danger);
   margin: 0;
 }
 
@@ -1515,7 +1515,7 @@ body {
   height: 48px;
   border-radius: 50%;
   background: rgba(208, 194, 144, 0.15);
-  color: #d0c290;
+  color: var(--vc-gold);
   font-size: 24px;
 }
 
@@ -1554,7 +1554,7 @@ body {
 
 .policy-page {
   min-height: 100vh;
-  background: #0b0d1d;
+  background: var(--vc-bg);
   padding: 120px 40px 80px;
 }
 
@@ -1566,14 +1566,14 @@ body {
 .policy-title {
   font-family: var(--font-bayon), sans-serif;
   font-size: 2.5rem;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 8px;
   line-height: 1.2;
 }
 
 .policy-effective {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   margin: 0 0 40px;
 }
 
@@ -1584,7 +1584,7 @@ body {
 .policy-section h2 {
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.3rem;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 12px;
   line-height: 1.3;
 }
@@ -1598,7 +1598,7 @@ body {
 
 .policy-section p {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--vc-text-secondary);
   line-height: 1.8;
   margin: 0 0 12px;
 }
@@ -1610,20 +1610,20 @@ body {
 
 .policy-section li {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--vc-text-secondary);
   line-height: 1.8;
   margin-bottom: 6px;
 }
 
 .policy-section a {
-  color: #d0c290;
+  color: var(--vc-gold);
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color 180ms ease;
 }
 
 .policy-section a:hover {
-  color: #e8dbb5;
+  color: var(--vc-gold-hover);
 }
 
 .policy-section strong {
@@ -1647,7 +1647,7 @@ body {
 .site-footer {
   box-sizing: border-box;
   width: 100%;
-  background: #0b0d1d;
+  background: var(--vc-bg);
   border-top: 1px solid rgba(208, 194, 144, 0.12);
   padding: 60px 60px 24px;
   display: flex;
@@ -1680,7 +1680,7 @@ body {
   margin: 0;
   font-size: 12px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
 }
 
 .footer-links-group {
@@ -1700,20 +1700,20 @@ body {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.1rem;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1.2;
   margin-bottom: 4px;
 }
 
 .footer-link {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   text-decoration: none;
   transition: color 180ms ease;
 }
 
 .footer-link:hover {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .footer-bottom {
@@ -1730,7 +1730,7 @@ body {
 .footer-copyright {
   margin: 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
 }
 
 .footer-legal {
@@ -1741,18 +1741,18 @@ body {
 
 .footer-legal-link {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
   text-decoration: none;
   transition: color 180ms ease;
 }
 
 .footer-legal-link:hover {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .footer-legal-separator {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--vc-text-disabled);
 }
 
 /* ============================================================
@@ -1907,7 +1907,7 @@ body {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 2rem;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1.1;
 }
 
@@ -1915,7 +1915,7 @@ body {
   margin: 0;
   font-size: 14px;
   line-height: 1.7;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   max-width: 400px;
 }
 
@@ -1929,8 +1929,8 @@ body {
   justify-content: center;
   padding: 12px 32px;
   border-radius: 10px;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -1939,7 +1939,7 @@ body {
 }
 
 .checkout-success-btn:hover {
-  background: #c4b57e;
+  background: var(--vc-gold-hover);
 }
 
 @media (max-width: 768px) {
@@ -1964,7 +1964,7 @@ body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background: #0b0d1d;
+  background: var(--vc-bg);
 }
 
 /* Hero Section */
@@ -2027,7 +2027,7 @@ body {
   padding: 12px 24px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
-  color: #ffffff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
   font-weight: 600;
@@ -2037,7 +2037,7 @@ body {
 }
 
 .home-hero-cta:hover {
-  border-color: #d0c290;
+  border-color: var(--vc-gold);
   background: rgba(208, 194, 144, 0.08);
 }
 
@@ -2054,7 +2054,7 @@ body {
 
 .partners-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
 }
 
 .partners-logos {
@@ -2065,7 +2065,7 @@ body {
 
 .partner-logo-placeholder {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   font-weight: 600;
 }
 
@@ -2113,7 +2113,7 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  color: #fff;
+  color: var(--vc-text);
   width: 100%;
   height: auto;
   text-align: center;
@@ -2139,7 +2139,7 @@ border-radius: 0px 0px 0px 0px;
 .home-events-loading {
   margin: 0;
   padding: 20px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   font-size: 14px;
 }
 
@@ -2190,7 +2190,7 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(2rem, 4vw, 3rem);
-  color: #d0c290;
+  color: var(--vc-gold);
   width: 100%;
   height: auto;
   text-align: center;
@@ -2202,7 +2202,7 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   max-width: 500px;
   position: relative;
 }
@@ -2216,7 +2216,7 @@ border-radius: 0px 0px 0px 0px;
   border: 1px solid rgba(208, 194, 144, 0.3);
   border-radius: 8px;
   background: transparent;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -2227,7 +2227,7 @@ border-radius: 0px 0px 0px 0px;
 
 .home-cta-button:hover {
   background: rgba(208, 194, 144, 0.08);
-  border-color: #d0c290;
+  border-color: var(--vc-gold);
 }
 
 /* ============================================================
@@ -2248,7 +2248,7 @@ border-radius: 0px 0px 0px 0px;
 
 .events-list-loading {
   text-align: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   padding: 40px 0;
 }
 
@@ -2274,7 +2274,7 @@ border-radius: 0px 0px 0px 0px;
   background: rgba(255, 255, 255, 0.09);
 }
 
-.events-search-icon { color: rgba(255,255,255,0.35); flex-shrink: 0; }
+.events-search-icon { color: var(--vc-text-muted); flex-shrink: 0; }
 
 .events-search-input,
 .home-events-search-input {
@@ -2282,14 +2282,14 @@ border-radius: 0px 0px 0px 0px;
   background: transparent;
   border: none;
   outline: none;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 15px;
   padding: 10px 12px;
   font-family: inherit;
 }
 .events-search-input::placeholder,
 .home-events-search-input::placeholder {
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
 }
 
 .events-filter-select {
@@ -2337,7 +2337,7 @@ border-radius: 0px 0px 0px 0px;
 .elc-price-badge {
   display: inline-block;
   background: rgba(208,194,144,0.15);
-  color: #d0c290;
+  color: var(--vc-gold);
   font-size: 13px;
   font-weight: 700;
   padding: 4px 12px;
@@ -2350,7 +2350,7 @@ border-radius: 0px 0px 0px 0px;
   font-size: 1.6rem;
   font-weight: 800;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--vc-text);
   font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
   letter-spacing: 0.5px;
   word-break: break-word;
@@ -2361,7 +2361,7 @@ border-radius: 0px 0px 0px 0px;
 .elc-date {
   margin: 0;
   font-size: 14px;
-  color: rgba(255,255,255,0.45);
+  color: var(--vc-text-secondary);
 }
 
 .elc-venue-badge {
@@ -2380,7 +2380,7 @@ border-radius: 0px 0px 0px 0px;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #4ade80;
+  background: var(--vc-success);
 }
 
 .elc-right {
@@ -2396,7 +2396,7 @@ border-radius: 0px 0px 0px 0px;
   gap: 8px;
   background: rgba(208,194,144,0.12);
   border: 1px solid rgba(208,194,144,0.25);
-  color: #d0c290;
+  color: var(--vc-gold);
   font-weight: 600;
   font-size: 14px;
   padding: 10px 20px;
@@ -2509,7 +2509,7 @@ border-radius: 0px 0px 0px 0px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0b0d1d;
+  background: var(--vc-bg);
   padding: 40px 20px;
 }
 
@@ -2539,13 +2539,13 @@ border-radius: 0px 0px 0px 0px;
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: 2rem;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .admin-login-subtitle {
   margin: 0;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
 }
 
 .admin-login-form {
@@ -2570,8 +2570,8 @@ border-radius: 0px 0px 0px 0px;
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
@@ -2580,7 +2580,7 @@ border-radius: 0px 0px 0px 0px;
 }
 
 .admin-login-btn:hover {
-  background: #c4b57e;
+  background: var(--vc-gold-hover);
 }
 
 .admin-login-btn:disabled {
@@ -2918,7 +2918,7 @@ select.admin-form-input {
 
 .image-cropper-zoom-slider {
   flex: 1;
-  accent-color: #d0c290;
+  accent-color: var(--vc-gold);
   height: 4px;
 }
 
@@ -2998,13 +2998,13 @@ select.admin-form-input {
 .admin-image-dropzone-hint {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
 }
 
 .admin-image-uploading {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .admin-image-preview-wrapper {
@@ -3031,7 +3031,7 @@ select.admin-form-input {
   border: none;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.65);
-  color: #fff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
   font-weight: 600;
@@ -3087,7 +3087,7 @@ select.admin-form-input {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
-  color: #ffffff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   outline: none;
@@ -3153,7 +3153,7 @@ select.admin-form-input {
 }
 
 .portal-welcome strong {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .portal-signout-btn {
@@ -3187,20 +3187,20 @@ select.admin-form-input {
   margin: 0 0 4px;
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.4rem;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .portal-card-desc {
   margin: 0 0 20px;
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .portal-empty {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
 }
 
 .portal-table-wrapper {
@@ -3218,7 +3218,7 @@ select.admin-form-input {
   text-align: left;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -3241,7 +3241,7 @@ select.admin-form-input {
   letter-spacing: 0.03em;
 }
 
-.role-owner { background: rgba(208, 194, 144, 0.15); color: #d0c290; }
+.role-owner { background: rgba(208, 194, 144, 0.15); color: var(--vc-gold); }
 .role-super_admin { background: rgba(100, 180, 255, 0.12); color: #64b4ff; }
 .role-venue_admin { background: rgba(100, 220, 150, 0.12); color: #64dc96; }
 .role-promoter { background: rgba(200, 130, 255, 0.12); color: #c882ff; }
@@ -3267,7 +3267,7 @@ select.admin-form-input {
 
 .portal-quick-link:hover {
   border-color: rgba(208, 194, 144, 0.35);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 /* ============================================================
@@ -3295,7 +3295,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: #d0c290;
+  color: var(--vc-gold);
   white-space: nowrap;
   min-width: 44px;
 }
@@ -3335,7 +3335,7 @@ select.admin-form-input {
   background: rgba(208, 194, 144, 0.1);
   border: 1px dashed rgba(208, 194, 144, 0.35);
   border-radius: 8px;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -3382,7 +3382,7 @@ select.admin-form-input {
   background: rgba(208, 194, 144, 0.15);
   border: 1px solid rgba(208, 194, 144, 0.35);
   border-radius: 8px;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -3432,7 +3432,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .admin-sponsor-tier {
@@ -3444,7 +3444,7 @@ select.admin-form-input {
 
 .admin-sponsor-url {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
   text-decoration: none;
   display: block;
   margin-top: 2px;
@@ -3465,7 +3465,7 @@ select.admin-form-input {
   background: rgba(208, 194, 144, 0.1);
   border: 1px solid rgba(208, 194, 144, 0.25);
   border-radius: 6px;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
@@ -3579,7 +3579,7 @@ select.admin-form-input {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
-  color: #d0c290;
+  color: var(--vc-gold);
   text-align: center;
 }
 
@@ -3598,7 +3598,7 @@ select.admin-form-input {
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
 }
 
 .sponsor-logos-row {
@@ -3639,7 +3639,7 @@ select.admin-form-input {
 .sponsor-name-text {
   font-family: var(--font-urbanist), sans-serif;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .sponsor-name-title {
@@ -3689,7 +3689,7 @@ select.admin-form-input {
 .dash-subtitle {
   margin: 4px 0 0;
   font-size: 14px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .dash-header-actions {
@@ -3736,7 +3736,7 @@ select.admin-form-input {
   justify-content: center;
   gap: 16px;
   padding: 80px 0;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   font-size: 14px;
 }
 
@@ -3781,8 +3781,8 @@ select.admin-form-input {
 }
 
 .dash-kpi-highlight {
-  border-color: rgba(208,194,144,0.2);
-  background: linear-gradient(145deg, #1f1a3e 0%, #141030 100%);
+  border-color: var(--vc-border-hover);
+  background: var(--vc-surface-active);
 }
 
 .dash-kpi-icon {
@@ -3824,7 +3824,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -3832,7 +3832,7 @@ select.admin-form-input {
 .dash-kpi-value {
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.5rem, 2.5vw, 2rem);
-  color: #fff;
+  color: var(--vc-text);
   line-height: 1;
 }
 
@@ -3842,7 +3842,7 @@ select.admin-form-input {
 
 .dash-kpi-secondary {
   font-size: 12px;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
 }
 
 /* Trend Indicators */
@@ -3852,15 +3852,15 @@ select.admin-form-input {
 }
 
 .dash-trend-up {
-  color: #4ade80;
+  color: var(--vc-success);
 }
 
 .dash-trend-down {
-  color: #f87171;
+  color: var(--vc-danger);
 }
 
 .dash-trend-neutral {
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
 }
 
 /* Lifetime Banner */
@@ -3940,7 +3940,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .dash-panel-badge {
@@ -3983,7 +3983,7 @@ select.admin-form-input {
 .dash-empty-state p {
   margin: 0;
   font-size: 13px;
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
 }
 
 .dash-empty-cta {
@@ -4400,7 +4400,7 @@ select.admin-form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-weight: 700;
   font-size: 15px;
 }
@@ -4513,7 +4513,7 @@ select.admin-form-input {
 
   .admin-mobile-dropdown-link:hover {
     background: rgba(255, 255, 255, 0.04);
-    color: #ffffff;
+    color: var(--vc-text);
   }
 
   .admin-mobile-dropdown-link.active {
@@ -4592,7 +4592,7 @@ select.admin-form-input {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 14px;
   font-weight: 600;
@@ -4605,8 +4605,8 @@ select.admin-form-input {
 }
 
 .report-tab.active {
-  color: #d0c290;
-  border-bottom-color: #d0c290;
+  color: var(--vc-gold);
+  border-bottom-color: var(--vc-gold);
 }
 
 .report-filters {
@@ -4624,7 +4624,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
 }
 
 .report-filter-label .admin-form-input {
@@ -4642,7 +4642,7 @@ select.admin-form-input {
   background: rgba(208, 194, 144, 0.1);
   border: 1px solid rgba(208, 194, 144, 0.3);
   border-radius: 8px;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -4681,7 +4681,7 @@ select.admin-form-input {
 .report-row-count {
   margin-top: 8px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
 }
 
 /* ── Report Cards Grid ─────────────────────────────────────────── */
@@ -4719,13 +4719,13 @@ select.admin-form-input {
 .report-card-title {
   font-size: 18px;
   font-weight: 600;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 4px;
 }
 
 .report-card-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
   margin: 0;
   line-height: 1.5;
 }
@@ -4743,7 +4743,7 @@ select.admin-form-input {
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   min-width: 140px;
   flex: 1;
   max-width: 220px;
@@ -4780,7 +4780,7 @@ select.admin-form-input {
 .report-card-btn-generate {
   background: rgba(208, 194, 144, 0.15);
   border-color: rgba(208, 194, 144, 0.3);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .report-card-btn-generate:hover:not(:disabled) {
@@ -4819,14 +4819,14 @@ select.admin-form-input {
 }
 
 .report-card-empty {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
   font-size: 13px;
   padding: 16px 0;
   text-align: center;
 }
 
 .report-card-truncated {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--vc-text-muted);
   font-size: 12px;
   margin-top: 8px;
   text-align: center;
@@ -4842,7 +4842,7 @@ select.admin-form-input {
 /* ── Report Table: Event group rows ────────────────────────────── */
 .report-table-event-row td {
   background: rgba(208, 194, 144, 0.1) !important;
-  color: #d0c290 !important;
+  color: var(--vc-gold) !important;
   font-weight: 600;
   font-size: 13px;
   padding: 8px 12px !important;
@@ -4850,20 +4850,20 @@ select.admin-form-input {
 
 .report-table-event-date {
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   font-size: 12px;
 }
 
 .report-table-subtotal-row td {
   background: rgba(208, 194, 144, 0.06) !important;
-  color: #d0c290 !important;
+  color: var(--vc-gold) !important;
   font-weight: 600;
   border-top: 1px solid rgba(208, 194, 144, 0.15);
 }
 
 .report-table-grand-row td {
   background: rgba(208, 194, 144, 0.12) !important;
-  color: #d0c290 !important;
+  color: var(--vc-gold) !important;
   font-weight: 700;
   font-size: 13px;
   border-top: 2px solid rgba(208, 194, 144, 0.3);
@@ -4886,7 +4886,7 @@ select.admin-form-input {
 .report-mini-section h4 {
   font-size: 13px;
   font-weight: 600;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -4916,7 +4916,7 @@ select.admin-form-input {
 }
 
 .report-kv-gold {
-  color: #d0c290 !important;
+  color: var(--vc-gold) !important;
   font-weight: 600;
 }
 
@@ -5029,12 +5029,12 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .admin-event-meta {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
   display: block;
   margin-top: 2px;
 }
@@ -5071,7 +5071,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 @media (max-width: 768px) {
@@ -5113,7 +5113,7 @@ select.admin-form-input {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #ffffff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   min-width: 140px;
@@ -5121,7 +5121,7 @@ select.admin-form-input {
 }
 
 .portal-form-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--vc-text-muted);
 }
 
 .portal-form-submit {
@@ -5129,7 +5129,7 @@ select.admin-form-input {
   background: rgba(208, 194, 144, 0.15);
   border: 1px solid rgba(208, 194, 144, 0.35);
   border-radius: 8px;
-  color: #d0c290;
+  color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 600;
@@ -5162,7 +5162,7 @@ select.admin-form-input {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
   cursor: pointer;
@@ -5171,7 +5171,7 @@ select.admin-form-input {
 .portal-slug {
   font-family: monospace;
   font-size: 12px;
-  color: #d0c290;
+  color: var(--vc-gold);
   background: rgba(208, 194, 144, 0.08);
   padding: 2px 6px;
   border-radius: 4px;
@@ -5200,7 +5200,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
   border-bottom: 1px solid rgba(208, 194, 144, 0.15);
   padding-bottom: 6px;
 }
@@ -5261,7 +5261,7 @@ select.admin-form-input {
 .offer-scaling-header {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 0 4px;
@@ -5307,7 +5307,7 @@ select.admin-form-input {
 }
 
 .offer-totals-row strong {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 /* Expenses Grid */
@@ -5329,7 +5329,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -5376,21 +5376,21 @@ select.admin-form-input {
 }
 
 .offer-expense-total strong {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .offer-total-expenses {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--vc-text);
   padding: 12px 0;
   border-top: 1px solid rgba(208, 194, 144, 0.2);
   margin-top: 8px;
 }
 
 .offer-total-expenses strong {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 /* Potential Grid */
@@ -5417,19 +5417,19 @@ select.admin-form-input {
 }
 
 .offer-potential-row strong {
-  color: #ffffff;
+  color: var(--vc-text);
   margin-left: auto;
 }
 
 .offer-potential-row.highlight {
   padding: 8px 0;
   border-top: 1px solid rgba(208, 194, 144, 0.2);
-  color: #d0c290;
+  color: var(--vc-gold);
   font-weight: 600;
 }
 
 .offer-potential-row.highlight strong {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 /* Offer Detail Page */
@@ -5451,7 +5451,7 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: #d0c290;
+  color: var(--vc-gold);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -5493,14 +5493,14 @@ select.admin-form-input {
 }
 
 .admin-sidebar-welcome strong {
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .admin-sidebar-venue {
   margin: 2px 0 0;
   font-family: var(--font-urbanist), sans-serif;
   font-size: 11px;
-  color: #d0c290;
+  color: var(--vc-gold);
   text-align: center;
   letter-spacing: 0.04em;
 }
@@ -5605,14 +5605,14 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 17px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .sales-event-meta {
   display: block;
   margin-top: 4px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .sales-event-stats {
@@ -5632,14 +5632,14 @@ select.admin-form-input {
 .sales-stat-value {
   font-family: var(--font-bayon), sans-serif;
   font-size: 22px;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1;
 }
 
 .sales-stat-label {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -5668,7 +5668,7 @@ select.admin-form-input {
 
 .sales-progress-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   text-align: center;
 }
 
@@ -5721,7 +5721,7 @@ select.admin-form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   font-size: 12px;
 }
 
@@ -5736,7 +5736,7 @@ select.admin-form-input {
   margin: 0;
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(1.4rem, 3vw, 2rem);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .digital-ticket-venue {
@@ -5748,7 +5748,7 @@ select.admin-form-input {
 .digital-ticket-date {
   margin: 0;
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
 }
 
 .digital-ticket-holder {
@@ -5760,7 +5760,7 @@ select.admin-form-input {
 
 .digital-ticket-label {
   font-size: 10px;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -5768,12 +5768,12 @@ select.admin-form-input {
 .digital-ticket-name {
   font-size: 16px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .digital-ticket-email {
   font-size: 13px;
-  color: rgba(255,255,255,0.45);
+  color: var(--vc-text-secondary);
 }
 
 .digital-ticket-scanned {
@@ -5823,7 +5823,7 @@ select.admin-form-input {
 .scan-result-text h2 {
   margin: 0;
   font-size: 20px;
-  color: #ffffff;
+  color: var(--vc-text);
 }
 
 .scan-result-text p {
@@ -5833,7 +5833,7 @@ select.admin-form-input {
 }
 
 .scan-result-event {
-  color: #d0c290 !important;
+  color: var(--vc-gold) !important;
 }
 
 .scan-camera-section {
@@ -5870,7 +5870,7 @@ select.admin-form-input {
 
 /* Override key colors with venue theme variables */
 .site-header.header-scrolled { background: rgba(11, 13, 29, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-.home-page { background: #0b0d1d; }
+.home-page { background: var(--vc-bg); }
 .home-hero-overlay { background: linear-gradient(180deg, rgba(11,13,29,0.3) 0%, rgba(11,13,29,0.6) 60%, var(--venue-secondary) 100%); }
 .home-hero-cta:hover { border-color: var(--venue-primary); background: color-mix(in srgb, var(--venue-primary) 8%, transparent); }
 .home-upcoming-heading { background: linear-gradient(180deg, #888 0%, #e0e0e0 35%, #fff 55%, #b0b0b0 80%, #fff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
@@ -6042,7 +6042,7 @@ select.admin-form-input {
   display: inline-block;
 }
 .toggle-switch.active {
-  background: #4ade80;
+  background: var(--vc-success);
 }
 .toggle-switch::after {
   content: '';
@@ -6066,8 +6066,8 @@ select.admin-form-input {
 /* ── Guest Auction Pages ── */
 .auction-page {
   min-height: 100dvh;
-  background: #0b0d1d;
-  color: #fff;
+  background: var(--vc-bg);
+  color: var(--vc-text);
   padding: 0 16px 24px;
   max-width: 600px;
   margin: 0 auto;
@@ -6079,7 +6079,7 @@ select.admin-form-input {
   align-items: center;
   justify-content: center;
   min-height: 60dvh;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   font-size: 15px;
   gap: 16px;
 }
@@ -6118,7 +6118,7 @@ select.admin-form-input {
 .auction-title {
   font-size: 22px;
   font-weight: 800;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0;
   line-height: 1.2;
 }
@@ -6126,13 +6126,13 @@ select.admin-form-input {
 .auction-title-sm {
   font-size: 16px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0;
 }
 
 .auction-description {
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 4px 0 0;
   line-height: 1.4;
 }
@@ -6156,13 +6156,13 @@ select.admin-form-input {
 
 .auction-status-open { background: #22c55e; color: #000; }
 .auction-status-closed { background: #f59e0b; color: #000; }
-.auction-status-published { background: #3b82f6; color: #fff; }
-.auction-status-draft { background: #666; color: #fff; }
-.auction-status-settled { background: #8b5cf6; color: #fff; }
+.auction-status-published { background: #3b82f6; color: var(--vc-text); }
+.auction-status-draft { background: #666; color: var(--vc-text); }
+.auction-status-settled { background: #8b5cf6; color: var(--vc-text); }
 
 .auction-item-count {
   font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
 }
 
 /* ── Nav ── */
@@ -6186,22 +6186,22 @@ select.admin-form-input {
 
 .auction-nav-link:hover {
   background: rgba(208,194,144,0.15);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auction-nav-register,
 .auction-nav-checkout {
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
 }
 
 .auction-nav-checkout:hover {
-  background: #e0d4a8;
+  background: var(--vc-gold-hover);
   color: #0b0d1d;
 }
 
 .auction-back-link {
-  color: #d0c290;
+  color: var(--vc-gold);
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
@@ -6221,7 +6221,7 @@ select.admin-form-input {
   border-radius: 14px;
   padding: 16px;
   text-decoration: none;
-  color: #fff;
+  color: var(--vc-text);
   transition: all 0.2s;
 }
 
@@ -6246,7 +6246,7 @@ select.admin-form-input {
 
 .auction-price-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -6254,14 +6254,14 @@ select.admin-form-input {
 .auction-price-value {
   font-size: 22px;
   font-weight: 800;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auction-item-tile-meta {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .auction-item-tile-leader {
@@ -6273,7 +6273,7 @@ select.admin-form-input {
 .auction-empty {
   text-align: center;
   padding: 40px 20px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 /* ── Bid Page ── */
@@ -6304,7 +6304,7 @@ select.admin-form-input {
 
 .auction-bid-label {
   font-size: 11px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -6312,7 +6312,7 @@ select.admin-form-input {
 .auction-bid-amount {
   font-size: 36px;
   font-weight: 800;
-  color: #d0c290;
+  color: var(--vc-gold);
   line-height: 1;
 }
 
@@ -6320,7 +6320,7 @@ select.admin-form-input {
   display: flex;
   gap: 16px;
   font-size: 13px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   margin-top: 8px;
 }
 
@@ -6336,7 +6336,7 @@ select.admin-form-input {
 .auction-bid-winning {
   background: rgba(34,197,94,0.12);
   border: 1px solid rgba(34,197,94,0.3);
-  color: #4ade80;
+  color: var(--vc-success);
 }
 
 .auction-bid-outbid {
@@ -6348,7 +6348,7 @@ select.admin-form-input {
 .auction-bid-closed {
   text-align: center;
   padding: 16px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   font-size: 14px;
 }
 
@@ -6397,18 +6397,18 @@ select.admin-form-input {
 }
 
 .auction-btn-primary {
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
 }
 
 .auction-btn-primary:hover:not(:disabled) {
-  background: #e0d4a8;
+  background: var(--vc-gold-hover);
 }
 
 .auction-btn-outline {
   background: transparent;
   border: 1px solid rgba(208,194,144,0.3);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auction-btn-outline:hover:not(:disabled) {
@@ -6428,7 +6428,7 @@ select.admin-form-input {
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
-  color: #fff;
+  color: var(--vc-text);
   font-size: 15px;
   outline: none;
   transition: border-color 0.2s;
@@ -6436,11 +6436,11 @@ select.admin-form-input {
 }
 
 .auction-input:focus {
-  border-color: #d0c290;
+  border-color: var(--vc-gold);
 }
 
 .auction-input::placeholder {
-  color: rgba(255,255,255,0.25);
+  color: var(--vc-text-disabled);
 }
 
 /* ── Forms ── */
@@ -6452,7 +6452,7 @@ select.admin-form-input {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -6474,7 +6474,7 @@ select.admin-form-input {
 
 .auction-register-subtext {
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0 0 20px;
 }
 
@@ -6492,7 +6492,7 @@ select.admin-form-input {
 .auction-success {
   background: rgba(34,197,94,0.12);
   border: 1px solid rgba(34,197,94,0.3);
-  color: #4ade80;
+  color: var(--vc-success);
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 14px;
@@ -6553,7 +6553,7 @@ select.admin-form-input {
 
 .auction-countdown-label {
   font-size: 10px;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -6566,7 +6566,7 @@ select.admin-form-input {
 }
 
 .auction-countdown-urgent .auction-countdown-time {
-  color: #ef4444;
+  color: var(--vc-danger);
   animation: pulse-red 1s infinite;
 }
 
@@ -6593,7 +6593,7 @@ select.admin-form-input {
 /* ── Dashboard ── */
 .auction-dashboard-greeting {
   font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 2px 0 0;
 }
 
@@ -6609,12 +6609,12 @@ select.admin-form-input {
 .auction-dashboard-closed-banner h2 {
   font-size: 18px;
   margin: 0 0 6px;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auction-dashboard-closed-banner p {
   font-size: 14px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0;
 }
 
@@ -6644,7 +6644,7 @@ select.admin-form-input {
   border-radius: 14px;
   padding: 16px;
   text-decoration: none;
-  color: #fff;
+  color: var(--vc-text);
   transition: all 0.2s;
 }
 
@@ -6669,7 +6669,7 @@ select.admin-form-input {
 .auction-dash-item-price {
   font-size: 22px;
   font-weight: 800;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin-bottom: 8px;
 }
 
@@ -6683,7 +6683,7 @@ select.admin-form-input {
 
 .auction-dash-winning {
   background: rgba(34,197,94,0.12);
-  color: #4ade80;
+  color: var(--vc-success);
 }
 
 .auction-dash-outbid {
@@ -6729,7 +6729,7 @@ select.admin-form-input {
 
 .auction-checkout-line-price {
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auction-checkout-totals {
@@ -6738,18 +6738,18 @@ select.admin-form-input {
 }
 
 .auction-checkout-subtotal {
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
 }
 
 .auction-checkout-fee {
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   font-size: 13px;
 }
 
 .auction-checkout-total {
   font-size: 18px;
   font-weight: 800;
-  color: #d0c290;
+  color: var(--vc-gold);
   padding-top: 8px;
   border-top: 1px solid rgba(208,194,144,0.2);
   margin-top: 8px;
@@ -6780,7 +6780,7 @@ select.admin-form-input {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 14px;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -6788,7 +6788,7 @@ select.admin-form-input {
 }
 
 .auction-btn-method:hover {
-  border-color: #d0c290;
+  border-color: var(--vc-gold);
   background: rgba(208,194,144,0.08);
 }
 
@@ -6812,7 +6812,7 @@ select.admin-form-input {
 .auction-checkout-offline h3 {
   font-size: 24px;
   font-weight: 800;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 12px;
 }
 
@@ -6825,7 +6825,7 @@ select.admin-form-input {
 
 .auction-checkout-offline-note {
   font-size: 13px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   margin: 0 0 16px;
 }
 
@@ -6837,7 +6837,7 @@ select.admin-form-input {
 .auction-checkout-success h2 {
   font-size: 24px;
   font-weight: 800;
-  color: #4ade80;
+  color: var(--vc-success);
   margin: 0 0 10px;
 }
 
@@ -6855,7 +6855,7 @@ select.admin-form-input {
   text-align: center;
   padding: 20px 0;
   font-size: 12px;
-  color: rgba(255,255,255,0.2);
+  color: var(--vc-text-disabled);
   border-top: 1px solid rgba(255,255,255,0.04);
   margin-top: 24px;
 }
@@ -6887,7 +6887,7 @@ select.admin-form-input {
 
 .auction-create-subtitle {
   font-size: 14px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   margin: 4px 0 0;
 }
 
@@ -6937,13 +6937,13 @@ select.admin-form-input {
   font-family: var(--font-urbanist), sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .auction-create-panel-desc {
   margin: 2px 0 0;
   font-size: 13px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .auction-create-fields {
@@ -6953,18 +6953,18 @@ select.admin-form-input {
 }
 
 .auction-required {
-  color: #f87171;
+  color: var(--vc-danger);
 }
 
 .auction-optional {
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
   font-weight: 400;
   font-size: 12px;
 }
 
 .auction-field-hint {
   font-size: 12px;
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
   margin-top: 2px;
 }
 
@@ -6987,7 +6987,7 @@ select.admin-form-input {
   padding: 32px;
   border: 2px dashed rgba(208,194,144,0.2);
   border-radius: 12px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   font-size: 14px;
   font-weight: 600;
   transition: border-color 0.2s, background 0.2s;
@@ -7000,7 +7000,7 @@ select.admin-form-input {
 
 .auction-logo-hint {
   font-size: 12px;
-  color: rgba(255,255,255,0.25);
+  color: var(--vc-text-disabled);
   font-weight: 400;
 }
 
@@ -7022,7 +7022,7 @@ select.admin-form-input {
   background: rgba(239,68,68,0.15);
   border: 1px solid rgba(239,68,68,0.3);
   border-radius: 8px;
-  color: #f87171;
+  color: var(--vc-danger);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -7059,7 +7059,7 @@ select.admin-form-input {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .auction-schedule-dot {
@@ -7069,12 +7069,12 @@ select.admin-form-input {
 }
 
 .auction-schedule-dot-open {
-  background: #4ade80;
+  background: var(--vc-success);
   box-shadow: 0 0 8px rgba(74,222,128,0.4);
 }
 
 .auction-schedule-dot-close {
-  background: #f87171;
+  background: var(--vc-danger);
   box-shadow: 0 0 8px rgba(248,113,113,0.4);
 }
 
@@ -7111,7 +7111,7 @@ select.admin-form-input {
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
   font-size: 14px;
   pointer-events: none;
 }
@@ -7135,7 +7135,7 @@ select.admin-form-input {
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .auction-toggle-checkbox {
@@ -7184,7 +7184,7 @@ select.admin-form-input {
 
 .auction-create-cancel {
   padding: 12px 24px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
@@ -7253,13 +7253,13 @@ select.admin-form-input {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .auction-card-venue,
 .auction-card-event {
   font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 2px 0;
 }
 
@@ -7277,7 +7277,7 @@ select.admin-form-input {
 
 .auction-date-label {
   font-size: 10px;
-  color: rgba(255,255,255,0.35);
+  color: var(--vc-text-muted);
   text-transform: uppercase;
 }
 
@@ -7285,7 +7285,7 @@ select.admin-form-input {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
   margin-bottom: 12px;
 }
 
@@ -7297,7 +7297,7 @@ select.admin-form-input {
 /* Admin edit page */
 .auction-item-counter {
   background: rgba(208,194,144,0.15);
-  color: #d0c290;
+  color: var(--vc-gold);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 13px;
@@ -7313,7 +7313,7 @@ select.admin-form-input {
 .auction-edit-section-title {
   font-size: 16px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 14px;
 }
 
@@ -7344,7 +7344,7 @@ select.admin-form-input {
 
 .auction-item-bids {
   font-size: 12px;
-  color: rgba(255,255,255,0.4);
+  color: var(--vc-text-secondary);
 }
 
 .auction-item-fields {
@@ -7371,7 +7371,7 @@ select.admin-form-input {
 .auction-report-summary h3 {
   font-size: 16px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 8px;
 }
 
@@ -7428,8 +7428,8 @@ select.admin-form-input {
    ═══════════════════════════════════════════════════════════════ */
 
 .auctions-about-page {
-  background: #0b0d1d;
-  color: #fff;
+  background: var(--vc-bg);
+  color: var(--vc-text);
   min-height: 100dvh;
 }
 
@@ -7450,7 +7450,7 @@ select.admin-form-input {
   padding: 5px 14px;
   border-radius: 20px;
   background: rgba(208,194,144,0.12);
-  color: #d0c290;
+  color: var(--vc-gold);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -7466,7 +7466,7 @@ select.admin-form-input {
 }
 
 .auctions-hero-accent {
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auctions-hero-subtitle {
@@ -7493,18 +7493,18 @@ select.admin-form-input {
   font-weight: 700;
   text-decoration: none;
   transition: all 0.2s;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
 }
 
 .auctions-cta-btn:hover {
-  background: #e0d4a8;
+  background: var(--vc-gold-hover);
 }
 
 .auctions-cta-outline {
   background: transparent;
   border: 1px solid rgba(208,194,144,0.3);
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .auctions-cta-outline:hover {
@@ -7527,7 +7527,7 @@ select.admin-form-input {
 
 .auctions-section-subtitle {
   font-size: 15px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   text-align: center;
   max-width: 560px;
   margin: 0 auto 32px;
@@ -7557,7 +7557,7 @@ select.admin-form-input {
 .auctions-pain-card h3 {
   font-size: 18px;
   font-weight: 700;
-  color: #d0c290;
+  color: var(--vc-gold);
   margin: 0 0 10px;
 }
 
@@ -7614,7 +7614,7 @@ select.admin-form-input {
 .auctions-feature-desc {
   font-size: 13px;
   line-height: 1.6;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0;
 }
 
@@ -7643,8 +7643,8 @@ select.admin-form-input {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   font-size: 18px;
   font-weight: 800;
   display: flex;
@@ -7661,7 +7661,7 @@ select.admin-form-input {
 
 .auctions-step p {
   font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0;
   max-width: 320px;
   line-height: 1.5;
@@ -7785,7 +7785,7 @@ select.admin-form-input {
   line-height: 1.1;
   font-weight: 400;
   margin: 0 0 24px;
-  color: #fff;
+  color: var(--vc-text);
   text-transform: uppercase;
 }
 
@@ -7805,7 +7805,7 @@ select.admin-form-input {
   padding: 10px 24px;
   border: 1px solid rgba(208,194,144,0.5);
   border-radius: 24px;
-  color: #fff;
+  color: var(--vc-text);
   text-decoration: none;
   font-size: 13px;
   font-weight: 600;
@@ -7835,7 +7835,7 @@ select.admin-form-input {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
   font-size: 16px;
   gap: 8px;
 }
@@ -7843,7 +7843,7 @@ select.admin-form-input {
 .about-image-placeholder p {
   font-size: 12px;
   margin: 0;
-  color: rgba(255,255,255,0.2);
+  color: var(--vc-text-disabled);
 }
 
 /* ── Why Us Section ── */
@@ -7857,7 +7857,7 @@ select.admin-form-input {
   font-size: clamp(28px, 4vw, 44px);
   font-weight: 400;
   margin: 0 0 48px;
-  color: #fff;
+  color: var(--vc-text);
   text-transform: uppercase;
 }
 
@@ -7903,7 +7903,7 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: 20px;
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 12px;
   text-transform: uppercase;
   line-height: 1.3;
@@ -7912,7 +7912,7 @@ select.admin-form-input {
 .about-feature-desc {
   font-size: 13px;
   line-height: 1.7;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0;
 }
 
@@ -7953,7 +7953,7 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(36px, 5vw, 56px);
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -7988,7 +7988,7 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: 22px;
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 24px;
   text-transform: uppercase;
 }
@@ -7996,7 +7996,7 @@ select.admin-form-input {
 .contact-success-msg {
   background: rgba(34, 197, 94, 0.15);
   border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #4ade80;
+  color: var(--vc-success);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 14px;
@@ -8006,7 +8006,7 @@ select.admin-form-input {
 .contact-error-msg {
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  color: var(--vc-danger);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 14px;
@@ -8039,7 +8039,7 @@ select.admin-form-input {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s ease;
@@ -8048,7 +8048,7 @@ select.admin-form-input {
 
 .contact-field input::placeholder,
 .contact-field textarea::placeholder {
-  color: rgba(255,255,255,0.3);
+  color: var(--vc-text-muted);
 }
 
 .contact-field input:focus,
@@ -8069,7 +8069,7 @@ select.admin-form-input {
 
 .contact-field select option {
   background: #141432;
-  color: #fff;
+  color: var(--vc-text);
 }
 
 .contact-field textarea {
@@ -8118,7 +8118,7 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: clamp(28px, 3.5vw, 40px);
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 12px 0 36px;
   text-transform: uppercase;
   line-height: 1.15;
@@ -8153,14 +8153,14 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: 18px;
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 4px;
   text-transform: uppercase;
 }
 
 .contact-method-desc {
   font-size: 13px;
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   margin: 0 0 4px;
   line-height: 1.5;
 }
@@ -8191,7 +8191,7 @@ select.admin-form-input {
   font-family: var(--font-bayon), sans-serif;
   font-size: 18px;
   font-weight: 400;
-  color: #fff;
+  color: var(--vc-text);
   margin: 0 0 16px;
   text-transform: uppercase;
   text-align: center;
@@ -8204,7 +8204,7 @@ select.admin-form-input {
 }
 
 .contact-social-icons a {
-  color: rgba(255,255,255,0.5);
+  color: var(--vc-text-secondary);
   transition: color 0.2s ease;
   display: flex;
   align-items: center;
@@ -8322,7 +8322,7 @@ select.admin-form-input {
   margin: 0 0 20px;
   font-family: var(--font-bayon), sans-serif;
   font-size: 1.3rem;
-  color: #d0c290;
+  color: var(--vc-gold);
 }
 
 .pre-checkout-field {
@@ -8335,7 +8335,7 @@ select.admin-form-input {
 .pre-checkout-field label {
   font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--vc-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -8345,7 +8345,7 @@ select.admin-form-input {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #fff;
+  color: var(--vc-text);
   font-size: 15px;
   font-family: var(--font-urbanist), sans-serif;
   outline: none;
@@ -8366,7 +8366,7 @@ select.admin-form-input {
 
 .pre-checkout-checkbox input[type="checkbox"] {
   margin-top: 3px;
-  accent-color: #d0c290;
+  accent-color: var(--vc-gold);
   width: 16px;
   height: 16px;
   flex-shrink: 0;
@@ -8375,7 +8375,7 @@ select.admin-form-input {
 .pre-checkout-checkbox span {
   font-size: 12px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--vc-text-secondary);
 }
 
 .pre-checkout-continue-btn {
@@ -8383,8 +8383,8 @@ select.admin-form-input {
   width: 100%;
   margin-top: 20px;
   padding: 14px 0;
-  background: #d0c290;
-  color: #0b0d1d;
+  background: var(--vc-gold);
+  color: var(--vc-bg);
   border: none;
   border-radius: 10px;
   font-family: var(--font-urbanist), sans-serif;
@@ -8395,7 +8395,7 @@ select.admin-form-input {
 }
 
 .pre-checkout-continue-btn:hover {
-  background: #c4b57e;
+  background: var(--vc-gold-hover);
 }
 
 .pre-checkout-continue-btn:disabled {
@@ -8415,7 +8415,7 @@ select.admin-form-input {
 
 .admin-header-btn-outline {
   background: rgba(208, 194, 144, 0.1);
-  color: #d0c290;
+  color: var(--vc-gold);
   border: 1px solid rgba(208, 194, 144, 0.2);
 }
 
