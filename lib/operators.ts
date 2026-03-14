@@ -14,6 +14,8 @@ export type OperatorConfig = {
   /** Path to the logo image in /public */
   logo: string;
   logoAlt: string;
+  /** Path to favicon PNG in /public — used in <head> */
+  favicon: string;
   supportEmail: string;
   contactEmail: string;
   privacyEmail: string;
@@ -33,6 +35,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     domain: "venuecore.live",
     logo: "/VenueCore_VenueCore-FullLogo.png",
     logoAlt: "VenueCore Logo",
+    favicon: "/favicon-32x32.png",
     supportEmail: "support@venuecore.live",
     contactEmail: "contact@venuecore.live",
     privacyEmail: "privacy@venuecore.com",
@@ -50,6 +53,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     domain: "west72ent.com",
     logo: "/logos/West72/logo.png",
     logoAlt: "West 72 Entertainment Logo",
+    favicon: "/logos/West72/logo.png",
     supportEmail: "support@west72ent.com",
     contactEmail: "contact@west72ent.com",
     privacyEmail: "privacy@west72ent.com",

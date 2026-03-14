@@ -49,10 +49,10 @@ export async function generateMetadata(): Promise<Metadata> {
     description: operator.tagline,
     icons: {
       icon: [
-        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-        { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+        { url: operator.favicon, sizes: "32x32", type: "image/png" },
+        { url: operator.favicon, sizes: "192x192", type: "image/png" },
       ],
-      apple: "/apple-touch-icon.png",
+      apple: operator.favicon,
     },
   };
 }
