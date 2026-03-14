@@ -166,7 +166,7 @@ export default function EventMarketingDetailPage() {
   /* Loading state */
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-8 flex items-center justify-center">
+      <div className="min-h-screen text-white p-8 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin h-10 w-10 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-gray-400">Loading event analytics…</p>
@@ -178,7 +178,7 @@ export default function EventMarketingDetailPage() {
   /* Error state */
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white p-8">
+      <div className="min-h-screen text-white p-8">
         <Link
           href="/admin/marketing"
           className="text-purple-400 hover:text-purple-300 mb-6 inline-block"
@@ -199,7 +199,7 @@ export default function EventMarketingDetailPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6 md:p-8">
+    <div className="min-h-screen text-white p-6 md:p-8">
       {/* ── Back button ────────────────────────────────────────── */}
       <Link
         href="/admin/marketing"

@@ -220,7 +220,7 @@ export default function FWBImportPage() {
   /* ---------------------------------------------------------------- */
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen text-white p-6">
       {/* Header */}
       <div className="max-w-5xl mx-auto">
         <Link
