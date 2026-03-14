@@ -34,6 +34,7 @@ const sidebarItems: SidebarItem[] = [
   { label: "Agents",              href: "/admin/agents",              roles: ["owner","venue_admin"] },
   { label: "Partner Dashboard",  href: "/admin/partner-dashboard",   roles: ["partner"] },
   { label: "Venue Management",   href: "/portal",                    roles: ["owner","venue_admin"] },
+  { label: "Site Branding",      href: "/admin/settings/branding",   roles: ["owner","venue_admin"] },
   { label: "Onboarding",         href: "/admin/onboarding",          roles: ["owner"] },
   { label: "Permissions",        href: "/admin/settings/permissions", roles: ["owner"] },
 ];
@@ -57,6 +58,7 @@ const TAB_KEY_MAP: Record<string, string> = {
   "Agents": "agents",
   "Partner Dashboard": "partner_dashboard",
   "Venue Management": "venue_management",
+  "Site Branding": "site_branding",
   "Onboarding": "onboarding",
   "Permissions": "permissions",
 };
