@@ -310,10 +310,10 @@ export default function MarketingHubPage() {
               <div
                 key={event.id}
                 onClick={() => router.push(`/admin/marketing/events/${event.id}`)}
-                className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden cursor-pointer transition-all hover:border-gray-500 hover:shadow-lg hover:shadow-black/20 group"
+                className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden cursor-pointer transition-all hover:border-gray-500 hover:shadow-lg hover:shadow-black/20 group flex flex-row sm:flex-col"
               >
-                {/* Event Image */}
-                <div className="h-36 relative overflow-hidden">
+                {/* Event Image — compact on mobile, full on desktop */}
+                <div className="w-24 sm:w-full h-full sm:h-36 relative overflow-hidden flex-shrink-0">
                   {event.image_url ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -322,13 +322,13 @@ export default function MarketingHubPage() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center">
-                      <span className="text-4xl opacity-30">🎵</span>
+                    <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center min-h-[80px] sm:min-h-0">
+                      <span className="text-2xl sm:text-4xl opacity-30">🎵</span>
                     </div>
                   )}
                   {/* Status badge */}
                   <span
-                    className={`absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    className={`absolute top-2 right-2 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full hidden sm:inline ${
                       event.is_past
                         ? "bg-gray-900/80 text-gray-400"
                         : "bg-green-900/80 text-green-400"
@@ -339,31 +339,43 @@ export default function MarketingHubPage() {
                 </div>
 
                 {/* Card Body */}
-                <div className="p-4">
-                  <h3 className="font-bold text-sm truncate mb-1 group-hover:text-white">
-                    {event.title || "Untitled Event"}
-                  </h3>
-                  <p className="text-gray-400 text-xs mb-1">{fmtDate(event.date)}</p>
-                  <p className="text-gray-500 text-xs truncate mb-3">{event.venue || "—"}</p>
+                <div className="p-3 sm:p-4 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 sm:mb-1">
+                    <h3 className="font-bold text-xs sm:text-sm truncate group-hover:text-white flex-1">
+                      {event.title || "Untitled Event"}
+                    </h3>
+                    {/* Mobile-only inline badge */}
+                    <span
+                      className={`sm:hidden text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        event.is_past
+                          ? "bg-gray-900/80 text-gray-400"
+                          : "bg-green-900/80 text-green-400"
+                      }`}
+                    >
+                      {event.is_past ? "Past" : "Live"}
+                    </span>
+                  </div>
+                  <p className="text-gray-400 text-[11px] sm:text-xs mb-0.5 sm:mb-1">{fmtDate(event.date)}</p>
+                  <p className="text-gray-500 text-[11px] sm:text-xs truncate mb-2 sm:mb-3">{event.venue || "—"}</p>
 
-                  {/* Stats + Donut */}
-                  <div className="flex items-center gap-4">
-                    <DonutChart percent={event.percent_sold} size={56} />
-                    <div className="flex-1 space-y-1 text-xs">
+                  {/* Stats + Donut — compact on mobile */}
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <DonutChart percent={event.percent_sold} size={40} />
+                    <div className="flex-1 space-y-0.5 sm:space-y-1 text-[11px] sm:text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Sold</span>
                         <span className="font-medium">
                           {fmtNumber(event.total_sold)}
                           {event.total_capacity > 0 && (
-                            <span className="text-gray-500"> / {fmtNumber(event.total_capacity)}</span>
+                            <span className="text-gray-500 hidden sm:inline"> / {fmtNumber(event.total_capacity)}</span>
                           )}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Available</span>
+                        <span className="text-gray-400">Avail</span>
                         <span className="font-medium">{fmtNumber(event.total_available)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="hidden sm:flex justify-between">
                         <span className="text-gray-400">
                           <svg
                             className="inline w-3 h-3 mr-0.5 -mt-0.5"
@@ -392,12 +404,12 @@ export default function MarketingHubPage() {
                   </div>
 
                   {/* Revenue */}
-                  <div className="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between">
-                    <span className="text-green-400 font-semibold text-sm">
+                  <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-700 flex items-center justify-between">
+                    <span className="text-green-400 font-semibold text-xs sm:text-sm">
                       {fmtCurrency(event.total_revenue)}
                     </span>
-                    <span className="text-gray-500 text-xs group-hover:text-gray-300 transition-colors">
-                      View Details &rarr;
+                    <span className="text-gray-500 text-[11px] sm:text-xs group-hover:text-gray-300 transition-colors">
+                      Details &rarr;
                     </span>
                   </div>
                 </div>
