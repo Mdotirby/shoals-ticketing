@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { useOperator } from "./OperatorContext";
 
 const navItems = [
@@ -11,12 +12,21 @@ const navItems = [
   { label: "Contact", href: "/contact" },
 ];
 
+/** Routes where the public header should be hidden (they have their own nav) */
+const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
+
 export default function Header() {
+  const pathname = usePathname();
   const operator = useOperator();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
+
+  // Don't render the public header on admin/portal/agent pages
+  if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
 
   useEffect(() => {
     const handleScroll = () => {
