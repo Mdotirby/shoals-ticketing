@@ -43,6 +43,9 @@ const sidebarItems: SidebarItem[] = [
   { label: "Partners",         href: "/admin/sponsors",            roles: ["owner","venue_admin"] },
   { label: "Agents",           href: "/admin/agents",              roles: ["owner","venue_admin"] },
 
+  // ── Operations ──
+  { label: "SOPs",             href: "/admin/sops",                roles: ["owner","venue_admin"], divider: true },
+
   // ── Settings ──
   { label: "Site Branding",    href: "/admin/settings/branding",   roles: ["owner","venue_admin"], divider: true },
   { label: "Venue Management", href: "/portal",                    roles: ["owner","venue_admin"] },
@@ -71,6 +74,7 @@ const TAB_KEY_MAP: Record<string, string> = {
   "Marketing": "marketing",
   "Agents": "agents",
   "Partner Dashboard": "partner_dashboard",
+  "SOPs": "sops",
   "Venue Management": "venue_management",
   "Site Branding": "site_branding",
   "Onboarding": "onboarding",
@@ -291,6 +295,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {item.label}
               </Link>
             ))}
+            <div style={{ height: 1, background: "var(--vc-border-subtle)", margin: "6px 0" }} />
+            <button
+              className="admin-mobile-dropdown-link"
+              onClick={async () => {
+                setSidebarOpen(false);
+                const supabase = getSupabaseBrowser();
+                await supabase.auth.signOut();
+                document.cookie = "venue-id=; path=/; max-age=0";
+                document.cookie = "admin-role=; path=/; max-age=0";
+                document.cookie = "admin-name=; path=/; max-age=0";
+                document.cookie = "venue-name=; path=/; max-age=0";
+                window.location.href = "/";
+              }}
+              style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", color: "var(--vc-danger)" }}
+            >
+              Sign Out
+            </button>
           </nav>
         </div>
       </div>
@@ -350,6 +371,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           ))}
         </nav>
+
+        {/* Sign Out — pinned to bottom */}
+        <div style={{ marginTop: "auto", paddingTop: 16 }}>
+          <div style={{ height: 1, background: "var(--vc-border-subtle)", marginBottom: 12 }} />
+          <button
+            onClick={async () => {
+              const supabase = getSupabaseBrowser();
+              await supabase.auth.signOut();
+              // Clear all admin cookies
+              document.cookie = "venue-id=; path=/; max-age=0";
+              document.cookie = "admin-role=; path=/; max-age=0";
+              document.cookie = "admin-name=; path=/; max-age=0";
+              document.cookie = "venue-name=; path=/; max-age=0";
+              window.location.href = "/";
+            }}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              borderRadius: "var(--vc-radius-sm)",
+              background: "transparent",
+              border: "none",
+              color: "var(--vc-text-muted)",
+              fontFamily: "var(--font-urbanist), sans-serif",
+              fontSize: 14,
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "background 180ms ease, color 180ms ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)";
+              e.currentTarget.style.color = "#f87171";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "var(--vc-text-muted)";
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Sign Out
+          </button>
+        </div>
       </aside>
 
       <main className="admin-content">{children}</main>
