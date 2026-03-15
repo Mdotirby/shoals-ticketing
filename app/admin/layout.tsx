@@ -13,30 +13,44 @@ type SidebarItem = {
   label: string;
   href: string;
   roles: string[];
+  divider?: boolean; // show a thin line before this item
 };
 
 const sidebarItems: SidebarItem[] = [
-  { label: "Dashboard",          href: "/admin",                     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
-  { label: "Calendar",           href: "/admin/calendar",            roles: ["owner","venue_admin","full_admin"] },
-  { label: "Events",             href: "/admin/events",              roles: ["owner","venue_admin","full_admin"] },
-  { label: "Booking",            href: "/admin/offers",              roles: ["owner","venue_admin"] },
-  { label: "Settlements",        href: "/admin/settlements",         roles: ["owner","venue_admin"] },
-  { label: "Contracts",          href: "/admin/contracts",           roles: ["owner","venue_admin"] },
-  { label: "Partners",           href: "/admin/sponsors",            roles: ["owner","venue_admin"] },
-  { label: "Auctions",           href: "/admin/auctions",            roles: ["owner","venue_admin","full_admin"] },
-  { label: "Reports",            href: "/admin/reports",             roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
-  { label: "Sales",              href: "/admin/orders",              roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
-  { label: "Live Pulse",          href: "/admin/live",                roles: ["owner","venue_admin","full_admin"] },
-  { label: "Scanner",            href: "/admin/scan",                roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
-  { label: "Guest Lists",        href: "/admin/guest-lists",         roles: ["owner","venue_admin","full_admin","artist"] },
-  { label: "Marketing",            href: "/admin/marketing",           roles: ["owner","venue_admin","full_admin"] },
-  { label: "Market Radar",       href: "/admin/market-radar",        roles: ["owner","venue_admin"] },
-  { label: "Agents",              href: "/admin/agents",              roles: ["owner","venue_admin"] },
-  { label: "Partner Dashboard",  href: "/admin/partner-dashboard",   roles: ["partner"] },
-  { label: "Venue Management",   href: "/portal",                    roles: ["owner","venue_admin"] },
-  { label: "Site Branding",      href: "/admin/settings/branding",   roles: ["owner","venue_admin"] },
-  { label: "Onboarding",         href: "/admin/onboarding",          roles: ["owner"] },
-  { label: "Permissions",        href: "/admin/settings/permissions", roles: ["owner"] },
+  // ── Core ──
+  { label: "Dashboard",        href: "/admin",                     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
+  { label: "Calendar",         href: "/admin/calendar",            roles: ["owner","venue_admin","full_admin"] },
+  { label: "Events",           href: "/admin/events",              roles: ["owner","venue_admin","full_admin"] },
+
+  // ── Business ──
+  { label: "Booking",          href: "/admin/offers",              roles: ["owner","venue_admin"], divider: true },
+  { label: "Settlements",      href: "/admin/settlements",         roles: ["owner","venue_admin"] },
+  { label: "Contracts",        href: "/admin/contracts",           roles: ["owner","venue_admin"] },
+
+  // ── Revenue ──
+  { label: "Sales",            href: "/admin/orders",              roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"], divider: true },
+  { label: "Reports",          href: "/admin/reports",             roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
+
+  // ── Day of Show ──
+  { label: "Scanner",          href: "/admin/scan",                roles: ["owner","venue_admin","full_admin","box_office","door_greeter"], divider: true },
+  { label: "Guest Lists",      href: "/admin/guest-lists",         roles: ["owner","venue_admin","full_admin","artist"] },
+  { label: "Live Pulse",       href: "/admin/live",                roles: ["owner","venue_admin","full_admin"] },
+
+  // ── Growth ──
+  { label: "Marketing",        href: "/admin/marketing",           roles: ["owner","venue_admin","full_admin"], divider: true },
+  { label: "Market Radar",     href: "/admin/market-radar",        roles: ["owner","venue_admin"] },
+  { label: "Auctions",         href: "/admin/auctions",            roles: ["owner","venue_admin","full_admin"] },
+  { label: "Partners",         href: "/admin/sponsors",            roles: ["owner","venue_admin"] },
+  { label: "Agents",           href: "/admin/agents",              roles: ["owner","venue_admin"] },
+
+  // ── Settings ──
+  { label: "Site Branding",    href: "/admin/settings/branding",   roles: ["owner","venue_admin"], divider: true },
+  { label: "Venue Management", href: "/portal",                    roles: ["owner","venue_admin"] },
+  { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner"] },
+  { label: "Onboarding",       href: "/admin/onboarding",          roles: ["owner"] },
+
+  // ── Partner Only ──
+  { label: "Partner Dashboard", href: "/admin/partner-dashboard",  roles: ["partner"] },
 ];
 
 // Map sidebar labels to tab_key used in sidebar_permissions table
@@ -322,14 +336,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="admin-sidebar-nav">
           {visibleItems.map((item) => (
-            <Link
-              key={item.href + item.label}
-              href={item.href}
-              className={`admin-sidebar-link ${pathname === item.href ? "active" : ""}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              {item.label}
-            </Link>
+            <div key={item.href + item.label}>
+              {item.divider && (
+                <div style={{ height: 1, background: "var(--vc-border-subtle)", margin: "8px 0" }} />
+              )}
+              <Link
+                href={item.href}
+                className={`admin-sidebar-link ${pathname === item.href ? "active" : ""}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                {item.label}
+              </Link>
+            </div>
           ))}
         </nav>
       </aside>

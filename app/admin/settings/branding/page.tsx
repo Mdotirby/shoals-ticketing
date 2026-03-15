@@ -458,54 +458,89 @@ function LivePreview({ branding }: { branding: BrandingState }) {
 /*  Main Page                                                          */
 /* ------------------------------------------------------------------ */
 
+function venueToState(v: Record<string, unknown>): BrandingState {
+  return {
+    primary_color: String(v.primary_color || DEFAULTS.primary_color),
+    secondary_color: String(v.secondary_color || DEFAULTS.secondary_color),
+    accent_color: String(v.accent_color || DEFAULTS.accent_color),
+    logo_url: (v.logo_url as string) || null,
+    favicon_url: (v.favicon_url as string) || null,
+    hero_image_url: (v.hero_image_url as string) || null,
+    hero_image_2_url: (v.hero_image_2_url as string) || null,
+    homepage_headline: String(v.homepage_headline || ""),
+    homepage_subheadline: String(v.homepage_subheadline || ""),
+    homepage_cta_text: String(v.homepage_cta_text || DEFAULTS.homepage_cta_text),
+    homepage_cta_url: String(v.homepage_cta_url || DEFAULTS.homepage_cta_url),
+    tagline: String(v.tagline || ""),
+    footer_description: String(v.footer_description || ""),
+    support_email: String(v.support_email || ""),
+    contact_email: String(v.contact_email || v.buyer_email || ""),
+    instagram_url: String(v.instagram_url || ""),
+    facebook_url: String(v.facebook_url || ""),
+  };
+}
+
 export default function BrandingPage() {
   const [venueId, setVenueId] = useState("");
+  const [venues, setVenues] = useState<Array<{ id: string; name: string; slug: string }>>([]);
+  const [isOwner, setIsOwner] = useState(false);
   const [branding, setBranding] = useState<BrandingState>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [allVenueData, setAllVenueData] = useState<Record<string, unknown>[]>([]);
 
-  // Load venue data on mount
+  // Load venues + detect role on mount
   useEffect(() => {
-    const vid = getCookie("venue-id");
-    if (!vid) {
-      setError("No venue selected. Please select a venue first.");
-      setLoading(false);
-      return;
-    }
-    setVenueId(vid);
+    const cookieVenueId = getCookie("venue-id") || "";
+    const cookieRole = getCookie("admin-role") || "";
+    const ownerMode = cookieRole === "owner";
+    setIsOwner(ownerMode);
 
     fetch("/api/venues")
       .then((r) => r.json())
-      .then((venues) => {
-        if (!Array.isArray(venues)) return;
-        const v = venues.find((x: Record<string, string>) => x.id === vid);
-        if (v) {
-          setBranding({
-            primary_color: v.primary_color || DEFAULTS.primary_color,
-            secondary_color: v.secondary_color || DEFAULTS.secondary_color,
-            accent_color: v.accent_color || DEFAULTS.accent_color,
-            logo_url: v.logo_url || null,
-            favicon_url: v.favicon_url || null,
-            hero_image_url: v.hero_image_url || null,
-            hero_image_2_url: v.hero_image_2_url || null,
-            homepage_headline: v.homepage_headline || "",
-            homepage_subheadline: v.homepage_subheadline || "",
-            homepage_cta_text: v.homepage_cta_text || DEFAULTS.homepage_cta_text,
-            homepage_cta_url: v.homepage_cta_url || DEFAULTS.homepage_cta_url,
-            tagline: v.tagline || "",
-            footer_description: v.footer_description || "",
-            support_email: v.support_email || "",
-            contact_email: v.contact_email || v.buyer_email || "",
-            instagram_url: v.instagram_url || "",
-            facebook_url: v.facebook_url || "",
-          });
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+        setAllVenueData(data);
+        setVenues(data.map((v: Record<string, string>) => ({ id: v.id, name: v.name, slug: v.slug })));
+
+        if (ownerMode) {
+          // Owner sees all venues — select first or the one from cookie
+          const target = cookieVenueId
+            ? data.find((v: Record<string, string>) => v.id === cookieVenueId)
+            : data[0];
+          if (target) {
+            setVenueId(target.id as string);
+            setBranding(venueToState(target));
+          }
+        } else {
+          // Venue admin — can only edit their own venue
+          if (!cookieVenueId) {
+            setError("No venue assigned to your account.");
+            return;
+          }
+          const v = data.find((x: Record<string, string>) => x.id === cookieVenueId);
+          if (v) {
+            setVenueId(v.id as string);
+            setBranding(venueToState(v));
+          } else {
+            setError("Could not find your venue.");
+          }
         }
       })
       .catch(() => setError("Failed to load venue data"))
       .finally(() => setLoading(false));
   }, []);
+
+  // When owner switches venue in dropdown
+  const handleVenueChange = (newId: string) => {
+    setVenueId(newId);
+    setSaved(false);
+    setError("");
+    const v = allVenueData.find((x) => (x.id as string) === newId);
+    if (v) setBranding(venueToState(v));
+  };
 
   const handleSave = async () => {
     if (!venueId) return;
@@ -562,19 +597,51 @@ export default function BrandingPage() {
     <div style={{ maxWidth: 900, display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Page Header */}
       <div>
-        <h1
-          style={{
-            fontFamily: "var(--font-bayon), sans-serif",
-            fontSize: "2rem",
-            color: "var(--vc-gold)",
-            margin: 0,
-            lineHeight: 1.1,
-          }}
-        >
-          Site Branding
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <h1
+            style={{
+              fontFamily: "var(--font-bayon), sans-serif",
+              fontSize: "2rem",
+              color: "var(--vc-gold)",
+              margin: 0,
+              lineHeight: 1.1,
+            }}
+          >
+            Site Branding
+          </h1>
+          {isOwner && venues.length > 1 && (
+            <select
+              value={venueId}
+              onChange={(e) => handleVenueChange(e.target.value)}
+              style={{
+                background: "var(--vc-surface)",
+                border: "1px solid var(--vc-border)",
+                borderRadius: "var(--vc-radius-sm)",
+                color: "var(--vc-text)",
+                padding: "8px 32px 8px 12px",
+                fontSize: 14,
+                fontFamily: "var(--font-urbanist), sans-serif",
+                cursor: "pointer",
+                appearance: "none",
+                WebkitAppearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 10px center",
+                outline: "none",
+              }}
+            >
+              {venues.map((v) => (
+                <option key={v.id} value={v.id} style={{ background: "#1a1a2e" }}>
+                  {v.name} ({v.slug})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <p style={{ color: "var(--vc-text-secondary)", fontSize: 14, margin: "6px 0 0" }}>
-          Customize how your public website looks. Changes update your site immediately after saving.
+          {isOwner
+            ? "Select a venue and customize its public website. Changes update immediately after saving."
+            : "Customize how your public website looks. Changes update your site immediately after saving."}
         </p>
       </div>
 
