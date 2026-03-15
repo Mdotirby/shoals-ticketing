@@ -4,33 +4,42 @@ import { createServerClient } from "@supabase/ssr";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 /**
- * Extract both operatorSlug and venueSlug from the incoming hostname.
+ * Extract operatorSlug and venueSlug from the incoming hostname.
  *
- * Examples:
- *   venuecore.live           → { operatorSlug: "venuecore", venueSlug: null }
- *   west72ent.com            → { operatorSlug: "west72",    venueSlug: null }
- *   shoals.venuecore.live    → { operatorSlug: "venuecore", venueSlug: "shoals" }
- *   shoals.west72ent.com     → { operatorSlug: "west72",    venueSlug: "shoals" }
- *   localhost / vercel.app   → { operatorSlug: "venuecore", venueSlug: null }
+ * Priority:
+ *   1. Known operator root domains (venuecore.live, west72ent.com)
+ *   2. Subdomains of known operators (shoals.venuecore.live)
+ *   3. localhost / vercel.app (defaults)
+ *   4. Unknown domain → returns { unknown: true } for custom domain lookup
  */
-function extractSlugs(host: string): { operatorSlug: string; venueSlug: string | null } {
+function extractSlugs(host: string): {
+  operatorSlug: string;
+  venueSlug: string | null;
+  isCustomDomain: boolean;
+  customHostname: string | null;
+} {
   const hostname = host.split(":")[0];
 
   // Walk each known operator root domain
   for (const [rootDomain, operatorSlug] of Object.entries(OPERATOR_DOMAIN_MAP)) {
     if (hostname === rootDomain || hostname === `www.${rootDomain}`) {
-      return { operatorSlug, venueSlug: null };
+      return { operatorSlug, venueSlug: null, isCustomDomain: false, customHostname: null };
     }
     if (hostname.endsWith(`.${rootDomain}`)) {
       const sub = hostname.replace(`.${rootDomain}`, "");
       if (sub && sub !== "www") {
-        return { operatorSlug, venueSlug: sub };
+        return { operatorSlug, venueSlug: sub, isCustomDomain: false, customHostname: null };
       }
     }
   }
 
-  // localhost / vercel preview — default to venuecore operator, no venue subdomain
-  return { operatorSlug: "venuecore", venueSlug: null };
+  // localhost / vercel preview
+  if (hostname === "localhost" || hostname.endsWith(".vercel.app")) {
+    return { operatorSlug: "venuecore", venueSlug: null, isCustomDomain: false, customHostname: null };
+  }
+
+  // Unknown domain — could be a venue's custom domain
+  return { operatorSlug: "venuecore", venueSlug: null, isCustomDomain: true, customHostname: hostname };
 }
 
 // Keep the old helper around so any existing code that imports it still compiles
@@ -41,12 +50,32 @@ function extractVenueSlug(host: string): string | null {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
-  const { operatorSlug, venueSlug } = extractSlugs(host);
+  let { operatorSlug, venueSlug, isCustomDomain, customHostname } = extractSlugs(host);
 
   // Skip middleware for static files and API routes
   const isApiRoute = pathname.startsWith("/api/");
   if (isApiRoute) {
     return NextResponse.next();
+  }
+
+  // ── Custom domain resolution ──
+  // If we hit an unrecognized domain, look it up in the venues table
+  if (isCustomDomain && customHostname) {
+    try {
+      const resolveUrl = new URL("/api/resolve-domain", request.url);
+      resolveUrl.searchParams.set("domain", customHostname);
+      const res = await fetch(resolveUrl.toString());
+      if (res.ok) {
+        const data = await res.json();
+        if (data.slug) {
+          venueSlug = data.slug;
+          // Custom domain venues act as their own "operator" for branding purposes
+          isCustomDomain = false;
+        }
+      }
+    } catch {
+      // If resolution fails, continue with defaults
+    }
   }
 
   // Create response with venue slug cookie
@@ -83,7 +112,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Set venueSlug cookie — subdomain or "default"
+  // Set venueSlug cookie — subdomain, custom domain slug, or "default"
   response.cookies.set("venueSlug", venueSlug || "default", {
     path: "/",
     sameSite: "lax",

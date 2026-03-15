@@ -38,6 +38,9 @@ export type Venue = {
   facebook_url?: string | null;
   website_url?: string | null;
 
+  /* ── Custom Domain ── */
+  custom_domain?: string | null;
+
   /* ── Homepage Content ── */
   homepage_headline?: string | null;
   homepage_subheadline?: string | null;

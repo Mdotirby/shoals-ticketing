@@ -24,3 +24,7 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS about_headline TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS about_description TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS about_image_url TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS about_features JSONB DEFAULT '[]';
+
+-- Custom domain support (e.g. "www.venueexample.com")
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS custom_domain TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_venues_custom_domain ON venues(custom_domain) WHERE custom_domain IS NOT NULL;
