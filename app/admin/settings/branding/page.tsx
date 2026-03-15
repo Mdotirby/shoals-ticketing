@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getCookie } from "@/lib/cookies";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -493,14 +494,39 @@ export default function BrandingPage() {
 
   // Load venues + detect role on mount
   useEffect(() => {
-    const cookieVenueId = getCookie("venue-id") || "";
-    const cookieRole = getCookie("admin-role") || "";
-    const ownerMode = cookieRole === "owner";
-    setIsOwner(ownerMode);
+    async function init() {
+      const cookieVenueId = getCookie("venue-id") || "";
 
-    fetch("/api/venues")
-      .then((r) => r.json())
-      .then((data) => {
+      // Detect user role from Supabase auth + admin_users table
+      let userRole = getCookie("admin-role") || "";
+      if (!userRole) {
+        try {
+          const supabase = getSupabaseBrowser();
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+            const session = await supabase.auth.getSession();
+            const token = session.data.session?.access_token;
+            if (token) {
+              const authRes = await fetch("/api/admin/auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ access_token: token }),
+              });
+              if (authRes.ok) {
+                const authBody = await authRes.json();
+                userRole = authBody.role || "";
+              }
+            }
+          }
+        } catch { /* fall through */ }
+      }
+
+      const ownerMode = userRole === "owner";
+      setIsOwner(ownerMode);
+
+      try {
+        const res = await fetch("/api/venues");
+        const data = await res.json();
         if (!Array.isArray(data)) return;
         setAllVenueData(data);
         setVenues(data.map((v: Record<string, string>) => ({ id: v.id, name: v.name, slug: v.slug })));
@@ -528,9 +554,14 @@ export default function BrandingPage() {
             setError("Could not find your venue.");
           }
         }
-      })
-      .catch(() => setError("Failed to load venue data"))
-      .finally(() => setLoading(false));
+      } catch {
+        setError("Failed to load venue data");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    init();
   }, []);
 
   // When owner switches venue in dropdown
