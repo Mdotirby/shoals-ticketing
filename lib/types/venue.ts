@@ -24,31 +24,31 @@ export type Venue = {
   /* ── Branding ── */
   primary_color: string;
   secondary_color: string;
-  accent_color: string;
-  favicon_url: string | null;
-  hero_image_url: string | null;
-  hero_image_2_url: string | null;
+  accent_color?: string;
+  favicon_url?: string | null;
+  hero_image_url?: string | null;
+  hero_image_2_url?: string | null;
 
   /* ── Contact & Social ── */
-  tagline: string | null;
-  footer_description: string | null;
-  support_email: string | null;
-  contact_email: string | null;
-  instagram_url: string | null;
-  facebook_url: string | null;
-  website_url: string | null;
+  tagline?: string | null;
+  footer_description?: string | null;
+  support_email?: string | null;
+  contact_email?: string | null;
+  instagram_url?: string | null;
+  facebook_url?: string | null;
+  website_url?: string | null;
 
   /* ── Homepage Content ── */
-  homepage_headline: string | null;
-  homepage_subheadline: string | null;
-  homepage_cta_text: string | null;
-  homepage_cta_url: string | null;
+  homepage_headline?: string | null;
+  homepage_subheadline?: string | null;
+  homepage_cta_text?: string | null;
+  homepage_cta_url?: string | null;
 
   /* ── About Page Content ── */
-  about_headline: string | null;
-  about_description: string | null;
-  about_image_url: string | null;
-  about_features: Array<{
+  about_headline?: string | null;
+  about_description?: string | null;
+  about_image_url?: string | null;
+  about_features?: Array<{
     title: string;
     description: string;
     icon: string;

@@ -550,15 +550,12 @@ export default function AdminOfferDetailPage() {
                   buyer_phone: String(form.venue_phone || "") || null,
                   buyer_email: null,
                   promoter_address: null,
-                  lessor_name: "",
-                  lessor_company: "",
                   ticketing_fee: null,
                   facility_fee: null,
                   tax_rate: null,
                   venue_rebate: null,
                   primary_color: "#d0c290",
-                  secondary_color: "#0b0d1d",
-                  accent_color: "#d0c290",
+                  secondary_color: "#111827",
                   created_at: new Date().toISOString(),
                 };
                 // Resolve venue_id: offer's venue_id, cookie, or fallback venue's id
@@ -716,7 +713,7 @@ export default function AdminOfferDetailPage() {
                       buyer_name: null, contract_signatory: null, buyer_phone: String(form.venue_phone || "") || null,
                       buyer_email: null, promoter_address: null,
                       ticketing_fee: null, facility_fee: null, tax_rate: null, venue_rebate: null,
-                      primary_color: "#d0c290", secondary_color: "#0b0d1d", accent_color: "#d0c290",
+                      primary_color: "#d0c290", secondary_color: "#111827",
                       created_at: new Date().toISOString(),
                     };
                     await exportContractPDF(contract, offer, dlVenue);
