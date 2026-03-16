@@ -222,7 +222,7 @@ export default function SocialPage() {
           {fb && (
             <div style={{ marginBottom: 32 }}>
               <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
-                <span style={{ marginRight: 8 }}>📘</span>Facebook
+                <span style={{ marginRight: 8 }}></span>Facebook
               </h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
                 <MiniCard label="Impressions" value={fb.impressions.toLocaleString()} />
@@ -238,7 +238,7 @@ export default function SocialPage() {
           {ig && (ig.reach > 0 || ig.impressions > 0) && (
             <div style={{ marginBottom: 32 }}>
               <h2 style={{ color: "#fff", fontSize: 18, fontWeight: 600, marginBottom: 12 }}>
-                <span style={{ marginRight: 8 }}>📸</span>Instagram
+                <span style={{ marginRight: 8 }}></span>Instagram
               </h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
                 <MiniCard label="Reach" value={ig.reach.toLocaleString()} />

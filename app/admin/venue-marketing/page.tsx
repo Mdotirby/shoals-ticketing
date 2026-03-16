@@ -19,9 +19,9 @@ export default function VenueMarketingPage() {
   }
 
   const sections = [
-    { key: "templates", label: "Email Templates", href: "/admin/venue-marketing/templates", desc: "Create and manage reusable email templates with a rich editor", icon: "✉️" },
-    { key: "campaigns", label: "Campaigns", href: "/admin/venue-marketing/campaigns", desc: "Send targeted emails to event buyers and FWB subscribers", icon: "📬" },
-    { key: "automations", label: "Automations", href: "/admin/venue-marketing/automations", desc: "Schedule pre/post-show emails automatically", icon: "⚡" },
+    { key: "templates", label: "Email Templates", href: "/admin/venue-marketing/templates", desc: "Create and manage reusable email templates with a rich editor", icon: "" },
+    { key: "campaigns", label: "Campaigns", href: "/admin/venue-marketing/campaigns", desc: "Send targeted emails to event buyers and FWB subscribers", icon: "" },
+    { key: "automations", label: "Automations", href: "/admin/venue-marketing/automations", desc: "Schedule pre/post-show emails automatically", icon: "" },
   ];
 
   return (

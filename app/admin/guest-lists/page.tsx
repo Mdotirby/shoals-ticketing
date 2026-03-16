@@ -754,7 +754,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
                 disabled={totalGuests === 0}
                 style={{ opacity: totalGuests === 0 ? 0.4 : 1 }}
               >
-                🖨 Print Guest List
+                Print Guest List
               </button>
             </div>
           )}

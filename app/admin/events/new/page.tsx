@@ -899,7 +899,7 @@ export default function AdminCreateEventPage() {
                   <span className="admin-image-uploading">Uploading…</span>
                 ) : (
                   <>
-                    <span className="admin-image-dropzone-icon">📷</span>
+                    <span className="admin-image-dropzone-icon"></span>
                     <span className="admin-image-dropzone-text">
                       Click to upload an image
                     </span>

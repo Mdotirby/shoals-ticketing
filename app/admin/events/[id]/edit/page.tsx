@@ -1152,7 +1152,7 @@ export default function AdminEditEventPage() {
             marginTop: 8,
           }}>
             <span style={{ color: "#06b6d4", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              🔗 Trackable Links
+              Trackable Links
             </span>
 
             {/* Existing trackable links */}
@@ -1474,7 +1474,7 @@ export default function AdminEditEventPage() {
                   <span className="admin-image-uploading">Uploading…</span>
                 ) : (
                   <>
-                    <span className="admin-image-dropzone-icon">📷</span>
+                    <span className="admin-image-dropzone-icon"></span>
                     <span className="admin-image-dropzone-text">
                       Click to upload an image
                     </span>

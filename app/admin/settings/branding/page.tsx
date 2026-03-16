@@ -625,7 +625,7 @@ export default function BrandingPage() {
   }
 
   return (
-    <div style={{ maxWidth: 900, display: "flex", flexDirection: "column", gap: 32 }}>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Page Header */}
       <div>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>

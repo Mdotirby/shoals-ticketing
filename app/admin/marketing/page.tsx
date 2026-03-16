@@ -108,67 +108,56 @@ function fmtNumber(n: number) {
 
 const marketingTools = [
   {
-    emoji: "📊",
     title: "Email KPIs",
     href: "/admin/marketing/email-kpis",
     desc: "Track open rates, click rates, and delivery",
   },
   {
-    emoji: "🏆",
     title: "FWB Loyalty Hub",
     href: "/admin/marketing/fwb",
     desc: "Manage loyalty program, tiers, and rewards",
   },
   {
-    emoji: "📧",
     title: "Newsletter",
     href: "/admin/marketing/newsletters",
     desc: "Create and send email newsletters",
   },
   {
-    emoji: "🎨",
     title: "Email Templates",
     href: "/admin/marketing/templates",
     desc: "Design email templates",
   },
   {
-    emoji: "📢",
     title: "Campaigns",
     href: "/admin/marketing/campaigns",
     desc: "Manage marketing campaigns",
   },
   {
-    emoji: "⚡",
     title: "Automations",
     href: "/admin/marketing/automations",
     desc: "Set up automated email flows",
   },
   {
-    emoji: "💰",
     title: "Ad Spend",
     href: "/admin/marketing/ad-spend",
     desc: "Track Meta ad spend and ROAS",
   },
   {
-    emoji: "📱",
     title: "Social Media",
     href: "/admin/marketing/social",
     desc: "Monitor social engagement metrics",
   },
   {
-    emoji: "👥",
     title: "Demographics",
     href: "/admin/marketing/demographics",
     desc: "Audience insights and segments",
   },
   {
-    emoji: "📈",
     title: "LFV Analytics",
     href: "/admin/marketing/lfv",
     desc: "Lifetime fan value analysis",
   },
   {
-    emoji: "👤",
     title: "FWB Import",
     href: "/admin/marketing/fwb-import",
     desc: "Import newsletter subscribers to FWB",
@@ -323,7 +312,7 @@ export default function MarketingHubPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center min-h-[80px] sm:min-h-0">
-                      <span className="text-2xl sm:text-4xl opacity-30">🎵</span>
+                      <span className="text-2xl sm:text-4xl opacity-30">♪</span>
                     </div>
                   )}
                   {/* Status badge */}
@@ -429,7 +418,6 @@ export default function MarketingHubPage() {
               href={tool.href}
               className="bg-gray-800 rounded-xl border border-gray-700 p-5 flex items-start gap-4 transition-all hover:border-gray-500 hover:bg-gray-800/80 group"
             >
-              <span className="text-2xl flex-shrink-0 mt-0.5">{tool.emoji}</span>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-sm mb-1 group-hover:text-white">
                   {tool.title}

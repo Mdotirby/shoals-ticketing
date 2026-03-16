@@ -80,7 +80,7 @@ export default function NewslettersPage() {
         >
           ← Back to Marketing Hub
         </Link>
-        <h1 className="text-2xl font-bold mb-2">📧 Newsletter Management</h1>
+        <h1 className="text-2xl font-bold mb-2">Newsletter Management</h1>
         <p className="text-gray-400 mb-6 text-sm">
           Manage your newsletter subscribers and send campaigns via Resend.
         </p>
@@ -114,7 +114,7 @@ export default function NewslettersPage() {
               disabled={subscribers.length === 0}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors text-sm"
             >
-              📥 Export CSV
+              Export CSV
             </button>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function NewslettersPage() {
 
         {/* Send Newsletter Section */}
         <div className="bg-gray-800 rounded-lg p-6">
-          <h2 className="font-semibold mb-2">📤 Send Newsletter</h2>
+          <h2 className="font-semibold mb-2">Send Newsletter</h2>
           <p className="text-gray-400 text-sm mb-3">
             Newsletters are sent via{' '}
             <a

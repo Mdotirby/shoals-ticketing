@@ -162,7 +162,7 @@ export default function EventSalesDetailPage() {
         <div className="admin-page-header-actions">
           {orders.length > 0 && (
             <button className="admin-header-btn" onClick={() => setShowPreview(true)}>
-              🖨 Print Orders Report
+              Print Orders Report
             </button>
           )}
           <Link href="/admin/orders" className="admin-sponsor-edit-btn">← Back to Sales</Link>

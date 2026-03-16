@@ -23,7 +23,7 @@ const REPORT_CARDS: ReportCardConfig[] = [
     title: "Ticket Audit Report",
     description:
       "Per-event ticket inventory and revenue breakdown by tier. Includes capacity, percent of house, fees, and tax. No customer data.",
-    icon: "🎟️",
+    icon: "",
     filters: ["event", "venue", "dateRange"],
     hasPDF: true,
   },
@@ -32,7 +32,7 @@ const REPORT_CARDS: ReportCardConfig[] = [
     title: "Monthly Revenue Report",
     description:
       "Cross-event revenue summary with profit split calculations, ticketing rebates, and facility fee splits per the management agreement.",
-    icon: "📊",
+    icon: "",
     filters: ["venue", "dateRange"],
     hasPDF: false,
   },
@@ -41,7 +41,7 @@ const REPORT_CARDS: ReportCardConfig[] = [
     title: "Expense Report",
     description:
       "Operational expenses grouped by event or category. Includes settlement expenses and vendor costs.",
-    icon: "💰",
+    icon: "",
     filters: ["event", "venue", "dateRange"],
     hasPDF: false,
   },
@@ -50,7 +50,7 @@ const REPORT_CARDS: ReportCardConfig[] = [
     title: "Orders Report",
     description:
       "Per-event order detail with customer data, quantities, and revenue. Full order history export.",
-    icon: "🛒",
+    icon: "",
     filters: ["event", "venue", "dateRange"],
     hasPDF: false,
   },

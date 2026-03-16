@@ -233,7 +233,7 @@ export default function AdminScanPage() {
         <div className="scan-controls" style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: "center" }}>
           {!scanning ? (
             <button className="admin-form-submit" onClick={startScanner} style={{ minWidth: 160 }}>
-              📷 Start Camera
+              Start Camera
             </button>
           ) : (
             <button className="portal-signout-btn" onClick={stopScanner} style={{ minWidth: 160 }}>

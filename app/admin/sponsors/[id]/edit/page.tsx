@@ -120,9 +120,9 @@ export default function AdminEditSponsorPage() {
               value={form.tier}
               onChange={handleChange}
             >
-              <option value="title">🏆 Title Partner</option>
-              <option value="presenting">⭐ Presenting Partner</option>
-              <option value="supporting">🤝 Supporting Partner</option>
+              <option value="title">Title Partner</option>
+              <option value="presenting">Presenting Partner</option>
+              <option value="supporting">Supporting Partner</option>
             </select>
           </label>
 

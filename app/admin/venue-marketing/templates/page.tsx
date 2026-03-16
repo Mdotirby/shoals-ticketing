@@ -176,7 +176,7 @@ export default function TemplatesPage() {
                 }}
                 style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(208,194,144,0.8)", cursor: "pointer" }}
               >
-                🔗 Link
+                Link
               </button>
               <button
                 type="button"

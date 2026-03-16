@@ -230,7 +230,7 @@ export default function FWBImportPage() {
           ← Back to Marketing Hub
         </Link>
         <h1 className="text-2xl font-bold mb-2">
-          👤 Import Newsletter Subscribers to FWB
+          Import Newsletter Subscribers to FWB
         </h1>
         <p className="text-gray-400 mb-6 text-sm">
           Bring your newsletter subscribers into the Friends with Benefits loyalty program.

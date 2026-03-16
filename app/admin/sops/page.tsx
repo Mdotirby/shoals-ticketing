@@ -31,7 +31,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
     title: "New Venue Onboarding",
     category: "Operations",
     description: "Step-by-step process for onboarding a new venue into the VenueCore platform.",
-    icon: "🏟️",
+    icon: "",
     sections: [
       {
         heading: "Pre-Onboarding Preparation",
@@ -62,7 +62,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
     title: "Concert Event Creation — Offer to Live",
     category: "Events",
     description: "Complete workflow from creating an artist offer to having the event live on the homepage.",
-    icon: "🎤",
+    icon: "",
     sections: [
       {
         heading: "1. Create the Offer",
@@ -99,7 +99,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
     title: "Artist Setup & Event Assignment",
     category: "Artists",
     description: "How to create an artist account and assign them to events with proper portal access.",
-    icon: "🎸",
+    icon: "",
     sections: [
       {
         heading: "Create Artist Account",
@@ -121,7 +121,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
     title: "Agent Setup & Event Routing",
     category: "Agents",
     description: "How to set up agents, assign artists, and route booking opportunities.",
-    icon: "📋",
+    icon: "",
     sections: [
       {
         heading: "Create Agent Record",
@@ -143,7 +143,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
     title: "Private Events — Full Workflow",
     category: "Private Events",
     description: "Complete process for private event management: client onboarding, contracts, billing, and policies.",
-    icon: "🎩",
+    icon: "",
     sections: [
       {
         heading: "1. Client Inquiry & Onboarding",
@@ -419,7 +419,7 @@ export default function SOPsPage() {
   const categories = [...new Set(SOP_TEMPLATES.map((t) => t.category))];
 
   return (
-    <div style={{ maxWidth: 1000, display: "flex", flexDirection: "column", gap: 32 }}>
+    <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
       <div>
         <h1 style={{ fontFamily: "var(--font-bayon), sans-serif", fontSize: "2rem", color: "var(--vc-gold)", margin: 0, lineHeight: 1.1 }}>

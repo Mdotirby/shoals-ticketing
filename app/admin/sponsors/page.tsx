@@ -5,9 +5,9 @@ import Link from "next/link";
 import { Sponsor } from "@/lib/types/sponsor";
 
 const TIER_LABELS: Record<string, string> = {
-  title: "🏆 Title",
-  presenting: "⭐ Presenting",
-  supporting: "🤝 Supporting",
+  title: "Title",
+  presenting: "Presenting",
+  supporting: "Supporting",
 };
 
 export default function AdminSponsorsPage() {
