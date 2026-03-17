@@ -26,7 +26,7 @@ export async function POST(
     return NextResponse.json({ success: true, count: 0 });
   }
 
-  // Insert all objects
+  // Insert all objects — positions/dimensions in feet
   const rows = objects.map((obj: Record<string, unknown>) => ({
     id: obj.id,
     layout_id: layoutId,
@@ -35,6 +35,9 @@ export async function POST(
     y: obj.y,
     width: obj.width,
     height: obj.height,
+    diameter_inches: obj.diameter_inches || 0,
+    width_ft: obj.width || 0,
+    height_ft: obj.height || 0,
     rotation: obj.rotation || 0,
     label: obj.label || "",
     capacity: obj.capacity || 0,

@@ -1,20 +1,34 @@
 /**
  * SeatGenerator — auto-generate seat positions for tables and rows.
- * Used by the seating editor canvas to render individual seats.
+ * All positions are in FEET (real-world units).
+ * The rendering layer converts feet → pixels.
  */
 
-import { SeatPosition, LayoutObject } from "@/lib/types/layout";
+import { SeatPosition, LayoutObject, inchesToFeet } from "@/lib/types/layout";
+
+/** Seat circle radius in feet (≈18 inch chair) */
+export const SEAT_RADIUS_FT = 0.75;
+
+/** Gap between table edge and seat center in feet */
+const SEAT_GAP_FT = 1.2;
 
 /**
  * Generate seat positions around a circular table.
- * Seats are distributed evenly in a circle around the table center.
+ * Uses diameter_inches if set, otherwise falls back to width.
  */
 export function generateTableSeats(obj: LayoutObject): SeatPosition[] {
   const seats: SeatPosition[] = [];
   const count = obj.seat_count || 8;
+
+  // Table radius in feet
+  const tableDiameterFt = obj.diameter_inches > 0
+    ? inchesToFeet(obj.diameter_inches)
+    : Math.min(obj.width, obj.height);
+  const tableRadius = tableDiameterFt / 2;
+
   const centerX = obj.x + obj.width / 2;
   const centerY = obj.y + obj.height / 2;
-  const orbitRadius = Math.min(obj.width, obj.height) / 2 + 12;
+  const orbitRadius = tableRadius + SEAT_GAP_FT;
 
   for (let i = 0; i < count; i++) {
     const angle = (2 * Math.PI * i) / count - Math.PI / 2;
@@ -31,7 +45,7 @@ export function generateTableSeats(obj: LayoutObject): SeatPosition[] {
 
 /**
  * Generate seat positions in a straight row.
- * Seats are distributed evenly along the width of the row.
+ * Standard chair width is ~20 inches (1.67 ft).
  */
 export function generateRowSeats(obj: LayoutObject): SeatPosition[] {
   const seats: SeatPosition[] = [];
@@ -53,7 +67,7 @@ export function generateRowSeats(obj: LayoutObject): SeatPosition[] {
 
 /**
  * Generate seat positions for any layout object.
- * Returns empty array for objects that don't have individual seats (GA, stage, zones).
+ * Returns empty array for objects that don't have individual seats.
  */
 export function generateSeats(obj: LayoutObject): SeatPosition[] {
   switch (obj.type) {

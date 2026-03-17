@@ -30,13 +30,18 @@ export async function GET(request: Request) {
 /** POST /api/layouts — create a new layout */
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, venue_id } = body;
+  const { name, venue_id, room_width_ft, room_height_ft, scale_pixels_per_foot } = body;
 
   const { data, error } = await admin
     .from("venue_layouts")
     .insert({
       name: name || "Untitled Layout",
       venue_id: venue_id || null,
+      room_width_ft: room_width_ft || 100,
+      room_height_ft: room_height_ft || 60,
+      scale_pixels_per_foot: scale_pixels_per_foot || 10,
+      canvas_width: (room_width_ft || 100) * (scale_pixels_per_foot || 10),
+      canvas_height: (room_height_ft || 60) * (scale_pixels_per_foot || 10),
     })
     .select()
     .single();

@@ -2,14 +2,24 @@
 
 export type LayoutObjectType = "table" | "row" | "ga_section" | "stage" | "custom_zone";
 
+/**
+ * LayoutObject — all position/dimension values stored in FEET.
+ * Tables additionally store diameter_inches for user convenience.
+ */
 export type LayoutObject = {
   id: string;
   layout_id: string;
   type: LayoutObjectType;
+  /** Position X in feet from top-left of room */
   x: number;
+  /** Position Y in feet from top-left of room */
   y: number;
+  /** Width in feet */
   width: number;
+  /** Height in feet */
   height: number;
+  /** Table diameter in inches (tables only, 0 for others) */
+  diameter_inches: number;
   rotation: number;
   label: string;
   capacity: number;
@@ -21,23 +31,38 @@ export type LayoutObject = {
   updated_at?: string;
 };
 
+/**
+ * VenueLayout — the overall layout with room dimensions in feet.
+ */
 export type VenueLayout = {
   id: string;
   venue_id: string | null;
   name: string;
   background_image_url: string | null;
+  /** Room width in feet */
+  room_width_ft: number;
+  /** Room height in feet */
+  room_height_ft: number;
+  /** Pixels per foot for rendering */
+  scale_pixels_per_foot: number;
   canvas_width: number;
   canvas_height: number;
   created_at: string;
   updated_at: string;
 };
 
-/** Generated seat position for rendering */
+/** Generated seat position for rendering (in feet) */
 export type SeatPosition = {
   x: number;
   y: number;
   label: string;
   seatIndex: number;
+};
+
+/** Snap guide line for alignment rendering */
+export type SnapGuide = {
+  type: "horizontal" | "vertical";
+  position: number; // in feet
 };
 
 /** Color palette for price tiers */
@@ -64,11 +89,15 @@ export const PRICE_TIERS = [
   "pit",
 ];
 
-/** Default properties for each object type */
+/** Default pixels per foot */
+export const DEFAULT_PPF = 10;
+
+/** Default properties for each object type — dimensions in FEET */
 export const OBJECT_DEFAULTS: Record<LayoutObjectType, Partial<LayoutObject>> = {
   table: {
-    width: 100,
-    height: 100,
+    width: 5,       // 5 ft (60 inches)
+    height: 5,
+    diameter_inches: 60,
     seat_count: 8,
     capacity: 8,
     label: "Table",
@@ -76,8 +105,9 @@ export const OBJECT_DEFAULTS: Record<LayoutObjectType, Partial<LayoutObject>> = 
     color: "#6366f1",
   },
   row: {
-    width: 300,
-    height: 40,
+    width: 20,      // 20 ft row
+    height: 3,
+    diameter_inches: 0,
     seat_count: 10,
     capacity: 10,
     label: "Row A",
@@ -85,8 +115,9 @@ export const OBJECT_DEFAULTS: Record<LayoutObjectType, Partial<LayoutObject>> = 
     color: "#6366f1",
   },
   ga_section: {
-    width: 200,
-    height: 150,
+    width: 20,
+    height: 15,
+    diameter_inches: 0,
     seat_count: 0,
     capacity: 100,
     label: "General Admission",
@@ -94,8 +125,9 @@ export const OBJECT_DEFAULTS: Record<LayoutObjectType, Partial<LayoutObject>> = 
     color: "#10b981",
   },
   stage: {
-    width: 300,
-    height: 100,
+    width: 30,
+    height: 10,
+    diameter_inches: 0,
     seat_count: 0,
     capacity: 0,
     label: "Stage",
@@ -103,8 +135,9 @@ export const OBJECT_DEFAULTS: Record<LayoutObjectType, Partial<LayoutObject>> = 
     color: "#71717a",
   },
   custom_zone: {
-    width: 150,
-    height: 100,
+    width: 15,
+    height: 10,
+    diameter_inches: 0,
     seat_count: 0,
     capacity: 0,
     label: "Zone",
@@ -121,3 +154,13 @@ export const LAYOUT_TOOLS: { type: LayoutObjectType; label: string; icon: string
   { type: "stage", label: "Stage", icon: "▭", description: "Stage or performance area" },
   { type: "custom_zone", label: "Custom Zone", icon: "◇", description: "Custom labeled area" },
 ];
+
+/** Convert inches to feet */
+export function inchesToFeet(inches: number): number {
+  return inches / 12;
+}
+
+/** Convert feet to inches */
+export function feetToInches(feet: number): number {
+  return feet * 12;
+}

@@ -45,6 +45,9 @@ export async function PUT(
   if (body.background_image_url !== undefined) updates.background_image_url = body.background_image_url;
   if (body.canvas_width !== undefined) updates.canvas_width = body.canvas_width;
   if (body.canvas_height !== undefined) updates.canvas_height = body.canvas_height;
+  if (body.room_width_ft !== undefined) updates.room_width_ft = body.room_width_ft;
+  if (body.room_height_ft !== undefined) updates.room_height_ft = body.room_height_ft;
+  if (body.scale_pixels_per_foot !== undefined) updates.scale_pixels_per_foot = body.scale_pixels_per_foot;
 
   const { data, error } = await admin
     .from("venue_layouts")
