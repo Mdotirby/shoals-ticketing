@@ -16,7 +16,6 @@ type SeatData = {
 type RowData = {
   id: string;
   row_label: string;
-  seat_count: number;
   seats: SeatData[];
 };
 
@@ -25,7 +24,6 @@ type SectionData = {
   section_name: string;
   color: string;
   price_tier: number;
-  layout_type?: string;
   rows: RowData[];
 };
 

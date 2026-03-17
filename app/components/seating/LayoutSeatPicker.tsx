@@ -15,7 +15,6 @@ type RowData = {
   id: string;
   row_label: string;
   seats: SeatData[];
-  [key: string]: unknown;
 };
 
 type SectionData = {
@@ -24,7 +23,6 @@ type SectionData = {
   color: string;
   price_tier: number;
   rows: RowData[];
-  [key: string]: unknown;
 };
 
 type LayoutObjectData = {
