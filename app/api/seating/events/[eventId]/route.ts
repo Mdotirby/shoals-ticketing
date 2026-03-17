@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 
 /**
  * GET /api/seating/events/[eventId]
- * Returns the seating map for an event with all sections, rows, and seat statuses.
+ * Returns the seating map for an event.
+ * Detects if chart was built from a layout and returns layout data for rendering.
  */
 export async function GET(
   _request: Request,
@@ -33,7 +34,7 @@ export async function GET(
     );
   }
 
-  // Fetch the full chart
+  // Fetch the chart
   const { data: chart } = await admin
     .from("seating_charts")
     .select("*")
@@ -46,6 +47,10 @@ export async function GET(
       { status: 200 }
     );
   }
+
+  // Check if this chart was built from a layout
+  const chartData = (chart.chart_data || {}) as Record<string, unknown>;
+  const layoutId = chartData.layout_id as string | undefined;
 
   // Fetch sections
   const { data: sections } = await admin
@@ -67,7 +72,7 @@ export async function GET(
     ? await admin.from("seating_seats").select("*").in("row_id", rowIds).order("seat_number")
     : { data: [] };
 
-  // Nest data
+  // Nest data: rows with seats
   const rowMap = new Map<string, Record<string, unknown>>();
   for (const r of rows || []) {
     rowMap.set(r.id, { ...r, seats: [] });
@@ -76,7 +81,6 @@ export async function GET(
     const row = rowMap.get(seat.row_id) as { seats: unknown[] } | undefined;
     if (row) row.seats.push(seat);
   }
-  // Sort seats numerically within each row (seat_number is TEXT, so default order is alphabetical)
   for (const row of rowMap.values()) {
     (row as { seats: Array<{ seat_number: string }> }).seats.sort(
       (a, b) => parseInt(a.seat_number) - parseInt(b.seat_number)
@@ -90,9 +94,35 @@ export async function GET(
     ),
   }));
 
+  // If layout-based chart, also return layout data
+  if (layoutId) {
+    const { data: layout } = await admin
+      .from("venue_layouts")
+      .select("*")
+      .eq("id", layoutId)
+      .single();
+
+    const { data: layoutObjects } = await admin
+      .from("layout_objects")
+      .select("*")
+      .eq("layout_id", layoutId)
+      .order("created_at");
+
+    return NextResponse.json({
+      reserved_seating_enabled: true,
+      event_seating_map: map,
+      type: "layout",
+      chart: { ...chart, sections: enrichedSections },
+      layout: layout || null,
+      layout_objects: layoutObjects || [],
+    });
+  }
+
+  // Classic chart response
   return NextResponse.json({
     reserved_seating_enabled: true,
     event_seating_map: map,
+    type: "classic",
     chart: { ...chart, sections: enrichedSections },
   });
 }
