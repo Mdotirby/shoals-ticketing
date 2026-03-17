@@ -224,6 +224,25 @@ export default function AdminSeatingPage() {
                     Open Editor
                   </button>
                   <button
+                    onClick={async () => {
+                      if (!confirm("Create a seating chart from this layout? This will make it available for event assignment.")) return;
+                      try {
+                        const res = await fetch(`/api/layouts/${layout.id}/assign-chart`, { method: "POST" });
+                        const data = await res.json();
+                        if (data.error) { alert(data.error); return; }
+                        alert(`Chart "${data.chart_name}" created with ${data.sections_created} sections! Switch to Classic Charts tab to see it.`);
+                        loadCharts();
+                      } catch { alert("Failed to create chart"); }
+                    }}
+                    style={{
+                      padding: "6px 14px", borderRadius: 6,
+                      background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)",
+                      color: "#4ade80", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                    }}
+                  >
+                    Assign to Chart
+                  </button>
+                  <button
                     onClick={() => handleDeleteLayout(layout.id)}
                     style={{
                       padding: "6px 14px", borderRadius: 6,
