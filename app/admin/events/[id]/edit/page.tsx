@@ -953,7 +953,7 @@ export default function AdminEditEventPage() {
                 checked={reservedSeatingEnabled}
                 onChange={(e) => {
                   setReservedSeatingEnabled(e.target.checked);
-                  if (!e.target.checked) setSelectedChartId(null);
+                  if (!e.target.checked) setSelectedLayoutId(null);
                 }}
                 style={{ width: 18, height: 18, accentColor: "#818cf8" }}
               />
