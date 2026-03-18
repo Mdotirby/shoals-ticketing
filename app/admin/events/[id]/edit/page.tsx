@@ -80,21 +80,21 @@ export default function AdminEditEventPage() {
 
   // Reserved seating state
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
-  const [seatingCharts, setSeatingCharts] = useState<{ id: string; name: string }[]>([]);
-  const [selectedChartId, setSelectedChartId] = useState<string | null>(null);
+  const [seatingLayouts, setSeatingLayouts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedLayoutId, setSelectedLayoutId] = useState<string | null>(null);
 
-  // Load seating charts + existing map
+  // Load seating layouts + existing map
   useEffect(() => {
-    fetch("/api/seating/charts")
+    fetch("/api/seating/layouts")
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setSeatingCharts(data); })
+      .then((data) => { if (Array.isArray(data)) setSeatingLayouts(data); })
       .catch(() => {});
     fetch(`/api/seating/events/${id}/map`)
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.reserved_seating_enabled) {
+        if (data && data.enabled) {
           setReservedSeatingEnabled(true);
-          setSelectedChartId(data.chart_id || null);
+          setSelectedLayoutId(data.layout_id || null);
         }
       })
       .catch(() => {});
@@ -567,14 +567,14 @@ export default function AdminEditEventPage() {
         }
       }
 
-      // Save or remove seating map
-      if (reservedSeatingEnabled && selectedChartId) {
+      // Save or remove seating layout assignment
+      if (reservedSeatingEnabled && selectedLayoutId) {
         await fetch(`/api/seating/events/${id}/map`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chart_id: selectedChartId,
-            reserved_seating_enabled: true,
+            layout_id: selectedLayoutId,
+            enabled: true,
           }),
         }).catch(() => {});
       } else if (!reservedSeatingEnabled) {
@@ -966,23 +966,23 @@ export default function AdminEditEventPage() {
             {reservedSeatingEnabled && (
               <div style={{ marginTop: 12 }}>
                 <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                  Seating Chart
+                  Seating Layout
                 </label>
-                {seatingCharts.length > 0 ? (
+                {seatingLayouts.length > 0 ? (
                   <select
                     className="admin-form-input"
-                    value={selectedChartId || ""}
-                    onChange={(e) => setSelectedChartId(e.target.value || null)}
+                    value={selectedLayoutId || ""}
+                    onChange={(e) => setSelectedLayoutId(e.target.value || null)}
                     style={{ maxWidth: 400 }}
                   >
-                    <option value="">— Select a seating chart —</option>
-                    {seatingCharts.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
+                    <option value="">— Select a seating layout —</option>
+                    {seatingLayouts.map((l) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
                     ))}
                   </select>
                 ) : (
                   <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    No seating charts yet.{" "}
+                    No seating layouts yet.{" "}
                     <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
                       Create one in Seating Management
                     </a>

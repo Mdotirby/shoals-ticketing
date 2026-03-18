@@ -128,12 +128,12 @@ export default function AdminCreateEventPage() {
 
   // Reserved seating state
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
-  const [seatingCharts, setSeatingCharts] = useState<{ id: string; name: string }[]>([]);
-  const [selectedChartId, setSelectedChartId] = useState<string | null>(null);
+  const [seatingLayouts, setSeatingCharts] = useState<{ id: string; name: string }[]>([]);
+  const [selectedLayoutId, setSelectedChartId] = useState<string | null>(null);
 
   // Load seating charts
   useEffect(() => {
-    fetch("/api/seating/charts")
+    fetch("/api/seating/layouts")
       .then((r) => r.json())
       .then((data) => { if (Array.isArray(data)) setSeatingCharts(data); })
       .catch(() => {});
@@ -356,14 +356,14 @@ export default function AdminCreateEventPage() {
         }
       }
 
-      // Create event_seating_maps record if reserved seating is enabled
-      if (reservedSeatingEnabled && selectedChartId && event.id) {
+      // Create event_layout_maps record if reserved seating is enabled
+      if (reservedSeatingEnabled && selectedLayoutId && event.id) {
         await fetch("/api/seating/events/" + event.id + "/map", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            chart_id: selectedChartId,
-            reserved_seating_enabled: true,
+            layout_id: selectedLayoutId,
+            enabled: true,
           }),
         }).catch(() => {}); // non-blocking
       }
@@ -827,23 +827,23 @@ export default function AdminCreateEventPage() {
             {reservedSeatingEnabled && (
               <div style={{ marginTop: 12 }}>
                 <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                  Seating Chart
+                  Seating Layout
                 </label>
-                {seatingCharts.length > 0 ? (
+                {seatingLayouts.length > 0 ? (
                   <select
                     className="admin-form-input"
-                    value={selectedChartId || ""}
+                    value={selectedLayoutId || ""}
                     onChange={(e) => setSelectedChartId(e.target.value || null)}
                     style={{ maxWidth: 400 }}
                   >
-                    <option value="">— Select a seating chart —</option>
-                    {seatingCharts.map((c) => (
+                    <option value="">— Select a seating layout —</option>
+                    {seatingLayouts.map((c) => (
                       <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                   </select>
                 ) : (
                   <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    No seating charts yet.{" "}
+                    No seating layouts yet.{" "}
                     <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
                       Create one in Seating Management
                     </a>
