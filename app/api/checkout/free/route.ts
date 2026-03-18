@@ -60,7 +60,7 @@ export async function POST(request: Request) {
 
   // Finalize reserved seats if applicable
   if (Array.isArray(seat_ids) && seat_ids.length > 0) {
-    await admin.from("seating_seats").update({ status: "sold" }).in("id", seat_ids);
+    await admin.from("seats").update({ status: "sold" }).in("id", seat_ids);
     await admin.from("seat_reservations").update({ status: "purchased", order_id: order.id }).in("seat_id", seat_ids).eq("event_id", event_id).eq("status", "held");
   }
 

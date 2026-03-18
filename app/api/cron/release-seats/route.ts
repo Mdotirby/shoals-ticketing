@@ -32,7 +32,7 @@ export async function GET() {
 
   // Release seats back to available
   const { error: seatError } = await admin
-    .from("seating_seats")
+    .from("seats")
     .update({ status: "available" })
     .in("id", seatIds);
 

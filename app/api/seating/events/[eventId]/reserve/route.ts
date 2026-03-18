@@ -1,101 +1,40 @@
-import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const RESERVATION_MINUTES = 10;
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-/**
- * POST /api/seating/events/[eventId]/reserve
- * Hold one or more seats for 10 minutes.
- * Body: { seat_ids: string[], session_id?: string, user_id?: string }
- */
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ eventId: string }> }
-) {
+/** POST /api/seating/events/[eventId]/reserve — hold seats for 10 minutes */
+export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
-  const admin = createAdminClient();
-  const body = await request.json();
-  const { seat_ids, session_id, user_id } = body;
+  const body = await req.json();
+  const { seat_ids, session_id } = body;
 
   if (!Array.isArray(seat_ids) || seat_ids.length === 0) {
-    return NextResponse.json(
-      { error: "seat_ids array is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "seat_ids required" }, { status: 400 });
   }
 
-  // Verify these seats are currently available
-  const { data: seats, error: seatError } = await admin
-    .from("seating_seats")
-    .select("id, status")
-    .in("id", seat_ids);
-
-  if (seatError || !seats) {
-    return NextResponse.json(
-      { error: "Failed to look up seats" },
-      { status: 500 }
-    );
-  }
-
-  const unavailable = seats.filter((s) => s.status !== "available");
+  // Check all seats are available
+  const { data: seats } = await admin.from("seats").select("id, status").in("id", seat_ids);
+  const unavailable = (seats || []).filter((s: { status: string }) => s.status !== "available");
   if (unavailable.length > 0) {
-    return NextResponse.json(
-      {
-        error: "Some seats are no longer available",
-        unavailable_seat_ids: unavailable.map((s) => s.id),
-      },
-      { status: 409 }
-    );
+    return NextResponse.json({
+      error: "Some seats are no longer available",
+      unavailable_seat_ids: unavailable.map((s: { id: string }) => s.id),
+    }, { status: 409 });
   }
 
-  const expiresAt = new Date(
-    Date.now() + RESERVATION_MINUTES * 60 * 1000
-  ).toISOString();
-
-  // Update seat statuses to held
-  const { error: updateError } = await admin
-    .from("seating_seats")
-    .update({ status: "held" })
-    .in("id", seat_ids);
-
-  if (updateError) {
-    return NextResponse.json(
-      { error: "Failed to hold seats" },
-      { status: 500 }
-    );
-  }
-
-  // Create reservation records
-  const reservations = seat_ids.map((seatId: string) => ({
-    seat_id: seatId,
-    event_id: eventId,
-    user_id: user_id || null,
-    session_id: session_id || null,
-    reservation_expires: expiresAt,
+  // Hold seats
+  const heldUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const { error } = await admin.from("seats").update({
     status: "held",
-  }));
+    held_until: heldUntil,
+    held_session: session_id || null,
+  }).in("id", seat_ids);
 
-  const { data: created, error: resError } = await admin
-    .from("seat_reservations")
-    .insert(reservations)
-    .select();
+  if (error) return NextResponse.json({ error: "Failed to hold seats" }, { status: 500 });
 
-  if (resError) {
-    // Rollback seat statuses
-    await admin
-      .from("seating_seats")
-      .update({ status: "available" })
-      .in("id", seat_ids);
+  // Suppress unused variable warning
+  void eventId;
 
-    return NextResponse.json(
-      { error: "Failed to create reservations" },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    reservations: created,
-    expires_at: expiresAt,
-  });
+  return NextResponse.json({ success: true, held_until: heldUntil, seat_count: seat_ids.length });
 }

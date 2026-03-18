@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
-import SeatingChartViewer, { SelectedSeat } from "@/app/components/seating/SeatingChartViewer";
+// Seating V3: no inline chart viewer — customers go to /events/[id]/seating
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
@@ -64,7 +64,7 @@ export default function EventDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
-  const [selectedSeats, setSelectedSeats] = useState<SelectedSeat[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; price: number }[]>([]);
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -100,10 +100,10 @@ export default function EventDetailPage() {
 
   // Check if reserved seating is enabled for this event
   useEffect(() => {
-    fetch(`/api/seating/events/${eventId}/map`)
+    fetch(`/api/seating/events/${eventId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.reserved_seating_enabled) {
+        if (data && data.enabled) {
           setReservedSeatingEnabled(true);
         }
       })
@@ -433,7 +433,7 @@ export default function EventDetailPage() {
                 ticketingFee={venueFees.ticketing_fee}
                 facilityFee={venueFees.facility_fee}
                 taxRate={venueFees.tax_rate}
-                onCheckout={reservedSeatingEnabled ? () => { window.location.href = `/events/${eventId}/seats`; } : handleCheckout}
+                onCheckout={reservedSeatingEnabled ? () => { window.location.href = `/events/${eventId}/seating`; } : handleCheckout}
                 onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                 onFreeCheckout={handleFreeCheckout}
               />

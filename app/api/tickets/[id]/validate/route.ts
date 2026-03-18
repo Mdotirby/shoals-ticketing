@@ -59,20 +59,20 @@ export async function POST(
     if (reservations && reservations.length > 0) {
       const seatIds = reservations.map((r) => r.seat_id);
       const { data: seats } = await admin
-        .from("seating_seats")
+        .from("seats")
         .select("id, seat_number, row_id")
         .in("id", seatIds);
 
       if (seats && seats.length > 0) {
         const rowIds = [...new Set(seats.map((s) => s.row_id))];
         const { data: rows } = await admin
-          .from("seating_rows")
+          .from("seats")
           .select("id, row_label, section_id")
           .in("id", rowIds);
 
         const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
         const { data: sections } = await admin
-          .from("seating_sections")
+          .from("sections")
           .select("id, section_name")
           .in("id", sectionIds);
 

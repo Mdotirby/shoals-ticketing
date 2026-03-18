@@ -389,7 +389,7 @@ export async function POST(request: Request) {
           if (Array.isArray(seatIds) && seatIds.length > 0) {
             // Mark seats as sold
             await admin
-              .from("seating_seats")
+              .from("seats")
               .update({ status: "sold" })
               .in("id", seatIds);
 
@@ -566,20 +566,20 @@ export async function POST(request: Request) {
           if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
             // Fetch seat details with row and section info
             const { data: seatDetails } = await admin
-              .from("seating_seats")
+              .from("seats")
               .select("id, seat_number, row_id")
               .in("id", parsedSeatIds);
 
             if (seatDetails && seatDetails.length > 0) {
               const rowIds = [...new Set(seatDetails.map((s) => s.row_id))];
               const { data: rows } = await admin
-                .from("seating_rows")
+                .from("seats")
                 .select("id, row_label, section_id")
                 .in("id", rowIds);
 
               const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
               const { data: sections } = await admin
-                .from("seating_sections")
+                .from("sections")
                 .select("id, section_name")
                 .in("id", sectionIds);
 
