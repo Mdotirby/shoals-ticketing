@@ -33,15 +33,52 @@ export default function SeatMap({
   const ft = useCallback((v: number) => v * ppf, [ppf]);
   const seatR = ft(SEAT_R_FT);
 
-  // Auto-fit
+  // Auto-fit to content bounding box (not full room)
   useEffect(() => {
     if (!containerRef.current) return;
-    const w = containerRef.current.clientWidth;
-    const h = containerRef.current.clientHeight;
-    const z = Math.min(w / cw, h / ch, 1) * 0.92;
+    const ctrW = containerRef.current.clientWidth;
+    const ctrH = containerRef.current.clientHeight;
+
+    // Calculate content bounds from all objects and seats
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const sec of sections) {
+      for (const obj of sec.objects) {
+        minX = Math.min(minX, obj.x_ft);
+        minY = Math.min(minY, obj.y_ft);
+        maxX = Math.max(maxX, obj.x_ft + obj.width_ft);
+        maxY = Math.max(maxY, obj.y_ft + obj.height_ft);
+      }
+      for (const seat of sec.seats) {
+        minX = Math.min(minX, seat.x_ft - SEAT_R_FT);
+        minY = Math.min(minY, seat.y_ft - SEAT_R_FT);
+        maxX = Math.max(maxX, seat.x_ft + SEAT_R_FT);
+        maxY = Math.max(maxY, seat.y_ft + SEAT_R_FT);
+      }
+    }
+
+    // Fallback to full room if no content
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = roomWidthFt; maxY = roomHeightFt; }
+
+    // Add padding (3ft on each side)
+    const pad = 3;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(roomWidthFt, maxX + pad);
+    maxY = Math.min(roomHeightFt, maxY + pad);
+
+    const contentW = (maxX - minX) * ppf;
+    const contentH = (maxY - minY) * ppf;
+
+    const z = Math.min(ctrW / contentW, ctrH / contentH, 2.5) * 0.88;
+    const centerX = ((minX + maxX) / 2) * ppf;
+    const centerY = ((minY + maxY) / 2) * ppf;
+
     setZoom(z);
-    setPan({ x: (w - cw * z) / 2, y: Math.max(8, (h - ch * z) / 2) });
-  }, [cw, ch]);
+    setPan({
+      x: ctrW / 2 - centerX * z,
+      y: ctrH / 2 - centerY * z,
+    });
+  }, [sections, roomWidthFt, roomHeightFt, ppf]);
 
   const handleBgDown = useCallback((e: React.MouseEvent) => {
     setIsPanning(true);
