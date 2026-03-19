@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
-// Seating V3: no inline chart viewer — customers go to /events/[id]/seating
+import SeatMap from "@/app/components/seating/SeatMap";
+import type { SectionFull } from "@/lib/seating/types";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
@@ -64,7 +65,11 @@ export default function EventDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
-  const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; price: number }[]>([]);
+  const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
+  const [seatingRoomW, setSeatingRoomW] = useState(100);
+  const [seatingRoomH, setSeatingRoomH] = useState(60);
+  const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; sectionName: string; rowLabel: string; seatNumber: number; priceCents: number; color: string }[]>([]);
+  const selectedSeatIds = new Set(selectedSeats.map((s) => s.seatId));
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -98,17 +103,40 @@ export default function EventDetailPage() {
       .catch(() => {});
   }, [eventId]);
 
-  // Check if reserved seating is enabled for this event
+  // Check if reserved seating is enabled and load layout data
   useEffect(() => {
     fetch(`/api/seating/events/${eventId}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data && data.enabled) {
+        if (data && data.enabled && data.layout) {
           setReservedSeatingEnabled(true);
+          setSeatingSections(data.layout.sections || []);
+          setSeatingRoomW(data.layout.room_width_ft || 100);
+          setSeatingRoomH(data.layout.room_height_ft || 60);
         }
       })
       .catch(() => {});
   }, [eventId]);
+
+  // Seat click handler for inline SeatMap
+  const handleSeatClick = useCallback((seatId: string, sectionId: string) => {
+    setSelectedSeats((prev) => {
+      const exists = prev.find((s) => s.seatId === seatId);
+      if (exists) return prev.filter((s) => s.seatId !== seatId);
+      const sec = seatingSections.find((s) => s.id === sectionId);
+      if (!sec) return prev;
+      const seat = sec.seats.find((s) => s.id === seatId);
+      if (!seat || seat.status !== "available") return prev;
+      return [...prev, {
+        seatId: seat.id,
+        sectionName: sec.name,
+        rowLabel: seat.row_label,
+        seatNumber: seat.seat_number,
+        priceCents: sec.price_cents,
+        color: sec.color,
+      }];
+    });
+  }, [seatingSections]);
 
   // Fetch featured artists assigned to this event
   useEffect(() => {
@@ -254,7 +282,16 @@ export default function EventDetailPage() {
   const appliedPromoRef = useRef<string | null>(null);
 
   const handleCheckout = () => {
-    if (!selectedTicket || !event) return;
+    if (!event) return;
+    // For assigned seating, use selected seats; for GA, use ticket quantity
+    if (reservedSeatingEnabled && selectedSeats.length > 0) {
+      const seatIds = selectedSeats.map((s) => s.seatId).join(",");
+      let url = `/checkout?event=${eventId}&qty=${selectedSeats.length}&seat_ids=${seatIds}`;
+      if (appliedPromoRef.current) url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
+      window.location.href = url;
+      return;
+    }
+    if (!selectedTicket) return;
     let url = `/checkout?event=${eventId}&qty=${quantity}`;
     if (appliedPromoRef.current) {
       url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
@@ -381,40 +418,54 @@ export default function EventDetailPage() {
                     </div>
                   </div>
 
-                  {/* Reserved seating: "Pick Your Seats" CTA */}
-                  {reservedSeatingEnabled && (
+                  {/* Inline seat map for assigned seating */}
+                  {reservedSeatingEnabled && seatingSections.length > 0 && (
                     <div style={{ marginTop: 16 }}>
-                      <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 10 }}>
-                        This is a reserved seating event — choose your seats
+                      <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 8 }}>
+                        Tap seats on the map to select them
                       </p>
-                      <a
-                        href={`/events/${eventId}/seats`}
-                        style={{
-                          display: "block",
-                          width: "100%",
-                          textAlign: "center",
-                          padding: "14px 24px",
-                          background: "linear-gradient(135deg, #818cf8 0%, #6366f1 50%, #7c3aed 100%)",
-                          color: "#fff",
-                          fontWeight: 700,
-                          fontSize: 16,
-                          borderRadius: 12,
-                          textDecoration: "none",
-                          letterSpacing: "0.02em",
-                          boxShadow: "0 4px 14px rgba(99,102,241,0.4)",
-                          transition: "transform 0.15s, box-shadow 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "translateY(-1px)";
-                          e.currentTarget.style.boxShadow = "0 6px 20px rgba(99,102,241,0.5)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "0 4px 14px rgba(99,102,241,0.4)";
-                        }}
-                      >
-                        🎫 Pick Your Seats
-                      </a>
+                      <div style={{ height: 350, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 12 }}>
+                        <SeatMap
+                          sections={seatingSections}
+                          roomWidthFt={seatingRoomW}
+                          roomHeightFt={seatingRoomH}
+                          interactive={true}
+                          selectedSeatIds={selectedSeatIds}
+                          onSeatClick={handleSeatClick}
+                        />
+                      </div>
+                      {/* Legend */}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
+                        {seatingSections.filter((s) => s.type !== "ga" || s.name !== "Stage").map((s) => (
+                          <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: "inline-block" }} />
+                            {s.name} — ${(s.price_cents / 100).toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                      {/* Selected seats list */}
+                      {selectedSeats.length > 0 && (
+                        <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 8, padding: 10, marginTop: 8 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#818cf8", marginBottom: 6 }}>
+                            Your Seats ({selectedSeats.length})
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {selectedSeats.map((s) => (
+                              <div key={s.seatId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: 2, background: s.color, display: "inline-block" }} />
+                                  {s.sectionName} · {s.rowLabel} · #{s.seatNumber}
+                                </span>
+                                <span style={{ color: "rgba(255,255,255,0.5)" }}>${(s.priceCents / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 13, fontWeight: 700 }}>
+                            <span>Total</span>
+                            <span>${(selectedSeats.reduce((s, seat) => s + seat.priceCents, 0) / 100).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -433,13 +484,13 @@ export default function EventDetailPage() {
                 ticketingFee={venueFees.ticketing_fee}
                 facilityFee={venueFees.facility_fee}
                 taxRate={venueFees.tax_rate}
-                onCheckout={reservedSeatingEnabled ? () => { window.location.href = `/events/${eventId}/seating`; } : handleCheckout}
+                onCheckout={handleCheckout}
                 onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                 onFreeCheckout={handleFreeCheckout}
               />
-              {reservedSeatingEnabled && (
+              {reservedSeatingEnabled && selectedSeats.length === 0 && (
                 <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                  Final price depends on seat selection
+                  Select seats from the map to continue
                 </p>
               )}
             </div>

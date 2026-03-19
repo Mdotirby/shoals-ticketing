@@ -109,28 +109,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Reserved seating: hold seats if seat_ids provided ──
+    // ── Reserved seating: pass seat_ids through to Stripe metadata ──
+    // Seats are NOT pre-reserved here — they get marked sold by the webhook on payment success.
+    // This avoids the double-reserve error.
     let reservedSeatIds: string[] = [];
     if (Array.isArray(seat_ids) && seat_ids.length > 0) {
-      // Reserve seats via the seating API
-      const reserveRes = await fetch(
-        `${request.headers.get("origin") || "https://shoals-ticketing.vercel.app"}/api/seating/events/${event_id}/reserve`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            seat_ids,
-            session_id: buyerSessionId || null,
-          }),
-        }
-      );
-      if (!reserveRes.ok) {
-        const reserveData = await reserveRes.json();
+      // Verify seats are still available
+      const { data: seatCheck } = await admin
+        .from("seats")
+        .select("id, status")
+        .in("id", seat_ids);
+
+      const unavailable = (seatCheck || []).filter((s: { status: string }) => s.status !== "available");
+      if (unavailable.length > 0) {
         return NextResponse.json(
-          { error: reserveData.error || "Failed to reserve seats" },
+          { error: "Some seats are no longer available. Please re-select.", unavailable: unavailable.map((s: { id: string }) => s.id) },
           { status: 409 }
         );
       }
+
+      // Temporarily hold seats (10 min) so no one else grabs them during checkout
+      const heldUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      await admin.from("seats").update({
+        status: "held",
+        held_until: heldUntil,
+        held_session: buyerSessionId || null,
+      }).in("id", seat_ids);
+
       reservedSeatIds = seat_ids;
     }
 
