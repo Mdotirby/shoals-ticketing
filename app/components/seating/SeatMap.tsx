@@ -33,11 +33,12 @@ export default function SeatMap({
   const ft = useCallback((v: number) => v * ppf, [ppf]);
   const seatR = ft(SEAT_R_FT);
 
-  // Auto-fit to content bounding box (not full room)
+  // Auto-fit: zoom so content fills the container
   useEffect(() => {
     if (!containerRef.current) return;
     const ctrW = containerRef.current.clientWidth;
     const ctrH = containerRef.current.clientHeight;
+    if (ctrW === 0 || ctrH === 0) return;
 
     // Calculate content bounds from all objects and seats
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -49,27 +50,31 @@ export default function SeatMap({
         maxY = Math.max(maxY, obj.y_ft + obj.height_ft);
       }
       for (const seat of sec.seats) {
-        minX = Math.min(minX, seat.x_ft - SEAT_R_FT);
-        minY = Math.min(minY, seat.y_ft - SEAT_R_FT);
-        maxX = Math.max(maxX, seat.x_ft + SEAT_R_FT);
-        maxY = Math.max(maxY, seat.y_ft + SEAT_R_FT);
+        minX = Math.min(minX, seat.x_ft - SEAT_R_FT * 2);
+        minY = Math.min(minY, seat.y_ft - SEAT_R_FT * 2);
+        maxX = Math.max(maxX, seat.x_ft + SEAT_R_FT * 2);
+        maxY = Math.max(maxY, seat.y_ft + SEAT_R_FT * 2);
       }
     }
 
-    // Fallback to full room if no content
     if (!isFinite(minX)) { minX = 0; minY = 0; maxX = roomWidthFt; maxY = roomHeightFt; }
 
-    // Add padding (3ft on each side)
-    const pad = 3;
-    minX = Math.max(0, minX - pad);
-    minY = Math.max(0, minY - pad);
-    maxX = Math.min(roomWidthFt, maxX + pad);
-    maxY = Math.min(roomHeightFt, maxY + pad);
+    // Generous padding
+    const padX = Math.max(2, (maxX - minX) * 0.08);
+    const padY = Math.max(2, (maxY - minY) * 0.08);
+    minX -= padX;
+    minY -= padY;
+    maxX += padX;
+    maxY += padY;
 
-    const contentW = (maxX - minX) * ppf;
-    const contentH = (maxY - minY) * ppf;
+    const contentWpx = (maxX - minX) * ppf;
+    const contentHpx = (maxY - minY) * ppf;
 
-    const z = Math.min(ctrW / contentW, ctrH / contentH, 5) * 0.85;
+    // Fit to container — no arbitrary max cap
+    const zW = ctrW / contentWpx;
+    const zH = ctrH / contentHpx;
+    const z = Math.min(zW, zH);
+
     const centerX = ((minX + maxX) / 2) * ppf;
     const centerY = ((minY + maxY) / 2) * ppf;
 
