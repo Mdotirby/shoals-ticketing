@@ -278,6 +278,59 @@ export default function EventDetailPage() {
       .finally(() => setIsLoading(false));
   }, [eventId]);
 
+  // Sync selected seats → ticket type + quantity for Order Summary
+  useEffect(() => {
+    if (!reservedSeatingEnabled || selectedSeats.length === 0) return;
+
+    // Check if user selected a full table (all seats at same table)
+    const tableLabels = selectedSeats.map((s) => s.rowLabel);
+    const uniqueTables = [...new Set(tableLabels)];
+    const isFullTable = uniqueTables.length === 1 && uniqueTables[0].startsWith("T") && (() => {
+      const tableSec = seatingSections.find((sec) => sec.seats.some((s) => s.id === selectedSeats[0].seatId));
+      if (!tableSec) return false;
+      const tableSeats = tableSec.seats.filter((s) => s.row_label === uniqueTables[0]);
+      return tableSeats.length === selectedSeats.length;
+    })();
+
+    const seatPrice = selectedSeats[0].priceCents / 100;
+
+    // Try to find matching ticket type
+    let bestMatch: string | null = null;
+
+    if (isFullTable) {
+      // Look for "full table" type first
+      const fullTableType = ticketTypes.find((t) =>
+        t.name.toLowerCase().includes("full table") || t.name.toLowerCase().includes("full tbl")
+      );
+      if (fullTableType) {
+        bestMatch = fullTableType.id;
+        setQuantity(1);
+        setSelectedTicketId(bestMatch);
+        return;
+      }
+    }
+
+    // Find individual seat type matching the price
+    const matchByPrice = ticketTypes.find((t) => Math.abs(t.price - seatPrice) < 0.01);
+    if (matchByPrice) {
+      bestMatch = matchByPrice.id;
+    } else {
+      // Find type with closest name match to the section name
+      const sectionName = selectedSeats[0].sectionName.toLowerCase();
+      const nameMatch = ticketTypes.find((t) => sectionName.includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(sectionName));
+      if (nameMatch) bestMatch = nameMatch.id;
+    }
+
+    if (!bestMatch && ticketTypes.length > 0) {
+      bestMatch = ticketTypes[0].id;
+    }
+
+    if (bestMatch) {
+      setSelectedTicketId(bestMatch);
+    }
+    setQuantity(selectedSeats.length);
+  }, [selectedSeats, ticketTypes, reservedSeatingEnabled, seatingSections]);
+
   const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
   const appliedPromoRef = useRef<string | null>(null);
 
