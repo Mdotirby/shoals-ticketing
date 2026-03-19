@@ -112,7 +112,7 @@ export default function EventSeatingPage() {
         )}
 
         {/* Seat Map */}
-        <div style={{ height: "min(65vh, 550px)", borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 16 }}>
+        <div style={{ height: "calc(100vh - 240px)", minHeight: 300, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 16 }}>
           <SeatMap
             sections={sections}
             roomWidthFt={roomW}

@@ -69,7 +69,7 @@ export default function SeatMap({
     const contentW = (maxX - minX) * ppf;
     const contentH = (maxY - minY) * ppf;
 
-    const z = Math.min(ctrW / contentW, ctrH / contentH, 2.5) * 0.88;
+    const z = Math.min(ctrW / contentW, ctrH / contentH, 5) * 0.85;
     const centerX = ((minX + maxX) / 2) * ppf;
     const centerY = ((minY + maxY) / 2) * ppf;
 
