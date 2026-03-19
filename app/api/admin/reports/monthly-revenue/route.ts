@@ -83,26 +83,73 @@ export async function GET(request: Request) {
       };
     }
 
-    for (const row of ledger ?? []) {
-      const eid = row.event_id;
-      const ticketRev = Number(row.ticket_revenue) || 0;
-      const ticketingFee = Number(row.ticketing_fee) || 0;
-      const facilityFee = Number(row.facility_fee) || 0;
-      const tax = Number(row.tax_collected) || 0;
-      const gross = Number(row.gross_amount) || 0;
+    if (ledger && ledger.length > 0) {
+      for (const row of ledger) {
+        const eid = row.event_id;
+        const ticketRev = Number(row.ticket_revenue) || 0;
+        const ticketingFee = Number(row.ticketing_fee) || 0;
+        const facilityFee = Number(row.facility_fee) || 0;
+        const tax = Number(row.tax_collected) || 0;
+        const gross = Number(row.gross_amount) || 0;
 
-      totalTicketRevenue += ticketRev;
-      totalTicketingFees += ticketingFee;
-      totalFacilityFees += facilityFee;
-      totalTaxCollected += tax;
-      totalGross += gross;
+        totalTicketRevenue += ticketRev;
+        totalTicketingFees += ticketingFee;
+        totalFacilityFees += facilityFee;
+        totalTaxCollected += tax;
+        totalGross += gross;
 
-      if (eventRevenue[eid]) {
-        eventRevenue[eid].ticket_revenue += ticketRev;
-        eventRevenue[eid].ticketing_fees += ticketingFee;
-        eventRevenue[eid].facility_fees += facilityFee;
-        eventRevenue[eid].tax_collected += tax;
-        eventRevenue[eid].gross += gross;
+        if (eventRevenue[eid]) {
+          eventRevenue[eid].ticket_revenue += ticketRev;
+          eventRevenue[eid].ticketing_fees += ticketingFee;
+          eventRevenue[eid].facility_fees += facilityFee;
+          eventRevenue[eid].tax_collected += tax;
+          eventRevenue[eid].gross += gross;
+        }
+      }
+    } else if (eventIds.length > 0) {
+      // Fallback: calculate revenue from orders if no settlement_ledger entries
+      const { data: orders } = await supabase
+        .from("orders")
+        .select("id, event_id, total_amount, quantity")
+        .in("event_id", eventIds)
+        .eq("status", "completed");
+
+      // Get venue fees
+      const { data: venueData } = await supabase
+        .from("venues")
+        .select("ticketing_fee, facility_fee, tax_rate")
+        .eq("id", venueId)
+        .single();
+
+      const ticketingFeeRate = Number(venueData?.ticketing_fee) || 0;
+      const facilityFeeRate = Number(venueData?.facility_fee) || 0;
+      const taxRate = Number(venueData?.tax_rate) || 0;
+
+      for (const order of orders ?? []) {
+        const eid = order.event_id;
+        const qty = Number(order.quantity) || 1;
+        const total = Number(order.total_amount) || 0;
+
+        // Estimate breakdown from total (reverse-engineer from checkout formula)
+        const ticketingFees = ticketingFeeRate * qty;
+        const facilityFees = facilityFeeRate * qty;
+        const ticketRev = total - ticketingFees - facilityFees;
+        const taxEst = ticketRev * taxRate;
+        const grossRev = ticketRev - taxEst;
+
+        totalTicketRevenue += grossRev;
+        totalTicketingFees += ticketingFees;
+        totalFacilityFees += facilityFees;
+        totalTaxCollected += taxEst;
+        totalGross += total;
+
+        if (eventRevenue[eid]) {
+          eventRevenue[eid].ticket_revenue += grossRev;
+          eventRevenue[eid].ticketing_fees += ticketingFees;
+          eventRevenue[eid].facility_fees += facilityFees;
+          eventRevenue[eid].tax_collected += taxEst;
+          eventRevenue[eid].gross += total;
+        }
       }
     }
 

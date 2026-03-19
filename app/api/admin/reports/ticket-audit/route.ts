@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     // 1. Fetch events
     let eventsQuery = supabase
       .from("events")
-      .select("id, title, date, venue, venue_id")
+      .select("id, title, date, venue, venue_id, event_venue_id, facility_fee_enabled")
       .order("date", { ascending: true });
 
     if (eventId) {
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
       soldByTier[key] = (soldByTier[key] || 0) + 1;
     }
 
-    // 4. Fetch venue fee config for each unique venue_id
+    // 4. Fetch venue fee config + event_venues overrides
     const venueIds = [...new Set(events.map((e) => e.venue_id).filter(Boolean))];
     const { data: venues } = await supabase
       .from("venues")
@@ -78,6 +78,23 @@ export async function GET(request: Request) {
         facility_fee: Number(v.facility_fee) || 0,
         tax_rate: Number(v.tax_rate) || 0,
       };
+    }
+
+    // Also check event_venues for per-event fee overrides
+    const eventVenueIds = [...new Set(events.map((e) => e.event_venue_id).filter(Boolean))];
+    const eventVenueMap: Record<string, { ticketing_fee: number; facility_fee: number; tax_rate: number }> = {};
+    if (eventVenueIds.length > 0) {
+      const { data: evVenues } = await supabase
+        .from("event_venues")
+        .select("id, ticketing_fee, facility_fee, tax_rate")
+        .in("id", eventVenueIds);
+      for (const ev of evVenues ?? []) {
+        eventVenueMap[ev.id] = {
+          ticketing_fee: Number(ev.ticketing_fee) ?? 0,
+          facility_fee: Number(ev.facility_fee) ?? 0,
+          tax_rate: Number(ev.tax_rate) ?? 0,
+        };
+      }
     }
 
     // 5. Also check settlement_ledger for actual fee data per event
@@ -102,7 +119,20 @@ export async function GET(request: Request) {
     const grandTotal = emptyTotals();
     const eventResults = events.map((event) => {
       const eventTiers = (tiers ?? []).filter((t) => t.event_id === event.id);
-      const venueFees = venueMap[event.venue_id] ?? { ticketing_fee: 0, facility_fee: 0, tax_rate: 0 };
+      // Resolve fees: event_venues override → venues fallback
+      let venueFees = venueMap[event.venue_id] ?? { ticketing_fee: 0, facility_fee: 0, tax_rate: 0 };
+      if (event.event_venue_id && eventVenueMap[event.event_venue_id]) {
+        const evFees = eventVenueMap[event.event_venue_id];
+        venueFees = {
+          ticketing_fee: evFees.ticketing_fee ?? venueFees.ticketing_fee,
+          facility_fee: evFees.facility_fee ?? venueFees.facility_fee,
+          tax_rate: evFees.tax_rate ?? venueFees.tax_rate,
+        };
+      }
+      // Respect facility_fee_enabled flag
+      if (event.facility_fee_enabled === false) {
+        venueFees = { ...venueFees, facility_fee: 0 };
+      }
       const eventSubtotal = emptyTotals();
 
       const rows = eventTiers.map((tier) => {
