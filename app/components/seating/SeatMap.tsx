@@ -19,8 +19,14 @@ export default function SeatMap({
   sections, roomWidthFt, roomHeightFt, interactive, selectedSeatIds, onSeatClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [viewBox, setViewBox] = useState("0 0 1000 800");
+
+  // ViewBox state for zoom/pan
+  const [vb, setVb] = useState({ x: 0, y: 0, w: 1000, h: 800 });
+  const baseVb = useRef({ x: 0, y: 0, w: 1000, h: 800 });
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0, vbx: 0, vby: 0 });
 
   const ppf = PPF;
   const ft = useCallback((v: number) => v * ppf, [ppf]);
@@ -64,7 +70,9 @@ export default function SeatMap({
     const vbW = (maxX - minX) * ppf;
     const vbH = (maxY - minY) * ppf;
 
-    setViewBox(`${vbX} ${vbY} ${vbW} ${vbH}`);
+    const newVb = { x: vbX, y: vbY, w: vbW, h: vbH };
+    baseVb.current = newVb;
+    setVb(newVb);
   }, [sections, roomWidthFt, roomHeightFt, ppf]);
 
   return (
@@ -75,10 +83,50 @@ export default function SeatMap({
       </div>
 
       <svg
+        ref={svgRef}
         width="100%" height="100%"
-        viewBox={viewBox}
+        viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ display: "block" }}
+        style={{ display: "block", cursor: isPanning.current ? "grabbing" : "grab" }}
+        onWheel={(e) => {
+          e.preventDefault();
+          const factor = e.deltaY > 0 ? 1.15 : 0.87;
+          const svg = svgRef.current;
+          if (!svg) return;
+          const rect = svg.getBoundingClientRect();
+          // Zoom toward cursor position
+          const mx = (e.clientX - rect.left) / rect.width;
+          const my = (e.clientY - rect.top) / rect.height;
+          setVb((prev) => {
+            const newW = Math.max(prev.w * factor, baseVb.current.w * 0.1);
+            const newH = Math.max(prev.h * factor, baseVb.current.h * 0.1);
+            // Cap max zoom out at 2x base
+            if (newW > baseVb.current.w * 2) return prev;
+            return {
+              x: prev.x + (prev.w - newW) * mx,
+              y: prev.y + (prev.h - newH) * my,
+              w: newW,
+              h: newH,
+            };
+          });
+        }}
+        onMouseDown={(e) => {
+          if (e.button === 0) {
+            isPanning.current = true;
+            panStart.current = { x: e.clientX, y: e.clientY, vbx: vb.x, vby: vb.y };
+          }
+        }}
+        onMouseMove={(e) => {
+          if (!isPanning.current) return;
+          const svg = svgRef.current;
+          if (!svg) return;
+          const rect = svg.getBoundingClientRect();
+          const dx = (e.clientX - panStart.current.x) / rect.width * vb.w;
+          const dy = (e.clientY - panStart.current.y) / rect.height * vb.h;
+          setVb((prev) => ({ ...prev, x: panStart.current.vbx - dx, y: panStart.current.vby - dy }));
+        }}
+        onMouseUp={() => { isPanning.current = false; }}
+        onMouseLeave={() => { isPanning.current = false; }}
       >
         {/* Render objects */}
         {sections.map((sec) => (
