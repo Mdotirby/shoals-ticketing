@@ -94,16 +94,7 @@ function ticketEmailHtml({
               </table>
               ` : ""}
 
-              <!-- QR code -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-                <tr>
-                  <td align="center">
-                    <p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">Show this at the door</p>
-                    <img src="${qrDataUrl}" alt="Your QR code" width="180" height="180" style="border-radius:8px;display:block;margin:0 auto;" />
-                    <p style="margin:10px 0 0;font-size:11px;color:rgba(255,255,255,0.3);">One QR code per ticket. Do not share.</p>
-                  </td>
-                </tr>
-              </table>
+              <!-- QR code removed — available on ticket page via "View My Ticket Online" button below -->
 
               <!-- CTA button -->
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">

@@ -80,20 +80,7 @@ function SuccessContent() {
           </div>
         )}
 
-        {/* QR code */}
-        {data?.ticket?.qr_data_url && (
-          <div style={{ margin: "16px auto", maxWidth: 180 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={data.ticket.qr_data_url}
-              alt="Your ticket QR code"
-              style={{ width: "100%", height: "auto", borderRadius: 8 }}
-            />
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, textAlign: "center", marginTop: 6 }}>
-              Show this at the door
-            </p>
-          </div>
-        )}
+        {/* QR code removed — available on the ticket page via "View My Tickets" */}
 
         {/* Thank you */}
         <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, margin: "8px 0 20px" }}>
