@@ -79,7 +79,7 @@ export default function SeatMap({
     <div ref={containerRef} style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden", background: "#111118", position: "relative" }}>
       {/* Info */}
       <div style={{ position: "absolute", bottom: 8, left: 8, zIndex: 10, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
-        {sections.reduce((s, sec) => s + sec.seats.length, 0)} seats {interactive ? "· Tap seats to select" : ""}
+        {interactive ? "Tap seats to select" : `${sections.reduce((s, sec) => s + sec.seats.length, 0)} seats`}
       </div>
 
       <svg
@@ -159,7 +159,7 @@ export default function SeatMap({
                   <g key={obj.id}>
                     <rect x={px} y={py} width={pw} height={ph} rx={8} fill={`${sec.color}18`} stroke={`${sec.color}40`} strokeWidth={1.5} />
                     <text x={pcx} y={pcy-6} fill={`${sec.color}cc`} fontSize={14} fontWeight={700} textAnchor="middle" fontFamily="system-ui" style={{pointerEvents:"none"}}>{sec.name}</text>
-                    <text x={pcx} y={pcy+12} fill={`${sec.color}70`} fontSize={10} textAnchor="middle" fontFamily="system-ui" style={{pointerEvents:"none"}}>GA · {meta.capacity} cap</text>
+                    {!interactive && <text x={pcx} y={pcy+12} fill={`${sec.color}70`} fontSize={10} textAnchor="middle" fontFamily="system-ui" style={{pointerEvents:"none"}}>GA · {meta.capacity} cap</text>}
                   </g>
                 );
               }
