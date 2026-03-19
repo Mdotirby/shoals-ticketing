@@ -387,19 +387,11 @@ export async function POST(request: Request) {
         try {
           const seatIds: string[] = JSON.parse(seatIdsRaw);
           if (Array.isArray(seatIds) && seatIds.length > 0) {
-            // Mark seats as sold
+            // Mark seats as sold and link to order (V3: no seat_reservations table)
             await admin
               .from("seats")
-              .update({ status: "sold" })
+              .update({ status: "sold", order_id: order.id })
               .in("id", seatIds);
-
-            // Mark reservations as purchased and link to order
-            await admin
-              .from("seat_reservations")
-              .update({ status: "purchased", order_id: order.id })
-              .in("seat_id", seatIds)
-              .eq("event_id", eventId)
-              .eq("status", "held");
           }
         } catch (e) {
           console.error("Failed to finalize reserved seats:", e);
@@ -565,38 +557,27 @@ export async function POST(request: Request) {
           const parsedSeatIds: string[] = JSON.parse(seatIdsRaw);
           if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
             // Fetch seat details with row and section info
+            // V3: seats have section_id + row_label directly
             const { data: seatDetails } = await admin
               .from("seats")
-              .select("id, seat_number, row_id")
+              .select("id, seat_number, row_label, section_id")
               .in("id", parsedSeatIds);
 
             if (seatDetails && seatDetails.length > 0) {
-              const rowIds = [...new Set(seatDetails.map((s) => s.row_id))];
-              const { data: rows } = await admin
-                .from("seats")
-                .select("id, row_label, section_id")
-                .in("id", rowIds);
-
-              const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
-              const { data: sections } = await admin
+              const sectionIds = [...new Set(seatDetails.map((s: { section_id: string }) => s.section_id))];
+              const { data: sectionData } = await admin
                 .from("sections")
-                .select("id, section_name")
+                .select("id, name")
                 .in("id", sectionIds);
 
-              const rowMap = new Map((rows || []).map((r) => [r.id, r]));
-              const sectionMap = new Map((sections || []).map((s) => [s.id, s]));
+              const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
 
-              seatAssignments = seatDetails.map((seat) => {
-                const row = rowMap.get(seat.row_id);
-                const section = row ? sectionMap.get(row.section_id) : undefined;
-                return {
-                  section: section?.section_name || "General",
-                  row: row?.row_label || "?",
-                  seat: seat.seat_number,
-                };
-              });
+              seatAssignments = seatDetails.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
+                section: sectionMap.get(seat.section_id) || "Section",
+                row: seat.row_label,
+                seat: String(seat.seat_number),
+              }));
 
-              // Sort by section, row, seat
               seatAssignments.sort((a, b) =>
                 a.section.localeCompare(b.section) ||
                 a.row.localeCompare(b.row) ||

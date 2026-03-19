@@ -34,49 +34,30 @@ export async function GET(
     siblings = allTickets || [];
   }
 
-  // Look up reserved seat assignments for this order
+  // Look up reserved seat assignments for this order (V3 schema: seats.order_id)
   let seatAssignments: { section: string; row: string; seat: string }[] = [];
   if (data.order_id) {
-    const { data: reservations } = await admin
-      .from("seat_reservations")
-      .select("seat_id")
-      .eq("order_id", data.order_id)
-      .eq("status", "purchased");
-
-    if (reservations && reservations.length > 0) {
-      // Check if any of these reservations belong to this customer's order
-      // by matching the order creation time window (within 1 minute)
-      const seatIds = reservations.map((r) => r.seat_id);
-      const { data: seats } = await admin
+    try {
+      const { data: orderSeats } = await admin
         .from("seats")
-        .select("id, seat_number, row_id")
-        .in("id", seatIds);
+        .select("id, seat_number, row_label, section_id")
+        .eq("order_id", data.order_id)
+        .eq("status", "sold");
 
-      if (seats && seats.length > 0) {
-        const rowIds = [...new Set(seats.map((s) => s.row_id))];
-        const { data: rows } = await admin
-          .from("seats")
-          .select("id, row_label, section_id")
-          .in("id", rowIds);
-
-        const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
-        const { data: sections } = await admin
+      if (orderSeats && orderSeats.length > 0) {
+        const sectionIds = [...new Set(orderSeats.map((s: { section_id: string }) => s.section_id))];
+        const { data: sectionData } = await admin
           .from("sections")
-          .select("id, section_name")
+          .select("id, name")
           .in("id", sectionIds);
 
-        const rowMap = new Map((rows || []).map((r) => [r.id, r]));
-        const sectionMap = new Map((sections || []).map((s) => [s.id, s]));
+        const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
 
-        seatAssignments = seats.map((seat) => {
-          const row = rowMap.get(seat.row_id);
-          const section = row ? sectionMap.get(row.section_id) : undefined;
-          return {
-            section: section?.section_name || "General",
-            row: row?.row_label || "?",
-            seat: seat.seat_number,
-          };
-        });
+        seatAssignments = orderSeats.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
+          section: sectionMap.get(seat.section_id) || "Section",
+          row: seat.row_label,
+          seat: String(seat.seat_number),
+        }));
 
         seatAssignments.sort((a, b) =>
           a.section.localeCompare(b.section) ||
@@ -84,6 +65,8 @@ export async function GET(
           a.seat.localeCompare(b.seat, undefined, { numeric: true })
         );
       }
+    } catch {
+      // Seat lookup is non-critical — don't fail the ticket view
     }
   }
 

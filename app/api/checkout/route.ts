@@ -136,7 +136,48 @@ export async function POST(request: Request) {
 
     const stripe = getStripe();
 
-    const ticketPriceCents = Math.round(event.price * 100);
+    // ── Determine pricing: assigned seating uses section prices, GA uses event price ──
+    const isAssignedSeating = reservedSeatIds.length > 0;
+    let seatLabels: string[] = [];
+    let seatSectionNames: string[] = [];
+    let ticketPriceCents: number;
+    let effectiveQuantity = quantity;
+
+    if (isAssignedSeating) {
+      // Look up seat details + section prices from the new seating tables
+      const { data: seatDetails } = await admin
+        .from("seats")
+        .select("id, row_label, seat_number, section_id")
+        .in("id", reservedSeatIds);
+
+      const sectionIds = [...new Set((seatDetails || []).map((s: { section_id: string }) => s.section_id))];
+      const { data: sectionDetails } = sectionIds.length
+        ? await admin.from("sections").select("id, name, price_cents").in("id", sectionIds)
+        : { data: [] };
+
+      const sectionMap = new Map<string, { name: string; price_cents: number }>();
+      for (const sec of sectionDetails || []) {
+        sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents });
+      }
+
+      // Calculate total from actual section prices
+      let seatTotalCents = 0;
+      for (const seat of seatDetails || []) {
+        const sec = sectionMap.get(seat.section_id);
+        const priceCents = sec?.price_cents || Math.round(event.price * 100);
+        seatTotalCents += priceCents;
+        const label = `${sec?.name || "Section"} | ${seat.row_label} | Seat ${seat.seat_number}`;
+        seatLabels.push(label);
+        seatSectionNames.push(sec?.name || "Section");
+      }
+
+      // For assigned seating, use average per-seat price for fee calculation
+      effectiveQuantity = reservedSeatIds.length;
+      ticketPriceCents = Math.round(seatTotalCents / effectiveQuantity);
+    } else {
+      ticketPriceCents = Math.round(event.price * 100);
+    }
+
     const discountedTicketPriceCents = Math.max(0, ticketPriceCents - discountCentsPerTicket);
     const ticketingFeeCents = Math.round(ticketingFee * 100);
     const facilityFeeCents = Math.round(facilityFee * 100);
@@ -144,8 +185,8 @@ export async function POST(request: Request) {
     // Calculate tax on discounted ticket price
     const taxCents = Math.round(discountedTicketPriceCents * taxRate);
 
-    // Calculate Stripe processing fee on the total (discounted ticket + ticketing fee + facility fee + tax)
-    const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
+    // Calculate Stripe processing fee on the total
+    const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * effectiveQuantity;
     const stripeFeeCents = Math.round(
       subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
     );
@@ -161,8 +202,36 @@ export async function POST(request: Request) {
         unit_amount: number;
       };
       quantity: number;
-    }> = [
-      {
+    }> = [];
+
+    if (isAssignedSeating) {
+      // For assigned seating: show each seat as a line item (or grouped by section)
+      const sectionGroups = new Map<string, { name: string; count: number; priceCents: number }>();
+      for (let i = 0; i < seatLabels.length; i++) {
+        const secName = seatSectionNames[i];
+        const existing = sectionGroups.get(secName);
+        if (existing) {
+          existing.count++;
+        } else {
+          sectionGroups.set(secName, { name: secName, count: 1, priceCents: discountedTicketPriceCents });
+        }
+      }
+
+      for (const [, group] of sectionGroups) {
+        lineItems.push({
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `${event.title} — ${group.name}`,
+              description: seatLabels.filter((_, i) => seatSectionNames[i] === group.name).join(", "),
+            },
+            unit_amount: group.priceCents,
+          },
+          quantity: group.count,
+        });
+      }
+    } else {
+      lineItems.push({
         price_data: {
           currency: "usd",
           product_data: {
@@ -171,9 +240,9 @@ export async function POST(request: Request) {
           },
           unit_amount: discountedTicketPriceCents,
         },
-        quantity,
-      },
-    ];
+        quantity: effectiveQuantity,
+      });
+    }
 
     // Add discount as a visible line item (negative amounts not supported in Stripe line items,
     // so we show the discounted price above and add an informational $0 line if there's a discount)
@@ -201,7 +270,7 @@ export async function POST(request: Request) {
           product_data: { name: "Ticketing Fee" },
           unit_amount: ticketingFeeCents,
         },
-        quantity,
+        quantity: effectiveQuantity,
       });
     }
 
@@ -212,7 +281,7 @@ export async function POST(request: Request) {
           product_data: { name: "Facility Fee" },
           unit_amount: facilityFeeCents,
         },
-        quantity,
+        quantity: effectiveQuantity,
       });
     }
 
@@ -225,7 +294,7 @@ export async function POST(request: Request) {
           },
           unit_amount: taxCents,
         },
-        quantity,
+        quantity: effectiveQuantity,
       });
     }
 
@@ -250,7 +319,7 @@ export async function POST(request: Request) {
         event_id: event.id,
         event_title: event.title,
         venue_id: event.venue_id || "",
-        quantity: String(quantity),
+        quantity: String(effectiveQuantity),
         ticketing_fee: String(ticketingFee),
         facility_fee: String(facilityFee),
         venue_rebate: String(venueRebate),
@@ -262,6 +331,9 @@ export async function POST(request: Request) {
         promo_code: promoCodeStr,
         promo_code_id: promoCodeId,
         seat_ids: reservedSeatIds.length > 0 ? JSON.stringify(reservedSeatIds) : "",
+        seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
+        seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
+        is_assigned_seating: isAssignedSeating ? "true" : "false",
       },
     };
 

@@ -78,6 +78,10 @@ function CheckoutContent() {
     setShowCheckout(true);
   };
 
+  // Get seat_ids from URL params (for assigned seating)
+  const seatIdsParam = searchParams.get("seat_ids");
+  const seatIds = seatIdsParam ? seatIdsParam.split(",").filter(Boolean) : [];
+
   const fetchClientSecret = useCallback(async () => {
     if (!eventId) {
       setError("No event selected.");
@@ -89,12 +93,14 @@ function CheckoutContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         event_id: eventId,
-        quantity,
+        quantity: seatIds.length > 0 ? seatIds.length : quantity,
         buyer_name: buyerName.trim(),
         buyer_email: buyerEmail.trim(),
         buyer_phone: buyerPhone.trim(),
         fwb_opt_in: fwbOptIn,
         promo_code: promoValid ? promoCode.trim() : undefined,
+        seat_ids: seatIds.length > 0 ? seatIds : undefined,
+        session_id: typeof window !== "undefined" ? sessionStorage.getItem("vc_session") : undefined,
       }),
     });
 

@@ -47,48 +47,30 @@ export async function POST(
   const ev = ticket.events as unknown as { title: string; venue: string } | null;
 
   // Look up seat assignments for this order
+  // V3 seat lookup: seats.order_id + seats.status
   let seatAssignments: { section: string; row: string; seat: string }[] = [];
   try {
     if (!ticket.order_id) throw new Error("no order_id");
-    const { data: reservations } = await admin
-      .from("seat_reservations")
-      .select("seat_id")
+    const { data: orderSeats } = await admin
+      .from("seats")
+      .select("id, seat_number, row_label, section_id")
       .eq("order_id", ticket.order_id)
-      .eq("status", "purchased");
+      .eq("status", "sold");
 
-    if (reservations && reservations.length > 0) {
-      const seatIds = reservations.map((r) => r.seat_id);
-      const { data: seats } = await admin
-        .from("seats")
-        .select("id, seat_number, row_id")
-        .in("id", seatIds);
+    if (orderSeats && orderSeats.length > 0) {
+      const sectionIds = [...new Set(orderSeats.map((s: { section_id: string }) => s.section_id))];
+      const { data: sectionData } = await admin
+        .from("sections")
+        .select("id, name")
+        .in("id", sectionIds);
 
-      if (seats && seats.length > 0) {
-        const rowIds = [...new Set(seats.map((s) => s.row_id))];
-        const { data: rows } = await admin
-          .from("seats")
-          .select("id, row_label, section_id")
-          .in("id", rowIds);
+      const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
 
-        const sectionIds = [...new Set((rows || []).map((r) => r.section_id))];
-        const { data: sections } = await admin
-          .from("sections")
-          .select("id, section_name")
-          .in("id", sectionIds);
-
-        const rowMap = new Map((rows || []).map((r) => [r.id, r]));
-        const sectionMap = new Map((sections || []).map((s) => [s.id, s]));
-
-        seatAssignments = seats.map((seat) => {
-          const row = rowMap.get(seat.row_id);
-          const section = row ? sectionMap.get(row.section_id) : undefined;
-          return {
-            section: section?.section_name || "General",
-            row: row?.row_label || "?",
-            seat: seat.seat_number,
-          };
-        });
-      }
+      seatAssignments = orderSeats.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
+        section: sectionMap.get(seat.section_id) || "Section",
+        row: seat.row_label,
+        seat: String(seat.seat_number),
+      }));
     }
   } catch {
     // Non-critical — don't fail validation if seat lookup fails

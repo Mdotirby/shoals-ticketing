@@ -58,10 +58,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 
-  // Finalize reserved seats if applicable
+  // Finalize reserved seats if applicable (V3: seats.order_id directly)
   if (Array.isArray(seat_ids) && seat_ids.length > 0) {
-    await admin.from("seats").update({ status: "sold" }).in("id", seat_ids);
-    await admin.from("seat_reservations").update({ status: "purchased", order_id: order.id }).in("seat_id", seat_ids).eq("event_id", event_id).eq("status", "held");
+    await admin.from("seats").update({ status: "sold", order_id: order.id }).in("id", seat_ids);
   }
 
   // Get default tier
