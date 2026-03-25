@@ -444,7 +444,7 @@ export default function SOPsPage() {
           }}>
             {cat}
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
+          <div className="sop-card-grid">
             {SOP_TEMPLATES.filter((t) => t.category === cat).map((template) => (
               <div
                 key={template.id}

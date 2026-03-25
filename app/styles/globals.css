@@ -5543,6 +5543,18 @@ select.admin-form-input {
 
 /* Bottom fade removed for cleaner look */
 
+/* SOP card grid — 2 columns desktop, 1 column mobile */
+.sop-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .sop-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Hide the pseudo-element background column on mobile */
 @media (max-width: 768px) {
   .admin-shell::before {
