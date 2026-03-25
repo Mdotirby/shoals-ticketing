@@ -187,6 +187,342 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       },
     ],
   },
+  {
+    id: "marketing-hub",
+    title: "Marketing Hub — Campaigns & Audiences",
+    category: "Marketing",
+    description: "How to use the Marketing Hub to create email campaigns, build audiences, and track performance.",
+    icon: "",
+    sections: [
+      {
+        heading: "Marketing Hub Overview",
+        steps: [
+          { title: "Access the Marketing Hub", details: ["Navigate to Admin → Growth → Marketing", "The Marketing Hub is the central place for all email campaigns, audience management, and newsletter subscribers", "The dashboard shows recent campaigns, subscriber count, and open/click rates"] },
+        ],
+      },
+      {
+        heading: "Building Audiences",
+        steps: [
+          { title: "Understanding Audiences", details: ["Audiences are groups of contacts segmented for targeted email campaigns", "VenueCore automatically builds audiences from: ticket buyers, newsletter signups, FWB loyalty members, and imported contacts", "Each audience can be filtered by event attendance, purchase history, or custom tags"] },
+          { title: "Creating a New Audience", details: ["From the Marketing page, click the 'Audiences' tab", "Click '+ New Audience' to create a segment", "Name the audience (e.g., 'VIP Ticket Buyers', 'Country Music Fans', 'Local Regulars')", "Set filters: events attended, ticket tier purchased, date range, location", "Save the audience — it auto-updates as new contacts match the criteria"] },
+          { title: "Importing Contacts", details: ["Go to Marketing → FWB Import (or Audience Import)", "Upload a CSV file with columns: name, email, phone (optional)", "Map the CSV columns to VenueCore fields", "Choose which audience to add imported contacts to", "Duplicates are automatically detected and merged by email address"] },
+        ],
+      },
+      {
+        heading: "Creating Email Campaigns",
+        steps: [
+          { title: "Start a New Campaign", details: ["From the Marketing page, click '+ New Campaign'", "Enter the campaign name (internal reference only)", "Select the target audience or 'All Subscribers'", "Choose the email template or start from scratch"] },
+          { title: "Compose the Email", details: ["Set the subject line — keep it under 50 characters for best open rates", "Set the preview text — this appears after the subject in email clients", "Write the email body using the rich text editor", "Add images, links, and call-to-action buttons", "Use merge tags like {{first_name}} for personalization", "Preview the email on desktop and mobile views before sending"] },
+          { title: "Schedule or Send", details: ["Click 'Send Now' to deliver immediately", "Or click 'Schedule' to set a future date and time", "Best send times: Tuesday-Thursday, 10 AM or 7 PM local time", "After sending, the campaign appears in the 'Sent' tab with delivery stats"] },
+        ],
+      },
+      {
+        heading: "Tracking Campaign Performance",
+        steps: [
+          { title: "View Campaign Analytics", details: ["Click on any sent campaign to view performance metrics", "Key metrics: Delivered count, Open rate, Click rate, Unsubscribe rate", "Industry benchmarks: 20-25% open rate, 2-5% click rate for entertainment", "Use these metrics to refine future campaigns — higher open rates mean better subject lines, higher click rates mean better content"] },
+        ],
+      },
+      {
+        heading: "Newsletter Subscribers",
+        steps: [
+          { title: "Managing Subscribers", details: ["The Newsletters tab shows all email subscribers", "Subscribers come from: website signup form, ticket purchases (with opt-in), CSV imports", "Each subscriber has: name, email, signup date, and source", "Unsubscribed users are automatically excluded from future campaigns", "Export subscriber list as CSV for external use"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "market-radar",
+    title: "Market Radar — Competitive Intelligence",
+    category: "Marketing",
+    description: "How to use Market Radar to track competing events, routing opportunities, and market trends.",
+    icon: "",
+    sections: [
+      {
+        heading: "Market Radar Overview",
+        steps: [
+          { title: "Access Market Radar", details: ["Navigate to Admin → Growth → Market Radar", "Market Radar scans Ticketmaster, Bandsintown, and venue websites for events in your market area", "It helps you: spot competing shows, find routing opportunities, and identify trending artists"] },
+        ],
+      },
+      {
+        heading: "Event Discovery",
+        steps: [
+          { title: "Browse Discovered Events", details: ["The main table shows all discovered events in your market", "Each row shows: artist, venue, date, source, and distance from your venue", "Sort by date, distance, or artist name to find relevant shows", "Click on any event to see full details including ticket price ranges"] },
+          { title: "Filter & Search", details: ["Use the search bar to find specific artists or venues", "Filter by date range to focus on upcoming competition", "Filter by distance to see only nearby events", "Filter by source (Ticketmaster, Bandsintown, etc.)"] },
+        ],
+      },
+      {
+        heading: "Competition Analysis",
+        steps: [
+          { title: "Identify Competing Shows", details: ["Events on the same date or within 3 days of your shows are flagged as competition", "The Competition Panel highlights conflicts with your scheduled events", "Use this to adjust marketing spend or pricing when competing with major shows"] },
+          { title: "Routing Detection", details: ["When artists are playing nearby venues within a week of being in your area, Market Radar flags them as routing opportunities", "These artists are already traveling through your region — perfect candidates for booking", "Click 'View Routing' to see the artist's tour schedule and gap dates"] },
+        ],
+      },
+      {
+        heading: "Trend Monitoring",
+        steps: [
+          { title: "Track Market Trends", details: ["The Trend Panel shows genre popularity and ticket price trends in your market", "Identify which genres are selling well locally", "Spot emerging artists before they become too expensive to book", "Compare your ticket prices with regional averages"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "sales-orders",
+    title: "Sales & Order Management",
+    category: "Revenue",
+    description: "How to view, search, and manage ticket orders and sales data in VenueCore.",
+    icon: "",
+    sections: [
+      {
+        heading: "Sales Dashboard",
+        steps: [
+          { title: "View Sales Overview", details: ["Navigate to Admin → Business → Sales", "The Sales page shows all ticket orders across all events", "Each order shows: buyer name, email, event, quantity, total, date, and status", "Use the search bar to find orders by name, email, or order ID"] },
+          { title: "Order Details", details: ["Click any order to view full details", "See: payment method, ticket tier, promo code used, seat assignments (if assigned seating)", "View the customer's order history", "Access the ticket QR codes and delivery status"] },
+        ],
+      },
+      {
+        heading: "Box Office Sales",
+        steps: [
+          { title: "Sell Tickets at the Door", details: ["Navigate to the Box Office page (accessible from the main site or /boxoffice)", "Select the event from the dropdown", "Choose the ticket tier and quantity", "Enter buyer information (name and email required)", "Process payment — supports cash, card, or comp tickets", "Tickets are generated instantly with QR codes"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "reports-analytics",
+    title: "Reports & Analytics",
+    category: "Revenue",
+    description: "How to generate ticket audit reports, monthly revenue summaries, and export data.",
+    icon: "",
+    sections: [
+      {
+        heading: "Ticket Audit Report",
+        steps: [
+          { title: "Generate a Ticket Audit", details: ["Navigate to Admin → Business → Reports", "Select 'Ticket Audit Report'", "Choose the event or venue, and set the date range", "Click 'Generate Report' to view the data", "The report shows: tier-by-tier breakdown, capacity, percent sold, gross sales, ticketing fees, facility fees, tax, and total revenue", "Click 'Export CSV' to download the data, or 'Export PDF' for a printable version"] },
+        ],
+      },
+      {
+        heading: "Monthly Revenue Report",
+        steps: [
+          { title: "Generate Monthly Revenue", details: ["Select 'Monthly Revenue Report'", "Choose the venue and date range", "Click 'Generate Report'", "Shows: ticket revenue, ticketing fees, facility fees, tax collected, and gross revenue", "Includes profit & revenue share calculations per the management agreement", "Per-event breakdown shows each show's contribution to the total", "Export as CSV for accounting"] },
+        ],
+      },
+      {
+        heading: "Orders Report",
+        steps: [
+          { title: "View Order Data", details: ["Select 'Orders Report' to see all transactions", "Filter by event, venue, or date range", "Shows: order ID, buyer, event, quantity, total, payment method, and status", "Use this for reconciliation with Stripe payment records"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "scanner-checkin",
+    title: "Scanner & Check-In",
+    category: "Day of Show",
+    description: "How to use the QR code scanner for event check-in, including assigned seating information for ushers.",
+    icon: "",
+    sections: [
+      {
+        heading: "Scanner Setup",
+        steps: [
+          { title: "Access the Scanner", details: ["Navigate to Admin → Day of Show → Scanner", "Select the event from the dropdown", "Grant camera access when prompted", "The scanner works on any device with a camera — phone, tablet, or laptop"] },
+        ],
+      },
+      {
+        heading: "Scanning Tickets",
+        steps: [
+          { title: "Scan a QR Code", details: ["Point the camera at the ticket's QR code", "The scanner reads it instantly and shows the result", "GREEN = Valid ticket, shows customer name and ticket details", "RED = Invalid, already scanned, or wrong event", "For assigned seating events, the scanner shows: Section, Row/Table, and Seat Number — use this to direct guests to their seats"] },
+          { title: "Manual Check-In", details: ["If the QR code won't scan, use the manual lookup", "Enter the customer's name or email to find their tickets", "Click 'Check In' to mark the ticket as scanned"] },
+        ],
+      },
+      {
+        heading: "Usher Guide (Assigned Seating)",
+        steps: [
+          { title: "Directing Guests", details: ["When scanning a ticket for an assigned seating event, the screen prominently displays:", "SECTION — the seating area (e.g., 'VIP Tables', 'Floor')", "ROW / TABLE — the specific row or table (e.g., 'T12', 'Row A')", "SEAT # — the individual seat number", "Use this information to guide guests directly to their assigned seats", "For table events, guests at the same table share a table number — direct all table guests to the same table"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "guest-lists",
+    title: "Guest Lists Management",
+    category: "Day of Show",
+    description: "How to create and manage guest lists for events, including artist comps and VIP access.",
+    icon: "",
+    sections: [
+      {
+        heading: "Creating Guest Lists",
+        steps: [
+          { title: "Set Up a Guest List", details: ["Navigate to Admin → Day of Show → Guest Lists", "Select the event", "Click '+ Add Guest' to add individual names", "Enter: guest name, plus-ones count, notes (e.g., 'Artist Guest', 'Sponsor VIP')", "Guests can also be added in bulk via CSV import"] },
+          { title: "Artist Guest List", details: ["Artists with portal access can manage their own guest lists", "The artist sees Guest Lists in their simplified sidebar", "They can add/remove guests for events they're assigned to", "Guest list limits can be set per-event in the event settings"] },
+        ],
+      },
+      {
+        heading: "Check-In at the Door",
+        steps: [
+          { title: "Using the Guest List at the Door", details: ["Door staff access the Guest List from the Scanner page", "Search by name to find guests quickly", "Check off guests as they arrive", "Plus-ones are tracked separately — mark how many of the allocated plus-ones actually arrived", "Notes appear next to each name for special instructions"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "live-pulse",
+    title: "Live Pulse — Real-Time Event Monitoring",
+    category: "Day of Show",
+    description: "How to use Live Pulse for real-time ticket scanning, revenue tracking, and event metrics during a show.",
+    icon: "",
+    sections: [
+      {
+        heading: "Using Live Pulse",
+        steps: [
+          { title: "Access Live Pulse", details: ["Navigate to Admin → Day of Show → Live Pulse", "Select the active event", "The dashboard updates in real-time as tickets are scanned and sales come in"] },
+          { title: "Key Metrics", details: ["Tickets Scanned — how many guests have checked in vs. total sold", "Revenue — real-time box office sales and online sales", "Scan Rate — how quickly guests are being processed at the door", "Drop Count — tracks real-time attendance for fire code compliance", "Use this to make real-time decisions: open more doors, adjust staffing, or trigger promotions"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "seating-layouts",
+    title: "Seating Layouts — Quick Build",
+    category: "Shows",
+    description: "How to create seating layouts using the Quick Build generator and assign them to events.",
+    icon: "",
+    sections: [
+      {
+        heading: "Creating a Seating Layout",
+        steps: [
+          { title: "Quick Build (Recommended)", details: ["Navigate to Admin → Shows → Seating", "Click '⚡ Quick Build' for the fastest method", "Choose the event type: Tables + GA, Full Tables, or Theater", "Enter room dimensions in feet (width and depth)", "Set stage position (front or back of room)", "Configure tables (count, seats per table, diameter, spacing) or rows (count, seats per row, spacing)", "Set pricing for each section", "The preview updates instantly — no loading", "Click 'Save & Open' to save the layout"] },
+          { title: "Custom Layout Builder", details: ["Click '+ Custom Layout' for more control", "Enter room dimensions and layout name", "Use the generator panel to add sections one at a time", "Each section gets a name, price, color, and type (tables/rows/GA)", "Configure the generator parameters and click 'Generate Seats'", "Add multiple sections to build complex layouts"] },
+        ],
+      },
+      {
+        heading: "Assigning a Layout to an Event",
+        steps: [
+          { title: "Link Layout to Event", details: ["Navigate to Admin → Shows → Events → Edit Event", "Scroll to the 'Reserved Seating' section", "Check 'Enable Reserved Seating' checkbox", "Select the layout from the dropdown", "Save the event", "Customers will now see the interactive seat map when purchasing tickets"] },
+        ],
+      },
+      {
+        heading: "Customer Experience",
+        steps: [
+          { title: "How Customers Pick Seats", details: ["On the event page, customers see the seat map inline below the ticket selector", "They tap/click seats to select them — selected seats highlight with a white border", "The ticket type and quantity auto-update to match selected seats", "The Order Summary on the right shows each selected seat with its price", "On checkout, seats are held for 10 minutes while payment is processed", "After payment, seats are marked as 'sold' and shown as unavailable to other buyers"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "settlements-contracts",
+    title: "Settlements & Contracts",
+    category: "Business",
+    description: "How to create artist settlements, generate contracts, and manage payment terms.",
+    icon: "",
+    sections: [
+      {
+        heading: "Settlements",
+        steps: [
+          { title: "Create a Settlement", details: ["Navigate to Admin → Business → Settlements", "Select the event to settle", "The system auto-calculates: gross ticket revenue, expenses, artist guarantee, backend split", "Add any additional expenses (production, catering, security, etc.)", "Review the settlement summary showing what's owed to the artist vs. venue", "Generate the settlement PDF for artist/agent review", "Track payment status: Pending → Approved → Paid"] },
+        ],
+      },
+      {
+        heading: "Contracts",
+        steps: [
+          { title: "Generate a Contract", details: ["Navigate to Admin → Business → Contracts", "Contracts are auto-generated from accepted offers", "The contract includes all deal terms: guarantee, backend percentage, rider requirements, technical specs", "Contracts are generated as professional PDFs with venue branding", "Send contracts via email for signature", "Track signature status and store signed copies"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "auctions",
+    title: "Auctions — Silent & Live",
+    category: "Growth",
+    description: "How to create and manage silent auctions for fundraising events.",
+    icon: "",
+    sections: [
+      {
+        heading: "Creating an Auction",
+        steps: [
+          { title: "Set Up an Auction", details: ["Navigate to Admin → Growth → Auctions", "Click '+ New Auction' or create from an existing event", "Enter auction title, description, and date/time", "Set the registration deadline and bidding window", "Configure: minimum bid increments, reserve prices, and auto-extend rules"] },
+          { title: "Add Auction Items", details: ["Click 'Add Item' within the auction", "Enter: item title, description, donor name, estimated value", "Upload item photos (at least one required)", "Set: starting bid, bid increment, and optional reserve price", "Add as many items as needed — they display in a grid for bidders"] },
+        ],
+      },
+      {
+        heading: "Running the Auction",
+        steps: [
+          { title: "Bidder Registration", details: ["Share the auction registration link with attendees", "Bidders register with their name, email, and phone number", "Registration generates a unique bidder number", "QR codes are generated for each bidder for quick check-in"] },
+          { title: "Live Bidding", details: ["Bidders access the auction on their phones at the event", "They browse items, view current bids, and place bids", "Real-time notifications when outbid", "The auction dashboard shows live bidding activity and total raised"] },
+          { title: "Closing & Checkout", details: ["When the auction closes, winners are notified by email", "The checkout page shows all won items with total due", "Stripe payment processing for seamless collection", "Generate reports showing: total raised, items sold, top donors"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "partners-sponsors",
+    title: "Partners & Sponsors",
+    category: "Growth",
+    description: "How to manage venue partners and event sponsors with tiered visibility.",
+    icon: "",
+    sections: [
+      {
+        heading: "Managing Partners",
+        steps: [
+          { title: "Add a Partner/Sponsor", details: ["Navigate to Admin → Growth → Partners", "Click '+ New Partner'", "Enter: company name, contact info, website, logo", "Set the sponsorship tier (Platinum, Gold, Silver, Bronze, Community)", "Assign the partner to specific events or make them venue-wide", "Partner logos automatically appear on event pages based on their tier level"] },
+          { title: "Partner Dashboard", details: ["Partners with login access see a dedicated Partner Dashboard", "They can view: their logo placement, event performance, and engagement metrics", "Partner visibility is tiered — higher tiers get more prominent placement"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "site-branding",
+    title: "Site Branding & Customization",
+    category: "Settings",
+    description: "How to customize your venue's public-facing website including colors, logos, and content.",
+    icon: "",
+    sections: [
+      {
+        heading: "Branding Configuration",
+        steps: [
+          { title: "Access Branding Settings", details: ["Navigate to Admin → Settings → Site Branding", "All changes take effect immediately on the public website"] },
+          { title: "Colors & Logo", details: ["Set Primary Color — used for buttons, links, and accents (recommended: your brand's main color)", "Set Secondary Color — used for backgrounds and surfaces", "Set Accent Color — used for highlights and interactive elements", "Upload your venue logo (PNG, min 500x500px) — appears in header and sidebar", "Upload favicon — appears in browser tabs"] },
+          { title: "Hero Images", details: ["Upload hero image — the large background image on the homepage (1920x800px recommended)", "Upload optional second hero image for carousel rotation", "Images are automatically optimized for fast loading"] },
+          { title: "Homepage Content", details: ["Set homepage headline — the main text visitors see (e.g., 'Live Music in The Shoals')", "Set subheadline — supporting text below the headline", "Set CTA button text and URL — the main call-to-action button", "Set tagline — appears in the site header next to the logo", "Set footer description — appears in the website footer"] },
+          { title: "Contact & Social", details: ["Set support email — shown on contact pages and in footer", "Set social media URLs — Instagram, Facebook, website", "These appear as clickable icons in the website footer"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "permissions-roles",
+    title: "User Permissions & Roles",
+    category: "Settings",
+    description: "How to manage user accounts, roles, and sidebar permissions for your venue.",
+    icon: "",
+    sections: [
+      {
+        heading: "User Management",
+        steps: [
+          { title: "Managing Users", details: ["Navigate to Admin → Settings → Permissions", "View all users with access to your venue", "Each user has: name, email, role, and last login date"] },
+          { title: "Adding a New User", details: ["Click 'Add User'", "Enter their email address", "Select their role:", "- Owner: Full access to everything, can manage other users", "- Venue Admin: Full venue access, cannot manage owners", "- Full Admin: Events, sales, reports — no booking or settlements", "- Box Office: Sales, scanner, guest lists only", "- Door Greeter: Scanner and guest lists only", "- Read Only: View-only access to dashboard and reports", "- Artist: Simplified portal — their events, sales, and guest lists only", "- Partner: Partner dashboard only", "Save — the user receives an email invitation to set up their account"] },
+          { title: "Customizing Sidebar Visibility", details: ["For each role, you can customize which sidebar tabs are visible", "This is set per-venue in the sidebar_permissions table", "Toggle visibility for each tab: Dashboard, Events, Sales, Reports, etc.", "Users only see tabs they have permission to access"] },
+        ],
+      },
+    ],
+  },
+  {
+    id: "booking-offers",
+    title: "Booking — Creating & Managing Offers",
+    category: "Business",
+    description: "How to create artist booking offers with deal terms, rider requirements, and financial structures.",
+    icon: "",
+    sections: [
+      {
+        heading: "Creating an Offer",
+        steps: [
+          { title: "Start a New Offer", details: ["Navigate to Admin → Business → Booking", "Click '+ New Offer'", "Select or create the artist", "Choose the proposed event date and venue"] },
+          { title: "Set Deal Terms", details: ["Deal Type: Flat guarantee, Versus deal (guarantee vs. percentage), Door deal, or Co-promote", "Guarantee Amount: The fixed payment to the artist", "Backend Percentage: Artist's share of net revenue above the guarantee (for Versus deals)", "Walk Clause: Revenue threshold below which the artist can walk away or renegotiate", "Deposit: Amount due upon contract signing (typically 50% of guarantee)", "Merch Split: Venue's percentage of merchandise sales (typically 15-20%)"] },
+          { title: "Rider & Production", details: ["Hospitality Rider: Dressing room requirements, catering, beverages", "Technical Rider: Sound, lighting, backline equipment requirements", "Comp Tickets: Number of complimentary tickets for the artist", "Guest List: Number of guest list spots allocated", "Add any special requirements or notes"] },
+          { title: "Send the Offer", details: ["Review all terms in the offer summary", "Click 'Generate PDF' to create a professional deal memo", "Send the PDF to the artist's agent", "Track status: Draft → Sent → Accepted → Declined/Countered", "When accepted, the offer automatically populates the event creation form"] },
+        ],
+      },
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------------ */
