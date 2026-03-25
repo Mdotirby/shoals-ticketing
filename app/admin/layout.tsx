@@ -13,49 +13,80 @@ type SidebarItem = {
   label: string;
   href: string;
   roles: string[];
-  divider?: boolean; // show a thin line before this item
 };
 
-const sidebarItems: SidebarItem[] = [
-  // ── Core ──
-  { label: "Dashboard",        href: "/admin",                     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
-  { label: "Calendar",         href: "/admin/calendar",            roles: ["owner","venue_admin","full_admin"] },
-  { label: "Events",           href: "/admin/events",              roles: ["owner","venue_admin","full_admin"] },
+type SidebarGroup = {
+  groupLabel: string;
+  icon: string;
+  items: SidebarItem[];
+  roles: string[];
+};
 
-  // ── Business ──
-  { label: "Booking",          href: "/admin/offers",              roles: ["owner","venue_admin"], divider: true },
-  { label: "Settlements",      href: "/admin/settlements",         roles: ["owner","venue_admin"] },
-  { label: "Contracts",        href: "/admin/contracts",           roles: ["owner","venue_admin"] },
-
-  // ── Revenue ──
-  { label: "Sales",            href: "/admin/orders",              roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"], divider: true },
-  { label: "Reports",          href: "/admin/reports",             roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
-
-  // ── Day of Show ──
-  { label: "Scanner",          href: "/admin/scan",                roles: ["owner","venue_admin","full_admin","box_office","door_greeter"], divider: true },
-  { label: "Guest Lists",      href: "/admin/guest-lists",         roles: ["owner","venue_admin","full_admin","artist"] },
-  { label: "Live Pulse",       href: "/admin/live",                roles: ["owner","venue_admin","full_admin"] },
-
-  // ── Growth ──
-  { label: "Marketing",        href: "/admin/marketing",           roles: ["owner","venue_admin","full_admin"], divider: true },
-  { label: "Market Radar",     href: "/admin/market-radar",        roles: ["owner","venue_admin"] },
-  { label: "Auctions",         href: "/admin/auctions",            roles: ["owner","venue_admin","full_admin"] },
-  { label: "Partners",         href: "/admin/sponsors",            roles: ["owner","venue_admin"] },
-  { label: "Agents",           href: "/admin/agents",              roles: ["owner","venue_admin"] },
-
-  // ── Operations ──
-  { label: "Seating",          href: "/admin/seating",             roles: ["owner","venue_admin"], divider: true },
-  { label: "SOPs",             href: "/admin/sops",                roles: ["owner","venue_admin"] },
-
-  // ── Settings ──
-  { label: "Site Branding",    href: "/admin/settings/branding",   roles: ["owner","venue_admin"], divider: true },
-  { label: "Venue Management", href: "/portal",                    roles: ["owner","venue_admin"] },
-  { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner"] },
-  { label: "Onboarding",       href: "/admin/onboarding",          roles: ["owner"] },
-
-  // ── Partner Only ──
-  { label: "Partner Dashboard", href: "/admin/partner-dashboard",  roles: ["partner"] },
+const sidebarGroups: SidebarGroup[] = [
+  {
+    groupLabel: "Shows",
+    icon: "🎤",
+    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
+    items: [
+      { label: "Dashboard",    href: "/admin",              roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
+      { label: "Calendar",     href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
+      { label: "Events",       href: "/admin/events",       roles: ["owner","venue_admin","full_admin"] },
+      { label: "Seating",      href: "/admin/seating",      roles: ["owner","venue_admin"] },
+    ],
+  },
+  {
+    groupLabel: "Business",
+    icon: "💰",
+    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
+    items: [
+      { label: "Sales",        href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
+      { label: "Reports",      href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
+      { label: "Booking",      href: "/admin/offers",       roles: ["owner","venue_admin"] },
+      { label: "Settlements",  href: "/admin/settlements",  roles: ["owner","venue_admin"] },
+      { label: "Contracts",    href: "/admin/contracts",    roles: ["owner","venue_admin"] },
+    ],
+  },
+  {
+    groupLabel: "Day of Show",
+    icon: "🎫",
+    roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"],
+    items: [
+      { label: "Scanner",      href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
+      { label: "Guest Lists",  href: "/admin/guest-lists",  roles: ["owner","venue_admin","full_admin","artist"] },
+      { label: "Live Pulse",   href: "/admin/live",         roles: ["owner","venue_admin","full_admin"] },
+    ],
+  },
+  {
+    groupLabel: "Growth",
+    icon: "📈",
+    roles: ["owner","venue_admin","full_admin"],
+    items: [
+      { label: "Marketing",    href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
+      { label: "Market Radar", href: "/admin/market-radar", roles: ["owner","venue_admin"] },
+      { label: "Auctions",     href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
+      { label: "Partners",     href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
+      { label: "Agents",       href: "/admin/agents",       roles: ["owner","venue_admin"] },
+    ],
+  },
+  {
+    groupLabel: "Settings",
+    icon: "⚙️",
+    roles: ["owner","venue_admin"],
+    items: [
+      { label: "Site Branding",    href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
+      { label: "Venue Management", href: "/portal",                     roles: ["owner","venue_admin"] },
+      { label: "SOPs",             href: "/admin/sops",                 roles: ["owner","venue_admin"] },
+      { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner"] },
+      { label: "Onboarding",       href: "/admin/onboarding",           roles: ["owner"] },
+    ],
+  },
 ];
+
+// Partner-only standalone item
+const partnerItem: SidebarItem = { label: "Partner Dashboard", href: "/admin/partner-dashboard", roles: ["partner"] };
+
+// Flatten for permission lookups
+const allSidebarItems = sidebarGroups.flatMap((g) => g.items).concat([partnerItem]);
 
 // Map sidebar labels to tab_key used in sidebar_permissions table
 const TAB_KEY_MAP: Record<string, string> = {
@@ -96,6 +127,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userId, setUserId] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Shows"]));
 
   useEffect(() => {
     // Immediately read cookies for instant display (no flash of empty sidebar)
@@ -233,24 +265,46 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
-  // Artists get a hardcoded sidebar — Dashboard, Sales, Guest Lists only
+  // Artists get a hardcoded sidebar
   const ARTIST_ALLOWED_LABELS = ["Dashboard", "Sales", "Guest Lists"];
 
-  const visibleItems = sidebarItems.filter((item) => {
-    // Hardcode artist sidebar — ignore sidebar_permissions entirely
-    if (userRole === "artist") {
-      return ARTIST_ALLOWED_LABELS.includes(item.label);
-    }
-
+  const isItemVisible = (item: SidebarItem): boolean => {
+    if (userRole === "artist") return ARTIST_ALLOWED_LABELS.includes(item.label);
     const tabKey = TAB_KEY_MAP[item.label];
-    // When sidebar_permissions are loaded, they are the sole authority
-    if (sidebarPerms && tabKey && tabKey in sidebarPerms) {
-      return sidebarPerms[tabKey];
-    }
-    // Fallback: hardcoded role check (used when no permissions data exists)
+    if (sidebarPerms && tabKey && tabKey in sidebarPerms) return sidebarPerms[tabKey];
     if (userRole && !item.roles.includes(userRole)) return false;
     return true;
-  });
+  };
+
+  // Filter groups to only show groups with visible items
+  const visibleGroups = sidebarGroups
+    .map((g) => ({ ...g, items: g.items.filter(isItemVisible) }))
+    .filter((g) => g.items.length > 0);
+
+  // Flatten for mobile dropdown
+  const visibleItems = visibleGroups.flatMap((g) => g.items);
+  if (userRole === "partner" && isItemVisible(partnerItem)) {
+    visibleItems.push(partnerItem);
+  }
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
+
+  // Auto-expand the group containing the current page
+  useEffect(() => {
+    for (const g of sidebarGroups) {
+      if (g.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)))) {
+        setExpandedGroups((prev) => new Set(prev).add(g.groupLabel));
+        break;
+      }
+    }
+  }, [pathname]);
 
   return (
     <div className="admin-shell">
@@ -358,20 +412,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <nav className="admin-sidebar-nav">
-          {visibleItems.map((item) => (
-            <div key={item.href + item.label}>
-              {item.divider && (
-                <div style={{ height: 1, background: "var(--vc-border-subtle)", margin: "8px 0" }} />
-              )}
-              <Link
-                href={item.href}
-                className={`admin-sidebar-link ${pathname === item.href ? "active" : ""}`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                {item.label}
-              </Link>
-            </div>
-          ))}
+          {visibleGroups.map((group) => {
+            const isExpanded = expandedGroups.has(group.groupLabel);
+            const hasActivePage = group.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)));
+            return (
+              <div key={group.groupLabel} style={{ marginBottom: 2 }}>
+                <button
+                  onClick={() => toggleGroup(group.groupLabel)}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 14px", border: "none", borderRadius: "var(--vc-radius-sm)",
+                    background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
+                    color: hasActivePage ? "var(--venue-primary, #d0c290)" : "var(--vc-text-muted)",
+                    fontFamily: "var(--font-urbanist), sans-serif", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.04em",
+                    transition: "background 150ms, color 150ms",
+                  }}
+                >
+                  <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{group.icon}</span>
+                  <span style={{ flex: 1, textAlign: "left" }}>{group.groupLabel}</span>
+                  <span style={{ fontSize: 10, opacity: 0.5, transition: "transform 150ms", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                </button>
+                {isExpanded && (
+                  <div style={{ paddingLeft: 12, marginTop: 2 }}>
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.href + item.label}
+                        href={item.href}
+                        className={`admin-sidebar-link ${pathname === item.href ? "active" : ""}`}
+                        onClick={() => setSidebarOpen(false)}
+                        style={{ fontSize: 13, padding: "6px 14px" }}
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {userRole === "partner" && isItemVisible(partnerItem) && (
+            <Link
+              href={partnerItem.href}
+              className={`admin-sidebar-link ${pathname === partnerItem.href ? "active" : ""}`}
+              onClick={() => setSidebarOpen(false)}
+            >
+              {partnerItem.label}
+            </Link>
+          )}
         </nav>
 
         {/* Sign Out — pinned to bottom */}

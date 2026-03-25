@@ -5541,18 +5541,7 @@ select.admin-form-input {
   border-right: none;
 }
 
-/* Subtle bottom fade on the sticky sidebar content */
-.admin-sidebar::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(to top, rgba(11, 13, 29, 0.9) 0%, transparent 100%);
-  pointer-events: none;
-  z-index: 2;
-}
+/* Bottom fade removed for cleaner look */
 
 /* Hide the pseudo-element background column on mobile */
 @media (max-width: 768px) {
