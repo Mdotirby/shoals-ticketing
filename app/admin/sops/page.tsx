@@ -444,7 +444,7 @@ export default function SOPsPage() {
           }}>
             {cat}
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 16 }}>
             {SOP_TEMPLATES.filter((t) => t.category === cat).map((template) => (
               <div
                 key={template.id}
