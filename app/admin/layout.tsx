@@ -25,7 +25,7 @@ type SidebarGroup = {
 const sidebarGroups: SidebarGroup[] = [
   {
     groupLabel: "Shows",
-    icon: "🎤",
+    icon: "shows",
     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
     items: [
       { label: "Dashboard",    href: "/admin",              roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
@@ -36,7 +36,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     groupLabel: "Business",
-    icon: "💰",
+    icon: "business",
     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
     items: [
       { label: "Sales",        href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
@@ -48,7 +48,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     groupLabel: "Day of Show",
-    icon: "🎫",
+    icon: "dayofshow",
     roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"],
     items: [
       { label: "Scanner",      href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
@@ -58,7 +58,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     groupLabel: "Growth",
-    icon: "📈",
+    icon: "growth",
     roles: ["owner","venue_admin","full_admin"],
     items: [
       { label: "Marketing",    href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
@@ -70,7 +70,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     groupLabel: "Settings",
-    icon: "⚙️",
+    icon: "settings",
     roles: ["owner","venue_admin"],
     items: [
       { label: "Site Branding",    href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
@@ -87,6 +87,25 @@ const partnerItem: SidebarItem = { label: "Partner Dashboard", href: "/admin/par
 
 // Flatten for permission lookups
 const allSidebarItems = sidebarGroups.flatMap((g) => g.items).concat([partnerItem]);
+
+/** Minimal frosted-glass SVG icons for sidebar groups */
+function SidebarIcon({ name }: { name: string }) {
+  const s = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, style: { opacity: 0.7 } };
+  switch (name) {
+    case "shows":
+      return <svg {...s}><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></svg>;
+    case "business":
+      return <svg {...s}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>;
+    case "dayofshow":
+      return <svg {...s}><path d="M15 5v2M9 5v2" /><rect x="3" y="4" width="18" height="6" rx="2" /><path d="M3 10v8a2 2 0 002 2h14a2 2 0 002-2v-8" /><path d="M9 14h6" /></svg>;
+    case "growth":
+      return <svg {...s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>;
+    case "settings":
+      return <svg {...s}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>;
+    default:
+      return <svg {...s}><circle cx="12" cy="12" r="10" /></svg>;
+  }
+}
 
 // Map sidebar labels to tab_key used in sidebar_permissions table
 const TAB_KEY_MAP: Record<string, string> = {
@@ -429,7 +448,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     transition: "background 150ms, color 150ms",
                   }}
                 >
-                  <span style={{ fontSize: 14, width: 20, textAlign: "center" }}>{group.icon}</span>
+                  <SidebarIcon name={group.icon} />
                   <span style={{ flex: 1, textAlign: "left" }}>{group.groupLabel}</span>
                   <span style={{ fontSize: 10, opacity: 0.5, transition: "transform 150ms", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
                 </button>
