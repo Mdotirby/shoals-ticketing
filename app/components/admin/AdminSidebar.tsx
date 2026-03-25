@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useVenue } from "@/app/components/VenueContext";
 import SafeImage from "@/app/components/SafeImage";
 
@@ -10,14 +9,14 @@ export default function AdminSidebar() {
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar-logo">
-        <Link href="/admin">
+        <a href="https://venuecore.live">
           <SafeImage
             src={`/logos/${venueSlug}/logo.png`}
             fallback="/logos/default/logo.png"
             alt="Venue Logo"
             style={{ width: 120, height: "auto", objectFit: "contain" }}
           />
-        </Link>
+        </a>
       </div>
     </aside>
   );
