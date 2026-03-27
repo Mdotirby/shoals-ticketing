@@ -6,49 +6,49 @@ import Footer from "@/app/components/Footer";
 
 const features = [
   {
-    icon: "📱",
+    icon: "",
     title: "Mobile-First Bidding",
     description:
       "Guests scan a QR code at any item and place bids instantly from their phone. No app downloads, no accounts to create — just enter your name, email, and phone and start bidding in seconds.",
   },
   {
-    icon: "⚡",
+    icon: "",
     title: "Real-Time Updates",
     description:
       "Every bid updates live across all devices. Guests see the current price the moment it changes, know instantly when they've been outbid, and never miss a chance to bid again.",
   },
   {
-    icon: "🛡️",
+    icon: "",
     title: "Anti-Snipe Protection",
     description:
       "Last-second bids automatically extend the auction closing time, giving every bidder a fair chance. No more frustration from being outbid with zero time to respond.",
   },
   {
-    icon: "📧",
+    icon: "",
     title: "Outbid Notifications",
     description:
       "When someone outbids a guest, they get an email with a direct link back to the item. More notifications means more bids — and more revenue for your cause.",
   },
   {
-    icon: "🎟️",
+    icon: "",
     title: "Printable QR Codes",
     description:
       "One click generates beautifully formatted QR code cards for every item. Print them, place them next to your items, and guests are bidding in seconds.",
   },
   {
-    icon: "💳",
+    icon: "",
     title: "Flexible Checkout",
     description:
       "When the auction closes, winners choose to pay by cash, check, or credit/debit card. Card payments process instantly through Stripe — no chasing down payments after the event.",
   },
   {
-    icon: "📊",
+    icon: "",
     title: "Comprehensive Reports",
     description:
       "Five detailed reports — Item Report, All Bidders, Winning Bidders, Paid by CC, and Gross Receipts — all exportable as PDFs. Know exactly what happened and who owes what.",
   },
   {
-    icon: "🏷️",
+    icon: "",
     title: "Your Brand, Front & Center",
     description:
       "Upload your organization's logo and it appears on every page guests see. This is your auction, your brand — VenueCore just powers the technology behind the scenes.",

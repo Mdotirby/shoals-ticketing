@@ -198,7 +198,7 @@ export default function TicketViewPage() {
                 </div>
 
                 {current.is_scanned && (
-                  <div className="digital-ticket-scanned">✅ Already Scanned</div>
+                  <div className="digital-ticket-scanned">Already Scanned</div>
                 )}
 
                 {/* Actions */}

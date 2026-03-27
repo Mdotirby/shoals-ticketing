@@ -89,37 +89,169 @@ export default function EventsPage() {
           </p>
         )}
 
-        {!isLoading &&
-          filtered.map((event) => (
-            <div key={event.id} className="events-list-card">
-              <div className="elc-info">
-                <span className="elc-price-badge">${event.price.toFixed(2)}</span>
-                <h2 className="elc-title">{event.title}</h2>
-                <p className="elc-date">
-                  {formatEventDateShort(event.date)}
-                  {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
-                </p>
-                <span className="elc-venue-badge">
-                  <span className="elc-venue-dot" />
-                  {event.venue}
-                </span>
-              </div>
+        {/* ── Responsive grid styles ── */}
+        <style>{`
+          .events-card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 24px;
+          }
+          @media (max-width: 1024px) {
+            .events-card-grid { grid-template-columns: repeat(2, 1fr); }
+          }
+          @media (max-width: 768px) {
+            .events-card-grid { grid-template-columns: 1fr; }
+          }
+          .event-card {
+            background: #131629;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+          }
+          .event-card:hover {
+            transform: scale(1.02);
+            border-color: rgba(208,194,144,0.45);
+          }
+          .event-card-img {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #0b0d1d;
+            overflow: hidden;
+          }
+          .event-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+          .event-card-img::after {
+            content: "";
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(to top, rgba(19,22,41,0.85), transparent);
+            pointer-events: none;
+          }
+          .event-card-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .event-card-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+          }
+          .event-card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .event-card-meta {
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+          .event-card-price {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(208,194,144,0.15);
+            color: #d0c290;
+            align-self: flex-start;
+          }
+          .event-card-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #d0c290;
+            color: #0b0d1d;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            margin-top: auto;
+            transition: opacity 0.15s ease;
+          }
+          .event-card-btn:hover { opacity: 0.88; }
+        `}</style>
 
-              <div className="elc-right">
-                <Link href={`/events/${event.id}`} className="elc-buy-btn">
-                  Buy Tickets
+        {!isLoading && filtered.length > 0 && (
+          <div className="events-card-grid">
+            {filtered.map((event) => {
+              const isFree = event.price === 0;
+              return (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.id}`}
+                  className="event-card"
+                >
+                  {/* Image */}
+                  <div className={`event-card-img${!event.image_url ? " event-card-placeholder" : ""}`}>
+                    {event.image_url ? (
+                      <img src={event.image_url} alt={event.title} />
+                    ) : (
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.25 }}>
+                        <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/>
+                        <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/>
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Body */}
+                  <div className="event-card-body">
+                    <h2 className="event-card-title">{event.title}</h2>
+
+                    <p className="event-card-meta">
+                      {formatEventDateShort(event.date)}
+                      {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
+                    </p>
+
+                    <p className="event-card-meta">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/>
+                        <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                      {event.venue}
+                    </p>
+
+                    <span className="event-card-price">
+                      {isFree ? "FREE" : `$${event.price.toFixed(2)}`}
+                    </span>
+
+                    <span className="event-card-btn">
+                      {isFree ? "Register Free" : "Get Tickets"}
+                    </span>
+                  </div>
                 </Link>
-                {event.image_url ? (
-                  <div
-                    className="elc-photo"
-                    style={{ backgroundImage: `url(${event.image_url})` }}
-                  />
-                ) : (
-                  <div className="elc-photo elc-photo-placeholder" />
-                )}
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
+        )}
       </main>
 
       <Footer />

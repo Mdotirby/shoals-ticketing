@@ -187,7 +187,7 @@ export default function AdSpendPage() {
       {/* Not configured */}
       {syncStatus && !syncStatus.configured && (
         <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 20, marginBottom: 24 }}>
-          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>⚠️ Meta Ads Not Connected</div>
+          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>Meta Ads Not Connected</div>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>
             Set <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_SYSTEM_TOKEN</code> and{" "}
             <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>META_AD_ACCOUNT_ID</code> in Vercel env vars to enable auto-sync.
@@ -198,7 +198,7 @@ export default function AdSpendPage() {
       {/* Table doesn't exist */}
       {tableError && (
         <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 20, marginBottom: 24 }}>
-          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>⚠️ Migration Required</div>
+          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 15, marginBottom: 6 }}>Migration Required</div>
           <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, margin: 0 }}>
             The <code style={{ background: "rgba(255,255,255,0.1)", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>ad_campaigns</code> table doesn&apos;t exist yet. Run the marketing migration to create it.
           </p>

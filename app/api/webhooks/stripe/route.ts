@@ -53,7 +53,7 @@ function ticketEmailHtml({
           <tr>
             <td style="background:#d0c290;padding:20px 28px;">
               <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">VenueCore</p>
-              <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your ${ticketCount > 1 ? 'Tickets are' : 'Ticket is'} Ready 🎟️</h1>
+              <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your ${ticketCount > 1 ? 'Tickets are' : 'Ticket is'} Ready</h1>
             </td>
           </tr>
 
@@ -188,7 +188,7 @@ async function sendTicketEmail({
     body: JSON.stringify({
       from: `VenueCore Tickets <${fromEmail}>`,
       to: [to],
-      subject: `Your ${ticketCount > 1 ? 'tickets' : 'ticket'} for ${eventTitle} 🎟️`,
+      subject: `Your ${ticketCount > 1 ? 'tickets' : 'ticket'} for ${eventTitle}`,
       html,
     }),
   });
@@ -197,7 +197,7 @@ async function sendTicketEmail({
     const err = await res.text();
     console.error("Resend email failed:", err);
   } else {
-    console.log(`📧 Ticket email sent to ${to}`);
+    console.log(`Ticket email sent to ${to}`);
   }
 }
 
@@ -472,10 +472,10 @@ export async function POST(request: Request) {
             .update({ current_uses: (currentPromo.current_uses || 0) + 1 })
             .eq("id", promoCodeId);
         }
-        console.log(`🏷️ Promo code ${promoCode} usage incremented`);
+        console.log(`Promo code ${promoCode} usage incremented`);
       }
 
-      console.log(`✅ Order ${order.id} + ledger entry created for event ${eventId}`);
+      console.log(`Order ${order.id} + ledger entry created for event ${eventId}`);
 
       // 5. Upsert customer profile (for LFV tracking)
       if (customerEmail) {
@@ -538,7 +538,7 @@ export async function POST(request: Request) {
           source: "checkout_fwb",
           venue_id: eventData?.venue_id || null,
         }, { onConflict: "email" });
-        console.log(`📬 FWB opt-in for ${customerEmail}`);
+        console.log(`FWB opt-in for ${customerEmail}`);
       }
 
       // 8. Look up reserved seat details if applicable

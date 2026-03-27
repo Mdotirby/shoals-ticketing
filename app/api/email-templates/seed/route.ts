@@ -23,10 +23,10 @@ export async function POST(req: NextRequest) {
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 24px;">
     <h2 style="font-size: 18px; color: #d0c290; margin: 0 0 12px;">Whats included:</h2>
     <ul style="list-style: none; padding: 0; margin: 0;">
-      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">⚡ <strong style="color: #fff;">Presale Access</strong> — Get tickets before they go public</li>
-      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">🎁 <strong style="color: #fff;">Exclusive Offers</strong> — Special deals just for subscribers</li>
-      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);">📰 <strong style="color: #fff;">Breaking News</strong> — Be the first to know about new shows</li>
-      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px;">🔔 <strong style="color: #fff;">Early Announcements</strong> — Artist lineups and venue updates</li>
+      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong style="color: #fff;">Presale Access</strong> — Get tickets before they go public</li>
+      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong style="color: #fff;">Exclusive Offers</strong> — Special deals just for subscribers</li>
+      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.06);"><strong style="color: #fff;">Breaking News</strong> — Be the first to know about new shows</li>
+      <li style="padding: 8px 0; color: rgba(255,255,255,0.7); font-size: 14px;"><strong style="color: #fff;">Early Announcements</strong> — Artist lineups and venue updates</li>
     </ul>
   </div>
 
@@ -138,22 +138,22 @@ export async function POST(req: NextRequest) {
   <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 28px;">Hey {{first_name}}, the show is almost here! Here's everything you need.</p>
 
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 16px;">
-    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">📍 Parking</h3>
+    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Parking</h3>
     <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin: 0; line-height: 1.5;">[Add parking information here — available lots, pricing, ride-share drop-off points]</p>
   </div>
 
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 16px;">
-    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">🎒 Bag Policy</h3>
+    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Bag Policy</h3>
     <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin: 0; line-height: 1.5;">[Add bag policy — clear bags only, size restrictions, prohibited items]</p>
   </div>
 
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 16px;">
-    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">🚪 Doors & Set Times</h3>
+    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Doors & Set Times</h3>
     <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin: 0; line-height: 1.5;">[Add doors open time, opener set time, headliner set time, curfew]</p>
   </div>
 
   <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 10px; padding: 24px; margin-bottom: 24px;">
-    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">📱 Your Ticket</h3>
+    <h3 style="color: #d0c290; font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 1px;">Your Ticket</h3>
     <p style="color: rgba(255,255,255,0.6); font-size: 13px; margin: 0; line-height: 1.5;">Have your QR code ready on your phone. Screenshots work too. Each ticket has a unique QR that can only be scanned once.</p>
   </div>
 

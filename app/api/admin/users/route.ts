@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 <tr><td align="center">
 <table width="520" style="max-width:520px;width:100%;background:#131629;border-radius:12px;overflow:hidden;border:1px solid rgba(208,194,144,0.15);">
 <tr><td style="background:#d0c290;padding:20px 28px;">
-<h1 style="margin:0;font-size:22px;color:#0b0d1d;">Welcome to VenueCore 🎶</h1>
+<h1 style="margin:0;font-size:22px;color:#0b0d1d;">Welcome to VenueCore</h1>
 </td></tr>
 <tr><td style="padding:28px;">
 <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
@@ -129,7 +129,7 @@ If you didn't expect this invitation, you can safely ignore this email. Question
       body: JSON.stringify({
         from: "VenueCore <tickets@venuecore.live>",
         to: [email],
-        subject: `Welcome to VenueCore — You're a ${roleLabel} 🎶`,
+        subject: `Welcome to VenueCore — You're a ${roleLabel}`,
         html: welcomeHtml,
       }),
     }).catch(() => {});

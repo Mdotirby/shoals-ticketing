@@ -765,12 +765,12 @@ export default function EventDetailPage() {
                   )}
                   {event.venue_phone && (
                     <a href={`tel:${event.venue_phone}`} className="venue-directions-card-link">
-                      📞 {event.venue_phone}
+                      {event.venue_phone}
                     </a>
                   )}
                   {event.venue_email && (
                     <a href={`mailto:${event.venue_email}`} className="venue-directions-card-link">
-                      ✉️ {event.venue_email}
+                      {event.venue_email}
                     </a>
                   )}
                 </div>

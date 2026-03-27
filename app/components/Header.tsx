@@ -23,10 +23,8 @@ export default function Header() {
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
-  // Don't render the public header on admin/portal/agent pages
-  if (HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return null;
-  }
+  // Compute visibility flag (but don't return yet — hooks must come first)
+  const isHidden = HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -55,6 +53,9 @@ export default function Header() {
     }
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [isMenuOpen, handleOutsideClick]);
+
+  // Don't render the public header on admin/portal/agent pages
+  if (isHidden) return null;
 
   return (
     <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>

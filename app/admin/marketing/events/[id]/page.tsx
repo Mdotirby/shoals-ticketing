@@ -420,13 +420,13 @@ export default function EventMarketingDetailPage() {
               disabled={!qrDataUrl}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-lg text-sm font-medium transition"
             >
-              ⬇ Download QR Code
+              ↓ Download QR Code
             </button>
             <button
               onClick={copyLink}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition"
             >
-              {linkCopied ? "✓ Copied!" : "📋 Copy Link"}
+              {linkCopied ? "✓ Copied!" : "Copy Link"}
             </button>
           </div>
         </div>

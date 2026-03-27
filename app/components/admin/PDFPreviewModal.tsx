@@ -93,14 +93,14 @@ export default function PDFPreviewModal({
             className="admin-form-submit"
             style={{ flex: 1, margin: 0 }}
           >
-            ⬇ Download PDF
+            ↓ Download PDF
           </button>
           <button
             onClick={() => { onDownload(); }}
             className="admin-header-btn"
             style={{ flex: 1 }}
           >
-            🖨 Print
+            Print
           </button>
         </div>
       </div>

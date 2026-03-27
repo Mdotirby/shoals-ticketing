@@ -228,7 +228,7 @@ export default function AuctionCheckoutPage() {
               disabled={submitting}
               className="auction-btn auction-btn-method"
             >
-              <span className="auction-method-icon">💵</span>
+              <span className="auction-method-icon"></span>
               <span>Cash</span>
             </button>
             <button
@@ -236,7 +236,7 @@ export default function AuctionCheckoutPage() {
               disabled={submitting}
               className="auction-btn auction-btn-method"
             >
-              <span className="auction-method-icon">📝</span>
+              <span className="auction-method-icon"></span>
               <span>Check</span>
             </button>
             <button
@@ -244,7 +244,7 @@ export default function AuctionCheckoutPage() {
               disabled={submitting}
               className="auction-btn auction-btn-method auction-btn-method-cc"
             >
-              <span className="auction-method-icon">💳</span>
+              <span className="auction-method-icon"></span>
               <span>Credit/Debit Card</span>
             </button>
           </div>

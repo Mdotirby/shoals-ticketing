@@ -44,7 +44,7 @@ function SuccessContent() {
     <section className="checkout-success-section">
       <div className="checkout-success-card">
         {/* Success icon */}
-        <div className="checkout-success-icon" style={{ fontSize: 48, marginBottom: 8 }}>🎟️</div>
+        <div className="checkout-success-icon" style={{ marginBottom: 8 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="14" width="40" height="20" rx="4" stroke="#d0c290" strokeWidth="2" /><path d="M4 22a4 4 0 0 1 0 4" stroke="#d0c290" strokeWidth="2" /><path d="M44 22a4 4 0 0 0 0 4" stroke="#d0c290" strokeWidth="2" /><line x1="16" y1="14" x2="16" y2="34" stroke="#d0c290" strokeWidth="1.5" strokeDasharray="2 2" /></svg></div>
         <h2 className="checkout-success-heading">You&apos;re In!</h2>
         <p className="checkout-success-text">
           Payment confirmed. Your {(data?.order?.quantity || 1) > 1 ? 'tickets are' : 'ticket is'} ready.
@@ -114,7 +114,7 @@ function SuccessContent() {
               href={`/tickets/${data.ticket.qr_code}`}
               className="checkout-success-btn"
             >
-              🎟️ {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
+              {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
             </Link>
           )}
 

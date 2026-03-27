@@ -54,7 +54,7 @@ function SuccessContent() {
   return (
     <div style={{ padding: "24px 16px 40px", maxWidth: 480, margin: "0 auto", textAlign: "center" }}>
       {/* Success icon */}
-      <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
+      <div style={{ marginBottom: 8 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#22c55e" strokeWidth="2.5" /><path d="M15 25l6 6 12-12" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
       <h2 style={{ fontSize: 22, fontWeight: 800, color: "#d0c290", margin: "0 0 8px" }}>
         Sale Complete!
       </h2>

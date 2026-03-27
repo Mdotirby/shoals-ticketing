@@ -35,7 +35,7 @@ function SuccessContent() {
         maxWidth: 500,
         textAlign: "center",
       }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
+        <div style={{ marginBottom: 12 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#22c55e" strokeWidth="2.5" /><path d="M15 25l6 6 12-12" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
         <h2 style={{ color: "#22c55e", margin: "0 0 8px", fontSize: 24, fontWeight: 700 }}>Payment Successful!</h2>
         <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 15, margin: "0 0 20px", lineHeight: 1.6 }}>
           Your payment has been received. Thank you!

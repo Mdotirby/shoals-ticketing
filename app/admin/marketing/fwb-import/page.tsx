@@ -390,7 +390,7 @@ export default function FWBImportPage() {
                   </span>
                 </label>
                 <p className="text-gray-500 text-xs mt-1 ml-7">
-                  ⚠️ Email sending not yet implemented — members will still be imported
+                  Email sending not yet implemented — members will still be imported
                 </p>
               </div>
             </div>
@@ -456,7 +456,7 @@ export default function FWBImportPage() {
             {importResult && !loading && (
               <>
                 <div className="bg-gray-800 rounded-lg p-8 text-center mb-6">
-                  <p className="text-4xl mb-4">✅</p>
+                  <div className="mb-4 flex justify-center"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#22c55e" strokeWidth="2.5" /><path d="M15 25l6 6 12-12" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
                   <h2 className="text-xl font-bold mb-2">
                     Successfully imported {importResult.imported} members into FWB program
                   </h2>
