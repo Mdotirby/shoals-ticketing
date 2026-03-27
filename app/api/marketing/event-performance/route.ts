@@ -25,11 +25,11 @@ export async function GET() {
         .in("status", ["paid", "completed"]);
 
       const totalSold = (orders || []).reduce(
-        (sum: number, o: Record<string, unknown>) => sum + ((o.quantity as number) || 1),
+        (sum: number, o: Record<string, unknown>) => sum + (Number(o.quantity) || 1),
         0
       );
       const totalRevenue = (orders || []).reduce(
-        (sum: number, o: Record<string, unknown>) => sum + ((o.total_amount as number) || 0),
+        (sum: number, o: Record<string, unknown>) => sum + (Number(o.total_amount) || 0),
         0
       );
 
@@ -41,7 +41,7 @@ export async function GET() {
 
       // Also try ticket_tiers if ticket_types returns nothing
       let totalCapacity = (ticketTypes || []).reduce(
-        (sum: number, t: Record<string, unknown>) => sum + ((t.quantity as number) || 0),
+        (sum: number, t: Record<string, unknown>) => sum + (Number(t.quantity) || 0),
         0
       );
 
@@ -52,7 +52,7 @@ export async function GET() {
           .eq("event_id", event.id as string);
 
         totalCapacity = (ticketTiers || []).reduce(
-          (sum: number, t: Record<string, unknown>) => sum + ((t.capacity as number) || 0),
+          (sum: number, t: Record<string, unknown>) => sum + (Number(t.capacity) || 0),
           0
         );
       }

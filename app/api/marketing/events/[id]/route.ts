@@ -110,12 +110,12 @@ export async function GET(
 
   const totalSold = paidOrders.reduce(
     (s: number, o: Record<string, unknown>) =>
-      s + ((o.quantity as number) || 1),
+      s + (Number(o.quantity) || 1),
     0
   );
   const totalRevenue = paidOrders.reduce(
     (s: number, o: Record<string, unknown>) =>
-      s + ((o.total_amount as number) || 0),
+      s + (Number(o.total_amount) || 0),
     0
   );
   const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0);
@@ -141,7 +141,7 @@ export async function GET(
     const date = new Date(order.created_at as string)
       .toISOString()
       .split("T")[0];
-    const qty = (order.quantity as number) || 1;
+    const qty = Number(order.quantity) || 1;
     cumulative += qty;
 
     if (!timelineMap[date]) {
