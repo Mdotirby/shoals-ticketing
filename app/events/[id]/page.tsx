@@ -46,6 +46,8 @@ type EventData = {
   venue_parking_info?: string;
   venue_directions_transit?: string;
   artists?: Artist[];
+  is_free?: boolean;
+  on_sale_at?: string;
 };
 
 // Date helpers imported from @/lib/dates
@@ -64,6 +66,11 @@ export default function EventDetailPage() {
   const [hostedByName, setHostedByName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [freeRegName, setFreeRegName] = useState("");
+  const [freeRegEmail, setFreeRegEmail] = useState("");
+  const [freeRegLoading, setFreeRegLoading] = useState(false);
+  const [onSaleCountdown, setOnSaleCountdown] = useState<string | null>(null);
+  const [ticketsOnSale, setTicketsOnSale] = useState(true);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
   const [seatingRoomW, setSeatingRoomW] = useState(100);
@@ -72,6 +79,37 @@ export default function EventDetailPage() {
   const selectedSeatIds = new Set(selectedSeats.map((s) => s.seatId));
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
+
+  // On-sale countdown timer
+  useEffect(() => {
+    if (!event?.on_sale_at) { setTicketsOnSale(true); return; }
+    const onSaleTime = new Date(event.on_sale_at).getTime();
+
+    function updateCountdown() {
+      const now = Date.now();
+      const diff = onSaleTime - now;
+      if (diff <= 0) {
+        setTicketsOnSale(true);
+        setOnSaleCountdown(null);
+        return;
+      }
+      setTicketsOnSale(false);
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      const parts: string[] = [];
+      if (days > 0) parts.push(`${days}d`);
+      parts.push(`${hours}h`);
+      parts.push(`${minutes}m`);
+      parts.push(`${seconds}s`);
+      setOnSaleCountdown(parts.join(" "));
+    }
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [event?.on_sale_at]);
 
   // Track page view
   useEffect(() => {
@@ -334,6 +372,9 @@ export default function EventDetailPage() {
   const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
   const appliedPromoRef = useRef<string | null>(null);
 
+  // Determine if this is a free event
+  const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
+
   const handleCheckout = () => {
     if (!event) return;
     // For assigned seating, use selected seats; for GA, use ticket quantity
@@ -529,22 +570,138 @@ export default function EventDetailPage() {
               </div>
             </div>
 
-            {/* RIGHT: Order Summary */}
+            {/* RIGHT: Order Summary / Free Registration / Countdown */}
             <div className="order-summary-column">
-              <OrderSummary
-                selectedTicket={selectedTicket}
-                quantity={quantity}
-                ticketingFee={venueFees.ticketing_fee}
-                facilityFee={venueFees.facility_fee}
-                taxRate={venueFees.tax_rate}
-                onCheckout={handleCheckout}
-                onPromoApplied={(code) => { appliedPromoRef.current = code; }}
-                onFreeCheckout={handleFreeCheckout}
-              />
-              {reservedSeatingEnabled && selectedSeats.length === 0 && (
-                <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                  Select seats from the map to continue
-                </p>
+              {!ticketsOnSale ? (
+                /* ── On-Sale Countdown ── */
+                <div style={{
+                  background: "rgba(59,130,246,0.06)",
+                  border: "1px solid rgba(59,130,246,0.2)",
+                  borderRadius: 12,
+                  padding: 24,
+                  textAlign: "center",
+                }}>
+                  <p style={{ color: "#3b82f6", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+                    Tickets On Sale Soon
+                  </p>
+                  <p style={{ color: "#93c5fd", fontSize: 28, fontWeight: 800, fontFamily: "monospace", letterSpacing: 2 }}>
+                    {onSaleCountdown}
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 8 }}>
+                    Check back when the countdown ends!
+                  </p>
+                </div>
+              ) : isFreeEvent ? (
+                /* ── Free Event Registration ── */
+                <div style={{
+                  background: "rgba(34,197,94,0.06)",
+                  border: "1px solid rgba(34,197,94,0.2)",
+                  borderRadius: 12,
+                  padding: 24,
+                }}>
+                  <p style={{ color: "#22c55e", fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
+                    Free Event
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 16 }}>
+                    Register below to get your free ticket.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={freeRegName}
+                      onChange={(e) => setFreeRegName(e.target.value)}
+                      style={{
+                        padding: "10px 14px", borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.04)",
+                        color: "#fff", fontSize: 14,
+                      }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Your Email"
+                      value={freeRegEmail}
+                      onChange={(e) => setFreeRegEmail(e.target.value)}
+                      style={{
+                        padding: "10px 14px", borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        background: "rgba(255,255,255,0.04)",
+                        color: "#fff", fontSize: 14,
+                      }}
+                    />
+                    {/* Quantity selector */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>Qty:</span>
+                      <div className="ticket-qty-control">
+                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>-</button>
+                        <span className="ticket-qty-value">{quantity}</span>
+                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!freeRegName.trim() || !freeRegEmail.trim()) return;
+                        setFreeRegLoading(true);
+                        try {
+                          const res = await fetch("/api/checkout/free", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              event_id: eventId,
+                              buyer_name: freeRegName.trim(),
+                              buyer_email: freeRegEmail.trim(),
+                              quantity,
+                              seat_ids: reservedSeatingEnabled ? selectedSeats.map((s) => s.seatId) : undefined,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            alert(data.error || "Registration failed");
+                            return;
+                          }
+                          if (data.success) {
+                            window.location.href = `/checkout/confirmation?order_id=${data.order_id}`;
+                          }
+                        } catch {
+                          alert("Something went wrong. Please try again.");
+                        } finally {
+                          setFreeRegLoading(false);
+                        }
+                      }}
+                      disabled={freeRegLoading || !freeRegName.trim() || !freeRegEmail.trim()}
+                      style={{
+                        padding: "14px 24px", borderRadius: 10,
+                        border: "none",
+                        background: freeRegLoading ? "rgba(34,197,94,0.3)" : "#22c55e",
+                        color: "#fff", fontSize: 15, fontWeight: 700,
+                        cursor: freeRegLoading ? "not-allowed" : "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {freeRegLoading ? "Registering..." : "Get Free Ticket"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ── Normal Paid Checkout ── */
+                <>
+                  <OrderSummary
+                    selectedTicket={selectedTicket}
+                    quantity={quantity}
+                    ticketingFee={venueFees.ticketing_fee}
+                    facilityFee={venueFees.facility_fee}
+                    taxRate={venueFees.tax_rate}
+                    onCheckout={handleCheckout}
+                    onPromoApplied={(code) => { appliedPromoRef.current = code; }}
+                    onFreeCheckout={handleFreeCheckout}
+                  />
+                  {reservedSeatingEnabled && selectedSeats.length === 0 && (
+                    <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
+                      Select seats from the map to continue
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>

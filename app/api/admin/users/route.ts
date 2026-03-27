@@ -77,6 +77,18 @@ export async function POST(request: Request) {
   // Send welcome email only if real credentials were provided
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey && hasCredentials && email) {
+    const ROLE_LABELS: Record<string, string> = {
+      owner: "Owner",
+      super_admin: "Super Admin",
+      venue_admin: "Venue Admin",
+      read_only: "Read Only",
+      box_office: "Box Office",
+      door_greeter: "Door Greeter",
+      artist: "Artist",
+    };
+    const roleLabel = ROLE_LABELS[role] || role;
+    const displayName = first_name || "there";
+
     const welcomeHtml = `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
@@ -87,15 +99,24 @@ export async function POST(request: Request) {
 </td></tr>
 <tr><td style="padding:28px;">
 <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
-Hi${first_name ? ' ' + first_name : ''},</p>
+Hey ${displayName},</p>
 <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
-You've been invited to join VenueCore — the all-in-one platform for live event ticketing, settlements, and venue management.</p>
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
-Your account has been created with the role: <strong style="color:#d0c290;">${role}</strong></p>
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 20px;">
-You can sign in using your email and the temporary password provided by your administrator. You'll be prompted to set a new password on first login.</p>
+You've been added to VenueCore as a <strong style="color:#d0c290;">${roleLabel}</strong>. Use the credentials below to sign in and get started.</p>
+
+<!-- Credentials box -->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.08);border:1px solid rgba(208,194,144,0.2);border-radius:10px;margin-bottom:24px;">
+<tr><td style="padding:18px 20px;">
+<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">Your Login Credentials</p>
+<p style="margin:0 0 4px;font-size:15px;color:rgba(255,255,255,0.7);">Email: <strong style="color:#fff;">${email}</strong></p>
+<p style="margin:0;font-size:15px;color:rgba(255,255,255,0.7);">Temporary Password: <strong style="color:#d0c290;font-size:16px;">${authPassword}</strong></p>
+</td></tr>
+</table>
+
+<p style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;margin:0 0 20px;">
+We recommend changing your password after your first login.</p>
+
 <table width="100%" style="margin-bottom:20px;"><tr><td align="center">
-<a href="https://venuecore.live/login" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:12px 32px;border-radius:8px;text-decoration:none;font-size:14px;">Sign In to VenueCore</a>
+<a href="https://venuecore.live/login" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;">Sign In to VenueCore →</a>
 </td></tr></table>
 <p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;margin:0;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">
 If you didn't expect this invitation, you can safely ignore this email. Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a></p>
@@ -108,7 +129,7 @@ If you didn't expect this invitation, you can safely ignore this email. Question
       body: JSON.stringify({
         from: "VenueCore <tickets@venuecore.live>",
         to: [email],
-        subject: "Welcome to VenueCore 🎶",
+        subject: `Welcome to VenueCore — You're a ${roleLabel} 🎶`,
         html: welcomeHtml,
       }),
     }).catch(() => {});

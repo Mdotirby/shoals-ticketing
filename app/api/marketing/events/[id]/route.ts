@@ -31,7 +31,7 @@ export async function GET(
   /* ------------------------------------------------------------------ */
   const { data: orders } = await supabase
     .from("orders")
-    .select("id,email,created_at,quantity,total,status,customer_name,ticket_type")
+    .select("id,customer_email,created_at,quantity,total_amount,status,customer_name")
     .eq("event_id", id)
     .order("created_at", { ascending: false });
 
@@ -77,28 +77,34 @@ export async function GET(
   }
 
   /* ------------------------------------------------------------------ */
-  /*  4. Compute sales by ticket type                                    */
+  /*  4. Compute sales by ticket type (via tickets table)                */
   /* ------------------------------------------------------------------ */
+  // Query tickets for this event grouped by ticket_type_id
+  const { data: eventTickets } = await supabase
+    .from("tickets")
+    .select("ticket_type_id, order_id")
+    .eq("event_id", id);
+
+  // Build a set of paid order IDs for filtering
+  const paidOrderIds = new Set(paidOrders.map((o: Record<string, unknown>) => o.id));
+
+  // Count sold tickets per tier (only from paid orders)
+  const soldByTier: Record<string, number> = {};
+  for (const t of eventTickets ?? []) {
+    if (paidOrderIds.has(t.order_id)) {
+      const key = t.ticket_type_id ?? "__unassigned__";
+      soldByTier[key] = (soldByTier[key] || 0) + 1;
+    }
+  }
+
   const salesByType = tiers.map((tier) => {
-    const tierOrders = paidOrders.filter(
-      (o: Record<string, unknown>) =>
-        o.ticket_type === tier.name || o.ticket_type === tier.id
-    );
-    const sold = tierOrders.reduce(
-      (s: number, o: Record<string, unknown>) =>
-        s + ((o.quantity as number) || 1),
-      0
-    );
-    const revenue = tierOrders.reduce(
-      (s: number, o: Record<string, unknown>) =>
-        s + ((o.total as number) || 0),
-      0
-    );
+    const sold = soldByTier[tier.id] || 0;
+    const revenue = Math.round(sold * tier.price * 100) / 100;
     return {
       type: tier.name,
       sold,
       capacity: tier.quantity,
-      revenue: Math.round(revenue * 100) / 100,
+      revenue,
     };
   });
 
@@ -109,7 +115,7 @@ export async function GET(
   );
   const totalRevenue = paidOrders.reduce(
     (s: number, o: Record<string, unknown>) =>
-      s + ((o.total as number) || 0),
+      s + ((o.total_amount as number) || 0),
     0
   );
   const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0);
@@ -186,10 +192,10 @@ export async function GET(
   /*  7. Recent orders (last 20)                                         */
   /* ------------------------------------------------------------------ */
   const recentOrders = allOrders.slice(0, 20).map((o: Record<string, unknown>) => ({
-    email: o.email || o.customer_name || "Unknown",
+    email: o.customer_email || o.customer_name || "Unknown",
     date: o.created_at,
     quantity: (o.quantity as number) || 1,
-    total: o.total || 0,
+    total: o.total_amount || 0,
     status: o.status || "unknown",
   }));
 

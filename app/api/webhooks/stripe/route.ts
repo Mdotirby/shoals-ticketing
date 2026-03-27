@@ -41,7 +41,7 @@ function ticketEmailHtml({
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Your Ticket — ${eventTitle}</title>
+  <title>Your ${ticketCount > 1 ? 'Tickets' : 'Ticket'} — ${eventTitle}</title>
 </head>
 <body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
@@ -53,7 +53,7 @@ function ticketEmailHtml({
           <tr>
             <td style="background:#d0c290;padding:20px 28px;">
               <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">VenueCore</p>
-              <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your Ticket is Ready 🎟️</h1>
+              <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your ${ticketCount > 1 ? 'Tickets are' : 'Ticket is'} Ready 🎟️</h1>
             </td>
           </tr>
 
@@ -101,7 +101,7 @@ function ticketEmailHtml({
                 <tr>
                   <td align="center">
                     <a href="${ticketUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;text-decoration:none;">
-                      View My Ticket Online
+                      View My ${ticketCount > 1 ? 'Tickets' : 'Ticket'} Online
                     </a>
                   </td>
                 </tr>
@@ -188,7 +188,7 @@ async function sendTicketEmail({
     body: JSON.stringify({
       from: `VenueCore Tickets <${fromEmail}>`,
       to: [to],
-      subject: `Your ticket for ${eventTitle} 🎟️`,
+      subject: `Your ${ticketCount > 1 ? 'tickets' : 'ticket'} for ${eventTitle} 🎟️`,
       html,
     }),
   });

@@ -11,7 +11,7 @@ export async function GET(request) {
 
   let query = admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status")
+    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at")
     .order("date", { ascending: true });
 
   // Filter by status for public pages (not admin)
@@ -91,6 +91,8 @@ export async function POST(request) {
     client_company: body.client_company || null,
     tax_exempt: body.tax_exempt ?? false,
     facility_fee_enabled: body.facility_fee_enabled ?? true,
+    is_free: body.is_free ?? false,
+    on_sale_at: body.on_sale_at || null,
   };
 
   // Always include start_time/end_time (TEXT columns from private-events-v2 migration)

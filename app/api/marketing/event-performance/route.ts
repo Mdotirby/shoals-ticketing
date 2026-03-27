@@ -20,7 +20,7 @@ export async function GET() {
       // Get ticket sales (paid orders)
       const { data: orders } = await supabase
         .from("orders")
-        .select("quantity, total")
+        .select("quantity, total_amount")
         .eq("event_id", event.id as string)
         .in("status", ["paid", "completed"]);
 
@@ -29,7 +29,7 @@ export async function GET() {
         0
       );
       const totalRevenue = (orders || []).reduce(
-        (sum: number, o: Record<string, unknown>) => sum + ((o.total as number) || 0),
+        (sum: number, o: Record<string, unknown>) => sum + ((o.total_amount as number) || 0),
         0
       );
 

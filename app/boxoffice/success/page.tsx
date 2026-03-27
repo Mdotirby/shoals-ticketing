@@ -59,7 +59,7 @@ function SuccessContent() {
         Sale Complete!
       </h2>
       <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 20px" }}>
-        Ticket confirmation sent to{" "}
+        {(data?.order?.quantity || 1) > 1 ? 'Tickets' : 'Ticket'} confirmation sent to{" "}
         {data?.order?.customer_email && (
           <strong style={{ color: "rgba(255,255,255,0.7)" }}>{data.order.customer_email}</strong>
         )}

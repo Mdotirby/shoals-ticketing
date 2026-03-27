@@ -14,8 +14,13 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   // Fetch event
-  const { data: event } = await admin.from("events").select("id, title, venue, date, venue_id").eq("id", event_id).single();
+  const { data: event } = await admin.from("events").select("id, title, venue, date, venue_id, on_sale_at").eq("id", event_id).single();
   if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+
+  // Guard: reject if tickets are not yet on sale
+  if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
+    return NextResponse.json({ error: "Tickets are not yet on sale" }, { status: 403 });
+  }
 
   // Validate promo code is 100% discount
   let promoCodeId: string | null = null;

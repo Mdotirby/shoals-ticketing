@@ -47,7 +47,7 @@ function SuccessContent() {
         <div className="checkout-success-icon" style={{ fontSize: 48, marginBottom: 8 }}>🎟️</div>
         <h2 className="checkout-success-heading">You&apos;re In!</h2>
         <p className="checkout-success-text">
-          Payment confirmed. Your ticket is ready.
+          Payment confirmed. Your {(data?.order?.quantity || 1) > 1 ? 'tickets are' : 'ticket is'} ready.
           {data?.order?.customer_email && (
             <> A copy has been emailed to <strong>{data.order.customer_email}</strong>.</>
           )}

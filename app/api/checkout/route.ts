@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled")
+      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
       .eq("id", event_id)
       .single();
 
@@ -31,6 +31,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Event not found" },
         { status: 404 }
+      );
+    }
+
+    // Guard: reject if tickets are not yet on sale
+    if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
+      return NextResponse.json(
+        { error: "Tickets are not yet on sale" },
+        { status: 403 }
       );
     }
 

@@ -76,6 +76,13 @@ export default function AdminEditEventPage() {
     venue_address: "",
   });
 
+  // Free event state
+  const [isFree, setIsFree] = useState(false);
+
+  // On-sale scheduler state
+  const [onSaleDate, setOnSaleDate] = useState("");
+  const [onSaleTime, setOnSaleTime] = useState("");
+
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
 
   // Reserved seating state
@@ -186,6 +193,19 @@ export default function AdminEditEventPage() {
 
         if (event.facility_fee_enabled === false) {
           setFacilityFeeEnabled(false);
+        }
+
+        // Load free event flag
+        if (event.is_free) {
+          setIsFree(true);
+        }
+
+        // Load on_sale_at
+        if (event.on_sale_at) {
+          const osDate = event.on_sale_at.slice(0, 10);
+          const osTimeMatch = event.on_sale_at.match(/T(\d{2}:\d{2})/);
+          setOnSaleDate(osDate);
+          if (osTimeMatch) setOnSaleTime(osTimeMatch[1]);
         }
 
         // Pre-select the host (venue_id) from loaded event
@@ -481,7 +501,9 @@ export default function AdminEditEventPage() {
           description: form.description || null,
           image_url: form.image_url || null,
           event_venue_id: selectedEventVenueId || null,
-          facility_fee_enabled: facilityFeeEnabled,
+          facility_fee_enabled: isFree ? false : facilityFeeEnabled,
+          is_free: isFree,
+          on_sale_at: onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}:00` : null,
           venue_id: resolvedVenueId || null,
           event_type: form.event_type,
           booking_status: form.booking_status,
@@ -841,6 +863,40 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
+        {/* ── Free Event Checkbox (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
+            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            marginTop: 8,
+          }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+              color: isFree ? "#22c55e" : "rgba(255,255,255,0.6)",
+              fontWeight: 700, fontSize: 13,
+            }}>
+              <input
+                type="checkbox"
+                checked={isFree}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsFree(checked);
+                  if (checked) {
+                    setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
+                    setFacilityFeeEnabled(false);
+                  }
+                }}
+                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
+              />
+              Free Event
+            </label>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+              When enabled, all ticket prices are set to $0 and fees are disabled. Customers will register instead of paying.
+            </p>
+          </div>
+        )}
+
         {/* ── Ticket Tiers (only for hard ticket events) ── */}
         {isHardTicket && (
           <div className="admin-form-label admin-form-full">
@@ -870,6 +926,7 @@ export default function AdminEditEventPage() {
                     step="0.01"
                     min="0"
                     required
+                    disabled={isFree}
                   />
                   <input
                     type="number"
@@ -908,8 +965,69 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
+        {/* ── On-Sale Date & Time (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(208,194,144,0.04)",
+            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(208,194,144,0.12)"}`,
+            marginTop: 8,
+          }}>
+            <span style={{ color: onSaleDate ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
+              On-Sale Date & Time
+            </span>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+              Leave empty for tickets to go on sale immediately. Set a date to schedule when tickets become available.
+            </p>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+              <label style={{ flex: 1 }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Date</span>
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  value={onSaleDate}
+                  onChange={(e) => setOnSaleDate(e.target.value)}
+                />
+              </label>
+              <label style={{ flex: 1 }}>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Time</span>
+                <select
+                  className="admin-form-input"
+                  value={onSaleTime}
+                  onChange={(e) => setOnSaleTime(e.target.value)}
+                >
+                  <option value="">12:00 AM (midnight)</option>
+                  {Array.from({ length: 48 }, (_, i) => {
+                    const h24 = Math.floor(i / 2);
+                    const m = i % 2 === 0 ? "00" : "30";
+                    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+                    const ampm = h24 >= 12 ? "PM" : "AM";
+                    const val = `${String(h24).padStart(2, "0")}:${m}`;
+                    return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+                  })}
+                </select>
+              </label>
+              {onSaleDate && (
+                <button
+                  type="button"
+                  onClick={() => { setOnSaleDate(""); setOnSaleTime(""); }}
+                  style={{
+                    padding: "8px 12px", borderRadius: 8,
+                    border: "1px solid rgba(255,107,107,0.3)",
+                    background: "rgba(255,107,107,0.1)",
+                    color: "#ff6b6b", fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Facility Fee Toggle (only for hard ticket events with a venue selected) ── */}
-        {isHardTicket && selectedEventVenueId && (
+        {isHardTicket && selectedEventVenueId && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
             background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",

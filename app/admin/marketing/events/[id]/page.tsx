@@ -22,10 +22,10 @@ interface SalesTimeline {
 }
 
 interface Order {
-  email: string;
+  customer_email: string;
   date: string;
   quantity: number;
-  total: number;
+  total_amount: number;
   status: string;
 }
 
@@ -150,6 +150,8 @@ export default function EventMarketingDetailPage() {
   const [data, setData] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -162,6 +164,33 @@ export default function EventMarketingDetailPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  /* Generate QR code when event loads */
+  useEffect(() => {
+    if (!id) return;
+    const eventUrl = `${typeof window !== "undefined" ? window.location.origin : "https://venuecore.live"}/events/${id}`;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import("qrcode") as Promise<any>).then((QRCode) => {
+      QRCode.toDataURL(eventUrl, { width: 300, margin: 2 }).then((url: string) => setQrDataUrl(url));
+    }).catch(() => console.warn("QR code generation failed"));
+  }, [id]);
+
+  const eventUrl = `${typeof window !== "undefined" ? window.location.origin : "https://venuecore.live"}/events/${id}`;
+
+  function downloadQr() {
+    if (!qrDataUrl) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    a.download = `event-${id}-qr.png`;
+    a.click();
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(eventUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }
 
   /* Loading state */
   if (loading) {
@@ -371,6 +400,37 @@ export default function EventMarketingDetailPage() {
         </div>
       )}
 
+      {/* ── QR Code ────────────────────────────────────────────── */}
+      <div className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-8">
+        <h2 className="text-lg font-semibold mb-4">QR Code</h2>
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          {qrDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qrDataUrl} alt="Event QR Code" width={300} height={300} className="rounded-lg" />
+          ) : (
+            <div className="w-[300px] h-[300px] bg-gray-700 rounded-lg flex items-center justify-center">
+              <p className="text-gray-500 text-sm">Generating QR…</p>
+            </div>
+          )}
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-gray-400 break-all max-w-xs">{eventUrl}</p>
+            <button
+              onClick={downloadQr}
+              disabled={!qrDataUrl}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 rounded-lg text-sm font-medium transition"
+            >
+              ⬇ Download QR Code
+            </button>
+            <button
+              onClick={copyLink}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition"
+            >
+              {linkCopied ? "✓ Copied!" : "📋 Copy Link"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* ── Recent Orders ──────────────────────────────────────── */}
       {orders.length > 0 && (
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-5 mb-8">
@@ -393,7 +453,7 @@ export default function EventMarketingDetailPage() {
                     className="border-b border-gray-700/50 hover:bg-gray-700/30"
                   >
                     <td className="py-2 pr-4 truncate max-w-[200px]">
-                      {o.email}
+                      {o.customer_email}
                     </td>
                     <td className="py-2 px-4 text-gray-400 whitespace-nowrap">
                       {o.date
@@ -405,7 +465,7 @@ export default function EventMarketingDetailPage() {
                     </td>
                     <td className="py-2 px-4 text-right">{o.quantity}</td>
                     <td className="py-2 px-4 text-right">
-                      {fmtCurrency(o.total)}
+                      {fmtCurrency(o.total_amount)}
                     </td>
                     <td className="py-2 pl-4 text-right">
                       <span

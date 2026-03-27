@@ -59,9 +59,22 @@ export async function GET(request: Request) {
 
     // Count tickets per tier
     const soldByTier: Record<string, number> = {};
+    const unassignedByEvent: Record<string, number> = {};
     for (const t of tickets ?? []) {
-      const key = t.ticket_type_id;
-      soldByTier[key] = (soldByTier[key] || 0) + 1;
+      if (t.ticket_type_id) {
+        soldByTier[t.ticket_type_id] = (soldByTier[t.ticket_type_id] || 0) + 1;
+      } else {
+        // Tickets with null ticket_type_id — track per event for fallback
+        unassignedByEvent[t.event_id] = (unassignedByEvent[t.event_id] || 0) + 1;
+      }
+    }
+
+    // Assign unassigned tickets to the first tier of their event
+    for (const [evId, count] of Object.entries(unassignedByEvent)) {
+      const firstTier = (tiers ?? []).find((t) => t.event_id === evId);
+      if (firstTier) {
+        soldByTier[firstTier.id] = (soldByTier[firstTier.id] || 0) + count;
+      }
     }
 
     // 4. Fetch venue fee config + event_venues overrides

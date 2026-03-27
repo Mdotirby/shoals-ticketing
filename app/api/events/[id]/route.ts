@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at")
     .eq("id", id)
     .single();
 
@@ -61,6 +61,8 @@ export async function PUT(
   if (body.end_time !== undefined) updates.end_time = body.end_time;
   if (body.facility_fee_enabled !== undefined) updates.facility_fee_enabled = body.facility_fee_enabled;
   if (body.venue_id !== undefined) updates.venue_id = body.venue_id;
+  if (body.is_free !== undefined) updates.is_free = body.is_free;
+  if (body.on_sale_at !== undefined) updates.on_sale_at = body.on_sale_at;
 
   console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
   if (updates.start_time !== undefined || updates.end_time !== undefined) {
