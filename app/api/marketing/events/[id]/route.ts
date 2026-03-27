@@ -60,17 +60,17 @@ export async function GET(
   if (tiers.length === 0) {
     const { data: ticketTiers } = await supabase
       .from("ticket_tiers")
-      .select("id,name,price,capacity")
+      .select("id,tier_name,price,capacity")
       .eq("event_id", id);
 
     tiers = ((ticketTiers || []) as Array<{
       id: string;
-      name: string;
+      tier_name: string;
       price: number;
       capacity: number;
     }>).map((t) => ({
       id: t.id,
-      name: t.name,
+      name: t.tier_name,
       price: t.price,
       quantity: t.capacity,
     }));
@@ -192,10 +192,11 @@ export async function GET(
   /*  7. Recent orders (last 20)                                         */
   /* ------------------------------------------------------------------ */
   const recentOrders = allOrders.slice(0, 20).map((o: Record<string, unknown>) => ({
-    email: o.customer_email || o.customer_name || "Unknown",
+    customer_name: o.customer_name || "",
+    customer_email: o.customer_email || "Unknown",
     date: o.created_at,
     quantity: (o.quantity as number) || 1,
-    total: o.total_amount || 0,
+    total_amount: Number(o.total_amount) || 0,
     status: o.status || "unknown",
   }));
 

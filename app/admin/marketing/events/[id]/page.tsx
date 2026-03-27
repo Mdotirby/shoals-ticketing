@@ -22,6 +22,7 @@ interface SalesTimeline {
 }
 
 interface Order {
+  customer_name: string;
   customer_email: string;
   date: string;
   quantity: number;
@@ -453,7 +454,7 @@ export default function EventMarketingDetailPage() {
                     className="border-b border-gray-700/50 hover:bg-gray-700/30"
                   >
                     <td className="py-2 pr-4 truncate max-w-[200px]">
-                      {o.customer_email}
+                      {o.customer_name || o.customer_email}
                     </td>
                     <td className="py-2 px-4 text-gray-400 whitespace-nowrap">
                       {o.date
