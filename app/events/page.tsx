@@ -101,9 +101,36 @@ export default function EventsPage() {
             .events-card-grid { grid-template-columns: repeat(2, 1fr); }
           }
           @media (max-width: 768px) {
-            .events-card-grid { grid-template-columns: 1fr; }
+            .events-card-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+            }
+            .events-grid-card .event-card-body {
+              padding: 10px;
+              gap: 6px;
+            }
+            .events-grid-card .event-card-title {
+              font-size: 14px;
+            }
+            .events-grid-card .event-card-meta {
+              font-size: 11px;
+            }
+            .events-grid-card .event-card-price {
+              font-size: 11px;
+              padding: 3px 10px;
+            }
+            .events-grid-card .event-card-btn {
+              font-size: 12px;
+              padding: 8px;
+            }
           }
-          .event-card {
+          @media (max-width: 400px) {
+            .events-card-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 8px;
+            }
+          }
+          .events-grid-card {
             background: #131629;
             border-radius: 12px;
             border: 1px solid rgba(255,255,255,0.08);
@@ -114,7 +141,7 @@ export default function EventsPage() {
             text-decoration: none;
             color: inherit;
           }
-          .event-card:hover {
+          .events-grid-card:hover {
             transform: scale(1.02);
             border-color: rgba(208,194,144,0.45);
           }
@@ -207,7 +234,7 @@ export default function EventsPage() {
                 <Link
                   key={event.id}
                   href={`/events/${event.id}`}
-                  className="event-card"
+                  className="events-grid-card"
                 >
                   {/* Image */}
                   <div className={`event-card-img${!event.image_url ? " event-card-placeholder" : ""}`}>
