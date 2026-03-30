@@ -25,6 +25,8 @@ export type OperatorConfig = {
   facebookUrl: string;
   /** Name used in copyright line */
   copyright: string;
+  /** Meta (Facebook) Pixel ID — fires on every page for this operator */
+  metaPixelId?: string;
 };
 
 export const OPERATORS: Record<string, OperatorConfig> = {
@@ -63,6 +65,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     instagramUrl: "https://instagram.com",
     facebookUrl: "https://facebook.com",
     copyright: "West 72 Entertainment",
+    metaPixelId: "708986435149013",
   },
 };
 

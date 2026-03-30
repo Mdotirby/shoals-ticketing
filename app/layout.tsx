@@ -7,6 +7,7 @@ import VenueThemeProvider from "./components/VenueThemeProvider";
 import { VenueProvider } from "./components/VenueContext";
 import { OperatorProvider } from "./components/OperatorContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import TrackingPixels from "./components/TrackingPixels";
 import { getOperator } from "@/lib/operators";
 
 
@@ -65,12 +66,15 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const venueSlug = cookieStore.get("venueSlug")?.value ?? "default";
   const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
+  const operator = getOperator(operatorSlug);
 
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
+        {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
+        <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />
         <OperatorProvider operatorSlug={operatorSlug}>
           <VenueProvider venueSlug={venueSlug}>
             <VenueThemeProvider>
