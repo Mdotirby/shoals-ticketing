@@ -225,13 +225,16 @@ export async function POST() {
     }
 
     if (igUserId) {
+      // Fix 1: Use pageAccessToken (not system token) for IG insights
+      // Fix 2: Remove 'follower_count' — it's deprecated in the /insights endpoint
+      //        Fetch it separately via the IG user profile instead
       const igUrl = new URL(`https://graph.facebook.com/v21.0/${igUserId}/insights`);
-      igUrl.searchParams.set("metric", "reach,impressions,accounts_engaged,follower_count");
+      igUrl.searchParams.set("metric", "reach,impressions,accounts_engaged");
       igUrl.searchParams.set("period", "day");
       igUrl.searchParams.set("metric_type", "total_value");
       igUrl.searchParams.set("since", since.toString());
       igUrl.searchParams.set("until", until.toString());
-      igUrl.searchParams.set("access_token", token);
+      igUrl.searchParams.set("access_token", pageAccessToken);
 
       try {
         const igRes = await fetch(igUrl.toString());
@@ -243,6 +246,23 @@ export async function POST() {
         }
       } catch (e) {
         console.warn("IG Insights fetch failed:", e);
+      }
+
+      await delay(200);
+
+      // Fetch follower count separately (not deprecated)
+      try {
+        const igProfileUrl = `https://graph.facebook.com/v21.0/${igUserId}?fields=followers_count&access_token=${pageAccessToken}`;
+        const igProfileRes = await fetch(igProfileUrl);
+        if (igProfileRes.ok) {
+          const igProfile = (await igProfileRes.json()) as { followers_count?: number };
+          if (typeof igProfile.followers_count === "number") {
+            // Inject as a synthetic insight entry so parsing logic below works
+            igInsights.push({ name: "follower_count", total_value: { value: igProfile.followers_count }, values: [] });
+          }
+        }
+      } catch (e) {
+        console.warn("IG follower count fetch failed:", e);
       }
     }
 
@@ -341,16 +361,17 @@ export async function POST() {
       }
 
       // Store Instagram summary
+      // Store reach in 'impressions' column so "Total Reach" aggregate works on page load
       if (summary.instagram.reach > 0 || summary.instagram.impressions > 0) {
         const { error: igErr } = await supabase.from("social_metrics").upsert(
           {
             platform: "instagram",
             recorded_date: today,
-            impressions: summary.instagram.impressions,
+            impressions: summary.instagram.reach,              // reach → impressions for UI aggregate
             engagements: summary.instagram.accounts_engaged,
             shares: 0,
             mentions: summary.instagram.follower_count,
-            notes: `Auto-synced from Meta API. Reach: ${summary.instagram.reach}`,
+            notes: `Auto-synced from Meta API. Impressions: ${summary.instagram.impressions}, Accounts engaged: ${summary.instagram.accounts_engaged}`,
           },
           { onConflict: "platform,recorded_date" }
         );

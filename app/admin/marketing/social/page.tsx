@@ -110,9 +110,33 @@ export default function SocialPage() {
     }
   };
 
-  // Compute aggregates from sync result or stored metrics
-  const fb = syncResult?.facebook || null;
-  const ig = syncResult?.instagram || null;
+  // Build fallback summaries from the most recently stored DB metrics per platform
+  // (so the cards show data on page load even before a manual sync is clicked)
+  const storedFbRow = metrics.find((m) => m.platform === "facebook" && m.impressions > 0);
+  const storedIgRow = metrics.find((m) => m.platform === "instagram");
+
+  const storedFb = storedFbRow ? {
+    impressions: storedFbRow.impressions || 0,
+    post_engagements: storedFbRow.engagements || 0,
+    engaged_users: 0,
+    new_fans: storedFbRow.mentions || 0,
+    // page_views is embedded in notes as "Page views: N"
+    page_views: (() => {
+      const match = storedFbRow.notes?.match(/Page views:\s*(\d+)/i);
+      return match ? parseInt(match[1], 10) : 0;
+    })(),
+  } : null;
+
+  const storedIg = storedIgRow ? {
+    reach: storedIgRow.impressions || 0,   // reach stored in impressions column
+    impressions: 0,
+    accounts_engaged: storedIgRow.engagements || 0,
+    follower_count: storedIgRow.mentions || 0,
+  } : null;
+
+  // Live sync result takes priority; fall back to stored DB data
+  const fb = syncResult?.facebook || storedFb;
+  const ig = syncResult?.instagram || storedIg;
   const posts = syncResult?.posts || [];
 
   const totalReach = (fb?.impressions || 0) + (ig?.reach || 0);
@@ -120,7 +144,7 @@ export default function SocialPage() {
   const totalFollowers = (fb?.new_fans || 0) + (ig?.follower_count || 0);
   const totalPageViews = fb?.page_views || 0;
 
-  // Fallback from stored metrics if no sync result
+  // Fallback totals from all stored rows (still used for chart bars)
   const storedImpressions = metrics.reduce((s, m) => s + (m.impressions || 0), 0);
   const storedEngagements = metrics.reduce((s, m) => s + (m.engagements || 0), 0);
 
@@ -212,8 +236,8 @@ export default function SocialPage() {
         <>
           {/* Overview Cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 32 }}>
-            <StatCard label="Total Reach (30d)" value={syncResult ? totalReach.toLocaleString() : storedImpressions.toLocaleString()} />
-            <StatCard label="Engagement (30d)" value={syncResult ? totalEngagement.toLocaleString() : storedEngagements.toLocaleString()} />
+            <StatCard label="Total Reach (30d)" value={totalReach > 0 ? totalReach.toLocaleString() : storedImpressions.toLocaleString()} />
+            <StatCard label="Engagement (30d)" value={totalEngagement > 0 ? totalEngagement.toLocaleString() : storedEngagements.toLocaleString()} />
             <StatCard label="Followers / New Fans" value={totalFollowers.toLocaleString()} />
             <StatCard label="Page Views (30d)" value={totalPageViews.toLocaleString()} />
           </div>
