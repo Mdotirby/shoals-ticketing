@@ -38,6 +38,11 @@ export default function AdminAgentsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Onboard modal state
+  const [showOnboard, setShowOnboard] = useState(false);
+  const [onboardForm, setOnboardForm] = useState({ first_name: "", last_name: "", email: "", phone: "", agency_name: "" });
+  const [onboarding, setOnboarding] = useState(false);
+
   // Edit modal state
   const [editAgent, setEditAgent] = useState<Agent | null>(null);
   const [editForm, setEditForm] = useState({ agency: "", agent_name: "", agent_phone: "", agent_email: "" });
@@ -154,6 +159,53 @@ export default function AdminAgentsPage() {
     }
   }
 
+  async function handleOnboardAgent(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setOnboarding(true);
+    try {
+      // 1. Create admin_users record with role='agent'
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: onboardForm.email,
+          password: "TempPass123!",
+          first_name: onboardForm.first_name,
+          last_name: onboardForm.last_name,
+          role: "agent",
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to create agent user");
+      }
+
+      // 2. Create agents record
+      const agentRes = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency: onboardForm.agency_name,
+          agent_name: `${onboardForm.first_name} ${onboardForm.last_name}`.trim(),
+          agent_phone: onboardForm.phone || null,
+          agent_email: onboardForm.email || null,
+          venue_id: venueId || null,
+        }),
+      });
+      if (!agentRes.ok) throw new Error("Failed to create agent record");
+
+      setSuccess(`${onboardForm.first_name} ${onboardForm.last_name} has been onboarded! They'll receive a welcome email with their login credentials.`);
+      setShowOnboard(false);
+      setOnboardForm({ first_name: "", last_name: "", email: "", phone: "", agency_name: "" });
+      loadAgents();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Onboarding failed");
+    } finally {
+      setOnboarding(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="admin-form-page">
@@ -165,7 +217,18 @@ export default function AdminAgentsPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Agents</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <h1 className="admin-page-title" style={{ margin: 0 }}>Agents</h1>
+        {(role === "owner" || role === "venue_admin") && (
+          <button
+            className="admin-form-submit"
+            style={{ padding: "8px 20px", fontSize: 13 }}
+            onClick={() => setShowOnboard(true)}
+          >
+            + Onboard Agent
+          </button>
+        )}
+      </div>
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 20 }}>
         Manage booking agents and their event assignments.
       </p>
@@ -238,6 +301,61 @@ export default function AdminAgentsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Onboard Agent Modal */}
+      {showOnboard && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+        }} onClick={() => setShowOnboard(false)}>
+          <div style={{
+            background: "#131629", borderRadius: 12, padding: 24, maxWidth: 520, width: "100%",
+            border: "1px solid rgba(208,194,144,0.15)",
+          }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#d0c290" }}>Onboard New Agent</h2>
+            <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+              Creates a login account and sends a welcome email with temporary credentials.
+            </p>
+            <form onSubmit={handleOnboardAgent}>
+              <div className="admin-form-grid">
+                <label className="admin-form-label">
+                  First Name *
+                  <input type="text" className="admin-form-input" value={onboardForm.first_name}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, first_name: e.target.value })} required />
+                </label>
+                <label className="admin-form-label">
+                  Last Name *
+                  <input type="text" className="admin-form-input" value={onboardForm.last_name}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, last_name: e.target.value })} required />
+                </label>
+                <label className="admin-form-label">
+                  Email *
+                  <input type="email" className="admin-form-input" value={onboardForm.email}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, email: e.target.value })} required />
+                </label>
+                <label className="admin-form-label">
+                  Phone
+                  <input type="tel" className="admin-form-input" value={onboardForm.phone}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, phone: formatPhoneNumber(e.target.value) })} />
+                </label>
+                <label className="admin-form-label" style={{ gridColumn: "1 / -1" }}>
+                  Agency Name *
+                  <input type="text" className="admin-form-input" value={onboardForm.agency_name}
+                    onChange={(e) => setOnboardForm({ ...onboardForm, agency_name: e.target.value })} required />
+                </label>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                <button type="submit" className="admin-form-submit" disabled={onboarding} style={{ flex: 1 }}>
+                  {onboarding ? "Onboarding…" : "Onboard Agent"}
+                </button>
+                <button type="button" className="admin-tier-remove-btn" onClick={() => setShowOnboard(false)} style={{ flex: 0 }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editAgent && (

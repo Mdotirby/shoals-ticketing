@@ -85,9 +85,17 @@ export async function POST(request: Request) {
       box_office: "Box Office",
       door_greeter: "Door Greeter",
       artist: "Artist",
+      partner: "Partner",
+      agent: "Agent",
     };
     const roleLabel = ROLE_LABELS[role] || role;
     const displayName = first_name || "there";
+
+    // Role-specific login URL — agents go to the agent portal
+    const loginUrl = role === "agent"
+      ? "https://venuecore.live/login?redirect=/agent"
+      : "https://venuecore.live/login";
+    const ctaLabel = role === "agent" ? "Sign In to Agent Portal →" : "Sign In to VenueCore →";
 
     const welcomeHtml = `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Arial,sans-serif;">
@@ -116,12 +124,26 @@ You've been added to VenueCore as a <strong style="color:#d0c290;">${roleLabel}<
 We recommend changing your password after your first login.</p>
 
 <table width="100%" style="margin-bottom:20px;"><tr><td align="center">
-<a href="https://venuecore.live/login" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;">Sign In to VenueCore →</a>
+<a href="${loginUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;">${ctaLabel}</a>
 </td></tr></table>
 <p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;margin:0;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">
 If you didn't expect this invitation, you can safely ignore this email. Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a></p>
 </td></tr>
 </table></td></tr></table></body></html>`;
+
+    // Look up owner email for CC so owner gets a copy of every onboarding email
+    let ownerEmail: string | null = null;
+    try {
+      const { data: ownerRecord } = await admin
+        .from("admin_users")
+        .select("email")
+        .eq("role", "owner")
+        .limit(1)
+        .single();
+      if (ownerRecord?.email && ownerRecord.email !== email) {
+        ownerEmail = ownerRecord.email;
+      }
+    } catch { /* ignore — CC is best-effort */ }
 
     fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -129,6 +151,7 @@ If you didn't expect this invitation, you can safely ignore this email. Question
       body: JSON.stringify({
         from: "VenueCore <tickets@venuecore.live>",
         to: [email],
+        ...(ownerEmail ? { cc: [ownerEmail] } : {}),
         subject: `Welcome to VenueCore — You're a ${roleLabel}`,
         html: welcomeHtml,
       }),

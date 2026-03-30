@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import Footer from "@/app/components/Footer";
 
-type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist";
+type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist" | "agent";
 
 // Map roles to their dashboard routes
 const ROLE_ROUTES: Record<UserRole, string> = {
@@ -18,6 +18,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   read_only: "/admin",
   door_greeter: "/admin/scan",
   artist: "/admin/guest-lists",
+  agent: "/agent",
 };
 
 function LoginForm({ onForgot }: { onForgot: () => void }) {
