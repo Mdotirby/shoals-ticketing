@@ -256,20 +256,29 @@ export default function SocialPage() {
         </div>
       )}
 
-      {/* API Diagnostics — shown after sync if there are errors */}
-      {syncResult?.diagnostics && Object.keys(syncResult.diagnostics).length > 0 && (
-        <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 16, marginBottom: 24 }}>
-          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 14, marginBottom: 8 }}>⚠️ Meta API Permission Issues Detected</div>
-          {Object.entries(syncResult.diagnostics).map(([key, msg]) => (
-            <p key={key} style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "4px 0" }}>
-              <strong style={{ color: "rgba(255,255,255,0.8)" }}>{key}:</strong> {msg}
-            </p>
-          ))}
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 8, marginBottom: 0 }}>
-            Fix: In Meta Business Manager → System Users → select your system user → Add Assets → assign your Facebook Page with <strong>read_insights</strong> + <strong>pages_read_engagement</strong> + <strong>instagram_manage_insights</strong> permissions.
-          </p>
-        </div>
-      )}
+      {/* API Diagnostics — shown after sync */}
+      {syncResult?.diagnostics && Object.keys(syncResult.diagnostics).length > 0 && (() => {
+        const hasErrors = Object.keys(syncResult.diagnostics!).some((k) => k.includes("error"));
+        const bgColor = hasErrors ? "rgba(255,180,50,0.08)" : "rgba(96,165,250,0.06)";
+        const borderColor = hasErrors ? "rgba(255,180,50,0.2)" : "rgba(96,165,250,0.15)";
+        const titleColor = hasErrors ? "#ffb432" : "rgba(96,165,250,0.9)";
+        const title = hasErrors ? "⚠️ Meta API Issues Detected" : "ℹ️ Sync Info";
+        return (
+          <div style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
+            <div style={{ color: titleColor, fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{title}</div>
+            {Object.entries(syncResult.diagnostics!).map(([key, msg]) => (
+              <p key={key} style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "4px 0" }}>
+                <strong style={{ color: "rgba(255,255,255,0.8)" }}>{key.replace(/_/g, " ")}:</strong> {msg}
+              </p>
+            ))}
+            {hasErrors && (
+              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 8, marginBottom: 0 }}>
+                If using New Pages Experience, this is expected — Facebook deprecated classic page insights. Metrics are computed from posts instead.
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {loading ? (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>Loading social data...</p>
