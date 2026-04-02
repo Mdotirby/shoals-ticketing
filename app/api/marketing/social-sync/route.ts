@@ -159,29 +159,53 @@ export async function POST() {
     const since = Math.floor(thirtyDaysAgo.getTime() / 1000);
     const until = Math.floor(now.getTime() / 1000);
 
-    const pageInsightsUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}/insights`);
-    pageInsightsUrl.searchParams.set("metric", "page_impressions,page_engaged_users,page_fan_adds,page_views_total,page_post_engagements");
-    pageInsightsUrl.searchParams.set("period", "day");
-    pageInsightsUrl.searchParams.set("since", since.toString());
-    pageInsightsUrl.searchParams.set("until", until.toString());
-    pageInsightsUrl.searchParams.set("access_token", pageAccessToken);
+    // Fetch FB Page Insights — try full metrics first, fall back to basic set
+    // if the page uses the New Pages Experience (NPE) which doesn't support some old metrics
+    const FULL_METRICS = "page_impressions,page_engaged_users,page_fan_adds,page_views_total,page_post_engagements";
+    const BASIC_METRICS = "page_impressions,page_post_engagements";
 
     let fbInsights: Array<Record<string, unknown>> = [];
     let fbInsightsError: string | null = null;
-    try {
-      const fbRes = await fetch(pageInsightsUrl.toString());
-      if (fbRes.ok) {
-        const fbData = (await fbRes.json()) as { data: Array<Record<string, unknown>> };
-        fbInsights = fbData.data || [];
-      } else {
-        const errBody = await fbRes.json().catch(() => ({}));
-        const metaErr = (errBody as Record<string, unknown>)?.error as Record<string, unknown> | undefined;
-        fbInsightsError = (metaErr?.message as string) || `HTTP ${fbRes.status}`;
-        console.warn("FB Page Insights error:", errBody);
+
+    for (const metricSet of [FULL_METRICS, BASIC_METRICS]) {
+      const pageInsightsUrl = new URL(`https://graph.facebook.com/v21.0/${pageId}/insights`);
+      pageInsightsUrl.searchParams.set("metric", metricSet);
+      pageInsightsUrl.searchParams.set("period", "day");
+      pageInsightsUrl.searchParams.set("since", since.toString());
+      pageInsightsUrl.searchParams.set("until", until.toString());
+      pageInsightsUrl.searchParams.set("access_token", pageAccessToken);
+
+      try {
+        const fbRes = await fetch(pageInsightsUrl.toString());
+        if (fbRes.ok) {
+          const fbData = (await fbRes.json()) as { data: Array<Record<string, unknown>> };
+          fbInsights = fbData.data || [];
+          fbInsightsError = metricSet === BASIC_METRICS
+            ? "Using basic metrics only — your FB Page uses New Pages Experience which doesn't support all classic metrics"
+            : null;
+          break; // Success — stop retrying
+        } else {
+          const errBody = await fbRes.json().catch(() => ({}));
+          const metaErr = (errBody as Record<string, unknown>)?.error as Record<string, unknown> | undefined;
+          const errMsg = (metaErr?.message as string) || `HTTP ${fbRes.status}`;
+          const errCode = (metaErr?.code as number) || 0;
+
+          // (#100) = invalid metric — retry with basic set
+          if (errCode === 100 && metricSet === FULL_METRICS) {
+            console.warn("FB Page Insights: full metrics failed, trying basic set...");
+            await delay(200);
+            continue;
+          }
+
+          fbInsightsError = errMsg;
+          console.warn("FB Page Insights error:", errBody);
+          break;
+        }
+      } catch (e) {
+        fbInsightsError = e instanceof Error ? e.message : "Network error";
+        console.warn("FB Page Insights fetch failed:", e);
+        break;
       }
-    } catch (e) {
-      fbInsightsError = e instanceof Error ? e.message : "Network error";
-      console.warn("FB Page Insights fetch failed:", e);
     }
 
     await delay(200);
