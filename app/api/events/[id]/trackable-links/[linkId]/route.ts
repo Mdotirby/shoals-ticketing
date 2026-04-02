@@ -55,14 +55,19 @@ export async function GET(
     // Clicks by day (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const clicksByDay: Record<string, number> = {};
+    const clicksByDayMap: Record<string, number> = {};
     for (const click of clicks) {
       const date = new Date(click.created_at);
       if (date >= thirtyDaysAgo) {
         const dayKey = date.toISOString().split("T")[0];
-        clicksByDay[dayKey] = (clicksByDay[dayKey] || 0) + 1;
+        clicksByDayMap[dayKey] = (clicksByDayMap[dayKey] || 0) + 1;
       }
     }
+
+    // Convert to sorted array format for the UI chart
+    const dailyClicks = Object.entries(clicksByDayMap)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     // Total revenue from conversions
     const totalRevenue = conversions.reduce(
@@ -85,7 +90,8 @@ export async function GET(
         analytics: {
           total_clicks: totalClicks,
           unique_clicks: uniqueIps.size,
-          clicks_by_day: clicksByDay,
+          clicks_by_day: clicksByDayMap,
+          daily_clicks: dailyClicks,
           total_conversions: totalConversions,
           total_revenue: totalRevenue,
           conversion_rate: conversionRate,

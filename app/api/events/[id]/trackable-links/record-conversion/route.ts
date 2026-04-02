@@ -52,20 +52,29 @@ export async function POST(
       );
     }
 
-    // Update denormalized counters
-    const { error: updateError } = await admin
-      .from("trackable_links")
-      .update({
-        conversions: (link.conversions || 0) + 1,
-        revenue: Number(link.revenue || 0) + revenueAmount,
-      })
-      .eq("id", link.id);
+    // Update denormalized counters — use atomic RPC with fallback
+    const { error: rpcErr } = await admin.rpc("increment_trackable_link_conversion", {
+      link_row_id: link.id,
+      revenue_amt: revenueAmount,
+    });
 
-    if (updateError) {
-      return NextResponse.json(
-        { error: "Conversion recorded but counter update failed: " + updateError.message },
-        { status: 500 }
-      );
+    if (rpcErr) {
+      // Fallback: non-atomic increment
+      const { error: updateError } = await admin
+        .from("trackable_links")
+        .update({
+          conversions: (link.conversions || 0) + 1,
+          revenue: Number(link.revenue || 0) + revenueAmount,
+        })
+        .eq("id", link.id);
+
+      if (updateError) {
+        console.error("[trackable-link] Conversion counter update failed:", updateError.message);
+        return NextResponse.json(
+          { error: "Conversion recorded but counter update failed: " + updateError.message },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

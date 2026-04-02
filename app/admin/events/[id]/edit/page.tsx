@@ -1322,7 +1322,7 @@ export default function AdminEditEventPage() {
                         </span>
                       )}
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: "auto" }}>
-                        {link.total_clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
+                        {link.clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
                       </span>
                       <button
                         type="button"
@@ -1377,7 +1377,7 @@ export default function AdminEditEventPage() {
                           const dailyClicks: { date: string; count: number }[] = stats.daily_clicks || [];
                           const maxClicks = Math.max(...dailyClicks.map((d: { count: number }) => d.count), 1);
                           const convRate = stats.total_clicks > 0
-                            ? ((stats.conversions || 0) / stats.total_clicks * 100).toFixed(1)
+                            ? ((stats.total_conversions || 0) / stats.total_clicks * 100).toFixed(1)
                             : "0.0";
                           return (
                             <>
@@ -1387,8 +1387,8 @@ export default function AdminEditEventPage() {
                                 {[
                                   { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
                                   { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
-                                  { label: "Conversions", value: stats.conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
-                                  { label: "Revenue", value: `$${Number(stats.revenue ?? 0).toFixed(2)}`, bg: "rgba(208,194,144,0.1)" },
+                                  { label: "Conversions", value: stats.total_conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
+                                  { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(208,194,144,0.1)" },
                                   { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },
                                 ].map((s) => (
                                   <div key={s.label} style={{

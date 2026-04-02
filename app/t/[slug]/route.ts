@@ -153,7 +153,7 @@ export async function GET(
     const referrer = headers.get("referer") || null;
 
     // Record the click event
-    await admin.from("trackable_link_events").insert({
+    const { error: insertErr } = await admin.from("trackable_link_events").insert({
       link_id: link.id,
       event_type: "click",
       ip_address,
@@ -161,11 +161,27 @@ export async function GET(
       referrer,
     });
 
-    // Increment denormalized click counter
-    await admin
-      .from("trackable_links")
-      .update({ clicks: (link.clicks || 0) + 1 })
-      .eq("id", link.id);
+    if (insertErr) {
+      console.error("[trackable-link] Failed to insert click event:", insertErr.message);
+    }
+
+    // Increment denormalized click counter using rpc for atomic increment
+    // Falls back to read-then-write if rpc is unavailable
+    const { error: rpcErr } = await admin.rpc("increment_trackable_link_clicks", {
+      link_row_id: link.id,
+    });
+
+    if (rpcErr) {
+      // Fallback: non-atomic increment
+      const { error: updateErr } = await admin
+        .from("trackable_links")
+        .update({ clicks: (link.clicks || 0) + 1 })
+        .eq("id", link.id);
+
+      if (updateErr) {
+        console.error("[trackable-link] Failed to increment clicks:", updateErr.message);
+      }
+    }
 
     // 302 redirect to the destination URL
     return NextResponse.redirect(new URL(link.destination_url), 302);

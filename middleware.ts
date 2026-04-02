@@ -52,9 +52,10 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
   let { operatorSlug, venueSlug, isCustomDomain, customHostname } = extractSlugs(host);
 
-  // Skip middleware for static files and API routes
+  // Skip middleware for static files, API routes, and trackable link redirects
   const isApiRoute = pathname.startsWith("/api/");
-  if (isApiRoute) {
+  const isTrackableLink = pathname.startsWith("/t/");
+  if (isApiRoute || isTrackableLink) {
     return NextResponse.next();
   }
 
