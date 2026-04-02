@@ -59,7 +59,9 @@ export default function DemographicsPage() {
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const renderHeatmap = useCallback(() => {
     const win = window as any;
-    if (!mapsLoaded || !data?.heatmapPoints?.length || !mapRef.current || !win.google) return;
+    if (!mapsLoaded || !mapRef.current || !win.google) return;
+
+    const hasPoints = data?.heatmapPoints?.length && data.heatmapPoints.length > 0;
 
     // Dark mode map styles (matches VenueCore admin theme)
     const darkStyles: any[] = [
@@ -74,9 +76,10 @@ export default function DemographicsPage() {
       { featureType: "transit", stylers: [{ visibility: "off" }] },
     ];
 
-    // Compute center from data points
-    const avgLat = data.heatmapPoints.reduce((s, p) => s + p.lat, 0) / data.heatmapPoints.length;
-    const avgLng = data.heatmapPoints.reduce((s, p) => s + p.lng, 0) / data.heatmapPoints.length;
+    // Compute center from data points, default to Florence/Shoals AL
+    const points = hasPoints ? data!.heatmapPoints : [];
+    const avgLat = points.length > 0 ? points.reduce((s, p) => s + p.lat, 0) / points.length : 34.7998;
+    const avgLng = points.length > 0 ? points.reduce((s, p) => s + p.lng, 0) / points.length : -87.6773;
 
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = new win.google.maps.Map(mapRef.current, {
@@ -94,7 +97,7 @@ export default function DemographicsPage() {
     }
 
     // Build weighted heatmap data
-    const heatmapData = data.heatmapPoints.map((p) =>
+    const heatmapData = points.map((p) =>
       ({ location: new win.google.maps.LatLng(p.lat, p.lng), weight: p.weight })
     );
 
@@ -102,6 +105,9 @@ export default function DemographicsPage() {
     if (heatmapLayerRef.current) {
       heatmapLayerRef.current.setMap(null);
     }
+
+    // Only create heatmap layer if there are data points
+    if (heatmapData.length === 0) return;
 
     // Create heatmap with Snapchat-style gradient (red/orange glow)
     heatmapLayerRef.current = new win.google.maps.visualization.HeatmapLayer({
@@ -123,7 +129,7 @@ export default function DemographicsPage() {
         "rgba(220, 0, 0, 1)",
       ],
     });
-  }, [mapsLoaded, data]);
+  }, [mapsLoaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => { renderHeatmap(); }, [renderHeatmap]);
@@ -188,8 +194,8 @@ export default function DemographicsPage() {
             {data.surveys.avg_rating > 0 && <StatCard label="Avg Rating" value={`${data.surveys.avg_rating.toFixed(1)} / 5`} />}
           </div>
 
-          {/* Google Maps Heatmap */}
-          {data.heatmapPoints.length > 0 && apiKey && (
+          {/* Google Maps Heatmap — always shown, defaults to Shoals area */}
+          {apiKey && (
             <div style={{
               background: "rgba(255,255,255,0.03)",
               border: "1px solid rgba(255,255,255,0.08)",
@@ -202,7 +208,9 @@ export default function DemographicsPage() {
                   Buyer Location Heatmap
                 </h3>
                 <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "4px 0 0" }}>
-                  {data.heatmapPoints.length} zip code{data.heatmapPoints.length !== 1 ? "s" : ""} · {data.totalOrders} orders · Hotter = more buyers
+                  {data?.heatmapPoints?.length
+                    ? `${data.heatmapPoints.length} zip code${data.heatmapPoints.length !== 1 ? "s" : ""} · ${data.totalOrders} orders · Hotter = more buyers`
+                    : "No orders yet — map centered on the Shoals area. Buyer locations will appear as tickets sell."}
                 </p>
               </div>
               <div
