@@ -75,7 +75,74 @@ export async function POST(
 
   // Get template details
   const subject = campaign.subject_override || campaign.email_templates?.subject || "Update from VenueCore";
-  const bodyHtml = campaign.email_templates?.body_html || "<p>No content</p>";
+  let bodyHtml = campaign.email_templates?.body_html || "<p>No content</p>";
+
+  // ── Fetch event data for template variable replacement ──
+  let eventTitle = "";
+  let eventDate = "";
+  let venueName = "";
+  let eventImage = "";
+  let eventId = campaign.event_id || "";
+
+  if (campaign.event_id) {
+    const { data: eventData } = await admin
+      .from("events")
+      .select("title, date, venue, venue_id, image_url")
+      .eq("id", campaign.event_id)
+      .single();
+
+    if (eventData) {
+      eventTitle = eventData.title || "";
+      eventImage = eventData.image_url || "";
+
+      // Try to get venue name from venues table, fall back to event.venue string
+      if (eventData.venue_id) {
+        const { data: venueRow } = await admin
+          .from("venues")
+          .select("name")
+          .eq("id", eventData.venue_id)
+          .single();
+        venueName = venueRow?.name || eventData.venue || "";
+      } else {
+        venueName = eventData.venue || "";
+      }
+
+      if (eventData.date) {
+        try {
+          const d = new Date(eventData.date);
+          eventDate = d.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+        } catch {
+          eventDate = eventData.date;
+        }
+      }
+    }
+  }
+
+  // Replace event-level variables in the template (same for all recipients)
+  bodyHtml = bodyHtml
+    .replace(/\{\{event_title\}\}/g, eventTitle)
+    .replace(/\{\{event_date\}\}/g, eventDate)
+    .replace(/\{\{venue_name\}\}/g, venueName)
+    .replace(/\{\{event_id\}\}/g, eventId)
+    .replace(/\{\{event_image\}\}/g, eventImage);
+
+  // If no event image, remove any image blocks that reference it to avoid broken images
+  if (!eventImage) {
+    // Remove img tags that had {{event_image}} as src (now empty string)
+    bodyHtml = bodyHtml.replace(/<img[^>]*src=""[^>]*>/gi, "");
+  }
+
+  // Also replace in subject line
+  const subjectWithEvent = subject
+    .replace(/\{\{event_title\}\}/g, eventTitle)
+    .replace(/\{\{event_date\}\}/g, eventDate)
+    .replace(/\{\{venue_name\}\}/g, venueName)
+    .replace(/\{\{event_id\}\}/g, eventId);
 
   // Send via Resend
   const resendKey = process.env.RESEND_API_KEY;
@@ -101,7 +168,7 @@ export async function POST(
       const emailRes = await resend.emails.send({
         from: fromEmail,
         to: recipient.email,
-        subject: subject.replace(/\{\{first_name\}\}/g, firstName),
+        subject: subjectWithEvent.replace(/\{\{first_name\}\}/g, firstName),
         html: personalizedHtml,
       });
 

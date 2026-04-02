@@ -94,7 +94,7 @@ export default function TemplatesPage() {
       <Link href="/admin/venue-marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Email Templates</h1>
       <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
-        Create reusable email templates. Use <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code> for personalization.
+        Create reusable email templates. Available variables: <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_title}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_date}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{venue_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_image}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_id}}"}</code>
       </p>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
@@ -109,7 +109,6 @@ export default function TemplatesPage() {
               if (res.ok) {
                 const result = await res.json();
                 if (result.count > 0) {
-                  // Reload templates
                   const reloadParams = venueId ? `?venue_id=${venueId}` : "";
                   const reloaded = await fetch(`/api/email-templates${reloadParams}`).then((r) => r.json());
                   if (Array.isArray(reloaded)) setTemplates(reloaded);
@@ -119,6 +118,25 @@ export default function TemplatesPage() {
             style={{ padding: "10px 20px", fontSize: 13, background: "rgba(208,194,144,0.1)", color: "#d0c290", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
           >
             Seed Default Templates
+          </button>
+        )}
+        {templates.length > 0 && (
+          <button
+            onClick={async () => {
+              if (!confirm("This will overwrite all system templates with the latest designs (including event image support). Continue?")) return;
+              const params = venueId ? `?venue_id=${venueId}&force=true` : "?force=true";
+              const res = await fetch(`/api/email-templates/seed${params}`, { method: "POST" });
+              if (res.ok) {
+                const result = await res.json();
+                alert(`${result.count} template(s) updated`);
+                const reloadParams = venueId ? `?venue_id=${venueId}` : "";
+                const reloaded = await fetch(`/api/email-templates${reloadParams}`).then((r) => r.json());
+                if (Array.isArray(reloaded)) setTemplates(reloaded);
+              }
+            }}
+            style={{ padding: "10px 20px", fontSize: 13, background: "rgba(99,102,241,0.1)", color: "#818cf8", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
+          >
+            Update System Templates
           </button>
         )}
       </div>
@@ -144,7 +162,7 @@ export default function TemplatesPage() {
           <div style={{ marginTop: 8 }}>
             <label className="admin-form-label">Email Body *</label>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 8px" }}>
-              Type your email content below. Use the toolbar to format. Type <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code> where you want the recipient&apos;s name.
+              Type your email content below. Use the toolbar to format. Insert variables like <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_title}}"}</code>, etc. using the buttons below.
             </p>
             {/* Simple formatting toolbar */}
             <div style={{ display: "flex", gap: 4, marginBottom: 4, flexWrap: "wrap" }}>
@@ -185,15 +203,24 @@ export default function TemplatesPage() {
               >
                 H2
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  document.execCommand("insertText", false, "{{first_name}}");
-                }}
-                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(208,194,144,0.1)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 4, color: "#d0c290", cursor: "pointer", fontWeight: 600 }}
-              >
-                + First Name
-              </button>
+              {[
+                { label: "+ First Name", tag: "{{first_name}}" },
+                { label: "+ Event Title", tag: "{{event_title}}" },
+                { label: "+ Event Date", tag: "{{event_date}}" },
+                { label: "+ Venue Name", tag: "{{venue_name}}" },
+                { label: "+ Event Image", tag: "{{event_image}}" },
+              ].map((v) => (
+                <button
+                  key={v.tag}
+                  type="button"
+                  onClick={() => {
+                    document.execCommand("insertText", false, v.tag);
+                  }}
+                  style={{ padding: "4px 10px", fontSize: 12, background: "rgba(208,194,144,0.1)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 4, color: "#d0c290", cursor: "pointer", fontWeight: 600 }}
+                >
+                  {v.label}
+                </button>
+              ))}
             </div>
             {/* Rich text editor area */}
             <div

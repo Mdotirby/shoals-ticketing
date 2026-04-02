@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       subject: "Welcome to Friends with Benefits, {{first_name}}!",
       category: "welcome",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #000000; padding: 40px 32px; border-radius: 12px;">
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #000000; padding: 40px 24px;">
   <div style="text-align: center; margin-bottom: 32px;">
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="120" style="margin-bottom: 16px;" />
   </div>
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       subject: "Hey {{first_name}}, how was the show?",
       category: "post_show_survey",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #ffffff; padding: 40px 24px;">
   <div style="text-align: center; margin-bottom: 32px;">
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="100" style="margin-bottom: 12px;" />
   </div>
@@ -90,37 +90,44 @@ export async function POST(req: NextRequest) {
       subject: "{{first_name}}, a new show just dropped!",
       category: "event_announcement",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
-  <div style="text-align: center; margin-bottom: 32px;">
-    <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="100" style="margin-bottom: 12px;" />
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #ffffff;">
+  <!-- Hero Image -->
+  <div style="width: 100%; max-height: 400px; overflow: hidden;">
+    <img src="{{event_image}}" alt="{{event_title}}" style="width: 100%; height: auto; display: block; object-fit: cover;" />
   </div>
 
-  <h1 style="font-size: 26px; color: #d0c290; text-align: center; margin: 0 0 8px;">New Show Alert!</h1>
-  <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 28px;">Hey {{first_name}}, we've got something special for you.</p>
+  <div style="padding: 32px 24px 40px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="90" style="margin-bottom: 8px;" />
+    </div>
 
-  <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 12px; padding: 28px; margin-bottom: 24px; text-align: center;">
-    <h2 style="font-size: 22px; color: #d0c290; margin: 0 0 8px;">{{event_title}}</h2>
-    <p style="color: rgba(255,255,255,0.6); font-size: 15px; margin: 0 0 4px;">{{event_date}}</p>
-    <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0;">{{venue_name}}</p>
+    <h1 style="font-size: 28px; color: #d0c290; text-align: center; margin: 0 0 8px; letter-spacing: 1px;">JUST ANNOUNCED!</h1>
+    <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 24px;">Hey {{first_name}}, we've got something special for you.</p>
+
+    <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 12px; padding: 28px; margin-bottom: 24px; text-align: center;">
+      <h2 style="font-size: 24px; color: #d0c290; margin: 0 0 8px;">{{event_title}}</h2>
+      <p style="color: rgba(255,255,255,0.6); font-size: 15px; margin: 0 0 4px;">{{event_date}}</p>
+      <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0;">{{venue_name}}</p>
+    </div>
+
+    <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 14px; margin: 0 0 24px; line-height: 1.6;">
+      As a Friend with Benefits, you get <strong style="color: #d0c290;">early access</strong> before tickets go on sale to the public. Don't miss this one.
+    </p>
+
+    <div style="text-align: center; margin-bottom: 32px;">
+      <a href="https://venuecore.live/events/{{event_id}}" style="display: inline-block; background: linear-gradient(135deg, #d0c290, #b8a66e); color: #0b0d1d; font-weight: 700; font-size: 15px; padding: 16px 40px; border-radius: 8px; text-decoration: none;">Get Tickets Now</a>
+    </div>
+
+    <p style="text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; margin: 0 0 8px;">
+      See you there, {{first_name}}!
+    </p>
+
+    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0;" />
+    <p style="text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); margin: 0;">
+      You're receiving this as a Friends with Benefits member.<br />
+      <a href="https://venuecore.live/privacy" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Privacy Policy</a> · <a href="https://venuecore.live/do-not-sell" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Unsubscribe</a>
+    </p>
   </div>
-
-  <p style="text-align: center; color: rgba(255,255,255,0.6); font-size: 14px; margin: 0 0 24px; line-height: 1.6;">
-    As a Friend with Benefits, you get <strong style="color: #d0c290;">early access</strong> before tickets go on sale to the public. Don't miss this one.
-  </p>
-
-  <div style="text-align: center; margin-bottom: 32px;">
-    <a href="https://venuecore.live/events/{{event_id}}" style="display: inline-block; background: linear-gradient(135deg, #d0c290, #b8a66e); color: #0b0d1d; font-weight: 700; font-size: 14px; padding: 14px 36px; border-radius: 8px; text-decoration: none;">Get Tickets Now</a>
-  </div>
-
-  <p style="text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; margin: 0 0 8px;">
-    See you there, {{first_name}}!
-  </p>
-
-  <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0;" />
-  <p style="text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); margin: 0;">
-    You're receiving this as a Friends with Benefits member.<br />
-    <a href="https://venuecore.live/privacy" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Privacy Policy</a> · <a href="https://venuecore.live/do-not-sell" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Unsubscribe</a>
-  </p>
 </div>`,
     },
     {
@@ -129,7 +136,7 @@ export async function POST(req: NextRequest) {
       subject: "Hey {{first_name}}, here's what you need to know!",
       category: "know_before_show",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #ffffff; padding: 40px 24px;">
   <div style="text-align: center; margin-bottom: 32px;">
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="100" style="margin-bottom: 12px;" />
   </div>
@@ -176,7 +183,7 @@ export async function POST(req: NextRequest) {
       subject: "Thanks for coming, {{first_name}}!",
       category: "we_hope_you_enjoyed",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #ffffff; padding: 40px 24px;">
   <div style="text-align: center; margin-bottom: 32px;">
     <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="100" style="margin-bottom: 12px;" />
   </div>
@@ -218,48 +225,83 @@ export async function POST(req: NextRequest) {
       subject: "{{first_name}}, tickets are almost gone!",
       category: "last_chance",
       is_system: true,
-      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0b0d1d; color: #ffffff; padding: 40px 32px; border-radius: 12px;">
-  <div style="text-align: center; margin-bottom: 32px;">
-    <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="100" style="margin-bottom: 12px;" />
+      body_html: `<div style="font-family: 'Helvetica Neue', Arial, sans-serif; width: 100%; margin: 0; background: #0b0d1d; color: #ffffff;">
+  <!-- Hero Image -->
+  <div style="width: 100%; max-height: 400px; overflow: hidden;">
+    <img src="{{event_image}}" alt="{{event_title}}" style="width: 100%; height: auto; display: block; object-fit: cover;" />
   </div>
 
-  <h1 style="font-size: 26px; color: #d0c290; text-align: center; margin: 0 0 8px;">Last Call, {{first_name}}!</h1>
-  <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 28px;">Tickets are almost sold out — don't miss your chance.</p>
-
-  <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 12px; padding: 28px; margin-bottom: 24px; text-align: center;">
-    <h2 style="font-size: 22px; color: #d0c290; margin: 0 0 8px;">{{event_title}}</h2>
-    <p style="color: rgba(255,255,255,0.6); font-size: 15px; margin: 0 0 4px;">{{event_date}}</p>
-    <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 16px;">{{venue_name}}</p>
-    <div style="background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.2); border-radius: 8px; padding: 10px; display: inline-block;">
-      <span style="color: rgba(255,80,80,0.9); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">⚠ Almost Sold Out</span>
+  <div style="padding: 32px 24px 40px;">
+    <div style="text-align: center; margin-bottom: 24px;">
+      <img src="https://venuecore.live/VenueCore_VenueCore-FullLogo.png" alt="VenueCore" width="90" style="margin-bottom: 8px;" />
     </div>
+
+    <h1 style="font-size: 28px; color: #d0c290; text-align: center; margin: 0 0 8px;">Last Call, {{first_name}}!</h1>
+    <p style="text-align: center; color: rgba(255,255,255,0.5); font-size: 14px; margin: 0 0 24px;">Tickets are almost sold out — don't miss your chance.</p>
+
+    <div style="background: rgba(208,194,144,0.08); border: 1px solid rgba(208,194,144,0.15); border-radius: 12px; padding: 28px; margin-bottom: 24px; text-align: center;">
+      <h2 style="font-size: 24px; color: #d0c290; margin: 0 0 8px;">{{event_title}}</h2>
+      <p style="color: rgba(255,255,255,0.6); font-size: 15px; margin: 0 0 4px;">{{event_date}}</p>
+      <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0 0 16px;">{{venue_name}}</p>
+      <div style="background: rgba(255,80,80,0.1); border: 1px solid rgba(255,80,80,0.2); border-radius: 8px; padding: 10px; display: inline-block;">
+        <span style="color: rgba(255,80,80,0.9); font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Almost Sold Out</span>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 32px;">
+      <a href="https://venuecore.live/events/{{event_id}}" style="display: inline-block; background: linear-gradient(135deg, #d0c290, #b8a66e); color: #0b0d1d; font-weight: 700; font-size: 15px; padding: 16px 40px; border-radius: 8px; text-decoration: none;">Grab Your Tickets</a>
+    </div>
+
+    <p style="text-align: center; color: rgba(255,255,255,0.3); font-size: 12px;">Don't wait, {{first_name}} — once they're gone, they're gone.</p>
+
+    <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0;" />
+    <p style="text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); margin: 0;">
+      You're receiving this as a Friends with Benefits member.<br />
+      <a href="https://venuecore.live/privacy" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Privacy Policy</a> · <a href="https://venuecore.live/do-not-sell" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Unsubscribe</a>
+    </p>
   </div>
-
-  <div style="text-align: center; margin-bottom: 32px;">
-    <a href="https://venuecore.live/events/{{event_id}}" style="display: inline-block; background: linear-gradient(135deg, #d0c290, #b8a66e); color: #0b0d1d; font-weight: 700; font-size: 15px; padding: 16px 40px; border-radius: 8px; text-decoration: none;">Grab Your Tickets</a>
-  </div>
-
-  <p style="text-align: center; color: rgba(255,255,255,0.3); font-size: 12px;">Don't wait, {{first_name}} — once they're gone, they're gone.</p>
-
-  <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 24px 0;" />
-  <p style="text-align: center; font-size: 11px; color: rgba(255,255,255,0.25); margin: 0;">
-    You're receiving this as a Friends with Benefits member.<br />
-    <a href="https://venuecore.live/privacy" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Privacy Policy</a> · <a href="https://venuecore.live/do-not-sell" style="color: rgba(208,194,144,0.6); text-decoration: underline;">Unsubscribe</a>
-  </p>
 </div>`,
     },
   ];
 
+  // Check if force update is requested (updates existing system templates)
+  const force = req.nextUrl.searchParams.get("force") === "true";
+
   // Check if templates already exist for this venue
   const { data: existing } = await admin
     .from("email_templates")
-    .select("id")
+    .select("id, category")
     .eq("is_system", true)
-    .eq("venue_id", venueId)
-    .limit(1);
+    .eq("venue_id", venueId);
 
-  if (existing && existing.length > 0) {
-    return NextResponse.json({ message: "Templates already seeded", count: 0 });
+  if (existing && existing.length > 0 && !force) {
+    return NextResponse.json({ message: "Templates already seeded. Use ?force=true to update.", count: 0 });
+  }
+
+  if (force && existing && existing.length > 0) {
+    // Update existing system templates by matching on category
+    let updatedCount = 0;
+    for (const template of templates) {
+      const match = existing.find((e: { category: string }) => e.category === template.category);
+      if (match) {
+        const { error: updateErr } = await admin
+          .from("email_templates")
+          .update({
+            name: template.name,
+            subject: template.subject,
+            body_html: template.body_html,
+          })
+          .eq("id", match.id);
+        if (!updateErr) updatedCount++;
+      } else {
+        // New template category — insert it
+        const { error: insertErr } = await admin
+          .from("email_templates")
+          .insert(template);
+        if (!insertErr) updatedCount++;
+      }
+    }
+    return NextResponse.json({ message: "Templates updated", count: updatedCount });
   }
 
   const { data, error } = await admin
