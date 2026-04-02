@@ -167,6 +167,7 @@ export async function POST() {
     pageInsightsUrl.searchParams.set("access_token", pageAccessToken);
 
     let fbInsights: Array<Record<string, unknown>> = [];
+    let fbInsightsError: string | null = null;
     try {
       const fbRes = await fetch(pageInsightsUrl.toString());
       if (fbRes.ok) {
@@ -174,9 +175,12 @@ export async function POST() {
         fbInsights = fbData.data || [];
       } else {
         const errBody = await fbRes.json().catch(() => ({}));
+        const metaErr = (errBody as Record<string, unknown>)?.error as Record<string, unknown> | undefined;
+        fbInsightsError = (metaErr?.message as string) || `HTTP ${fbRes.status}`;
         console.warn("FB Page Insights error:", errBody);
       }
     } catch (e) {
+      fbInsightsError = e instanceof Error ? e.message : "Network error";
       console.warn("FB Page Insights fetch failed:", e);
     }
 
@@ -236,15 +240,20 @@ export async function POST() {
       igUrl.searchParams.set("until", until.toString());
       igUrl.searchParams.set("access_token", pageAccessToken);
 
+      let igInsightsError: string | null = null;
       try {
         const igRes = await fetch(igUrl.toString());
         if (igRes.ok) {
           const igData = (await igRes.json()) as { data: Array<Record<string, unknown>> };
           igInsights = igData.data || [];
         } else {
-          console.warn("IG Insights error:", await igRes.text().catch(() => ""));
+          const errBody = await igRes.json().catch(() => ({}));
+          const metaErr = (errBody as Record<string, unknown>)?.error as Record<string, unknown> | undefined;
+          igInsightsError = (metaErr?.message as string) || `HTTP ${igRes.status}`;
+          console.warn("IG Insights error:", errBody);
         }
       } catch (e) {
+        igInsightsError = e instanceof Error ? e.message : "Network error";
         console.warn("IG Insights fetch failed:", e);
       }
 
@@ -402,6 +411,14 @@ export async function POST() {
       console.warn("social_metrics table may not exist:", e);
     }
 
+    // Collect any API errors for diagnostics display in the UI
+    const diagnostics: Record<string, string> = {};
+    if (fbInsightsError) diagnostics.fb_insights_error = fbInsightsError;
+    // igInsightsError is scoped inside the igUserId block — check if insights came back empty
+    if (igUserId && igInsights.length === 0 && summary.instagram.reach === 0 && summary.instagram.impressions === 0) {
+      diagnostics.ig_insights_error = "IG insights returned no data — check that the token has instagram_manage_insights permission.";
+    }
+
     return NextResponse.json({
       success: true,
       page_id: pageId,
@@ -412,6 +429,7 @@ export async function POST() {
       metrics_stored: storedCount,
       synced_at: new Date().toISOString(),
       posts: summary.posts,
+      ...(Object.keys(diagnostics).length > 0 ? { diagnostics } : {}),
     });
   } catch (err) {
     console.error("Social sync error:", err);

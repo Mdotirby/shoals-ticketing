@@ -41,6 +41,7 @@ type SyncResult = {
     shares: number;
   }>;
   synced_at?: string;
+  diagnostics?: Record<string, string>;
 };
 
 type SocialMetric = {
@@ -78,6 +79,31 @@ export default function SocialPage() {
       ]);
       setSyncStatus(statusRes);
       if (Array.isArray(metricsRes)) setMetrics(metricsRes);
+
+      // Auto-sync on page load if configured and last sync was >5 min ago
+      if (statusRes.configured && statusRes.token_status === "valid") {
+        const lastSync = statusRes.last_sync ? new Date(statusRes.last_sync).getTime() : 0;
+        const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+        if (lastSync < fiveMinAgo) {
+          setSyncing(true);
+          try {
+            const syncRes = await fetch("/api/marketing/social-sync", { method: "POST" });
+            const syncData = await syncRes.json();
+            if (!syncData.error) {
+              setSyncResult(syncData);
+              const freshMetrics = await fetch("/api/marketing/social").then((r) => r.json());
+              if (Array.isArray(freshMetrics)) setMetrics(freshMetrics);
+              setSyncStatus((prev) => prev ? { ...prev, last_sync: syncData.synced_at } : prev);
+            } else {
+              setError(syncData.error + (syncData.details ? `: ${syncData.details}` : ""));
+            }
+          } catch {
+            // Auto-sync failure is non-critical — stored data still shows
+          } finally {
+            setSyncing(false);
+          }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load data");
     } finally {
@@ -227,6 +253,21 @@ export default function SocialPage() {
       {error && (
         <div style={{ background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.2)", borderRadius: 10, padding: 16, marginBottom: 24 }}>
           <p style={{ color: "#ff5050", fontSize: 13, margin: 0 }}>{error}</p>
+        </div>
+      )}
+
+      {/* API Diagnostics — shown after sync if there are errors */}
+      {syncResult?.diagnostics && Object.keys(syncResult.diagnostics).length > 0 && (
+        <div style={{ background: "rgba(255,180,50,0.08)", border: "1px solid rgba(255,180,50,0.2)", borderRadius: 10, padding: 16, marginBottom: 24 }}>
+          <div style={{ color: "#ffb432", fontWeight: 600, fontSize: 14, marginBottom: 8 }}>⚠️ Meta API Permission Issues Detected</div>
+          {Object.entries(syncResult.diagnostics).map(([key, msg]) => (
+            <p key={key} style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, margin: "4px 0" }}>
+              <strong style={{ color: "rgba(255,255,255,0.8)" }}>{key}:</strong> {msg}
+            </p>
+          ))}
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 8, marginBottom: 0 }}>
+            Fix: In Meta Business Manager → System Users → select your system user → Add Assets → assign your Facebook Page with <strong>read_insights</strong> + <strong>pages_read_engagement</strong> + <strong>instagram_manage_insights</strong> permissions.
+          </p>
         </div>
       )}
 
