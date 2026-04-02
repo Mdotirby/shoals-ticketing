@@ -24,7 +24,7 @@ function CheckoutContent() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
-  const [fwbOptIn, setFwbOptIn] = useState(false);
+  const [fwbOptIn, setFwbOptIn] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
