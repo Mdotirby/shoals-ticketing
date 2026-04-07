@@ -326,6 +326,7 @@ export async function POST(request: Request) {
     const sessionOptions: Stripe.Checkout.SessionCreateParams = {
       ui_mode: "embedded",
       mode: "payment",
+      billing_address_collection: "required",
       return_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       line_items: lineItems,
       metadata: {

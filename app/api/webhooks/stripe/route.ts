@@ -307,6 +307,7 @@ export async function POST(request: Request) {
     const customerEmail = session.customer_details?.email || session.customer_email || "";
     const customerName = session.metadata?.buyer_name || session.customer_details?.name || "";
     const customerPhone = session.metadata?.buyer_phone || session.customer_details?.phone || "";
+    const customerZip = session.customer_details?.address?.postal_code || null;
     const fwbOptIn = session.metadata?.fwb_opt_in === "true";
     const totalAmount = (session.amount_total || 0) / 100;
     const source = session.metadata?.source || "online";
@@ -363,6 +364,8 @@ export async function POST(request: Request) {
           fwb_opt_in: fwbOptIn,
           source,
           promo_code_id: promoCodeId || null,
+          tracking_link_slug: session.metadata?.tracking_ref || null,
+          customer_zip: customerZip,
         })
         .select()
         .single();
@@ -545,6 +548,7 @@ export async function POST(request: Request) {
             events_attended: newEventsAttended,
             lfv_segment: segment,
             updated_at: new Date().toISOString(),
+            ...(customerZip ? { zip: customerZip } : {}),
           }).eq("id", existingProfile.id);
         } else {
           await admin.from("customer_profiles").upsert({
@@ -557,6 +561,7 @@ export async function POST(request: Request) {
             last_order_at: new Date().toISOString(),
             events_attended: 1,
             lfv_segment: "one_timer",
+            ...(customerZip ? { zip: customerZip } : {}),
           }, { onConflict: "email" });
         }
       }
