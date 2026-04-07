@@ -3,7 +3,7 @@
  * Each section gets its own full-width dark header bar.
  * Uses ensureSpace() for automatic page breaks.
  */
-import type { TicketScalingRow, ExpenseItem, VariableExpenseItem } from "../types/offer";
+import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem } from "../types/offer";
 import type { Venue } from "../types/venue";
 import {
   addPdfHeader, drawFooter, ensureSpace,
@@ -30,6 +30,7 @@ export type OfferPdfData = {
   show_length?: string;
   show_time?: string;
   billing?: string;
+  show_lineup?: ShowLineupItem[];
   // Deal
   guarantee?: number;
   deal_type?: string;
@@ -157,6 +158,24 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   if (data.venue_contact) ly = lv("Contact", String(data.venue_contact), ly);
   if (data.venue_phone) ly = lv("Phone", String(data.venue_phone), ly);
   if (data.venue_capacity) ly = lv("Capacity", String(data.venue_capacity), ly);
+
+  // Show Lineup (in left column, below venue info)
+  if (data.show_lineup?.length) {
+    ly += 2;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(S);
+    doc.setTextColor(80, 80, 80);
+    doc.text("Lineup:", leftX, ly);
+    ly += RH + 1;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(S);
+    doc.setTextColor(0, 0, 0);
+    for (const item of data.show_lineup) {
+      const lineText = `${formatTime12hr(item.time)} — ${item.artist} (${item.set_length})`;
+      doc.text(lineText, leftX + 2, ly);
+      ly += RH;
+    }
+  }
 
   // Right column: Agency/Artist
   let ry = infoStartY;

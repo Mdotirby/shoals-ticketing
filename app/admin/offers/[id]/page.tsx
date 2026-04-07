@@ -234,6 +234,7 @@ export default function AdminOfferDetailPage() {
         show_length: form.show_length as string,
         show_time: form.show_time as string,
         billing: form.billing as string,
+        show_lineup: (form.show_lineup as { time: string; artist: string; set_length: string }[]) || [],
         guarantee: form.guarantee as number,
         deal_type: form.deal_type as string,
         backend_percentage: form.backend_percentage as number,

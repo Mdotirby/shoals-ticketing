@@ -29,17 +29,16 @@ export async function exportContractPDF(
 
   const artistName = offer.artist_name ?? "Artist";
   const eventDate = offer.event_date ?? new Date().toLocaleDateString();
-  const buyerName = venue.buyer_name ?? venue.name;
-  const buyerAddr = venue.promoter_address ?? venueFullAddress(venue);
   const eventVenueName = offer.venue ?? venue.name;
   const eventVenueAddr = offer.venue_address ?? venueFullAddress(venue);
 
-  // ── Lessor formatted name ──
-  const lessorFormatted = venue.lessor_name && venue.lessor_company
-    ? `${venue.lessor_name} c/o ${venue.lessor_company}`
-    : venue.lessor_name
-      ? `${venue.lessor_name} c/o ${venue.name}`
-      : venue.name;
+  // ── Buyer / Promoter info — from venue's buyer fields (same as offer PDF) ──
+  const buyerCompany = venue.name;
+  const buyerContact = venue.contract_signatory || venue.buyer_name || undefined;
+  const buyerAddr = venue.promoter_address ?? venueFullAddress(venue);
+  const buyerFormatted = buyerContact
+    ? `${buyerContact} c/o ${buyerCompany}`
+    : buyerCompany;
 
   // ── HEADER ──
   let y = await addPdfHeader(doc, {
@@ -50,11 +49,11 @@ export async function exportContractPDF(
     logoUrl: venue.logo_url,
     showBuyerInfo: true,
     buyerInfo: {
-      company: lessorFormatted,
-      contact: venue.contract_signatory || venue.buyer_name || undefined,
+      company: buyerCompany,
+      contact: buyerContact,
       email: venue.buyer_email || undefined,
       phone: venue.buyer_phone || undefined,
-      address: venue.promoter_address || venueFullAddress(venue),
+      address: buyerAddr,
     },
   });
 
@@ -64,7 +63,7 @@ export async function exportContractPDF(
   doc.setTextColor(...DARK);
   y = drawParagraph(doc, `This Performance Agreement ("Agreement") is entered into by and between:`, y);
   y += 2;
-  y = drawParagraph(doc, `BUYER / PROMOTER: ${lessorFormatted}, ${buyerAddr}`, y, { bold: true, indent: 5 });
+  y = drawParagraph(doc, `BUYER / PROMOTER: ${buyerFormatted}, ${buyerAddr}`, y, { bold: true, indent: 5 });
   y += 2;
   y = drawParagraph(doc, `ARTIST / PERFORMER: ${artistName}${offer.agency ? `, c/o ${offer.agency}` : ""}${offer.agent_name ? ` (Agent: ${offer.agent_name})` : ""}`, y, { bold: true, indent: 5 });
   y += 5;
