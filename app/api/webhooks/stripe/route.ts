@@ -477,6 +477,48 @@ export async function POST(request: Request) {
 
       console.log(`Order ${order.id} + ledger entry created for event ${eventId}`);
 
+      // 4b. Record trackable link conversion if tracking_ref is present
+      const trackingRef = session.metadata?.tracking_ref;
+      if (trackingRef) {
+        try {
+          const { data: tLink } = await admin
+            .from("trackable_links")
+            .select("id, conversions, revenue")
+            .eq("slug", trackingRef)
+            .eq("event_id", eventId)
+            .maybeSingle();
+
+          if (tLink) {
+            // Insert conversion event
+            await admin.from("trackable_link_events").insert({
+              link_id: tLink.id,
+              event_type: "conversion",
+              order_id: order.id,
+              revenue_amount: totalAmount,
+            });
+
+            // Atomic increment via RPC, fallback to read-then-write
+            const { error: rpcErr } = await admin.rpc("increment_trackable_link_conversion", {
+              link_row_id: tLink.id,
+              revenue_amt: totalAmount,
+            });
+
+            if (rpcErr) {
+              await admin.from("trackable_links").update({
+                conversions: (tLink.conversions || 0) + 1,
+                revenue: Number(tLink.revenue || 0) + totalAmount,
+              }).eq("id", tLink.id);
+            }
+
+            console.log(`Trackable link conversion recorded for slug "${trackingRef}" on order ${order.id}`);
+          } else {
+            console.warn(`Trackable link slug "${trackingRef}" not found for event ${eventId}`);
+          }
+        } catch (tErr) {
+          console.error("Failed to record trackable link conversion:", tErr);
+        }
+      }
+
       // 5. Upsert customer profile (for LFV tracking)
       if (customerEmail) {
         const email = customerEmail.toLowerCase();

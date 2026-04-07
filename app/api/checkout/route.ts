@@ -10,7 +10,7 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -347,6 +347,7 @@ export async function POST(request: Request) {
         seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
         seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
+        tracking_ref: tracking_ref || "",
       },
     };
 

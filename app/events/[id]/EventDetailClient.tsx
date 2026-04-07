@@ -120,6 +120,13 @@ export default function EventDetailClient() {
     }
     // Capture UTM params and referrer for marketing attribution
     const urlParams = new URLSearchParams(window.location.search);
+
+    // Persist trackable link ref slug so it survives navigation to /checkout
+    const refSlug = urlParams.get("ref");
+    if (refSlug) {
+      sessionStorage.setItem("vc_tracking_ref", refSlug);
+    }
+
     fetch(`/api/events/${eventId}/views`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -377,11 +384,15 @@ export default function EventDetailClient() {
 
   const handleCheckout = () => {
     if (!event) return;
+    // Retrieve trackable link ref from sessionStorage (set on page load from ?ref= param)
+    const trackingRef = typeof window !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : null;
+
     // For assigned seating, use selected seats; for GA, use ticket quantity
     if (reservedSeatingEnabled && selectedSeats.length > 0) {
       const seatIds = selectedSeats.map((s) => s.seatId).join(",");
       let url = `/checkout?event=${eventId}&qty=${selectedSeats.length}&seat_ids=${seatIds}`;
       if (appliedPromoRef.current) url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
+      if (trackingRef) url += `&ref=${encodeURIComponent(trackingRef)}`;
       window.location.href = url;
       return;
     }
@@ -390,6 +401,7 @@ export default function EventDetailClient() {
     if (appliedPromoRef.current) {
       url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
     }
+    if (trackingRef) url += `&ref=${encodeURIComponent(trackingRef)}`;
     window.location.href = url;
   };
 

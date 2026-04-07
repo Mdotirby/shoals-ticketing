@@ -82,6 +82,9 @@ function CheckoutContent() {
   const seatIdsParam = searchParams.get("seat_ids");
   const seatIds = seatIdsParam ? seatIdsParam.split(",").filter(Boolean) : [];
 
+  // Get trackable link ref from URL params (for conversion attribution)
+  const trackingRef = searchParams.get("ref") || (typeof window !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : null);
+
   const fetchClientSecret = useCallback(async () => {
     if (!eventId) {
       setError("No event selected.");
@@ -101,6 +104,7 @@ function CheckoutContent() {
         promo_code: promoValid ? promoCode.trim() : undefined,
         seat_ids: seatIds.length > 0 ? seatIds : undefined,
         session_id: typeof window !== "undefined" ? sessionStorage.getItem("vc_session") : undefined,
+        tracking_ref: trackingRef || undefined,
       }),
     });
 
