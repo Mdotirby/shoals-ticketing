@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
@@ -9,6 +9,7 @@ import {
   EmbeddedCheckout,
 } from "@stripe/react-stripe-js";
 import Footer from "@/app/components/Footer";
+import { trackFbEvent } from "@/lib/fbq";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -75,8 +76,17 @@ function CheckoutContent() {
       return;
     }
     setError(null);
+    // Fire Meta Pixel InitiateCheckout when buyer moves from info form → Stripe
+    trackFbEvent("InitiateCheckout");
     setShowCheckout(true);
   };
+
+  // Fire AddPaymentInfo when Stripe embedded checkout becomes visible
+  useEffect(() => {
+    if (showCheckout) {
+      trackFbEvent("AddPaymentInfo");
+    }
+  }, [showCheckout]);
 
   // Get seat_ids from URL params (for assigned seating)
   const seatIdsParam = searchParams.get("seat_ids");

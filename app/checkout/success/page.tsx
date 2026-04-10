@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Footer from "@/app/components/Footer";
+import { trackFbEvent } from "@/lib/fbq";
 
 type ConfirmationData = {
   order: {
@@ -35,7 +36,18 @@ function SuccessContent() {
     if (!sessionId) { setLoading(false); return; }
     fetch(`/api/checkout/confirmation?session_id=${sessionId}`)
       .then((r) => r.json())
-      .then((d) => { if (!d.error) setData(d); })
+      .then((d) => {
+        if (!d.error) {
+          setData(d);
+          // Fire Meta Pixel Purchase event with real order value — seeds pixel for ad optimization
+          trackFbEvent("Purchase", {
+            value: d.order?.total_amount ?? 0,
+            currency: "USD",
+            content_type: "product",
+            num_items: d.order?.quantity ?? 1,
+          });
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [sessionId]);

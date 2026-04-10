@@ -12,6 +12,7 @@ import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
 import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
+import { trackFbEvent } from "@/lib/fbq";
 
 type FeaturedArtist = {
   id: string;
@@ -200,6 +201,15 @@ export default function EventDetailClient() {
       })
       .then((data: EventData & { facility_fee_enabled?: boolean }) => {
         setEvent(data);
+
+        // Fire Meta Pixel ViewContent so Meta knows which event pages get traffic
+        trackFbEvent("ViewContent", {
+          content_name: data.title,
+          content_ids: [data.id],
+          content_type: "product",
+          value: data.price ?? 0,
+          currency: "USD",
+        });
 
         if (data.venue_id) {
           fetch("/api/venues")
