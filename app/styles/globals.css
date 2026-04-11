@@ -8751,8 +8751,8 @@ body:has(.lp-main) .site-footer {
   }
 
   .lp-hero-image {
-    /* On portrait phones, focus on the center of the image */
-    object-position: center 25%;
+    /* On portrait phones, center the image to avoid cropping subjects */
+    object-position: center center;
   }
 
   .lp-hero-gradient {

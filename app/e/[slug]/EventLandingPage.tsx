@@ -836,8 +836,12 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
       {!isPast && ticketsOnSale && !checkoutOpen && (
         <div className={`lp-sticky-bar ${isCtaVisible ? "lp-sticky-bar-visible" : ""}`}>
           <div className="lp-sticky-price">
-            {isFree ? "Free" : `$${displayPrice.toFixed(2)}`}
-            {!isFree && <span className="lp-sticky-price-label">ALL-IN</span>}
+            {isFree ? "Free" : `$${(displayPrice * quantity).toFixed(2)}`}
+            {!isFree && (
+              <span className="lp-sticky-price-label">
+                {quantity > 1 ? "total" : "per ticket"} · ALL-IN
+              </span>
+            )}
           </div>
           <button type="button" className="lp-sticky-cta" onClick={handleGetTickets}>
             Get Tickets
