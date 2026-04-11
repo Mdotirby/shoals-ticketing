@@ -8745,24 +8745,37 @@ body:has(.lp-main) .site-footer {
 /* ── Mobile Responsiveness ── */
 @media (max-width: 768px) {
   .lp-hero {
-    min-height: 100vh;
-    min-height: 100dvh; /* Dynamic viewport height — accounts for mobile browser chrome */
+    /* Shorter hero = less vertical stretch = less horizontal crop on landscape photos */
+    min-height: auto;
     padding-bottom: 24px;
   }
 
+  .lp-hero-image-wrap {
+    /* Instead of filling the full hero, give the image a fixed aspect-ratio friendly height */
+    position: relative;
+    height: 55vw; /* Roughly 16:9-ish on most phones — shows the full image width */
+    min-height: 220px;
+    max-height: 50vh;
+  }
+
   .lp-hero-image {
-    /* On portrait phones, center the image to avoid cropping subjects */
-    object-position: center center;
+    /* On portrait phones, show the top/center of the image (faces/subjects are usually here) */
+    object-position: center 20%;
+  }
+
+  .lp-hero-content {
+    position: relative;
+    z-index: 2;
+    padding-top: 20px;
   }
 
   .lp-hero-gradient {
-    /* Stronger gradient on mobile so text is always readable over the image */
+    /* Stronger gradient at the bottom of the image for smooth transition to content */
     background: linear-gradient(
       to top,
       var(--vc-bg) 0%,
-      rgba(17, 24, 39, 0.97) 25%,
-      rgba(17, 24, 39, 0.7) 50%,
-      rgba(17, 24, 39, 0.15) 80%,
+      rgba(17, 24, 39, 0.95) 20%,
+      rgba(17, 24, 39, 0.5) 60%,
       rgba(17, 24, 39, 0.05) 100%
     );
   }
