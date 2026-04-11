@@ -131,6 +131,9 @@ function CheckoutForm({
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError] = useState("");
+  const [promoValidating, setPromoValidating] = useState(false);
+  const [discountType, setDiscountType] = useState<"fixed" | "percentage" | null>(null);
+  const [discountValue, setDiscountValue] = useState(0);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -143,6 +146,46 @@ function CheckoutForm({
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
 
   const estimatedTotal = displayPrice * quantity;
+
+  // Calculate discounted total
+  const discountedPerTicket = promoApplied && discountType
+    ? discountType === "percentage"
+      ? displayPrice * (1 - discountValue / 100)
+      : Math.max(0, displayPrice - discountValue)
+    : displayPrice;
+  const discountedTotal = Math.max(0, discountedPerTicket * quantity);
+  const isFullyFree = isFree || (promoApplied && discountedTotal === 0);
+
+  // Promo code validation handler
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoValidating(true);
+    setPromoError("");
+    setPromoApplied(false);
+    setDiscountType(null);
+    setDiscountValue(0);
+
+    try {
+      const res = await fetch("/api/promo-codes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim(), event_id: event.id }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        setDiscountType(data.discount_type);
+        setDiscountValue(data.discount_value);
+        setPromoApplied(true);
+      } else {
+        setPromoError(data.error || "Invalid promo code");
+      }
+    } catch {
+      setPromoError("Failed to validate promo code. Please try again.");
+    } finally {
+      setPromoValidating(false);
+    }
+  };
 
   // Fire AddPaymentInfo when all card fields are complete
   useEffect(() => {
@@ -163,15 +206,52 @@ function CheckoutForm({
     // Validation
     if (!buyerName.trim()) { setPaymentError("Please enter your full name."); return; }
     if (!buyerEmail.trim() || !buyerEmail.includes("@")) { setPaymentError("Please enter a valid email."); return; }
-    if (!stripe || !elements) { setPaymentError("Payment system is loading. Please wait."); return; }
-
-    const cardNumberElement = elements.getElement(CardNumberElement);
-    if (!cardNumberElement) { setPaymentError("Card fields not ready."); return; }
 
     setIsProcessing(true);
     setPaymentError("");
 
     try {
+      // ── Free checkout (100% promo or truly free event) ──
+      if (isFullyFree) {
+        const res = await fetch("/api/checkout/free", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_id: event.id,
+            buyer_name: buyerName.trim(),
+            buyer_email: buyerEmail.trim(),
+            quantity,
+            promo_code: promoApplied ? promoCode.trim() : undefined,
+          }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          setPaymentError(data.error || "Failed to claim tickets. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+
+        trackFbEvent("Purchase", {
+          content_name: event.title,
+          content_ids: [event.id],
+          value: 0,
+          currency: "USD",
+          num_items: quantity,
+        });
+
+        setOrderDetails({ subtotal: 0, ticketingFee: 0, facilityFee: 0, tax: 0, processingFee: 0, discount: estimatedTotal, total: 0 });
+        setPaymentSuccess(true);
+        return;
+      }
+
+      // ── Paid checkout ──
+      if (!stripe || !elements) { setPaymentError("Payment system is loading. Please wait."); setIsProcessing(false); return; }
+
+      const cardNumberElement = elements.getElement(CardNumberElement);
+      if (!cardNumberElement) { setPaymentError("Card fields not ready."); setIsProcessing(false); return; }
+
       // 1. Create PaymentIntent
       const res = await fetch("/api/checkout/create-intent", {
         method: "POST",
@@ -332,51 +412,7 @@ function CheckoutForm({
         />
       </div>
 
-      {/* Card Number */}
-      <div className="lp-checkout-field">
-        <label className="lp-checkout-label">Card Number</label>
-        <div className="lp-checkout-card-element">
-          <CardNumberElement
-            options={{ showIcon: true }}
-            onChange={(e) => {
-              setCardNumberComplete(e.complete);
-              setCardError(e.error?.message ?? "");
-            }}
-          />
-        </div>
-      </div>
-
-      {/* Expiry + CVC side by side */}
-      <div className="lp-checkout-card-row">
-        <div className="lp-checkout-field lp-checkout-field-half">
-          <label className="lp-checkout-label">Expiry</label>
-          <div className="lp-checkout-card-element">
-            <CardExpiryElement
-              onChange={(e) => {
-                setCardExpiryComplete(e.complete);
-                if (e.error) setCardError(e.error.message);
-              }}
-            />
-          </div>
-        </div>
-        <div className="lp-checkout-field lp-checkout-field-half">
-          <label className="lp-checkout-label">CVC</label>
-          <div className="lp-checkout-card-element">
-            <CardCvcElement
-              onChange={(e) => {
-                setCardCvcComplete(e.complete);
-                if (e.error) setCardError(e.error.message);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {cardError && (
-        <p className="lp-checkout-error">{cardError}</p>
-      )}
-
-      {/* Promo Code */}
+      {/* Promo Code — above card fields so user can apply first */}
       <div className="lp-checkout-promo">
         <label className="lp-checkout-label">Promo Code (optional)</label>
         <div className="lp-checkout-promo-row">
@@ -389,25 +425,80 @@ function CheckoutForm({
               setPromoCode(e.target.value.toUpperCase());
               setPromoApplied(false);
               setPromoError("");
+              setDiscountType(null);
+              setDiscountValue(0);
             }}
+            disabled={promoValidating}
           />
           <button
             type="button"
             className="lp-checkout-promo-btn"
-            disabled={!promoCode.trim()}
-            onClick={() => {
-              if (promoCode.trim()) {
-                setPromoApplied(true);
-                setPromoError("");
-              }
-            }}
+            disabled={!promoCode.trim() || promoValidating}
+            onClick={handleApplyPromo}
           >
-            Apply
+            {promoValidating ? "Checking..." : "Apply"}
           </button>
         </div>
-        {promoApplied && <p className="lp-checkout-promo-applied">Code will be applied at payment.</p>}
+        {promoApplied && discountType && (
+          <div className="lp-checkout-promo-applied">
+            {discountType === "percentage" && discountValue >= 100 ? (
+              <span>🎉 100% off — your tickets are free!</span>
+            ) : discountType === "percentage" ? (
+              <span>{discountValue}% off applied — new total: ${discountedTotal.toFixed(2)}</span>
+            ) : (
+              <span>${discountValue.toFixed(2)} off per ticket — new total: ${discountedTotal.toFixed(2)}</span>
+            )}
+          </div>
+        )}
         {promoError && <p className="lp-checkout-error">{promoError}</p>}
       </div>
+
+      {/* Card fields — hidden when fully free (100% promo or free event) */}
+      {!isFullyFree && (
+        <>
+          <div className="lp-checkout-field">
+            <label className="lp-checkout-label">Card Number</label>
+            <div className="lp-checkout-card-element">
+              <CardNumberElement
+                options={{ showIcon: true }}
+                onChange={(e) => {
+                  setCardNumberComplete(e.complete);
+                  setCardError(e.error?.message ?? "");
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="lp-checkout-card-row">
+            <div className="lp-checkout-field lp-checkout-field-half">
+              <label className="lp-checkout-label">Expiry</label>
+              <div className="lp-checkout-card-element">
+                <CardExpiryElement
+                  onChange={(e) => {
+                    setCardExpiryComplete(e.complete);
+                    if (e.error) setCardError(e.error.message);
+                  }}
+                />
+              </div>
+            </div>
+            <div className="lp-checkout-field lp-checkout-field-half">
+              <label className="lp-checkout-label">CVC</label>
+              <div className="lp-checkout-card-element">
+                <CardCvcElement
+                  onChange={(e) => {
+                    setCardCvcComplete(e.complete);
+                    if (e.error) setCardError(e.error.message);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {cardError && (
+            <p className="lp-checkout-error">{cardError}</p>
+          )}
+        </>
+      )}
 
       {paymentError && (
         <div className="lp-checkout-error">{paymentError}</div>
@@ -416,12 +507,21 @@ function CheckoutForm({
       <button
         type="submit"
         className="lp-checkout-pay-btn"
-        disabled={isProcessing || !stripe}
+        disabled={isProcessing || (!isFullyFree && !stripe)}
       >
         {isProcessing ? (
           <>
             <span className="lp-checkout-spinner" />
             Processing...
+          </>
+        ) : isFullyFree ? (
+          "Claim Free Tickets"
+        ) : promoApplied && discountedTotal < estimatedTotal ? (
+          <>
+            <span style={{ textDecoration: "line-through", opacity: 0.5, marginRight: 8 }}>
+              ${estimatedTotal.toFixed(2)}
+            </span>
+            Pay ${discountedTotal.toFixed(2)}
           </>
         ) : (
           `Pay $${estimatedTotal.toFixed(2)}`
@@ -432,13 +532,15 @@ function CheckoutForm({
         &larr; Change selection
       </button>
 
-      <p className="lp-checkout-trust">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }}>
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        Secured by Stripe. Your payment info is encrypted.
-      </p>
+      {!isFullyFree && (
+        <p className="lp-checkout-trust">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }}>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          Secured by Stripe. Your payment info is encrypted.
+        </p>
+      )}
     </form>
   );
 }
