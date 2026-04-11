@@ -81,7 +81,7 @@ export default async function LandingPage({ params }: Props) {
   const { data: event, error: eventError } = await admin
     .from("events")
     .select(
-      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time"
+      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled"
     )
     .eq("landing_page_slug", slug)
     .eq("status", "published")
@@ -134,6 +134,16 @@ export default async function LandingPage({ params }: Props) {
     }
   }
 
+  // Zero out facility fee if disabled on this event
+  if (event.facility_fee_enabled === false) {
+    fees.facility_fee = 0;
+  }
+
+  // Normalize tax rate (accepts 9.5 or 0.095)
+  if (fees.tax_rate > 1) {
+    fees.tax_rate = fees.tax_rate / 100;
+  }
+
   // 4. Social proof: count of paid orders
   const { count: orderCount } = await admin
     .from("orders")
@@ -142,27 +152,34 @@ export default async function LandingPage({ params }: Props) {
     .eq("status", "paid");
 
   // 5. Build ticket type data with all-in prices
+  // Stripe charges 2.9% + $0.30 per transaction (same as OrderSummary)
+  const STRIPE_PERCENT_FEE = 0.029;
+  const STRIPE_FLAT_FEE = 0.3;
+
+  function calcAllIn(base: number): number {
+    const tax = Math.round(base * fees.tax_rate * 100) / 100;
+    const subtotalBeforeStripe = base + fees.ticketing_fee + fees.facility_fee + tax;
+    const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+    return Math.round((subtotalBeforeStripe + processingFee) * 100) / 100;
+  }
+
   const ticketTypes = (tiers && tiers.length > 0 ? tiers : []).map((t) => {
-    const base = t.price;
-    const allIn = base + fees.ticketing_fee + fees.facility_fee + base * fees.tax_rate;
     return {
       id: t.id,
       name: t.tier_name,
-      basePrice: base,
-      allInPrice: Math.ceil(allIn * 100) / 100,
+      basePrice: t.price,
+      allInPrice: calcAllIn(t.price),
       capacity: t.capacity,
     };
   });
 
   // Fallback: if no tiers, use the event base price
   if (ticketTypes.length === 0 && event.price != null) {
-    const base = event.price;
-    const allIn = base + fees.ticketing_fee + fees.facility_fee + base * fees.tax_rate;
     ticketTypes.push({
       id: `${event.id}-ga`,
       name: "General Admission",
-      basePrice: base,
-      allInPrice: Math.ceil(allIn * 100) / 100,
+      basePrice: event.price,
+      allInPrice: calcAllIn(event.price),
       capacity: event.capacity || 500,
     });
   }

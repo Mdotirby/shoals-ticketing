@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
 import { trackFbEvent } from "@/lib/fbq";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 
@@ -171,12 +170,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
       <section className="lp-hero">
         {event.imageUrl ? (
           <div className="lp-hero-image-wrap">
-            <Image
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src={event.imageUrl}
               alt={event.title}
-              fill
-              priority
-              sizes="100vw"
               className="lp-hero-image"
             />
             <div className="lp-hero-gradient" />
@@ -285,7 +282,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
                   className="lp-cta-btn"
                   onClick={handleGetTickets}
                 >
-                  Get Tickets
+                  {isFree ? "Get Free Tickets" : `Get Tickets \u2014 $${(displayPrice * quantity).toFixed(2)}`}
                 </button>
               </div>
             </>

@@ -8250,6 +8250,12 @@ select.admin-form-input {
    Conversion-first, mobile-first, no navigation.
    ═══════════════════════════════════════════════════ */
 
+/* Hide the site header + footer on landing pages for zero distractions */
+body:has(.lp-main) .site-header,
+body:has(.lp-main) .site-footer {
+  display: none !important;
+}
+
 .lp-main {
   min-height: 100vh;
   background: var(--vc-bg);
@@ -8275,8 +8281,11 @@ select.admin-form-input {
 }
 
 .lp-hero-image {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   object-position: center top;
+  display: block;
 }
 
 .lp-hero-gradient {
