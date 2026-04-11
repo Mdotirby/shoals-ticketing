@@ -201,6 +201,375 @@ async function sendTicketEmail({
   }
 }
 
+// ── Shared order-creation function ──────────────────────────────────────────
+// Called by both checkout.session.completed and payment_intent.succeeded handlers
+async function processTicketOrder({
+  admin,
+  stripeWebhookEventId,
+  eventId,
+  quantity,
+  customerName,
+  customerEmail,
+  customerPhone,
+  customerZip,
+  totalAmount,
+  source,
+  promoCodeId,
+  promoCode,
+  seatIdsRaw,
+  fwbOptIn,
+  trackingRef,
+  stripeReferenceId,
+  ticketingFee,
+  venueRebate,
+  taxRate,
+  tierId,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  stripeWebhookEventId: string;
+  eventId: string;
+  quantity: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  customerZip: string | null;
+  totalAmount: number;
+  source: string;
+  promoCodeId: string | null;
+  promoCode: string | null;
+  seatIdsRaw: string | null;
+  fwbOptIn: boolean;
+  trackingRef: string | null;
+  stripeReferenceId: string;
+  ticketingFee: number;
+  venueRebate: number;
+  taxRate: number;
+  tierId: string | null;
+}): Promise<void> {
+  // Idempotency: skip if order already exists for this stripe reference
+  const { data: existing } = await admin
+    .from("orders")
+    .select("id")
+    .eq("stripe_checkout_session_id", stripeReferenceId)
+    .maybeSingle();
+
+  if (existing) {
+    console.log(`Order already exists for ${stripeReferenceId} — skipping`);
+    return;
+  }
+
+  try {
+    // Fetch event details + venue slug for email
+    const { data: eventData } = await admin
+      .from("events")
+      .select("title, date, venue, venue_id")
+      .eq("id", eventId)
+      .single();
+
+    let venueSlug = "tickets";
+    if (eventData?.venue_id) {
+      const { data: venueData } = await admin
+        .from("venues")
+        .select("slug")
+        .eq("id", eventData.venue_id)
+        .single();
+      if (venueData?.slug) venueSlug = venueData.slug;
+    }
+
+    // 1. Create order record
+    const { data: order, error: orderError } = await admin
+      .from("orders")
+      .insert({
+        event_id: eventId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone || null,
+        quantity,
+        total_amount: totalAmount,
+        stripe_checkout_session_id: stripeReferenceId,
+        status: "paid",
+        fwb_opt_in: fwbOptIn,
+        source,
+        promo_code_id: promoCodeId || null,
+        tracking_link_slug: trackingRef || null,
+        customer_zip: customerZip,
+      })
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error("Failed to create order:", orderError.message);
+      return;
+    }
+
+    // ── Finalize reserved seats if seat_ids present ──
+    if (seatIdsRaw) {
+      try {
+        const seatIds: string[] = JSON.parse(seatIdsRaw);
+        if (Array.isArray(seatIds) && seatIds.length > 0) {
+          // Mark seats as sold and link to order (V3: no seat_reservations table)
+          await admin
+            .from("seats")
+            .update({ status: "sold", order_id: order.id })
+            .in("id", seatIds);
+        }
+      } catch (e) {
+        console.error("Failed to finalize reserved seats:", e);
+      }
+    }
+
+    // 2. Resolve ticket tier — use explicit tierId if provided, otherwise look up default
+    let ticketTypeId: string | null = tierId;
+    if (!ticketTypeId) {
+      const { data: defaultTier } = await admin
+        .from("ticket_tiers")
+        .select("id")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      ticketTypeId = defaultTier?.id || null;
+    }
+
+    // 3. Create ticket records with unique QR codes
+    const tickets = [];
+    for (let i = 0; i < quantity; i++) {
+      const qrCode = uuidv4();
+      const qrDataUrl = await QRCode.toDataURL(
+        `https://venuecore.live/tickets/${qrCode}`,
+        { width: 300, margin: 2 }
+      );
+      tickets.push({
+        order_id: order.id,
+        event_id: eventId,
+        ticket_type_id: ticketTypeId,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        qr_code: qrCode,
+        qr_data_url: qrDataUrl,
+        is_scanned: false,
+      });
+    }
+
+    const { data: createdTickets, error: ticketError } = await admin
+      .from("tickets")
+      .insert(tickets)
+      .select();
+
+    if (ticketError) {
+      console.error("Failed to create tickets:", ticketError.message, ticketError.details, ticketError.hint);
+      return;
+    }
+
+    // 4. Write settlement ledger entry
+    const ticketRevenue = totalAmount;
+    const totalTicketingFee = ticketingFee * quantity;
+    const taxCollected = Math.round(ticketRevenue * taxRate * 100) / 100;
+    const stripeFee = Math.round((totalAmount * 0.029 + 0.30) * 100) / 100;
+
+    await admin.from("settlement_ledger").insert({
+      order_id: order.id,
+      event_id: eventId,
+      venue_id: eventData?.venue_id || null,
+      stripe_session_id: stripeReferenceId,
+      stripe_event_id: stripeWebhookEventId,
+      gross_amount: totalAmount,
+      ticket_revenue: ticketRevenue,
+      ticketing_fee: totalTicketingFee,
+      venue_rebate: venueRebate,
+      tax_collected: taxCollected,
+      stripe_fee: stripeFee,
+      net_to_venue: ticketRevenue - totalTicketingFee - stripeFee + venueRebate,
+      net_to_platform: totalTicketingFee - venueRebate,
+      type: "sale",
+    });
+
+    // Increment promo code usage if applicable
+    if (promoCodeId && promoCode) {
+      const { data: currentPromo } = await admin
+        .from("promo_codes")
+        .select("current_uses")
+        .eq("id", promoCodeId)
+        .single();
+      if (currentPromo) {
+        await admin
+          .from("promo_codes")
+          .update({ current_uses: (currentPromo.current_uses || 0) + 1 })
+          .eq("id", promoCodeId);
+      }
+      console.log(`Promo code ${promoCode} usage incremented`);
+    }
+
+    console.log(`Order ${order.id} + ledger entry created for event ${eventId}`);
+
+    // 4b. Record trackable link conversion if tracking_ref is present
+    if (trackingRef) {
+      try {
+        const { data: tLink } = await admin
+          .from("trackable_links")
+          .select("id, conversions, revenue")
+          .eq("slug", trackingRef)
+          .eq("event_id", eventId)
+          .maybeSingle();
+
+        if (tLink) {
+          // Insert conversion event
+          await admin.from("trackable_link_events").insert({
+            link_id: tLink.id,
+            event_type: "conversion",
+            order_id: order.id,
+            revenue_amount: totalAmount,
+          });
+
+          // Atomic increment via RPC, fallback to read-then-write
+          const { error: rpcErr } = await admin.rpc("increment_trackable_link_conversion", {
+            link_row_id: tLink.id,
+            revenue_amt: totalAmount,
+          });
+
+          if (rpcErr) {
+            await admin.from("trackable_links").update({
+              conversions: (tLink.conversions || 0) + 1,
+              revenue: Number(tLink.revenue || 0) + totalAmount,
+            }).eq("id", tLink.id);
+          }
+
+          console.log(`Trackable link conversion recorded for slug "${trackingRef}" on order ${order.id}`);
+        } else {
+          console.warn(`Trackable link slug "${trackingRef}" not found for event ${eventId}`);
+        }
+      } catch (tErr) {
+        console.error("Failed to record trackable link conversion:", tErr);
+      }
+    }
+
+    // 5. Upsert customer profile (for LFV tracking)
+    if (customerEmail) {
+      const email = customerEmail.toLowerCase();
+      const nameParts = customerName.split(" ");
+      const { data: existingProfile } = await admin
+        .from("customer_profiles")
+        .select("id, total_orders, total_spend, first_order_at, events_attended")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingProfile) {
+        const newOrderCount = (existingProfile.total_orders || 0) + 1;
+        const newSpend = (parseFloat(existingProfile.total_spend) || 0) + totalAmount;
+        const newEventsAttended = (existingProfile.events_attended || 0) + 1;
+        let segment = "one_timer";
+        if (newEventsAttended >= 4) segment = "whale";
+        else if (newEventsAttended >= 2) segment = "loyalist";
+        else if (newOrderCount >= 2) segment = "repeat";
+
+        await admin.from("customer_profiles").update({
+          total_orders: newOrderCount,
+          total_spend: newSpend,
+          last_order_at: new Date().toISOString(),
+          events_attended: newEventsAttended,
+          lfv_segment: segment,
+          updated_at: new Date().toISOString(),
+          ...(customerZip ? { zip: customerZip } : {}),
+        }).eq("id", existingProfile.id);
+      } else {
+        await admin.from("customer_profiles").upsert({
+          email,
+          first_name: nameParts[0] || null,
+          last_name: nameParts.slice(1).join(" ") || null,
+          total_orders: 1,
+          total_spend: totalAmount,
+          first_order_at: new Date().toISOString(),
+          last_order_at: new Date().toISOString(),
+          events_attended: 1,
+          lfv_segment: "one_timer",
+          ...(customerZip ? { zip: customerZip } : {}),
+        }, { onConflict: "email" });
+      }
+    }
+
+    // 6. Mark any cart abandonment as recovered
+    if (customerEmail) {
+      await admin.from("cart_abandonment").update({ recovered: true })
+        .eq("customer_email", customerEmail.toLowerCase())
+        .eq("event_id", eventId)
+        .eq("recovered", false);
+    }
+
+    // 7. FWB opt-in — subscribe to newsletter
+    if (fwbOptIn && customerEmail) {
+      const nameParts = customerName.split(" ");
+      await admin.from("newsletter_subscribers").upsert({
+        email: customerEmail.toLowerCase(),
+        first_name: nameParts[0] || null,
+        last_name: nameParts.slice(1).join(" ") || null,
+        phone: customerPhone || null,
+        source: "checkout_fwb",
+        venue_id: eventData?.venue_id || null,
+      }, { onConflict: "email" });
+      console.log(`FWB opt-in for ${customerEmail}`);
+    }
+
+    // 8. Look up reserved seat details if applicable
+    let seatAssignments: { section: string; row: string; seat: string }[] | undefined;
+    if (seatIdsRaw) {
+      try {
+        const parsedSeatIds: string[] = JSON.parse(seatIdsRaw);
+        if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
+          // Fetch seat details with row and section info
+          // V3: seats have section_id + row_label directly
+          const { data: seatDetails } = await admin
+            .from("seats")
+            .select("id, seat_number, row_label, section_id")
+            .in("id", parsedSeatIds);
+
+          if (seatDetails && seatDetails.length > 0) {
+            const sectionIds = [...new Set(seatDetails.map((s: { section_id: string }) => s.section_id))];
+            const { data: sectionData } = await admin
+              .from("sections")
+              .select("id, name")
+              .in("id", sectionIds);
+
+            const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
+
+            seatAssignments = seatDetails.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
+              section: sectionMap.get(seat.section_id) || "Section",
+              row: seat.row_label,
+              seat: String(seat.seat_number),
+            }));
+
+            seatAssignments.sort((a, b) =>
+              a.section.localeCompare(b.section) ||
+              a.row.localeCompare(b.row) ||
+              a.seat.localeCompare(b.seat, undefined, { numeric: true })
+            );
+          }
+        }
+      } catch (e) {
+        console.error("Failed to look up seat assignments for email:", e);
+      }
+    }
+
+    // 9. Send confirmation email via Resend
+    if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
+      await sendTicketEmail({
+        to: customerEmail,
+        customerName,
+        eventTitle: eventData.title,
+        eventDate: eventData.date,
+        eventVenue: eventData.venue,
+        ticketCount: quantity,
+        totalAmount,
+        qrDataUrl: createdTickets[0].qr_data_url,
+        ticketId: createdTickets[0].qr_code,
+        venueSlug,
+        seatAssignments,
+      });
+    }
+  } catch (err) {
+    console.error("Webhook processing error:", err);
+  }
+}
+
 export async function POST(request: Request) {
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");
@@ -319,333 +688,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // Idempotency: skip if order already exists for this session
-    const { data: existing } = await admin
-      .from("orders")
-      .select("id")
-      .eq("stripe_checkout_session_id", session.id)
-      .maybeSingle();
+    await processTicketOrder({
+      admin,
+      stripeWebhookEventId: event.id,
+      eventId,
+      quantity,
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerZip,
+      totalAmount,
+      source,
+      promoCodeId,
+      promoCode,
+      seatIdsRaw: session.metadata?.seat_ids || null,
+      fwbOptIn,
+      trackingRef: session.metadata?.tracking_ref || null,
+      stripeReferenceId: session.id,
+      ticketingFee: parseFloat(session.metadata?.ticketing_fee || "3"),
+      venueRebate: parseFloat(session.metadata?.venue_rebate || "0"),
+      taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
+      tierId: null,
+    });
+  }
 
-    if (existing) {
-      console.log(`Order already exists for session ${session.id} — skipping`);
-      return NextResponse.json({ received: true });
-    }
+  // ── payment_intent.succeeded (inline checkout via Card Elements) ──
+  if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-    try {
-      // Fetch event details + venue slug for email
-      const { data: eventData } = await admin
-        .from("events")
-        .select("title, date, venue, venue_id")
-        .eq("id", eventId)
-        .single();
+    // Only process PaymentIntents from inline checkout to avoid
+    // interfering with Checkout Session–based flows or other PI sources
+    if (paymentIntent.metadata?.source === "inline_checkout") {
+      const meta = paymentIntent.metadata;
+      const eventId = meta.event_id;
 
-      let venueSlug = "tickets";
-      if (eventData?.venue_id) {
-        const { data: venueData } = await admin
-          .from("venues")
-          .select("slug")
-          .eq("id", eventData.venue_id)
-          .single();
-        if (venueData?.slug) venueSlug = venueData.slug;
+      if (!eventId) {
+        console.error("No event_id in PaymentIntent metadata (inline_checkout)");
+        return NextResponse.json({ received: true });
       }
 
-      // 1. Create order record
-      const { data: order, error: orderError } = await admin
-        .from("orders")
-        .insert({
-          event_id: eventId,
-          customer_name: customerName,
-          customer_email: customerEmail,
-          customer_phone: customerPhone || null,
-          quantity,
-          total_amount: totalAmount,
-          stripe_checkout_session_id: session.id,
-          status: "paid",
-          fwb_opt_in: fwbOptIn,
-          source,
-          promo_code_id: promoCodeId || null,
-          tracking_link_slug: session.metadata?.tracking_ref || null,
-          customer_zip: customerZip,
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error("Failed to create order:", orderError.message);
-        return NextResponse.json({ received: true, error: orderError.message });
-      }
-
-      // ── Finalize reserved seats if seat_ids present ──
-      const seatIdsRaw = session.metadata?.seat_ids;
-      if (seatIdsRaw) {
-        try {
-          const seatIds: string[] = JSON.parse(seatIdsRaw);
-          if (Array.isArray(seatIds) && seatIds.length > 0) {
-            // Mark seats as sold and link to order (V3: no seat_reservations table)
-            await admin
-              .from("seats")
-              .update({ status: "sold", order_id: order.id })
-              .in("id", seatIds);
-          }
-        } catch (e) {
-          console.error("Failed to finalize reserved seats:", e);
-        }
-      }
-
-      // 2. Look up the default ticket tier for this event
-      const { data: defaultTier } = await admin
-        .from("ticket_tiers")
-        .select("id")
-        .eq("event_id", eventId)
-        .order("sort_order", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      // 3. Create ticket records with unique QR codes
-      const tickets = [];
-      for (let i = 0; i < quantity; i++) {
-        const qrCode = uuidv4();
-        const qrDataUrl = await QRCode.toDataURL(
-          `https://venuecore.live/tickets/${qrCode}`,
-          { width: 300, margin: 2 }
-        );
-        tickets.push({
-          order_id: order.id,
-          event_id: eventId,
-          ticket_type_id: defaultTier?.id || null,
-          customer_name: customerName,
-          customer_email: customerEmail,
-          qr_code: qrCode,
-          qr_data_url: qrDataUrl,
-          is_scanned: false,
-        });
-      }
-
-      const { data: createdTickets, error: ticketError } = await admin
-        .from("tickets")
-        .insert(tickets)
-        .select();
-
-      if (ticketError) {
-        console.error("Failed to create tickets:", ticketError.message, ticketError.details, ticketError.hint);
-        return NextResponse.json({
-          received: true,
-          error: `Ticket creation failed: ${ticketError.message}`,
-          details: ticketError.details || null,
-          hint: ticketError.hint || null,
-        });
-      }
-
-      // 4. Write settlement ledger entry
-      const ticketingFee = parseFloat(session.metadata?.ticketing_fee || "3");
-      const venueRebate = parseFloat(session.metadata?.venue_rebate || "0");
-      const taxRate = parseFloat(session.metadata?.tax_rate || "0.09");
-      const ticketRevenue = totalAmount;
-      const totalTicketingFee = ticketingFee * quantity;
-      const taxCollected = Math.round(ticketRevenue * taxRate * 100) / 100;
-      const stripeFee = Math.round((totalAmount * 0.029 + 0.30) * 100) / 100;
-
-      await admin.from("settlement_ledger").insert({
-        order_id: order.id,
-        event_id: eventId,
-        venue_id: eventData?.venue_id || null,
-        stripe_session_id: session.id,
-        stripe_event_id: event.id,
-        gross_amount: totalAmount,
-        ticket_revenue: ticketRevenue,
-        ticketing_fee: totalTicketingFee,
-        venue_rebate: venueRebate,
-        tax_collected: taxCollected,
-        stripe_fee: stripeFee,
-        net_to_venue: ticketRevenue - totalTicketingFee - stripeFee + venueRebate,
-        net_to_platform: totalTicketingFee - venueRebate,
-        type: "sale",
+      await processTicketOrder({
+        admin,
+        stripeWebhookEventId: event.id,
+        eventId,
+        quantity: parseInt(meta.quantity || "1"),
+        customerName: meta.buyer_name || "",
+        customerEmail: meta.buyer_email || "",
+        customerPhone: meta.buyer_phone || "",
+        customerZip: null,
+        totalAmount: (paymentIntent.amount || 0) / 100,
+        source: "inline_checkout",
+        promoCodeId: meta.promo_code_id || null,
+        promoCode: meta.promo_code || null,
+        seatIdsRaw: meta.seat_ids || null,
+        fwbOptIn: false,
+        trackingRef: null,
+        stripeReferenceId: paymentIntent.id,
+        ticketingFee: parseFloat(meta.ticketing_fee || "3"),
+        venueRebate: parseFloat(meta.venue_rebate || "0"),
+        taxRate: parseFloat(meta.tax_rate || "0.09"),
+        tierId: meta.tier_id || null,
       });
-
-      // Increment promo code usage if applicable
-      if (promoCodeId && promoCode) {
-        const { data: currentPromo } = await admin
-          .from("promo_codes")
-          .select("current_uses")
-          .eq("id", promoCodeId)
-          .single();
-        if (currentPromo) {
-          await admin
-            .from("promo_codes")
-            .update({ current_uses: (currentPromo.current_uses || 0) + 1 })
-            .eq("id", promoCodeId);
-        }
-        console.log(`Promo code ${promoCode} usage incremented`);
-      }
-
-      console.log(`Order ${order.id} + ledger entry created for event ${eventId}`);
-
-      // 4b. Record trackable link conversion if tracking_ref is present
-      const trackingRef = session.metadata?.tracking_ref;
-      if (trackingRef) {
-        try {
-          const { data: tLink } = await admin
-            .from("trackable_links")
-            .select("id, conversions, revenue")
-            .eq("slug", trackingRef)
-            .eq("event_id", eventId)
-            .maybeSingle();
-
-          if (tLink) {
-            // Insert conversion event
-            await admin.from("trackable_link_events").insert({
-              link_id: tLink.id,
-              event_type: "conversion",
-              order_id: order.id,
-              revenue_amount: totalAmount,
-            });
-
-            // Atomic increment via RPC, fallback to read-then-write
-            const { error: rpcErr } = await admin.rpc("increment_trackable_link_conversion", {
-              link_row_id: tLink.id,
-              revenue_amt: totalAmount,
-            });
-
-            if (rpcErr) {
-              await admin.from("trackable_links").update({
-                conversions: (tLink.conversions || 0) + 1,
-                revenue: Number(tLink.revenue || 0) + totalAmount,
-              }).eq("id", tLink.id);
-            }
-
-            console.log(`Trackable link conversion recorded for slug "${trackingRef}" on order ${order.id}`);
-          } else {
-            console.warn(`Trackable link slug "${trackingRef}" not found for event ${eventId}`);
-          }
-        } catch (tErr) {
-          console.error("Failed to record trackable link conversion:", tErr);
-        }
-      }
-
-      // 5. Upsert customer profile (for LFV tracking)
-      if (customerEmail) {
-        const email = customerEmail.toLowerCase();
-        const nameParts = customerName.split(" ");
-        const { data: existingProfile } = await admin
-          .from("customer_profiles")
-          .select("id, total_orders, total_spend, first_order_at, events_attended")
-          .eq("email", email)
-          .maybeSingle();
-
-        if (existingProfile) {
-          const newOrderCount = (existingProfile.total_orders || 0) + 1;
-          const newSpend = (parseFloat(existingProfile.total_spend) || 0) + totalAmount;
-          const newEventsAttended = (existingProfile.events_attended || 0) + 1;
-          let segment = "one_timer";
-          if (newEventsAttended >= 4) segment = "whale";
-          else if (newEventsAttended >= 2) segment = "loyalist";
-          else if (newOrderCount >= 2) segment = "repeat";
-
-          await admin.from("customer_profiles").update({
-            total_orders: newOrderCount,
-            total_spend: newSpend,
-            last_order_at: new Date().toISOString(),
-            events_attended: newEventsAttended,
-            lfv_segment: segment,
-            updated_at: new Date().toISOString(),
-            ...(customerZip ? { zip: customerZip } : {}),
-          }).eq("id", existingProfile.id);
-        } else {
-          await admin.from("customer_profiles").upsert({
-            email,
-            first_name: nameParts[0] || null,
-            last_name: nameParts.slice(1).join(" ") || null,
-            total_orders: 1,
-            total_spend: totalAmount,
-            first_order_at: new Date().toISOString(),
-            last_order_at: new Date().toISOString(),
-            events_attended: 1,
-            lfv_segment: "one_timer",
-            ...(customerZip ? { zip: customerZip } : {}),
-          }, { onConflict: "email" });
-        }
-      }
-
-      // 6. Mark any cart abandonment as recovered
-      if (customerEmail) {
-        await admin.from("cart_abandonment").update({ recovered: true })
-          .eq("customer_email", customerEmail.toLowerCase())
-          .eq("event_id", eventId)
-          .eq("recovered", false);
-      }
-
-      // 7. FWB opt-in — subscribe to newsletter
-      if (fwbOptIn && customerEmail) {
-        const nameParts = customerName.split(" ");
-        await admin.from("newsletter_subscribers").upsert({
-          email: customerEmail.toLowerCase(),
-          first_name: nameParts[0] || null,
-          last_name: nameParts.slice(1).join(" ") || null,
-          phone: customerPhone || null,
-          source: "checkout_fwb",
-          venue_id: eventData?.venue_id || null,
-        }, { onConflict: "email" });
-        console.log(`FWB opt-in for ${customerEmail}`);
-      }
-
-      // 8. Look up reserved seat details if applicable
-      let seatAssignments: { section: string; row: string; seat: string }[] | undefined;
-      if (seatIdsRaw) {
-        try {
-          const parsedSeatIds: string[] = JSON.parse(seatIdsRaw);
-          if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
-            // Fetch seat details with row and section info
-            // V3: seats have section_id + row_label directly
-            const { data: seatDetails } = await admin
-              .from("seats")
-              .select("id, seat_number, row_label, section_id")
-              .in("id", parsedSeatIds);
-
-            if (seatDetails && seatDetails.length > 0) {
-              const sectionIds = [...new Set(seatDetails.map((s: { section_id: string }) => s.section_id))];
-              const { data: sectionData } = await admin
-                .from("sections")
-                .select("id, name")
-                .in("id", sectionIds);
-
-              const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
-
-              seatAssignments = seatDetails.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
-                section: sectionMap.get(seat.section_id) || "Section",
-                row: seat.row_label,
-                seat: String(seat.seat_number),
-              }));
-
-              seatAssignments.sort((a, b) =>
-                a.section.localeCompare(b.section) ||
-                a.row.localeCompare(b.row) ||
-                a.seat.localeCompare(b.seat, undefined, { numeric: true })
-              );
-            }
-          }
-        } catch (e) {
-          console.error("Failed to look up seat assignments for email:", e);
-        }
-      }
-
-      // 9. Send confirmation email via Resend
-      if (customerEmail && createdTickets && createdTickets.length > 0 && eventData) {
-        await sendTicketEmail({
-          to: customerEmail,
-          customerName,
-          eventTitle: eventData.title,
-          eventDate: eventData.date,
-          eventVenue: eventData.venue,
-          ticketCount: quantity,
-          totalAmount,
-          qrDataUrl: createdTickets[0].qr_data_url,
-          ticketId: createdTickets[0].qr_code,
-          venueSlug,
-          seatAssignments,
-        });
-      }
-    } catch (err) {
-      console.error("Webhook processing error:", err);
     }
   }
 

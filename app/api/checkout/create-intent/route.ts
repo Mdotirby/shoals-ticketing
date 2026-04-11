@@ -1,0 +1,218 @@
+import { getStripe } from "@/lib/stripe";
+import { createAdminClient } from "@/lib/supabase-server";
+import { NextResponse } from "next/server";
+import {
+  resolveVenueFees,
+  validatePromoCode,
+  incrementPromoCodeUses,
+  validateAndHoldSeats,
+  calculateFees,
+} from "@/lib/checkout-helpers";
+
+/**
+ * POST /api/checkout/create-intent
+ *
+ * Creates a Stripe PaymentIntent for inline (Elements) checkout on landing pages.
+ * Uses the SAME fee calculation logic as the Checkout Session route.
+ *
+ * Request body:
+ *   { eventId, tierId?, quantity, buyerName, buyerEmail, buyerPhone, promoCode?, selectedSeats?, sessionId? }
+ *
+ * Response:
+ *   { clientSecret, paymentIntentId, orderDetails: { subtotal, ticketingFee, facilityFee, tax, processingFee, discount, total } }
+ */
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const {
+      eventId,
+      tierId,
+      quantity = 1,
+      buyerName,
+      buyerEmail,
+      buyerPhone,
+      promoCode,
+      selectedSeats,
+      sessionId,
+    } = body;
+
+    // ── Validate required fields ──────────────────────────────────────────
+    if (!eventId) {
+      return NextResponse.json({ error: "eventId is required" }, { status: 400 });
+    }
+    if (!buyerName || !buyerEmail) {
+      return NextResponse.json(
+        { error: "buyerName and buyerEmail are required" },
+        { status: 400 }
+      );
+    }
+    if (quantity < 1 || quantity > 20) {
+      return NextResponse.json(
+        { error: "quantity must be between 1 and 20" },
+        { status: 400 }
+      );
+    }
+
+    // ── Fetch event from Supabase ─────────────────────────────────────────
+    const admin = createAdminClient();
+    const { data: event, error: eventError } = await admin
+      .from("events")
+      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at")
+      .eq("id", eventId)
+      .single();
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // Guard: reject if tickets are not yet on sale
+    if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
+      return NextResponse.json(
+        { error: "Tickets are not yet on sale" },
+        { status: 403 }
+      );
+    }
+
+    // ── Resolve ticket price (tier or event-level) ────────────────────────
+    let ticketPriceDollars = event.price;
+    let tierName = "General Admission";
+
+    if (tierId) {
+      const { data: tier, error: tierError } = await admin
+        .from("ticket_tiers")
+        .select("id, tier_name, price, capacity")
+        .eq("id", tierId)
+        .eq("event_id", eventId)
+        .single();
+
+      if (tierError || !tier) {
+        return NextResponse.json(
+          { error: "Ticket tier not found" },
+          { status: 404 }
+        );
+      }
+      ticketPriceDollars = tier.price;
+      tierName = tier.tier_name;
+    }
+
+    // ── Resolve venue fees ────────────────────────────────────────────────
+    const fees = await resolveVenueFees(admin, event);
+
+    // ── Validate promo code ───────────────────────────────────────────────
+    let promoResult: { promoCodeId: string; promoCodeStr: string; discountCentsPerTicket: number } | null = null;
+    if (promoCode) {
+      promoResult = await validatePromoCode(admin, eventId, promoCode, ticketPriceDollars);
+      // Don't fail the request if the promo is invalid — just ignore it.
+      // The client can show a validation error separately via /api/promo-codes/validate.
+    }
+
+    // ── Handle reserved seating ───────────────────────────────────────────
+    let reservedSeatIds: string[] = [];
+    let seatLabels: string[] = [];
+    let seatSectionNames: string[] = [];
+    let effectiveQuantity = quantity;
+    let ticketPriceCents = Math.round(ticketPriceDollars * 100);
+
+    if (Array.isArray(selectedSeats) && selectedSeats.length > 0) {
+      const seatResult = await validateAndHoldSeats(
+        admin,
+        selectedSeats,
+        ticketPriceDollars,
+        sessionId
+      );
+
+      if (seatResult.error) {
+        return NextResponse.json(
+          { error: seatResult.error, unavailable: seatResult.unavailable },
+          { status: 409 }
+        );
+      }
+
+      const sr = seatResult.result!;
+      reservedSeatIds = sr.reservedSeatIds;
+      seatLabels = sr.seatLabels;
+      seatSectionNames = sr.seatSectionNames;
+      effectiveQuantity = reservedSeatIds.length;
+      // For assigned seating, use average per-seat price for fee calculation
+      ticketPriceCents = Math.round(sr.seatTotalCents / effectiveQuantity);
+    }
+
+    // ── Calculate all fees ────────────────────────────────────────────────
+    const breakdown = calculateFees({
+      ticketPriceCents,
+      discountCentsPerTicket: promoResult?.discountCentsPerTicket ?? 0,
+      ticketingFee: fees.ticketingFee,
+      facilityFee: fees.facilityFee,
+      taxRate: fees.taxRate,
+      quantity: effectiveQuantity,
+    });
+
+    // ── Increment promo code usage ────────────────────────────────────────
+    if (promoResult) {
+      await incrementPromoCodeUses(admin, promoResult.promoCodeId);
+    }
+
+    // ── Create Stripe PaymentIntent ───────────────────────────────────────
+    const stripe = getStripe();
+    const isAssignedSeating = reservedSeatIds.length > 0;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: breakdown.totalCents,
+      currency: "usd",
+      receipt_email: buyerEmail,
+      metadata: {
+        event_id: event.id,
+        event_title: event.title,
+        tier_id: tierId || "",
+        tier_name: tierName,
+        venue_id: event.venue_id || "",
+        quantity: String(effectiveQuantity),
+        ticketing_fee: String(fees.ticketingFee),
+        facility_fee: String(fees.facilityFee),
+        venue_rebate: String(fees.venueRebate),
+        tax_rate: String(fees.taxRate),
+        buyer_name: buyerName || "",
+        buyer_email: buyerEmail || "",
+        buyer_phone: buyerPhone || "",
+        source: "inline_checkout",
+        promo_code: promoResult?.promoCodeStr || "",
+        promo_code_id: promoResult?.promoCodeId || "",
+        discount_per_ticket_cents: String(promoResult?.discountCentsPerTicket || 0),
+        seat_ids: reservedSeatIds.length > 0 ? JSON.stringify(reservedSeatIds) : "",
+        seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
+        seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
+        is_assigned_seating: isAssignedSeating ? "true" : "false",
+        // Fee breakdown (cents) for webhook/reconciliation
+        subtotal_cents: String(breakdown.discountedTicketPriceCents * effectiveQuantity),
+        ticketing_fee_cents: String(breakdown.ticketingFeeCents * effectiveQuantity),
+        facility_fee_cents: String(breakdown.facilityFeeCents * effectiveQuantity),
+        tax_cents: String(breakdown.taxCents * effectiveQuantity),
+        processing_fee_cents: String(breakdown.stripeFeeCents),
+        total_cents: String(breakdown.totalCents),
+      },
+    });
+
+    // ── Build order details for the client (dollars) ──────────────────────
+    const orderDetails = {
+      subtotal: (breakdown.discountedTicketPriceCents * effectiveQuantity) / 100,
+      ticketingFee: (breakdown.ticketingFeeCents * effectiveQuantity) / 100,
+      facilityFee: (breakdown.facilityFeeCents * effectiveQuantity) / 100,
+      tax: (breakdown.taxCents * effectiveQuantity) / 100,
+      processingFee: breakdown.stripeFeeCents / 100,
+      discount: (breakdown.discountCentsPerTicket * effectiveQuantity) / 100,
+      total: breakdown.totalCents / 100,
+    };
+
+    return NextResponse.json({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      orderDetails,
+    });
+  } catch (err) {
+    console.error("Create PaymentIntent error:", err);
+    return NextResponse.json(
+      { error: "Failed to create payment intent" },
+      { status: 500 }
+    );
+  }
+}

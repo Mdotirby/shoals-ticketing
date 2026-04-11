@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { trackFbEvent } from "@/lib/fbq";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+
+// ── Types ────────────────────────────────────────────────────────────────────
 
 type TicketType = {
   id: string;
@@ -32,6 +43,408 @@ type Props = {
   attendeeCount: number;
 };
 
+type OrderDetails = {
+  subtotal: number;
+  ticketingFee: number;
+  facilityFee: number;
+  tax: number;
+  processingFee: number;
+  discount: number;
+  total: number;
+};
+
+// ── Stripe loader (singleton) ────────────────────────────────────────────────
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ""
+);
+
+// ── Stripe Appearance API config (dark theme) ────────────────────────────────
+
+const stripeAppearance = {
+  theme: "night" as const,
+  variables: {
+    colorPrimary: "#d0c290",
+    colorBackground: "rgba(255, 255, 255, 0.04)",
+    colorText: "#ffffff",
+    colorTextSecondary: "rgba(255, 255, 255, 0.5)",
+    colorTextPlaceholder: "rgba(255, 255, 255, 0.3)",
+    colorDanger: "#ef4444",
+    fontFamily: "var(--font-urbanist), system-ui, sans-serif",
+    fontSizeBase: "15px",
+    spacingUnit: "4px",
+    borderRadius: "12px",
+    colorIconCardError: "#ef4444",
+  },
+  rules: {
+    ".Input": {
+      backgroundColor: "rgba(255, 255, 255, 0.04)",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      color: "#ffffff",
+      padding: "14px 16px",
+      fontSize: "15px",
+      transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+    },
+    ".Input:focus": {
+      borderColor: "rgba(208, 194, 144, 0.5)",
+      boxShadow: "0 0 0 2px rgba(208, 194, 144, 0.15)",
+    },
+    ".Input--invalid": {
+      borderColor: "#ef4444",
+      boxShadow: "0 0 0 2px rgba(239, 68, 68, 0.15)",
+    },
+    ".Label": {
+      color: "rgba(255, 255, 255, 0.7)",
+      fontSize: "13px",
+      fontWeight: "600",
+    },
+    ".Error": {
+      color: "#ef4444",
+      fontSize: "12px",
+    },
+  },
+};
+
+// ── Checkout Form (inside Elements provider) ─────────────────────────────────
+
+function CheckoutForm({
+  event,
+  selectedTier,
+  quantity,
+  displayPrice,
+  isFree,
+  onBack,
+}: {
+  event: EventData;
+  selectedTier: TicketType;
+  quantity: number;
+  displayPrice: number;
+  isFree: boolean;
+  onBack: () => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoError, setPromoError] = useState("");
+
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
+
+  const estimatedTotal = displayPrice * quantity;
+
+  // Fire AddPaymentInfo when all card fields are complete
+  useEffect(() => {
+    if (cardNumberComplete && cardExpiryComplete && cardCvcComplete && !addedPaymentInfo) {
+      setAddedPaymentInfo(true);
+      trackFbEvent("AddPaymentInfo", {
+        content_name: event.title,
+        content_ids: [event.id],
+        value: estimatedTotal,
+        currency: "USD",
+      });
+    }
+  }, [cardNumberComplete, cardExpiryComplete, cardCvcComplete, addedPaymentInfo, event.title, event.id, estimatedTotal]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!buyerName.trim()) { setPaymentError("Please enter your full name."); return; }
+    if (!buyerEmail.trim() || !buyerEmail.includes("@")) { setPaymentError("Please enter a valid email."); return; }
+    if (!stripe || !elements) { setPaymentError("Payment system is loading. Please wait."); return; }
+
+    const cardNumberElement = elements.getElement(CardNumberElement);
+    if (!cardNumberElement) { setPaymentError("Card fields not ready."); return; }
+
+    setIsProcessing(true);
+    setPaymentError("");
+
+    try {
+      // 1. Create PaymentIntent
+      const res = await fetch("/api/checkout/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: event.id,
+          tierId: selectedTier.id,
+          quantity,
+          buyerName: buyerName.trim(),
+          buyerEmail: buyerEmail.trim(),
+          buyerPhone: buyerPhone.trim(),
+          promoCode: promoApplied ? promoCode.trim() : undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPaymentError(data.error || "Failed to create payment. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      setOrderDetails(data.orderDetails);
+
+      // 2. Confirm card payment
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        data.clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: buyerName.trim(),
+              email: buyerEmail.trim(),
+              phone: buyerPhone.trim() || undefined,
+            },
+          },
+        }
+      );
+
+      if (confirmError) {
+        setPaymentError(confirmError.message || "Payment failed. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        // Fire Purchase pixel
+        trackFbEvent("Purchase", {
+          content_name: event.title,
+          content_ids: [event.id],
+          value: data.orderDetails.total,
+          currency: "USD",
+          num_items: quantity,
+        });
+
+        setPaymentSuccess(true);
+      }
+    } catch (err) {
+      setPaymentError("An unexpected error occurred. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ── Success State ──────────────────────────────────────────────────────────
+  if (paymentSuccess) {
+    const eventDate = formatEventDateFull(event.date);
+    const finalTotal = orderDetails?.total ?? estimatedTotal;
+
+    return (
+      <div className="lp-checkout-success">
+        <div className="lp-checkout-success-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="24" fill="rgba(16, 185, 129, 0.15)" />
+            <path
+              d="M14 24L21 31L34 18"
+              stroke="#10b981"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <h2 className="lp-checkout-success-heading">You&apos;re In!</h2>
+        <p className="lp-checkout-success-event">{event.title}</p>
+        <p className="lp-checkout-success-date">{eventDate} &middot; {event.venue}</p>
+        <p className="lp-checkout-success-detail">
+          {quantity} ticket{quantity > 1 ? "s" : ""} &middot; ${finalTotal.toFixed(2)} paid
+        </p>
+        <p className="lp-checkout-success-email">
+          Check your email for your ticket{quantity > 1 ? "s" : ""} and confirmation details.
+        </p>
+
+        {/* FWB Opt-in */}
+        <div className="lp-checkout-fwb">
+          <div className="lp-checkout-fwb-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3 className="lp-checkout-fwb-heading">Join Friends with Benefits</h3>
+          <p className="lp-checkout-fwb-desc">
+            Earn points on every purchase, unlock exclusive perks, and get early access to future events.
+          </p>
+          <a href="/fwb" className="lp-checkout-fwb-btn">
+            Learn More
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Checkout Form ──────────────────────────────────────────────────────────
+  return (
+    <form className="lp-checkout-form" onSubmit={handleSubmit} noValidate>
+      <div className="lp-checkout-field">
+        <label className="lp-checkout-label" htmlFor="lp-name">Full Name</label>
+        <input
+          id="lp-name"
+          type="text"
+          className="lp-checkout-input"
+          placeholder="Jane Doe"
+          value={buyerName}
+          onChange={(e) => setBuyerName(e.target.value)}
+          autoComplete="name"
+          required
+        />
+      </div>
+
+      <div className="lp-checkout-field">
+        <label className="lp-checkout-label" htmlFor="lp-email">Email</label>
+        <input
+          id="lp-email"
+          type="email"
+          className="lp-checkout-input"
+          placeholder="jane@example.com"
+          value={buyerEmail}
+          onChange={(e) => setBuyerEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
+      </div>
+
+      <div className="lp-checkout-field">
+        <label className="lp-checkout-label" htmlFor="lp-phone">Phone</label>
+        <input
+          id="lp-phone"
+          type="tel"
+          className="lp-checkout-input"
+          placeholder="(555) 123-4567"
+          value={buyerPhone}
+          onChange={(e) => setBuyerPhone(e.target.value)}
+          autoComplete="tel"
+        />
+      </div>
+
+      {/* Card Number */}
+      <div className="lp-checkout-field">
+        <label className="lp-checkout-label">Card Number</label>
+        <div className="lp-checkout-card-element">
+          <CardNumberElement
+            options={{ showIcon: true }}
+            onChange={(e) => {
+              setCardNumberComplete(e.complete);
+              setCardError(e.error?.message ?? "");
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Expiry + CVC side by side */}
+      <div className="lp-checkout-card-row">
+        <div className="lp-checkout-field lp-checkout-field-half">
+          <label className="lp-checkout-label">Expiry</label>
+          <div className="lp-checkout-card-element">
+            <CardExpiryElement
+              onChange={(e) => {
+                setCardExpiryComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+        <div className="lp-checkout-field lp-checkout-field-half">
+          <label className="lp-checkout-label">CVC</label>
+          <div className="lp-checkout-card-element">
+            <CardCvcElement
+              onChange={(e) => {
+                setCardCvcComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {cardError && (
+        <p className="lp-checkout-error">{cardError}</p>
+      )}
+
+      {/* Promo Code */}
+      <div className="lp-checkout-promo">
+        <label className="lp-checkout-label">Promo Code (optional)</label>
+        <div className="lp-checkout-promo-row">
+          <input
+            type="text"
+            className="lp-checkout-input"
+            placeholder="Enter code"
+            value={promoCode}
+            onChange={(e) => {
+              setPromoCode(e.target.value.toUpperCase());
+              setPromoApplied(false);
+              setPromoError("");
+            }}
+          />
+          <button
+            type="button"
+            className="lp-checkout-promo-btn"
+            disabled={!promoCode.trim()}
+            onClick={() => {
+              if (promoCode.trim()) {
+                setPromoApplied(true);
+                setPromoError("");
+              }
+            }}
+          >
+            Apply
+          </button>
+        </div>
+        {promoApplied && <p className="lp-checkout-promo-applied">Code will be applied at payment.</p>}
+        {promoError && <p className="lp-checkout-error">{promoError}</p>}
+      </div>
+
+      {paymentError && (
+        <div className="lp-checkout-error">{paymentError}</div>
+      )}
+
+      <button
+        type="submit"
+        className="lp-checkout-pay-btn"
+        disabled={isProcessing || !stripe}
+      >
+        {isProcessing ? (
+          <>
+            <span className="lp-checkout-spinner" />
+            Processing...
+          </>
+        ) : (
+          `Pay $${estimatedTotal.toFixed(2)}`
+        )}
+      </button>
+
+      <button type="button" className="lp-checkout-back-btn" onClick={onBack} disabled={isProcessing}>
+        &larr; Change selection
+      </button>
+
+      <p className="lp-checkout-trust">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }}>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+        Secured by Stripe. Your payment info is encrypted.
+      </p>
+    </form>
+  );
+}
+
+// ── Main Landing Page Component ──────────────────────────────────────────────
+
 export default function EventLandingPage({ event, ticketTypes, attendeeCount }: Props) {
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
@@ -39,6 +452,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
   const [onSaleCountdown, setOnSaleCountdown] = useState<string | null>(null);
   const [ticketsOnSale, setTicketsOnSale] = useState(true);
   const [isCtaVisible, setIsCtaVisible] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const checkoutRef = useRef<HTMLDivElement>(null);
 
   const selectedTier = ticketTypes.find((t) => t.id === selectedTierId) ?? ticketTypes[0];
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
@@ -129,7 +544,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ── CTA click handler ─────────────────────────────────────────────────────
+  // ── CTA click handler — opens inline checkout ──────────────────────────────
   const handleGetTickets = useCallback(() => {
     if (!ticketsOnSale) return;
 
@@ -142,13 +557,19 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
       num_items: quantity,
     });
 
-    // Build checkout URL
-    const trackingRef = sessionStorage.getItem("vc_tracking_ref");
-    let url = `/checkout?event=${event.id}&qty=${quantity}`;
-    if (trackingRef) url += `&ref=${encodeURIComponent(trackingRef)}`;
+    setCheckoutOpen(true);
 
-    window.location.href = url;
+    // Scroll to checkout section
+    setTimeout(() => {
+      checkoutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   }, [event.id, event.title, displayPrice, quantity, ticketsOnSale]);
+
+  const handleBackFromCheckout = useCallback(() => {
+    setCheckoutOpen(false);
+    // Scroll back to hero
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
 
   const showTime = formatEventTime(event.date);
   const eventDate = formatEventDateFull(event.date);
@@ -248,12 +669,27 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
                       key={t.id}
                       type="button"
                       className={`lp-tier-btn ${t.id === selectedTierId ? "lp-tier-btn-active" : ""}`}
-                      onClick={() => setSelectedTierId(t.id)}
+                      onClick={() => {
+                        setSelectedTierId(t.id);
+                        if (checkoutOpen) setCheckoutOpen(false);
+                      }}
                     >
                       <span className="lp-tier-name">{t.name}</span>
                       <span className="lp-tier-price">${t.allInPrice.toFixed(2)}</span>
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* Dynamic total price above CTA */}
+              {!isFree && !checkoutOpen && (
+                <div className="lp-checkout-price-display">
+                  <span className="lp-checkout-price-amount">
+                    ${(displayPrice * quantity).toFixed(2)}
+                  </span>
+                  <span className="lp-checkout-price-label">
+                    {quantity > 1 ? "total" : "per ticket"} &middot; ALL-IN
+                  </span>
                 </div>
               )}
 
@@ -263,7 +699,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
                   <button
                     type="button"
                     className="lp-qty-btn"
-                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    onClick={() => {
+                      setQuantity((q) => Math.max(1, q - 1));
+                      if (checkoutOpen) setCheckoutOpen(false);
+                    }}
                     disabled={quantity <= 1}
                   >
                     &minus;
@@ -272,7 +711,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
                   <button
                     type="button"
                     className="lp-qty-btn"
-                    onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                    onClick={() => {
+                      setQuantity((q) => Math.min(10, q + 1));
+                      if (checkoutOpen) setCheckoutOpen(false);
+                    }}
                   >
                     +
                   </button>
@@ -281,14 +723,49 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
                   type="button"
                   className="lp-cta-btn"
                   onClick={handleGetTickets}
+                  disabled={checkoutOpen}
                 >
-                  {isFree ? "Get Free Tickets" : `Get Tickets \u2014 $${(displayPrice * quantity).toFixed(2)}`}
+                  {isFree ? "Get Free Tickets" : "Get Tickets"}
                 </button>
               </div>
             </>
           )}
         </div>
       </section>
+
+      {/* ── INLINE CHECKOUT SECTION ─────────────────────────────────────── */}
+      {checkoutOpen && !isPast && ticketsOnSale && (
+        <section
+          className="lp-checkout-section"
+          ref={checkoutRef}
+        >
+          <div className="lp-checkout-section-inner">
+            <h2 className="lp-checkout-heading">Checkout</h2>
+            <p className="lp-checkout-summary">
+              {quantity} &times; {selectedTier?.name ?? "Ticket"} &middot;{" "}
+              {!isFree && <strong>${(displayPrice * quantity).toFixed(2)}</strong>}
+              {isFree && <strong>Free</strong>}
+            </p>
+
+            <Elements
+              stripe={stripePromise}
+              options={{
+                appearance: stripeAppearance,
+                locale: "en",
+              }}
+            >
+              <CheckoutForm
+                event={event}
+                selectedTier={selectedTier}
+                quantity={quantity}
+                displayPrice={displayPrice}
+                isFree={isFree}
+                onBack={handleBackFromCheckout}
+              />
+            </Elements>
+          </div>
+        </section>
+      )}
 
       {/* ── MID SECTION — Why you can't miss this ─────────────────────── */}
       {!isPast && (
@@ -360,17 +837,17 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
       )}
 
       {/* ── BOTTOM CTA SECTION ─────────────────────────────────────── */}
-      {!isPast && ticketsOnSale && (
+      {!isPast && ticketsOnSale && !checkoutOpen && (
         <section className="lp-bottom-cta">
           <p className="lp-bottom-cta-text">Ready to secure your spot?</p>
           <button type="button" className="lp-cta-btn lp-cta-btn-lg" onClick={handleGetTickets}>
-            Get Tickets &mdash; {isFree ? "Free" : `$${(displayPrice * quantity).toFixed(2)}`}
+            Get Tickets
           </button>
         </section>
       )}
 
       {/* ── STICKY MOBILE CTA ────────────────────────────────────────── */}
-      {!isPast && ticketsOnSale && (
+      {!isPast && ticketsOnSale && !checkoutOpen && (
         <div className={`lp-sticky-bar ${isCtaVisible ? "lp-sticky-bar-visible" : ""}`}>
           <div className="lp-sticky-price">
             {isFree ? "Free" : `$${displayPrice.toFixed(2)}`}

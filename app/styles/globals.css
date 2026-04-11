@@ -8832,6 +8832,470 @@ body:has(.lp-main) .site-footer {
 }
 
 /* ═══════════════════════════════════════════════════
+   INLINE CHECKOUT — Landing Page
+   Checkout form, Stripe Elements, success & FWB
+   ═══════════════════════════════════════════════════ */
+
+/* ── Price Display (above CTA) ── */
+.lp-checkout-price-display {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.lp-checkout-price-amount {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-checkout-price-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Checkout Section (expanding container) ── */
+.lp-checkout-section {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 0 24px;
+  animation: lp-checkout-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes lp-checkout-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 2000px;
+  }
+}
+
+.lp-checkout-section-inner {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius-lg);
+  padding: 32px 28px;
+  margin-bottom: 32px;
+}
+
+.lp-checkout-heading {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.lp-checkout-summary {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 24px;
+}
+
+.lp-checkout-summary strong {
+  color: var(--vc-gold);
+  font-weight: 700;
+}
+
+/* ── Form Layout ── */
+.lp-checkout-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Field ── */
+.lp-checkout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-checkout-field-half {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Label ── */
+.lp-checkout-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.01em;
+}
+
+/* ── Text / Email / Tel Inputs ── */
+.lp-checkout-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--vc-radius-md);
+  color: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.lp-checkout-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.lp-checkout-input:focus {
+  border-color: rgba(208, 194, 144, 0.5);
+  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+}
+
+/* ── Card Row (Expiry + CVC side by side) ── */
+.lp-checkout-card-row {
+  display: flex;
+  gap: 12px;
+}
+
+/* ── Stripe Card Element Wrapper ── */
+.lp-checkout-card-element {
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--vc-radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+.lp-checkout-card-element:focus-within {
+  border-color: rgba(208, 194, 144, 0.5);
+  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+}
+
+/* Make Stripe iframes fill the wrapper */
+.lp-checkout-card-element > div,
+.lp-checkout-card-element iframe {
+  width: 100% !important;
+}
+
+/* ── Promo Code ── */
+.lp-checkout-promo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-checkout-promo-row {
+  display: flex;
+  gap: 8px;
+}
+
+.lp-checkout-promo-row .lp-checkout-input {
+  flex: 1;
+}
+
+.lp-checkout-promo-btn {
+  padding: 12px 20px;
+  border: 1px solid rgba(208, 194, 144, 0.3);
+  border-radius: var(--vc-radius-md);
+  background: rgba(208, 194, 144, 0.08);
+  color: var(--vc-gold);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.lp-checkout-promo-btn:hover:not(:disabled) {
+  background: rgba(208, 194, 144, 0.15);
+  border-color: rgba(208, 194, 144, 0.5);
+}
+
+.lp-checkout-promo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lp-checkout-promo-applied {
+  font-size: 12px;
+  color: var(--vc-success);
+  margin: 0;
+}
+
+/* ── Error Message ── */
+.lp-checkout-error {
+  font-size: 13px;
+  color: var(--vc-danger);
+  margin: 0;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: var(--vc-radius-sm);
+}
+
+/* ── Pay Button ── */
+.lp-checkout-pay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  background: var(--venue-primary, var(--vc-gold));
+  color: #111827;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
+  margin-top: 4px;
+}
+
+.lp-checkout-pay-btn:hover:not(:disabled) {
+  background: var(--venue-primary-hover, var(--vc-gold-hover));
+  box-shadow: 0 6px 28px rgba(208, 194, 144, 0.45);
+  transform: translateY(-1px);
+}
+
+.lp-checkout-pay-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Spinner ── */
+.lp-checkout-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(17, 24, 39, 0.3);
+  border-top-color: #111827;
+  border-radius: 50%;
+  animation: lp-spin 0.6s linear infinite;
+}
+
+@keyframes lp-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Back / Change Selection Button ── */
+.lp-checkout-back-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  transition: color 0.2s ease;
+}
+
+.lp-checkout-back-btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lp-checkout-back-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Trust Line ── */
+.lp-checkout-trust {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* ── Success State ── */
+.lp-checkout-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 16px 0 0;
+}
+
+.lp-checkout-success-icon {
+  margin-bottom: 8px;
+  animation: lp-success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@keyframes lp-success-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.lp-checkout-success-heading {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.lp-checkout-success-event {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 4px 0 0;
+}
+
+.lp-checkout-success-date {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.lp-checkout-success-detail {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.lp-checkout-success-email {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 8px 0 0;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius-md);
+  line-height: 1.5;
+}
+
+/* ── FWB Opt-in Section ── */
+.lp-checkout-fwb {
+  margin-top: 24px;
+  padding: 24px;
+  background: rgba(208, 194, 144, 0.05);
+  border: 1px solid rgba(208, 194, 144, 0.12);
+  border-radius: var(--vc-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.lp-checkout-fwb-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(208, 194, 144, 0.12);
+  color: var(--vc-gold);
+  margin-bottom: 4px;
+}
+
+.lp-checkout-fwb-heading {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.lp-checkout-fwb-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 360px;
+}
+
+.lp-checkout-fwb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 28px;
+  border-radius: var(--vc-radius-md);
+  border: 1px solid rgba(208, 194, 144, 0.3);
+  background: rgba(208, 194, 144, 0.08);
+  color: var(--vc-gold);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.lp-checkout-fwb-btn:hover {
+  background: rgba(208, 194, 144, 0.15);
+  border-color: rgba(208, 194, 144, 0.5);
+}
+
+/* ── Checkout Mobile Responsiveness ── */
+@media (max-width: 768px) {
+  .lp-checkout-section {
+    padding: 0 16px;
+  }
+
+  .lp-checkout-section-inner {
+    padding: 24px 20px;
+  }
+
+  .lp-checkout-card-row {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .lp-checkout-price-amount {
+    font-size: 1.5rem;
+  }
+
+  .lp-checkout-pay-btn {
+    font-size: 15px;
+    padding: 14px 20px;
+  }
+
+  .lp-checkout-fwb {
+    padding: 20px 16px;
+  }
+}
+
+@media (max-width: 400px) {
+  .lp-checkout-section-inner {
+    padding: 20px 16px;
+  }
+
+  .lp-checkout-promo-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
    PRINT STYLES — Ticket Success Page
    ═══════════════════════════════════════════════════ */
 
