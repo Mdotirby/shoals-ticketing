@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
+import { slugify } from "@/lib/slugify";
 
 export async function GET(request) {
   const admin = createAdminClient();
@@ -107,6 +108,41 @@ export async function POST(request) {
 
   if (eventError) {
     return new Response(JSON.stringify({ error: eventError.message }), { status: 500 });
+  }
+
+  // 1b. Auto-generate landing_page_slug for non-private events
+  if (event.event_type !== "private" && body.title) {
+    try {
+      const baseSlug = slugify(body.title);
+      if (baseSlug) {
+        // Check for uniqueness, append suffix if needed
+        let candidate = baseSlug;
+        let counter = 1;
+        let slugTaken = true;
+        while (slugTaken) {
+          const { data: existing } = await admin
+            .from("events")
+            .select("id")
+            .eq("landing_page_slug", candidate)
+            .neq("id", event.id)
+            .maybeSingle();
+          if (!existing) {
+            slugTaken = false;
+          } else {
+            counter++;
+            candidate = `${baseSlug}-${counter}`;
+          }
+        }
+        await admin
+          .from("events")
+          .update({ landing_page_slug: candidate })
+          .eq("id", event.id);
+        event.landing_page_slug = candidate;
+      }
+    } catch (slugErr) {
+      console.error("Failed to generate landing_page_slug:", slugErr);
+      // Non-critical — event was already created successfully
+    }
   }
 
   // 2. Insert ticket tiers (if provided)

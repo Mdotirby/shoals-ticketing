@@ -46,10 +46,10 @@ export async function POST(
       );
     }
 
-    // Look up the event to get venue_id
+    // Look up the event to get venue_id and landing_page_slug
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("venue_id")
+      .select("venue_id, landing_page_slug")
       .eq("id", id)
       .single();
 
@@ -61,8 +61,14 @@ export async function POST(
     }
 
     // Build destination_url from the request origin
+    // If destination_type is "landing_page", point to /e/[landing_page_slug] instead of /events/[id]
     const origin = new URL(request.url).origin;
-    const destination_url = `${origin}/events/${id}?ref=${body.slug}`;
+    let destination_url: string;
+    if (body.destination_type === "landing_page" && event.landing_page_slug) {
+      destination_url = `${origin}/e/${event.landing_page_slug}?ref=${body.slug}`;
+    } else {
+      destination_url = `${origin}/events/${id}?ref=${body.slug}`;
+    }
 
     const { data, error } = await admin
       .from("trackable_links")

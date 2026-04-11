@@ -18,6 +18,8 @@ export type Event = {
   capacity?: number;
   notes?: string;
   calendar_color?: string;
+  /** SEO-friendly slug for the landing page at /e/[slug] */
+  landing_page_slug?: string;
 };
 
 export type ImageCropData = {

@@ -127,9 +127,14 @@ export default function AdminEditEventPage() {
   const [newPromo, setNewPromo] = useState({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
   const [promoLoading, setPromoLoading] = useState(false);
 
+  // Landing page state
+  const [landingPageSlug, setLandingPageSlug] = useState<string>("");
+  const [landingPageSlugSaving, setLandingPageSlugSaving] = useState(false);
+  const [landingPageCopied, setLandingPageCopied] = useState(false);
+
   // Trackable links state
   const [trackableLinks, setTrackableLinks] = useState<any[]>([]);
-  const [newLink, setNewLink] = useState({ label: "", slug: "", source: "", medium: "", campaign: "" });
+  const [newLink, setNewLink] = useState({ label: "", slug: "", source: "", medium: "", campaign: "", destination_type: "event_page" });
   const [creatingLink, setCreatingLink] = useState(false);
   const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null);
   const [linkAnalytics, setLinkAnalytics] = useState<Record<string, any>>({});
@@ -206,6 +211,11 @@ export default function AdminEditEventPage() {
           const osTimeMatch = event.on_sale_at.match(/T(\d{2}:\d{2})/);
           setOnSaleDate(osDate);
           if (osTimeMatch) setOnSaleTime(osTimeMatch[1]);
+        }
+
+        // Load landing page slug
+        if (event.landing_page_slug) {
+          setLandingPageSlug(event.landing_page_slug);
         }
 
         // Pre-select the host (venue_id) from loaded event
@@ -396,7 +406,7 @@ export default function AdminEditEventPage() {
       if (res.ok) {
         const link = await res.json();
         setTrackableLinks(prev => [link, ...prev]);
-        setNewLink({ label: "", slug: "", source: "", medium: "", campaign: "" });
+        setNewLink({ label: "", slug: "", source: "", medium: "", campaign: "", destination_type: "event_page" });
       }
     } catch (e) {}
     setCreatingLink(false);
@@ -1261,6 +1271,107 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
+        {/* ── Landing Page URL (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(168,85,247,0.04)",
+            border: "1px solid rgba(168,85,247,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+              Landing Page
+            </span>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 10px" }}>
+              Conversion-optimized page with no navigation — ideal for ad campaigns and social links.
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <div style={{ flex: "1 1 200px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>/e/</span>
+                  <input
+                    type="text"
+                    className="admin-form-input"
+                    value={landingPageSlug}
+                    onChange={(e) => setLandingPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                    placeholder="auto-generated-from-title"
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={landingPageSlugSaving || !landingPageSlug.trim()}
+                onClick={async () => {
+                  setLandingPageSlugSaving(true);
+                  try {
+                    await fetch(`/api/events/${id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ landing_page_slug: landingPageSlug.trim() }),
+                    });
+                  } catch {}
+                  setLandingPageSlugSaving(false);
+                }}
+                style={{
+                  padding: "8px 14px", borderRadius: 8,
+                  border: "1px solid rgba(168,85,247,0.3)",
+                  background: "rgba(168,85,247,0.1)",
+                  color: "#a855f7", fontSize: 12, fontWeight: 600,
+                  cursor: landingPageSlugSaving || !landingPageSlug.trim() ? "not-allowed" : "pointer",
+                  opacity: landingPageSlugSaving || !landingPageSlug.trim() ? 0.5 : 1,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {landingPageSlugSaving ? "Saving..." : "Save Slug"}
+              </button>
+              {landingPageSlug && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/e/${landingPageSlug}`;
+                    navigator.clipboard.writeText(url);
+                    setLandingPageCopied(true);
+                    setTimeout(() => setLandingPageCopied(false), 2000);
+                  }}
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    border: `1px solid ${landingPageCopied ? "rgba(34,197,94,0.3)" : "rgba(168,85,247,0.3)"}`,
+                    background: landingPageCopied ? "rgba(34,197,94,0.1)" : "rgba(168,85,247,0.1)",
+                    color: landingPageCopied ? "#22c55e" : "#a855f7",
+                    fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  {landingPageCopied ? "Copied!" : "Copy URL"}
+                </button>
+              )}
+              {landingPageSlug && (
+                <a
+                  href={`/e/${landingPageSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    border: "1px solid rgba(168,85,247,0.3)",
+                    background: "rgba(168,85,247,0.1)",
+                    color: "#a855f7", fontSize: 12, fontWeight: 600,
+                    textDecoration: "none", whiteSpace: "nowrap",
+                  }}
+                >
+                  Preview
+                </a>
+              )}
+            </div>
+            {landingPageSlug && (
+              <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
+                {window.location.origin}/e/{landingPageSlug}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Trackable Links (only for hard ticket events) ── */}
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
@@ -1491,6 +1602,17 @@ export default function AdminEditEventPage() {
                   onChange={(e) => setNewLink(prev => ({ ...prev, campaign: e.target.value }))}
                   placeholder="optional"
                 />
+              </div>
+              <div style={{ flex: "0 0 140px" }}>
+                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Destination</label>
+                <select
+                  className="admin-form-input"
+                  value={newLink.destination_type}
+                  onChange={(e) => setNewLink(prev => ({ ...prev, destination_type: e.target.value }))}
+                >
+                  <option value="event_page">Event Page</option>
+                  {landingPageSlug && <option value="landing_page">Landing Page</option>}
+                </select>
               </div>
               <button
                 type="button"
