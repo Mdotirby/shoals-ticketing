@@ -742,7 +742,7 @@ export async function POST(request: Request) {
         promoCode: meta.promo_code || null,
         seatIdsRaw: meta.seat_ids || null,
         fwbOptIn: false,
-        trackingRef: null,
+        trackingRef: meta.tracking_ref || null,
         stripeReferenceId: paymentIntent.id,
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),
         venueRebate: parseFloat(meta.venue_rebate || "0"),

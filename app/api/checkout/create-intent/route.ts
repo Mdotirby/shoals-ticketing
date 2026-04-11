@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import {
   resolveVenueFees,
   validatePromoCode,
-  incrementPromoCodeUses,
   validateAndHoldSeats,
   calculateFees,
 } from "@/lib/checkout-helpers";
@@ -34,6 +33,7 @@ export async function POST(request: Request) {
       promoCode,
       selectedSeats,
       sessionId,
+      trackingRef,
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────
@@ -147,10 +147,8 @@ export async function POST(request: Request) {
       quantity: effectiveQuantity,
     });
 
-    // ── Increment promo code usage ────────────────────────────────────────
-    if (promoResult) {
-      await incrementPromoCodeUses(admin, promoResult.promoCodeId);
-    }
+    // NOTE: Promo code usage is incremented in the Stripe webhook (processTicketOrder)
+    // to avoid double-counting if the payment fails after intent creation.
 
     // ── Create Stripe PaymentIntent ───────────────────────────────────────
     const stripe = getStripe();
@@ -182,6 +180,7 @@ export async function POST(request: Request) {
         seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
         seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
+        tracking_ref: trackingRef || "",
         // Fee breakdown (cents) for webhook/reconciliation
         subtotal_cents: String(breakdown.discountedTicketPriceCents * effectiveQuantity),
         ticketing_fee_cents: String(breakdown.ticketingFeeCents * effectiveQuantity),

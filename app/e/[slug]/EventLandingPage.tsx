@@ -220,8 +220,10 @@ function CheckoutForm({
             event_id: event.id,
             buyer_name: buyerName.trim(),
             buyer_email: buyerEmail.trim(),
+            buyer_phone: buyerPhone.trim() || undefined,
             quantity,
             promo_code: promoApplied ? promoCode.trim() : undefined,
+            tracking_ref: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
           }),
         });
 
@@ -264,6 +266,7 @@ function CheckoutForm({
           buyerEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
           promoCode: promoApplied ? promoCode.trim() : undefined,
+          trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
         }),
       });
 
