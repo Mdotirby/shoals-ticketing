@@ -637,20 +637,6 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
             </span>
           </div>
 
-          {/* Price */}
-          {!isPast && (
-            <div className="lp-price-block">
-              {isFree ? (
-                <span className="lp-price">FREE</span>
-              ) : (
-                <>
-                  <span className="lp-price">${displayPrice.toFixed(2)}</span>
-                  <span className="lp-price-label">ALL-IN &middot; No hidden fees</span>
-                </>
-              )}
-            </div>
-          )}
-
           {/* Countdown or CTA */}
           {isPast ? (
             <div className="lp-past-banner">This event has already taken place</div>

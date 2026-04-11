@@ -8278,25 +8278,29 @@ body:has(.lp-main) .site-footer {
   position: absolute;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
 }
 
 .lp-hero-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  /* Center on the subject — most artist/event photos have the subject center-top */
+  object-position: center 20%;
   display: block;
 }
 
 .lp-hero-gradient {
   position: absolute;
   inset: 0;
+  /* Multi-stop gradient: solid at bottom for text readability, fades up for image visibility */
   background: linear-gradient(
     to top,
     var(--vc-bg) 0%,
-    rgba(17, 24, 39, 0.92) 35%,
-    rgba(17, 24, 39, 0.5) 60%,
-    rgba(17, 24, 39, 0.25) 100%
+    rgba(17, 24, 39, 0.95) 30%,
+    rgba(17, 24, 39, 0.6) 55%,
+    rgba(17, 24, 39, 0.2) 75%,
+    rgba(17, 24, 39, 0.1) 100%
   );
   z-index: 1;
 }
@@ -8741,8 +8745,26 @@ body:has(.lp-main) .site-footer {
 /* ── Mobile Responsiveness ── */
 @media (max-width: 768px) {
   .lp-hero {
-    min-height: 80vh;
-    padding-bottom: 32px;
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height — accounts for mobile browser chrome */
+    padding-bottom: 24px;
+  }
+
+  .lp-hero-image {
+    /* On portrait phones, focus on the center of the image */
+    object-position: center 25%;
+  }
+
+  .lp-hero-gradient {
+    /* Stronger gradient on mobile so text is always readable over the image */
+    background: linear-gradient(
+      to top,
+      var(--vc-bg) 0%,
+      rgba(17, 24, 39, 0.97) 25%,
+      rgba(17, 24, 39, 0.7) 50%,
+      rgba(17, 24, 39, 0.15) 80%,
+      rgba(17, 24, 39, 0.05) 100%
+    );
   }
 
   .lp-headline {
