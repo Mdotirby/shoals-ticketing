@@ -144,6 +144,7 @@ function CheckoutForm({
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
+  const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
   const estimatedTotal = displayPrice * quantity;
 
@@ -351,21 +352,59 @@ function CheckoutForm({
 
         {/* FWB Opt-in */}
         <div className="lp-checkout-fwb">
-          <div className="lp-checkout-fwb-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <h3 className="lp-checkout-fwb-heading">Join Friends with Benefits</h3>
-          <p className="lp-checkout-fwb-desc">
-            Earn points on every purchase, unlock exclusive perks, and get early access to future events.
-          </p>
-          <a href="/fwb" className="lp-checkout-fwb-btn">
-            Learn More
-          </a>
+          {fwbStatus === "done" ? (
+            <div className="ic-fwb-done">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="10" fill="rgba(16, 185, 129, 0.15)" />
+                <path d="M6 10L9 13L14 7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>You&apos;re a Friend with Benefits now!</span>
+            </div>
+          ) : (
+            <>
+              <div className="lp-checkout-fwb-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <h3 className="lp-checkout-fwb-heading">Don&apos;t Miss a Thing</h3>
+              <p className="lp-checkout-fwb-desc">
+                Get presale access, exclusive offers, and be first to know about new shows.
+              </p>
+              <button
+                type="button"
+                className="ic-fwb-join-btn"
+                disabled={fwbStatus === "loading"}
+                onClick={async () => {
+                  setFwbStatus("loading");
+                  const nameParts = buyerName.trim().split(/\s+/);
+                  const firstName = nameParts[0] || "";
+                  const lastName = nameParts.slice(1).join(" ") || firstName;
+                  try {
+                    const res = await fetch("/api/newsletter", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        firstName,
+                        lastName,
+                        email: buyerEmail.trim(),
+                        phone: buyerPhone.trim() || undefined,
+                        source: "checkout",
+                      }),
+                    });
+                    if (res.ok || res.status === 409) setFwbStatus("done");
+                    else setFwbStatus("done");
+                  } catch { setFwbStatus("done"); }
+                }}
+              >
+                {fwbStatus === "loading" ? "Joining..." : "Count Me In"}
+              </button>
+              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", margin: "4px 0 0" }}>No spam. Unsubscribe anytime.</p>
+            </>
+          )}
         </div>
       </div>
     );

@@ -9331,6 +9331,790 @@ body:has(.lp-main) .site-footer {
 }
 
 /* ═══════════════════════════════════════════════════
+   INLINE CHECKOUT — InlineCheckout Component
+   ═══════════════════════════════════════════════════ */
+
+/* ── Form Wrapper ── */
+.ic-form-wrap {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius-lg);
+  padding: 24px;
+}
+
+.ic-form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ic-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.ic-back-btn:hover {
+  color: var(--vc-gold);
+}
+
+.ic-form-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+}
+
+.ic-order-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(208, 194, 144, 0.06);
+  border: 1px solid rgba(208, 194, 144, 0.1);
+  border-radius: var(--vc-radius-md);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+/* ── Form Fields ── */
+.ic-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ic-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ic-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ic-optional {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.ic-input {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--vc-radius-md);
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ic-input:focus {
+  border-color: rgba(208, 194, 144, 0.5);
+  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+}
+
+.ic-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.ic-stripe-field {
+  padding: 14px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--vc-radius-md);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ic-stripe-field:focus-within {
+  border-color: rgba(208, 194, 144, 0.5);
+  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+}
+
+.ic-card-row {
+  display: flex;
+  gap: 12px;
+}
+
+.ic-error {
+  color: #ef4444;
+  font-size: 13px;
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: var(--vc-radius-md);
+}
+
+/* ── Pay Button ── */
+.ic-pay-btn {
+  width: 100%;
+  padding: 16px 0;
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+  font-weight: 800;
+  font-size: 16px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.ic-pay-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(208, 194, 144, 0.25);
+}
+
+.ic-pay-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ic-terms {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: center;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+/* ── Success State ── */
+.ic-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 24px 20px;
+}
+
+.ic-success-icon {
+  margin-bottom: 8px;
+  animation: lp-success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.ic-success-heading {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.ic-success-event {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 4px 0 0;
+}
+
+.ic-success-meta {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.ic-success-detail {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.ic-success-email {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 8px 0 0;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius-md);
+  line-height: 1.5;
+}
+
+/* ── FWB Post-Checkout Prompt ── */
+.ic-fwb-prompt {
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(208, 194, 144, 0.05);
+  border: 1px solid rgba(208, 194, 144, 0.12);
+  border-radius: var(--vc-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 100%;
+  animation: ic-fwb-slide-up 0.4s ease-out both;
+  animation-delay: 0.6s;
+}
+
+@keyframes ic-fwb-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ic-fwb-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(208, 194, 144, 0.12);
+  color: var(--vc-gold);
+}
+
+.ic-fwb-heading {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+}
+
+.ic-fwb-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 300px;
+}
+
+.ic-fwb-join-btn {
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.ic-fwb-join-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+}
+
+.ic-fwb-join-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ic-fwb-fine-print {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+  margin: 0;
+}
+
+.ic-fwb-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #10b981;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 0;
+}
+
+/* ── Inline Checkout Mobile ── */
+@media (max-width: 768px) {
+  .ic-form-wrap {
+    padding: 20px 16px;
+  }
+
+  .ic-card-row {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ic-fwb-prompt {
+    padding: 16px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   FWB LANDING PAGE — /fwb
+   ═══════════════════════════════════════════════════ */
+
+.fwb-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 20px 60px;
+}
+
+/* ── Hero ── */
+.fwb-hero {
+  position: relative;
+  text-align: center;
+  padding: 80px 20px 60px;
+  overflow: hidden;
+}
+
+.fwb-hero-glow {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 300px;
+  background: radial-gradient(ellipse, rgba(208, 194, 144, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.fwb-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.fwb-hero-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--vc-gold);
+  background: rgba(208, 194, 144, 0.1);
+  border: 1px solid rgba(208, 194, 144, 0.15);
+  border-radius: 100px;
+  padding: 6px 16px;
+  margin-bottom: 20px;
+}
+
+.fwb-hero-title {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 16px;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.fwb-hero-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.6;
+  max-width: 560px;
+  margin: 0 auto 28px;
+}
+
+.fwb-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 36px;
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.fwb-hero-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(208, 194, 144, 0.25);
+}
+
+/* ── Sections ── */
+.fwb-section {
+  margin-top: 56px;
+}
+
+.fwb-section-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  text-align: center;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.fwb-section-subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin: 0 0 32px;
+  line-height: 1.5;
+}
+
+/* ── Perks Grid ── */
+.fwb-perks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.fwb-perk-card {
+  padding: 24px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--vc-radius-lg);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.fwb-perk-card:hover {
+  border-color: rgba(208, 194, 144, 0.2);
+}
+
+.fwb-perk-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(208, 194, 144, 0.08);
+  color: var(--vc-gold);
+  margin: 0 auto 14px;
+}
+
+.fwb-perk-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.fwb-perk-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Tiers Grid ── */
+.fwb-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.fwb-tier-card {
+  padding: 20px 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--vc-radius-lg);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.fwb-tier-card:hover {
+  border-color: rgba(208, 194, 144, 0.2);
+}
+
+.fwb-tier-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 100px;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.fwb-tier-range {
+  display: block;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 12px;
+}
+
+.fwb-tier-perks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.fwb-tier-perks li {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.4;
+}
+
+.fwb-tier-perks li:first-child {
+  border-top: none;
+}
+
+/* ── Signup Card ── */
+.fwb-signup-card {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 36px 32px;
+  background: rgba(208, 194, 144, 0.04);
+  border: 1px solid rgba(208, 194, 144, 0.12);
+  border-radius: var(--vc-radius-lg);
+}
+
+.fwb-signup-heading {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--vc-gold);
+  text-align: center;
+  margin: 0 0 8px;
+}
+
+.fwb-signup-desc {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.fwb-signup-prefill-notice {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--vc-radius-md);
+  padding: 10px 16px;
+  color: #10b981;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.fwb-signup-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--vc-radius-md);
+  padding: 10px 16px;
+  color: #ef4444;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.fwb-signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fwb-signup-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fwb-signup-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 6px;
+}
+
+.fwb-optional {
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.fwb-signup-field input {
+  width: 100%;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--vc-radius-md);
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.fwb-signup-field input:focus {
+  border-color: rgba(208, 194, 144, 0.5);
+  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+}
+
+.fwb-signup-field input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.fwb-signup-submit {
+  width: 100%;
+  padding: 14px 0;
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.fwb-signup-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+}
+
+.fwb-signup-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.fwb-signup-disclaimer {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: center;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+/* ── Signup Success ── */
+.fwb-signup-success {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.fwb-signup-success-icon {
+  animation: lp-success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.fwb-signup-success-heading {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+}
+
+.fwb-signup-success-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 360px;
+}
+
+.fwb-signup-success-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  color: #0b0d1d;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: var(--vc-radius-md);
+  text-decoration: none;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.fwb-signup-success-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+}
+
+/* ── Back Link ── */
+.fwb-back-link {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.fwb-back-link a {
+  color: rgba(208, 194, 144, 0.5);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+
+.fwb-back-link a:hover {
+  color: var(--vc-gold);
+}
+
+/* ── FWB Page Mobile ── */
+@media (max-width: 768px) {
+  .fwb-hero {
+    padding: 60px 16px 40px;
+  }
+
+  .fwb-hero-title {
+    font-size: 2rem;
+  }
+
+  .fwb-perks-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .fwb-tiers-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .fwb-signup-card {
+    padding: 28px 20px;
+  }
+
+  .fwb-signup-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .fwb-hero-title {
+    font-size: 1.7rem;
+  }
+
+  .fwb-perks-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fwb-tiers-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
    PRINT STYLES — Ticket Success Page
    ═══════════════════════════════════════════════════ */
 

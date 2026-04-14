@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
+import InlineCheckout from "@/app/components/InlineCheckout";
 import SeatMap from "@/app/components/seating/SeatMap";
 import type { SectionFull } from "@/lib/seating/types";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
@@ -67,6 +68,7 @@ export default function EventDetailClient() {
   const [hostedByName, setHostedByName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutStep, setCheckoutStep] = useState<"browse" | "checkout">("browse");
   const [freeRegName, setFreeRegName] = useState("");
   const [freeRegEmail, setFreeRegEmail] = useState("");
   const [freeRegLoading, setFreeRegLoading] = useState(false);
@@ -394,25 +396,17 @@ export default function EventDetailClient() {
 
   const handleCheckout = () => {
     if (!event) return;
-    // Retrieve trackable link ref from sessionStorage (set on page load from ?ref= param)
-    const trackingRef = typeof window !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : null;
-
-    // For assigned seating, use selected seats; for GA, use ticket quantity
-    if (reservedSeatingEnabled && selectedSeats.length > 0) {
-      const seatIds = selectedSeats.map((s) => s.seatId).join(",");
-      let url = `/checkout?event=${eventId}&qty=${selectedSeats.length}&seat_ids=${seatIds}`;
-      if (appliedPromoRef.current) url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
-      if (trackingRef) url += `&ref=${encodeURIComponent(trackingRef)}`;
-      window.location.href = url;
-      return;
-    }
-    if (!selectedTicket) return;
-    let url = `/checkout?event=${eventId}&qty=${quantity}`;
-    if (appliedPromoRef.current) {
-      url += `&promo_code=${encodeURIComponent(appliedPromoRef.current)}`;
-    }
-    if (trackingRef) url += `&ref=${encodeURIComponent(trackingRef)}`;
-    window.location.href = url;
+    if (!selectedTicket && !reservedSeatingEnabled) return;
+    // Fire InitiateCheckout pixel
+    trackFbEvent("InitiateCheckout", {
+      content_name: event.title,
+      content_ids: [event.id],
+      value: selectedTicket?.price ? selectedTicket.price * quantity : 0,
+      currency: "USD",
+    });
+    setCheckoutStep("checkout");
+    // Scroll to top of order summary column
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleFreeCheckout = async (name: string, email: string) => {
@@ -592,9 +586,25 @@ export default function EventDetailClient() {
               </div>
             </div>
 
-            {/* RIGHT: Order Summary / Free Registration / Countdown */}
+            {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column">
-              {!ticketsOnSale ? (
+              {checkoutStep === "checkout" ? (
+                /* ── Inline Stripe Checkout ── */
+                <InlineCheckout
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  eventDate={formatEventDateFull(event.date)}
+                  eventVenue={event.venue}
+                  tierId={selectedTicket?.id}
+                  tierName={selectedTicket?.name || "General Admission"}
+                  ticketPrice={selectedTicket?.price || event.price || 0}
+                  quantity={quantity}
+                  promoCode={appliedPromoRef.current}
+                  selectedSeatIds={reservedSeatingEnabled ? selectedSeats.map((s) => s.seatId) : undefined}
+                  isFreeEvent={isFreeEvent}
+                  onBack={() => setCheckoutStep("browse")}
+                />
+              ) : !ticketsOnSale ? (
                 /* ── On-Sale Countdown ── */
                 <div style={{
                   background: "rgba(59,130,246,0.06)",
@@ -614,99 +624,20 @@ export default function EventDetailClient() {
                   </p>
                 </div>
               ) : isFreeEvent ? (
-                /* ── Free Event Registration ── */
-                <div style={{
-                  background: "rgba(34,197,94,0.06)",
-                  border: "1px solid rgba(34,197,94,0.2)",
-                  borderRadius: 12,
-                  padding: 24,
-                }}>
-                  <p style={{ color: "#22c55e", fontWeight: 700, fontSize: 16, marginBottom: 4 }}>
-                    Free Event
-                  </p>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginBottom: 16 }}>
-                    Register below to get your free ticket.
-                  </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <input
-                      type="text"
-                      placeholder="Your Name"
-                      value={freeRegName}
-                      onChange={(e) => setFreeRegName(e.target.value)}
-                      style={{
-                        padding: "10px 14px", borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.04)",
-                        color: "#fff", fontSize: 14,
-                      }}
-                    />
-                    <input
-                      type="email"
-                      placeholder="Your Email"
-                      value={freeRegEmail}
-                      onChange={(e) => setFreeRegEmail(e.target.value)}
-                      style={{
-                        padding: "10px 14px", borderRadius: 8,
-                        border: "1px solid rgba(255,255,255,0.12)",
-                        background: "rgba(255,255,255,0.04)",
-                        color: "#fff", fontSize: 14,
-                      }}
-                    />
-                    {/* Quantity selector */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13 }}>Qty:</span>
-                      <div className="ticket-qty-control">
-                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>-</button>
-                        <span className="ticket-qty-value">{quantity}</span>
-                        <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
-                      </div>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        if (!freeRegName.trim() || !freeRegEmail.trim()) return;
-                        setFreeRegLoading(true);
-                        try {
-                          const res = await fetch("/api/checkout/free", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              event_id: eventId,
-                              buyer_name: freeRegName.trim(),
-                              buyer_email: freeRegEmail.trim(),
-                              quantity,
-                              seat_ids: reservedSeatingEnabled ? selectedSeats.map((s) => s.seatId) : undefined,
-                            }),
-                          });
-                          const data = await res.json();
-                          if (!res.ok) {
-                            alert(data.error || "Registration failed");
-                            return;
-                          }
-                          if (data.success) {
-                            window.location.href = `/checkout/confirmation?order_id=${data.order_id}`;
-                          }
-                        } catch {
-                          alert("Something went wrong. Please try again.");
-                        } finally {
-                          setFreeRegLoading(false);
-                        }
-                      }}
-                      disabled={freeRegLoading || !freeRegName.trim() || !freeRegEmail.trim()}
-                      style={{
-                        padding: "14px 24px", borderRadius: 10,
-                        border: "none",
-                        background: freeRegLoading ? "rgba(34,197,94,0.3)" : "#22c55e",
-                        color: "#fff", fontSize: 15, fontWeight: 700,
-                        cursor: freeRegLoading ? "not-allowed" : "pointer",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {freeRegLoading ? "Registering..." : "Get Free Ticket"}
-                    </button>
-                  </div>
-                </div>
+                /* ── Free Event — go straight to inline checkout ── */
+                <InlineCheckout
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  eventDate={formatEventDateFull(event.date)}
+                  eventVenue={event.venue}
+                  tierName="Free Admission"
+                  ticketPrice={0}
+                  quantity={quantity}
+                  isFreeEvent={true}
+                  onBack={() => {}}
+                />
               ) : (
-                /* ── Normal Paid Checkout ── */
+                /* ── Normal Browse Mode: Order Summary ── */
                 <>
                   <OrderSummary
                     selectedTicket={selectedTicket}

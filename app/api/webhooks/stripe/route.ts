@@ -504,6 +504,7 @@ async function processTicketOrder({
         last_name: nameParts.slice(1).join(" ") || null,
         phone: customerPhone || null,
         source: "checkout_fwb",
+        is_fwb_subscriber: true,
         venue_id: eventData?.venue_id || null,
       }, { onConflict: "email" });
       console.log(`FWB opt-in for ${customerEmail}`);

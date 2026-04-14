@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { firstName, lastName, email, source, venueSlug } = body;
+    const { firstName, lastName, email, phone, source, venueSlug } = body;
 
     if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
       return NextResponse.json({ error: "All fields are required." }, { status: 400 });
@@ -187,7 +187,11 @@ export async function POST(req: NextRequest) {
       subscribed_at: new Date().toISOString(),
     };
     if (source) insertData.source = source;
+    if (phone?.trim()) insertData.phone = phone.trim();
     if (venueId) insertData.venue_id = venueId;
+    // Mark as FWB subscriber if from FWB-specific sources
+    const fwbSources = ["fwb_landing", "checkout", "exit_intent"];
+    insertData.is_fwb_subscriber = fwbSources.includes(source || "");
 
     const { error } = await supabase.from("newsletter_subscribers").insert(insertData);
 
