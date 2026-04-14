@@ -325,10 +325,16 @@ export async function POST(request: Request) {
               <p style="margin:10px 0 0;font-size:13px;color:rgba(255,255,255,0.4);">${quantity} ticket${quantity !== 1 ? "s" : ""} · Free</p>
             </td></tr>
           </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.06);border:1px solid rgba(208,194,144,0.15);border-radius:10px;margin-bottom:20px;">
+            <tr><td style="padding:16px 20px;text-align:center;">
+              <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#d0c290;">Your QR Code Is Your Ticket</p>
+              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5;">Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy &mdash; just have it ready when you arrive.</p>
+            </td></tr>
+          </table>
           <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
             <tr><td align="center">
               <a href="${ticketUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;text-decoration:none;">
-                View My ${quantity > 1 ? "Tickets" : "Ticket"} Online
+                View My ${quantity > 1 ? "Tickets" : "Ticket"} &amp; QR Code
               </a>
             </td></tr>
           </table>

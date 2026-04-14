@@ -100,26 +100,25 @@ function SuccessContent() {
           get ready for an unforgettable night!
         </p>
 
+        {/* QR Code Entry Notice */}
+        <div style={{
+          margin: "16px 0",
+          padding: "14px 20px",
+          background: "rgba(208,194,144,0.06)",
+          border: "1px solid rgba(208,194,144,0.12)",
+          borderRadius: 10,
+          textAlign: "center",
+        }}>
+          <p style={{ color: "#d0c290", fontWeight: 700, fontSize: 14, margin: "0 0 4px" }}>
+            Your QR Code Is Your Ticket
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy — just have it ready when you arrive.
+          </p>
+        </div>
+
         {/* Actions */}
         <div className="checkout-success-actions" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Apple Wallet */}
-          {data?.ticket?.qr_code && (
-            <a
-              href={`/api/tickets/${data.ticket.qr_code}/wallet`}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                background: "#000", color: "#fff", border: "none", borderRadius: 8,
-                padding: "12px 24px", fontSize: 15, fontWeight: 600,
-                textDecoration: "none", cursor: "pointer",
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.4c1.3.07 2.18.76 2.94.8 1.12-.22 2.2-.93 3.37-.84 1.42.12 2.51.65 3.2 1.67-3.12 1.8-2.37 5.67.35 6.83-.57 1.52-1.27 3.02-1.86 4.42zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-              Add to Apple Wallet
-            </a>
-          )}
-
           {/* View ticket online */}
           {data?.ticket?.qr_code && (
             <Link
