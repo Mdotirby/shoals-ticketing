@@ -37,6 +37,10 @@ type InlineCheckoutProps = {
   selectedSeatIds?: string[];
   isFreeEvent?: boolean;
   onBack: () => void;
+  // Fee breakdown (from venue settings, same as OrderSummary)
+  ticketingFee?: number;
+  facilityFee?: number;
+  taxRate?: number;
 };
 
 // ── Stripe loader (singleton) ────────────────────────────────────────────────
@@ -93,6 +97,14 @@ const stripeAppearance = {
 
 // ── Checkout Form (inside Elements provider) ─────────────────────────────────
 
+// Fee constants — same as OrderSummary and create-intent API
+const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_FLAT_FEE = 0.30;
+
+function normalizeTaxRate(rate: number): number {
+  return rate > 1 ? rate / 100 : rate;
+}
+
 function CheckoutForm({
   eventId,
   eventTitle,
@@ -106,6 +118,9 @@ function CheckoutForm({
   selectedSeatIds,
   isFreeEvent,
   onBack,
+  ticketingFee = 0,
+  facilityFee = 0,
+  taxRate = 0,
 }: InlineCheckoutProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -127,8 +142,16 @@ function CheckoutForm({
   // FWB signup state
   const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
-  const estimatedTotal = ticketPrice * quantity;
-  const isFullyFree = isFreeEvent || estimatedTotal === 0;
+  // ── Fee calculation matching OrderSummary + create-intent API ────────────
+  const rate = normalizeTaxRate(taxRate);
+  const subtotal = ticketPrice * quantity;
+  const totalTicketingFee = ticketingFee * quantity;
+  const totalFacilityFee = facilityFee * quantity;
+  const tax = Math.round(subtotal * rate * 100) / 100;
+  const subtotalBeforeStripe = subtotal + totalTicketingFee + totalFacilityFee + tax;
+  const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+  const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
+  const isFullyFree = isFreeEvent || ticketPrice === 0;
 
   // Fire AddPaymentInfo when all card fields are complete
   useEffect(() => {
@@ -371,10 +394,40 @@ function CheckoutForm({
         <h3 className="ic-form-title">Checkout</h3>
       </div>
 
-      {/* Order summary line */}
-      <div className="ic-order-line">
-        <span>{tierName} &times; {quantity}</span>
-        <span>${estimatedTotal.toFixed(2)}</span>
+      {/* Order summary with full fee breakdown */}
+      <div className="ic-order-breakdown">
+        <div className="ic-order-line">
+          <span>{tierName} &times; {quantity}</span>
+          <span>${subtotal.toFixed(2)}</span>
+        </div>
+        {totalTicketingFee > 0 && (
+          <div className="ic-order-line ic-order-line-fee">
+            <span>Ticketing fee</span>
+            <span>${totalTicketingFee.toFixed(2)}</span>
+          </div>
+        )}
+        {totalFacilityFee > 0 && (
+          <div className="ic-order-line ic-order-line-fee">
+            <span>Facility fee</span>
+            <span>${totalFacilityFee.toFixed(2)}</span>
+          </div>
+        )}
+        {tax > 0 && (
+          <div className="ic-order-line ic-order-line-fee">
+            <span>Tax</span>
+            <span>${tax.toFixed(2)}</span>
+          </div>
+        )}
+        {!isFullyFree && processingFee > 0 && (
+          <div className="ic-order-line ic-order-line-fee">
+            <span>Processing fee</span>
+            <span>${processingFee.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="ic-order-line ic-order-total">
+          <span>Total</span>
+          <span>{isFullyFree ? <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span> : `$${estimatedTotal.toFixed(2)}`}</span>
+        </div>
       </div>
 
       <form className="ic-form" onSubmit={handleSubmit} noValidate>

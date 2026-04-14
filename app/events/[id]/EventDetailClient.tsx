@@ -603,6 +603,9 @@ export default function EventDetailClient() {
                   selectedSeatIds={reservedSeatingEnabled ? selectedSeats.map((s) => s.seatId) : undefined}
                   isFreeEvent={isFreeEvent}
                   onBack={() => setCheckoutStep("browse")}
+                  ticketingFee={venueFees.ticketing_fee}
+                  facilityFee={venueFees.facility_fee}
+                  taxRate={venueFees.tax_rate}
                 />
               ) : !ticketsOnSale ? (
                 /* ── On-Sale Countdown ── */

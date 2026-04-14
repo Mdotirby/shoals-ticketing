@@ -9555,18 +9555,42 @@ body:has(.lp-main) .site-footer {
   margin: 0;
 }
 
+.ic-order-breakdown {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--vc-radius-md);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
 .ic-order-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: rgba(208, 194, 144, 0.06);
-  border: 1px solid rgba(208, 194, 144, 0.1);
-  border-radius: var(--vc-radius-md);
+  padding: 10px 16px;
   font-size: 14px;
   color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 20px;
   font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ic-order-line:last-child {
+  border-bottom: none;
+}
+
+.ic-order-line-fee {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.ic-order-total {
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(208, 194, 144, 0.06);
+  border-top: 1px solid rgba(208, 194, 144, 0.1) !important;
 }
 
 /* ── Form Fields ── */
