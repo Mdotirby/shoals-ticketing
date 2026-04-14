@@ -37,10 +37,30 @@ type EventData = {
   onSaleAt: string | null;
 };
 
+type FeaturedArtist = {
+  id: string;
+  name: string;
+  avatar_url?: string;
+  website_url?: string;
+};
+
+type VenueInfo = {
+  address?: string;
+  lat?: number;
+  lng?: number;
+  phone?: string;
+  email?: string;
+  directions_car?: string;
+  parking_info?: string;
+  directions_transit?: string;
+};
+
 type Props = {
   event: EventData;
   ticketTypes: TicketType[];
   attendeeCount: number;
+  featuredArtists?: FeaturedArtist[];
+  venueInfo?: VenueInfo;
 };
 
 type OrderDetails = {
@@ -589,7 +609,7 @@ function CheckoutForm({
 
 // ── Main Landing Page Component ──────────────────────────────────────────────
 
-export default function EventLandingPage({ event, ticketTypes, attendeeCount }: Props) {
+export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo }: Props) {
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
   const [selectedTierId, setSelectedTierId] = useState(ticketTypes[0]?.id ?? "");
@@ -948,6 +968,104 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount }: 
               <p className="lp-about-text">{event.description}</p>
             </div>
           )}
+        </section>
+      )}
+
+      {/* ── FEATURED ARTISTS ───────────────────────────────────────────── */}
+      {featuredArtists.length > 0 && (
+        <section className="lp-artists-section">
+          <h2 className="lp-artists-heading">Featured Artists</h2>
+          <div className="lp-artists-grid">
+            {featuredArtists.map((artist) => {
+              const Wrapper = artist.website_url ? "a" : "div";
+              const wrapperProps = artist.website_url
+                ? { href: artist.website_url, target: "_blank", rel: "noopener noreferrer", style: { textDecoration: "none" } as React.CSSProperties }
+                : {};
+              return (
+                <Wrapper key={artist.id} className="lp-artist-card" {...wrapperProps}>
+                  <div className="lp-artist-avatar">
+                    {artist.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={artist.avatar_url} alt={artist.name} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+                    ) : (
+                      <div className="lp-artist-avatar-placeholder">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <span className="lp-artist-name">{artist.name}</span>
+                </Wrapper>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── VENUE MAP / DIRECTIONS ────────────────────────────────────── */}
+      {venueInfo && (venueInfo.lat || venueInfo.address) && (
+        <section className="lp-venue-section">
+          <h2 className="lp-venue-heading">Getting Here</h2>
+          <div className="lp-venue-layout">
+            {/* Map */}
+            {(venueInfo.lat && venueInfo.lng) || venueInfo.address ? (
+              <div className="lp-venue-map-wrap">
+                <iframe
+                  title="Venue location"
+                  src={
+                    venueInfo.lat && venueInfo.lng
+                      ? `https://maps.google.com/maps?q=${venueInfo.lat},${venueInfo.lng}&z=15&output=embed`
+                      : `https://maps.google.com/maps?q=${encodeURIComponent(venueInfo.address || "")}&z=15&output=embed`
+                  }
+                  className="lp-venue-map-iframe"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+              </div>
+            ) : null}
+
+            {/* Venue Details */}
+            <div className="lp-venue-details">
+              <div className="lp-venue-detail-card">
+                <h3 className="lp-venue-detail-title">{event.venue}</h3>
+                {venueInfo.address && (
+                  <p className="lp-venue-detail-text">{venueInfo.address}</p>
+                )}
+                {venueInfo.phone && (
+                  <a href={`tel:${venueInfo.phone}`} className="lp-venue-detail-link">{venueInfo.phone}</a>
+                )}
+                {venueInfo.email && (
+                  <a href={`mailto:${venueInfo.email}`} className="lp-venue-detail-link">{venueInfo.email}</a>
+                )}
+              </div>
+
+              {(venueInfo.directions_car || venueInfo.parking_info || venueInfo.directions_transit) && (
+                <div className="lp-venue-detail-card">
+                  {venueInfo.directions_car && (
+                    <div className="lp-venue-info-block">
+                      <strong className="lp-venue-info-label">By Car</strong>
+                      <p className="lp-venue-detail-text">{venueInfo.directions_car}</p>
+                    </div>
+                  )}
+                  {venueInfo.parking_info && (
+                    <div className="lp-venue-info-block">
+                      <strong className="lp-venue-info-label">Parking</strong>
+                      <p className="lp-venue-detail-text">{venueInfo.parking_info}</p>
+                    </div>
+                  )}
+                  {venueInfo.directions_transit && (
+                    <div className="lp-venue-info-block">
+                      <strong className="lp-venue-info-label">Public Transport</strong>
+                      <p className="lp-venue-detail-text">{venueInfo.directions_transit}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       )}
 

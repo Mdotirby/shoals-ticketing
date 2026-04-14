@@ -184,6 +184,76 @@ export default async function LandingPage({ params }: Props) {
     });
   }
 
+  // 6. Fetch featured artists assigned to this event
+  const { data: assignments } = await admin
+    .from("artist_event_assignments")
+    .select("artist_id")
+    .eq("event_id", event.id);
+
+  let featuredArtists: { id: string; name: string; avatar_url?: string; website_url?: string }[] = [];
+  if (assignments && assignments.length > 0) {
+    const artistIds = assignments.map((a: { artist_id: string }) => a.artist_id);
+    const { data: artistData } = await admin
+      .from("admin_users")
+      .select("id, first_name, last_name, avatar_url, website_url")
+      .in("id", artistIds);
+
+    if (artistData) {
+      featuredArtists = artistData.map((a: { id: string; first_name: string | null; last_name: string | null; avatar_url: string | null; website_url: string | null }) => ({
+        id: a.id,
+        name: [a.first_name, a.last_name].filter(Boolean).join(" ") || "Artist",
+        avatar_url: a.avatar_url || undefined,
+        website_url: a.website_url || undefined,
+      }));
+    }
+  }
+
+  // 7. Fetch venue info for map/directions
+  let venueInfo: {
+    address?: string;
+    lat?: number;
+    lng?: number;
+    phone?: string;
+    email?: string;
+    directions_car?: string;
+    parking_info?: string;
+    directions_transit?: string;
+  } | undefined;
+
+  if (event.event_venue_id) {
+    const { data: ev } = await admin
+      .from("event_venues")
+      .select("full_address, lat, lng, phone, email, directions_by_car, parking_info, directions_public_transit")
+      .eq("id", event.event_venue_id)
+      .single();
+    if (ev) {
+      venueInfo = {
+        address: ev.full_address || undefined,
+        lat: ev.lat || undefined,
+        lng: ev.lng || undefined,
+        phone: ev.phone || undefined,
+        email: ev.email || undefined,
+        directions_car: ev.directions_by_car || undefined,
+        parking_info: ev.parking_info || undefined,
+        directions_transit: ev.directions_public_transit || undefined,
+      };
+    }
+  } else if (event.venue_id) {
+    const { data: v } = await admin
+      .from("venues")
+      .select("address_street, address_city, address_state, address_zip, buyer_phone, buyer_email")
+      .eq("id", event.venue_id)
+      .single();
+    if (v) {
+      const parts = [v.address_street, v.address_city, v.address_state, v.address_zip].filter(Boolean);
+      venueInfo = {
+        address: parts.length > 0 ? parts.join(", ") : undefined,
+        phone: v.buyer_phone || undefined,
+        email: v.buyer_email || undefined,
+      };
+    }
+  }
+
   return (
     <EventLandingPage
       event={{
@@ -200,6 +270,8 @@ export default async function LandingPage({ params }: Props) {
       }}
       ticketTypes={ticketTypes}
       attendeeCount={orderCount || 0}
+      featuredArtists={featuredArtists}
+      venueInfo={venueInfo}
     />
   );
 }

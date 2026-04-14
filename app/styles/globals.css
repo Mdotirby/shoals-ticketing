@@ -8897,7 +8897,7 @@ body:has(.lp-main) .site-footer {
 
 /* ── Checkout Section (expanding container) ── */
 .lp-checkout-section {
-  max-width: 600px;
+  max-width: 720px;
   margin: 0 auto;
   padding: 0 24px;
   animation: lp-checkout-slide-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
@@ -9327,6 +9327,187 @@ body:has(.lp-main) .site-footer {
   .lp-checkout-promo-row {
     flex-direction: column;
     gap: 8px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   LANDING PAGE — Featured Artists Section
+   ═══════════════════════════════════════════════════ */
+
+.lp-artists-section {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 0;
+  text-align: center;
+}
+
+.lp-artists-heading {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 24px;
+  letter-spacing: -0.02em;
+}
+
+.lp-artists-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+}
+
+.lp-artist-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  border-radius: var(--vc-radius-lg);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 120px;
+  transition: border-color 0.2s;
+  text-decoration: none;
+}
+
+.lp-artist-card:hover {
+  border-color: rgba(208, 194, 144, 0.2);
+}
+
+.lp-artist-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(208, 194, 144, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-artist-avatar-placeholder {
+  color: rgba(208, 194, 144, 0.4);
+}
+
+.lp-artist-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════
+   LANDING PAGE — Venue Map / Directions Section
+   ═══════════════════════════════════════════════════ */
+
+.lp-venue-section {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px 0;
+}
+
+.lp-venue-heading {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 20px;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+.lp-venue-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lp-venue-map-wrap {
+  border-radius: var(--vc-radius-lg);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  height: 280px;
+}
+
+.lp-venue-map-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  filter: grayscale(0.3) brightness(0.85);
+}
+
+.lp-venue-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lp-venue-detail-card {
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--vc-radius-lg);
+}
+
+.lp-venue-detail-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--vc-gold);
+  margin: 0 0 6px;
+}
+
+.lp-venue-detail-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.lp-venue-detail-link {
+  display: block;
+  font-size: 13px;
+  color: rgba(208, 194, 144, 0.7);
+  text-decoration: none;
+  margin-top: 4px;
+  transition: color 0.2s;
+}
+
+.lp-venue-detail-link:hover {
+  color: var(--vc-gold);
+}
+
+.lp-venue-info-block {
+  margin-bottom: 10px;
+}
+
+.lp-venue-info-block:last-child {
+  margin-bottom: 0;
+}
+
+.lp-venue-info-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Landing Page Artists + Venue Mobile ── */
+@media (max-width: 768px) {
+  .lp-artists-section,
+  .lp-venue-section {
+    padding: 40px 16px 0;
+  }
+
+  .lp-artists-grid {
+    gap: 12px;
+  }
+
+  .lp-artist-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .lp-venue-map-wrap {
+    height: 220px;
   }
 }
 
