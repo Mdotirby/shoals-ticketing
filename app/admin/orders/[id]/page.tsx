@@ -236,6 +236,7 @@ export default function EventSalesDetailPage() {
                   <th>Qty</th>
                   <th>Total</th>
                   <th>Date</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -252,6 +253,25 @@ export default function EventSalesDetailPage() {
                         hour: "numeric", minute: "2-digit",
                       })}
                     </td>
+                    <td>
+                      <Link
+                        href={`/admin/orders/${id}/${o.id}`}
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 12px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: "rgba(208,194,144,0.08)",
+                          border: "1px solid rgba(208,194,144,0.2)",
+                          color: "#d0c290",
+                          textDecoration: "none",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        View →
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -260,7 +280,7 @@ export default function EventSalesDetailPage() {
                   <td colSpan={3} style={{ fontWeight: 700, color: "#d0c290" }}>Gross Receipts</td>
                   <td style={{ fontWeight: 700, color: "#d0c290" }}>{totalTickets}</td>
                   <td style={{ fontWeight: 700, color: "#d0c290" }}>${totalRevenue.toFixed(2)}</td>
-                  <td />
+                  <td /><td />
                 </tr>
               </tfoot>
             </table>
