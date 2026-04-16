@@ -5,9 +5,9 @@ import { NextResponse } from "next/server";
 // Returns the full order with its tickets and event info for the order detail page.
 export async function GET(
   _req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = params;
+  const { orderId } = await params;
   const admin = createAdminClient();
 
   // Fetch the order + event details in one query

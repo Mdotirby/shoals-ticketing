@@ -9,9 +9,9 @@ const QRCode = require("qrcode");
 // If qr_data_url is NULL (e.g. manually inserted tickets), regenerates it on the fly.
 export async function POST(
   _req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = params;
+  const { orderId } = await params;
   const admin = createAdminClient();
 
   // Fetch order + event + venue slug

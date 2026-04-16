@@ -6,9 +6,9 @@ import { NextResponse } from "next/server";
 // This is the safe way to fix a typo in a buyer's email — no deleting orders needed.
 export async function PATCH(
   req: Request,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const { orderId } = params;
+  const { orderId } = await params;
 
   let body: { customer_name?: string; customer_email?: string };
   try {
