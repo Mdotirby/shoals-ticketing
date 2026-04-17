@@ -729,21 +729,32 @@ export default function AdminCreateOfferPage() {
         }
         // FLAT: backendAmount = 0, pnlArtistTotal = guarantee
 
+        // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in
+        // fixed_expenses. It's already baked into totalExpenses — do NOT subtract it again
+        // in breakeven or P&L, or it will be double-counted. Only VS deals treat the guarantee
+        // as a separate outflow from show expenses.
+        const guaranteeInExpenses = pnlDealType === "FLAT" || pnlDealType === "PLUS" || pnlDealType === "BONUS";
+
         // Breakeven
         const tierCount = scaling.length || 1;
         const avgTicketPrice = tierCount > 0
           ? scaling.reduce((s, r) => s + (r.net_price || 0), 0) / tierCount
           : 0;
+        // For FLAT: no extra artist cost beyond expenses. For PLUS/BONUS: add just the backend
+        // (guarantee already in expenses). For VS: add the full artist total.
+        const artistCostForBreakeven = guaranteeInExpenses ? backendAmount : pnlArtistTotal;
         const breakevenOffer = avgTicketPrice > 0
-          ? Math.round(((pnlTotalExpenses + pnlArtistTotal) / avgTicketPrice) * 100) / 100
+          ? Math.round(((pnlTotalExpenses + artistCostForBreakeven) / avgTicketPrice) * 100) / 100
           : 0;
 
         // Ancillary totals
         const ancillaryTotal = ancillaryItems.reduce((s, item) => s + (item.income - item.expenses), 0);
 
-        // Final P&L
+        // Final P&L — avoid double-counting the guarantee when it's already in expenses
         const netTicketRevenue = pnlNetPotential;
-        const totalAllExpenses = pnlGuarantee + backendAmount + pnlTotalExpenses;
+        const totalAllExpenses = guaranteeInExpenses
+          ? (pnlTotalExpenses + backendAmount)
+          : (pnlTotalExpenses + pnlGuarantee + backendAmount);
         const finalPnl = (netTicketRevenue + ancillaryTotal) - totalAllExpenses;
 
         // P&L at sellout (without ancillary)
@@ -883,11 +894,16 @@ export default function AdminCreateOfferPage() {
               <div className="offer-potential-row"><span>Net Ticket Revenue:</span><strong>${netTicketRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row"><span>Ancillary Revenue:</span><strong>{fmtDollar(ancillaryTotal)}</strong></div>
               <div style={{ height: 12 }} />
-              <div className="offer-potential-row"><span>Artist Guarantee:</span><strong>${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              {pnlDealType !== "FLAT" && (
+              <div className="offer-potential-row">
+                <span>Artist Guarantee{guaranteeInExpenses ? " (in Show Expenses)" : ""}:</span>
+                <strong style={{ opacity: guaranteeInExpenses ? 0.55 : 1 }}>
+                  ${pnlGuarantee.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </strong>
+              </div>
+              {pnlDealType !== "FLAT" && backendAmount > 0 && (
                 <div className="offer-potential-row"><span>Backend ({pnlDealType}):</span><strong>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               )}
-              <div className="offer-potential-row"><span>Show Expenses:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Show Expenses{guaranteeInExpenses ? " (incl. Talent)" : ""}:</span><strong>${pnlTotalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>Total Expenses:</span>
                 <strong style={{ color: "#ff9a9a" }}>${totalAllExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
