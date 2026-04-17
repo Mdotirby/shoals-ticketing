@@ -88,7 +88,7 @@ function ScanBadge({ scanned, scannedAt }: { scanned: boolean; scannedAt: string
         padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
         background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)",
       }}>
-        ✓ Scanned{scannedAt ? ` · ${new Date(scannedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : ""}
+        Scanned{scannedAt ? ` · ${new Date(scannedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : ""}
       </span>
     );
   }
@@ -261,7 +261,7 @@ export default function OrderDetailPage() {
               transition: "all 0.15s",
             }}
           >
-            {resending ? "Sending…" : "📧 Resend Ticket Email"}
+            {resending ? "Sending…" : "Resend Ticket Email"}
           </button>
         </div>
       </div>
@@ -274,7 +274,7 @@ export default function OrderDetailPage() {
           border: `1px solid ${resendMsg.type === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
           color: resendMsg.type === "success" ? "#22c55e" : "#ef4444",
         }}>
-          {resendMsg.type === "success" ? "✓ " : "✕ "}{resendMsg.text}
+          {resendMsg.text}
         </div>
       )}
 
@@ -298,7 +298,7 @@ export default function OrderDetailPage() {
                   color: "#d0c290", cursor: "pointer",
                 }}
               >
-                ✏️ Edit
+                Edit
               </button>
             )}
           </div>
@@ -467,7 +467,6 @@ export default function OrderDetailPage() {
                     background: "rgba(255,255,255,0.04)", border: "1px dashed rgba(255,255,255,0.1)",
                     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
                   }}>
-                    <span style={{ fontSize: 24 }}>🎟️</span>
                     <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", textAlign: "center" }}>
                       QR auto-generates<br />on resend
                     </span>
@@ -502,7 +501,7 @@ export default function OrderDetailPage() {
           border: `1px solid ${saveMsg.type === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
           color: saveMsg.type === "success" ? "#22c55e" : "#ef4444",
         }}>
-          {saveMsg.type === "success" ? "✓ " : "✕ "}{saveMsg.text}
+          {saveMsg.text}
         </div>
       )}
     </div>
