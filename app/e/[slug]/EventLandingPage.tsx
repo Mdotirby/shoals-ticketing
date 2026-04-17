@@ -148,6 +148,7 @@ function CheckoutForm({
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerZip, setBuyerZip] = useState("");
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoError, setPromoError] = useState("");
@@ -286,6 +287,7 @@ function CheckoutForm({
           buyerName: buyerName.trim(),
           buyerEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
+          buyerZip: buyerZip.trim() || undefined,
           promoCode: promoApplied ? promoCode.trim() : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
         }),
@@ -311,6 +313,7 @@ function CheckoutForm({
               name: buyerName.trim(),
               email: buyerEmail.trim(),
               phone: buyerPhone.trim() || undefined,
+              address: buyerZip.trim() ? { postal_code: buyerZip.trim() } : undefined,
             },
           },
         }
@@ -471,6 +474,21 @@ function CheckoutForm({
           value={buyerPhone}
           onChange={(e) => setBuyerPhone(e.target.value)}
           autoComplete="tel"
+        />
+      </div>
+
+      <div className="lp-checkout-field">
+        <label className="lp-checkout-label" htmlFor="lp-zip">ZIP Code</label>
+        <input
+          id="lp-zip"
+          type="text"
+          inputMode="numeric"
+          className="lp-checkout-input"
+          placeholder="12345"
+          value={buyerZip}
+          onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 10))}
+          autoComplete="postal-code"
+          maxLength={10}
         />
       </div>
 

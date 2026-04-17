@@ -547,7 +547,7 @@ export async function POST(request: Request) {
         customerName: meta.buyer_name || "",
         customerEmail: meta.buyer_email || "",
         customerPhone: meta.buyer_phone || "",
-        customerZip: null,
+        customerZip: meta.buyer_zip || null,
         totalAmount: (paymentIntent.amount || 0) / 100,
         source: "inline_checkout",
         promoCodeId: meta.promo_code_id || null,
