@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import type { Contract } from "@/lib/types/contract";
 
@@ -78,7 +79,31 @@ export default function ContractsListPage() {
   return (
     <div className="admin-form-page">
       <div className="admin-page-header">
-        <h1 className="admin-page-title">Contracts</h1>
+        <div>
+          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+            <span
+              style={{
+                padding: "4px 12px", fontSize: 12, fontWeight: 600,
+                background: "rgba(208,194,144,0.15)", color: "#d0c290",
+                border: "1px solid rgba(208,194,144,0.3)", borderRadius: 6,
+              }}
+            >
+              Artist Contracts
+            </span>
+            <Link
+              href="/admin/co-promote-agreements"
+              style={{
+                padding: "4px 12px", fontSize: 12, fontWeight: 600,
+                background: "transparent", color: "rgba(255,255,255,0.4)",
+                border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6,
+                textDecoration: "none",
+              }}
+            >
+              Co-Promote Agreements
+            </Link>
+          </div>
+          <h1 className="admin-page-title">Contracts</h1>
+        </div>
       </div>
 
       {error && <div className="admin-form-error">{error}</div>}
