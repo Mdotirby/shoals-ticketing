@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
+import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { useIsMobile } from "@/lib/useIsMobile";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null };
 
@@ -135,6 +137,10 @@ export default function AdminEditEventPage() {
   // Trackable links state
   const [trackableLinks, setTrackableLinks] = useState<any[]>([]);
   const [newLink, setNewLink] = useState({ label: "", slug: "", source: "", medium: "", campaign: "", destination_type: "event_page" });
+  const [qrLink, setQrLink] = useState<{ url: string; label: string } | null>(null);
+
+  // Responsive
+  const isMobile = useIsMobile();
   const [creatingLink, setCreatingLink] = useState(false);
   const [expandedLinkId, setExpandedLinkId] = useState<string | null>(null);
   const [linkAnalytics, setLinkAnalytics] = useState<Record<string, any>>({});
@@ -1390,89 +1396,136 @@ export default function AdminEditEventPage() {
                 {trackableLinks.map((link) => (
                   <div key={link.id}>
                     <div style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 12px", borderRadius: 8,
+                      display: "flex",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "stretch" : "center",
+                      gap: isMobile ? 8 : 10,
+                      padding: isMobile ? 12 : "8px 12px", borderRadius: 8,
                       background: "rgba(255,255,255,0.03)",
                       border: "1px solid rgba(255,255,255,0.06)",
-                      flexWrap: "wrap",
+                      flexWrap: isMobile ? "nowrap" : "wrap",
                     }}>
-                      <span style={{ fontWeight: 700, color: "#06b6d4", fontSize: 13, minWidth: 100 }}>{link.label}</span>
-                      <span style={{
-                        fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace",
-                        background: "rgba(6,182,212,0.08)", padding: "2px 8px", borderRadius: 4,
+                      {/* ── Row 1 (mobile) / left cluster (desktop): label + slug + source/medium pills ── */}
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                        flex: isMobile ? "none" : "0 1 auto", minWidth: 0,
                       }}>
-                        /t/{link.slug}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => copyTrackableLink(link.slug, link.id)}
-                        style={{
-                          background: copiedLinkId === link.id ? "rgba(34,197,94,0.15)" : "rgba(6,182,212,0.1)",
-                          border: `1px solid ${copiedLinkId === link.id ? "rgba(34,197,94,0.3)" : "rgba(6,182,212,0.2)"}`,
-                          color: copiedLinkId === link.id ? "#22c55e" : "#06b6d4",
-                          fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 4,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {copiedLinkId === link.id ? "Copied!" : "Copy"}
-                      </button>
-                      {link.source && (
-                        <span style={{
-                          fontSize: 10, color: "rgba(6,182,212,0.8)", background: "rgba(6,182,212,0.1)",
-                          padding: "1px 6px", borderRadius: 10, fontWeight: 600,
-                        }}>
-                          {link.source}
+                        <span style={{ fontWeight: 700, color: "#06b6d4", fontSize: 13, wordBreak: "break-word" }}>
+                          {link.label}
                         </span>
-                      )}
-                      {link.medium && (
                         <span style={{
-                          fontSize: 10, color: "rgba(6,182,212,0.7)", background: "rgba(6,182,212,0.07)",
-                          padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                          fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace",
+                          background: "rgba(6,182,212,0.08)", padding: "2px 8px", borderRadius: 4,
+                          wordBreak: "break-all",
                         }}>
-                          {link.medium}
+                          /t/{link.slug}
                         </span>
-                      )}
-                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: "auto" }}>
+                        {link.source && (
+                          <span style={{
+                            fontSize: 10, color: "rgba(6,182,212,0.8)", background: "rgba(6,182,212,0.1)",
+                            padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                          }}>
+                            {link.source}
+                          </span>
+                        )}
+                        {link.medium && (
+                          <span style={{
+                            fontSize: 10, color: "rgba(6,182,212,0.7)", background: "rgba(6,182,212,0.07)",
+                            padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                          }}>
+                            {link.medium}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* ── Stats (pushed right on desktop, own line on mobile) ── */}
+                      <span style={{
+                        fontSize: 11, color: "rgba(255,255,255,0.4)",
+                        marginLeft: isMobile ? 0 : "auto",
+                        whiteSpace: "nowrap",
+                      }}>
                         {link.clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => toggleLinkActive(link.id, link.is_active !== false)}
-                        style={{
-                          background: link.is_active !== false ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
-                          border: `1px solid ${link.is_active !== false ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
-                          color: link.is_active !== false ? "#22c55e" : "rgba(255,255,255,0.4)",
-                          fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {link.is_active !== false ? "Active" : "Off"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextId = expandedLinkId === link.id ? null : link.id;
-                          setExpandedLinkId(nextId);
-                          if (nextId) loadLinkAnalytics(nextId);
-                        }}
-                        style={{
-                          background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)",
-                          color: "#06b6d4", fontSize: 10, fontWeight: 600, padding: "2px 6px",
-                          borderRadius: 4, cursor: "pointer",
-                        }}
-                      >
-                        {expandedLinkId === link.id ? "▲" : "▼"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => deleteTrackableLink(link.id)}
-                        style={{
-                          background: "transparent", border: "none",
-                          color: "rgba(255,107,107,0.7)", cursor: "pointer", fontSize: 14,
-                        }}
-                      >
-                        ✕
-                      </button>
+
+                      {/* ── Actions row ── */}
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                        justifyContent: isMobile ? "flex-start" : undefined,
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => copyTrackableLink(link.slug, link.id)}
+                          style={{
+                            background: copiedLinkId === link.id ? "rgba(34,197,94,0.15)" : "rgba(6,182,212,0.1)",
+                            border: `1px solid ${copiedLinkId === link.id ? "rgba(34,197,94,0.3)" : "rgba(6,182,212,0.2)"}`,
+                            color: copiedLinkId === link.id ? "#22c55e" : "#06b6d4",
+                            fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {copiedLinkId === link.id ? "Copied!" : "Copy"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQrLink({
+                            url: `${window.location.origin}/t/${link.slug}`,
+                            label: link.label,
+                          })}
+                          style={{
+                            background: "rgba(6,182,212,0.1)",
+                            border: "1px solid rgba(6,182,212,0.2)",
+                            color: "#06b6d4",
+                            fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
+                            cursor: "pointer",
+                          }}
+                        >
+                          QR
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleLinkActive(link.id, link.is_active !== false)}
+                          style={{
+                            background: link.is_active !== false ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                            border: `1px solid ${link.is_active !== false ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                            color: link.is_active !== false ? "#22c55e" : "rgba(255,255,255,0.4)",
+                            fontSize: 10, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 6px", borderRadius: 4,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {link.is_active !== false ? "Active" : "Off"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextId = expandedLinkId === link.id ? null : link.id;
+                            setExpandedLinkId(nextId);
+                            if (nextId) loadLinkAnalytics(nextId);
+                          }}
+                          style={{
+                            background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)",
+                            color: "#06b6d4", fontSize: 10, fontWeight: 600,
+                            padding: isMobile ? "6px 10px" : "2px 6px",
+                            borderRadius: 4, cursor: "pointer",
+                          }}
+                        >
+                          {expandedLinkId === link.id ? "▲ Stats" : "▼ Stats"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => deleteTrackableLink(link.id)}
+                          style={{
+                            background: "transparent",
+                            border: isMobile ? "1px solid rgba(255,107,107,0.2)" : "none",
+                            color: "rgba(255,107,107,0.7)", cursor: "pointer",
+                            fontSize: 14,
+                            padding: isMobile ? "6px 10px" : 0,
+                            borderRadius: 4,
+                            marginLeft: isMobile ? "auto" : 0,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
 
                     {/* Expanded Analytics Dashboard */}
@@ -1493,7 +1546,9 @@ export default function AdminEditEventPage() {
                           return (
                             <>
                               <div style={{
-                                display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginBottom: 14,
+                                display: "grid",
+                                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)",
+                                gap: isMobile ? 8 : 10, marginBottom: 14,
                               }}>
                                 {[
                                   { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
@@ -1549,8 +1604,13 @@ export default function AdminEditEventPage() {
             )}
 
             {/* Add new trackable link */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 160px" }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(140px, 1fr))",
+              gap: 8,
+              alignItems: "flex-end",
+            }}>
+              <div style={{ gridColumn: isMobile ? "1 / -1" : undefined }}>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Label</label>
                 <input
                   type="text"
@@ -1560,7 +1620,7 @@ export default function AdminEditEventPage() {
                   placeholder="e.g. Facebook Ad - Spring Show"
                 />
               </div>
-              <div style={{ flex: "0 0 140px" }}>
+              <div>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
                 <input
                   type="text"
@@ -1570,7 +1630,7 @@ export default function AdminEditEventPage() {
                   placeholder="auto-generated"
                 />
               </div>
-              <div style={{ flex: "0 0 120px" }}>
+              <div>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Source</label>
                 <select
                   className="admin-form-input"
@@ -1583,7 +1643,7 @@ export default function AdminEditEventPage() {
                   ))}
                 </select>
               </div>
-              <div style={{ flex: "0 0 100px" }}>
+              <div>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Medium</label>
                 <input
                   type="text"
@@ -1593,7 +1653,7 @@ export default function AdminEditEventPage() {
                   placeholder="e.g. paid"
                 />
               </div>
-              <div style={{ flex: "0 0 100px" }}>
+              <div>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Campaign</label>
                 <input
                   type="text"
@@ -1603,7 +1663,7 @@ export default function AdminEditEventPage() {
                   placeholder="optional"
                 />
               </div>
-              <div style={{ flex: "0 0 140px" }}>
+              <div>
                 <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Destination</label>
                 <select
                   className="admin-form-input"
@@ -1619,10 +1679,11 @@ export default function AdminEditEventPage() {
                 disabled={creatingLink || !newLink.label.trim() || !newLink.slug.trim()}
                 onClick={createTrackableLink}
                 style={{
-                  padding: "8px 14px", borderRadius: 8,
+                  gridColumn: isMobile ? "1 / -1" : undefined,
+                  padding: isMobile ? "12px 14px" : "8px 14px", borderRadius: 8,
                   border: "1px solid rgba(6,182,212,0.3)",
                   background: "rgba(6,182,212,0.1)",
-                  color: "#06b6d4", fontSize: 12, fontWeight: 600,
+                  color: "#06b6d4", fontSize: 13, fontWeight: 600,
                   cursor: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? "not-allowed" : "pointer",
                   opacity: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? 0.5 : 1,
                   whiteSpace: "nowrap",
@@ -1763,6 +1824,16 @@ export default function AdminEditEventPage() {
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
           aspect={16 / 9}
+        />
+      )}
+
+      {/* Trackable Link QR modal */}
+      {qrLink && (
+        <TrackableLinkQRModal
+          url={qrLink.url}
+          label={qrLink.label}
+          eventTitle={form.title}
+          onClose={() => setQrLink(null)}
         />
       )}
     </div>
