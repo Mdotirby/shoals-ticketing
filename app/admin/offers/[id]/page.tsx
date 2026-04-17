@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
@@ -130,13 +130,80 @@ export default function AdminOfferDetailPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  // ── Live-computed financials (recalculate whenever tiers/expenses/tax change) ──
+  const live = useMemo(() => {
+    const scaling = Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number>> : [];
+    const fixedExp = Array.isArray(form.fixed_expenses) ? form.fixed_expenses as Array<{ amount: number }> : [];
+    const varExp = Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{ rate: number; amount: number }> : [];
+
+    const grossPotential = scaling.reduce((s, r) => s + (Number(r.sellable_cap) || 0) * (Number(r.price) || 0), 0);
+    const totalFees = scaling.reduce((s, r) => s + ((Number(r.ticketing_fee) || 0) + (Number(r.facility_fee) || 0)) * (Number(r.sellable_cap) || 0), 0);
+    const adjGross = grossPotential - totalFees;
+
+    const rawTaxRate = Number(form.tax_rate) || 0;
+    const taxRatePct = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
+    const taxRateDecimal = taxRatePct / 100;
+    const taxMethod = (form.tax_method as string) || "divisor";
+
+    let netPotential: number;
+    let taxAmount: number;
+    if (taxMethod === "divisor") {
+      netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
+      taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
+    } else {
+      taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
+      netPotential = Math.round((adjGross - taxAmount) * 100) / 100;
+    }
+
+    const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    // Variable expenses amount is stored (rate × gross_potential at save time), but for live display
+    // we recompute it from the live gross so editing tiers updates these too.
+    const totalVariable = varExp.reduce((s, e) => s + ((Number(e.rate) || 0) * grossPotential), 0);
+    const totalExpenses = totalFixed + totalVariable;
+
+    const splitpoint = Math.max(netPotential - totalExpenses, 0);
+
+    return {
+      grossPotential,
+      adjGross,
+      taxRatePct,
+      taxAmount,
+      netPotential,
+      totalFixed,
+      totalVariable,
+      totalExpenses,
+      splitpoint,
+    };
+  }, [form.ticket_scaling, form.fixed_expenses, form.variable_expenses, form.tax_rate, form.tax_method]);
+
+  // Merge live-computed derived totals into form state before saving so the
+  // database always has the up-to-date totals/splitpoint/net_potential/etc.
+  const buildSavePayload = (overrides: Record<string, unknown> = {}) => ({
+    ...form,
+    gross_potential: live.grossPotential,
+    adj_gross: live.adjGross,
+    net_potential: live.netPotential,
+    tax_amount: live.taxAmount,
+    total_fixed: live.totalFixed,
+    total_variable: live.totalVariable,
+    total_expenses: live.totalExpenses,
+    splitpoint: live.splitpoint,
+    // Re-sync variable expense amounts so stored amounts match live display
+    variable_expenses: (Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<Record<string, unknown>> : [])
+      .map((e) => ({
+        ...e,
+        amount: Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100,
+      })),
+    ...overrides,
+  });
+
   const handleSave = async () => {
     setSaving(true); setError(""); setSuccess("");
     try {
       const res = await fetch(`/api/offers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(buildSavePayload()),
       });
       if (!res.ok) throw new Error("Save failed");
       const updated = await res.json();
@@ -153,7 +220,7 @@ export default function AdminOfferDetailPage() {
       const res = await fetch(`/api/offers/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, status }),
+        body: JSON.stringify(buildSavePayload({ status })),
       });
       if (!res.ok) throw new Error("Failed");
       const updated = await res.json();
@@ -255,15 +322,15 @@ export default function AdminOfferDetailPage() {
         ticket_scaling: form.ticket_scaling as TicketScalingRow[],
         fixed_expenses: form.fixed_expenses as ExpenseItem[],
         variable_expenses: form.variable_expenses as VariableExpenseItem[],
-        total_fixed: form.total_fixed as number,
-        total_variable: form.total_variable as number,
-        total_expenses: form.total_expenses as number,
-        gross_potential: form.gross_potential as number,
-        adj_gross: form.adj_gross as number,
+        total_fixed: live.totalFixed,
+        total_variable: live.totalVariable,
+        total_expenses: live.totalExpenses,
+        gross_potential: live.grossPotential,
+        adj_gross: live.adjGross,
         tax_rate: form.tax_rate as number,
         tax_method: (form.tax_method as "divisor" | "multiplier") || "divisor",
-        net_potential: form.net_potential as number,
-        splitpoint: form.splitpoint as number,
+        net_potential: live.netPotential,
+        splitpoint: live.splitpoint,
         artist_backend: form.artist_backend as number,
         offer_valid_days: form.offer_valid_days as number,
       }, venue);
@@ -459,13 +526,29 @@ export default function AdminOfferDetailPage() {
           </div>
           <div className="offer-expenses-col">
             <h3 className="offer-expenses-heading">Variable Expenses</h3>
-            {(Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{name: string; rate: number; amount: number}> : []).map((e, i) => (
-              <div key={i} className="offer-expense-row">
-                <span className="offer-var-name">{e.name}</span>
-                <input type="number" className="admin-form-input" style={{ width: 80 }} value={e.rate} onChange={(ev) => { const v = [...(form.variable_expenses as Array<Record<string, unknown>>)]; const rate = parseFloat(ev.target.value) || 0; v[i] = { ...v[i], rate, amount: Math.round(Number(form.gross_potential || 0) * rate * 100) / 100 }; updateField("variable_expenses", v); }} step="0.0001" />
-                <span className="offer-var-amount">${e.amount?.toFixed(2)}</span>
-              </div>
-            ))}
+            {(Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{name: string; rate: number; amount: number}> : []).map((e, i) => {
+              // Live amount = rate × current gross potential (not the stored stale value)
+              const liveAmount = Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100;
+              return (
+                <div key={i} className="offer-expense-row">
+                  <span className="offer-var-name">{e.name}</span>
+                  <input
+                    type="number"
+                    className="admin-form-input"
+                    style={{ width: 80 }}
+                    value={e.rate}
+                    onChange={(ev) => {
+                      const v = [...(form.variable_expenses as Array<Record<string, unknown>>)];
+                      const rate = parseFloat(ev.target.value) || 0;
+                      v[i] = { ...v[i], rate, amount: Math.round(live.grossPotential * rate * 100) / 100 };
+                      updateField("variable_expenses", v);
+                    }}
+                    step="0.0001"
+                  />
+                  <span className="offer-var-amount">${liveAmount.toFixed(2)}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -475,33 +558,34 @@ export default function AdminOfferDetailPage() {
         <h2 className="admin-form-section-title">Financials</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${Number(form.gross_potential || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Net Potential:</span><strong>${Number(form.net_potential || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${Number(form.total_expenses || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${live.grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Tax ({live.taxRatePct.toFixed(2)}%):</span><strong>${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${Number(form.splitpoint || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${live.splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type === "VS" && (() => {
-              const sp = Number(form.splitpoint || 0);
               const bp = Number(form.backend_percentage || 0) / 100;
-              const artistTotal = sp * bp;
-              const backendVS = Math.max(artistTotal - Number(form.guarantee || 0), 0);
+              const backendCalc = live.splitpoint * bp;
+              const artistTotal = Math.max(Number(form.guarantee || 0), backendCalc);
+              const backendVS = Math.max(backendCalc - Number(form.guarantee || 0), 0);
               return <>
                 <div className="offer-potential-row"><span>Backend (VS):</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                 <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>;
             })()}
-            {form.deal_type === "PLUS" && (() => {
-              const sp = Number(form.splitpoint || 0);
+            {(form.deal_type === "PLUS" || form.deal_type === "BONUS") && (() => {
               const bp = Number(form.backend_percentage || 0) / 100;
-              const backendPlus = sp * bp;
+              const backendPlus = live.splitpoint * bp;
               const artistTotal = Number(form.guarantee || 0) + backendPlus;
               return <>
-                <div className="offer-potential-row"><span>Backend (PLUS):</span><strong>${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                 <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>;
             })()}
@@ -921,7 +1005,9 @@ export default function AdminOfferDetailPage() {
         const guarantee = Number(form.guarantee) || 0;
         const backendPct = Number(form.backend_percentage) || 0;
         const dealType = String(form.deal_type || "FLAT");
-        const splitpoint = Number(form.splitpoint) || 0;
+        // Splitpoint is always (netPotential − totalExpenses), computed live so it updates
+        // whenever tiers/expenses/tax change.
+        const splitpoint = Math.max(netPotential - totalExpenses, 0);
 
         // Artist backend calculation (mirrors details tab logic)
         let backendAmount = 0;
