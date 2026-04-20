@@ -324,15 +324,24 @@ export default function AdminCreateEventPage() {
 
       const event = await res.json();
 
+      // Resolve the facility fee amount to persist on the event_venue row.
+      // The checkbox toggles events.facility_fee_enabled; the $ amount lives
+      // on event_venues.facility_fee and is read back at checkout + landing.
+      const facilityFeeAmount = (isHardTicket && !isFree && facilityFeeEnabled)
+        ? Math.max(0, Number(selectedVenueFees.facility_fee ?? 0) || 0)
+        : null;
+
+      const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+      const supabase = getSupabaseBrowser();
+
       // Auto-save manually typed venue to event_venues table
       if (!selectedEventVenueId && form.venue.trim()) {
-        const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
-        const supabase = getSupabaseBrowser();
         const { data: newVenue } = await supabase
           .from("event_venues")
           .insert({
             name: form.venue.trim(),
             full_address: form.venue_address.trim() || null,
+            facility_fee: facilityFeeAmount ?? 0,
           })
           .select("id")
           .single();
@@ -343,6 +352,18 @@ export default function AdminCreateEventPage() {
             .from("events")
             .update({ event_venue_id: newVenue.id })
             .eq("id", event.id);
+        }
+      } else if (selectedEventVenueId && facilityFeeAmount !== null) {
+        // Update the chosen venue's facility fee so the landing page /
+        // checkout intent picks it up for this event.
+        try {
+          await supabase
+            .from("event_venues")
+            .update({ facility_fee: facilityFeeAmount })
+            .eq("id", selectedEventVenueId);
+        } catch (feeErr) {
+          console.error("Failed to persist facility_fee on event_venue:", feeErr);
+          // Non-fatal — event itself was created successfully.
         }
       }
 
@@ -874,8 +895,8 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
-        {/* ── Facility Fee Toggle (only for hard ticket events with a venue selected) ── */}
-        {isHardTicket && selectedEventVenueId && !isFree && (
+        {/* ── Facility Fee Toggle + Amount (only for hard ticket events) ── */}
+        {isHardTicket && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
             background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
@@ -893,10 +914,32 @@ export default function AdminCreateEventPage() {
                 onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
                 style={{ width: 18, height: 18, accentColor: "#22c55e" }}
               />
-              Apply Facility Fee{selectedVenueFees.facility_fee != null && selectedVenueFees.facility_fee > 0 ? ` — $${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket` : ""}
+              Apply Facility Fee
             </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, the venue&apos;s facility fee will be added to each ticket sold.
+            {facilityFeeEnabled && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>Amount per ticket</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="admin-form-input"
+                  style={{ width: 110, padding: "6px 10px", fontSize: 13 }}
+                  value={selectedVenueFees.facility_fee ?? 0}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    setSelectedVenueFees({ facility_fee: isNaN(v) ? 0 : v });
+                  }}
+                  placeholder="0.00"
+                />
+                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
+                  Saved on the venue; applies to this and future events here.
+                </span>
+              </div>
+            )}
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+              When enabled, this amount is added to each ticket and shown to buyers as a line item.
             </p>
           </div>
         )}

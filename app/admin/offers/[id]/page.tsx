@@ -503,8 +503,36 @@ export default function AdminOfferDetailPage() {
           {(Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : []).map((r, i) => (
             <div key={i} className="admin-tier-row">
               <input type="text" className="admin-form-input admin-tier-input" value={String(r.name || "")} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], name: e.target.value }; updateField("ticket_scaling", s); }} placeholder="Tier name" />
-              <input type="number" className="admin-form-input admin-tier-input" value={r.seats || ""} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; const v = parseInt(e.target.value) || 0; s[i] = { ...s[i], seats: v, sellable_cap: v - Number(s[i].comps || 0) - Number(s[i].kills || 0) }; updateField("ticket_scaling", s); }} placeholder="Seats" />
-              <input type="number" className="admin-form-input admin-tier-input admin-tier-price" value={r.net_price || ""} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], net_price: parseFloat(e.target.value) || 0 }; updateField("ticket_scaling", s); }} placeholder="Net $" step="0.01" />
+              <input type="number" className="admin-form-input admin-tier-input" value={r.seats || ""} onChange={(e) => {
+                const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
+                const v = parseInt(e.target.value) || 0;
+                const ff = Number(s[i].facility_fee || 0);
+                const tf = Number(s[i].ticketing_fee || 0);
+                const np = Number(s[i].net_price || 0);
+                s[i] = {
+                  ...s[i],
+                  seats: v,
+                  sellable_cap: v - Number(s[i].comps || 0) - Number(s[i].kills || 0),
+                  // Keep price in sync so live revenue reflects current fees
+                  price: np + ff + tf,
+                };
+                updateField("ticket_scaling", s);
+              }} placeholder="Seats" />
+              <input type="number" className="admin-form-input admin-tier-input admin-tier-price" value={r.net_price || ""} onChange={(e) => {
+                const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
+                const np = parseFloat(e.target.value) || 0;
+                const ff = Number(s[i].facility_fee || 0);
+                const tf = Number(s[i].ticketing_fee || 0);
+                s[i] = {
+                  ...s[i],
+                  net_price: np,
+                  // price = net price + facility fee + ticketing fee. Keeping
+                  // this in sync is what makes gross potential update live as
+                  // the user types (the `live` memo reads r.price).
+                  price: np + ff + tf,
+                };
+                updateField("ticket_scaling", s);
+              }} placeholder="Net $" step="0.01" />
               <span className="offer-calc-cell" style={{ minWidth: 50, fontSize: 12 }}>{r.sellable_cap || 0} sell</span>
             </div>
           ))}

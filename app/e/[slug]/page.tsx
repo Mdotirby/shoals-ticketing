@@ -272,6 +272,11 @@ export default async function LandingPage({ params }: Props) {
       attendeeCount={orderCount || 0}
       featuredArtists={featuredArtists}
       venueInfo={venueInfo}
+      fees={{
+        ticketingFee: fees.ticketing_fee,
+        facilityFee: fees.facility_fee,
+        taxRate: fees.tax_rate,
+      }}
     />
   );
 }

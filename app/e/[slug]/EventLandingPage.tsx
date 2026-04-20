@@ -55,13 +55,25 @@ type VenueInfo = {
   directions_transit?: string;
 };
 
+type Fees = {
+  ticketingFee: number;   // flat dollars per ticket
+  facilityFee: number;    // flat dollars per ticket
+  taxRate: number;        // decimal (e.g. 0.095)
+};
+
 type Props = {
   event: EventData;
   ticketTypes: TicketType[];
   attendeeCount: number;
   featuredArtists?: FeaturedArtist[];
   venueInfo?: VenueInfo;
+  fees?: Fees;
 };
+
+// Stripe charges 2.9% + $0.30 per transaction — keep aligned with
+// app/e/[slug]/page.tsx and OrderSummary.tsx.
+const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_FLAT_FEE = 0.3;
 
 type OrderDetails = {
   subtotal: number;
@@ -141,6 +153,8 @@ function CheckoutForm({
   displayPrice: number;
   isFree: boolean;
   onBack: () => void;
+  /** Currently only consumed by the parent's itemized summary block. */
+  fees?: Fees;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -627,7 +641,10 @@ function CheckoutForm({
 
 // ── Main Landing Page Component ──────────────────────────────────────────────
 
-export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo }: Props) {
+export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees }: Props) {
+  // Fall back to sensible defaults if the server didn't pass fees (older
+  // callers / unit tests).
+  const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
   const [selectedTierId, setSelectedTierId] = useState(ticketTypes[0]?.id ?? "");
@@ -909,11 +926,60 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         >
           <div className="lp-checkout-section-inner">
             <h2 className="lp-checkout-heading">Checkout</h2>
-            <p className="lp-checkout-summary">
-              {quantity} &times; {selectedTier?.name ?? "Ticket"} &middot;{" "}
-              {!isFree && <strong>${(displayPrice * quantity).toFixed(2)}</strong>}
-              {isFree && <strong>Free</strong>}
-            </p>
+
+            {/* Itemized order summary — matches server-side pricing in
+                app/e/[slug]/page.tsx so buyers can see exactly what they
+                owe, including any facility fee. */}
+            {!isFree && selectedTier && (() => {
+              const basePrice = selectedTier.basePrice || 0;
+              const subtotal = basePrice * quantity;
+              const totalTicketingFee = resolvedFees.ticketingFee * quantity;
+              const totalFacilityFee = resolvedFees.facilityFee * quantity;
+              const taxPerTicket = Math.round(basePrice * resolvedFees.taxRate * 100) / 100;
+              const totalTax = taxPerTicket * quantity;
+              const preStripe = subtotal + totalTicketingFee + totalFacilityFee + totalTax;
+              const processingFee = Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+              const total = preStripe + processingFee;
+              const row = (label: string, value: number, accent = false): React.ReactNode => (
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: accent ? 16 : 13,
+                    fontWeight: accent ? 700 : 500,
+                    color: accent ? "#ffffff" : "rgba(255,255,255,0.72)",
+                    padding: "4px 0",
+                  }}
+                >
+                  <span>{label}</span>
+                  <span>${value.toFixed(2)}</span>
+                </div>
+              );
+              return (
+                <div
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 12,
+                    padding: "14px 16px",
+                    marginBottom: 20,
+                  }}
+                >
+                  {row(`${selectedTier.name ?? "Ticket"}${quantity > 1 ? ` \u00d7 ${quantity}` : ""}`, subtotal)}
+                  {totalTicketingFee > 0 && row("Ticketing service fee", totalTicketingFee)}
+                  {totalFacilityFee > 0 && row("Facility fee", totalFacilityFee)}
+                  {totalTax > 0 && row("Sales tax", totalTax)}
+                  {processingFee > 0 && row("Processing fee", processingFee)}
+                  <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
+                  {row("Total", total, true)}
+                </div>
+              );
+            })()}
+            {isFree && (
+              <p className="lp-checkout-summary">
+                {quantity} &times; {selectedTier?.name ?? "Ticket"} &middot; <strong>Free</strong>
+              </p>
+            )}
 
             <Elements
               stripe={stripePromise}
@@ -929,6 +995,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 displayPrice={displayPrice}
                 isFree={isFree}
                 onBack={handleBackFromCheckout}
+                fees={resolvedFees}
               />
             </Elements>
           </div>

@@ -543,6 +543,27 @@ export default function AdminEditEventPage() {
         throw new Error(data.error || "Failed to update event");
       }
 
+      // 1b. Persist the facility-fee amount on the linked event_venue so it
+      // flows into the landing page, order summary, and checkout intent. The
+      // "Apply Facility Fee" toggle only sets events.facility_fee_enabled;
+      // the actual dollar amount lives on event_venues.facility_fee.
+      if (isHardTicket && !isFree && selectedEventVenueId && facilityFeeEnabled) {
+        const amount = Number(selectedVenueFees.facility_fee ?? 0);
+        if (!isNaN(amount) && amount >= 0) {
+          try {
+            const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+            const supabase = getSupabaseBrowser();
+            await supabase
+              .from("event_venues")
+              .update({ facility_fee: amount })
+              .eq("id", selectedEventVenueId);
+          } catch (feeErr) {
+            console.error("Failed to persist facility_fee on event_venue:", feeErr);
+            // Non-fatal — event itself was updated successfully.
+          }
+        }
+      }
+
       // 2. Replace tiers (only for hard ticket)
       if (isHardTicket) {
         const tiersRes = await fetch(`/api/events/${id}/ticket-types`, {
@@ -1042,7 +1063,7 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
-        {/* ── Facility Fee Toggle (only for hard ticket events with a venue selected) ── */}
+        {/* ── Facility Fee Toggle + Amount (only for hard ticket events with a venue selected) ── */}
         {isHardTicket && selectedEventVenueId && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
@@ -1061,10 +1082,32 @@ export default function AdminEditEventPage() {
                 onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
                 style={{ width: 18, height: 18, accentColor: "#22c55e" }}
               />
-              Apply Facility Fee{selectedVenueFees.facility_fee != null && selectedVenueFees.facility_fee > 0 ? ` — $${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket` : ""}
+              Apply Facility Fee
             </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, the venue&apos;s facility fee will be added to each ticket sold.
+            {facilityFeeEnabled && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>Amount per ticket</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="admin-form-input"
+                  style={{ width: 110, padding: "6px 10px", fontSize: 13 }}
+                  value={selectedVenueFees.facility_fee ?? 0}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    setSelectedVenueFees({ facility_fee: isNaN(v) ? 0 : v });
+                  }}
+                  placeholder="0.00"
+                />
+                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
+                  Saved to the venue; applies to this and future events here.
+                </span>
+              </div>
+            )}
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+              When enabled, this amount is added to each ticket and shown to buyers as a line item.
             </p>
           </div>
         )}

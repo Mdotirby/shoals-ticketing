@@ -1,0 +1,33 @@
+-- Back-fill helper for event_venues.facility_fee
+--
+-- CONTEXT:
+-- The "Apply Facility Fee" checkbox on the event new/edit pages only toggled
+-- events.facility_fee_enabled. The actual per-ticket amount lives on
+-- event_venues.facility_fee, which had no UI and therefore defaulted to $0.
+-- Any events whose buyers you expect to pay a facility fee need the amount
+-- set on the corresponding event_venue row.
+--
+-- The admin UI now exposes an editable dollar input tied to this column, so
+-- from here forward every saved event will keep event_venues.facility_fee in
+-- sync. This script is a one-time helper for venues that were created
+-- before the fix.
+--
+-- USAGE:
+-- 1) List your venues so you can see what's currently stored:
+--       SELECT id, name, facility_fee, ticketing_fee FROM event_venues
+--       ORDER BY name;
+--
+-- 2) Set a fee on a specific venue (uncomment + edit):
+--       UPDATE event_venues
+--         SET facility_fee = 2.00
+--         WHERE name = 'Renaissance Shoals';
+--
+-- 3) Or bulk-apply a default to any venue that is still at $0:
+--       UPDATE event_venues
+--         SET facility_fee = 2.00
+--         WHERE facility_fee IS NULL OR facility_fee = 0;
+--
+-- Run in Supabase SQL Editor. Idempotent.
+
+-- No-op by default. Uncomment and adjust to your venue(s) / amount(s).
+-- UPDATE event_venues SET facility_fee = 2.00 WHERE name = 'REPLACE ME';
