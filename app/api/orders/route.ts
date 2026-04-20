@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   let query = admin
     .from("orders")
-    .select("*, events!inner(title, venue, venue_id)")
+    .select("*, events!inner(title, venue, venue_id), promo_codes(code, discount_type, discount_value)")
     .order("created_at", { ascending: false })
     .limit(2000);
 

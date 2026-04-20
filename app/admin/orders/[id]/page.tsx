@@ -13,6 +13,13 @@ type Order = {
   quantity: number;
   total_amount: number;
   created_at: string;
+  source?: string | null;
+  promo_code_id?: string | null;
+  promo_codes?: {
+    code: string;
+    discount_type: "fixed" | "percentage";
+    discount_value: string | number;
+  } | null;
 };
 
 type ViewStats = {
@@ -29,6 +36,27 @@ type EventInfo = {
   date: string;
 };
 
+function SourceBadge({ source }: { source: string | null }) {
+  const src = (source || "online").toLowerCase();
+  const palette: Record<string, { bg: string; color: string; border: string; label: string }> = {
+    online:        { bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
+    box_office:    { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "rgba(251,191,36,0.3)", label: "Box Office" },
+    inline_checkout:{bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
+    comp:          { bg: "rgba(34,197,94,0.12)",  color: "#22c55e", border: "rgba(34,197,94,0.35)", label: "Comp" },
+  };
+  const p = palette[src] ?? palette.online;
+  return (
+    <span style={{
+      display: "inline-block", padding: "2px 8px", borderRadius: 6,
+      fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+      background: p.bg, color: p.color, border: `1px solid ${p.border}`,
+      whiteSpace: "nowrap",
+    }}>
+      {p.label}
+    </span>
+  );
+}
+
 export default function EventSalesDetailPage() {
   const { id } = useParams() as { id: string };
   const [event, setEvent] = useState<EventInfo | null>(null);
@@ -36,6 +64,57 @@ export default function EventSalesDetailPage() {
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+
+  // ── "Issue Comp Tickets" modal state ───────────────────────────────────────
+  const [compOpen, setCompOpen] = useState(false);
+  const [compName, setCompName] = useState("");
+  const [compEmail, setCompEmail] = useState("");
+  const [compPhone, setCompPhone] = useState("");
+  const [compQty, setCompQty] = useState("1");
+  const [compNote, setCompNote] = useState("");
+  const [compSaving, setCompSaving] = useState(false);
+  const [compError, setCompError] = useState<string | null>(null);
+  const [compSuccess, setCompSuccess] = useState<string | null>(null);
+
+  const resetCompForm = () => {
+    setCompName(""); setCompEmail(""); setCompPhone(""); setCompQty("1");
+    setCompNote(""); setCompError(null); setCompSuccess(null);
+  };
+
+  const submitComp = async () => {
+    setCompError(null);
+    setCompSuccess(null);
+    if (!compName.trim()) { setCompError("Name is required."); return; }
+    if (!compEmail.trim() || !compEmail.includes("@")) { setCompError("Valid email is required."); return; }
+    const qty = Math.max(1, Math.min(50, parseInt(compQty, 10) || 1));
+    setCompSaving(true);
+    try {
+      const res = await fetch("/api/admin/comps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: id,
+          buyer_name: compName.trim(),
+          buyer_email: compEmail.trim(),
+          buyer_phone: compPhone.trim() || undefined,
+          quantity: qty,
+          note: compNote.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to issue comp tickets");
+      setCompSuccess(`${qty} comp ticket${qty > 1 ? "s" : ""} issued & emailed to ${compEmail.trim()}.`);
+      // Refresh the orders list so the new comp shows up immediately
+      const refreshed = await fetch(`/api/orders?event_id=${id}`).then((r) => r.json());
+      if (Array.isArray(refreshed)) setOrders(refreshed);
+      // Clear the form but keep the modal open so the user sees the success msg
+      setCompName(""); setCompEmail(""); setCompPhone(""); setCompQty("1"); setCompNote("");
+    } catch (err: unknown) {
+      setCompError(err instanceof Error ? err.message : "Failed to issue comp tickets");
+    } finally {
+      setCompSaving(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -160,6 +239,17 @@ export default function EventSalesDetailPage() {
           )}
         </div>
         <div className="admin-page-header-actions">
+          <button
+            className="admin-header-btn"
+            style={{
+              background: "rgba(34,197,94,0.1)",
+              borderColor: "rgba(34,197,94,0.35)",
+              color: "#4ade80",
+            }}
+            onClick={() => { resetCompForm(); setCompOpen(true); }}
+          >
+            + Issue Comp Tickets
+          </button>
           {orders.length > 0 && (
             <button className="admin-header-btn" onClick={() => setShowPreview(true)}>
               Print Orders Report
@@ -235,6 +325,8 @@ export default function EventSalesDetailPage() {
                   <th>Phone</th>
                   <th>Qty</th>
                   <th>Total</th>
+                  <th>Promo</th>
+                  <th>Source</th>
                   <th>Date</th>
                   <th></th>
                 </tr>
@@ -247,6 +339,25 @@ export default function EventSalesDetailPage() {
                     <td>{o.customer_phone || "—"}</td>
                     <td>{o.quantity || 1}</td>
                     <td>${(o.total_amount || 0).toFixed(2)}</td>
+                    <td>
+                      {o.promo_codes?.code ? (
+                        <span style={{
+                          display: "inline-block", padding: "2px 8px", borderRadius: 6,
+                          fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+                          background: "rgba(168,85,247,0.12)",
+                          border: "1px solid rgba(168,85,247,0.3)",
+                          color: "#c084fc",
+                        }}>
+                          {o.promo_codes.code}
+                          {o.promo_codes.discount_type === "percentage"
+                            ? ` (${Number(o.promo_codes.discount_value)}%)`
+                            : ` ($${Number(o.promo_codes.discount_value).toFixed(2)})`}
+                        </span>
+                      ) : (
+                        <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>
+                      )}
+                    </td>
+                    <td><SourceBadge source={o.source ?? null} /></td>
                     <td>
                       {new Date(o.created_at).toLocaleDateString("en-US", {
                         month: "short", day: "numeric", year: "numeric",
@@ -280,7 +391,7 @@ export default function EventSalesDetailPage() {
                   <td colSpan={3} style={{ fontWeight: 700, color: "#d0c290" }}>Gross Receipts</td>
                   <td style={{ fontWeight: 700, color: "#d0c290" }}>{totalTickets}</td>
                   <td style={{ fontWeight: 700, color: "#d0c290" }}>${totalRevenue.toFixed(2)}</td>
-                  <td /><td />
+                  <td /><td /><td /><td />
                 </tr>
               </tfoot>
             </table>
@@ -299,6 +410,132 @@ export default function EventSalesDetailPage() {
           onDownload={exportOrdersPDF}
           onClose={() => setShowPreview(false)}
         />
+      )}
+
+      {/* ── Issue Comp Tickets Modal ─────────────────────────────────────── */}
+      {compOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => !compSaving && setCompOpen(false)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%", maxWidth: 480,
+              background: "#131629",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 14,
+              padding: 24,
+            }}
+          >
+            <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 800, color: "#fff" }}>
+              Issue Comp Tickets
+            </h2>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
+              Generates a $0 order with QR tickets and emails them to the recipient —
+              same flow as any paid checkout. Tracked as <strong style={{ color: "#4ade80" }}>source = comp</strong>.
+            </p>
+
+            {compError && (
+              <div className="admin-form-error" style={{ marginBottom: 14 }}>{compError}</div>
+            )}
+            {compSuccess && (
+              <div className="admin-form-success" style={{ marginBottom: 14 }}>{compSuccess}</div>
+            )}
+
+            <div style={{ display: "grid", gap: 12 }}>
+              <label className="admin-form-label">
+                Full Name
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={compName}
+                  onChange={(e) => setCompName(e.target.value)}
+                  placeholder="Jane Doe"
+                  disabled={compSaving}
+                />
+              </label>
+              <label className="admin-form-label">
+                Email
+                <input
+                  type="email"
+                  className="admin-form-input"
+                  value={compEmail}
+                  onChange={(e) => setCompEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  disabled={compSaving}
+                />
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
+                <label className="admin-form-label">
+                  Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span>
+                  <input
+                    type="tel"
+                    className="admin-form-input"
+                    value={compPhone}
+                    onChange={(e) => setCompPhone(e.target.value)}
+                    placeholder="(555) 123-4567"
+                    disabled={compSaving}
+                  />
+                </label>
+                <label className="admin-form-label">
+                  Quantity
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    className="admin-form-input"
+                    value={compQty}
+                    onChange={(e) => setCompQty(e.target.value)}
+                    disabled={compSaving}
+                  />
+                </label>
+              </div>
+              <label className="admin-form-label">
+                Internal Note <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span>
+                <input
+                  type="text"
+                  className="admin-form-input"
+                  value={compNote}
+                  onChange={(e) => setCompNote(e.target.value)}
+                  placeholder="e.g. Instagram giveaway winner"
+                  disabled={compSaving}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
+              <button
+                type="button"
+                className="admin-sponsor-edit-btn"
+                onClick={() => setCompOpen(false)}
+                disabled={compSaving}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="admin-form-submit"
+                style={{
+                  background: "rgba(34,197,94,0.15)",
+                  borderColor: "rgba(34,197,94,0.4)",
+                  color: "#4ade80",
+                  opacity: compSaving ? 0.6 : 1,
+                }}
+                onClick={submitComp}
+                disabled={compSaving}
+              >
+                {compSaving ? "Issuing…" : "Issue & Email Tickets"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

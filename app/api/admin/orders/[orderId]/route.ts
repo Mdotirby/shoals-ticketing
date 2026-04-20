@@ -10,7 +10,7 @@ export async function GET(
   const { orderId } = await params;
   const admin = createAdminClient();
 
-  // Fetch the order + event details in one query
+  // Fetch the order + event details + promo code in one query
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select(`
@@ -21,7 +21,8 @@ export async function GET(
         date,
         venue,
         venue_id
-      )
+      ),
+      promo_codes(code, discount_type, discount_value)
     `)
     .eq("id", orderId)
     .single();

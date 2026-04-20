@@ -19,6 +19,14 @@ type OrderDetail = {
   stripe_checkout_session_id?: string;
   delivery_method?: string;
   created_at: string;
+  source?: string | null;
+  notes?: string | null;
+  promo_code_id?: string | null;
+  promo_codes?: {
+    code: string;
+    discount_type: "fixed" | "percentage";
+    discount_value: string | number;
+  } | null;
   events: {
     id: string;
     title: string;
@@ -74,6 +82,28 @@ function StatusBadge({ status }: { status: string }) {
       background: c.bg, color: c.color, border: `1px solid ${c.color}44`,
     }}>
       {status}
+    </span>
+  );
+}
+
+// ── Source badge (online / box_office / comp) ────────────────────────────────
+
+function SourceBadge({ source }: { source: string | null }) {
+  const src = (source || "online").toLowerCase();
+  const palette: Record<string, { bg: string; color: string; border: string; label: string }> = {
+    online:          { bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
+    box_office:      { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "rgba(251,191,36,0.3)", label: "Box Office" },
+    inline_checkout: { bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
+    comp:            { bg: "rgba(34,197,94,0.12)",  color: "#22c55e", border: "rgba(34,197,94,0.35)", label: "Comp" },
+  };
+  const p = palette[src] ?? palette.online;
+  return (
+    <span style={{
+      display: "inline-block", padding: "3px 12px", borderRadius: 20,
+      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
+      background: p.bg, color: p.color, border: `1px solid ${p.border}`,
+    }}>
+      {p.label}
     </span>
   );
 }
@@ -240,10 +270,30 @@ export default function OrderDetailPage() {
               Order #{shortId(order.id)}
             </h1>
             <StatusBadge status={order.status} />
+            <SourceBadge source={order.source ?? null} />
+            {order.promo_codes?.code && (
+              <span style={{
+                display: "inline-block", padding: "3px 12px", borderRadius: 20,
+                fontSize: 11, fontWeight: 700, letterSpacing: 0.3,
+                background: "rgba(168,85,247,0.12)",
+                border: "1px solid rgba(168,85,247,0.35)",
+                color: "#c084fc",
+              }}>
+                PROMO: {order.promo_codes.code}
+                {order.promo_codes.discount_type === "percentage"
+                  ? ` (${Number(order.promo_codes.discount_value)}% off)`
+                  : ` ($${Number(order.promo_codes.discount_value).toFixed(2)} off)`}
+              </span>
+            )}
           </div>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 4 }}>
             {fmtDate(order.created_at)}
           </div>
+          {order.notes && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>
+              Note: {order.notes}
+            </div>
+          )}
         </div>
 
         {/* Resend email button in header */}
