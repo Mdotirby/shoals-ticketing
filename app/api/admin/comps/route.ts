@@ -65,27 +65,66 @@ export async function POST(request: Request) {
     if (venueData?.slug) venueSlug = venueData.slug;
   }
 
-  // Create the order (source = "comp")
-  const { data: order, error: orderError } = await admin
+  // Create the order (source = "comp"). The `notes` column was added by
+  // plans/orders-notes-migration.sql — if that migration hasn't been run yet,
+  // retry without it so the comp itself still succeeds.
+  type OrderInsert = {
+    event_id: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string | null;
+    quantity: number;
+    total_amount: number;
+    status: string;
+    source: string;
+    notes?: string | null;
+  };
+
+  const baseInsert: OrderInsert = {
+    event_id,
+    customer_name: buyer_name,
+    customer_email: buyer_email,
+    customer_phone: buyer_phone || null,
+    quantity: qty,
+    total_amount: 0,
+    status: "paid",
+    source: "comp",
+  };
+
+  if (note) baseInsert.notes = note;
+
+  let { data: order, error: orderError } = await admin
     .from("orders")
-    .insert({
-      event_id,
-      customer_name: buyer_name,
-      customer_email: buyer_email,
-      customer_phone: buyer_phone || null,
-      quantity: qty,
-      total_amount: 0,
-      status: "paid",
-      source: "comp",
-      notes: note || null,
-    })
+    .insert(baseInsert)
     .select()
     .single();
 
+  // Fallback: if the DB rejects because the `notes` column is missing, retry
+  // without it and log a warning so we know to run the migration.
+  if (
+    orderError &&
+    /column .*notes/i.test(orderError.message || "") &&
+    "notes" in baseInsert
+  ) {
+    console.warn(
+      "orders.notes column missing — retrying comp order insert without notes. Run plans/orders-notes-migration.sql to enable memo persistence."
+    );
+    const { notes: _drop, ...withoutNotes } = baseInsert;
+    void _drop;
+    const retry = await admin
+      .from("orders")
+      .insert(withoutNotes)
+      .select()
+      .single();
+    order = retry.data;
+    orderError = retry.error;
+  }
+
   if (orderError || !order) {
-    console.error("Failed to create comp order:", orderError?.message);
+    const msg = orderError?.message || "Failed to create comp order";
+    console.error("Failed to create comp order:", msg, orderError?.details, orderError?.hint);
     return NextResponse.json(
-      { error: "Failed to create comp order" },
+      { error: msg },
       { status: 500 }
     );
   }
