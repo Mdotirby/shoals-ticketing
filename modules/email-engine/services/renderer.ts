@@ -89,6 +89,11 @@ export function renderEmail(args: RenderArgs): Rendered {
   let html = replaceVars(args.content_html, context);
   const subject = replaceVars(args.subject, context);
 
+  // Remove <img> tags with empty src — happens when {{event_image}} resolves
+  // to "" because no image was supplied. Avoids visible broken-image icons
+  // in clients that render `<img src="">`.
+  html = html.replace(/<img\b[^>]*\bsrc=["']\s*["'][^>]*>/gi, "");
+
   // 2. UTM stamping — merge defaults
   const utmAll: Record<string, string> = {
     utm_source: EMAIL_ENGINE.UTM_SOURCE,

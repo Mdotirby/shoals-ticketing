@@ -122,9 +122,13 @@ export default function NewCampaignPage() {
     [mode, composer, html],
   );
 
-  // Live-update preview context based on selected event
+  // Live-update preview context based on selected event. Keep this in sync
+  // with services/campaignBuilder.ts loadEventContext() — these are the same
+  // variables the server will substitute at send time.
   const previewCtx = useMemo(() => {
     const ev = events.find((e) => e.id === form.event_id);
+    const dateObj = ev?.date ? new Date(ev.date) : new Date("2026-03-01T20:00:00");
+    const onSaleFake = new Date(Date.now() + 3 * 86_400_000 + 5 * 3_600_000); // 3d 5h out
     return {
       first_name: "Alex",
       last_name: "Example",
@@ -132,11 +136,21 @@ export default function NewCampaignPage() {
       event_name: ev?.title ?? "Your Event",
       event_title: ev?.title ?? "Your Event",
       event_id: form.event_id || "EVENT_ID",
-      event_date: ev?.date
-        ? new Date(ev.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-        : "Saturday, March 1, 2026",
-      event_image: "",
+      event_url: "https://venuecore.live/e/preview",
+      event_date: dateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+      event_date_short: dateObj.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+      event_time: "8:00 PM",
+      event_image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&h=630&fit=crop",
       venue_name: "Your Venue",
+      venue_primary_color: "#d0c290",
+      venue_logo_url: "",
+      on_sale_date: onSaleFake.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+      on_sale_date_short: onSaleFake.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+      on_sale_time: onSaleFake.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }),
+      days_until_onsale: "3",
+      hours_until_onsale: "5",
+      minutes_until_onsale: "0",
+      has_presale: "true",
       unsubscribe_url: "https://venuecore.live/u/preview",
     } as Record<string, string>;
   }, [form.event_id, events]);

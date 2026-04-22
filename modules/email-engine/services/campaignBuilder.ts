@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import { listRecipients } from "./segmentation";
 import { renderEmail } from "./renderer";
+import { loadEventContext, previewEventDefaults } from "../lib/eventContext";
 
 // ────────────────────────────────────────────────────────────────────
 //  CRUD
@@ -145,7 +146,13 @@ export async function previewCampaign(
 
   const eventCtx = await loadEventContext(client, campaign.event_id);
 
+  // When previewing a campaign with no attached event, inject synthetic
+  // countdown/branding values so landing-page templates render cleanly
+  // instead of showing empty cells where variables would be.
+  const previewDefaults = eventCtx.event_id ? {} : previewEventDefaults();
+
   const ctx: RenderContext = {
+    ...previewDefaults,
     ...eventCtx,
     first_name: sampleContext?.first_name ?? "Alex",
     last_name: sampleContext?.last_name ?? "Example",
@@ -385,50 +392,9 @@ export async function getCampaignMetrics(
 }
 
 // ────────────────────────────────────────────────────────────────────
-//  Helpers
+//  Helpers (event context loading lives in ../lib/eventContext.ts so it
+//  can be shared with the automation engine)
 // ────────────────────────────────────────────────────────────────────
-
-async function loadEventContext(
-  client: SupabaseClient,
-  eventId: string | null,
-): Promise<RenderContext> {
-  if (!eventId) return {} as RenderContext;
-  const { data } = await client
-    .from("events")
-    .select("title, date, venue, venue_id, image_url")
-    .eq("id", eventId)
-    .single();
-  if (!data) return {} as RenderContext;
-
-  let venue_name = data.venue || "";
-  if (data.venue_id) {
-    const { data: v } = await client
-      .from("venues")
-      .select("name")
-      .eq("id", data.venue_id)
-      .single();
-    if (v?.name) venue_name = v.name;
-  }
-
-  let event_date = "";
-  if (data.date) {
-    try {
-      event_date = new Date(data.date).toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric", year: "numeric",
-      });
-    } catch { event_date = String(data.date); }
-  }
-
-  return {
-    email: "", // placeholder, overwritten by caller
-    event_name: data.title || "",
-    event_title: data.title || "",
-    event_date,
-    event_image: data.image_url || "",
-    venue_name,
-    event_id: eventId,
-  };
-}
 
 function joinName(first: string | null, last: string | null): string | null {
   const s = `${first ?? ""} ${last ?? ""}`.trim();
@@ -443,3 +409,5 @@ function lastNameOf(full: string | null): string {
   const parts = full.trim().split(/\s+/);
   return parts.length > 1 ? parts.slice(1).join(" ") : "";
 }
+
+

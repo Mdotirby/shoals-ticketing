@@ -106,7 +106,18 @@ Every field is whitelisted in [`constants.ts`](modules/email-engine/constants.ts
 **Template library** lives in [`modules/email-engine/templates/index.ts`](modules/email-engine/templates/index.ts:1) and is exposed at [`GET /api/email-engine/templates`](app/api/email-engine/templates/route.ts:1). Add new templates by pushing another entry to `EMAIL_TEMPLATES` — no DB migration needed; the gallery picks them up automatically.
 
 **Variables supported** (replaced both in subject and body at send time):
-`{{first_name}}`, `{{last_name}}`, `{{email}}`, `{{event_name}}`, `{{event_title}}`, `{{event_date}}`, `{{event_image}}`, `{{venue_name}}`, `{{event_id}}`, `{{unsubscribe_url}}`. Unknown tokens render as empty strings (no leaks).
+
+| Category | Tokens |
+|---|---|
+| Contact | `{{first_name}}`, `{{last_name}}`, `{{email}}` |
+| Event core | `{{event_name}}`, `{{event_title}}`, `{{event_date}}`, `{{event_date_short}}`, `{{event_time}}`, `{{event_image}}`, `{{event_id}}`, `{{event_url}}` (links to `/e/<slug>`) |
+| Venue branding | `{{venue_name}}`, `{{venue_primary_color}}`, `{{venue_logo_url}}` |
+| Pre-sale countdown | `{{has_presale}}` (`"true"`/`"false"`), `{{days_until_onsale}}`, `{{hours_until_onsale}}`, `{{minutes_until_onsale}}`, `{{on_sale_date}}`, `{{on_sale_date_short}}`, `{{on_sale_time}}` |
+| Compliance | `{{unsubscribe_url}}` (auto-injected if you don't place it) |
+
+Unknown tokens render as empty strings (no leaks). Countdown values are computed at **send time** — the email preserves both the relative countdown ("ends in 2 days 5 hours") and the absolute target datetime (`on_sale_date` + `on_sale_time`), so the recipient always has ground truth even if they open the email hours after delivery.
+
+The **New Event Announcement** template (`event_announcement_v1`) is deliberately designed to match the public event landing page — dark theme, full-bleed hero image with gradient overlay, "Just Announced — Early Access" kicker in the venue's primary color, countdown card, and a gold "Get Early Access to Tickets" CTA. Subscribers get first dibs before the `on_sale_at` public on-sale timestamp passes.
 
 **Programmatic equivalent** (for scripting / automation drip steps):
 ```ts

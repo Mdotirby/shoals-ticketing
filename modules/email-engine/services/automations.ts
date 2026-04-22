@@ -30,6 +30,7 @@ import type {
 } from "../types";
 import { renderEmail } from "./renderer";
 import { listRecipients } from "./segmentation";
+import { loadEventContext } from "../lib/eventContext";
 
 // ────────────────────────────────────────────────────────────────────
 //  Entry point — called by cron
@@ -381,11 +382,12 @@ async function executeRunStep(
   }
   const step = steps[run.current_step];
 
-  // Build context from trigger_ref + event lookup (if event_id present)
-  const eventCtx = await resolveEventCtx(
-    client,
-    (run.trigger_ref as Record<string, unknown>).event_id as string | undefined,
-  );
+  // Build context from trigger_ref + event lookup (if event_id present).
+  // Uses the shared loader so automation emails pick up the same fields
+  // (image, venue, time, on-sale countdown) the landing page shows.
+  const triggerEventId =
+    (run.trigger_ref as Record<string, unknown>).event_id as string | undefined;
+  const eventCtx = await loadEventContext(client, triggerEventId ?? null);
   const ctx: RenderContext = {
     ...eventCtx,
     first_name: (run.trigger_ref as Record<string, unknown>).first_name as string | undefined,
@@ -492,41 +494,6 @@ async function insertRunsIgnoreDup(
     return [];
   }
   return (data ?? []) as unknown as typeof runs;
-}
-
-async function resolveEventCtx(
-  client: SupabaseClient,
-  eventId: string | undefined,
-): Promise<RenderContext> {
-  if (!eventId) return {} as RenderContext;
-  const { data } = await client
-    .from("events")
-    .select("title, date, venue, venue_id, image_url")
-    .eq("id", eventId)
-    .single();
-  if (!data) return {} as RenderContext;
-  let venue_name = data.venue || "";
-  if (data.venue_id) {
-    const { data: v } = await client.from("venues").select("name").eq("id", data.venue_id).single();
-    if (v?.name) venue_name = v.name;
-  }
-  let event_date = "";
-  if (data.date) {
-    try {
-      event_date = new Date(data.date).toLocaleDateString("en-US", {
-        weekday: "long", month: "long", day: "numeric", year: "numeric",
-      });
-    } catch { event_date = String(data.date); }
-  }
-  return {
-    email: "",
-    event_name: data.title || "",
-    event_title: data.title || "",
-    event_date,
-    event_image: data.image_url || "",
-    venue_name,
-    event_id: eventId,
-  };
 }
 
 function joinNameFromCtx(ctx: RenderContext): string | null {
