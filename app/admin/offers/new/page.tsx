@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
@@ -257,7 +258,7 @@ export default function AdminCreateOfferPage() {
   const [offerValidDays, setOfferValidDays] = useState("14");
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"details" | "pnl">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "pnl" | "deal_lab">("details");
 
   // Ancillary revenue state (P&L tab)
   const [ancillaryItems, setAncillaryItems] = useState([
@@ -440,7 +441,7 @@ export default function AdminCreateOfferPage() {
         display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.1)",
         marginBottom: 20, marginTop: 8,
       }}>
-        {(["details", "pnl"] as const).map(tab => (
+        {(["details", "pnl", "deal_lab"] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -457,7 +458,11 @@ export default function AdminCreateOfferPage() {
               transition: "all 0.15s",
             }}
           >
-            {tab === "details" ? "Offer Details" : "P&L / Breakeven"}
+            {tab === "details"
+              ? "Offer Details"
+              : tab === "pnl"
+              ? "P&L / Breakeven"
+              : "Deal Lab (Simulated)"}
           </button>
         ))}
       </div>
@@ -919,6 +924,31 @@ export default function AdminCreateOfferPage() {
         </div>
         );
       })()}
+
+      {activeTab === "deal_lab" && (
+        <DealLabPanel
+          inputs={{
+            gross_potential_full: grossPotential,
+            adj_gross_full: adjGross,
+            net_potential_full: netPotential,
+            total_capacity: scaling.reduce(
+              (s, r) => s + (Number(r.sellable_cap) || 0),
+              0
+            ),
+            fixed_expenses: fixedExpenses.map((e) => ({
+              name: e.name,
+              amount: Number(e.amount) || 0,
+            })),
+            variable_expense_rates: variableExpenses.map((e) => ({
+              name: e.name,
+              rate: Number(e.rate) || 0,
+            })),
+            offer_guarantee: guaranteeNum,
+            offer_deal_type: dealType as "FLAT" | "VS" | "PLUS" | "BONUS",
+            offer_backend_percentage: backendNum * 100,
+          }}
+        />
+      )}
 
     </div>
   );

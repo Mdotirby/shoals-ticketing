@@ -9,6 +9,7 @@ import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { exportOfferPDF } from "@/lib/pdf/offer-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -57,7 +58,7 @@ export default function AdminOfferDetailPage() {
   const [signedByBuyer, setSignedByBuyer] = useState("");
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"details" | "pnl">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "pnl" | "deal_lab">("details");
 
   // Ancillary revenue state (P&L tab)
   const [ancillaryItems, setAncillaryItems] = useState([
@@ -377,7 +378,7 @@ export default function AdminOfferDetailPage() {
         display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.1)",
         marginBottom: 20, marginTop: 8,
       }}>
-        {(["details", "pnl"] as const).map(tab => (
+        {(["details", "pnl", "deal_lab"] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -394,7 +395,11 @@ export default function AdminOfferDetailPage() {
               transition: "all 0.15s",
             }}
           >
-            {tab === "details" ? "Offer Details" : "P&L / Breakeven"}
+            {tab === "details"
+              ? "Offer Details"
+              : tab === "pnl"
+              ? "P&L / Breakeven"
+              : "Deal Lab (Simulated)"}
           </button>
         ))}
       </div>
@@ -1237,6 +1242,49 @@ export default function AdminOfferDetailPage() {
           </div>
 
         </div>
+        );
+      })()}
+
+      {activeTab === "deal_lab" && (() => {
+        const scalingArr = Array.isArray(form.ticket_scaling)
+          ? (form.ticket_scaling as Array<Record<string, number>>)
+          : [];
+        const fixedArr = Array.isArray(form.fixed_expenses)
+          ? (form.fixed_expenses as Array<{ name: string; amount: number }>)
+          : [];
+        const varArr = Array.isArray(form.variable_expenses)
+          ? (form.variable_expenses as Array<{ name: string; rate: number }>)
+          : [];
+        const totalCapacity = scalingArr.reduce(
+          (s, r) => s + (Number(r.sellable_cap) || 0),
+          0
+        );
+        const rawBackend = form.backend_percentage;
+        const backendPct =
+          rawBackend === null || rawBackend === undefined || rawBackend === ""
+            ? null
+            : Number(rawBackend);
+        return (
+          <DealLabPanel
+            inputs={{
+              gross_potential_full: live.grossPotential,
+              adj_gross_full: live.adjGross,
+              net_potential_full: live.netPotential,
+              total_capacity: totalCapacity,
+              fixed_expenses: fixedArr.map((e) => ({
+                name: String(e.name ?? ""),
+                amount: Number(e.amount) || 0,
+              })),
+              variable_expense_rates: varArr.map((e) => ({
+                name: String(e.name ?? ""),
+                rate: Number(e.rate) || 0,
+              })),
+              offer_guarantee: Number(form.guarantee) || 0,
+              offer_deal_type:
+                (form.deal_type as "FLAT" | "VS" | "PLUS" | "BONUS") ?? null,
+              offer_backend_percentage: backendPct,
+            }}
+          />
         );
       })()}
 

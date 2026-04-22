@@ -693,21 +693,6 @@ export default function AdminEditEventPage() {
         >
           Ad Engine
         </Link>
-        <Link
-          href={`/admin/events/${id}/deal-lab`}
-          style={{
-            padding: "6px 14px",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#d0c290",
-            border: "1px solid rgba(208,194,144,0.4)",
-            background: "rgba(208,194,144,0.08)",
-            textDecoration: "none",
-          }}
-        >
-          Deal Lab (simulated)
-        </Link>
       </div>
 
       <form className="admin-form" onSubmit={handleSubmit}>
