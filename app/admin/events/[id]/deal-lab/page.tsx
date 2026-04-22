@@ -125,7 +125,7 @@ export default function DealLabPage({ params }: { params: Promise<{ id: string }
         </Link>
         <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
         <Link href={`/admin/events/${eventId}/ads`} style={{ color: "#d0c290", textDecoration: "none" }}>
-          📣 Ad Engine
+          Ad Engine
         </Link>
       </div>
       <h1 style={{ fontSize: 22, margin: "8px 0 4px" }}>Deal Lab</h1>

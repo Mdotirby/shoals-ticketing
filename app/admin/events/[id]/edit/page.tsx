@@ -691,7 +691,7 @@ export default function AdminEditEventPage() {
             textDecoration: "none",
           }}
         >
-          📣 Ad Engine
+          Ad Engine
         </Link>
         <Link
           href={`/admin/events/${id}/deal-lab`}
@@ -706,7 +706,7 @@ export default function AdminEditEventPage() {
             textDecoration: "none",
           }}
         >
-          🧪 Deal Lab (simulated)
+          Deal Lab (simulated)
         </Link>
       </div>
 

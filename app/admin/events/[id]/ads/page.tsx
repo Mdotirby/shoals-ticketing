@@ -202,7 +202,7 @@ export default function EventAdsPage({ params }: { params: Promise<{ id: string 
         </Link>
         <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
         <Link href={`/admin/events/${eventId}/deal-lab`} style={{ color: "#d0c290", textDecoration: "none" }}>
-          🧪 Deal Lab
+          Deal Lab
         </Link>
       </div>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Ad Engine — {data.event.title}</h1>
