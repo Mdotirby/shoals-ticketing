@@ -1,0 +1,66 @@
+name: Ad Engine Cron
+
+# Free-tier alternative to Vercel cron jobs.
+# Runs on GitHub Actions (free) and hits the public Vercel endpoints with the
+# shared CRON_SECRET. Safe to trigger manually via "workflow_dispatch".
+#
+# Required GitHub Actions secrets (Settings → Secrets and variables → Actions):
+#   VC_APP_URL    = https://app.venuecore.io         (or your Vercel domain)
+#   CRON_SECRET   = same value as in Vercel env vars
+
+on:
+  schedule:
+    # Every 6 hours, on the hour. Metrics first.
+    - cron: "0 */6 * * *"
+    # Every 6 hours, offset by 30 min. Optimization runs after metrics are fresh.
+    - cron: "30 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run manually"
+        required: true
+        default: "metrics"
+        type: choice
+        options:
+          - metrics
+          - optimize
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve which job to run
+        id: pick
+        run: |
+          MIN=$(date -u +%M)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "path=${{ inputs.job == 'optimize' && '/api/cron/ad-engine-optimize' || '/api/cron/ad-engine-metrics' }}" >> "$GITHUB_OUTPUT"
+          elif [ "$MIN" = "30" ]; then
+            echo "path=/api/cron/ad-engine-optimize" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=/api/cron/ad-engine-metrics" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fire endpoint
+        env:
+          BASE_URL: ${{ secrets.VC_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PATH_TO_CALL: ${{ steps.pick.outputs.path }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::VC_APP_URL and CRON_SECRET secrets must be set."
+            exit 1
+          fi
+          echo "Calling $BASE_URL$PATH_TO_CALL"
+          STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$BASE_URL$PATH_TO_CALL")
+          echo "HTTP status: $STATUS"
+          echo "--- response ---"
+          cat /tmp/resp.json || true
+          echo
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Non-200 response ($STATUS)"
+            exit 1
+          fi

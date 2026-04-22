@@ -43,12 +43,20 @@ modules/ad-engine/
     optimizationEngine.ts        — cron entry point: efficiency + volume modes
 ```
 
-### Cron schedule (`vercel.json`)
+### Cron schedule (GitHub Actions — free-tier friendly)
 
-| Path | Schedule | Purpose |
-|------|----------|---------|
-| `/api/cron/ad-engine-metrics` | every 6h | pull insights into `ad_engine_daily_metrics` |
-| `/api/cron/ad-engine-optimize` | every 6h, offset 30m | evaluate campaigns + execute within guardrails |
+Vercel Hobby only allows 2 cron jobs at daily frequency, already used by the existing `scan-events` + `update-metrics` jobs. The new Ad Engine crons therefore run on GitHub Actions:
+
+| Path | Schedule | Triggered by | Purpose |
+|------|----------|--------------|---------|
+| `/api/cron/ad-engine-metrics` | every 6h (`0 */6 * * *`) | [`.github/workflows/ad-engine-cron.yml`](../.github/workflows/ad-engine-cron.yml:1) | pull insights into `ad_engine_daily_metrics` |
+| `/api/cron/ad-engine-optimize` | every 6h at :30 (`30 */6 * * *`) | same workflow | evaluate campaigns + execute within guardrails |
+
+The route handlers are identical serverless functions secured by `Bearer ${CRON_SECRET}` — they can be invoked by GitHub Actions, a manual `workflow_dispatch`, or any other scheduler.
+
+**Required GitHub Actions secrets** (Repo Settings → Secrets and variables → Actions):
+- `VC_APP_URL` — your Vercel production domain (e.g. `https://app.venuecore.io`)
+- `CRON_SECRET` — same value as in Vercel env vars
 
 ### Env vars
 
