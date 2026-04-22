@@ -71,11 +71,6 @@ function escAttr(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-// Variable-replacement for the live preview (matches server renderer)
-function replaceVars(s: string, ctx: Record<string, string>): string {
-  return s.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g, (_, k) => ctx[k] ?? "");
-}
-
 // ───────────────────────────────────────────────────────────────────────
 export default function NewCampaignPage() {
   const router = useRouter();
@@ -122,43 +117,35 @@ export default function NewCampaignPage() {
     [mode, composer, html],
   );
 
-  // Live-update preview context based on selected event. Keep this in sync
-  // with services/campaignBuilder.ts loadEventContext() — these are the same
-  // variables the server will substitute at send time.
-  const previewCtx = useMemo(() => {
-    const ev = events.find((e) => e.id === form.event_id);
-    const dateObj = ev?.date ? new Date(ev.date) : new Date("2026-03-01T20:00:00");
-    const onSaleFake = new Date(Date.now() + 3 * 86_400_000 + 5 * 3_600_000); // 3d 5h out
-    return {
-      first_name: "Alex",
-      last_name: "Example",
-      email: "preview@venuecore.live",
-      event_name: ev?.title ?? "Your Event",
-      event_title: ev?.title ?? "Your Event",
-      event_id: form.event_id || "EVENT_ID",
-      event_url: "https://venuecore.live/e/preview",
-      event_date: dateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-      event_date_short: dateObj.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
-      event_time: "8:00 PM",
-      event_image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&h=630&fit=crop",
-      venue_name: "Your Venue",
-      venue_primary_color: "#d0c290",
-      venue_logo_url: "",
-      on_sale_date: onSaleFake.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-      on_sale_date_short: onSaleFake.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
-      on_sale_time: onSaleFake.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZoneName: "short" }),
-      days_until_onsale: "3",
-      hours_until_onsale: "5",
-      minutes_until_onsale: "0",
-      has_presale: "true",
-      unsubscribe_url: "https://venuecore.live/u/preview",
-    } as Record<string, string>;
-  }, [form.event_id, events]);
+  // Server-side render preview — calls /api/email-engine/render-preview which
+  // runs the exact same loadEventContext() + renderEmail() pipeline used at
+  // send time, so what you see here = what the recipient gets. Debounced
+  // so we don't hammer the endpoint on every keystroke.
+  const [renderedPreview, setRenderedPreview] = useState<{ subject: string; html: string } | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
-  const renderedPreview = useMemo(() => ({
-    subject: replaceVars(form.subject, previewCtx),
-    html: replaceVars(effectiveHtml, previewCtx),
-  }), [form.subject, effectiveHtml, previewCtx]);
+  useEffect(() => {
+    if (!form.subject || !effectiveHtml) { setRenderedPreview(null); return; }
+    const t = setTimeout(() => {
+      setPreviewLoading(true);
+      fetch("/api/email-engine/render-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: form.subject,
+          content_html: effectiveHtml,
+          content_text: text || null,
+          event_id: form.event_id || null,
+          first_name: "Alex",
+          email: "preview@venuecore.live",
+        }),
+      })
+        .then((r) => r.ok ? r.json() : null)
+        .then((p) => { if (p?.html) setRenderedPreview({ subject: p.subject, html: p.html }); })
+        .finally(() => setPreviewLoading(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [form.subject, form.event_id, effectiveHtml, text]);
 
   const applyTemplate = async (key: string) => {
     const res = await fetch(`/api/email-engine/templates?key=${key}`);
@@ -388,21 +375,24 @@ export default function NewCampaignPage() {
             borderRadius: 12, overflow: "hidden",
           }}>
             <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>Live preview</div>
+              <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, display: "flex", gap: 8, alignItems: "center" }}>
+                Live preview
+                {previewLoading && <span style={{ color: "rgba(208,194,144,0.6)", textTransform: "none", letterSpacing: 0 }}>rendering…</span>}
+              </div>
               <div style={{ color: "#fff", fontSize: 14, marginTop: 4, fontWeight: 600 }}>
-                {renderedPreview.subject || "(no subject)"}
+                {renderedPreview?.subject || form.subject || "(no subject)"}
               </div>
               {form.preview_text && (
                 <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 2 }}>
-                  {replaceVars(form.preview_text, previewCtx)}
+                  {form.preview_text}
                 </div>
               )}
             </div>
             <iframe
               title="preview"
-              srcDoc={renderedPreview.html}
+              srcDoc={renderedPreview?.html ?? "<body style='background:#111827;color:#9aa2b4;font-family:sans-serif;padding:24px'>Fill in a subject and HTML to see a live preview…</body>"}
               sandbox="allow-same-origin"
-              style={{ width: "100%", height: 720, border: 0, background: "#fff", display: "block" }}
+              style={{ width: "100%", height: 720, border: 0, background: "#111827", display: "block" }}
             />
           </div>
         </div>

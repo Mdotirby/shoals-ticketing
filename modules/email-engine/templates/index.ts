@@ -92,23 +92,24 @@ function meta(text: string): string {
 /**
  * Landing-page-style New Event Announcement template.
  *
- * Visual goals:
- *   • Dark body (matches the public landing page aesthetic)
- *   • Full-bleed hero image with a gradient overlay and a "Just Announced"
- *     kicker + large event title stacked on top
- *   • Meta row (date · time · venue) with consistent spacing
- *   • Presale countdown card — "First access ends in Xd Yh" computed at
- *     send time, plus the absolute public on-sale date/time so the reader
- *     always has ground truth even if the email is opened hours later
- *   • Gold CTA button ("Get Early Access")
- *   • Plain-text fallback rendered by the dispatcher from content_text
+ * This template is deliberately designed to look identical to the public
+ * event landing page at /e/[slug]. It mirrors:
  *
- * Every variable is optional — if the event has no on_sale_at column set,
- * {{has_presale}} will be "false" and the countdown block renders as a
- * simple "Tickets on sale now" message.
+ *   • The same navy/blue-grey body (`--vc-bg` = #111827) — not the warm
+ *     near-black the first draft used. That earlier choice read "brown"
+ *     against the gold accent; this one matches the landing page aesthetic.
+ *   • The same hero gradient from `rgba(17, 24, 39, 0.95)` fading into the
+ *     body, so the event image and the email background blend cleanly.
+ *   • The same countdown format as .lp-countdown — "Tickets on sale in"
+ *     label above a gold, tabular-nums "Xd Yh Zm" timer (minus seconds,
+ *     which would be wildly stale by the time the recipient opens the
+ *     email). Uses {{venue_primary_color}} to inherit the venue's brand.
+ *   • The same meta row (calendar / clock / pin) as .lp-meta.
+ *   • The same gold CTA button style as .lp-cta-btn.
  *
- * Inline CSS only, table-based layout — renders correctly in Gmail,
- * Outlook, Apple Mail, and every major mobile client.
+ * All inline-styled and table-based so Gmail / Outlook / Apple Mail /
+ * mobile clients render it correctly. {{event_image}} strips cleanly via
+ * the renderer if no image is set on the event.
  */
 function eventAnnouncementHtml(): string {
   return `<!DOCTYPE html>
@@ -119,106 +120,112 @@ function eventAnnouncementHtml(): string {
   <meta name="x-apple-disable-message-reformatting">
   <title>{{event_name}}</title>
 </head>
-<body style="margin:0;padding:0;background:#0b0b0c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#ffffff;line-height:1.55">
-<!-- Hidden preheader for the inbox preview -->
+<body style="margin:0;padding:0;background:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#ffffff;line-height:1.55;-webkit-font-smoothing:antialiased">
+<!-- Hidden preheader for inbox previews -->
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1">
   You have first dibs. Public on-sale {{on_sale_date_short}} at {{on_sale_time}}.
 </div>
 
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0b0c">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111827">
   <tr><td align="center" style="padding:24px 12px">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#111113;border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06)">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+           style="max-width:600px;background:#111827;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,0.09)">
 
-      <!-- HERO: image + dark gradient + "Just Announced" kicker + title -->
-      <tr><td style="padding:0;background:#050505" align="center">
-        <!--[if mso]>
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0"><tr><td>
-        <![endif]-->
-        <div style="position:relative;line-height:0">
+      <!-- HERO: event image + gradient + "Just Announced" kicker + title + meta row
+           Mirrors .lp-hero on the public landing page (globals.css line 8268).
+           Email clients strip absolute positioning, so we stack image-then-text
+           but blend with a matching gradient + navy fill so it reads as one hero. -->
+      <tr><td style="padding:0;background:#111827" align="center">
+        <!-- Image (stripped by the renderer if {{event_image}} is empty) -->
+        <div style="line-height:0;background:#0d1220">
           <img src="{{event_image}}" alt="{{event_name}}" width="600"
-               style="display:block;width:100%;max-width:600px;height:auto;border:0;opacity:0.85">
+               style="display:block;width:100%;max-width:600px;height:auto;border:0">
         </div>
-        <!--[if mso]></td></tr></table><![endif]-->
 
-        <!-- Overlayed text block (rendered below the image for email-client
-             compatibility; the visual effect reads as one hero). -->
-        <div style="padding:28px 28px 32px;background:linear-gradient(180deg,rgba(11,11,12,0) 0%,#0b0b0c 60%)">
-          <div style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:{{venue_primary_color}};font-weight:700;margin-bottom:10px">
-            ★ Just Announced · Early Access
-          </div>
-          <h1 style="margin:0 0 14px;color:#ffffff;font-size:30px;line-height:1.15;font-weight:800;letter-spacing:-0.5px">
-            {{event_name}}
-          </h1>
-          <div style="color:rgba(255,255,255,0.7);font-size:14px;line-height:1.55">
-            <span style="display:inline-block;margin-right:14px">📅 {{event_date_short}}</span>
-            <span style="display:inline-block;margin-right:14px">⏰ {{event_time}}</span>
-            <span style="display:inline-block">📍 {{venue_name}}</span>
-          </div>
-        </div>
+        <!-- Narrow gradient strip that visually fades from the image into the navy body. -->
+        <div style="height:40px;background:linear-gradient(180deg,rgba(17,24,39,0.0) 0%,#111827 100%);margin-top:-40px;position:relative"></div>
       </td></tr>
 
-      <!-- PRESALE MESSAGE -->
-      <tr><td style="padding:0 28px 8px">
+      <!-- HERO TEXT (navy background, gold kicker, big title, meta row) -->
+      <tr><td style="padding:4px 28px 24px;background:#111827">
+        <!-- Gold "Just Announced · Early Access" kicker (mirrors .lp-subheadline) -->
+        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:{{venue_primary_color}};font-weight:700;margin-bottom:12px">
+          ★ Just Announced · Early Access
+        </div>
+
+        <!-- Main headline — mirrors .lp-headline (letter-spacing:-0.02em, weight 800) -->
+        <h1 style="margin:0 0 16px;color:#ffffff;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-0.02em">
+          {{event_name}}
+        </h1>
+
+        <!-- Meta row (calendar · clock · pin) — mirrors .lp-meta -->
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding-right:16px;color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">📅</span>&nbsp;{{event_date_short}}
+            </td>
+            <td style="padding-right:16px;color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">⏰</span>&nbsp;{{event_time}}
+            </td>
+            <td style="color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">📍</span>&nbsp;{{venue_name}}
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+      <!-- PRESALE GREETING -->
+      <tr><td style="padding:8px 28px 0">
         <p style="margin:0;color:rgba(255,255,255,0.85);font-size:15px;line-height:1.6">
           Hey {{first_name}} — you're on the list, so you're seeing this before the public.
         </p>
       </td></tr>
 
-      <!-- COUNTDOWN CARD -->
-      <tr><td style="padding:14px 28px 8px">
+      <!-- COUNTDOWN CARD (mirrors .lp-countdown exactly: glass background,
+           uppercase label, gold tabular-nums timer) -->
+      <tr><td style="padding:18px 28px 6px">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-               style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px">
-          <tr><td style="padding:18px 20px" align="center">
-            <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:{{venue_primary_color}};font-weight:700;margin-bottom:10px">
-              Your early-access window closes in
+               style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px">
+          <tr><td style="padding:22px 20px 20px" align="center">
+            <div style="font-size:13px;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500;margin-bottom:10px">
+              Tickets on sale in
             </div>
-            <div style="font-size:0">
-              <div style="display:inline-block;min-width:64px;padding:0 4px;vertical-align:top">
-                <div style="font-size:32px;font-weight:800;color:#ffffff;line-height:1">{{days_until_onsale}}</div>
-                <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:4px">Days</div>
-              </div>
-              <div style="display:inline-block;min-width:64px;padding:0 4px;vertical-align:top">
-                <div style="font-size:32px;font-weight:800;color:#ffffff;line-height:1">{{hours_until_onsale}}</div>
-                <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:4px">Hours</div>
-              </div>
-              <div style="display:inline-block;min-width:64px;padding:0 4px;vertical-align:top">
-                <div style="font-size:32px;font-weight:800;color:#ffffff;line-height:1">{{minutes_until_onsale}}</div>
-                <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:4px">Minutes</div>
-              </div>
+            <div style="font-size:30px;font-weight:800;color:{{venue_primary_color}};line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-0.01em">
+              {{days_until_onsale}}d&nbsp; {{hours_until_onsale}}h&nbsp; {{minutes_until_onsale}}m
             </div>
-            <div style="color:rgba(255,255,255,0.55);font-size:12px;margin-top:14px;line-height:1.5">
-              Public on-sale opens <strong style="color:#ffffff">{{on_sale_date}}</strong> at <strong style="color:#ffffff">{{on_sale_time}}</strong>.
+            <div style="color:rgba(255,255,255,0.55);font-size:12px;margin-top:14px;line-height:1.55;padding:0 8px">
+              Public on-sale opens <span style="color:#ffffff;font-weight:600">{{on_sale_date}}</span> at <span style="color:#ffffff;font-weight:600">{{on_sale_time}}</span>.
             </div>
           </td></tr>
         </table>
       </td></tr>
 
-      <!-- CTA -->
-      <tr><td align="center" style="padding:22px 24px 10px">
+      <!-- CTA — mirrors .lp-cta-btn (gold, #111827 text, rounded) -->
+      <tr><td align="center" style="padding:24px 24px 10px">
         <!--[if mso]>
-        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{event_url}}" style="height:50px;v-text-anchor:middle;width:320px;" arcsize="14%" fillcolor="{{venue_primary_color}}" stroke="f">
+        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{event_url}}" style="height:52px;v-text-anchor:middle;width:340px;" arcsize="14%" fillcolor="{{venue_primary_color}}" stroke="f">
           <w:anchorlock/>
-          <center style="color:#0b0b0c;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;">Get Early Access to Tickets</center>
+          <center style="color:#111827;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;">Get Early Access to Tickets</center>
         </v:roundrect>
         <![endif]-->
         <!--[if !mso]><!-- -->
         <a href="{{event_url}}"
-           style="display:inline-block;background:{{venue_primary_color}};color:#0b0b0c;text-decoration:none;padding:16px 32px;border-radius:10px;font-weight:700;font-size:15px;letter-spacing:0.3px">
+           style="display:inline-block;background:{{venue_primary_color}};color:#111827;text-decoration:none;padding:16px 32px;border-radius:12px;font-weight:700;font-size:15px;letter-spacing:0.3px">
           Get Early Access to Tickets →
         </a>
         <!--<![endif]-->
       </td></tr>
 
       <!-- Trust micro-copy -->
-      <tr><td align="center" style="padding:4px 28px 28px">
-        <div style="color:rgba(255,255,255,0.45);font-size:12px;line-height:1.6;max-width:420px;margin:0 auto">
+      <tr><td align="center" style="padding:6px 28px 28px">
+        <div style="color:rgba(255,255,255,0.45);font-size:12px;line-height:1.6;max-width:440px;margin:0 auto">
           Tickets are available to our subscribers now. Once public sale opens, pricing and availability are first-come, first-served.
         </div>
       </td></tr>
 
       <!-- Divider -->
       <tr><td style="padding:0 28px">
-        <div style="height:1px;background:rgba(255,255,255,0.08);margin:8px 0"></div>
+        <div style="height:1px;background:rgba(255,255,255,0.09);margin:8px 0"></div>
       </td></tr>
 
       <!-- Footer identity -->
