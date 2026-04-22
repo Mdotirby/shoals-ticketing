@@ -4,6 +4,7 @@
  * Ad Engine — event-scoped admin dashboard.
  * Minimal MVP UI. Consumes /api/ad-engine/events/[id]/*.
  */
+import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 
 type Overview = {
@@ -195,6 +196,15 @@ export default function EventAdsPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div style={{ maxWidth: 1200, padding: 24, color: "#eee" }}>
+      <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.7 }}>
+        <Link href={`/admin/events/${eventId}/edit`} style={{ color: "#d0c290", textDecoration: "none" }}>
+          ← Back to event
+        </Link>
+        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+        <Link href={`/admin/events/${eventId}/deal-lab`} style={{ color: "#d0c290", textDecoration: "none" }}>
+          🧪 Deal Lab
+        </Link>
+      </div>
       <h1 style={{ fontSize: 22, marginBottom: 4 }}>Ad Engine — {data.event.title}</h1>
       <div style={{ opacity: 0.6, fontSize: 13, marginBottom: 16 }}>
         {data.event.venue ?? "—"} · {new Date(data.event.date).toLocaleDateString()}

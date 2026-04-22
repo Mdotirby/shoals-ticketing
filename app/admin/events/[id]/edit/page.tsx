@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import ImageCropper from "@/app/components/ImageCropper";
 import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
@@ -667,6 +668,47 @@ export default function AdminEditEventPage() {
   return (
     <div className="admin-form-page">
       <h1 className="admin-page-title">Edit Event</h1>
+
+      {/* Event-scoped module shortcuts */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          margin: "0 0 20px",
+          flexWrap: "wrap",
+        }}
+      >
+        <Link
+          href={`/admin/events/${id}/ads`}
+          style={{
+            padding: "6px 14px",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#d0c290",
+            border: "1px solid rgba(208,194,144,0.4)",
+            background: "rgba(208,194,144,0.08)",
+            textDecoration: "none",
+          }}
+        >
+          📣 Ad Engine
+        </Link>
+        <Link
+          href={`/admin/events/${id}/deal-lab`}
+          style={{
+            padding: "6px 14px",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            color: "#d0c290",
+            border: "1px solid rgba(208,194,144,0.4)",
+            background: "rgba(208,194,144,0.08)",
+            textDecoration: "none",
+          }}
+        >
+          🧪 Deal Lab (simulated)
+        </Link>
+      </div>
 
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}

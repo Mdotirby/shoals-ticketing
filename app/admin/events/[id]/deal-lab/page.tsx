@@ -4,6 +4,7 @@
  * Deal Lab — event-scoped simulation UI.
  * All outputs visually labeled SIMULATED ONLY.
  */
+import Link from "next/link";
 import { use, useCallback, useState } from "react";
 
 type DealStructureKey = "guarantee" | "guarantee_plus_backend" | "door_split" | "tiered_bonus";
@@ -118,7 +119,16 @@ export default function DealLabPage({ params }: { params: Promise<{ id: string }
       <div style={banner}>
         SIMULATED ONLY — these figures are projections. Never use as a factual revenue source.
       </div>
-      <h1 style={{ fontSize: 22, margin: "16px 0 4px" }}>Deal Lab</h1>
+      <div style={{ fontSize: 12, marginTop: 16, opacity: 0.7 }}>
+        <Link href={`/admin/events/${eventId}/edit`} style={{ color: "#d0c290", textDecoration: "none" }}>
+          ← Back to event
+        </Link>
+        <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+        <Link href={`/admin/events/${eventId}/ads`} style={{ color: "#d0c290", textDecoration: "none" }}>
+          📣 Ad Engine
+        </Link>
+      </div>
+      <h1 style={{ fontSize: 22, margin: "8px 0 4px" }}>Deal Lab</h1>
       <div style={{ opacity: 0.6, fontSize: 13, marginBottom: 20 }}>
         Scenario + deal-structure simulator. Pulls live numbers from the linked Offer (read-only).
       </div>
