@@ -35,22 +35,49 @@ export function calcGuarantee(inputs: DealInputs, sf: ScaledFinancials): PayoutR
   return { artist_payout: round2(artist), promoter_profit: promoter, note: "flat guarantee" };
 }
 
+/**
+ * VS — Artist gets MAX(guarantee, splitpoint × backend%).
+ * Matches the existing Offers Engine VS formula in
+ * app/admin/offers/new/page.tsx and app/admin/offers/[id]/page.tsx.
+ */
+export function calcGuaranteeVsBackend(
+  inputs: DealInputs,
+  sf: ScaledFinancials
+): PayoutResult {
+  const g = Number(inputs.guarantee ?? 0);
+  const backendPct = Math.max(0, Math.min(100, Number(inputs.backend_percentage ?? 0))) / 100;
+  // splitpoint = net - expenses (no talent double-count)
+  const splitpoint = Math.max(sf.projected_net - sf.projected_expenses_ex_talent, 0);
+  const artistBackend = splitpoint * backendPct;
+  const artist = round2(Math.max(g, artistBackend));
+  const promoter = round2(splitpoint - artist);
+  return {
+    artist_payout: artist,
+    promoter_profit: promoter,
+    note: `max(G $${g}, ${backendPct * 100}% of splitpoint $${Math.round(splitpoint)})`,
+  };
+}
+
+/**
+ * PLUS — Artist gets guarantee + splitpoint × backend%.
+ * Matches the existing PLUS/BONUS deal types in the Offers Engine.
+ */
 export function calcGuaranteePlusBackend(
   inputs: DealInputs,
   sf: ScaledFinancials
 ): PayoutResult {
   const g = Number(inputs.guarantee ?? 0);
   const backendPct = Math.max(0, Math.min(100, Number(inputs.backend_percentage ?? 0))) / 100;
-  // splitpoint AFTER the (new) guarantee is paid, matching the platform's
-  // existing "splitpoint = net - expenses" convention for VS/PLUS/BONUS:
-  const splitBase = Math.max(sf.projected_net - sf.projected_expenses_ex_talent - g, 0);
-  const backend = splitBase * backendPct;
+  // splitpoint = net - expenses (the existing Offers Engine does NOT subtract
+  // G before computing backend for PLUS; artist is guaranteed + a share on top).
+  const splitpoint = Math.max(sf.projected_net - sf.projected_expenses_ex_talent, 0);
+  const backend = splitpoint * backendPct;
   const artist = round2(g + backend);
-  const promoter = round2(splitBase - backend);
+  const promoter = round2(splitpoint - artist);
   return {
     artist_payout: artist,
     promoter_profit: promoter,
-    note: `G + ${backendPct * 100}% of post-expense splitpoint`,
+    note: `G $${g} + ${backendPct * 100}% of splitpoint $${Math.round(splitpoint)}`,
   };
 }
 
@@ -94,6 +121,8 @@ export function calcPayout(
   switch (structure) {
     case "guarantee":
       return calcGuarantee(inputs, sf);
+    case "guarantee_vs_backend":
+      return calcGuaranteeVsBackend(inputs, sf);
     case "guarantee_plus_backend":
       return calcGuaranteePlusBackend(inputs, sf);
     case "door_split":

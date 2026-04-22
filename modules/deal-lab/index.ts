@@ -10,6 +10,7 @@ export { scaleFinancials } from "./services/scenarioEngine";
 export {
   calcPayout,
   calcGuarantee,
+  calcGuaranteeVsBackend,
   calcGuaranteePlusBackend,
   calcDoorSplit,
   calcTieredBonus,

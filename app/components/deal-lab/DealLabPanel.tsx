@@ -30,23 +30,27 @@ const SCENARIO_LABELS: Record<ScenarioKey, string> = {
 };
 
 const STRUCTURE_LABELS: Record<DealStructureKey, string> = {
-  guarantee: "Guarantee",
-  guarantee_plus_backend: "Guarantee + Backend",
+  guarantee: "FLAT — Guarantee",
+  guarantee_vs_backend: "VS — Guarantee vs Backend",
+  guarantee_plus_backend: "PLUS — Guarantee + Backend",
   door_split: "Door Split",
   tiered_bonus: "Tiered Bonus",
 };
 
 export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
   /* ── Deal-structure input state (pre-filled from offer) ── */
-  const [gVal, setGVal] = useState(
-    String(Math.max(0, Math.round(Number(inputs.offer_guarantee ?? 0))))
-  );
-  const [gbVal, setGbVal] = useState(
-    String(Math.max(0, Math.round(Number(inputs.offer_guarantee ?? 0))))
-  );
-  const [gbPct, setGbPct] = useState(
-    String(Number(inputs.offer_backend_percentage ?? 85))
-  );
+  const offerG = Math.max(0, Math.round(Number(inputs.offer_guarantee ?? 0)));
+  const offerBackend = Number(inputs.offer_backend_percentage ?? 85);
+
+  // FLAT (guarantee only)
+  const [gVal, setGVal] = useState(String(offerG));
+  // VS (max of G or backend%)
+  const [vsG, setVsG] = useState(String(offerG));
+  const [vsPct, setVsPct] = useState(String(offerBackend));
+  // PLUS (G + backend%)
+  const [gbVal, setGbVal] = useState(String(offerG));
+  const [gbPct, setGbPct] = useState(String(offerBackend));
+  // Door split
   const [doorPct, setDoorPct] = useState("80");
   const [tbGuarantee, setTbGuarantee] = useState(
     String(Math.round(Number(inputs.offer_guarantee ?? 0) * 0.7))
@@ -64,16 +68,35 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
   // Re-sync defaults when the offer's own guarantee changes materially
   useEffect(() => {
     if (inputs.offer_guarantee && Number(inputs.offer_guarantee) > 0) {
-      setGVal(String(Math.round(Number(inputs.offer_guarantee))));
-      setGbVal(String(Math.round(Number(inputs.offer_guarantee))));
+      const next = String(Math.round(Number(inputs.offer_guarantee)));
+      setGVal(next);
+      setVsG(next);
+      setGbVal(next);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputs.offer_guarantee]);
 
-  /* ── Build the 4 structures ── */
+  // Re-sync backend % when the offer's backend changes
+  useEffect(() => {
+    if (inputs.offer_backend_percentage !== null && inputs.offer_backend_percentage !== undefined) {
+      const next = String(Number(inputs.offer_backend_percentage));
+      setVsPct(next);
+      setGbPct(next);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputs.offer_backend_percentage]);
+
+  /* ── Build the 5 structures ── */
   const structures: Array<{ structure: DealStructureKey; inputs: DealInputs }> = useMemo(
     () => [
       { structure: "guarantee", inputs: { guarantee: Number(gVal) || 0 } },
+      {
+        structure: "guarantee_vs_backend",
+        inputs: {
+          guarantee: Number(vsG) || 0,
+          backend_percentage: Number(vsPct) || 0,
+        },
+      },
       {
         structure: "guarantee_plus_backend",
         inputs: {
@@ -95,7 +118,7 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
         },
       },
     ],
-    [gVal, gbVal, gbPct, doorPct, tbGuarantee, tiers]
+    [gVal, vsG, vsPct, gbVal, gbPct, doorPct, tbGuarantee, tiers]
   );
 
   /* ── Synchronous simulation (no fetch) ── */
@@ -168,19 +191,29 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
           gap: 12,
         }}
       >
-        <Card title="1 · Guarantee">
+        <Card title="1 · FLAT — Guarantee">
           <Input label="Guarantee ($)" value={gVal} onChange={setGVal} />
+          <div style={helperText}>artist = G · promoter = net − expenses − G</div>
         </Card>
-        <Card title="2 · Guarantee + Backend">
+        <Card title="2 · VS — Guarantee vs Backend">
+          <div style={formRow}>
+            <Input label="Guarantee ($)" value={vsG} onChange={setVsG} />
+            <Input label="Backend %" value={vsPct} onChange={setVsPct} />
+          </div>
+          <div style={helperText}>artist = max(G, backend% × splitpoint)</div>
+        </Card>
+        <Card title="3 · PLUS — Guarantee + Backend">
           <div style={formRow}>
             <Input label="Guarantee ($)" value={gbVal} onChange={setGbVal} />
             <Input label="Backend %" value={gbPct} onChange={setGbPct} />
           </div>
+          <div style={helperText}>artist = G + backend% × splitpoint</div>
         </Card>
-        <Card title="3 · Door Split">
+        <Card title="4 · Door Split">
           <Input label="Artist % (post-expense net)" value={doorPct} onChange={setDoorPct} />
+          <div style={helperText}>artist = splitpoint × artist%</div>
         </Card>
-        <Card title="4 · Tiered Bonus">
+        <Card title="5 · Tiered Bonus">
           <Input label="Base guarantee ($)" value={tbGuarantee} onChange={setTbGuarantee} />
           <div style={{ marginTop: 8, fontSize: 11, opacity: 0.6 }}>
             Cumulative thresholds (units sold ≥ → add bonus):
@@ -408,6 +441,12 @@ const formRow: React.CSSProperties = {
   display: "flex",
   gap: 8,
   flexWrap: "wrap",
+};
+const helperText: React.CSSProperties = {
+  fontSize: 10,
+  opacity: 0.5,
+  marginTop: 8,
+  fontStyle: "italic",
 };
 const tableStyle: React.CSSProperties = {
   width: "100%",

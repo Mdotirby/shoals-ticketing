@@ -246,7 +246,7 @@ CREATE TABLE IF NOT EXISTS deal_lab_simulations (
   scenario           TEXT NOT NULL CHECK (scenario IN ('conservative','expected','optimistic')),
   sell_through_pct   NUMERIC(4,3) NOT NULL,           -- 0.50 | 0.70 | 0.90
   deal_structure     TEXT NOT NULL
-                     CHECK (deal_structure IN ('guarantee','guarantee_plus_backend','door_split','tiered_bonus')),
+                     CHECK (deal_structure IN ('guarantee','guarantee_vs_backend','guarantee_plus_backend','door_split','tiered_bonus')),
   inputs             JSONB NOT NULL,                   -- the exact input set used (guarantee, split%, tiers, etc.)
   -- OUTPUTS
   projected_gross    NUMERIC(10,2) NOT NULL,

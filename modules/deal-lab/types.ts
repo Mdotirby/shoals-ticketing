@@ -8,10 +8,11 @@
 export type ScenarioKey = "conservative" | "expected" | "optimistic";
 
 export type DealStructureKey =
-  | "guarantee"
-  | "guarantee_plus_backend"
-  | "door_split"
-  | "tiered_bonus";
+  | "guarantee"               // FLAT — artist = G
+  | "guarantee_vs_backend"    // VS    — artist = max(G, split × backend%)
+  | "guarantee_plus_backend"  // PLUS — artist = G + (split × backend%)
+  | "door_split"              // artist = split × artistPct (no guarantee)
+  | "tiered_bonus";           // G + cumulative tier bonuses
 
 export type DealInputs = {
   /** Guarantee in dollars */
