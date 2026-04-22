@@ -1,0 +1,129 @@
+name: Email Engine Cron
+
+# Free-tier alternative to Vercel cron jobs — same pattern as
+# .github/workflows/ad-engine-cron.yml. Runs on GitHub Actions (free) and
+# hits the public Vercel endpoints with the shared CRON_SECRET.
+#
+# Required GitHub Actions secrets (Settings → Secrets and variables → Actions):
+#   VC_APP_URL    = https://app.venuecore.io (or your Vercel domain)
+#   CRON_SECRET   = same value as in Vercel env vars
+#
+# GitHub's cron minimum granularity is 5 minutes, so high-frequency jobs
+# run at that interval. For a typical venue this means recipients wait
+# ~5 min between "send now" and delivery, which is well inside marketing
+# SLA expectations.
+
+on:
+  schedule:
+    # Every 5 min → drain the dispatch queue + advance automations
+    - cron: "*/5 * * * *"
+    # Every 15 min (offset 2) → attribute conversions + rollup metrics
+    - cron: "2-59/15 * * * *"
+    # Hourly at :10 → refresh ee_contact_attributes
+    - cron: "10 * * * *"
+    # Hourly at :25 → evaluate optimization flags
+    - cron: "25 * * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run manually"
+        required: true
+        default: "dispatch"
+        type: choice
+        options:
+          - dispatch              # process-scheduled
+          - automations           # run-automations
+          - metrics               # compute-metrics
+          - attributes            # refresh-attributes
+          - optimizations         # evaluate-optimizations
+          - all                   # fire every endpoint, sequentially
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Resolve which job(s) to run
+        id: pick
+        run: |
+          # Route either by the scheduled cron expression that fired,
+          # or by the manual workflow_dispatch input.
+          SCHEDULE="${{ github.event.schedule }}"
+          MANUAL="${{ inputs.job }}"
+
+          # Reset the output list
+          : > /tmp/paths.txt
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "$MANUAL" in
+              dispatch)       echo "/api/cron/email-engine/process-scheduled"       >> /tmp/paths.txt ;;
+              automations)    echo "/api/cron/email-engine/run-automations"          >> /tmp/paths.txt ;;
+              metrics)        echo "/api/cron/email-engine/compute-metrics"          >> /tmp/paths.txt ;;
+              attributes)     echo "/api/cron/email-engine/refresh-attributes"       >> /tmp/paths.txt ;;
+              optimizations)  echo "/api/cron/email-engine/evaluate-optimizations"   >> /tmp/paths.txt ;;
+              all)
+                echo "/api/cron/email-engine/refresh-attributes"       >> /tmp/paths.txt
+                echo "/api/cron/email-engine/compute-metrics"          >> /tmp/paths.txt
+                echo "/api/cron/email-engine/evaluate-optimizations"   >> /tmp/paths.txt
+                echo "/api/cron/email-engine/run-automations"          >> /tmp/paths.txt
+                echo "/api/cron/email-engine/process-scheduled"        >> /tmp/paths.txt
+                ;;
+            esac
+          else
+            case "$SCHEDULE" in
+              "*/5 * * * *")
+                # Every 5 min → dispatch queue + automations (order matters:
+                # automations enqueue into the dispatch queue, so run automations
+                # first so new work gets sent out on the same tick).
+                echo "/api/cron/email-engine/run-automations"      >> /tmp/paths.txt
+                echo "/api/cron/email-engine/process-scheduled"    >> /tmp/paths.txt
+                ;;
+              "2-59/15 * * * *")
+                echo "/api/cron/email-engine/compute-metrics"      >> /tmp/paths.txt
+                ;;
+              "10 * * * *")
+                echo "/api/cron/email-engine/refresh-attributes"   >> /tmp/paths.txt
+                ;;
+              "25 * * * *")
+                echo "/api/cron/email-engine/evaluate-optimizations" >> /tmp/paths.txt
+                ;;
+              *)
+                echo "::warning::Unknown schedule '$SCHEDULE' — skipping."
+                ;;
+            esac
+          fi
+
+          echo "=== paths to call ==="
+          cat /tmp/paths.txt || true
+
+      - name: Fire endpoints
+        env:
+          BASE_URL:    ${{ secrets.VC_APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$BASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::error::VC_APP_URL and CRON_SECRET secrets must be set."
+            exit 1
+          fi
+          if [ ! -s /tmp/paths.txt ]; then
+            echo "No paths to call on this trigger — exiting cleanly."
+            exit 0
+          fi
+
+          FAIL=0
+          while IFS= read -r P; do
+            [ -z "$P" ] && continue
+            echo "──────────────────────────────────────────────────────"
+            echo "Calling $BASE_URL$P"
+            STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$BASE_URL$P")
+            echo "HTTP $STATUS"
+            cat /tmp/resp.json || true
+            echo
+            if [ "$STATUS" != "200" ]; then
+              echo "::error::Non-200 response ($STATUS) from $P"
+              FAIL=1
+            fi
+          done < /tmp/paths.txt
+          exit $FAIL

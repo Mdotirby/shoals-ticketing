@@ -34,43 +34,78 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    // Find the email_send by resend_message_id
-    const { data: send } = await admin
-      .from("email_sends")
-      .select("id, status")
-      .eq("resend_message_id", messageId)
-      .single();
-
-    if (!send) {
-      // Not one of our tracked campaign emails, ignore
-      return NextResponse.json({ received: true });
-    }
-
-    // Only upgrade status (don't downgrade: clicked > opened > delivered > sent)
+    // Status priority: clicked > opened > delivered > sent
     const statusPriority: Record<string, number> = {
       queued: 0, sent: 1, delivered: 2, opened: 3, clicked: 4, bounced: 5, complained: 6, failed: 7,
     };
 
-    const currentPriority = statusPriority[send.status] ?? 0;
-    const newPriority = statusPriority[newStatus] ?? 0;
+    // ── 1) Legacy email_sends table (unchanged behaviour) ──────────────
+    const { data: send } = await admin
+      .from("email_sends")
+      .select("id, status")
+      .eq("resend_message_id", messageId)
+      .maybeSingle();
 
-    if (newPriority > currentPriority) {
-      const updates: Record<string, unknown> = { status: newStatus };
-
-      if (newStatus === "opened") updates.opened_at = new Date().toISOString();
-      if (newStatus === "clicked") {
-        updates.clicked_at = new Date().toISOString();
-        // If not already marked as opened, set that too
-        if (currentPriority < statusPriority.opened) {
-          updates.opened_at = updates.opened_at || new Date().toISOString();
+    if (send) {
+      const currentPriority = statusPriority[send.status] ?? 0;
+      const newPriority = statusPriority[newStatus] ?? 0;
+      if (newPriority > currentPriority) {
+        const updates: Record<string, unknown> = { status: newStatus };
+        if (newStatus === "opened") updates.opened_at = new Date().toISOString();
+        if (newStatus === "clicked") {
+          updates.clicked_at = new Date().toISOString();
+          if (currentPriority < statusPriority.opened) {
+            updates.opened_at = updates.opened_at || new Date().toISOString();
+          }
         }
+        if (newStatus === "bounced") updates.bounced_at = new Date().toISOString();
+        await admin.from("email_sends").update(updates).eq("id", send.id);
       }
-      if (newStatus === "bounced") updates.bounced_at = new Date().toISOString();
+    }
 
-      await admin
-        .from("email_sends")
-        .update(updates)
-        .eq("id", send.id);
+    // ── 2) Email Engine ee_send_log — additive, isolated ──────────────
+    const { data: eeSend } = await admin
+      .from("ee_send_log")
+      .select("id, status, open_count, click_count, recipient_email")
+      .eq("resend_message_id", messageId)
+      .maybeSingle();
+    if (eeSend) {
+      const cur = statusPriority[eeSend.status] ?? 0;
+      const nxt = statusPriority[newStatus] ?? 0;
+      const updates: Record<string, unknown> = {};
+      if (newStatus === "delivered" && nxt > cur) {
+        updates.status = "delivered";
+        updates.delivered_at = new Date().toISOString();
+      }
+      if (newStatus === "opened") {
+        updates.open_count = (eeSend.open_count ?? 0) + 1;
+        updates.opened_at = new Date().toISOString();
+        if (nxt > cur) updates.status = "opened";
+      }
+      if (newStatus === "clicked") {
+        updates.click_count = (eeSend.click_count ?? 0) + 1;
+        updates.clicked_at = new Date().toISOString();
+        if (nxt > cur) updates.status = "clicked";
+      }
+      if (newStatus === "bounced") {
+        updates.status = "bounced";
+        updates.bounced_at = new Date().toISOString();
+      }
+      if (newStatus === "complained") {
+        updates.status = "complained";
+        updates.complained_at = new Date().toISOString();
+      }
+      if (Object.keys(updates).length > 0) {
+        await admin.from("ee_send_log").update(updates).eq("id", eeSend.id);
+      }
+      // Promote bounces/complaints into the suppression list so future
+      // campaigns skip this address.
+      if (newStatus === "bounced" || newStatus === "complained") {
+        await admin.from("ee_suppressions").upsert(
+          { email: eeSend.recipient_email, reason: newStatus === "bounced" ? "bounce" : "complaint" },
+          { onConflict: "email" },
+        );
+      }
     }
 
     return NextResponse.json({ received: true, updated: newStatus });

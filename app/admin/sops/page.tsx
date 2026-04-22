@@ -523,6 +523,156 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       },
     ],
   },
+
+  /* ================================================================== */
+  /*  NEW MODULES — Email Engine, Ad Engine, Deal Lab                   */
+  /* ================================================================== */
+
+  {
+    id: "email-engine",
+    title: "Email Engine — Campaigns, Segments & Automations",
+    category: "Growth",
+    description: "End-to-end workflow for the Mailchimp-style email module: build dynamic segments, compose campaigns from templates, run event-triggered drip flows, and track revenue per email.",
+    icon: "",
+    sections: [
+      {
+        heading: "1. Getting Started",
+        steps: [
+          { title: "Access the Email Engine", details: ["Navigate to Admin → Growth → Email Engine", "The dashboard shows counts for campaigns, sending-now, segments, and active automation flows", "Five sub-pages: Campaigns, Segments, Automations, Performance, Cohort Exports"] },
+          { title: "One-time setup", details: ["Run /plans/email-engine-migration.sql in the Supabase SQL editor (idempotent)", "Confirm env vars are set in Vercel: RESEND_API_KEY, RESEND_FROM_EMAIL, NEXT_PUBLIC_SITE_URL, CRON_SECRET", "In GitHub → Settings → Secrets → Actions, add VC_APP_URL (your Vercel URL) and CRON_SECRET (same value)", "The GitHub Actions workflow at .github/workflows/email-engine-cron.yml drives all periodic jobs — no Vercel cron needed"] },
+        ],
+      },
+      {
+        heading: "2. Build a Segment (Audience)",
+        steps: [
+          { title: "Create a rule-based segment", details: ["Go to Email Engine → Segments → + New Segment", "Name the segment (e.g. 'VIPs — $500+ lifetime') and pick ALL or ANY match logic", "Add one or more conditions: field + operator + value (all fields are whitelisted for safety)", "Common fields: total_events_attended, total_spent, last_event_date, favorite_event_type, is_fwb_subscriber, lfv_segment, emails_opened, emails_clicked, zip_code", "Click 'Preview count' to see how many contacts match plus a 20-row sample", "Save — the segment is dynamic and re-evaluates at every campaign send"] },
+          { title: "Preset patterns the system supports", details: ["Attended an event in the last 30 days", "Total spent over $X", "Clicked an email but never purchased", "Dormant buyers (bought before, no order in 60+ days)", "FWB subscribers who attended 3+ events", "Whales (lfv_segment = whale OR total_spent >= 500)"] },
+        ],
+      },
+      {
+        heading: "3. Design & Send a Campaign",
+        steps: [
+          { title: "Start a new campaign", details: ["Go to Email Engine → Campaigns → + New Campaign", "Fill the basics: campaign name, subject, preview text, segment, optional event (auto-populates {{event_name}}, {{event_date}}, {{event_image}}, {{venue_name}})", "Optionally pick a schedule datetime to queue for later send"] },
+          { title: "Design the email — two modes", details: ["Template gallery (recommended): Pick one of the six starter templates — New Event Announcement, Cart Recovery, Post-Event Thanks, VIP Presale, Welcome, Re-engagement", "Sections mode (no HTML required): Fill Hero image URL, Headline, Sub-heading, Body (blank lines = paragraphs), CTA label + URL — the system generates mobile-safe inline-styled HTML for you", "HTML mode: Full control over the markup + an optional plain-text fallback. Toggle between modes at any time", "Right-hand pane shows a live iframe preview with every {{variable}} already substituted against sample data"] },
+          { title: "Variables you can use", details: ["{{first_name}}, {{last_name}}, {{email}}", "{{event_name}}, {{event_title}}, {{event_date}}, {{event_image}}, {{event_id}}", "{{venue_name}}", "{{unsubscribe_url}} — auto-injected in the footer and as a List-Unsubscribe header if not placed manually", "Unknown tokens render as empty strings — safe to leave unresolved"] },
+          { title: "Send or schedule", details: ["'Save draft' to park it", "'Save & send now' to enqueue — emails are dispatched via Resend by the GitHub Actions cron within ~5 minutes", "'Schedule' + datetime to queue for future send", "All links are automatically stamped with utm_source=email-engine&utm_campaign=ee:<campaign_id> for conversion attribution"] },
+        ],
+      },
+      {
+        heading: "4. Automations (Drip Flows)",
+        steps: [
+          { title: "Create an automation", details: ["Go to Email Engine → Automations → + New Automation", "Pick a trigger: new_event_announcement, cart_abandonment, post_event_followup, repeat_buyer_nurture, welcome_series, reengagement", "Optionally attach a segment (required for new_event_announcement)", "Define steps[] as a JSON array of { delay_minutes, subject, content_html, content_text } objects", "Define config{} for trigger-specific settings (e.g. { \"grace_minutes\": 45 } for cart abandonment, { \"days_after\": 2 } for post-event)", "Toggle Active/Paused with the status button on the card"] },
+          { title: "What each trigger does", details: ["new_event_announcement — fires when an event is published, sends to the attached segment", "cart_abandonment — fires when a cart_abandonment row is older than grace_minutes", "post_event_followup — fires N days after event.date to distinct paid buyers", "repeat_buyer_nurture — fires when total_orders crosses min_orders in the last 24 h", "welcome_series — fires on new newsletter_subscribers row", "reengagement — fires on dormant buyers (no email opens in N days)", "Dedup is enforced — a contact will never receive the same flow twice for the same trigger reference"] },
+        ],
+      },
+      {
+        heading: "5. Performance Tracking & Optimization",
+        steps: [
+          { title: "Review metrics", details: ["Email Engine → Performance shows aggregate open / click / conversion rates across sent campaigns + attributed revenue", "Click into any campaign for per-campaign metrics, a rendered preview, and optimization flags", "Revenue is attributed via the UTM stamp — SUM(orders.total_amount) WHERE utm_campaign = 'ee:<campaign_id>'"] },
+          { title: "Optimization flags (rule-based, no AI)", details: ["low_open_rate → suggests subject-line tweaks from a static pool", "low_click_rate → suggests content / CTA changes", "low_conversion with healthy click rate → suggests scarcity / promo / landing-page changes", "high_performer → appears when conversion_rate clears the threshold; prompts you to clone the campaign and export the cohort as a custom audience", "high_bounce / suppression_spike → critical; pause and run list hygiene"] },
+        ],
+      },
+      {
+        heading: "6. Cohort Exports (handoff to Ad Engine)",
+        steps: [
+          { title: "Build and download a cohort", details: ["Email Engine → Cohort Exports shows five canonical cohorts: engaged_last_30d, clicked_but_not_bought, high_value_buyers, dormant_loyalists, fwb_attended_3plus", "Click 'Build all cohorts' for a summary, then 'Download SHA-256' on any cohort to get a .txt of hashed emails", "Emails are SHA-256 lowercased — the exact format required by Meta and Snapchat custom-audience uploads", "No raw email addresses ever leave the database"] },
+        ],
+      },
+      {
+        heading: "7. Deliverability & Compliance",
+        steps: [
+          { title: "Suppression list", details: ["Every bounce, complaint, and unsubscribe is written to ee_suppressions automatically", "The recipient-list builder consults this table before every send — suppressed addresses are silently skipped"] },
+          { title: "Unsubscribe handling", details: ["Every email includes an unsubscribe footer + a List-Unsubscribe header (RFC 8058, one-click)", "Links go to /u/[token] — signed token, single-use, marks both ee_suppressions and newsletter_subscribers.unsubscribed_at", "Users can't accidentally be re-subscribed; they have to opt in again via the normal signup surfaces"] },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "ad-engine",
+    title: "Ad Engine — Creatives, Campaigns & Optimization",
+    category: "Growth",
+    description: "How to use the Ad Engine to generate creative combinations, push campaigns to Meta/Snap, and let the optimization engine re-allocate budget based on live performance.",
+    icon: "",
+    sections: [
+      {
+        heading: "1. Concepts",
+        steps: [
+          { title: "What the Ad Engine does", details: ["Builds creatives as deterministic combinations of (asset × hook × copy variant) — no AI generation", "Validates every campaign against a pre-launch checklist before it goes live", "Pushes campaigns through a platform adapter (Meta or Snapchat) using the venue's stored identity/access token", "Periodically pulls daily_metrics back from each platform and runs a rules-based optimization engine that can scale, pause, or freeze campaigns inside safety bounds"] },
+          { title: "Where it lives", details: ["Module code: /modules/ad-engine — all logic, no DB writes outside ad_engine_* tables", "Admin UI is event-scoped: Admin → Shows → Events → (open event) → 'Ad Engine' tab → /admin/events/[id]/ads", "Cron jobs run from .github/workflows/ad-engine-cron.yml (daily metrics + 30-min-later optimization pass)"] },
+        ],
+      },
+      {
+        heading: "2. Assets, Hooks & Copy",
+        steps: [
+          { title: "Upload assets", details: ["Inside the event's Ad Engine dashboard, add assets (images or videos) for the event", "Tag each asset with: kind (image/video), energy (low/medium/high), context (crowd/performance/venue/promo/behind_scenes), and source (in_house/artist/upload/stock)", "Tags drive which creatives the generator produces — high-energy assets don't get paired with soft-tone copy, for instance"] },
+          { title: "Write hooks and copy variants", details: ["Hooks = short attention-grabbers (e.g. 'Last 50 tickets')", "Copy variants = body + CTA with a tone tag (hype / classy / casual / raw)", "Store them against the event (or venue-wide for reuse)", "The creative generator combines every eligible (asset × hook × copy) combo deterministically and hashes the combination so duplicates can never be created"] },
+        ],
+      },
+      {
+        heading: "3. Build & Launch a Campaign",
+        steps: [
+          { title: "Generate creatives", details: ["From the Ad Engine dashboard, click 'Generate Creatives' to materialize every valid combination", "Review the grid — activate the ones you want to run, leave the rest as drafts"] },
+          { title: "Build the campaign", details: ["Click 'New Campaign', pick platform (meta or snapchat), mode (efficiency / volume / manual), daily_budget_cap, and total_budget_cap", "The campaign is created in status=draft; click 'Validate' to run the pre-launch checklist"] },
+          { title: "Pre-launch validation (automatic)", details: ["Checks the event has an identity + access_token for the chosen platform", "Verifies at least one active creative exists", "Confirms budget caps are within safety bounds and no event-level BudgetCap has been exceeded", "Blocks launch if any check fails and explains why; none of the checks can be bypassed from the UI"] },
+          { title: "Launch", details: ["Once validated, click 'Launch' — the platform adapter creates the external campaign and stores the external_campaign_id", "Status moves draft → active; the daily metrics sync starts on the next cron tick"] },
+        ],
+      },
+      {
+        heading: "4. Metrics & Optimization",
+        steps: [
+          { title: "Daily metrics sync", details: ["Every 6 h, the ad-engine-cron workflow calls /api/cron/ad-engine-metrics", "The worker pulls spend / impressions / clicks / conversions / revenue per campaign per day from each platform and writes ad_engine_daily_metrics rows", "Derived rates (CTR, CPC, CPM, ROAS) are computed on write"] },
+          { title: "Optimization pass", details: ["30 min after each metrics sync, /api/cron/ad-engine-optimize runs evaluateCampaign() for every active campaign", "The optimization engine checks safety overrides (manual freezes, budget walls, metrics-age) before taking any action", "Actions: scale daily budget up by scaling_step_pct, pause low performers, or freeze on unexplained spend spikes", "Every action is logged to ad_engine_decision_log with a confidence score and outcome (executed / logged_only / blocked) so decisions are auditable"] },
+        ],
+      },
+      {
+        heading: "5. Safety & Manual Overrides",
+        steps: [
+          { title: "Freeze a campaign", details: ["From the campaign detail page, click 'Freeze' to pause the optimization engine — manual control only until unfrozen", "Use when running a launch window or doing manual A/B tests"] },
+          { title: "Budget walls", details: ["Event-level BudgetCap defines daily_cap_total and campaign_cap_total", "If total spend across all campaigns would breach the cap, the optimization engine blocks any 'scale up' decisions and logs why", "This is the safety net that prevents runaway spend"] },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: "deal-lab",
+    title: "Deal Lab — Offer Simulation & Recommendations",
+    category: "Business",
+    description: "How to use Deal Lab to simulate offer scenarios, score deal risk, and get rule-based recommendations before sending a deal memo.",
+    icon: "",
+    sections: [
+      {
+        heading: "1. Concepts",
+        steps: [
+          { title: "What Deal Lab does", details: ["Runs deterministic scenario simulations on a proposed offer: low / mid / high ticket-sales outcomes, with each scenario fully priced out (guarantees, walks, fees, facility costs, splits)", "Calculates risk_score by combining walk-clause exposure, break-even sensitivity, and downside revenue", "Emits rule-based recommendations — e.g. 'switch to versus deal', 'drop guarantee by $X', 'require 50% deposit'", "Everything is rules + math, no AI"] },
+          { title: "Where it lives", details: ["Module code: /modules/deal-lab", "Surfaces inside: Admin → Business → Booking → (open or create offer) → 'Deal Lab (Simulated)' button on the offer page", "No standalone sidebar entry — it's always offer-scoped"] },
+        ],
+      },
+      {
+        heading: "2. Running a Simulation",
+        steps: [
+          { title: "From a draft offer", details: ["Create or open an offer at Admin → Business → Booking → [offer]", "Fill in the proposed deal terms: guarantee, deal type (flat / versus / door / co-promote), backend percentage, walk clause, deposit, merch split", "Also set the expected capacity, projected ticket price, and estimated on-sale duration"] },
+          { title: "Launch Deal Lab", details: ["Click the 'Deal Lab (Simulated)' button in the top-right of the offer page", "The simulation runs in the browser — no external calls, no wait", "You get three scenarios: low (40% sold), mid (70% sold), high (100% sold) with per-scenario P&L"] },
+        ],
+      },
+      {
+        heading: "3. Reading the Output",
+        steps: [
+          { title: "Scenario table", details: ["For each scenario you see: gross ticket revenue, ticketing fees, facility fees, tax, net revenue, artist payment (guarantee vs backend vs door), venue net", "The break-even bar shows the minimum percent sold before the venue breaks even given the current guarantee — if break-even sits above 70%, that's a high-risk deal"] },
+          { title: "Risk score", details: ["Overall 0–100 score; below 30 = green, 30–60 = yellow, 60+ = red", "Sub-factors shown: Walk exposure (how likely walk clause triggers at low-scenario sales), Break-even sensitivity (how close BE is to realistic sales), Downside (absolute $ lost in low scenario)"] },
+          { title: "Recommendations", details: ["Rules-based suggestions appear beneath the scenarios", "Typical outputs: 'Convert to versus deal — backend kicks in above $X', 'Reduce guarantee by 15% to pull break-even below 50%', 'Add walk clause at 35% ticket sales', 'Increase deposit to 50% to de-risk cancellation exposure'", "Apply a recommendation by clicking it — the offer form updates with the new term and the simulation re-runs instantly"] },
+        ],
+      },
+      {
+        heading: "4. Using Deal Lab in the Booking Workflow",
+        steps: [
+          { title: "Standard flow", details: ["Agent sends inquiry → create offer → set terms → open Deal Lab → review scenarios + risk score", "If risk score is high, iterate on terms (lower guarantee, add walk clause, increase deposit) and re-simulate", "Once risk is acceptable, generate the PDF deal memo and send to agent", "Deal Lab does not write to the offer record — only the terms you explicitly save are persisted. Simulations are disposable and re-runnable."] },
+          { title: "Integration with Email Engine & Ad Engine", details: ["Email Engine feeds Deal Lab segment-level conversion + RPE via modules/email-engine/services/integrations.buildSegmentPerformanceFeed()", "Ad Engine feeds Deal Lab segment↔event overlap counts via modules/email-engine/services/integrations.getSegmentEventOverlap()", "Both are read-only — Deal Lab uses them as demand signals when scoring risk, but never writes back"] },
+        ],
+      },
+    ],
+  },
 ];
 
 /* ------------------------------------------------------------------ */

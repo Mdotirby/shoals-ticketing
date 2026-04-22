@@ -62,6 +62,7 @@ const sidebarGroups: SidebarGroup[] = [
     roles: ["owner","venue_admin","full_admin"],
     items: [
       { label: "Marketing",    href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
+      { label: "Email Engine", href: "/admin/email",        roles: ["owner","super_admin","venue_admin","full_admin"] },
       { label: "Market Radar", href: "/admin/market-radar", roles: ["owner","venue_admin"] },
       { label: "Auctions",     href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
       { label: "Partners",     href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
@@ -123,6 +124,7 @@ const TAB_KEY_MAP: Record<string, string> = {
   "Scanner": "scanner",
   "Guest Lists": "guest_lists",
   "Marketing": "marketing",
+  "Email Engine": "email_engine",
   "Agents": "agents",
   "Partner Dashboard": "partner_dashboard",
   "Seating": "seating",
