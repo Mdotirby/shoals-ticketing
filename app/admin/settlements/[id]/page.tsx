@@ -838,15 +838,27 @@ export default function SettlementDetailPage() {
           <thead>
             <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Tier</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Capacity</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Cap</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Sold</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Comps</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>% House</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Price</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Face Price</th>
+              <th
+                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
+                title="Face × sold = what the artist split is calculated on."
+              >
+                Face Revenue
+              </th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Svc Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Fac Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Tax</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Gross (paid)</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>CC Fee</th>
+              <th
+                style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
+                title="Face + Svc + Fac + Tax + CC — matches your Stripe dashboard."
+              >
+                Gross (Stripe)
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -854,11 +866,14 @@ export default function SettlementDetailPage() {
               const pctHouse = row.capacity > 0 ? (row.sold / row.capacity) * 100 : 0;
               const svcFeeTotal = (row.ticketing_fee || 0) * row.sold;
               const facFeeTotal = (row.facility_fee || 0) * row.sold;
-              // Tax for this tier — based on face-value gross + tax_method.
               const tierTax =
                 taxMethod === "divisor" && taxRate > 0
                   ? row.gross - row.gross / (1 + taxRate)
                   : row.gross * taxRate;
+              const totalSold = auditTotals.sold || 1;
+              const tierCcShare = ccFees * (row.sold / totalSold);
+              const stripeGross =
+                row.gross + svcFeeTotal + facFeeTotal + tierTax + tierCcShare;
               return (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <td style={{ padding: "6px" }}>{row.tier}</td>
@@ -867,20 +882,35 @@ export default function SettlementDetailPage() {
                   <td style={{ padding: "6px", textAlign: "right" }}>{row.comps}</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{pctHouse.toFixed(1)}%</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(row.price)}</td>
-                  <td style={{ padding: "6px", textAlign: "right" }} title={`${fmt(row.ticketing_fee || 0)} × ${row.sold}`}>
+                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 600 }}>{fmt(row.gross)}</td>
+                  <td
+                    style={{ padding: "6px", textAlign: "right" }}
+                    title={`${fmt(row.ticketing_fee || 0)} × ${row.sold} tickets`}
+                  >
                     {fmt(svcFeeTotal)}
                   </td>
-                  <td style={{ padding: "6px", textAlign: "right" }} title={`${fmt(row.facility_fee || 0)} × ${row.sold}`}>
+                  <td
+                    style={{ padding: "6px", textAlign: "right" }}
+                    title={`${fmt(row.facility_fee || 0)} × ${row.sold} tickets`}
+                  >
                     {fmt(facFeeTotal)}
                   </td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
-                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 600 }}>{fmt(row.gross)}</td>
+                  <td
+                    style={{ padding: "6px", textAlign: "right" }}
+                    title="Stripe processing fees apportioned by tier sold count"
+                  >
+                    {fmt(tierCcShare)}
+                  </td>
+                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
+                    {fmt(stripeGross)}
+                  </td>
                 </tr>
               );
             })}
             {ticketAudit.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={12} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -899,15 +929,78 @@ export default function SettlementDetailPage() {
                     : "—"}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(totalGross)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ticketingFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(facilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(totalGross)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ccFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
+                  {fmt(totalCustomerPaid)}
+                </td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+
+      {/* ── Stripe Collected Breakdown ────────────────────────────────── */}
+      {ticketAudit.length > 0 && (
+        <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 6, padding: "16px 18px", margin: "18px 0 8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600 }}>
+              Stripe Collected (Gross)
+            </span>
+            <span style={{ color: "#d0c290", fontSize: 22, fontWeight: 700 }}>
+              {fmt(totalCustomerPaid)}
+            </span>
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "0 0 12px" }}>
+            This is what your Stripe dashboard shows for this event. Below is the per-fee breakdown of where it came from.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "6px 24px", fontSize: 13 }}>
+            <span style={{ color: "rgba(255,255,255,0.7)" }}>
+              Face Value Revenue <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>(artist split base)</span>
+            </span>
+            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(totalGross)}</span>
+
+            <span style={{ color: "rgba(255,255,255,0.7)" }}>
+              Service Fees Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                ({fmt(ticketingFeePerTicket)}/ticket × {ticketsSold})
+              </span>
+            </span>
+            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(ticketingFees)}</span>
+
+            <span style={{ color: "rgba(255,255,255,0.7)" }}>
+              Facility Fees Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                ({fmt(facilityFeePerTicket)}/ticket × {ticketsSold})
+              </span>
+            </span>
+            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(facilityFees)}</span>
+
+            <span style={{ color: "rgba(255,255,255,0.7)" }}>
+              Tax Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                ({(taxRate * 100).toFixed(2)}%, {taxMethod === "divisor" ? "divided out" : "added on top"})
+              </span>
+            </span>
+            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(taxes)}</span>
+
+            <span style={{ color: "rgba(255,255,255,0.7)" }}>
+              CC Processing Fees <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                (Stripe ~2.9% + $0.30/order)
+              </span>
+            </span>
+            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(ccFees)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(208,194,144,0.25)", marginTop: 12, paddingTop: 10 }}>
+            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 700 }}>
+              Sum of above
+            </span>
+            <span style={{ color: "#d0c290", fontSize: 14, fontWeight: 700 }}>
+              {fmt(totalCustomerPaid)}
+            </span>
+          </div>
+        </div>
+      )}
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 6 }}>
         Comps are listed for inventory accuracy but excluded from the gross.
         {compCount > 0 && (

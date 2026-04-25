@@ -278,21 +278,23 @@ export async function computeEventAudit(
     tier.facility_fee = fees.facility_fee;
   }
 
-  // 8. CC processing fees — Stripe charges 2.9% + $0.30 per successful charge.
-  //    Compute deterministically from total paid + order count. Fall back to
-  //    settlement_ledger.stripe_fee if it has data and the formula came back 0
-  //    (e.g. all-comp event or pre-Stripe historical data).
-  let cc_fees = total_paid_amount * 0.029 + paid_order_count * 0.3;
-  if (cc_fees === 0) {
-    const { data: ledger } = await admin
-      .from("settlement_ledger")
-      .select("stripe_fee, type")
-      .eq("event_id", eventId);
-    const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
-    for (const row of ledgerRows) {
-      if (row.type === "comp") continue;
-      cc_fees += num(row.stripe_fee);
-    }
+  // 8. CC processing fees — prefer the actual settlement_ledger sum (the
+  //    webhook stamps stripe_fee per order, so this matches what Stripe
+  //    actually charged to the penny). Fall back to the deterministic
+  //    formula (2.9% + $0.30/order) when the ledger has no data — e.g.
+  //    historical events from before the ledger migration.
+  let cc_fees = 0;
+  const { data: ledger } = await admin
+    .from("settlement_ledger")
+    .select("stripe_fee, type")
+    .eq("event_id", eventId);
+  const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
+  for (const row of ledgerRows) {
+    if (row.type === "comp") continue;
+    cc_fees += num(row.stripe_fee);
+  }
+  if (cc_fees === 0 && total_paid_amount > 0) {
+    cc_fees = total_paid_amount * 0.029 + paid_order_count * 0.3;
   }
 
   // 9. Sort and finalize

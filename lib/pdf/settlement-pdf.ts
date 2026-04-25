@@ -66,18 +66,22 @@ function drawSignatureLines(doc: Doc, y: number): number {
 }
 
 // ── Ticket Audit Table ───────────────────────────────────────────────
+//
+// Columns: Tier, Cap, Sold, Comps, %H, Face Price, Face Rev, Svc, Fac, Tax,
+//          CC, Gross (Stripe).
+// Last column = Stripe-collected total (Face + Svc + Fac + Tax + CC).
 function drawTicketAuditTable(
   doc: Doc,
   rows: Settlement["ticket_audit"],
   taxRate: number,
   taxMethod: "multiplier" | "divisor",
+  ccFees: number,
   y: number
 ): number {
   y = drawSectionHeader(doc, "Ticket Audit", y);
-  const cols = ["Tier", "Cap", "Sold", "Comps", "%H", "Price", "Svc Fee", "Fac Fee", "Tax", "Gross"];
-  // Distribute columns evenly across the available content width.
+  const cols = ["Tier", "Cap", "Sold", "Cmp", "%H", "Face $", "Face Rev", "Svc", "Fac", "Tax", "CC", "Gross (Stripe)"];
   const colCount = cols.length;
-  const tierColW = 38;
+  const tierColW = 30;
   const remaining = CONTENT_WIDTH - tierColW;
   const numColW = remaining / (colCount - 1);
   const colX: number[] = [MARGIN + 3];
@@ -85,12 +89,12 @@ function drawTicketAuditTable(
     colX.push(MARGIN + tierColW + numColW * i - 2);
   }
 
-  // Header row
+  // Header
   y = ensureSpace(doc, 8, y);
   doc.setFillColor(...LIGHT_GRAY);
   doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(...DARK);
   cols.forEach((c, i) => {
     const align = i >= 1 ? "right" : undefined;
@@ -98,82 +102,106 @@ function drawTicketAuditTable(
   });
   y += 8;
 
+  // Total sold (for CC apportionment)
+  const totalSoldAll = rows.reduce((s, r) => s + r.sold, 0) || 1;
+
   // Data rows
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  let totalCap = 0,
-    totalSold = 0,
-    totalComps = 0,
-    totalSvc = 0,
-    totalFac = 0,
-    totalTax = 0,
-    totalGross = 0;
-  const tierNameMaxW = tierColW - 5;
+  doc.setFontSize(6.5);
+  let tCap = 0,
+    tSold = 0,
+    tComps = 0,
+    tFaceRev = 0,
+    tSvc = 0,
+    tFac = 0,
+    tTax = 0,
+    tCc = 0,
+    tStripe = 0;
+  const tierNameMaxW = tierColW - 3;
 
   for (const r of rows) {
     y = ensureSpace(doc, 7, y);
     const tierName: string = doc.splitTextToSize(r.tier, tierNameMaxW)[0] || r.tier;
-    const pctHouse = r.capacity > 0 ? (r.sold / r.capacity) * 100 : 0;
+    const pctH = r.capacity > 0 ? (r.sold / r.capacity) * 100 : 0;
     const svc = (r.ticketing_fee || 0) * r.sold;
     const fac = (r.facility_fee || 0) * r.sold;
     const tax =
       taxMethod === "divisor" && taxRate > 0
         ? r.gross - r.gross / (1 + taxRate)
         : r.gross * taxRate;
+    const ccShare = ccFees * (r.sold / totalSoldAll);
+    const stripeGross = r.gross + svc + fac + tax + ccShare;
+
     doc.text(tierName, colX[0], y + 4);
     doc.text(String(r.capacity), colX[1], y + 4, { align: "right" });
     doc.text(String(r.sold), colX[2], y + 4, { align: "right" });
     doc.text(String(r.comps), colX[3], y + 4, { align: "right" });
-    doc.text(`${pctHouse.toFixed(1)}%`, colX[4], y + 4, { align: "right" });
+    doc.text(`${pctH.toFixed(1)}%`, colX[4], y + 4, { align: "right" });
     doc.text(fmt(r.price), colX[5], y + 4, { align: "right" });
-    doc.text(fmt(svc), colX[6], y + 4, { align: "right" });
-    doc.text(fmt(fac), colX[7], y + 4, { align: "right" });
-    doc.text(fmt(tax), colX[8], y + 4, { align: "right" });
-    doc.text(fmt(r.gross), colX[9], y + 4, { align: "right" });
-    totalCap += r.capacity;
-    totalSold += r.sold;
-    totalComps += r.comps;
-    totalSvc += svc;
-    totalFac += fac;
-    totalTax += tax;
-    totalGross += r.gross;
+    doc.text(fmt(r.gross), colX[6], y + 4, { align: "right" });
+    doc.text(fmt(svc), colX[7], y + 4, { align: "right" });
+    doc.text(fmt(fac), colX[8], y + 4, { align: "right" });
+    doc.text(fmt(tax), colX[9], y + 4, { align: "right" });
+    doc.text(fmt(ccShare), colX[10], y + 4, { align: "right" });
+    doc.text(fmt(stripeGross), colX[11], y + 4, { align: "right" });
+
+    tCap += r.capacity;
+    tSold += r.sold;
+    tComps += r.comps;
+    tFaceRev += r.gross;
+    tSvc += svc;
+    tFac += fac;
+    tTax += tax;
+    tCc += ccShare;
+    tStripe += stripeGross;
     y += 6;
   }
 
-  // Totals row
+  // Total row
   y = ensureSpace(doc, 8, y);
   doc.setFillColor(...DARK);
   doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(...WHITE);
   doc.text("TOTAL", colX[0], y + 5);
-  doc.text(String(totalCap), colX[1], y + 5, { align: "right" });
-  doc.text(String(totalSold), colX[2], y + 5, { align: "right" });
-  doc.text(String(totalComps), colX[3], y + 5, { align: "right" });
-  const overallPct = totalCap > 0 ? ((totalSold / totalCap) * 100).toFixed(1) + "%" : "—";
+  doc.text(String(tCap), colX[1], y + 5, { align: "right" });
+  doc.text(String(tSold), colX[2], y + 5, { align: "right" });
+  doc.text(String(tComps), colX[3], y + 5, { align: "right" });
+  const overallPct = tCap > 0 ? ((tSold / tCap) * 100).toFixed(1) + "%" : "—";
   doc.text(overallPct, colX[4], y + 5, { align: "right" });
   doc.text("", colX[5], y + 5);
-  doc.text(fmt(totalSvc), colX[6], y + 5, { align: "right" });
-  doc.text(fmt(totalFac), colX[7], y + 5, { align: "right" });
-  doc.text(fmt(totalTax), colX[8], y + 5, { align: "right" });
-  doc.text(fmt(totalGross), colX[9], y + 5, { align: "right" });
+  doc.text(fmt(tFaceRev), colX[6], y + 5, { align: "right" });
+  doc.text(fmt(tSvc), colX[7], y + 5, { align: "right" });
+  doc.text(fmt(tFac), colX[8], y + 5, { align: "right" });
+  doc.text(fmt(tTax), colX[9], y + 5, { align: "right" });
+  doc.text(fmt(tCc), colX[10], y + 5, { align: "right" });
+  doc.text(fmt(tStripe), colX[11], y + 5, { align: "right" });
   doc.setTextColor(...DARK);
-
   y += 10;
 
   // Comps note
-  if (totalComps > 0) {
+  if (tComps > 0) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7);
     doc.setTextColor(...DARK);
     doc.text(
-      `* ${totalComps} comp ticket${totalComps === 1 ? "" : "s"} listed for inventory only — NOT included in gross.`,
+      `* ${tComps} comp ticket${tComps === 1 ? "" : "s"} listed for inventory only — NOT included in any totals.`,
       MARGIN + 3,
       y
     );
     y += 5;
   }
+  // Legend
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(...DARK);
+  doc.text(
+    "Face Rev = ticket face value (artist split base). Gross (Stripe) = total Stripe collected for this event.",
+    MARGIN + 3,
+    y
+  );
+  y += 5;
 
   return y + 2;
 }
@@ -399,6 +427,7 @@ export async function exportArtistSettlementPDF(
     settlement.ticket_audit ?? [],
     settlement.tax_rate ?? 0,
     (settlement.tax_method as "multiplier" | "divisor") ?? "multiplier",
+    settlement.cc_fees ?? 0,
     y
   );
 
@@ -561,6 +590,7 @@ export async function exportVenueSettlementPDF(
     settlement.ticket_audit ?? [],
     settlement.tax_rate ?? 0,
     (settlement.tax_method as "multiplier" | "divisor") ?? "multiplier",
+    settlement.cc_fees ?? 0,
     y
   );
 
