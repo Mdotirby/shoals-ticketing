@@ -66,20 +66,31 @@ function drawSignatureLines(doc: Doc, y: number): number {
 }
 
 // ── Ticket Audit Table ───────────────────────────────────────────────
-function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: number): number {
+function drawTicketAuditTable(
+  doc: Doc,
+  rows: Settlement["ticket_audit"],
+  taxRate: number,
+  taxMethod: "multiplier" | "divisor",
+  y: number
+): number {
   y = drawSectionHeader(doc, "Ticket Audit", y);
-  const cols = ["Tier", "Cap", "Sold", "Comps", "% House", "Price", "Gross"];
-  const colX = [
-    MARGIN + 3, MARGIN + 50, MARGIN + 70, MARGIN + 90,
-    MARGIN + 115, MARGIN + 140, MARGIN + CONTENT_WIDTH - 3,
-  ];
+  const cols = ["Tier", "Cap", "Sold", "Comps", "%H", "Price", "Svc Fee", "Fac Fee", "Tax", "Gross"];
+  // Distribute columns evenly across the available content width.
+  const colCount = cols.length;
+  const tierColW = 38;
+  const remaining = CONTENT_WIDTH - tierColW;
+  const numColW = remaining / (colCount - 1);
+  const colX: number[] = [MARGIN + 3];
+  for (let i = 1; i < colCount; i++) {
+    colX.push(MARGIN + tierColW + numColW * i - 2);
+  }
 
   // Header row
   y = ensureSpace(doc, 8, y);
   doc.setFillColor(...LIGHT_GRAY);
   doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(...DARK);
   cols.forEach((c, i) => {
     const align = i >= 1 ? "right" : undefined;
@@ -89,24 +100,42 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
 
   // Data rows
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  let totalCap = 0, totalSold = 0, totalComps = 0, totalGross = 0;
-  const tierNameMaxW = colX[1] - colX[0] - 5;
+  doc.setFontSize(7);
+  let totalCap = 0,
+    totalSold = 0,
+    totalComps = 0,
+    totalSvc = 0,
+    totalFac = 0,
+    totalTax = 0,
+    totalGross = 0;
+  const tierNameMaxW = tierColW - 5;
 
   for (const r of rows) {
     y = ensureSpace(doc, 7, y);
     const tierName: string = doc.splitTextToSize(r.tier, tierNameMaxW)[0] || r.tier;
     const pctHouse = r.capacity > 0 ? (r.sold / r.capacity) * 100 : 0;
+    const svc = (r.ticketing_fee || 0) * r.sold;
+    const fac = (r.facility_fee || 0) * r.sold;
+    const tax =
+      taxMethod === "divisor" && taxRate > 0
+        ? r.gross - r.gross / (1 + taxRate)
+        : r.gross * taxRate;
     doc.text(tierName, colX[0], y + 4);
     doc.text(String(r.capacity), colX[1], y + 4, { align: "right" });
     doc.text(String(r.sold), colX[2], y + 4, { align: "right" });
     doc.text(String(r.comps), colX[3], y + 4, { align: "right" });
     doc.text(`${pctHouse.toFixed(1)}%`, colX[4], y + 4, { align: "right" });
     doc.text(fmt(r.price), colX[5], y + 4, { align: "right" });
-    doc.text(fmt(r.gross), colX[6], y + 4, { align: "right" });
+    doc.text(fmt(svc), colX[6], y + 4, { align: "right" });
+    doc.text(fmt(fac), colX[7], y + 4, { align: "right" });
+    doc.text(fmt(tax), colX[8], y + 4, { align: "right" });
+    doc.text(fmt(r.gross), colX[9], y + 4, { align: "right" });
     totalCap += r.capacity;
     totalSold += r.sold;
     totalComps += r.comps;
+    totalSvc += svc;
+    totalFac += fac;
+    totalTax += tax;
     totalGross += r.gross;
     y += 6;
   }
@@ -116,7 +145,7 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   doc.setFillColor(...DARK);
   doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(...WHITE);
   doc.text("TOTAL", colX[0], y + 5);
   doc.text(String(totalCap), colX[1], y + 5, { align: "right" });
@@ -125,7 +154,10 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   const overallPct = totalCap > 0 ? ((totalSold / totalCap) * 100).toFixed(1) + "%" : "—";
   doc.text(overallPct, colX[4], y + 5, { align: "right" });
   doc.text("", colX[5], y + 5);
-  doc.text(fmt(totalGross), colX[6], y + 5, { align: "right" });
+  doc.text(fmt(totalSvc), colX[6], y + 5, { align: "right" });
+  doc.text(fmt(totalFac), colX[7], y + 5, { align: "right" });
+  doc.text(fmt(totalTax), colX[8], y + 5, { align: "right" });
+  doc.text(fmt(totalGross), colX[9], y + 5, { align: "right" });
   doc.setTextColor(...DARK);
 
   y += 10;
@@ -144,59 +176,6 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   }
 
   return y + 2;
-}
-
-// ── Fee & Tax Breakdown ──────────────────────────────────────────────
-function drawFeeTaxBreakdown(doc: Doc, s: Settlement, y: number): number {
-  y = drawSectionHeader(doc, "Fees & Tax Collected", y);
-
-  const ticketsSold = s.tickets_sold_count || 0;
-  const tfPer = s.ticketing_fee_per_ticket || 0;
-  const ffPer = s.facility_fee_per_ticket || 0;
-  const ccPer = ticketsSold > 0 ? (s.cc_fees || 0) / ticketsSold : 0;
-
-  const ticketLabel = `${ticketsSold} ticket${ticketsSold === 1 ? "" : "s"}`;
-
-  y = drawRow(
-    doc,
-    `Ticketing Service Fee  (${fmt(tfPer)} × ${ticketLabel})`,
-    fmt(s.ticketing_fees || 0),
-    y,
-    { indent: 4 }
-  );
-  if ((s.facility_fees || 0) > 0 || ffPer > 0) {
-    y = drawRow(
-      doc,
-      `Facility Fee  (${fmt(ffPer)} × ${ticketLabel})`,
-      fmt(s.facility_fees || 0),
-      y,
-      { indent: 4 }
-    );
-  }
-  y = drawRow(
-    doc,
-    `CC / Processing Fee  (~${fmt(ccPer)} / ticket)`,
-    fmt(s.cc_fees || 0),
-    y,
-    { indent: 4 }
-  );
-  const taxRatePct = ((s.tax_rate || 0) * 100).toFixed(2);
-  const taxLabel =
-    s.tax_method === "divisor"
-      ? `Tax  (${taxRatePct}% — divided out of gross)`
-      : `Tax  (${taxRatePct}% — added on top)`;
-  y = drawRow(doc, taxLabel, fmt(s.taxes || 0), y, { indent: 4 });
-
-  y = drawDivider(doc, y);
-  const totalCollected =
-    (s.ticketing_fees || 0) +
-    (s.facility_fees || 0) +
-    (s.cc_fees || 0) +
-    (s.taxes || 0);
-  y = drawRow(doc, "Total Fees + Tax Collected", fmt(totalCollected), y, { bold: true });
-  y += 3;
-
-  return y;
 }
 
 // ── Merch Settlement ─────────────────────────────────────────────────
@@ -415,10 +394,13 @@ export async function exportArtistSettlementPDF(
   y += 3;
 
   // ── Ticket Audit ──
-  y = drawTicketAuditTable(doc, settlement.ticket_audit ?? [], y);
-
-  // ── Fee & Tax Breakdown ──
-  y = drawFeeTaxBreakdown(doc, settlement, y);
+  y = drawTicketAuditTable(
+    doc,
+    settlement.ticket_audit ?? [],
+    settlement.tax_rate ?? 0,
+    (settlement.tax_method as "multiplier" | "divisor") ?? "multiplier",
+    y
+  );
 
   // ── Financial Summary ──
   y = drawFinancialSummary(doc, settlement, y);
@@ -574,10 +556,13 @@ export async function exportVenueSettlementPDF(
   y += 3;
 
   // Ticket Audit
-  y = drawTicketAuditTable(doc, settlement.ticket_audit ?? [], y);
-
-  // Fee & Tax Breakdown
-  y = drawFeeTaxBreakdown(doc, settlement, y);
+  y = drawTicketAuditTable(
+    doc,
+    settlement.ticket_audit ?? [],
+    settlement.tax_rate ?? 0,
+    (settlement.tax_method as "multiplier" | "divisor") ?? "multiplier",
+    y
+  );
 
   // Financial Summary
   y = drawFinancialSummary(doc, settlement, y);

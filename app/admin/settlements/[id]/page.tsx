@@ -64,17 +64,19 @@ export default function SettlementDetailPage() {
   const [radiusClause, setRadiusClause] = useState("");
   const [bonusStructureRaw, setBonusStructureRaw] = useState("");
 
-  // ── Editable FEE / TAX inputs (draft mode) ───────────────────────────
-  // These are ALSO populated from the order data via "Refresh from Orders".
-  // The user can override (e.g. add an off-platform fee).
+  // ── FEE / TAX values ──────────────────────────────────────────────
+  // These are NOT user-editable — they're pulled from event/venue config
+  // and aggregated by the audit endpoint. Stored in state so the financial
+  // summary + PDF have a stable reference between refreshes/saves.
   const [ticketingFees, setTicketingFees] = useState(0);
   const [facilityFees, setFacilityFees] = useState(0);
   const [ccFees, setCcFees] = useState(0);
-  const [taxesInput, setTaxesInput] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
+  // Tax method is the only thing the user can flip on the settlement (some
+  // venues run tax-inclusive pricing); rate itself comes from venue config.
   const [taxMethod, setTaxMethod] = useState<TaxMethod>("multiplier");
 
-  // Per-ticket rate snapshots (for display)
+  // Per-ticket rate snapshots (display-only)
   const [ticketingFeePerTicket, setTicketingFeePerTicket] = useState(0);
   const [facilityFeePerTicket, setFacilityFeePerTicket] = useState(0);
 
@@ -114,7 +116,6 @@ export default function SettlementDetailPage() {
     setTicketingFees(Number(data.ticketing_fees) || 0);
     setFacilityFees(Number(data.facility_fees) || 0);
     setCcFees(Number(data.cc_fees) || 0);
-    setTaxesInput(Number(data.taxes) || 0);
     setTaxRate(Number(data.tax_rate) || 0);
     setTaxMethod((data.tax_method as TaxMethod) || "multiplier");
     setTicketingFeePerTicket(Number(data.ticketing_fee_per_ticket) || 0);
@@ -167,6 +168,9 @@ export default function SettlementDetailPage() {
             }).then((r) => r.json());
             if (active && refreshed && !refreshed.error) {
               hydrate(refreshed);
+              // Refresh endpoint may have created/updated the auto CC expense.
+              if (Array.isArray(refreshed.expenses)) setExpenses(refreshed.expenses);
+              if (Array.isArray(refreshed.deposits)) setDeposits(refreshed.deposits);
             }
           } catch {
             // network error — keep the stored snapshot
@@ -196,16 +200,15 @@ export default function SettlementDetailPage() {
   // Adj gross subtracts ticketing + facility fees from gross.
   const adjGross = totalGross - ticketingFees - facilityFees;
 
-  // Tax: honor the chosen method
-  //   • multiplier → tax was added on top:         tax = adjGross × rate
-  //   • divisor    → adjGross is tax-inclusive:    tax = adjGross − adjGross / (1 + rate)
-  // We display BOTH the actual recorded tax (taxesInput from orders) and the
-  // computed tax so the user can spot mismatches.
-  const computedTax =
+  // Tax: honor the chosen method.
+  //   • multiplier → tax was added on top:         tax = totalGross × rate
+  //   • divisor    → totalGross is tax-inclusive:  tax = totalGross − totalGross / (1 + rate)
+  // (Apply to face-value gross, not adj_gross — service/facility fees are
+  // typically not taxable line items.)
+  const taxes =
     taxMethod === "divisor" && taxRate > 0
-      ? adjGross - adjGross / (1 + taxRate)
-      : adjGross * taxRate;
-  const taxes = taxesInput > 0 ? taxesInput : computedTax;
+      ? totalGross - totalGross / (1 + taxRate)
+      : totalGross * taxRate;
   const netReceipts = adjGross - taxes;
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
@@ -334,6 +337,8 @@ export default function SettlementDetailPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Refresh failed");
       hydrate(data);
+      if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+      if (Array.isArray(data.deposits)) setDeposits(data.deposits);
       setSuccess("Refreshed from orders.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refresh failed");
@@ -833,32 +838,49 @@ export default function SettlementDetailPage() {
           <thead>
             <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Tier</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Capacity</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Sold</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Comps</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>% House</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Price</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Gross (paid)</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Capacity</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Sold</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Comps</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>% House</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Price</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Svc Fee</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Fac Fee</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Tax</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Gross (paid)</th>
             </tr>
           </thead>
           <tbody>
             {ticketAudit.map((row, i) => {
               const pctHouse = row.capacity > 0 ? (row.sold / row.capacity) * 100 : 0;
+              const svcFeeTotal = (row.ticketing_fee || 0) * row.sold;
+              const facFeeTotal = (row.facility_fee || 0) * row.sold;
+              // Tax for this tier — based on face-value gross + tax_method.
+              const tierTax =
+                taxMethod === "divisor" && taxRate > 0
+                  ? row.gross - row.gross / (1 + taxRate)
+                  : row.gross * taxRate;
               return (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <td style={{ padding: "6px" }}>{row.tier}</td>
-                  <td style={{ padding: "6px" }}>{row.capacity}</td>
-                  <td style={{ padding: "6px" }}>{row.sold}</td>
-                  <td style={{ padding: "6px" }}>{row.comps}</td>
-                  <td style={{ padding: "6px" }}>{pctHouse.toFixed(1)}%</td>
-                  <td style={{ padding: "6px" }}>{fmt(row.price)}</td>
-                  <td style={{ padding: "6px", fontWeight: 600 }}>{fmt(row.gross)}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{row.capacity}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{row.sold}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{row.comps}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{pctHouse.toFixed(1)}%</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{fmt(row.price)}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }} title={`${fmt(row.ticketing_fee || 0)} × ${row.sold}`}>
+                    {fmt(svcFeeTotal)}
+                  </td>
+                  <td style={{ padding: "6px", textAlign: "right" }} title={`${fmt(row.facility_fee || 0)} × ${row.sold}`}>
+                    {fmt(facFeeTotal)}
+                  </td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
+                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 600 }}>{fmt(row.gross)}</td>
                 </tr>
               );
             })}
             {ticketAudit.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={10} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -868,16 +890,19 @@ export default function SettlementDetailPage() {
             <tfoot>
               <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
-                <td style={{ padding: "8px 6px" }}>{auditTotals.capacity}</td>
-                <td style={{ padding: "8px 6px" }}>{auditTotals.sold}</td>
-                <td style={{ padding: "8px 6px" }}>{auditTotals.comps}</td>
-                <td style={{ padding: "8px 6px" }}>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.capacity}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.comps}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>
                   {auditTotals.capacity > 0
                     ? ((auditTotals.sold / auditTotals.capacity) * 100).toFixed(1) + "%"
                     : "—"}
                 </td>
-                <td style={{ padding: "8px 6px" }}>—</td>
-                <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(totalGross)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ticketingFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(facilityFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(totalGross)}</td>
               </tr>
             </tfoot>
           )}
@@ -891,115 +916,42 @@ export default function SettlementDetailPage() {
       </p>
 
       {/* ════════════════════════════════════════════
-          §3  FEES & TAX BREAKDOWN
+          §3  TAX CONFIG (read-only summary; values come from event/venue)
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Fees &amp; Tax Collected</h2>
-      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: -8, marginBottom: 8 }}>
-        Pulled from actual order data. Each line item is what the customer paid in addition to the ticket face value.
-      </p>
-      <div style={{ maxWidth: 640 }}>
-        <div style={rowStyle}>
-          <span style={labelStyle}>
-            Ticketing Service Fee
-            {ticketingFeePerTicket > 0 && (
-              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 8 }}>
-                {fmt(ticketingFeePerTicket)} × {ticketsSold} ticket{ticketsSold === 1 ? "" : "s"}
-              </span>
-            )}
+      <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.18)", borderRadius: 6, padding: "12px 16px", margin: "16px 0" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13 }}>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>
+            Service fees, facility fees, and tax are pulled from this event&rsquo;s venue config and are
+            <strong style={{ color: "#d0c290" }}> not editable here</strong>. Edit them in
+            Admin → Venues. CC processing fee appears as an auto-expense below.
           </span>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 140, textAlign: "right" }}
-            value={ticketingFees}
-            onChange={(e) => setTicketingFees(Number(e.target.value))}
-            disabled={isFinalized}
-          />
         </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>
-            Facility Fee
-            {facilityFeePerTicket > 0 && (
-              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 8 }}>
-                {fmt(facilityFeePerTicket)} × {ticketsSold} ticket{ticketsSold === 1 ? "" : "s"}
-              </span>
-            )}
-          </span>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 140, textAlign: "right" }}
-            value={facilityFees}
-            onChange={(e) => setFacilityFees(Number(e.target.value))}
-            disabled={isFinalized}
-          />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>
-            CC / Processing Fee (Stripe)
-            {ccFeePerTicket > 0 && (
-              <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 8 }}>
-                ~{fmt(ccFeePerTicket)} / ticket
-              </span>
-            )}
-          </span>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 140, textAlign: "right" }}
-            value={ccFees}
-            onChange={(e) => setCcFees(Number(e.target.value))}
-            disabled={isFinalized}
-          />
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>
-            Tax Rate{" "}
-            <input
-              type="number"
-              step="0.001"
-              className="admin-form-input"
-              style={{ width: 80, textAlign: "right", marginLeft: 8, display: "inline" }}
-              value={taxRate}
-              onChange={(e) => setTaxRate(Number(e.target.value))}
-              disabled={isFinalized}
-            />
-            {" "}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13, marginTop: 12 }}>
+          <div>
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>Service Fee:</span>{" "}
+            <strong>{fmt(ticketingFeePerTicket)}</strong>{" "}
+            <span style={{ color: "rgba(255,255,255,0.35)" }}>per ticket</span>
+          </div>
+          <div>
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>Facility Fee:</span>{" "}
+            <strong>{fmt(facilityFeePerTicket)}</strong>{" "}
+            <span style={{ color: "rgba(255,255,255,0.35)" }}>per ticket</span>
+          </div>
+          <div>
+            <span style={{ color: "rgba(255,255,255,0.55)" }}>Tax Rate:</span>{" "}
+            <strong>{(taxRate * 100).toFixed(2)}%</strong>{" "}
             <select
               className="admin-form-input"
-              style={{ width: 130, marginLeft: 8, display: "inline" }}
+              style={{ width: 150, marginLeft: 8, display: "inline" }}
               value={taxMethod}
               onChange={(e) => setTaxMethod(e.target.value as TaxMethod)}
               disabled={isFinalized}
+              title="How the venue applies tax: added on top of face price (default) or already included in face price"
             >
               <option value="multiplier">Add on top</option>
               <option value="divisor">Divide out (incl.)</option>
             </select>
-          </span>
-          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>
-            Computed: {fmt(computedTax)}
-          </span>
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Tax Collected (actual)</span>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 140, textAlign: "right" }}
-            value={taxesInput}
-            onChange={(e) => setTaxesInput(Number(e.target.value))}
-            disabled={isFinalized}
-          />
-        </div>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>Total Fees + Tax Collected</span>
-          <span style={valStyle}>
-            {fmt(ticketingFees + facilityFees + ccFees + taxes)}
-          </span>
+          </div>
         </div>
       </div>
 

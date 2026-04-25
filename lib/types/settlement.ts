@@ -14,6 +14,7 @@ export type TicketAuditRow = {
   comps: number;         // comp tickets (NOT included in gross)
   kills: number;
   price: number;         // face price per ticket
+  ticketing_fee: number; // ticketing service fee per ticket (from venue config)
   facility_fee: number;  // facility fee per ticket on this tier
   /** Sum of subtotal (face value) collected from paying tickets in this tier. */
   gross: number;

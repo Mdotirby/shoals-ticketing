@@ -180,6 +180,7 @@ export async function computeEventAudit(
     comps: number;
     kills: number;
     price: number;
+    ticketing_fee: number;
     facility_fee: number;
     gross: number;
     sort_order: number;
@@ -193,6 +194,7 @@ export async function computeEventAudit(
       comps: 0,
       kills: 0,
       price: num(t.price),
+      ticketing_fee: 0,
       facility_fee: 0,
       gross: 0,
       sort_order: num(t.sort_order),
@@ -209,6 +211,7 @@ export async function computeEventAudit(
       comps: 0,
       kills: 0,
       price: 0,
+      ticketing_fee: 0,
       facility_fee: 0,
       gross: 0,
       sort_order: 9999,
@@ -236,17 +239,17 @@ export async function computeEventAudit(
     }
   }
 
-  // 6. Fees + tax + CC come from settlement_ledger (the webhook DOES populate
-  //    these per order; the orders._cents columns are unused).
+  // 6. Counts: paying tickets vs comps + comp face value.
   let tickets_sold_count = 0;
   let comp_count = 0;
   let comp_face_value = 0;
+  let total_paid_amount = 0; // Σ orders.total_amount for paying (non-comp) orders
+  let paid_order_count = 0;  // count of non-comp paid orders (for CC formula)
   for (const o of orderList) {
     const isComp = o.source === "comp" || num(o.total_amount) === 0;
     const qty = num(o.quantity);
     if (isComp) {
       comp_count += qty;
-      // Comp face value = average tier price across this order's tickets.
       const compTickets = ticketList.filter((t) => t.order_id === o.id);
       for (const ct of compTickets) {
         const tierId =
@@ -257,38 +260,42 @@ export async function computeEventAudit(
       }
     } else {
       tickets_sold_count += qty;
+      total_paid_amount += num(o.total_amount);
+      paid_order_count += 1;
     }
   }
 
-  const { data: ledger } = await admin
-    .from("settlement_ledger")
-    .select("order_id, ticketing_fee, tax_collected, stripe_fee, type")
-    .eq("event_id", eventId);
-
-  const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
-  let ticketing_fees = 0;
-  let taxes = 0;
-  let cc_fees = 0;
-  for (const row of ledgerRows) {
-    // 'sale' adds, 'refund'/'dispute' rows already store negative numbers in
-    // the ledger, so addition handles both cases correctly.
-    if (row.type === "comp") continue; // $0 entries — skip
-    ticketing_fees += num(row.ticketing_fee);
-    taxes += num(row.tax_collected);
-    cc_fees += num(row.stripe_fee);
-  }
-
-  // 7. Facility fees — not stored in the ledger. Derive from venue config ×
-  //    paying-ticket count. (Comps don't pay facility fee.)
+  // 7. Fees + tax — derived from the EVENT/VENUE config (the user explicitly
+  //    wants these "from what we've already set for that event", not editable).
   const fees = await resolveEventFees(admin, eventId);
+  const ticketing_fees = fees.ticketing_fee * tickets_sold_count;
   const facility_fees = fees.facility_fee * tickets_sold_count;
 
-  // Stamp each tier's per-ticket facility fee (mirrors what got collected).
+  // Stamp each tier with its per-ticket fee snapshots so the audit table can
+  // render Svc Fee + Fac Fee columns.
   for (const tier of Object.values(tierMap)) {
+    tier.ticketing_fee = fees.ticketing_fee;
     tier.facility_fee = fees.facility_fee;
   }
 
-  // 8. Sort and finalize
+  // 8. CC processing fees — Stripe charges 2.9% + $0.30 per successful charge.
+  //    Compute deterministically from total paid + order count. Fall back to
+  //    settlement_ledger.stripe_fee if it has data and the formula came back 0
+  //    (e.g. all-comp event or pre-Stripe historical data).
+  let cc_fees = total_paid_amount * 0.029 + paid_order_count * 0.3;
+  if (cc_fees === 0) {
+    const { data: ledger } = await admin
+      .from("settlement_ledger")
+      .select("stripe_fee, type")
+      .eq("event_id", eventId);
+    const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
+    for (const row of ledgerRows) {
+      if (row.type === "comp") continue;
+      cc_fees += num(row.stripe_fee);
+    }
+  }
+
+  // 9. Sort and finalize
   const audit: TicketAuditRow[] = Object.values(tierMap)
     .filter((t) => t.capacity > 0 || t.sold > 0 || t.comps > 0)
     .sort((a, b) => a.sort_order - b.sort_order)
@@ -299,11 +306,22 @@ export async function computeEventAudit(
       comps: t.comps,
       kills: t.kills,
       price: r2(t.price),
+      ticketing_fee: r2(t.ticketing_fee),
       facility_fee: r2(t.facility_fee),
       gross: r2(t.gross),
     }));
 
   const total_gross = audit.reduce((s, r) => s + r.gross, 0);
+
+  // Tax — derived from event config + gross, applying the venue tax_method.
+  // Checkout adds tax on top of the face price (multiplier), so we default to
+  // that. The settlement page can override per-event if a venue runs
+  // tax-inclusive pricing.
+  const tax_method: TaxMethod = "multiplier";
+  const taxes =
+    tax_method === ("divisor" as TaxMethod) && fees.tax_rate > 0
+      ? total_gross - total_gross / (1 + fees.tax_rate)
+      : total_gross * fees.tax_rate;
 
   return {
     audit,
@@ -318,7 +336,7 @@ export async function computeEventAudit(
     ticketing_fee_per_ticket: r2(fees.ticketing_fee),
     facility_fee_per_ticket: r2(fees.facility_fee),
     tax_rate: fees.tax_rate,
-    tax_method: "multiplier", // matches checkout convention; user can override
+    tax_method,
   };
 }
 
