@@ -1,13 +1,20 @@
 /**
  * Settlement PDF Generator — uses shared header utility.
- * Both Artist and Venue settlement exports. NO buyer info in header.
+ * Both Artist and Venue settlement exports.
+ *
+ * The PDF reflects exactly what the settlement page shows:
+ *   • Ticket Audit (per-tier sold/comps/gross with comps EXCLUDED from gross)
+ *   • Fee & Tax breakdown — Ticketing, Facility, CC, Tax — each as its own
+ *     line item with per-ticket × ticket-count detail
+ *   • Settlement calculation — deal-type-aware (FLAT / VS / PLUS / DOOR)
+ *   • Venue P&L (venue PDF only)
  */
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
 import {
   addPdfHeader, drawFooter, ensureSpace, drawSectionHeader, drawRow, drawDivider,
   fmt, sanitize,
-  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, WHITE, MID_GRAY, LIGHT_GRAY,
+  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, WHITE, LIGHT_GRAY,
   type Doc,
 } from "./pdf-header";
 
@@ -61,8 +68,11 @@ function drawSignatureLines(doc: Doc, y: number): number {
 // ── Ticket Audit Table ───────────────────────────────────────────────
 function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: number): number {
   y = drawSectionHeader(doc, "Ticket Audit", y);
-  const cols = ["Tier", "Cap", "Sold", "Comps", "Price", "Facility Fee", "Gross"];
-  const colX = [MARGIN + 3, MARGIN + 42, MARGIN + 60, MARGIN + 78, MARGIN + 98, MARGIN + 125, MARGIN + CONTENT_WIDTH - 3];
+  const cols = ["Tier", "Cap", "Sold", "Comps", "% House", "Price", "Gross"];
+  const colX = [
+    MARGIN + 3, MARGIN + 50, MARGIN + 70, MARGIN + 90,
+    MARGIN + 115, MARGIN + 140, MARGIN + CONTENT_WIDTH - 3,
+  ];
 
   // Header row
   y = ensureSpace(doc, 8, y);
@@ -81,17 +91,18 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   let totalCap = 0, totalSold = 0, totalComps = 0, totalGross = 0;
-  const tierNameMaxW = colX[1] - colX[0] - 5; // max width for tier name before next column
+  const tierNameMaxW = colX[1] - colX[0] - 5;
 
   for (const r of rows) {
     y = ensureSpace(doc, 7, y);
     const tierName: string = doc.splitTextToSize(r.tier, tierNameMaxW)[0] || r.tier;
+    const pctHouse = r.capacity > 0 ? (r.sold / r.capacity) * 100 : 0;
     doc.text(tierName, colX[0], y + 4);
     doc.text(String(r.capacity), colX[1], y + 4, { align: "right" });
     doc.text(String(r.sold), colX[2], y + 4, { align: "right" });
     doc.text(String(r.comps), colX[3], y + 4, { align: "right" });
-    doc.text(fmt(r.price), colX[4], y + 4, { align: "right" });
-    doc.text(fmt(r.facility_fee), colX[5], y + 4, { align: "right" });
+    doc.text(`${pctHouse.toFixed(1)}%`, colX[4], y + 4, { align: "right" });
+    doc.text(fmt(r.price), colX[5], y + 4, { align: "right" });
     doc.text(fmt(r.gross), colX[6], y + 4, { align: "right" });
     totalCap += r.capacity;
     totalSold += r.sold;
@@ -111,12 +122,132 @@ function drawTicketAuditTable(doc: Doc, rows: Settlement["ticket_audit"], y: num
   doc.text(String(totalCap), colX[1], y + 5, { align: "right" });
   doc.text(String(totalSold), colX[2], y + 5, { align: "right" });
   doc.text(String(totalComps), colX[3], y + 5, { align: "right" });
-  doc.text("", colX[4], y + 5);
+  const overallPct = totalCap > 0 ? ((totalSold / totalCap) * 100).toFixed(1) + "%" : "—";
+  doc.text(overallPct, colX[4], y + 5, { align: "right" });
   doc.text("", colX[5], y + 5);
   doc.text(fmt(totalGross), colX[6], y + 5, { align: "right" });
   doc.setTextColor(...DARK);
 
-  return y + 12;
+  y += 10;
+
+  // Comps note
+  if (totalComps > 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(...DARK);
+    doc.text(
+      `* ${totalComps} comp ticket${totalComps === 1 ? "" : "s"} listed for inventory only — NOT included in gross.`,
+      MARGIN + 3,
+      y
+    );
+    y += 5;
+  }
+
+  return y + 2;
+}
+
+// ── Fee & Tax Breakdown ──────────────────────────────────────────────
+function drawFeeTaxBreakdown(doc: Doc, s: Settlement, y: number): number {
+  y = drawSectionHeader(doc, "Fees & Tax Collected", y);
+
+  const ticketsSold = s.tickets_sold_count || 0;
+  const tfPer = s.ticketing_fee_per_ticket || 0;
+  const ffPer = s.facility_fee_per_ticket || 0;
+  const ccPer = ticketsSold > 0 ? (s.cc_fees || 0) / ticketsSold : 0;
+
+  const ticketLabel = `${ticketsSold} ticket${ticketsSold === 1 ? "" : "s"}`;
+
+  y = drawRow(
+    doc,
+    `Ticketing Service Fee  (${fmt(tfPer)} × ${ticketLabel})`,
+    fmt(s.ticketing_fees || 0),
+    y,
+    { indent: 4 }
+  );
+  if ((s.facility_fees || 0) > 0 || ffPer > 0) {
+    y = drawRow(
+      doc,
+      `Facility Fee  (${fmt(ffPer)} × ${ticketLabel})`,
+      fmt(s.facility_fees || 0),
+      y,
+      { indent: 4 }
+    );
+  }
+  y = drawRow(
+    doc,
+    `CC / Processing Fee  (~${fmt(ccPer)} / ticket)`,
+    fmt(s.cc_fees || 0),
+    y,
+    { indent: 4 }
+  );
+  const taxRatePct = ((s.tax_rate || 0) * 100).toFixed(2);
+  const taxLabel =
+    s.tax_method === "divisor"
+      ? `Tax  (${taxRatePct}% — divided out of gross)`
+      : `Tax  (${taxRatePct}% — added on top)`;
+  y = drawRow(doc, taxLabel, fmt(s.taxes || 0), y, { indent: 4 });
+
+  y = drawDivider(doc, y);
+  const totalCollected =
+    (s.ticketing_fees || 0) +
+    (s.facility_fees || 0) +
+    (s.cc_fees || 0) +
+    (s.taxes || 0);
+  y = drawRow(doc, "Total Fees + Tax Collected", fmt(totalCollected), y, { bold: true });
+  y += 3;
+
+  return y;
+}
+
+// ── Financial Summary ────────────────────────────────────────────────
+//   Math chain (top-down):
+//     Total Gross Receipts (face value)
+//       − Ticketing Service Fees
+//       − Facility Fees
+//     = Adj. Gross
+//       − Tax
+//     = Net Receipts
+//   CC fees + Total Customer Paid are shown below as reconciliation only.
+function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
+  y = drawSectionHeader(doc, "Financial Summary", y);
+  const ticketsSold = s.tickets_sold_count || 0;
+  const totalCustomerPaid =
+    (s.total_gross || 0) +
+    (s.ticketing_fees || 0) +
+    (s.facility_fees || 0) +
+    (s.cc_fees || 0) +
+    (s.taxes || 0);
+  const taxRatePct = ((s.tax_rate || 0) * 100).toFixed(2);
+  const taxMethodLabel =
+    s.tax_method === "divisor" ? "divided out" : "added on top";
+
+  y = drawRow(doc, "Tickets Sold (paying)", String(ticketsSold), y);
+  y = drawRow(doc, "Total Gross Receipts (face value)", fmt(s.total_gross || 0), y, { bold: true });
+  y = drawRow(doc, "− Ticketing Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
+  y = drawRow(doc, "− Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
+  y = drawDivider(doc, y);
+  y = drawRow(doc, "= Adj. Gross", fmt(s.adj_gross || 0), y, { bold: true });
+  y = drawRow(
+    doc,
+    `− Tax (${taxRatePct}%, ${taxMethodLabel})`,
+    `(${fmt(s.taxes || 0)})`,
+    y,
+    { indent: 4 }
+  );
+  y = drawDivider(doc, y);
+  y = drawRow(doc, "= NET RECEIPTS", fmt(s.net_receipts || 0), y, { bold: true, highlight: true });
+  y += 4;
+
+  // Reconciliation — informational only, NOT part of the artist split.
+  y = drawRow(doc, "(Reconciliation — informational)", "", y, { indent: 4 });
+  y = drawRow(doc, "Total Customer Paid (incl. all fees + tax)", fmt(totalCustomerPaid), y, { indent: 8 });
+  y = drawRow(doc, "CC / Processing Fees paid to Stripe", fmt(s.cc_fees || 0), y, { indent: 8 });
+  if (ticketsSold > 0) {
+    const perTicket = (s.total_gross || 0) / ticketsSold;
+    y = drawRow(doc, "Avg. gross / ticket sold", fmt(perTicket), y, { indent: 8 });
+  }
+  y += 3;
+  return y;
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -142,10 +273,14 @@ export async function exportArtistSettlementPDF(
     buyer_email: (venue as Venue).buyer_email ?? undefined,
   };
 
-  const eventTitle = settlement.artist_name ?? "Event";
-  const eventDate = (settlement as unknown as { event_date?: string }).event_date ?? new Date().toLocaleDateString();
+  const eventTitle = settlement.event_title ?? settlement.artist_name ?? "Event";
+  const eventDate = settlement.event_date
+    ? new Date(settlement.event_date).toLocaleDateString("en-US", {
+        weekday: "short", month: "long", day: "numeric", year: "numeric",
+      })
+    : new Date().toLocaleDateString();
 
-  // ── HEADER (NO buyer info for settlements) ──
+  // ── HEADER ──
   let y = await addPdfHeader(doc, {
     title: `Artist Settlement — ${eventTitle}`,
     venueName: v.name,
@@ -158,11 +293,20 @@ export async function exportArtistSettlementPDF(
   y = drawSectionHeader(doc, "Deal Terms", y);
   y = drawRow(doc, "Artist", settlement.artist_name ?? "—", y, { bold: true });
   y = drawRow(doc, "Event Date", eventDate, y);
-  y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
   y = drawRow(doc, "Deal Type", settlement.deal_type ?? "—", y);
-  y = drawRow(doc, "Backend %", `${settlement.backend_percentage}%`, y);
-  if (settlement.bonus_structure) {
-    y = drawRow(doc, "Bonus Structure", JSON.stringify(settlement.bonus_structure), y);
+  y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
+  y = drawRow(
+    doc,
+    "Backend %",
+    `${(Number(settlement.backend_percentage) * 100).toFixed(2)}%`,
+    y
+  );
+  if (settlement.bonus_structure && Object.keys(settlement.bonus_structure).length > 0) {
+    const bonusTxt =
+      typeof settlement.bonus_structure === "string"
+        ? settlement.bonus_structure
+        : JSON.stringify(settlement.bonus_structure);
+    y = drawRow(doc, "Bonus Structure", bonusTxt, y);
   }
   if (settlement.radius_clause) {
     y = drawRow(doc, "Radius Clause", settlement.radius_clause, y);
@@ -172,17 +316,11 @@ export async function exportArtistSettlementPDF(
   // ── Ticket Audit ──
   y = drawTicketAuditTable(doc, settlement.ticket_audit ?? [], y);
 
+  // ── Fee & Tax Breakdown ──
+  y = drawFeeTaxBreakdown(doc, settlement, y);
+
   // ── Financial Summary ──
-  y = drawSectionHeader(doc, "Financial Summary", y);
-  y = drawRow(doc, "Total Gross Receipts", fmt(settlement.total_gross), y, { bold: true });
-  y = drawRow(doc, "Less: Ticketing Fees", `(${fmt(settlement.ticketing_fees)})`, y, { indent: 4 });
-  y = drawRow(doc, "Less: Facility Fees", `(${fmt(settlement.facility_fees)})`, y, { indent: 4 });
-  y = drawDivider(doc, y);
-  y = drawRow(doc, "Adj. Gross Receipts", fmt(settlement.adj_gross), y, { bold: true });
-  y = drawRow(doc, `Less: Taxes (${settlement.tax_rate}%)`, `(${fmt(settlement.taxes)})`, y, { indent: 4 });
-  y = drawDivider(doc, y);
-  y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y, { bold: true });
-  y += 3;
+  y = drawFinancialSummary(doc, settlement, y);
 
   // ── Expenses ──
   y = drawSectionHeader(doc, "Expenses", y);
@@ -191,6 +329,9 @@ export async function exportArtistSettlementPDF(
     const amt = "actual_amount" in e ? e.actual_amount : 0;
     y = drawRow(doc, `${e.name} (${e.category})`, fmt(amt), y, { indent: 4 });
     expTotal += amt;
+  }
+  if (expenses.length === 0) {
+    y = drawRow(doc, "No expenses recorded.", "", y, { indent: 4 });
   }
   y = drawDivider(doc, y);
   y = drawRow(doc, "Total Expenses", fmt(expTotal), y, { bold: true });
@@ -203,10 +344,22 @@ export async function exportArtistSettlementPDF(
   y = drawDivider(doc, y);
   y = drawRow(doc, "Splitpoint", fmt(settlement.splitpoint), y, { bold: true });
 
-  if (settlement.deal_type === "VS" || settlement.deal_type === "PLUS") {
-    y = drawRow(doc, `Artist Backend (${settlement.backend_percentage}%)`, fmt(settlement.artist_backend), y, { indent: 4 });
+  const dealType = settlement.deal_type ?? "FLAT";
+  if (dealType === "VS" || dealType === "PLUS" || dealType === "DOOR") {
+    const pct = (Number(settlement.backend_percentage) * 100).toFixed(2);
+    const baseLabel =
+      dealType === "DOOR" ? "Net Receipts" : "Splitpoint";
+    y = drawRow(
+      doc,
+      `Artist Backend (${pct}% of ${baseLabel})`,
+      fmt(settlement.artist_backend),
+      y,
+      { indent: 4 }
+    );
   }
-  y = drawRow(doc, "Artist Guarantee", fmt(settlement.guarantee), y);
+  if (dealType !== "DOOR") {
+    y = drawRow(doc, "Artist Guarantee", fmt(settlement.guarantee), y);
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "ARTIST TOTAL", fmt(settlement.artist_total), y, { bold: true, highlight: true });
   y += 2;
@@ -229,10 +382,8 @@ export async function exportArtistSettlementPDF(
   // ── Signatures ──
   y = drawSignatureLines(doc, y);
 
-  // Footer
   drawFooter(doc, "Artist Settlement");
 
-  // Save
   const filename = `${sanitize(settlement.artist_name ?? "Artist")}-${sanitize(eventDate)}-${sanitize(venue.name)}-Artist_Settlement.pdf`;
   doc.save(filename);
 }
@@ -260,10 +411,13 @@ export async function exportVenueSettlementPDF(
     buyer_email: (venue as Venue).buyer_email ?? undefined,
   };
 
-  const eventTitle = settlement.artist_name ?? "Event";
-  const eventDate = (settlement as unknown as { event_date?: string }).event_date ?? new Date().toLocaleDateString();
+  const eventTitle = settlement.event_title ?? settlement.artist_name ?? "Event";
+  const eventDate = settlement.event_date
+    ? new Date(settlement.event_date).toLocaleDateString("en-US", {
+        weekday: "short", month: "long", day: "numeric", year: "numeric",
+      })
+    : new Date().toLocaleDateString();
 
-  // ── HEADER (NO buyer info for settlements) ──
   let y = await addPdfHeader(doc, {
     title: `Venue Settlement — ${eventTitle}`,
     venueName: v.name,
@@ -272,37 +426,40 @@ export async function exportVenueSettlementPDF(
     showBuyerInfo: false,
   });
 
-  // ── Deal Terms ──
+  // Deal Terms
   y = drawSectionHeader(doc, "Deal Terms", y);
   y = drawRow(doc, "Artist", settlement.artist_name ?? "—", y, { bold: true });
   y = drawRow(doc, "Event Date", eventDate, y);
-  y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
   y = drawRow(doc, "Deal Type", settlement.deal_type ?? "—", y);
-  y = drawRow(doc, "Backend %", `${settlement.backend_percentage}%`, y);
-  if (settlement.bonus_structure) {
-    y = drawRow(doc, "Bonus Structure", JSON.stringify(settlement.bonus_structure), y);
+  y = drawRow(doc, "Guarantee", fmt(settlement.guarantee), y);
+  y = drawRow(
+    doc,
+    "Backend %",
+    `${(Number(settlement.backend_percentage) * 100).toFixed(2)}%`,
+    y
+  );
+  if (settlement.bonus_structure && Object.keys(settlement.bonus_structure).length > 0) {
+    const bonusTxt =
+      typeof settlement.bonus_structure === "string"
+        ? settlement.bonus_structure
+        : JSON.stringify(settlement.bonus_structure);
+    y = drawRow(doc, "Bonus Structure", bonusTxt, y);
   }
   if (settlement.radius_clause) {
     y = drawRow(doc, "Radius Clause", settlement.radius_clause, y);
   }
   y += 3;
 
-  // ── Ticket Audit ──
+  // Ticket Audit
   y = drawTicketAuditTable(doc, settlement.ticket_audit ?? [], y);
 
-  // ── Financial Summary ──
-  y = drawSectionHeader(doc, "Financial Summary", y);
-  y = drawRow(doc, "Total Gross Receipts", fmt(settlement.total_gross), y, { bold: true });
-  y = drawRow(doc, "Less: Ticketing Fees", `(${fmt(settlement.ticketing_fees)})`, y, { indent: 4 });
-  y = drawRow(doc, "Less: Facility Fees", `(${fmt(settlement.facility_fees)})`, y, { indent: 4 });
-  y = drawDivider(doc, y);
-  y = drawRow(doc, "Adj. Gross Receipts", fmt(settlement.adj_gross), y, { bold: true });
-  y = drawRow(doc, `Less: Taxes (${settlement.tax_rate}%)`, `(${fmt(settlement.taxes)})`, y, { indent: 4 });
-  y = drawDivider(doc, y);
-  y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y, { bold: true });
-  y += 3;
+  // Fee & Tax Breakdown
+  y = drawFeeTaxBreakdown(doc, settlement, y);
 
-  // ── Expenses ──
+  // Financial Summary
+  y = drawFinancialSummary(doc, settlement, y);
+
+  // Expenses
   y = drawSectionHeader(doc, "Expenses", y);
   let expTotal = 0;
   for (const e of expenses) {
@@ -310,21 +467,35 @@ export async function exportVenueSettlementPDF(
     y = drawRow(doc, `${e.name} (${e.category})`, fmt(amt), y, { indent: 4 });
     expTotal += amt;
   }
+  if (expenses.length === 0) {
+    y = drawRow(doc, "No expenses recorded.", "", y, { indent: 4 });
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "Total Expenses", fmt(expTotal), y, { bold: true });
   y += 3;
 
-  // ── Settlement Calculation ──
+  // Settlement Calculation
   y = drawSectionHeader(doc, "Settlement Calculation", y);
   y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y);
   y = drawRow(doc, "Less: Total Expenses", `(${fmt(settlement.total_expenses)})`, y, { indent: 4 });
   y = drawDivider(doc, y);
   y = drawRow(doc, "Splitpoint", fmt(settlement.splitpoint), y, { bold: true });
 
-  if (settlement.deal_type === "VS" || settlement.deal_type === "PLUS") {
-    y = drawRow(doc, `Artist Backend (${settlement.backend_percentage}%)`, fmt(settlement.artist_backend), y, { indent: 4 });
+  const dealType = settlement.deal_type ?? "FLAT";
+  if (dealType === "VS" || dealType === "PLUS" || dealType === "DOOR") {
+    const pct = (Number(settlement.backend_percentage) * 100).toFixed(2);
+    const baseLabel = dealType === "DOOR" ? "Net Receipts" : "Splitpoint";
+    y = drawRow(
+      doc,
+      `Artist Backend (${pct}% of ${baseLabel})`,
+      fmt(settlement.artist_backend),
+      y,
+      { indent: 4 }
+    );
   }
-  y = drawRow(doc, "Artist Guarantee", fmt(settlement.guarantee), y);
+  if (dealType !== "DOOR") {
+    y = drawRow(doc, "Artist Guarantee", fmt(settlement.guarantee), y);
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "ARTIST TOTAL", fmt(settlement.artist_total), y, { bold: true, highlight: true });
   y += 2;
@@ -334,7 +505,7 @@ export async function exportVenueSettlementPDF(
   y = drawRow(doc, "BALANCE DUE TO ARTIST", fmt(settlement.balance_due), y, { bold: true, highlight: true });
   y += 8;
 
-  // ── Deposits detail ──
+  // Deposits detail
   if (deposits.length > 0) {
     y = drawSectionHeader(doc, "Deposits & Advances", y);
     for (const d of deposits) {
@@ -344,7 +515,7 @@ export async function exportVenueSettlementPDF(
     y += 5;
   }
 
-  // ── Ancillary Revenue ──
+  // Ancillary Revenue
   y = drawSectionHeader(doc, "Ancillary Revenue", y);
   const ancillaryItems: [string, number][] = [
     ["Bar Revenue", settlement.bar_revenue ?? 0],
@@ -363,19 +534,26 @@ export async function exportVenueSettlementPDF(
   }
   if (settlement.other_ancillary?.length) {
     for (const item of settlement.other_ancillary) {
-      y = drawRow(doc, item.name, fmt(item.amount), y, { indent: 4 });
-      totalAncillary += item.amount;
+      if (item.amount > 0) {
+        y = drawRow(doc, item.name || "Other", fmt(item.amount), y, { indent: 4 });
+        totalAncillary += item.amount;
+      }
     }
+  }
+  if (totalAncillary === 0) {
+    y = drawRow(doc, "No ancillary revenue recorded.", "", y, { indent: 4 });
   }
   y = drawDivider(doc, y);
   y = drawRow(doc, "Total Ancillary Revenue", fmt(totalAncillary), y, { bold: true });
   y += 5;
 
-  // ── Venue P&L ──
+  // Venue P&L
   y = drawSectionHeader(doc, "Venue Profit & Loss", y);
-  const venueTotalRevenue = settlement.venue_total_revenue ?? (settlement.net_receipts + totalAncillary);
+  const venueTotalRevenue =
+    settlement.venue_total_revenue ?? (settlement.net_receipts + totalAncillary);
   const venueTotalCosts = settlement.total_expenses + settlement.artist_total;
-  const venueNetProfit = settlement.venue_net_profit ?? (venueTotalRevenue - venueTotalCosts);
+  const venueNetProfit =
+    settlement.venue_net_profit ?? (venueTotalRevenue - venueTotalCosts);
 
   y = drawRow(doc, "Total Revenue (Net Receipts + Ancillary)", fmt(venueTotalRevenue), y, { bold: true });
   y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y, { indent: 8 });
@@ -388,13 +566,11 @@ export async function exportVenueSettlementPDF(
   y = drawRow(doc, "VENUE NET PROFIT", fmt(venueNetProfit), y, { bold: true, highlight: true });
   y += 8;
 
-  // ── Signatures ──
+  // Signatures
   y = drawSignatureLines(doc, y);
 
-  // Footer
   drawFooter(doc, "Venue Settlement");
 
-  // Save
   const filename = `${sanitize(eventTitle)}-${sanitize(eventDate)}-Venue_Settlement.pdf`;
   doc.save(filename);
 }

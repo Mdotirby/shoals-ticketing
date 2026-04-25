@@ -1,13 +1,21 @@
 export type SettlementStatus = "draft" | "finalized";
 
+/**
+ * Tax method:
+ *   • multiplier — face price is pre-tax; tax = price × rate (added on top)
+ *   • divisor    — face price is tax-inclusive; pre-tax = price / (1 + rate)
+ */
+export type TaxMethod = "multiplier" | "divisor";
+
 export type TicketAuditRow = {
   tier: string;
   capacity: number;
-  sold: number;
-  comps: number;
+  sold: number;          // paying tickets only (status='paid', source != 'comp')
+  comps: number;         // comp tickets (NOT included in gross)
   kills: number;
-  price: number;
-  facility_fee: number;
+  price: number;         // face price per ticket
+  facility_fee: number;  // facility fee per ticket on this tier
+  /** Sum of subtotal (face value) collected from paying tickets in this tier. */
   gross: number;
 };
 
@@ -23,6 +31,10 @@ export type Settlement = {
   contract_id?: string;
   venue_id: string;
 
+  // Event snapshot (for PDF labeling)
+  event_title?: string;
+  event_date?: string;
+
   // Deal terms snapshot
   artist_name?: string;
   guarantee: number;
@@ -33,15 +45,25 @@ export type Settlement = {
 
   // Ticket audit
   ticket_audit: TicketAuditRow[];
+  /** Total paying tickets (sum of audit.sold). Stored for quick reads. */
+  tickets_sold_count: number;
+  /** Total comp tickets (sum of audit.comps). Excluded from gross. */
+  comp_count: number;
+  /** Face-value of comps (informational — what the comps would have cost). */
+  comp_face_value: number;
 
-  // Calculated financials
-  total_gross: number;
-  ticketing_fees: number;
-  facility_fees: number;
-  adj_gross: number;
-  taxes: number;
-  tax_rate: number;
-  net_receipts: number;
+  // Calculated financials — all from actual order data when refreshed
+  total_gross: number;          // Σ subtotal collected (face value, paying only)
+  ticketing_fees: number;       // Σ ticketing service fees collected
+  facility_fees: number;        // Σ facility fees collected
+  cc_fees: number;              // Σ Stripe / processing fees collected
+  ticketing_fee_per_ticket: number; // snapshot of per-ticket rate
+  facility_fee_per_ticket: number;  // snapshot of per-ticket rate
+  adj_gross: number;            // total_gross − ticketing_fees − facility_fees
+  taxes: number;                // actual tax collected (Σ tax_cents)
+  tax_rate: number;             // venue tax rate snapshot (e.g. 0.095)
+  tax_method: TaxMethod;        // 'multiplier' (add on top) | 'divisor' (back out of total)
+  net_receipts: number;         // adj_gross − taxes
   total_expenses: number;
   splitpoint: number;
   artist_backend: number;

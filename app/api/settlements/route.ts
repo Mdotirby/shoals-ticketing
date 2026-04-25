@@ -1,20 +1,24 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { computeEventAudit, findOfferForEvent } from "@/lib/settlement/audit";
 
-// GET /api/settlements — list settlements, optional ?venue_id= filter
+// GET /api/settlements
+//   ?venue_id=     filter by venue
+//   ?event_id=     return existing settlement(s) for an event (used by the
+//                  "Create or Open Settlement" button on /admin/orders/[id])
 export async function GET(request: Request) {
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
+  const eventId = searchParams.get("event_id");
 
   let query = admin
     .from("settlements")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (venueId) {
-    query = query.eq("venue_id", venueId);
-  }
+  if (venueId) query = query.eq("venue_id", venueId);
+  if (eventId) query = query.eq("event_id", eventId);
 
   const { data, error } = await query;
 
@@ -25,8 +29,19 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? [], { status: 200 });
 }
 
-// POST /api/settlements — create a settlement from an event
-// Auto-pulls ticket sales, pre-fills expenses from linked offer
+// POST /api/settlements — create a settlement for a SPECIFIC event.
+//
+// Behavior:
+//   1. Requires event_id. Looks up the event row.
+//   2. Finds the linked offer ONLY by venue_id + event_date (or event_venue_id).
+//      If no confident match, the settlement is created with empty deal terms
+//      so the user can fill them in manually — never silently grabs "the
+//      latest offer at the venue" (that's the Kruse → Jed Harrelson bug).
+//   3. Auto-pulls actual ticket sales from orders + tickets (real revenue,
+//      not list-price × count). Comps are counted but excluded from gross.
+//   4. Pre-fills expenses from the offer's fixed/variable expenses if matched.
+//   5. If a settlement already exists for the event, returns it instead of
+//      creating a duplicate (idempotent).
 export async function POST(request: Request) {
   const admin = createAdminClient();
   const body = await request.json();
@@ -41,178 +56,134 @@ export async function POST(request: Request) {
   // 1. Look up the event
   const { data: event, error: eventErr } = await admin
     .from("events")
-    .select("id, title, venue_id")
+    .select("id, title, date, venue_id")
     .eq("id", body.event_id)
     .single();
 
   if (eventErr || !event) {
-    return NextResponse.json(
-      { error: "Event not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
   const venueId = body.venue_id || event.venue_id;
-
-  // 2. Find linked offer (if any)
-  const { data: offer } = await admin
-    .from("artist_offers")
-    .select("*")
-    .eq("venue_id", venueId)
-    .or(`event_date.is.null`)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  // Try to find offer linked by event_id or matching venue
-  const { data: linkedOffer } = await admin
-    .from("artist_offers")
-    .select("*")
-    .eq("venue_id", venueId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const offerData = linkedOffer || offer || null;
-
-  // 3. Auto-pull actual ticket sales from orders + tickets + ticket_types
-  const { data: ticketRows } = await admin
-    .from("tickets")
-    .select(
-      `
-      id,
-      ticket_type_id,
-      status,
-      ticket_types!inner(
-        id,
-        name,
-        price,
-        capacity
-      ),
-      orders!inner(
-        id,
-        event_id,
-        status
-      )
-    `
-    )
-    .eq("orders.event_id", body.event_id)
-    .eq("orders.status", "paid");
-
-  // Build ticket_audit grouped by ticket type
-  const tierMap: Record<
-    string,
-    {
-      tier: string;
-      capacity: number;
-      sold: number;
-      comps: number;
-      kills: number;
-      price: number;
-      facility_fee: number;
-      gross: number;
-    }
-  > = {};
-
-  if (ticketRows) {
-    for (const t of (ticketRows as unknown) as Array<{
-      id: string;
-      ticket_type_id: string;
-      status: string;
-      ticket_types: { id: string; name: string; price: number; capacity: number };
-      orders: { id: string; event_id: string; status: string };
-    }>) {
-      const tt = t.ticket_types;
-      if (!tierMap[tt.id]) {
-        tierMap[tt.id] = {
-          tier: tt.name,
-          capacity: tt.capacity || 0,
-          sold: 0,
-          comps: 0,
-          kills: 0,
-          price: tt.price || 0,
-          facility_fee: 0,
-          gross: 0,
-        };
-      }
-      if (t.status === "comp") {
-        tierMap[tt.id].comps += 1;
-      } else {
-        tierMap[tt.id].sold += 1;
-      }
-    }
+  if (!venueId) {
+    return NextResponse.json(
+      { error: "Event has no venue_id; cannot create settlement" },
+      { status: 400 }
+    );
   }
 
-  // Also pull ticket_types for capacity data
-  const { data: allTypes } = await admin
-    .from("ticket_types")
-    .select("id, name, price, capacity")
-    .eq("event_id", body.event_id);
-
-  if (allTypes) {
-    for (const tt of allTypes) {
-      if (!tierMap[tt.id]) {
-        tierMap[tt.id] = {
-          tier: tt.name,
-          capacity: tt.capacity || 0,
-          sold: 0,
-          comps: 0,
-          kills: 0,
-          price: tt.price || 0,
-          facility_fee: 0,
-          gross: 0,
-        };
-      } else {
-        tierMap[tt.id].capacity = tt.capacity || tierMap[tt.id].capacity;
-      }
-    }
+  // 2. Idempotent: if a settlement already exists for this event, return it.
+  const { data: existing } = await admin
+    .from("settlements")
+    .select("*")
+    .eq("event_id", body.event_id)
+    .maybeSingle();
+  if (existing) {
+    return NextResponse.json(existing, { status: 200 });
   }
 
-  const ticketAudit = Object.values(tierMap).map((row) => ({
-    ...row,
-    gross: row.sold * row.price,
-  }));
+  // 3. Find the matching offer (event_date + venue match — no fallback to
+  //    "latest at venue").
+  const offerMatch =
+    body.offer_id != null
+      ? await admin
+          .from("artist_offers")
+          .select("*")
+          .eq("id", body.offer_id)
+          .maybeSingle()
+          .then((r) => (r.data ? { id: r.data.id, data: r.data } : null))
+      : await findOfferForEvent(admin, body.event_id);
 
-  const totalGross = ticketAudit.reduce((sum, r) => sum + r.gross, 0);
+  const offerData = offerMatch?.data as
+    | (Record<string, unknown> & {
+        artist_name?: string;
+        guarantee?: number | string;
+        deal_type?: string;
+        backend_percentage?: number | string;
+        bonus_structure?: Record<string, unknown>;
+        tax_rate?: number | string;
+        tax_method?: string;
+        deposit_amount?: number;
+        splitpoint?: number;
+        total_expenses?: number;
+        fixed_expenses?: Array<{ name: string; amount: number }>;
+        variable_expenses?: Array<{ name: string; rate: number; amount: number }>;
+      })
+    | undefined;
 
-  // 4. Snapshot deal terms from offer
-  const guarantee = body.guarantee ?? offerData?.guarantee ?? 0;
+  // 4. Compute the actual ticket audit + fees + tax from real order data.
+  const auditTotals = await computeEventAudit(admin, body.event_id);
+
+  // 5. Snapshot deal terms from offer (if matched) — caller-provided body wins.
+  const guarantee =
+    body.guarantee ?? Number(offerData?.guarantee ?? 0) ?? 0;
   const dealType = body.deal_type ?? offerData?.deal_type ?? null;
+  const backendPctRaw = body.backend_percentage ?? offerData?.backend_percentage;
   const backendPct =
-    body.backend_percentage ?? offerData?.backend_percentage
-      ? parseFloat(String(offerData?.backend_percentage ?? "0"))
-      : 0;
-  const taxRate = body.tax_rate ?? offerData?.tax_rate ?? 0;
+    backendPctRaw != null ? parseFloat(String(backendPctRaw)) || 0 : 0;
+  const taxRate =
+    body.tax_rate ?? Number(offerData?.tax_rate ?? auditTotals.tax_rate) ?? 0;
+  const taxMethod =
+    body.tax_method ??
+    (offerData?.tax_method === "divisor" ? "divisor" : "multiplier");
 
-  // 5. Create the settlement row
+  const adjGross =
+    auditTotals.total_gross -
+    auditTotals.ticketing_fees -
+    auditTotals.facility_fees;
+  const netReceipts = adjGross - auditTotals.taxes;
+
+  // 6. Create the settlement row
   const { data: settlement, error: settleErr } = await admin
     .from("settlements")
     .insert({
       event_id: body.event_id,
-      offer_id: offerData?.id || body.offer_id || null,
+      offer_id: offerMatch?.id ?? body.offer_id ?? null,
       contract_id: body.contract_id || null,
       venue_id: venueId,
+
+      // Event snapshot
+      event_title: event.title || null,
+      event_date: event.date || null,
+
+      // Deal terms snapshot
       artist_name: body.artist_name ?? offerData?.artist_name ?? null,
       guarantee,
       deal_type: dealType,
       backend_percentage: backendPct,
       bonus_structure: offerData?.bonus_structure || body.bonus_structure || null,
       radius_clause: body.radius_clause ?? null,
-      ticket_audit: ticketAudit,
-      total_gross: totalGross,
-      ticketing_fees: body.ticketing_fees ?? 0,
-      facility_fees: body.facility_fees ?? 0,
-      adj_gross: body.adj_gross ?? totalGross,
-      taxes: body.taxes ?? 0,
+
+      // Audit
+      ticket_audit: auditTotals.audit,
+      tickets_sold_count: auditTotals.tickets_sold_count,
+      comp_count: auditTotals.comp_count,
+      comp_face_value: auditTotals.comp_face_value,
+
+      // Fee/tax breakdown (live from orders)
+      total_gross: auditTotals.total_gross,
+      ticketing_fees: auditTotals.ticketing_fees,
+      facility_fees: auditTotals.facility_fees,
+      cc_fees: auditTotals.cc_fees,
+      ticketing_fee_per_ticket: auditTotals.ticketing_fee_per_ticket,
+      facility_fee_per_ticket: auditTotals.facility_fee_per_ticket,
+      adj_gross: adjGross,
+      taxes: auditTotals.taxes,
       tax_rate: taxRate,
-      net_receipts: body.net_receipts ?? totalGross,
-      total_expenses: offerData?.total_expenses ?? body.total_expenses ?? 0,
-      splitpoint: offerData?.splitpoint ?? body.splitpoint ?? 0,
+      tax_method: taxMethod,
+      net_receipts: netReceipts,
+
+      // Pre-filled financials
+      total_expenses:
+        body.total_expenses ?? Number(offerData?.total_expenses ?? 0) ?? 0,
+      splitpoint: body.splitpoint ?? Number(offerData?.splitpoint ?? 0) ?? 0,
       artist_backend: body.artist_backend ?? 0,
       artist_total: body.artist_total ?? guarantee,
-      deposit_paid: body.deposit_paid ?? offerData?.deposit_amount ?? 0,
+      deposit_paid:
+        body.deposit_paid ?? Number(offerData?.deposit_amount ?? 0) ?? 0,
       cash_advance: body.cash_advance ?? 0,
       balance_due: body.balance_due ?? 0,
+
       status: "draft",
     })
     .select()
@@ -222,7 +193,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: settleErr.message }, { status: 500 });
   }
 
-  // 6. Pre-fill expenses from the offer's fixed_expenses and variable_expenses
+  // 7. Pre-fill expenses from the offer
   if (offerData && settlement) {
     const expenses: Array<{
       settlement_id: string;
@@ -233,14 +204,10 @@ export async function POST(request: Request) {
       rate: number;
       sort_order: number;
     }> = [];
-
     let sortOrder = 0;
 
     if (Array.isArray(offerData.fixed_expenses)) {
-      for (const exp of offerData.fixed_expenses as Array<{
-        name: string;
-        amount: number;
-      }>) {
+      for (const exp of offerData.fixed_expenses) {
         expenses.push({
           settlement_id: settlement.id,
           name: exp.name,
@@ -254,11 +221,7 @@ export async function POST(request: Request) {
     }
 
     if (Array.isArray(offerData.variable_expenses)) {
-      for (const exp of offerData.variable_expenses as Array<{
-        name: string;
-        rate: number;
-        amount: number;
-      }>) {
+      for (const exp of offerData.variable_expenses) {
         expenses.push({
           settlement_id: settlement.id,
           name: exp.name,
@@ -275,7 +238,7 @@ export async function POST(request: Request) {
       await admin.from("settlement_expenses").insert(expenses);
     }
 
-    // Pre-fill deposit if offer has deposit_amount
+    // Pre-fill deposit if offer has one
     if (offerData.deposit_amount && offerData.deposit_amount > 0) {
       await admin.from("settlement_deposits").insert({
         settlement_id: settlement.id,

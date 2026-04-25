@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
 
@@ -59,11 +59,40 @@ function SourceBadge({ source }: { source: string | null }) {
 
 export default function EventSalesDetailPage() {
   const { id } = useParams() as { id: string };
+  const router = useRouter();
   const [event, setEvent] = useState<EventInfo | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+
+  // ── Settlement: existing-or-create ────────────────────────────────────────
+  const [settlementId, setSettlementId] = useState<string | null>(null);
+  const [settlementStatus, setSettlementStatus] = useState<"draft" | "finalized" | null>(null);
+  const [creatingSettlement, setCreatingSettlement] = useState(false);
+
+  const handleSettlementClick = async () => {
+    if (settlementId) {
+      router.push(`/admin/settlements/${settlementId}`);
+      return;
+    }
+    setCreatingSettlement(true);
+    try {
+      const res = await fetch("/api/settlements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event_id: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to create settlement");
+      router.push(`/admin/settlements/${data.id}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not create settlement";
+      alert(msg);
+    } finally {
+      setCreatingSettlement(false);
+    }
+  };
 
   // ── "Issue Comp Tickets" modal state ───────────────────────────────────────
   const [compOpen, setCompOpen] = useState(false);
@@ -135,6 +164,21 @@ export default function EventSalesDetailPage() {
           }
         } catch {
           // views endpoint failed — leave viewStats as null
+        }
+
+        // Check whether a settlement already exists for this event so the
+        // header button can read "Open Settlement" vs. "Create Settlement".
+        try {
+          const setRes = await fetch(`/api/settlements?event_id=${id}`);
+          if (setRes.ok) {
+            const setData = await setRes.json();
+            if (Array.isArray(setData) && setData.length > 0) {
+              setSettlementId(setData[0].id);
+              setSettlementStatus(setData[0].status ?? "draft");
+            }
+          }
+        } catch {
+          // settlements endpoint failed — leave button as "Create Settlement"
         }
       } catch {
         // ignore fetch errors
@@ -239,6 +283,34 @@ export default function EventSalesDetailPage() {
           )}
         </div>
         <div className="admin-page-header-actions">
+          <button
+            className="admin-header-btn"
+            style={{
+              background: settlementId
+                ? "rgba(208,194,144,0.12)"
+                : "rgba(208,194,144,0.18)",
+              borderColor: "rgba(208,194,144,0.45)",
+              color: "#d0c290",
+              fontWeight: 700,
+            }}
+            onClick={handleSettlementClick}
+            disabled={creatingSettlement}
+            title={
+              settlementId
+                ? settlementStatus === "finalized"
+                  ? "View finalized settlement (read-only)"
+                  : "Open this event's settlement (draft)"
+                : "Create a new settlement for this event using actual order data"
+            }
+          >
+            {creatingSettlement
+              ? "Creating…"
+              : settlementId
+              ? settlementStatus === "finalized"
+                ? "View Settlement (Finalized)"
+                : "Open Settlement (Draft)"
+              : "+ Create Settlement"}
+          </button>
           <button
             className="admin-header-btn"
             style={{

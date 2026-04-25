@@ -398,6 +398,7 @@ function TicketAuditPreview({ data }: { data: unknown }) {
             <th>Tier</th>
             <th>Capacity</th>
             <th>Sold</th>
+            <th>Comps</th>
             <th>% House</th>
             <th>Price</th>
             <th>Gross</th>
@@ -412,7 +413,7 @@ function TicketAuditPreview({ data }: { data: unknown }) {
           {d.events.map((ev: any, ei: number) => (
             <>
               <tr key={`ev-${ei}`} className="report-table-event-row">
-                <td colSpan={10}>
+                <td colSpan={11}>
                   {ev.event_title}
                   {ev.event_date && (
                     <span className="report-table-event-date">
@@ -428,6 +429,7 @@ function TicketAuditPreview({ data }: { data: unknown }) {
                   <td>{t.tier_name}</td>
                   <td>{t.capacity}</td>
                   <td>{t.qty_sold}</td>
+                  <td>{t.comps ?? 0}</td>
                   <td>{pct(t.pct_house)}</td>
                   <td>{fmt(t.price)}</td>
                   <td>{fmt(t.gross_sales)}</td>
@@ -441,6 +443,7 @@ function TicketAuditPreview({ data }: { data: unknown }) {
                 <td>Subtotal</td>
                 <td>{ev.subtotal.capacity}</td>
                 <td>{ev.subtotal.qty_sold}</td>
+                <td>{ev.subtotal.comps ?? 0}</td>
                 <td>{pct(ev.subtotal.pct_house)}</td>
                 <td></td>
                 <td>{fmt(ev.subtotal.gross_sales)}</td>
@@ -455,6 +458,7 @@ function TicketAuditPreview({ data }: { data: unknown }) {
             <td>Grand Total</td>
             <td>{d.grand_total.capacity}</td>
             <td>{d.grand_total.qty_sold}</td>
+            <td>{d.grand_total.comps ?? 0}</td>
             <td>{pct(d.grand_total.pct_house)}</td>
             <td></td>
             <td>{fmt(d.grand_total.gross_sales)}</td>
