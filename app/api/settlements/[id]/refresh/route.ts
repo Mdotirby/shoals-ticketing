@@ -2,28 +2,28 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { computeEventAudit } from "@/lib/settlement/audit";
 
-const CC_FEE_NAME = "CC Processing Fee (Stripe, auto)";
+// Legacy auto-expense names from earlier iterations. These are now deleted on
+// refresh because CC fees flow through the Gross→Net walk, not as an expense.
+const LEGACY_CC_FEE_NAMES = [
+  "CC Processing Fee (Stripe, auto)",
+  "CC Processing Fee (auto)",
+];
 
 /**
  * POST /api/settlements/:id/refresh
  *
- * Re-pulls actual ticket sales / fees / tax from the event config + orders for
- * the settlement's linked event and rewrites:
- *   • ticket_audit (per-tier sold/comps/gross/per-ticket fees)
- *   • total_gross, ticketing_fees, facility_fees, taxes, cc_fees
- *   • tickets_sold_count, comp_count, comp_face_value
- *   • adj_gross + net_receipts (recomputed from new totals)
- *   • Auto-managed "CC Processing Fee (Stripe, auto)" expense row — created
- *     on first refresh, updated on subsequent refreshes. The user can rename
- *     or delete it (it'll come back on the next refresh under the canonical
- *     name unless they want to take ownership of the line item).
+ * Re-pulls live ticket sales / fees / tax from the event config + orders for
+ * the linked event and rewrites the audit + fee totals.
  *
- * Does NOT touch:
- *   • Deal terms (guarantee, backend %, deal type, splitpoint, bonus, radius)
- *   • Other expenses (only the CC auto-row)
- *   • Deposits
- *   • Ancillary / merch
+ * Math model:
+ *   Total Gross Receipts (= Σ orders.total_amount for paid non-comp orders)
+ *     − Service Fees      (venue config × paying tickets)
+ *     − Facility Fees     (venue config × paying tickets)
+ *     − Tax Collected     (gross × tax_rate, or divisor)
+ *     − CC Processing Fees (residual — guarantees the math reconciles)
+ *   = Net Receipts        (artist split base)
  *
+ * Does NOT touch deal terms, expenses, deposits, ancillary, or merch.
  * Refuses to run on finalized settlements.
  */
 export async function POST(
@@ -95,45 +95,14 @@ export async function POST(
     return NextResponse.json({ error: updErr.message }, { status: 500 });
   }
 
-  // 5. Auto-manage the "CC Processing Fee (Stripe, auto)" expense row.
-  //    Update if it exists, insert if not. Only mess with this exact-named
-  //    row — anything the user renames is theirs to keep.
-  const { data: existingExp } = await admin
+  // 5. Clean up any legacy auto-CC-expense rows from earlier iterations.
+  //    CC fees now flow through the Gross→Net walk on the settlement page,
+  //    so they shouldn't double-count as an expense line item too.
+  await admin
     .from("settlement_expenses")
-    .select("id")
+    .delete()
     .eq("settlement_id", id)
-    .eq("name", CC_FEE_NAME)
-    .maybeSingle();
-
-  if (existingExp) {
-    await admin
-      .from("settlement_expenses")
-      .update({
-        actual_amount: audit.cc_fees,
-        category: "fixed",
-        notes: "Auto-populated by Refresh from Orders. Stripe ~2.9% + $0.30/order.",
-      })
-      .eq("id", existingExp.id);
-  } else if (audit.cc_fees > 0) {
-    // Find max sort_order so we append at the bottom
-    const { data: existing } = await admin
-      .from("settlement_expenses")
-      .select("sort_order")
-      .eq("settlement_id", id)
-      .order("sort_order", { ascending: false })
-      .limit(1);
-    const nextOrder = existing && existing.length > 0 ? (existing[0].sort_order ?? 0) + 1 : 0;
-    await admin.from("settlement_expenses").insert({
-      settlement_id: id,
-      name: CC_FEE_NAME,
-      category: "fixed",
-      estimated_amount: 0,
-      actual_amount: audit.cc_fees,
-      rate: 0,
-      sort_order: nextOrder,
-      notes: "Auto-populated by Refresh from Orders. Stripe ~2.9% + $0.30/order.",
-    });
-  }
+    .in("name", LEGACY_CC_FEE_NAMES);
 
   // Return the same shape as GET so the client can hydrate expenses/deposits.
   const [expensesRes, depositsRes] = await Promise.all([

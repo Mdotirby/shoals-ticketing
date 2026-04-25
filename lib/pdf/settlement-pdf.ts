@@ -67,9 +67,8 @@ function drawSignatureLines(doc: Doc, y: number): number {
 
 // ── Ticket Audit Table ───────────────────────────────────────────────
 //
-// Columns: Tier, Cap, Sold, Comps, %H, Face Price, Face Rev, Svc, Fac, Tax,
-//          CC, Gross (Stripe).
-// Last column = Stripe-collected total (Face + Svc + Fac + Tax + CC).
+// Columns: Tier, Cap, Sold, Comps, %H, Price, Svc, Fac, Tax, CC,
+//          Gross Receipts (= price + svc + fac + tax + cc per tier).
 function drawTicketAuditTable(
   doc: Doc,
   rows: Settlement["ticket_audit"],
@@ -79,9 +78,9 @@ function drawTicketAuditTable(
   y: number
 ): number {
   y = drawSectionHeader(doc, "Ticket Audit", y);
-  const cols = ["Tier", "Cap", "Sold", "Cmp", "%H", "Face $", "Face Rev", "Svc", "Fac", "Tax", "CC", "Gross (Stripe)"];
+  const cols = ["Tier", "Cap", "Sold", "Cmp", "%H", "Price", "Svc", "Fac", "Tax", "CC", "Gross Receipts"];
   const colCount = cols.length;
-  const tierColW = 30;
+  const tierColW = 32;
   const remaining = CONTENT_WIDTH - tierColW;
   const numColW = remaining / (colCount - 1);
   const colX: number[] = [MARGIN + 3];
@@ -111,12 +110,11 @@ function drawTicketAuditTable(
   let tCap = 0,
     tSold = 0,
     tComps = 0,
-    tFaceRev = 0,
     tSvc = 0,
     tFac = 0,
     tTax = 0,
     tCc = 0,
-    tStripe = 0;
+    tGross = 0;
   const tierNameMaxW = tierColW - 3;
 
   for (const r of rows) {
@@ -130,7 +128,7 @@ function drawTicketAuditTable(
         ? r.gross - r.gross / (1 + taxRate)
         : r.gross * taxRate;
     const ccShare = ccFees * (r.sold / totalSoldAll);
-    const stripeGross = r.gross + svc + fac + tax + ccShare;
+    const grossReceipts = r.gross + svc + fac + tax + ccShare;
 
     doc.text(tierName, colX[0], y + 4);
     doc.text(String(r.capacity), colX[1], y + 4, { align: "right" });
@@ -138,22 +136,20 @@ function drawTicketAuditTable(
     doc.text(String(r.comps), colX[3], y + 4, { align: "right" });
     doc.text(`${pctH.toFixed(1)}%`, colX[4], y + 4, { align: "right" });
     doc.text(fmt(r.price), colX[5], y + 4, { align: "right" });
-    doc.text(fmt(r.gross), colX[6], y + 4, { align: "right" });
-    doc.text(fmt(svc), colX[7], y + 4, { align: "right" });
-    doc.text(fmt(fac), colX[8], y + 4, { align: "right" });
-    doc.text(fmt(tax), colX[9], y + 4, { align: "right" });
-    doc.text(fmt(ccShare), colX[10], y + 4, { align: "right" });
-    doc.text(fmt(stripeGross), colX[11], y + 4, { align: "right" });
+    doc.text(fmt(svc), colX[6], y + 4, { align: "right" });
+    doc.text(fmt(fac), colX[7], y + 4, { align: "right" });
+    doc.text(fmt(tax), colX[8], y + 4, { align: "right" });
+    doc.text(fmt(ccShare), colX[9], y + 4, { align: "right" });
+    doc.text(fmt(grossReceipts), colX[10], y + 4, { align: "right" });
 
     tCap += r.capacity;
     tSold += r.sold;
     tComps += r.comps;
-    tFaceRev += r.gross;
     tSvc += svc;
     tFac += fac;
     tTax += tax;
     tCc += ccShare;
-    tStripe += stripeGross;
+    tGross += grossReceipts;
     y += 6;
   }
 
@@ -171,12 +167,11 @@ function drawTicketAuditTable(
   const overallPct = tCap > 0 ? ((tSold / tCap) * 100).toFixed(1) + "%" : "—";
   doc.text(overallPct, colX[4], y + 5, { align: "right" });
   doc.text("", colX[5], y + 5);
-  doc.text(fmt(tFaceRev), colX[6], y + 5, { align: "right" });
-  doc.text(fmt(tSvc), colX[7], y + 5, { align: "right" });
-  doc.text(fmt(tFac), colX[8], y + 5, { align: "right" });
-  doc.text(fmt(tTax), colX[9], y + 5, { align: "right" });
-  doc.text(fmt(tCc), colX[10], y + 5, { align: "right" });
-  doc.text(fmt(tStripe), colX[11], y + 5, { align: "right" });
+  doc.text(fmt(tSvc), colX[6], y + 5, { align: "right" });
+  doc.text(fmt(tFac), colX[7], y + 5, { align: "right" });
+  doc.text(fmt(tTax), colX[8], y + 5, { align: "right" });
+  doc.text(fmt(tCc), colX[9], y + 5, { align: "right" });
+  doc.text(fmt(tGross), colX[10], y + 5, { align: "right" });
   doc.setTextColor(...DARK);
   y += 10;
 
@@ -192,16 +187,6 @@ function drawTicketAuditTable(
     );
     y += 5;
   }
-  // Legend
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.setTextColor(...DARK);
-  doc.text(
-    "Face Rev = ticket face value (artist split base). Gross (Stripe) = total Stripe collected for this event.",
-    MARGIN + 3,
-    y
-  );
-  y += 5;
 
   return y + 2;
 }
@@ -308,13 +293,12 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
 }
 
 // ── Financial Summary ────────────────────────────────────────────────
-//   Two stacked walks:
-//     1. Stripe Reconciliation: Gross (Stripe) → Face Value Revenue
-//     2. Artist Settlement Math: Face Value → Net Receipts (artist split base)
+//   Single walk: Gross Receipts → minus pass-throughs → Net Receipts.
+//   Net Receipts is the artist split base.
 function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
   y = drawSectionHeader(doc, "Financial Summary", y);
   const ticketsSold = s.tickets_sold_count || 0;
-  const stripeGross =
+  const grossReceipts =
     (s.total_gross || 0) +
     (s.ticketing_fees || 0) +
     (s.facility_fees || 0) +
@@ -325,17 +309,7 @@ function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
     s.tax_method === "divisor" ? "divided out" : "added on top";
 
   y = drawRow(doc, "Tickets Sold (paying)", String(ticketsSold), y);
-  y += 2;
-
-  // ── Walk 1: Stripe Reconciliation ────────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  y = ensureSpace(doc, 7, y);
-  doc.text("STRIPE RECONCILIATION (matches Stripe dashboard)", MARGIN + 3, y + 4);
-  y += 6;
-
-  y = drawRow(doc, "Gross (Stripe Collected)", fmt(stripeGross), y, { bold: true, highlight: true });
+  y = drawRow(doc, "Total Gross Receipts", fmt(grossReceipts), y, { bold: true, highlight: true });
   y = drawRow(doc, "− Service Fees Collected", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
   y = drawRow(doc, "− Facility Fees Collected", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
   y = drawRow(
@@ -347,46 +321,24 @@ function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
   );
   y = drawRow(doc, "− CC / Processing Fees", `(${fmt(s.cc_fees || 0)})`, y, { indent: 4 });
   y = drawDivider(doc, y);
-  y = drawRow(doc, "= Face Value Revenue", fmt(s.total_gross || 0), y, { bold: true });
-  y += 5;
-
-  // ── Walk 2: Artist Settlement Math ───────────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  y = ensureSpace(doc, 7, y);
-  doc.text("ARTIST SETTLEMENT MATH (face-value anchor)", MARGIN + 3, y + 4);
-  y += 6;
-
-  y = drawRow(doc, "Face Value Revenue", fmt(s.total_gross || 0), y, { bold: true });
-  y = drawRow(doc, "− Ticketing Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
-  y = drawRow(doc, "− Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
-  y = drawDivider(doc, y);
-  y = drawRow(doc, "= Adj. Gross", fmt(s.adj_gross || 0), y, { bold: true });
-  y = drawRow(
-    doc,
-    `− Tax (${taxRatePct}%)`,
-    `(${fmt(s.taxes || 0)})`,
-    y,
-    { indent: 4 }
-  );
-  y = drawDivider(doc, y);
   y = drawRow(doc, "= NET RECEIPTS (artist split base)", fmt(s.net_receipts || 0), y, { bold: true, highlight: true });
   y += 4;
 
-  if (ticketsSold > 0) {
-    const perTicketGross = stripeGross / ticketsSold;
-    const perTicketFace = (s.total_gross || 0) / ticketsSold;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(7);
-    doc.setTextColor(...DARK);
-    doc.text(
-      `Avg. Stripe gross / ticket: ${fmt(perTicketGross)}   ·   Avg. face / ticket: ${fmt(perTicketFace)}`,
-      MARGIN + 3,
-      y
-    );
-    y += 5;
-  }
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(...DARK);
+  doc.text(
+    "Service / Facility / Tax / CC fees are pass-throughs — collected from the customer and remitted out.",
+    MARGIN + 3,
+    y
+  );
+  y += 4;
+  doc.text(
+    "The artist deal is calculated on Net Receipts.",
+    MARGIN + 3,
+    y
+  );
+  y += 5;
   return y + 2;
 }
 

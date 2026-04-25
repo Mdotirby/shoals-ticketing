@@ -197,19 +197,31 @@ export default function SettlementDetailPage() {
   };
   const totalGross = auditTotals.gross;
 
-  // Adj gross subtracts ticketing + facility fees from gross.
-  const adjGross = totalGross - ticketingFees - facilityFees;
-
+  // ── Math model ────────────────────────────────────────────────────
+  //   Total Gross Receipts (= what was actually collected from customers)
+  //     − Service Fees Collected
+  //     − Facility Fees Collected
+  //     − Tax Collected
+  //     − CC / Processing Fees
+  //   = Net Receipts (artist split base)
+  //
   // Tax: honor the chosen method.
-  //   • multiplier → tax was added on top:         tax = totalGross × rate
-  //   • divisor    → totalGross is tax-inclusive:  tax = totalGross − totalGross / (1 + rate)
-  // (Apply to face-value gross, not adj_gross — service/facility fees are
-  // typically not taxable line items.)
+  //   multiplier → tax added on top of the ticket price (default)
+  //   divisor    → ticket price is tax-inclusive
   const taxes =
     taxMethod === "divisor" && taxRate > 0
       ? totalGross - totalGross / (1 + taxRate)
       : totalGross * taxRate;
-  const netReceipts = adjGross - taxes;
+  // grossReceipts = total customer paid (matches the ticket sales dashboard)
+  const grossReceipts =
+    totalGross + ticketingFees + facilityFees + taxes + ccFees;
+  // Net Receipts = what's left after every pass-through fee/tax is deducted.
+  // This is the artist split base.
+  const netReceipts =
+    grossReceipts - ticketingFees - facilityFees - taxes - ccFees;
+  // Legacy alias kept for the saved settlement schema (DB column adj_gross).
+  // Under the new unified walk, adj_gross is the same as net_receipts.
+  const adjGross = netReceipts;
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
   // Default splitpoint = net receipts − expenses (the dollar pool above the
@@ -842,22 +854,16 @@ export default function SettlementDetailPage() {
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Sold</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Comps</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>% House</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Face Price</th>
-              <th
-                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
-                title="Face × sold = what the artist split is calculated on."
-              >
-                Face Revenue
-              </th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Price</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Svc Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Fac Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Tax</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>CC Fee</th>
               <th
                 style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
-                title="Face + Svc + Fac + Tax + CC — matches your Stripe dashboard."
+                title="Price × sold + service fees + facility fees + tax + CC fee = total receipts collected from customers"
               >
-                Gross (Stripe)
+                Gross Receipts
               </th>
             </tr>
           </thead>
@@ -872,7 +878,8 @@ export default function SettlementDetailPage() {
                   : row.gross * taxRate;
               const totalSold = auditTotals.sold || 1;
               const tierCcShare = ccFees * (row.sold / totalSold);
-              const stripeGross =
+              // Gross Receipts for this tier = price × sold + fees + tax + cc share
+              const tierGrossReceipts =
                 row.gross + svcFeeTotal + facFeeTotal + tierTax + tierCcShare;
               return (
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -882,7 +889,6 @@ export default function SettlementDetailPage() {
                   <td style={{ padding: "6px", textAlign: "right" }}>{row.comps}</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{pctHouse.toFixed(1)}%</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(row.price)}</td>
-                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 600 }}>{fmt(row.gross)}</td>
                   <td
                     style={{ padding: "6px", textAlign: "right" }}
                     title={`${fmt(row.ticketing_fee || 0)} × ${row.sold} tickets`}
@@ -898,19 +904,19 @@ export default function SettlementDetailPage() {
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
                   <td
                     style={{ padding: "6px", textAlign: "right" }}
-                    title="Stripe processing fees apportioned by tier sold count"
+                    title="Processing fees apportioned by tier sold count"
                   >
                     {fmt(tierCcShare)}
                   </td>
                   <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
-                    {fmt(stripeGross)}
+                    {fmt(tierGrossReceipts)}
                   </td>
                 </tr>
               );
             })}
             {ticketAudit.length === 0 && (
               <tr>
-                <td colSpan={12} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={11} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -929,13 +935,12 @@ export default function SettlementDetailPage() {
                     : "—"}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(totalGross)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ticketingFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(facilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ccFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
-                  {fmt(totalCustomerPaid)}
+                  {fmt(grossReceipts)}
                 </td>
               </tr>
             </tfoot>
@@ -943,68 +948,11 @@ export default function SettlementDetailPage() {
         </table>
       </div>
 
-      {/* ── Stripe Collected Breakdown ────────────────────────────────── */}
-      {ticketAudit.length > 0 && (
-        <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 6, padding: "16px 18px", margin: "18px 0 8px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, fontWeight: 600 }}>
-              Stripe Collected (Gross)
-            </span>
-            <span style={{ color: "#d0c290", fontSize: 22, fontWeight: 700 }}>
-              {fmt(totalCustomerPaid)}
-            </span>
-          </div>
-          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "0 0 12px" }}>
-            This is what your Stripe dashboard shows for this event. Below is the per-fee breakdown of where it came from.
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "6px 24px", fontSize: 13 }}>
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              Face Value Revenue <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>(artist split base)</span>
-            </span>
-            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(totalGross)}</span>
 
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              Service Fees Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-                ({fmt(ticketingFeePerTicket)}/ticket × {ticketsSold})
-              </span>
-            </span>
-            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(ticketingFees)}</span>
-
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              Facility Fees Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-                ({fmt(facilityFeePerTicket)}/ticket × {ticketsSold})
-              </span>
-            </span>
-            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(facilityFees)}</span>
-
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              Tax Collected <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-                ({(taxRate * 100).toFixed(2)}%, {taxMethod === "divisor" ? "divided out" : "added on top"})
-              </span>
-            </span>
-            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(taxes)}</span>
-
-            <span style={{ color: "rgba(255,255,255,0.7)" }}>
-              CC Processing Fees <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-                (Stripe ~2.9% + $0.30/order)
-              </span>
-            </span>
-            <span style={{ textAlign: "right", color: "#fff", fontWeight: 600 }}>{fmt(ccFees)}</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(208,194,144,0.25)", marginTop: 12, paddingTop: 10 }}>
-            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 14, fontWeight: 700 }}>
-              Sum of above
-            </span>
-            <span style={{ color: "#d0c290", fontSize: 14, fontWeight: 700 }}>
-              {fmt(totalCustomerPaid)}
-            </span>
-          </div>
-        </div>
-      )}
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: 6 }}>
         Comps are listed for inventory accuracy but excluded from the gross.
         {compCount > 0 && (
-          <> Comp face value of <strong>{fmt(settlement.comp_face_value || 0)}</strong> across {compCount} ticket{compCount === 1 ? "" : "s"} is informational only.</>
+          <> {compCount} comp ticket{compCount === 1 ? "" : "s"} would have been worth <strong>{fmt(settlement.comp_face_value || 0)}</strong> at price — informational only.</>
         )}
       </p>
 
@@ -1039,7 +987,7 @@ export default function SettlementDetailPage() {
               value={taxMethod}
               onChange={(e) => setTaxMethod(e.target.value as TaxMethod)}
               disabled={isFinalized}
-              title="How the venue applies tax: added on top of face price (default) or already included in face price"
+              title="How the venue applies tax: added on top of the ticket price (default) or already included in the ticket price"
             >
               <option value="multiplier">Add on top</option>
               <option value="divisor">Divide out (incl.)</option>
@@ -1050,31 +998,18 @@ export default function SettlementDetailPage() {
 
       {/* ════════════════════════════════════════════
           §4  FINANCIAL SUMMARY
-          Two walks:
-            1. Stripe Reconciliation — Gross (Stripe) → Face Value
-            2. Artist Settlement Math — Face Value → Net Receipts (split base)
+          Single walk: Gross Receipts → minus pass-throughs → Net Receipts.
       ════════════════════════════════════════════ */}
       <h2 style={sectionTitleStyle}>Financial Summary</h2>
-
       <div style={{ maxWidth: 560 }}>
         <div style={rowStyle}>
           <span style={labelStyle}>Tickets Sold (paying)</span>
           <span style={valStyle}>{ticketsSold}</span>
         </div>
-      </div>
-
-      {/* ── Walk 1: Stripe → Face Value ───────────────────────────── */}
-      <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", margin: "20px 0 8px" }}>
-        Stripe Reconciliation
-        <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
-          (matches your Stripe dashboard)
-        </span>
-      </p>
-      <div style={{ maxWidth: 560 }}>
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>Gross (Stripe Collected)</span>
-          <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
-            {fmt(totalCustomerPaid)}
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>Total Gross Receipts</span>
+          <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #d0c290)" }}>
+            {fmt(grossReceipts)}
           </span>
         </div>
         <div style={rowStyle}>
@@ -1096,50 +1031,16 @@ export default function SettlementDetailPage() {
           <span style={{ ...labelStyle, paddingLeft: 12 }}>− CC / Processing Fees</span>
           <span style={valStyle}>({fmt(ccFees)})</span>
         </div>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>= Face Value Revenue</span>
-          <span style={valStyle}>{fmt(totalGross)}</span>
-        </div>
-      </div>
-
-      {/* ── Walk 2: Face → Net (artist split base) ───────────────── */}
-      <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", margin: "20px 0 8px" }}>
-        Artist Settlement Math
-        <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 400, textTransform: "none", marginLeft: 8 }}>
-          (face-value anchor — feeds the artist split below)
-        </span>
-      </p>
-      <div style={{ maxWidth: 560 }}>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>Face Value Revenue</span>
-          <span style={valStyle}>{fmt(totalGross)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>− Ticketing Service Fees</span>
-          <span style={valStyle}>({fmt(ticketingFees)})</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>− Facility Fees</span>
-          <span style={valStyle}>({fmt(facilityFees)})</span>
-        </div>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>= Adj. Gross</span>
-          <span style={valStyle}>{fmt(adjGross)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>
-            − Tax ({(taxRate * 100).toFixed(2)}%)
-          </span>
-          <span style={valStyle}>({fmt(taxes)})</span>
-        </div>
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>= Net Receipts (artist split base)</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(netReceipts)}
           </span>
         </div>
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "8px 0 0", lineHeight: 1.5 }}>
-          Service / Facility fees and tax are pass-throughs (collected from the customer once, shown above for transparency). They&rsquo;re subtracted from face value here because the artist deal is calculated on what&rsquo;s left after the venue has paid those out — standard industry convention.
+        <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>
+          Service / Facility / Tax / CC fees are pass-throughs — collected from the customer
+          and remitted out (to the platform, facility fund, government, and the payment processor respectively).
+          The artist deal is calculated on what&rsquo;s left.
         </p>
       </div>
 
