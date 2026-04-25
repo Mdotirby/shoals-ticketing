@@ -1,8 +1,22 @@
 /**
  * Settlement Ticket Audit — single source of truth.
  *
- * Pulls actual order data from the orders + tickets tables (NOT list-price ×
- * count) so settlement totals reconcile against Stripe to the penny.
+ * Pulls actual order data for the event so settlement totals reconcile
+ * against Stripe.
+ *
+ * Data sources (only the columns that the Stripe webhook actually populates):
+ *   • orders                  — paid + comp ticket purchases (id, status, source,
+ *                                quantity, total_amount). The `_cents` columns
+ *                                that the checkout intent stuffs into Stripe
+ *                                metadata are NOT written to the orders table —
+ *                                so we ignore them and use total_amount.
+ *   • tickets                 — per-ticket-tier counts.
+ *   • ticket_tiers            — capacity + face price.
+ *   • settlement_ledger       — per-order fee/tax/CC breakdown written by the
+ *                                webhook on `payment_intent.succeeded`. This is
+ *                                where ticketing_fee, tax_collected, stripe_fee
+ *                                actually live.
+ *   • venues / event_venues   — per-event facility_fee + tax_rate config.
  *
  * Used by:
  *   • POST /api/settlements          — initial audit on settlement creation
@@ -15,11 +29,11 @@ import type { TicketAuditRow, TaxMethod } from "@/lib/types/settlement";
 
 export type AuditTotals = {
   audit: TicketAuditRow[];
-  total_gross: number;          // Σ subtotal collected (face value, paying only)
-  ticketing_fees: number;       // Σ ticketing fees collected
-  facility_fees: number;        // Σ facility fees collected
-  taxes: number;                // Σ tax collected (actual)
-  cc_fees: number;              // Σ Stripe / processing fees collected
+  total_gross: number;          // Σ face value of paid tickets (tier.price × count)
+  ticketing_fees: number;       // Σ settlement_ledger.ticketing_fee for this event
+  facility_fees: number;        // venue.facility_fee × tickets_sold_count
+  taxes: number;                // Σ settlement_ledger.tax_collected
+  cc_fees: number;              // Σ settlement_ledger.stripe_fee
   tickets_sold_count: number;   // paying tickets
   comp_count: number;           // comp tickets
   comp_face_value: number;      // would-be price of comps (excluded from gross)
@@ -35,12 +49,6 @@ type OrderRow = {
   source: string | null;
   quantity: number | null;
   total_amount: number | null;
-  subtotal_cents: number | null;
-  ticketing_fee_cents: number | null;
-  facility_fee_cents: number | null;
-  tax_cents: number | null;
-  processing_fee_cents: number | null;
-  total_cents: number | null;
 };
 
 type TicketRow = {
@@ -57,8 +65,16 @@ type TierRow = {
   sort_order?: number | null;
 };
 
+type LedgerRow = {
+  order_id: string | null;
+  ticketing_fee: number | string | null;
+  tax_collected: number | string | null;
+  stripe_fee: number | string | null;
+  type: string | null;
+};
+
 const r2 = (n: number) => Math.round(n * 100) / 100;
-const cToD = (c: number | null | undefined) => (Number(c ?? 0) || 0) / 100;
+const num = (n: unknown) => Number(n ?? 0) || 0;
 
 /**
  * Pull the canonical fee/tax config that was in effect for the event.
@@ -91,9 +107,9 @@ async function resolveEventFees(
       .maybeSingle();
     if (ev) {
       fees = {
-        ticketing_fee: Number(ev.ticketing_fee ?? 0) || 0,
-        facility_fee: Number(ev.facility_fee ?? 0) || 0,
-        tax_rate: Number(ev.tax_rate ?? 0) || 0,
+        ticketing_fee: num(ev.ticketing_fee),
+        facility_fee: num(ev.facility_fee),
+        tax_rate: num(ev.tax_rate),
       };
     }
   }
@@ -105,9 +121,9 @@ async function resolveEventFees(
       .maybeSingle();
     if (v) {
       fees = {
-        ticketing_fee: Number(v.ticketing_fee ?? 0) || 0,
-        facility_fee: Number(v.facility_fee ?? 0) || 0,
-        tax_rate: Number(v.tax_rate ?? 0) || 0,
+        ticketing_fee: num(v.ticketing_fee),
+        facility_fee: num(v.facility_fee),
+        tax_rate: num(v.tax_rate),
       };
     }
   }
@@ -132,13 +148,11 @@ export async function computeEventAudit(
 
   const tierList: TierRow[] = (tiers ?? []) as TierRow[];
 
-  // 2. All orders for this event — paid + comp.
-  //    Refunded orders are status='refunded' so they're naturally excluded.
+  // 2. All paid orders for this event. Comp orders are status='paid' too —
+  //    they're distinguished by source='comp' (or total_amount=0).
   const { data: orders } = await admin
     .from("orders")
-    .select(
-      "id, status, source, quantity, total_amount, subtotal_cents, ticketing_fee_cents, facility_fee_cents, tax_cents, processing_fee_cents, total_cents"
-    )
+    .select("id, status, source, quantity, total_amount")
     .eq("event_id", eventId)
     .eq("status", "paid");
 
@@ -158,7 +172,7 @@ export async function computeEventAudit(
 
   const ticketList: TicketRow[] = (tickets ?? []) as TicketRow[];
 
-  // 4. Build per-tier maps
+  // 4. Per-tier aggregation
   type TierAgg = {
     tier: string;
     capacity: number;
@@ -174,18 +188,18 @@ export async function computeEventAudit(
   for (const t of tierList) {
     tierMap[t.id] = {
       tier: t.tier_name,
-      capacity: Number(t.capacity ?? 0) || 0,
+      capacity: num(t.capacity),
       sold: 0,
       comps: 0,
       kills: 0,
-      price: Number(t.price ?? 0) || 0,
+      price: num(t.price),
       facility_fee: 0,
       gross: 0,
-      sort_order: Number(t.sort_order ?? 0) || 0,
+      sort_order: num(t.sort_order),
     };
   }
 
-  // Helper: fall-through tier for tickets with no ticket_type_id (legacy data).
+  // Fall-through tier for tickets with no ticket_type_id (legacy data).
   const fallbackTierId = tierList[0]?.id ?? "__unassigned__";
   if (!tierMap[fallbackTierId]) {
     tierMap[fallbackTierId] = {
@@ -201,47 +215,38 @@ export async function computeEventAudit(
     };
   }
 
-  // 5. Walk every ticket. Attribute count + per-ticket gross to its tier.
-  //    A "comp" is determined by its parent order's source.
+  // 5. Walk every ticket — count + face-value gross per tier.
   for (const t of ticketList) {
-    const tierId = t.ticket_type_id && tierMap[t.ticket_type_id] ? t.ticket_type_id : fallbackTierId;
+    const tierId =
+      t.ticket_type_id && tierMap[t.ticket_type_id]
+        ? t.ticket_type_id
+        : fallbackTierId;
     const tier = tierMap[tierId];
     if (!tier) continue;
     const order = t.order_id ? orderById[t.order_id] : undefined;
-    const isComp = order?.source === "comp" || (order?.total_amount ?? 0) === 0;
-
+    const isComp =
+      order?.source === "comp" || (order && num(order.total_amount) === 0);
     if (isComp) {
       tier.comps += 1;
     } else {
       tier.sold += 1;
-      // Per-ticket subtotal = order.subtotal / order.quantity, fall back to tier.price
-      const orderSubtotal = cToD(order?.subtotal_cents);
-      const orderQty = Number(order?.quantity ?? 0) || 1;
-      const perTicket =
-        orderSubtotal > 0 && orderQty > 0
-          ? orderSubtotal / orderQty
-          : tier.price;
-      tier.gross += perTicket;
+      // Face-value gross = tier.price (the artist gets paid on face value;
+      // promo/discounts come out of net receipts via the actual order math).
+      tier.gross += tier.price;
     }
   }
 
-  // 6. Aggregate fee + tax totals from orders (paying orders only — comps
-  //    contribute zero to all of these by construction).
-  let ticketing_fees = 0;
-  let facility_fees = 0;
-  let taxes = 0;
-  let cc_fees = 0;
+  // 6. Fees + tax + CC come from settlement_ledger (the webhook DOES populate
+  //    these per order; the orders._cents columns are unused).
   let tickets_sold_count = 0;
   let comp_count = 0;
   let comp_face_value = 0;
-
   for (const o of orderList) {
-    const isComp = o.source === "comp" || (o.total_amount ?? 0) === 0;
-    const qty = Number(o.quantity ?? 0) || 0;
+    const isComp = o.source === "comp" || num(o.total_amount) === 0;
+    const qty = num(o.quantity);
     if (isComp) {
       comp_count += qty;
-      // Face value of this comp = avg tier price for the order (for info only)
-      // We compute it from the linked tickets so it's accurate.
+      // Comp face value = average tier price across this order's tickets.
       const compTickets = ticketList.filter((t) => t.order_id === o.id);
       for (const ct of compTickets) {
         const tierId =
@@ -252,47 +257,38 @@ export async function computeEventAudit(
       }
     } else {
       tickets_sold_count += qty;
-      ticketing_fees += cToD(o.ticketing_fee_cents);
-      facility_fees += cToD(o.facility_fee_cents);
-      taxes += cToD(o.tax_cents);
-      cc_fees += cToD(o.processing_fee_cents);
     }
   }
 
-  // 7. Apply refunds/disputes from settlement_ledger.
-  //    Negative ledger rows reduce gross / fees / tax to keep numbers honest.
-  const { data: ledgerAdjustments } = await admin
+  const { data: ledger } = await admin
     .from("settlement_ledger")
-    .select("ticket_revenue, ticketing_fee, tax_collected, stripe_fee, type")
-    .eq("event_id", eventId)
-    .in("type", ["refund", "dispute"]);
+    .select("order_id, ticketing_fee, tax_collected, stripe_fee, type")
+    .eq("event_id", eventId);
 
-  for (const row of ledgerAdjustments ?? []) {
-    // Negative numbers — add them to deduct.
-    const delta = (n: number | null) => Number(n ?? 0) || 0;
-    // Spread across tiers proportionally to existing gross would be ideal but
-    // refunds are rare enough that we just bucket them into the totals row.
-    // (Per-tier gross stays at "before refund" — matches historical reports.)
-    ticketing_fees += delta(row.ticketing_fee);
-    taxes += delta(row.tax_collected);
-    cc_fees += delta(row.stripe_fee);
-    // We DO subtract from total gross (below) because the artist isn't paid on
-    // refunded tickets.
-    // Note: refund rows already store negative values, so this is additive.
-    // We track separately for the audit table though — keep gross_minus_refunds
-    // out of per-tier display to avoid confusion.
-    void delta(row.ticket_revenue);
+  const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
+  let ticketing_fees = 0;
+  let taxes = 0;
+  let cc_fees = 0;
+  for (const row of ledgerRows) {
+    // 'sale' adds, 'refund'/'dispute' rows already store negative numbers in
+    // the ledger, so addition handles both cases correctly.
+    if (row.type === "comp") continue; // $0 entries — skip
+    ticketing_fees += num(row.ticketing_fee);
+    taxes += num(row.tax_collected);
+    cc_fees += num(row.stripe_fee);
   }
 
-  // 8. Per-ticket fee rates — snapshot the venue config in effect.
+  // 7. Facility fees — not stored in the ledger. Derive from venue config ×
+  //    paying-ticket count. (Comps don't pay facility fee.)
   const fees = await resolveEventFees(admin, eventId);
+  const facility_fees = fees.facility_fee * tickets_sold_count;
 
   // Stamp each tier's per-ticket facility fee (mirrors what got collected).
   for (const tier of Object.values(tierMap)) {
     tier.facility_fee = fees.facility_fee;
   }
 
-  // 9. Sort and finalize
+  // 8. Sort and finalize
   const audit: TicketAuditRow[] = Object.values(tierMap)
     .filter((t) => t.capacity > 0 || t.sold > 0 || t.comps > 0)
     .sort((a, b) => a.sort_order - b.sort_order)

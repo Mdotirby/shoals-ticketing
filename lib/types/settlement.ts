@@ -24,6 +24,17 @@ export type OtherAncillaryItem = {
   amount: number;
 };
 
+/** A row in the merch settlement: one SKU / item line. */
+export type MerchItem = {
+  name: string;
+  units_sold: number;
+  unit_price: number;
+  gross: number; // units_sold × unit_price (or manually overridden)
+};
+
+/** Who eats the merch seller's per-night fee. */
+export type MerchSellerFeePayer = "venue" | "artist";
+
 export type Settlement = {
   id: string;
   event_id: string;
@@ -77,13 +88,27 @@ export type Settlement = {
   // Ancillary revenue
   bar_revenue: number;
   concessions_revenue: number;
-  merch_commission: number;
+  merch_commission: number;       // legacy — superseded by merch_venue_share below
   ticketing_rebate: number;
   parking_revenue: number;
   sponsorship_revenue: number;
   other_ancillary: OtherAncillaryItem[];
   venue_total_revenue: number;
   venue_net_profit: number;
+
+  // ── Merch Settlement ──────────────────────────────────────────────
+  merch_items: MerchItem[];
+  merch_split_venue_pct: number;       // 0–1, e.g. 0.20 = venue keeps 20% of net merch
+  merch_tax_rate: number;              // 0–1, e.g. 0.095
+  merch_tax_method: TaxMethod;         // 'multiplier' | 'divisor'
+  merch_seller_fee: number;            // cost to hire someone to run merch
+  merch_seller_fee_payer: MerchSellerFeePayer;
+  // Computed snapshots
+  merch_total_gross: number;           // Σ items.gross
+  merch_total_tax: number;
+  merch_total_net: number;             // gross − tax
+  merch_venue_share: number;           // net × split%
+  merch_artist_share: number;          // net − venue_share
 
   // Status
   status: SettlementStatus;

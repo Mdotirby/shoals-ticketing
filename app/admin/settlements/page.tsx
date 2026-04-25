@@ -6,77 +6,87 @@ import { getCookie } from "@/lib/cookies";
 import { formatEventDateShort } from "@/lib/dates";
 import type { Settlement } from "@/lib/types/settlement";
 
-type EventRow = {
-  id: string;
-  title: string;
-  date: string;
-  venue: string;
-  venue_id?: string;
-  status?: string;
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  none: "status-draft",
-  draft: "status-draft",
-  finalized: "status-published",
+/**
+ * Settlements index page — list-only.
+ *
+ * Settlements are CREATED from a specific event's sales page (Admin → Sales →
+ * pick event → "Create Settlement"). This page is the master list / status
+ * tracker for everything that's already been kicked off. Click a row to open
+ * the editor.
+ */
+const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
+  draft: { label: "Draft", cls: "status-draft" },
+  finalized: { label: "Finalized", cls: "status-published" },
 };
 
 export default function AdminSettlementsPage() {
-  const [events, setEvents] = useState<EventRow[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
-    const evtParams = venueId ? `?venue_id=${venueId}` : "";
-    const setParams = venueId ? `?venue_id=${venueId}` : "";
+    const params = venueId ? `?venue_id=${venueId}` : "";
 
-    Promise.all([
-      fetch(`/api/events${evtParams}`)
-        .then((r) => r.json())
-        .catch(() => []),
-      fetch(`/api/settlements${setParams}`)
-        .then((r) => r.json())
-        .catch(() => []),
-    ])
-      .then(([evtData, setData]) => {
-        if (Array.isArray(evtData)) setEvents(evtData);
-        if (Array.isArray(setData)) setSettlements(setData);
+    fetch(`/api/settlements${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setSettlements(data);
       })
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  const settlementByEvent = new Map<string, Settlement>();
-  settlements.forEach((s) => settlementByEvent.set(s.event_id, s));
+  // Sort: drafts first (newest → oldest), then finalized (newest → oldest).
+  const drafts = settlements.filter((s) => s.status === "draft");
+  const finalized = settlements.filter((s) => s.status === "finalized");
 
-  const handleCreate = async (eventId: string) => {
-    const venueId = getCookie("venue-id");
-    const res = await fetch("/api/settlements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: eventId, venue_id: venueId }),
-    });
-    if (res.ok) {
-      const created = await res.json();
-      setSettlements((prev) => [...prev, created]);
+  const ticketStats = (s: Settlement) => {
+    if (!s.ticket_audit || !Array.isArray(s.ticket_audit)) {
+      return { sold: s.tickets_sold_count ?? 0, comps: s.comp_count ?? 0 };
     }
+    const sold = s.ticket_audit.reduce((sum, r) => sum + (r.sold || 0), 0);
+    const comps = s.ticket_audit.reduce((sum, r) => sum + (r.comps || 0), 0);
+    return { sold, comps };
   };
 
-  // Compute ticket sold count from settlement ticket_audit if available
-  const getTicketStats = (eventId: string) => {
-    const s = settlementByEvent.get(eventId);
-    if (!s || !s.ticket_audit || !Array.isArray(s.ticket_audit)) {
-      return { sold: 0, comps: 0, capacity: 0 };
-    }
-    let sold = 0,
-      comps = 0,
-      capacity = 0;
-    s.ticket_audit.forEach((row) => {
-      sold += row.sold || 0;
-      comps += row.comps || 0;
-      capacity += row.capacity || 0;
-    });
-    return { sold, comps, capacity };
+  const renderRow = (s: Settlement) => {
+    const stats = ticketStats(s);
+    const status = STATUS_LABELS[s.status] ?? { label: s.status, cls: "status-draft" };
+    const eventLabel = s.event_title || s.artist_name || "Untitled Event";
+    const dateLabel = s.event_date
+      ? formatEventDateShort(s.event_date)
+      : new Date(s.created_at).toLocaleDateString();
+    return (
+      <Link
+        key={s.id}
+        href={`/admin/settlements/${s.id}`}
+        className="admin-event-card"
+        style={{ textDecoration: "none" }}
+      >
+        <div className="admin-event-info">
+          <div>
+            <h3 className="admin-event-name">{eventLabel}</h3>
+            <span className="admin-event-meta">
+              {s.artist_name && s.event_title ? `${s.artist_name} · ` : ""}
+              {dateLabel}
+            </span>
+            <span className={`admin-event-status ${status.cls}`}>
+              {status.label}
+            </span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginLeft: 12 }}>
+              {stats.sold} sold · {stats.comps} comps · gross{" "}
+              {Number(s.total_gross || 0).toLocaleString("en-US", {
+                style: "currency",
+                currency: "USD",
+              })}
+            </span>
+          </div>
+        </div>
+        <div className="admin-event-actions">
+          <span className="admin-sponsor-edit-btn">Open →</span>
+        </div>
+      </Link>
+    );
   };
 
   return (
@@ -85,70 +95,46 @@ export default function AdminSettlementsPage() {
         <h1 className="admin-page-title">Settlements</h1>
       </div>
 
+      <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginTop: -8, marginBottom: 24 }}>
+        To create a settlement, open the event in{" "}
+        <Link href="/admin/orders" style={{ color: "var(--admin-primary, #d0c290)" }}>
+          Sales
+        </Link>{" "}
+        and click <strong>+ Create Settlement</strong>. Drafts auto-pull live
+        ticket sales from orders every time you open them; finalized settlements
+        are locked.
+      </p>
+
       {loading && (
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading events…</p>
+        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>
       )}
 
-      {!loading && events.length === 0 && (
+      {!loading && settlements.length === 0 && (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          No events found. Settlements are created from completed events.
+          No settlements yet. Head to{" "}
+          <Link href="/admin/orders" style={{ color: "var(--admin-primary, #d0c290)" }}>
+            Sales
+          </Link>{" "}
+          and create one for any event with ticket sales.
         </p>
       )}
 
-      {!loading && events.length > 0 && (
-        <div className="admin-events-list">
-          {events.map((evt) => {
-            const settlement = settlementByEvent.get(evt.id);
-            const status = settlement ? settlement.status : "none";
-            const stats = getTicketStats(evt.id);
+      {!loading && drafts.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #d0c290)", marginTop: 12, marginBottom: 12 }}>
+            Drafts ({drafts.length})
+          </h2>
+          <div className="admin-events-list">{drafts.map(renderRow)}</div>
+        </>
+      )}
 
-            return (
-              <div key={evt.id} className="admin-event-card">
-                <div className="admin-event-info">
-                  <div>
-                    <h3 className="admin-event-name">{evt.title}</h3>
-                    <span className="admin-event-meta">
-                      {evt.venue || "—"} · {evt.date ? formatEventDateShort(evt.date) : "No date"}
-                    </span>
-                    <span
-                      className={`admin-event-status ${STATUS_COLORS[status] || "status-draft"}`}
-                    >
-                      {status === "none" ? "No Settlement" : status}
-                    </span>
-                    {settlement && (
-                      <span
-                        style={{
-                          fontSize: 12,
-                          color: "rgba(255,255,255,0.45)",
-                          marginLeft: 12,
-                        }}
-                      >
-                        {stats.sold} sold · {stats.comps} comps · {stats.capacity} cap
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="admin-event-actions">
-                  {settlement ? (
-                    <Link
-                      href={`/admin/settlements/${settlement.id}`}
-                      className="admin-sponsor-edit-btn"
-                    >
-                      View Settlement
-                    </Link>
-                  ) : (
-                    <button
-                      className="admin-header-btn"
-                      onClick={() => handleCreate(evt.id)}
-                    >
-                      + Create Settlement
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {!loading && finalized.length > 0 && (
+        <>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #d0c290)", marginTop: 28, marginBottom: 12 }}>
+            Finalized ({finalized.length})
+          </h2>
+          <div className="admin-events-list">{finalized.map(renderRow)}</div>
+        </>
       )}
     </div>
   );

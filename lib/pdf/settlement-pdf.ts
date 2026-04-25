@@ -199,6 +199,107 @@ function drawFeeTaxBreakdown(doc: Doc, s: Settlement, y: number): number {
   return y;
 }
 
+// ── Merch Settlement ─────────────────────────────────────────────────
+function drawMerchSection(doc: Doc, s: Settlement, y: number): {
+  y: number;
+  ownedToVenue: number;
+  artistPaidSellerFee: number;
+  venuePaidSellerFee: number;
+} {
+  const items = Array.isArray(s.merch_items) ? s.merch_items : [];
+  const sellerFee = Number(s.merch_seller_fee) || 0;
+  const sellerPayer = s.merch_seller_fee_payer ?? "venue";
+  const artistPaidSellerFee = sellerPayer === "artist" ? sellerFee : 0;
+  const venuePaidSellerFee = sellerPayer === "venue" ? sellerFee : 0;
+  const venueShare = Number(s.merch_venue_share) || 0;
+
+  // If there are no items AND no deal terms, skip the section entirely.
+  if (
+    items.length === 0 &&
+    venueShare === 0 &&
+    sellerFee === 0 &&
+    !s.merch_split_venue_pct
+  ) {
+    return { y, ownedToVenue: 0, artistPaidSellerFee, venuePaidSellerFee };
+  }
+
+  y = drawSectionHeader(doc, "Merch Settlement", y);
+
+  if (items.length > 0) {
+    // Item table
+    const cols = ["Item", "Units", "Unit $", "Gross"];
+    const colX = [
+      MARGIN + 3,
+      MARGIN + 90,
+      MARGIN + 120,
+      MARGIN + CONTENT_WIDTH - 3,
+    ];
+    y = ensureSpace(doc, 8, y);
+    doc.setFillColor(...LIGHT_GRAY);
+    doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(...DARK);
+    cols.forEach((c, i) => {
+      const align = i >= 1 ? "right" : undefined;
+      doc.text(c, colX[i], y + 5, align ? { align } : undefined);
+    });
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    let total = 0;
+    for (const item of items) {
+      y = ensureSpace(doc, 7, y);
+      const name = doc.splitTextToSize(item.name || "—", colX[1] - colX[0] - 5)[0] || item.name || "—";
+      doc.text(name, colX[0], y + 4);
+      doc.text(String(item.units_sold || 0), colX[1], y + 4, { align: "right" });
+      doc.text(fmt(Number(item.unit_price) || 0), colX[2], y + 4, { align: "right" });
+      doc.text(fmt(Number(item.gross) || 0), colX[3], y + 4, { align: "right" });
+      total += Number(item.gross) || 0;
+      y += 6;
+    }
+
+    // Total row
+    y = ensureSpace(doc, 8, y);
+    doc.setFillColor(...DARK);
+    doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...WHITE);
+    doc.text("TOTAL GROSS MERCH", colX[0], y + 5);
+    doc.text(fmt(total), colX[3], y + 5, { align: "right" });
+    doc.setTextColor(...DARK);
+    y += 10;
+  }
+
+  // Deal terms + math walk
+  const splitPct = ((s.merch_split_venue_pct || 0) * 100).toFixed(1);
+  const taxPct = ((s.merch_tax_rate || 0) * 100).toFixed(2);
+  const taxLabel =
+    s.merch_tax_method === "divisor" ? "divided out" : "added on top";
+
+  y = drawRow(doc, "Total Gross Merch", fmt(s.merch_total_gross || 0), y, { bold: true });
+  y = drawRow(doc, `− Sales Tax (${taxPct}%, ${taxLabel})`, `(${fmt(s.merch_total_tax || 0)})`, y, { indent: 4 });
+  y = drawDivider(doc, y);
+  y = drawRow(doc, "= Net Merch Sales", fmt(s.merch_total_net || 0), y, { bold: true });
+  y = drawRow(doc, `Venue Share (${splitPct}% of net)`, fmt(venueShare), y, { indent: 4 });
+  y = drawRow(doc, "Artist Share", fmt(s.merch_artist_share || 0), y, { indent: 4 });
+  if (sellerFee > 0) {
+    y = drawRow(
+      doc,
+      `Merch Seller Fee (paid by ${sellerPayer})`,
+      fmt(sellerFee),
+      y,
+      { indent: 4 }
+    );
+  }
+  y = drawDivider(doc, y);
+  const ownedToVenue = venueShare + artistPaidSellerFee;
+  y = drawRow(doc, "Owed to Venue from Artist", fmt(ownedToVenue), y, { bold: true, highlight: true });
+  y += 4;
+  return { y, ownedToVenue, artistPaidSellerFee, venuePaidSellerFee };
+}
+
 // ── Financial Summary ────────────────────────────────────────────────
 //   Math chain (top-down):
 //     Total Gross Receipts (face value)
@@ -337,6 +438,10 @@ export async function exportArtistSettlementPDF(
   y = drawRow(doc, "Total Expenses", fmt(expTotal), y, { bold: true });
   y += 3;
 
+  // ── Merch Settlement ──
+  const merchResult = drawMerchSection(doc, settlement, y);
+  y = merchResult.y;
+
   // ── Settlement Calculation ──
   y = drawSectionHeader(doc, "Settlement Calculation", y);
   y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y);
@@ -365,6 +470,24 @@ export async function exportArtistSettlementPDF(
   y += 2;
   y = drawRow(doc, "Less: Deposits Paid", `(${fmt(settlement.deposit_paid)})`, y, { indent: 4 });
   y = drawRow(doc, "Less: Cash Advances", `(${fmt(settlement.cash_advance)})`, y, { indent: 4 });
+  if ((settlement.merch_venue_share || 0) > 0) {
+    y = drawRow(
+      doc,
+      "Less: Venue Merch Share",
+      `(${fmt(settlement.merch_venue_share || 0)})`,
+      y,
+      { indent: 4 }
+    );
+  }
+  if (merchResult.artistPaidSellerFee > 0) {
+    y = drawRow(
+      doc,
+      "Less: Merch Seller Fee (artist-paid)",
+      `(${fmt(merchResult.artistPaidSellerFee)})`,
+      y,
+      { indent: 4 }
+    );
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "BALANCE DUE TO ARTIST", fmt(settlement.balance_due), y, { bold: true, highlight: true });
   y += 8;
@@ -474,6 +597,10 @@ export async function exportVenueSettlementPDF(
   y = drawRow(doc, "Total Expenses", fmt(expTotal), y, { bold: true });
   y += 3;
 
+  // Merch Settlement
+  const merchResult = drawMerchSection(doc, settlement, y);
+  y = merchResult.y;
+
   // Settlement Calculation
   y = drawSectionHeader(doc, "Settlement Calculation", y);
   y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y);
@@ -501,6 +628,24 @@ export async function exportVenueSettlementPDF(
   y += 2;
   y = drawRow(doc, "Less: Deposits Paid", `(${fmt(settlement.deposit_paid)})`, y, { indent: 4 });
   y = drawRow(doc, "Less: Cash Advances", `(${fmt(settlement.cash_advance)})`, y, { indent: 4 });
+  if ((settlement.merch_venue_share || 0) > 0) {
+    y = drawRow(
+      doc,
+      "Less: Venue Merch Share",
+      `(${fmt(settlement.merch_venue_share || 0)})`,
+      y,
+      { indent: 4 }
+    );
+  }
+  if (merchResult.artistPaidSellerFee > 0) {
+    y = drawRow(
+      doc,
+      "Less: Merch Seller Fee (artist-paid)",
+      `(${fmt(merchResult.artistPaidSellerFee)})`,
+      y,
+      { indent: 4 }
+    );
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "BALANCE DUE TO ARTIST", fmt(settlement.balance_due), y, { bold: true, highlight: true });
   y += 8;
@@ -517,10 +662,19 @@ export async function exportVenueSettlementPDF(
 
   // Ancillary Revenue
   y = drawSectionHeader(doc, "Ancillary Revenue", y);
+  // If merch_items exist, the merch venue share is reported in the dedicated
+  // Merch Settlement section above (and rolled into the P&L below) — skip the
+  // legacy single-number "Merch Commission" line to avoid double-counting.
+  const merchHasItems =
+    Array.isArray(settlement.merch_items) && settlement.merch_items.length > 0;
+  const legacyMerchCommission = merchHasItems
+    ? 0
+    : settlement.merch_commission ?? 0;
   const ancillaryItems: [string, number][] = [
     ["Bar Revenue", settlement.bar_revenue ?? 0],
     ["Concessions", settlement.concessions_revenue ?? 0],
-    ["Merch Commission", settlement.merch_commission ?? 0],
+    ["Merch Commission (legacy)", legacyMerchCommission],
+    ["Merch Venue Share", settlement.merch_venue_share ?? 0],
     ["Ticketing Rebate", settlement.ticketing_rebate ?? 0],
     ["Parking", settlement.parking_revenue ?? 0],
     ["Sponsorship", settlement.sponsorship_revenue ?? 0],
@@ -551,17 +705,26 @@ export async function exportVenueSettlementPDF(
   y = drawSectionHeader(doc, "Venue Profit & Loss", y);
   const venueTotalRevenue =
     settlement.venue_total_revenue ?? (settlement.net_receipts + totalAncillary);
-  const venueTotalCosts = settlement.total_expenses + settlement.artist_total;
+  const venueTotalCosts =
+    settlement.total_expenses +
+    settlement.artist_total +
+    merchResult.venuePaidSellerFee;
   const venueNetProfit =
     settlement.venue_net_profit ?? (venueTotalRevenue - venueTotalCosts);
 
   y = drawRow(doc, "Total Revenue (Net Receipts + Ancillary)", fmt(venueTotalRevenue), y, { bold: true });
   y = drawRow(doc, "Net Receipts", fmt(settlement.net_receipts), y, { indent: 8 });
-  y = drawRow(doc, "Total Ancillary", fmt(totalAncillary), y, { indent: 8 });
+  y = drawRow(doc, "Total Ancillary (incl. merch venue share)", fmt(totalAncillary), y, { indent: 8 });
+  if ((settlement.merch_venue_share || 0) > 0) {
+    y = drawRow(doc, "  ↳ Merch Venue Share", fmt(settlement.merch_venue_share || 0), y, { indent: 12 });
+  }
   y += 2;
-  y = drawRow(doc, "Total Costs (Expenses + Artist Total)", fmt(venueTotalCosts), y, { bold: true });
+  y = drawRow(doc, "Total Costs (Expenses + Artist Total + Merch Seller Fee)", fmt(venueTotalCosts), y, { bold: true });
   y = drawRow(doc, "Total Expenses", fmt(settlement.total_expenses), y, { indent: 8 });
   y = drawRow(doc, "Artist Total", fmt(settlement.artist_total), y, { indent: 8 });
+  if (merchResult.venuePaidSellerFee > 0) {
+    y = drawRow(doc, "Merch Seller Fee (venue-paid)", fmt(merchResult.venuePaidSellerFee), y, { indent: 8 });
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "VENUE NET PROFIT", fmt(venueNetProfit), y, { bold: true, highlight: true });
   y += 8;

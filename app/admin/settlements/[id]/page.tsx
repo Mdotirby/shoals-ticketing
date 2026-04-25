@@ -9,6 +9,8 @@ import type {
   TicketAuditRow,
   OtherAncillaryItem,
   TaxMethod,
+  MerchItem,
+  MerchSellerFeePayer,
 } from "@/lib/types/settlement";
 import { exportArtistSettlementPDF, exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
 
@@ -85,6 +87,15 @@ export default function SettlementDetailPage() {
   const [sponsorshipRevenue, setSponsorshipRevenue] = useState(0);
   const [otherAncillary, setOtherAncillary] = useState<OtherAncillaryItem[]>([]);
 
+  // ── Merch Settlement ─────────────────────────────────────────────
+  const [merchItems, setMerchItems] = useState<MerchItem[]>([]);
+  const [merchSplitVenuePct, setMerchSplitVenuePct] = useState(0);
+  const [merchTaxRate, setMerchTaxRate] = useState(0);
+  const [merchTaxMethod, setMerchTaxMethod] = useState<TaxMethod>("multiplier");
+  const [merchSellerFee, setMerchSellerFee] = useState(0);
+  const [merchSellerFeePayer, setMerchSellerFeePayer] =
+    useState<MerchSellerFeePayer>("venue");
+
   const isFinalized = settlement?.status === "finalized";
 
   /* ─── Hydrate state from a fetched / refreshed settlement ─── */
@@ -116,23 +127,60 @@ export default function SettlementDetailPage() {
     setParkingRevenue(Number(data.parking_revenue) || 0);
     setSponsorshipRevenue(Number(data.sponsorship_revenue) || 0);
     setOtherAncillary(Array.isArray(data.other_ancillary) ? data.other_ancillary : []);
+
+    // Merch
+    setMerchItems(Array.isArray(data.merch_items) ? data.merch_items : []);
+    setMerchSplitVenuePct(Number(data.merch_split_venue_pct) || 0);
+    setMerchTaxRate(Number(data.merch_tax_rate) || 0);
+    setMerchTaxMethod((data.merch_tax_method as TaxMethod) || "multiplier");
+    setMerchSellerFee(Number(data.merch_seller_fee) || 0);
+    setMerchSellerFeePayer(
+      (data.merch_seller_fee_payer as MerchSellerFeePayer) || "venue"
+    );
   }, []);
 
   /* ─── Load data ─── */
+  //
+  // When the settlement is in DRAFT, we silently re-pull the audit from
+  // orders on every page load so the displayed numbers always reflect
+  // current sales (no stale snapshot). FINALIZED settlements keep their
+  // saved snapshot — that's the whole point of finalization.
   useEffect(() => {
-    fetch(`/api/settlements/${id}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error);
+    let active = true;
+    (async () => {
+      try {
+        const initial = await fetch(`/api/settlements/${id}`).then((r) => r.json());
+        if (!active) return;
+        if (initial.error) {
+          setError(initial.error);
           return;
         }
-        hydrate(data);
-        setExpenses(data.expenses || []);
-        setDeposits(data.deposits || []);
-      })
-      .catch(() => setError("Failed to load settlement"))
-      .finally(() => setLoading(false));
+        hydrate(initial);
+        setExpenses(initial.expenses || []);
+        setDeposits(initial.deposits || []);
+
+        if (initial.status === "draft") {
+          // Silent refresh-from-orders so the audit + fee totals are live.
+          try {
+            const refreshed = await fetch(`/api/settlements/${id}/refresh`, {
+              method: "POST",
+            }).then((r) => r.json());
+            if (active && refreshed && !refreshed.error) {
+              hydrate(refreshed);
+            }
+          } catch {
+            // network error — keep the stored snapshot
+          }
+        }
+      } catch {
+        if (active) setError("Failed to load settlement");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [id, hydrate]);
 
   /* ─── Client-side calculations ─── */
@@ -161,12 +209,25 @@ export default function SettlementDetailPage() {
   const netReceipts = adjGross - taxes;
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
-  const splitpoint = netReceipts - totalExpenses;
+  // Default splitpoint = net receipts − expenses (the dollar pool above the
+  // breakeven). User can override with a fixed contracted figure.
+  const computedSplitpoint = netReceipts - totalExpenses;
+  const splitpoint = splitpointInput > 0 ? splitpointInput : computedSplitpoint;
 
   // Artist payment math, deal-type aware
+  // For VS / PLUS: artist earns backend% on revenue ABOVE splitpoint.
+  // The "splitpoint" itself is the threshold (revenue is "above" it when
+  // net − expenses exceeds the contracted floor). When splitpointInput is
+  // a fixed number (e.g. $10,000), artistBackend = (net − expenses − splitpoint) × pct.
   const artistBackend = (() => {
     if (dealType === "VS" || dealType === "PLUS") {
-      return splitpoint > 0 ? splitpoint * backendPctInput : 0;
+      if (splitpointInput > 0) {
+        // Fixed contracted splitpoint — artist gets pct of revenue ABOVE it.
+        const overage = computedSplitpoint - splitpointInput;
+        return overage > 0 ? overage * backendPctInput : 0;
+      }
+      // Auto splitpoint — artist gets pct of (net − expenses) when positive.
+      return computedSplitpoint > 0 ? computedSplitpoint * backendPctInput : 0;
     }
     if (dealType === "DOOR") {
       // Pure door deal = % of net (no guarantee floor)
@@ -185,14 +246,58 @@ export default function SettlementDetailPage() {
   const totalCashAdvances = deposits
     .filter((d) => d.type === "cash_advance")
     .reduce((s, d) => s + (d.amount || 0), 0);
-  const balanceDue = artistTotal - totalDeposits - totalCashAdvances;
+
+  // ── Merch math ────────────────────────────────────────────────────
+  const merchTotalGross = merchItems.reduce(
+    (sum, item) => sum + (Number(item.gross) || 0),
+    0
+  );
+  const merchTotalTax =
+    merchTaxMethod === "divisor" && merchTaxRate > 0
+      ? merchTotalGross - merchTotalGross / (1 + merchTaxRate)
+      : merchTotalGross * merchTaxRate;
+  const merchTotalNet = merchTotalGross - merchTotalTax;
+  const merchVenueShare = merchTotalNet * merchSplitVenuePct;
+  const merchArtistShare = merchTotalNet - merchVenueShare;
+
+  // Merch seller fee — eaten by venue or artist depending on contract.
+  const artistPaidMerchSellerFee =
+    merchSellerFeePayer === "artist" ? merchSellerFee : 0;
+  const venuePaidMerchSellerFee =
+    merchSellerFeePayer === "venue" ? merchSellerFee : 0;
+
+  // Balance due:
+  //   Artist Total (from ticket deal)
+  //   − Deposits
+  //   − Cash Advances
+  //   − Venue Merch Share (artist owes venue this from their merch)
+  //   − Artist-paid Merch Seller Fee (if contract puts it on the artist)
+  const balanceDue =
+    artistTotal -
+    totalDeposits -
+    totalCashAdvances -
+    merchVenueShare -
+    artistPaidMerchSellerFee;
 
   // Ancillary
+  // NOTE: `merchCommission` is the legacy single-number merch field. Once a
+  // settlement has `merchItems`, the `merchVenueShare` is the source of truth
+  // and we ignore the legacy number to avoid double-counting.
   const totalOtherAncillary = otherAncillary.reduce((s, i) => s + (i.amount || 0), 0);
+  const legacyMerchCommission = merchItems.length > 0 ? 0 : merchCommission;
   const totalAncillary =
-    barRevenue + concessionsRevenue + merchCommission + ticketingRebate +
-    parkingRevenue + sponsorshipRevenue + totalOtherAncillary;
-  const venueNetProfit = netReceipts + totalAncillary - totalExpenses - artistTotal;
+    barRevenue + concessionsRevenue + legacyMerchCommission + ticketingRebate +
+    parkingRevenue + sponsorshipRevenue + totalOtherAncillary +
+    merchVenueShare; // merch venue share is venue revenue
+  const venueNetProfit =
+    netReceipts +
+    totalAncillary -
+    totalExpenses -
+    venuePaidMerchSellerFee - // merch seller fee (if venue eats it) is a venue cost
+    artistTotal +
+    // Add back the merch venue share + artist-paid seller fee that already
+    // reduced balanceDue above — those are not artist-side costs to the venue.
+    artistPaidMerchSellerFee;
 
   // Per-ticket all-in (for display)
   const ticketsSold = settlement?.tickets_sold_count ?? auditTotals.sold;
@@ -294,6 +399,19 @@ export default function SettlementDetailPage() {
       other_ancillary: otherAncillary,
       venue_total_revenue: totalAncillary + netReceipts,
       venue_net_profit: venueNetProfit,
+
+      // Merch
+      merch_items: merchItems,
+      merch_split_venue_pct: merchSplitVenuePct,
+      merch_tax_rate: merchTaxRate,
+      merch_tax_method: merchTaxMethod,
+      merch_seller_fee: merchSellerFee,
+      merch_seller_fee_payer: merchSellerFeePayer,
+      merch_total_gross: merchTotalGross,
+      merch_total_tax: merchTotalTax,
+      merch_total_net: merchTotalNet,
+      merch_venue_share: merchVenueShare,
+      merch_artist_share: merchArtistShare,
     };
 
     try {
@@ -456,6 +574,19 @@ export default function SettlementDetailPage() {
       other_ancillary: otherAncillary,
       venue_total_revenue: totalAncillary + netReceipts,
       venue_net_profit: venueNetProfit,
+
+      // Merch
+      merch_items: merchItems,
+      merch_split_venue_pct: merchSplitVenuePct,
+      merch_tax_rate: merchTaxRate,
+      merch_tax_method: merchTaxMethod,
+      merch_seller_fee: merchSellerFee,
+      merch_seller_fee_payer: merchSellerFeePayer,
+      merch_total_gross: merchTotalGross,
+      merch_total_tax: merchTotalTax,
+      merch_total_net: merchTotalNet,
+      merch_venue_share: merchVenueShare,
+      merch_artist_share: merchArtistShare,
     };
   };
 
@@ -502,6 +633,25 @@ export default function SettlementDetailPage() {
     setOtherAncillary((prev) => prev.map((item, i) => (i === idx ? { ...item, ...updates } : item)));
   const removeOtherAncillary = (idx: number) =>
     setOtherAncillary((prev) => prev.filter((_, i) => i !== idx));
+
+  /* ─── Merch Item CRUD ─── */
+  const addMerchItem = () =>
+    setMerchItems((prev) => [...prev, { name: "", units_sold: 0, unit_price: 0, gross: 0 }]);
+  const updateMerchItem = (idx: number, updates: Partial<MerchItem>) =>
+    setMerchItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const merged = { ...item, ...updates };
+        // Auto-recompute gross if units or price change and the user didn't type
+        // a manual gross override in this update.
+        if (("units_sold" in updates || "unit_price" in updates) && !("gross" in updates)) {
+          merged.gross = (Number(merged.units_sold) || 0) * (Number(merged.unit_price) || 0);
+        }
+        return merged;
+      })
+    );
+  const removeMerchItem = (idx: number) =>
+    setMerchItems((prev) => prev.filter((_, i) => i !== idx));
 
   /* ─── Render ─── */
   if (loading)
@@ -616,7 +766,12 @@ export default function SettlementDetailPage() {
           />
         </div>
         <div>
-          <label className="admin-form-label">Splitpoint Override ($)</label>
+          <label className="admin-form-label">
+            Splitpoint Override ($)
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11, marginLeft: 6 }}>
+              optional
+            </span>
+          </label>
           <input
             type="number"
             step="0.01"
@@ -624,8 +779,15 @@ export default function SettlementDetailPage() {
             value={splitpointInput}
             onChange={(e) => setSplitpointInput(Number(e.target.value))}
             disabled={isFinalized}
-            placeholder="0 = computed from net − expenses"
+            placeholder="Leave 0 to auto-compute (net receipts − expenses)"
           />
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "4px 0 0", lineHeight: 1.4 }}>
+            For VS / PLUS / DOOR deals. The dollar threshold above which the
+            artist starts earning backend. Default is auto-computed as
+            <em> net receipts − expenses</em>. Override only if the contract
+            specifies a fixed splitpoint (e.g. &ldquo;artist gets 85% above
+            $10,000&rdquo;).
+          </p>
         </div>
         <div>
           <label className="admin-form-label">Radius Clause</label>
@@ -1095,6 +1257,223 @@ export default function SettlementDetailPage() {
       )}
 
       {/* ════════════════════════════════════════════
+          §6.5  MERCH SETTLEMENT
+      ════════════════════════════════════════════ */}
+      <h2 style={sectionTitleStyle}>Merch Settlement</h2>
+      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: -8, marginBottom: 8 }}>
+        Track merch sold at the show, the contracted split, and the cost of running merch.
+        The venue&rsquo;s share is deducted from the artist&rsquo;s balance due below.
+      </p>
+
+      {/* Merch items table */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Item</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Units Sold</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Unit Price</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Gross (incl. tax if divisor)</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {merchItems.map((item, idx) => (
+              <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <td style={{ padding: "6px" }}>
+                  <input
+                    className="admin-form-input"
+                    style={{ width: "100%", minWidth: 140 }}
+                    value={item.name}
+                    onChange={(e) => updateMerchItem(idx, { name: e.target.value })}
+                    disabled={isFinalized}
+                    placeholder="e.g. T-Shirt, Hoodie, Vinyl"
+                  />
+                </td>
+                <td style={{ padding: "6px" }}>
+                  <input
+                    type="number"
+                    className="admin-form-input"
+                    style={{ width: 90, textAlign: "right" }}
+                    value={item.units_sold}
+                    onChange={(e) => updateMerchItem(idx, { units_sold: Number(e.target.value) })}
+                    disabled={isFinalized}
+                  />
+                </td>
+                <td style={{ padding: "6px" }}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="admin-form-input"
+                    style={{ width: 100, textAlign: "right" }}
+                    value={item.unit_price}
+                    onChange={(e) => updateMerchItem(idx, { unit_price: Number(e.target.value) })}
+                    disabled={isFinalized}
+                  />
+                </td>
+                <td style={{ padding: "6px" }}>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="admin-form-input"
+                    style={{ width: 120, textAlign: "right" }}
+                    value={item.gross}
+                    onChange={(e) => updateMerchItem(idx, { gross: Number(e.target.value) })}
+                    disabled={isFinalized}
+                    title="Auto-calculated from units × price; edit to override (e.g. discounts, bundles)"
+                  />
+                </td>
+                <td style={{ padding: "6px" }}>
+                  {!isFinalized && (
+                    <button
+                      className="admin-sponsor-delete-btn"
+                      onClick={() => removeMerchItem(idx)}
+                      style={{ fontSize: 11 }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {merchItems.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                  No merch sold. Click &ldquo;+ Add Merch Item&rdquo; to record sales.
+                </td>
+              </tr>
+            )}
+          </tbody>
+          {merchItems.length > 0 && (
+            <tfoot>
+              <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
+                <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Total Gross Merch</td>
+                <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(merchTotalGross)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+      {!isFinalized && (
+        <button className="admin-header-btn" style={{ marginTop: 8, fontSize: 13 }} onClick={addMerchItem}>
+          + Add Merch Item
+        </button>
+      )}
+
+      {/* Deal terms for merch */}
+      <div className="admin-form-grid" style={{ marginTop: 16 }}>
+        <div>
+          <label className="admin-form-label">
+            Venue Split % (decimal — e.g. 0.20 = 20%)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            value={merchSplitVenuePct}
+            onChange={(e) => setMerchSplitVenuePct(Number(e.target.value))}
+            disabled={isFinalized}
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">Merch Sales Tax Rate (decimal)</label>
+          <input
+            type="number"
+            step="0.001"
+            className="admin-form-input"
+            value={merchTaxRate}
+            onChange={(e) => setMerchTaxRate(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="0.095 = 9.5%"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">Tax Method</label>
+          <select
+            className="admin-form-input"
+            value={merchTaxMethod}
+            onChange={(e) => setMerchTaxMethod(e.target.value as TaxMethod)}
+            disabled={isFinalized}
+          >
+            <option value="multiplier">Add on top (gross is pre-tax)</option>
+            <option value="divisor">Divide out (gross is tax-incl.)</option>
+          </select>
+        </div>
+        <div>
+          <label className="admin-form-label">Merch Seller Fee ($)</label>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            value={merchSellerFee}
+            onChange={(e) => setMerchSellerFee(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="Cost to hire merch seller for the night"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">Merch Seller Fee Paid By</label>
+          <select
+            className="admin-form-input"
+            value={merchSellerFeePayer}
+            onChange={(e) => setMerchSellerFeePayer(e.target.value as MerchSellerFeePayer)}
+            disabled={isFinalized}
+          >
+            <option value="venue">Venue (counts as venue expense)</option>
+            <option value="artist">Artist (deducted from balance due)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Merch math summary */}
+      <div style={{ maxWidth: 540, marginTop: 16 }}>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Total Gross Merch</span>
+          <span style={valStyle}>{fmt(merchTotalGross)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>
+            − Sales Tax ({(merchTaxRate * 100).toFixed(2)}%
+            {merchTaxMethod === "divisor" ? ", divided out" : ", added on top"})
+          </span>
+          <span style={valStyle}>({fmt(merchTotalTax)})</span>
+        </div>
+        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+          <span style={{ ...labelStyle, fontWeight: 700 }}>= Net Merch Sales</span>
+          <span style={valStyle}>{fmt(merchTotalNet)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>
+            Venue Share ({(merchSplitVenuePct * 100).toFixed(1)}% of net)
+          </span>
+          <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
+            {fmt(merchVenueShare)}
+          </span>
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Artist Share</span>
+          <span style={valStyle}>{fmt(merchArtistShare)}</span>
+        </div>
+        {merchSellerFee > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>
+              Merch Seller Fee (paid by {merchSellerFeePayer})
+            </span>
+            <span style={valStyle}>{fmt(merchSellerFee)}</span>
+          </div>
+        )}
+        <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(208,194,144,0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+          <strong style={{ color: "#d0c290" }}>Owed to venue from artist:</strong>
+          {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee)}
+          {artistPaidMerchSellerFee > 0 && (
+            <> ({fmt(merchVenueShare)} venue share + {fmt(artistPaidMerchSellerFee)} seller fee)</>
+          )}
+          {" — deducted from Balance Due below."}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════
           §7  SETTLEMENT CALCULATION
       ════════════════════════════════════════════ */}
       <h2 style={sectionTitleStyle}>Settlement Calculation</h2>
@@ -1140,6 +1519,18 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>– Cash Advances</span>
           <span style={valStyle}>{fmt(totalCashAdvances)}</span>
         </div>
+        {merchVenueShare > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>– Venue Merch Share</span>
+            <span style={valStyle}>{fmt(merchVenueShare)}</span>
+          </div>
+        )}
+        {artistPaidMerchSellerFee > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>– Merch Seller Fee (artist-paid)</span>
+            <span style={valStyle}>{fmt(artistPaidMerchSellerFee)}</span>
+          </div>
+        )}
         <div style={{
           ...rowStyle,
           borderBottom: "3px solid var(--admin-primary, #d0c290)",
