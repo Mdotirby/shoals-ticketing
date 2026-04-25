@@ -308,18 +308,13 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
 }
 
 // ── Financial Summary ────────────────────────────────────────────────
-//   Math chain (top-down):
-//     Total Gross Receipts (face value)
-//       − Ticketing Service Fees
-//       − Facility Fees
-//     = Adj. Gross
-//       − Tax
-//     = Net Receipts
-//   CC fees + Total Customer Paid are shown below as reconciliation only.
+//   Two stacked walks:
+//     1. Stripe Reconciliation: Gross (Stripe) → Face Value Revenue
+//     2. Artist Settlement Math: Face Value → Net Receipts (artist split base)
 function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
   y = drawSectionHeader(doc, "Financial Summary", y);
   const ticketsSold = s.tickets_sold_count || 0;
-  const totalCustomerPaid =
+  const stripeGross =
     (s.total_gross || 0) +
     (s.ticketing_fees || 0) +
     (s.facility_fees || 0) +
@@ -330,32 +325,69 @@ function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
     s.tax_method === "divisor" ? "divided out" : "added on top";
 
   y = drawRow(doc, "Tickets Sold (paying)", String(ticketsSold), y);
-  y = drawRow(doc, "Total Gross Receipts (face value)", fmt(s.total_gross || 0), y, { bold: true });
+  y += 2;
+
+  // ── Walk 1: Stripe Reconciliation ────────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...DARK);
+  y = ensureSpace(doc, 7, y);
+  doc.text("STRIPE RECONCILIATION (matches Stripe dashboard)", MARGIN + 3, y + 4);
+  y += 6;
+
+  y = drawRow(doc, "Gross (Stripe Collected)", fmt(stripeGross), y, { bold: true, highlight: true });
+  y = drawRow(doc, "− Service Fees Collected", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
+  y = drawRow(doc, "− Facility Fees Collected", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
+  y = drawRow(
+    doc,
+    `− Tax Collected (${taxRatePct}%, ${taxMethodLabel})`,
+    `(${fmt(s.taxes || 0)})`,
+    y,
+    { indent: 4 }
+  );
+  y = drawRow(doc, "− CC / Processing Fees", `(${fmt(s.cc_fees || 0)})`, y, { indent: 4 });
+  y = drawDivider(doc, y);
+  y = drawRow(doc, "= Face Value Revenue", fmt(s.total_gross || 0), y, { bold: true });
+  y += 5;
+
+  // ── Walk 2: Artist Settlement Math ───────────────────────────────
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...DARK);
+  y = ensureSpace(doc, 7, y);
+  doc.text("ARTIST SETTLEMENT MATH (face-value anchor)", MARGIN + 3, y + 4);
+  y += 6;
+
+  y = drawRow(doc, "Face Value Revenue", fmt(s.total_gross || 0), y, { bold: true });
   y = drawRow(doc, "− Ticketing Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
   y = drawRow(doc, "− Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
   y = drawDivider(doc, y);
   y = drawRow(doc, "= Adj. Gross", fmt(s.adj_gross || 0), y, { bold: true });
   y = drawRow(
     doc,
-    `− Tax (${taxRatePct}%, ${taxMethodLabel})`,
+    `− Tax (${taxRatePct}%)`,
     `(${fmt(s.taxes || 0)})`,
     y,
     { indent: 4 }
   );
   y = drawDivider(doc, y);
-  y = drawRow(doc, "= NET RECEIPTS", fmt(s.net_receipts || 0), y, { bold: true, highlight: true });
+  y = drawRow(doc, "= NET RECEIPTS (artist split base)", fmt(s.net_receipts || 0), y, { bold: true, highlight: true });
   y += 4;
 
-  // Reconciliation — informational only, NOT part of the artist split.
-  y = drawRow(doc, "(Reconciliation — informational)", "", y, { indent: 4 });
-  y = drawRow(doc, "Total Customer Paid (incl. all fees + tax)", fmt(totalCustomerPaid), y, { indent: 8 });
-  y = drawRow(doc, "CC / Processing Fees paid to Stripe", fmt(s.cc_fees || 0), y, { indent: 8 });
   if (ticketsSold > 0) {
-    const perTicket = (s.total_gross || 0) / ticketsSold;
-    y = drawRow(doc, "Avg. gross / ticket sold", fmt(perTicket), y, { indent: 8 });
+    const perTicketGross = stripeGross / ticketsSold;
+    const perTicketFace = (s.total_gross || 0) / ticketsSold;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.setTextColor(...DARK);
+    doc.text(
+      `Avg. Stripe gross / ticket: ${fmt(perTicketGross)}   ·   Avg. face / ticket: ${fmt(perTicketFace)}`,
+      MARGIN + 3,
+      y
+    );
+    y += 5;
   }
-  y += 3;
-  return y;
+  return y + 2;
 }
 
 // ═════════════════════════════════════════════════════════════════════

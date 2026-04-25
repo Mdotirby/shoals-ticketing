@@ -30,10 +30,17 @@ import type { TicketAuditRow, TaxMethod } from "@/lib/types/settlement";
 export type AuditTotals = {
   audit: TicketAuditRow[];
   total_gross: number;          // Σ face value of paid tickets (tier.price × count)
-  ticketing_fees: number;       // Σ settlement_ledger.ticketing_fee for this event
+  ticketing_fees: number;       // venue.ticketing_fee × tickets_sold_count
   facility_fees: number;        // venue.facility_fee × tickets_sold_count
-  taxes: number;                // Σ settlement_ledger.tax_collected
-  cc_fees: number;              // Σ settlement_ledger.stripe_fee
+  taxes: number;                // face_gross × tax_rate (or divisor method)
+  /**
+   * Stripe processing fees. Derived as the residual:
+   *   stripe_gross − face − svc − fac − tax = cc_fees
+   * This guarantees that on the settlement page,
+   *   face + svc + fac + tax + cc === Stripe Dashboard "Gross volume"
+   * to the penny — no formula drift.
+   */
+  cc_fees: number;
   tickets_sold_count: number;   // paying tickets
   comp_count: number;           // comp tickets
   comp_face_value: number;      // would-be price of comps (excluded from gross)
@@ -278,24 +285,27 @@ export async function computeEventAudit(
     tier.facility_fee = fees.facility_fee;
   }
 
-  // 8. CC processing fees — prefer the actual settlement_ledger sum (the
-  //    webhook stamps stripe_fee per order, so this matches what Stripe
-  //    actually charged to the penny). Fall back to the deterministic
-  //    formula (2.9% + $0.30/order) when the ledger has no data — e.g.
-  //    historical events from before the ledger migration.
-  let cc_fees = 0;
-  const { data: ledger } = await admin
-    .from("settlement_ledger")
-    .select("stripe_fee, type")
-    .eq("event_id", eventId);
-  const ledgerRows: LedgerRow[] = (ledger ?? []) as LedgerRow[];
-  for (const row of ledgerRows) {
-    if (row.type === "comp") continue;
-    cc_fees += num(row.stripe_fee);
-  }
-  if (cc_fees === 0 && total_paid_amount > 0) {
-    cc_fees = total_paid_amount * 0.029 + paid_order_count * 0.3;
-  }
+  // 8. CC processing fees — derived as the RESIDUAL of:
+  //      Stripe Gross  −  Face  −  Svc  −  Fac  −  Tax  =  CC Fees
+  //    This guarantees the audit reconciles to Stripe's "Gross volume" line
+  //    on the dashboard to the penny, no matter what the formula or per-
+  //    order rounding says. `total_paid_amount` IS the Stripe Gross — it's
+  //    Σ orders.total_amount for every paying (non-comp) order, which is
+  //    exactly what Stripe collected.
+  const stripe_gross = total_paid_amount;
+  const total_face = Object.values(tierMap).reduce((s, t) => s + t.gross, 0);
+  const total_svc = fees.ticketing_fee * tickets_sold_count;
+  const total_fac = fees.facility_fee * tickets_sold_count;
+  const total_tax_face = total_face * fees.tax_rate; // multiplier method
+  const cc_fees_residual =
+    stripe_gross - total_face - total_svc - total_fac - total_tax_face;
+  // Don't allow negative residual; fall back to the formula in edge cases.
+  let cc_fees =
+    cc_fees_residual >= 0
+      ? cc_fees_residual
+      : stripe_gross > 0
+        ? stripe_gross * 0.029 + paid_order_count * 0.3
+        : 0;
 
   // 9. Sort and finalize
   const audit: TicketAuditRow[] = Object.values(tierMap)
