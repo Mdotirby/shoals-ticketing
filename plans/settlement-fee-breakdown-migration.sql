@@ -54,6 +54,15 @@ ALTER TABLE settlements ADD COLUMN IF NOT EXISTS merch_total_net     NUMERIC(10,
 ALTER TABLE settlements ADD COLUMN IF NOT EXISTS merch_venue_share   NUMERIC(10,2) DEFAULT 0;
 ALTER TABLE settlements ADD COLUMN IF NOT EXISTS merch_artist_share  NUMERIC(10,2) DEFAULT 0;
 
+-- Discounts: free merch given out at the show (band giveaways, comps, etc.)
+ALTER TABLE settlements ADD COLUMN IF NOT EXISTS merch_discounts NUMERIC(10,2) DEFAULT 0;
+
+-- Tax payer: who remits merch sales tax to the gov.
+--   'artist' — artist retains the tax money (default; their problem to remit)
+--   'venue'  — venue pays the tax. The tax amount is deducted from artist's
+--              merch balance due (artist effectively reimburses the venue).
+ALTER TABLE settlements ADD COLUMN IF NOT EXISTS merch_tax_payer TEXT DEFAULT 'artist';
+
 -- Line items live in JSONB to avoid a third child table — pattern matches
 -- other_ancillary. Each item: { name: string, units_sold: number,
 -- unit_price: number, gross: number }
@@ -76,5 +85,13 @@ BEGIN
     ALTER TABLE settlements
       ADD CONSTRAINT settlements_merch_seller_payer_check
       CHECK (merch_seller_fee_payer IN ('venue', 'artist'));
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.check_constraints
+    WHERE constraint_name = 'settlements_merch_tax_payer_check'
+  ) THEN
+    ALTER TABLE settlements
+      ADD CONSTRAINT settlements_merch_tax_payer_check
+      CHECK (merch_tax_payer IN ('artist', 'venue'));
   END IF;
 END $$;

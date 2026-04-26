@@ -36,6 +36,14 @@ export type MerchItem = {
 /** Who eats the merch seller's per-night fee. */
 export type MerchSellerFeePayer = "venue" | "artist";
 
+/**
+ * Who remits merch sales tax to the government:
+ *   • artist — artist keeps the tax money (default; their tax to file)
+ *   • venue  — venue pays the tax. Amount is deducted from the artist's merch
+ *              balance due (artist effectively reimburses the venue).
+ */
+export type MerchTaxPayer = "artist" | "venue";
+
 export type Settlement = {
   id: string;
   event_id: string;
@@ -99,15 +107,17 @@ export type Settlement = {
 
   // ── Merch Settlement ──────────────────────────────────────────────
   merch_items: MerchItem[];
+  merch_discounts: number;             // free merch given out (band giveaways, comps)
   merch_split_venue_pct: number;       // 0–1, e.g. 0.20 = venue keeps 20% of net merch
   merch_tax_rate: number;              // 0–1, e.g. 0.095
   merch_tax_method: TaxMethod;         // 'multiplier' | 'divisor'
+  merch_tax_payer: MerchTaxPayer;      // who remits the tax
   merch_seller_fee: number;            // cost to hire someone to run merch
   merch_seller_fee_payer: MerchSellerFeePayer;
   // Computed snapshots
   merch_total_gross: number;           // Σ items.gross
-  merch_total_tax: number;
-  merch_total_net: number;             // gross − tax
+  merch_total_tax: number;             // tax on (gross − discounts)
+  merch_total_net: number;             // (gross − discounts) − tax
   merch_venue_share: number;           // net × split%
   merch_artist_share: number;          // net − venue_share
 

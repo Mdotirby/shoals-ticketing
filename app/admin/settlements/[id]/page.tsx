@@ -11,6 +11,7 @@ import type {
   TaxMethod,
   MerchItem,
   MerchSellerFeePayer,
+  MerchTaxPayer,
 } from "@/lib/types/settlement";
 import { exportArtistSettlementPDF, exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
 
@@ -91,9 +92,11 @@ export default function SettlementDetailPage() {
 
   // ── Merch Settlement ─────────────────────────────────────────────
   const [merchItems, setMerchItems] = useState<MerchItem[]>([]);
+  const [merchDiscounts, setMerchDiscounts] = useState(0);
   const [merchSplitVenuePct, setMerchSplitVenuePct] = useState(0);
   const [merchTaxRate, setMerchTaxRate] = useState(0);
   const [merchTaxMethod, setMerchTaxMethod] = useState<TaxMethod>("multiplier");
+  const [merchTaxPayer, setMerchTaxPayer] = useState<MerchTaxPayer>("artist");
   const [merchSellerFee, setMerchSellerFee] = useState(0);
   const [merchSellerFeePayer, setMerchSellerFeePayer] =
     useState<MerchSellerFeePayer>("venue");
@@ -131,9 +134,11 @@ export default function SettlementDetailPage() {
 
     // Merch
     setMerchItems(Array.isArray(data.merch_items) ? data.merch_items : []);
+    setMerchDiscounts(Number(data.merch_discounts) || 0);
     setMerchSplitVenuePct(Number(data.merch_split_venue_pct) || 0);
     setMerchTaxRate(Number(data.merch_tax_rate) || 0);
     setMerchTaxMethod((data.merch_tax_method as TaxMethod) || "multiplier");
+    setMerchTaxPayer((data.merch_tax_payer as MerchTaxPayer) || "artist");
     setMerchSellerFee(Number(data.merch_seller_fee) || 0);
     setMerchSellerFeePayer(
       (data.merch_seller_fee_payer as MerchSellerFeePayer) || "venue"
@@ -263,15 +268,30 @@ export default function SettlementDetailPage() {
     .reduce((s, d) => s + (d.amount || 0), 0);
 
   // ── Merch math ────────────────────────────────────────────────────
+  // Flow:
+  //   1. Total Gross Merch = Σ items.gross
+  //   2. − Discounts (free merch given out)
+  //   3. = Net Merch (pre-tax base for splitting)
+  //   4. − Tax (computed on the post-discount Net, NOT on raw Gross)
+  //   5. = Net Merch Sales (after tax)
+  //   6. Venue Share = Net Merch Sales × split%
+  //   7. Artist Share = Net Merch Sales − Venue Share
+  //
+  // Owed to venue from artist =
+  //   Venue Share
+  //   + Artist-paid Merch Seller Fee (if contract puts it on the artist)
+  //   + Tax (if venue pays the tax — artist reimburses the venue)
   const merchTotalGross = merchItems.reduce(
     (sum, item) => sum + (Number(item.gross) || 0),
     0
   );
+  const merchNetAfterDiscounts = Math.max(0, merchTotalGross - merchDiscounts);
   const merchTotalTax =
     merchTaxMethod === "divisor" && merchTaxRate > 0
-      ? merchTotalGross - merchTotalGross / (1 + merchTaxRate)
-      : merchTotalGross * merchTaxRate;
-  const merchTotalNet = merchTotalGross - merchTotalTax;
+      ? merchNetAfterDiscounts - merchNetAfterDiscounts / (1 + merchTaxRate)
+      : merchNetAfterDiscounts * merchTaxRate;
+  // After tax is taken out of the net (per user spec).
+  const merchTotalNet = merchNetAfterDiscounts - merchTotalTax;
   const merchVenueShare = merchTotalNet * merchSplitVenuePct;
   const merchArtistShare = merchTotalNet - merchVenueShare;
 
@@ -281,18 +301,26 @@ export default function SettlementDetailPage() {
   const venuePaidMerchSellerFee =
     merchSellerFeePayer === "venue" ? merchSellerFee : 0;
 
+  // Tax payer — if venue pays the tax, the artist reimburses the venue
+  // (deducted from the artist's balance due). Otherwise the artist keeps the
+  // tax money and is responsible for filing it themselves.
+  const venuePaidMerchTax =
+    merchTaxPayer === "venue" ? merchTotalTax : 0;
+
   // Balance due:
   //   Artist Total (from ticket deal)
   //   − Deposits
   //   − Cash Advances
-  //   − Venue Merch Share (artist owes venue this from their merch)
-  //   − Artist-paid Merch Seller Fee (if contract puts it on the artist)
+  //   − Venue Merch Share
+  //   − Artist-paid Merch Seller Fee
+  //   − Tax (if venue is paying the tax for the artist)
   const balanceDue =
     artistTotal -
     totalDeposits -
     totalCashAdvances -
     merchVenueShare -
-    artistPaidMerchSellerFee;
+    artistPaidMerchSellerFee -
+    venuePaidMerchTax;
 
   // Ancillary
   // NOTE: `merchCommission` is the legacy single-number merch field. Once a
@@ -419,9 +447,11 @@ export default function SettlementDetailPage() {
 
       // Merch
       merch_items: merchItems,
+      merch_discounts: merchDiscounts,
       merch_split_venue_pct: merchSplitVenuePct,
       merch_tax_rate: merchTaxRate,
       merch_tax_method: merchTaxMethod,
+      merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
       merch_seller_fee_payer: merchSellerFeePayer,
       merch_total_gross: merchTotalGross,
@@ -594,9 +624,11 @@ export default function SettlementDetailPage() {
 
       // Merch
       merch_items: merchItems,
+      merch_discounts: merchDiscounts,
       merch_split_venue_pct: merchSplitVenuePct,
       merch_tax_rate: merchTaxRate,
       merch_tax_method: merchTaxMethod,
+      merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
       merch_seller_fee_payer: merchSellerFeePayer,
       merch_total_gross: merchTotalGross,
@@ -1348,6 +1380,23 @@ export default function SettlementDetailPage() {
       <div className="admin-form-grid" style={{ marginTop: 16 }}>
         <div>
           <label className="admin-form-label">
+            Discounts / Free Merch ($)
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11, marginLeft: 6 }}>
+              optional
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            value={merchDiscounts}
+            onChange={(e) => setMerchDiscounts(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="Dollar value of free merch given out"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">
             Venue Split % (decimal — e.g. 0.20 = 20%)
           </label>
           <input
@@ -1379,8 +1428,20 @@ export default function SettlementDetailPage() {
             onChange={(e) => setMerchTaxMethod(e.target.value as TaxMethod)}
             disabled={isFinalized}
           >
-            <option value="multiplier">Add on top (gross is pre-tax)</option>
-            <option value="divisor">Divide out (gross is tax-incl.)</option>
+            <option value="multiplier">Add on top (net is pre-tax)</option>
+            <option value="divisor">Divide out (net is tax-incl.)</option>
+          </select>
+        </div>
+        <div>
+          <label className="admin-form-label">Tax Paid By</label>
+          <select
+            className="admin-form-input"
+            value={merchTaxPayer}
+            onChange={(e) => setMerchTaxPayer(e.target.value as MerchTaxPayer)}
+            disabled={isFinalized}
+          >
+            <option value="artist">Artist retains tax (their tax to file)</option>
+            <option value="venue">Venue pays tax (deducted from artist balance)</option>
           </select>
         </div>
         <div>
@@ -1415,6 +1476,16 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>Total Gross Merch</span>
           <span style={valStyle}>{fmt(merchTotalGross)}</span>
         </div>
+        {merchDiscounts > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>− Discounts / Free Merch</span>
+            <span style={valStyle}>({fmt(merchDiscounts)})</span>
+          </div>
+        )}
+        <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
+          <span style={{ ...labelStyle, fontWeight: 600 }}>= Net (pre-tax base)</span>
+          <span style={valStyle}>{fmt(merchNetAfterDiscounts)}</span>
+        </div>
         <div style={rowStyle}>
           <span style={{ ...labelStyle, paddingLeft: 12 }}>
             − Sales Tax ({(merchTaxRate * 100).toFixed(2)}%
@@ -1446,13 +1517,23 @@ export default function SettlementDetailPage() {
             <span style={valStyle}>{fmt(merchSellerFee)}</span>
           </div>
         )}
+        {merchTotalTax > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>
+              Sales Tax ({merchTaxPayer === "venue" ? "venue pays — deducted from artist" : "artist retains — files separately"})
+            </span>
+            <span style={valStyle}>{fmt(merchTotalTax)}</span>
+          </div>
+        )}
         <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(208,194,144,0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
           <strong style={{ color: "#d0c290" }}>Owed to venue from artist:</strong>
-          {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee)}
-          {artistPaidMerchSellerFee > 0 && (
-            <> ({fmt(merchVenueShare)} venue share + {fmt(artistPaidMerchSellerFee)} seller fee)</>
-          )}
+          {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
           {" — deducted from Balance Due below."}
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
+            = {fmt(merchVenueShare)} venue share
+            {artistPaidMerchSellerFee > 0 && <> + {fmt(artistPaidMerchSellerFee)} seller fee</>}
+            {venuePaidMerchTax > 0 && <> + {fmt(venuePaidMerchTax)} tax (venue paying)</>}
+          </div>
         </div>
       </div>
 
@@ -1512,6 +1593,12 @@ export default function SettlementDetailPage() {
           <div style={rowStyle}>
             <span style={labelStyle}>– Merch Seller Fee (artist-paid)</span>
             <span style={valStyle}>{fmt(artistPaidMerchSellerFee)}</span>
+          </div>
+        )}
+        {venuePaidMerchTax > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>– Merch Tax (venue paying — artist reimburses)</span>
+            <span style={valStyle}>{fmt(venuePaidMerchTax)}</span>
           </div>
         )}
         <div style={{

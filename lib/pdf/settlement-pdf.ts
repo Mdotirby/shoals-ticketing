@@ -197,6 +197,7 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
   ownedToVenue: number;
   artistPaidSellerFee: number;
   venuePaidSellerFee: number;
+  venuePaidTax: number;
 } {
   const items = Array.isArray(s.merch_items) ? s.merch_items : [];
   const sellerFee = Number(s.merch_seller_fee) || 0;
@@ -204,6 +205,10 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
   const artistPaidSellerFee = sellerPayer === "artist" ? sellerFee : 0;
   const venuePaidSellerFee = sellerPayer === "venue" ? sellerFee : 0;
   const venueShare = Number(s.merch_venue_share) || 0;
+  const totalTax = Number(s.merch_total_tax) || 0;
+  const taxPayer = s.merch_tax_payer ?? "artist";
+  const venuePaidTax = taxPayer === "venue" ? totalTax : 0;
+  const discounts = Number(s.merch_discounts) || 0;
 
   // If there are no items AND no deal terms, skip the section entirely.
   if (
@@ -212,7 +217,7 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
     sellerFee === 0 &&
     !s.merch_split_venue_pct
   ) {
-    return { y, ownedToVenue: 0, artistPaidSellerFee, venuePaidSellerFee };
+    return { y, ownedToVenue: 0, artistPaidSellerFee, venuePaidSellerFee, venuePaidTax };
   }
 
   y = drawSectionHeader(doc, "Merch Settlement", y);
@@ -271,6 +276,15 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
     s.merch_tax_method === "divisor" ? "divided out" : "added on top";
 
   y = drawRow(doc, "Total Gross Merch", fmt(s.merch_total_gross || 0), y, { bold: true });
+  if (discounts > 0) {
+    y = drawRow(doc, "− Discounts / Free Merch", `(${fmt(discounts)})`, y, { indent: 4 });
+    y = drawRow(
+      doc,
+      "= Net (pre-tax base)",
+      fmt((s.merch_total_gross || 0) - discounts),
+      y
+    );
+  }
   y = drawRow(doc, `− Sales Tax (${taxPct}%, ${taxLabel})`, `(${fmt(s.merch_total_tax || 0)})`, y, { indent: 4 });
   y = drawDivider(doc, y);
   y = drawRow(doc, "= Net Merch Sales", fmt(s.merch_total_net || 0), y, { bold: true });
@@ -285,11 +299,20 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
       { indent: 4 }
     );
   }
+  if (totalTax > 0) {
+    y = drawRow(
+      doc,
+      `Sales Tax (${taxPayer === "venue" ? "venue pays — artist reimburses" : "artist retains — files separately"})`,
+      fmt(totalTax),
+      y,
+      { indent: 4 }
+    );
+  }
   y = drawDivider(doc, y);
-  const ownedToVenue = venueShare + artistPaidSellerFee;
+  const ownedToVenue = venueShare + artistPaidSellerFee + venuePaidTax;
   y = drawRow(doc, "Owed to Venue from Artist", fmt(ownedToVenue), y, { bold: true, highlight: true });
   y += 4;
-  return { y, ownedToVenue, artistPaidSellerFee, venuePaidSellerFee };
+  return { y, ownedToVenue, artistPaidSellerFee, venuePaidSellerFee, venuePaidTax };
 }
 
 // ── Financial Summary ────────────────────────────────────────────────
@@ -483,6 +506,15 @@ export async function exportArtistSettlementPDF(
       { indent: 4 }
     );
   }
+  if (merchResult.venuePaidTax > 0) {
+    y = drawRow(
+      doc,
+      "Less: Merch Tax (venue paying — artist reimburses)",
+      `(${fmt(merchResult.venuePaidTax)})`,
+      y,
+      { indent: 4 }
+    );
+  }
   y = drawDivider(doc, y);
   y = drawRow(doc, "BALANCE DUE TO ARTIST", fmt(settlement.balance_due), y, { bold: true, highlight: true });
   y += 8;
@@ -641,6 +673,15 @@ export async function exportVenueSettlementPDF(
       doc,
       "Less: Merch Seller Fee (artist-paid)",
       `(${fmt(merchResult.artistPaidSellerFee)})`,
+      y,
+      { indent: 4 }
+    );
+  }
+  if (merchResult.venuePaidTax > 0) {
+    y = drawRow(
+      doc,
+      "Less: Merch Tax (venue paying — artist reimburses)",
+      `(${fmt(merchResult.venuePaidTax)})`,
       y,
       { indent: 4 }
     );
