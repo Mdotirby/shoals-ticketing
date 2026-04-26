@@ -61,7 +61,6 @@ export default function SettlementDetailPage() {
   const [dealType, setDealType] = useState("FLAT");
   const [guaranteeInput, setGuaranteeInput] = useState(0);
   const [backendPctInput, setBackendPctInput] = useState(0);
-  const [splitpointInput, setSplitpointInput] = useState(0);
   const [radiusClause, setRadiusClause] = useState("");
   const [bonusStructureRaw, setBonusStructureRaw] = useState("");
 
@@ -111,7 +110,6 @@ export default function SettlementDetailPage() {
     setGuaranteeInput(Number(data.guarantee) || 0);
     // DB stores backend % as a decimal (0.85). UI uses true percentage (85).
     setBackendPctInput((Number(data.backend_percentage) || 0) * 100);
-    setSplitpointInput(Number(data.splitpoint) || 0);
     setRadiusClause(data.radius_clause ?? "");
     setBonusStructureRaw(
       data.bonus_structure ? JSON.stringify(data.bonus_structure, null, 0) : ""
@@ -231,23 +229,24 @@ export default function SettlementDetailPage() {
   const adjGross = netReceipts;
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
-  // Default splitpoint = net receipts − expenses (the dollar pool above the
-  // breakeven). User can override with a fixed contracted figure.
-  const computedSplitpoint = netReceipts - totalExpenses;
-  const splitpoint = splitpointInput > 0 ? splitpointInput : computedSplitpoint;
+  // Splitpoint = the dollar threshold the show must clear before the artist
+  // earns backend. By rule, the threshold is always the guarantee — promoter
+  // recoups expenses + guarantee, then the overage splits per the contract.
+  // For DOOR / FLAT / CO_PROMOTE deals the splitpoint concept doesn't apply.
+  const splitpoint =
+    dealType === "VS" || dealType === "PLUS" ? guaranteeInput : 0;
+  // Net after expenses — the pool that the splitpoint is measured against.
+  const netAfterExpenses = netReceipts - totalExpenses;
 
   // Artist payment math, deal-type aware. backendPctInput is a true
   // percentage (e.g. 85 for 85%), so divide by 100 in the math.
   const backendPctDecimal = backendPctInput / 100;
   const artistBackend = (() => {
     if (dealType === "VS" || dealType === "PLUS") {
-      if (splitpointInput > 0) {
-        // Fixed contracted splitpoint — artist gets pct of revenue ABOVE it.
-        const overage = computedSplitpoint - splitpointInput;
-        return overage > 0 ? overage * backendPctDecimal : 0;
-      }
-      // Auto splitpoint — artist gets pct of (net − expenses) when positive.
-      return computedSplitpoint > 0 ? computedSplitpoint * backendPctDecimal : 0;
+      // Promoter recoups expenses + guarantee, then artist gets backend % of
+      // anything above that.
+      const overage = netAfterExpenses - guaranteeInput;
+      return overage > 0 ? overage * backendPctDecimal : 0;
     }
     if (dealType === "DOOR") {
       // Pure door deal = % of net (no guarantee floor)
@@ -430,7 +429,7 @@ export default function SettlementDetailPage() {
       adj_gross: adjGross,
       net_receipts: netReceipts,
       total_expenses: totalExpenses,
-      splitpoint: dealType === "DOOR" ? 0 : splitpointInput || splitpoint,
+      splitpoint,
       artist_backend: artistBackend,
       artist_total: artistTotal,
       deposit_paid: totalDeposits,
@@ -827,30 +826,6 @@ export default function SettlementDetailPage() {
             disabled={isFinalized}
             placeholder="85"
           />
-        </div>
-        <div>
-          <label className="admin-form-label">
-            Splitpoint Override ($)
-            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11, marginLeft: 6 }}>
-              optional
-            </span>
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            value={splitpointInput}
-            onChange={(e) => setSplitpointInput(Number(e.target.value))}
-            disabled={isFinalized}
-            placeholder="Leave 0 to auto-compute (net receipts − expenses)"
-          />
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "4px 0 0", lineHeight: 1.4 }}>
-            For VS / PLUS / DOOR deals. The dollar threshold above which the
-            artist starts earning backend. Default is auto-computed as
-            <em> net receipts − expenses</em>. Override only if the contract
-            specifies a fixed splitpoint (e.g. &ldquo;artist gets 85% above
-            $10,000&rdquo;).
-          </p>
         </div>
         <div>
           <label className="admin-form-label">Radius Clause</label>
@@ -1567,17 +1542,40 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>– Total Expenses</span>
           <span style={valStyle}>{fmt(totalExpenses)}</span>
         </div>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>= Splitpoint</span>
-          <span style={{ ...valStyle, color: splitpoint >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
-            {fmt(splitpoint)}
-          </span>
-        </div>
-        {(dealType === "VS" || dealType === "PLUS" || dealType === "DOOR") && (
+        {(dealType === "VS" || dealType === "PLUS") && (
+          <>
+            <div style={rowStyle}>
+              <span style={labelStyle}>– Splitpoint (= Guarantee)</span>
+              <span style={valStyle}>{fmt(splitpoint)}</span>
+            </div>
+            <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+              <span style={{ ...labelStyle, fontWeight: 700 }}>= Overage</span>
+              <span style={{ ...valStyle, color: netAfterExpenses - guaranteeInput >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+                {fmt(netAfterExpenses - guaranteeInput)}
+              </span>
+            </div>
+          </>
+        )}
+        {dealType === "DOOR" && (
+          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+            <span style={{ ...labelStyle, fontWeight: 700 }}>= Net After Expenses</span>
+            <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+              {fmt(netAfterExpenses)}
+            </span>
+          </div>
+        )}
+        {(dealType === "VS" || dealType === "PLUS") && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Artist Backend ({backendPctInput.toFixed(2)}%
-              {dealType === "DOOR" ? " of net" : " of splitpoint"})
+              Artist Backend ({backendPctInput.toFixed(2)}% of overage)
+            </span>
+            <span style={valStyle}>{fmt(artistBackend)}</span>
+          </div>
+        )}
+        {dealType === "DOOR" && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>
+              Artist Backend ({backendPctInput.toFixed(2)}% of net)
             </span>
             <span style={valStyle}>{fmt(artistBackend)}</span>
           </div>
