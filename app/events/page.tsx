@@ -89,6 +89,22 @@ export default function EventsPage() {
           </p>
         )}
 
+        {/* Always-visible link to the past-shows archive */}
+        <div style={{ textAlign: "right", marginTop: 8 }}>
+          <Link
+            href="/events/past"
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.55)",
+              textDecoration: "none",
+              borderBottom: "1px solid rgba(255,255,255,0.15)",
+              paddingBottom: 1,
+            }}
+          >
+            View past shows →
+          </Link>
+        </div>
+
         {/* ── Responsive grid styles ── */}
         <style>{`
           .events-card-grid {

@@ -119,6 +119,8 @@ export default function AdminEventsPage() {
             const eventType = (ev as Record<string, unknown>).event_type as string || "hard_ticket";
             const bookingStatus = (ev as Record<string, unknown>).booking_status as string || "confirmed";
             const statusColor = BOOKING_STATUS_COLORS[bookingStatus] || BOOKING_STATUS_COLORS.confirmed;
+            const closedOutAt = (ev as Record<string, unknown>).closed_out_at as string | null | undefined;
+            const isClosedOut = !!closedOutAt;
 
             return (
               <div key={ev.id} className="admin-event-card">
@@ -163,6 +165,20 @@ export default function AdminEventsPage() {
                       <span className={`admin-event-status status-${ev.status || "published"}`}>
                         {ev.status || "published"}
                       </span>
+                      {isClosedOut && (
+                        <span style={{
+                          fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                          background: "rgba(239,68,68,0.18)",
+                          color: "#f87171",
+                          fontWeight: 700,
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          lineHeight: "1.4",
+                        }}>
+                          Closed Out
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -10,11 +10,21 @@ export async function GET(
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data, error } = await admin
+  // Try with closed_out_at (closeout migration); fall back without it.
+  let { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note")
     .eq("id", id)
     .single();
+  if (error && /closed_out_(at|note)|column .* does not exist/i.test(error.message)) {
+    const retry = await admin
+      .from("events")
+      .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
+      .eq("id", id)
+      .single();
+    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null } : null;
+    error = retry.error;
+  }
 
   if (error) {
     return NextResponse.json(

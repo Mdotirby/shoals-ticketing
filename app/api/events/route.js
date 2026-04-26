@@ -7,12 +7,25 @@ export async function GET(request) {
   const venueId = searchParams.get("venue_id");
   const venueSlug = searchParams.get("venue_slug");
   const showAll = searchParams.get("all"); // for admin: show all statuses
+  // include=past  → return ONLY past / closed-out events (for /events/past archive)
+  // include=all   → return both upcoming + past (admin convenience)
+  // (default)     → return ONLY upcoming, open events
+  const include = searchParams.get("include");
 
   const eventTypeFilter = searchParams.get("event_type"); // for admin filtering
 
+  // Pull the closeout columns when available so the client can render badges
+  // and so we can do post-fetch date filtering without a second round-trip.
+  // The `closed_out_at` column is added by plans/event-closeout-migration.sql
+  // — fall back to the legacy column list if the migration hasn't been run.
+  const fullColumns =
+    "id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at,closed_out_at";
+  const legacyColumns =
+    "id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at";
+
   let query = admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at")
+    .select(fullColumns)
     .order("date", { ascending: true });
 
   // Filter by status for public pages (not admin)
@@ -51,12 +64,67 @@ export async function GET(request) {
     }
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // Retry without the closeout column if the migration hasn't been run yet.
+  if (error && /closed_out_at|column .* does not exist/i.test(error.message)) {
+    let fallback = admin
+      .from("events")
+      .select(legacyColumns)
+      .order("date", { ascending: true });
+    if (!showAll) {
+      fallback = fallback.or("status.eq.published,status.is.null");
+      fallback = fallback.or("event_type.is.null,event_type.neq.private");
+      fallback = fallback.or("booking_status.eq.confirmed,booking_status.is.null");
+    }
+    if (eventTypeFilter && eventTypeFilter !== "all") {
+      fallback = fallback.eq("event_type", eventTypeFilter);
+    }
+    if (venueId) fallback = fallback.eq("venue_id", venueId);
+    const retry = await fallback;
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) {
     return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  return new Response(JSON.stringify(data ?? []), { status: 200 });
+  // Post-fetch filtering for past / upcoming. We do this in JS instead of SQL
+  // so date strings (some rows store "2025-10-12", others store full ISO with
+  // a TZ suffix) are handled uniformly.
+  const rows = Array.isArray(data) ? data : [];
+  if (!showAll && include !== "all") {
+    // "Past" means the show happened OR was manually closed out.
+    // We treat anything with date < today (in the server's local TZ) as past
+    // when not explicitly closed out, and respect closed_out_at as a hard flag.
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const isPast = (e) => {
+      if (e.closed_out_at) return true;
+      if (!e.date) return false;
+      const d = (e.date && e.date.length === 10 && e.date[4] === "-")
+        ? new Date(`${e.date}T23:59:59`)
+        : new Date(e.date);
+      if (Number.isNaN(d.getTime())) return false;
+      return d < startOfToday;
+    };
+
+    const filtered =
+      include === "past"
+        ? rows.filter(isPast).sort((a, b) => {
+            // Past archive: most recent first
+            const da = new Date(a.date).getTime();
+            const db = new Date(b.date).getTime();
+            return db - da;
+          })
+        : rows.filter((e) => !isPast(e));
+
+    return new Response(JSON.stringify(filtered), { status: 200 });
+  }
+
+  return new Response(JSON.stringify(rows), { status: 200 });
 }
 
 export async function POST(request) {

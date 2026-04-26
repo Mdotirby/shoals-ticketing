@@ -2,6 +2,7 @@ import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { pastEventReason } from "@/lib/events/closeout";
 
 // Stripe charges 2.9% + $0.30 per transaction
 const STRIPE_PERCENT_FEE = 0.029;
@@ -21,11 +22,20 @@ export async function POST(request: Request) {
 
     // Look up event + venue fees from Supabase
     const admin = createAdminClient();
-    const { data: event, error: eventError } = await admin
+    let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
+      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at,closed_out_at")
       .eq("id", event_id)
       .single();
+    if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
+      const retry = await admin
+        .from("events")
+        .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
+        .eq("id", event_id)
+        .single();
+      event = retry.data ? { ...retry.data, closed_out_at: null } : null;
+      eventError = retry.error;
+    }
 
     if (eventError || !event) {
       return NextResponse.json(
@@ -40,6 +50,15 @@ export async function POST(request: Request) {
         { error: "Tickets are not yet on sale" },
         { status: 403 }
       );
+    }
+
+    // Guard: reject if the show has already happened or has been closed out.
+    const closeoutReason = pastEventReason({
+      date: event.date,
+      closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
+    });
+    if (closeoutReason) {
+      return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
     // Fetch venue-specific fees — prefer event_venues, fall back to venues

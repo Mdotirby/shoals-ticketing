@@ -34,6 +34,8 @@ type EventInfo = {
   title: string;
   venue: string;
   date: string;
+  closed_out_at?: string | null;
+  closed_out_note?: string | null;
 };
 
 function SourceBadge({ source }: { source: string | null }) {
@@ -70,6 +72,54 @@ export default function EventSalesDetailPage() {
   const [settlementId, setSettlementId] = useState<string | null>(null);
   const [settlementStatus, setSettlementStatus] = useState<"draft" | "finalized" | null>(null);
   const [creatingSettlement, setCreatingSettlement] = useState(false);
+
+  // ── Close-Out Show ────────────────────────────────────────────────────────
+  // Locks the event from public ticket sales and adds it to the past archive.
+  const [closingOut, setClosingOut] = useState(false);
+  const isClosedOut = !!event?.closed_out_at;
+
+  const handleCloseOut = async () => {
+    if (!event) return;
+    if (isClosedOut) {
+      if (!confirm("Reopen this show?\n\nReopening will put it back on customer-facing pages and allow ticket sales again.")) return;
+      setClosingOut(true);
+      try {
+        const res = await fetch(`/api/events/${id}/closeout`, { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "Failed to reopen show");
+        setEvent((prev) => prev ? { ...prev, closed_out_at: null, closed_out_note: null } : prev);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Failed to reopen show");
+      } finally {
+        setClosingOut(false);
+      }
+      return;
+    }
+    const note = prompt(
+      "Close out this show?\n\nThis will:\n  • lock new ticket purchases\n  • hide it from upcoming events\n  • move it to the public Past Shows archive\n\nOptional note (e.g. attendance, weather):",
+      ""
+    );
+    if (note === null) return; // cancelled
+    setClosingOut(true);
+    try {
+      const res = await fetch(`/api/events/${id}/closeout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: note.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Failed to close out show");
+      setEvent((prev) => prev ? {
+        ...prev,
+        closed_out_at: data.closed_out_at ?? new Date().toISOString(),
+        closed_out_note: data.closed_out_note ?? note.trim() ?? null,
+      } : prev);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to close out show");
+    } finally {
+      setClosingOut(false);
+    }
+  };
 
   const handleSettlementClick = async () => {
     if (settlementId) {
@@ -275,10 +325,35 @@ export default function EventSalesDetailPage() {
     <div className="admin-form-page">
       <div className="admin-page-header">
         <div>
-          <h1 className="admin-page-title">{event?.title || "Event Sales"}</h1>
+          <h1 className="admin-page-title">
+            {event?.title || "Event Sales"}
+            {isClosedOut && (
+              <span style={{
+                marginLeft: 12,
+                display: "inline-block",
+                padding: "3px 9px",
+                borderRadius: 4,
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.35)",
+                color: "#f87171",
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                verticalAlign: "middle",
+              }}>
+                Closed Out
+              </span>
+            )}
+          </h1>
           {event && (
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: "4px 0 0" }}>
               {event.venue} · {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+            </p>
+          )}
+          {isClosedOut && event?.closed_out_note && (
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: "2px 0 0", fontStyle: "italic" }}>
+              Note: {event.closed_out_note}
             </p>
           )}
         </div>
@@ -321,6 +396,25 @@ export default function EventSalesDetailPage() {
             onClick={() => { resetCompForm(); setCompOpen(true); }}
           >
             + Issue Comp Tickets
+          </button>
+          <button
+            className="admin-header-btn"
+            style={{
+              background: isClosedOut ? "rgba(208,194,144,0.1)" : "rgba(239,68,68,0.1)",
+              borderColor: isClosedOut ? "rgba(208,194,144,0.35)" : "rgba(239,68,68,0.35)",
+              color: isClosedOut ? "#d0c290" : "#f87171",
+            }}
+            onClick={handleCloseOut}
+            disabled={closingOut}
+            title={
+              isClosedOut
+                ? "Reopen this show — puts it back on customer-facing pages."
+                : "Close out this show — locks ticket sales and moves it to the public past-shows archive."
+            }
+          >
+            {closingOut
+              ? (isClosedOut ? "Reopening…" : "Closing…")
+              : (isClosedOut ? "Reopen Show" : "Close Out Show")}
           </button>
           {orders.length > 0 && (
             <button className="admin-header-btn" onClick={() => setShowPreview(true)}>

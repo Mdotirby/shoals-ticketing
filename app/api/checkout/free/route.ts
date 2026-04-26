@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { pastEventReason } from "@/lib/events/closeout";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -34,12 +35,20 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Fetch event
-  const { data: event } = await admin
+  // Fetch event (with closeout column when available)
+  let { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, title, venue, date, venue_id, on_sale_at")
+    .select("id, title, venue, date, venue_id, on_sale_at, closed_out_at")
     .eq("id", event_id)
     .single();
+  if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
+    const retry = await admin
+      .from("events")
+      .select("id, title, venue, date, venue_id, on_sale_at")
+      .eq("id", event_id)
+      .single();
+    event = retry.data ? { ...retry.data, closed_out_at: null } : null;
+  }
   if (!event)
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
@@ -49,6 +58,15 @@ export async function POST(request: Request) {
       { error: "Tickets are not yet on sale" },
       { status: 403 }
     );
+  }
+
+  // Guard: reject if the show has already happened or has been closed out.
+  const closeoutReason = pastEventReason({
+    date: event.date,
+    closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
+  });
+  if (closeoutReason) {
+    return NextResponse.json({ error: closeoutReason }, { status: 410 });
   }
 
   // Resolve venue slug for email sender

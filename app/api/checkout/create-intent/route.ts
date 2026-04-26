@@ -7,6 +7,7 @@ import {
   validateAndHoldSeats,
   calculateFees,
 } from "@/lib/checkout-helpers";
+import { pastEventReason } from "@/lib/events/closeout";
 
 /**
  * POST /api/checkout/create-intent
@@ -56,11 +57,21 @@ export async function POST(request: Request) {
 
     // ── Fetch event from Supabase ─────────────────────────────────────────
     const admin = createAdminClient();
-    const { data: event, error: eventError } = await admin
+    // Try with closed_out_at (closeout migration); fall back without it.
+    let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at")
+      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at, closed_out_at")
       .eq("id", eventId)
       .single();
+    if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
+      const retry = await admin
+        .from("events")
+        .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at")
+        .eq("id", eventId)
+        .single();
+      event = retry.data ? { ...retry.data, closed_out_at: null } : null;
+      eventError = retry.error;
+    }
 
     if (eventError || !event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -72,6 +83,15 @@ export async function POST(request: Request) {
         { error: "Tickets are not yet on sale" },
         { status: 403 }
       );
+    }
+
+    // Guard: reject if the show has already happened or has been closed out.
+    const closeoutReason = pastEventReason({
+      date: event.date,
+      closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
+    });
+    if (closeoutReason) {
+      return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
     // ── Resolve ticket price (tier or event-level) ────────────────────────

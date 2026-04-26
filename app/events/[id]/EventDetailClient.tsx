@@ -14,6 +14,7 @@ import EventBadges from "@/app/components/EventBadges";
 import Footer from "@/app/components/Footer";
 import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { trackFbEvent } from "@/lib/fbq";
+import { pastEventReason } from "@/lib/events/closeout";
 
 type FeaturedArtist = {
   id: string;
@@ -50,6 +51,7 @@ type EventData = {
   artists?: Artist[];
   is_free?: boolean;
   on_sale_at?: string;
+  closed_out_at?: string | null;
 };
 
 // Date helpers imported from @/lib/dates
@@ -588,7 +590,37 @@ export default function EventDetailClient() {
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column">
-              {checkoutStep === "checkout" ? (
+              {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) ? (
+                /* ── Past / Closed-Out Show — purchases locked ── */
+                <div style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 12,
+                  padding: 24,
+                  textAlign: "center",
+                }}>
+                  <div style={{
+                    display: "inline-block",
+                    padding: "4px 10px",
+                    background: "rgba(255,255,255,0.08)",
+                    color: "rgba(255,255,255,0.55)",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: 1.4,
+                    textTransform: "uppercase",
+                    borderRadius: 4,
+                    marginBottom: 14,
+                  }}>
+                    Past Show
+                  </div>
+                  <p style={{ color: "rgba(255,255,255,0.85)", fontWeight: 600, fontSize: 15, margin: "0 0 6px" }}>
+                    Tickets are no longer on sale.
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
+                    {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null })}
+                  </p>
+                </div>
+              ) : checkoutStep === "checkout" ? (
                 /* ── Inline Stripe Checkout ── */
                 <InlineCheckout
                   eventId={event.id}
