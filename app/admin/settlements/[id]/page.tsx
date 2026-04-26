@@ -109,7 +109,8 @@ export default function SettlementDetailPage() {
     setArtistName(data.artist_name ?? "");
     setDealType(data.deal_type ?? "FLAT");
     setGuaranteeInput(Number(data.guarantee) || 0);
-    setBackendPctInput(Number(data.backend_percentage) || 0);
+    // DB stores backend % as a decimal (0.85). UI uses true percentage (85).
+    setBackendPctInput((Number(data.backend_percentage) || 0) * 100);
     setSplitpointInput(Number(data.splitpoint) || 0);
     setRadiusClause(data.radius_clause ?? "");
     setBonusStructureRaw(
@@ -135,8 +136,9 @@ export default function SettlementDetailPage() {
     // Merch
     setMerchItems(Array.isArray(data.merch_items) ? data.merch_items : []);
     setMerchDiscounts(Number(data.merch_discounts) || 0);
-    setMerchSplitVenuePct(Number(data.merch_split_venue_pct) || 0);
-    setMerchTaxRate(Number(data.merch_tax_rate) || 0);
+    // DB stores merch split + tax rate as decimals. UI uses true percentage.
+    setMerchSplitVenuePct((Number(data.merch_split_venue_pct) || 0) * 100);
+    setMerchTaxRate((Number(data.merch_tax_rate) || 0) * 100);
     setMerchTaxMethod((data.merch_tax_method as TaxMethod) || "multiplier");
     setMerchTaxPayer((data.merch_tax_payer as MerchTaxPayer) || "artist");
     setMerchSellerFee(Number(data.merch_seller_fee) || 0);
@@ -234,24 +236,22 @@ export default function SettlementDetailPage() {
   const computedSplitpoint = netReceipts - totalExpenses;
   const splitpoint = splitpointInput > 0 ? splitpointInput : computedSplitpoint;
 
-  // Artist payment math, deal-type aware
-  // For VS / PLUS: artist earns backend% on revenue ABOVE splitpoint.
-  // The "splitpoint" itself is the threshold (revenue is "above" it when
-  // net − expenses exceeds the contracted floor). When splitpointInput is
-  // a fixed number (e.g. $10,000), artistBackend = (net − expenses − splitpoint) × pct.
+  // Artist payment math, deal-type aware. backendPctInput is a true
+  // percentage (e.g. 85 for 85%), so divide by 100 in the math.
+  const backendPctDecimal = backendPctInput / 100;
   const artistBackend = (() => {
     if (dealType === "VS" || dealType === "PLUS") {
       if (splitpointInput > 0) {
         // Fixed contracted splitpoint — artist gets pct of revenue ABOVE it.
         const overage = computedSplitpoint - splitpointInput;
-        return overage > 0 ? overage * backendPctInput : 0;
+        return overage > 0 ? overage * backendPctDecimal : 0;
       }
       // Auto splitpoint — artist gets pct of (net − expenses) when positive.
-      return computedSplitpoint > 0 ? computedSplitpoint * backendPctInput : 0;
+      return computedSplitpoint > 0 ? computedSplitpoint * backendPctDecimal : 0;
     }
     if (dealType === "DOOR") {
       // Pure door deal = % of net (no guarantee floor)
-      return netReceipts > 0 ? netReceipts * backendPctInput : 0;
+      return netReceipts > 0 ? netReceipts * backendPctDecimal : 0;
     }
     return 0;
   })();
@@ -285,14 +285,17 @@ export default function SettlementDetailPage() {
     (sum, item) => sum + (Number(item.gross) || 0),
     0
   );
+  // Merch percentage inputs are stored as true % (e.g. 9.5 for 9.5%).
+  const merchTaxRateDecimal = merchTaxRate / 100;
+  const merchSplitVenuePctDecimal = merchSplitVenuePct / 100;
   const merchNetAfterDiscounts = Math.max(0, merchTotalGross - merchDiscounts);
   const merchTotalTax =
-    merchTaxMethod === "divisor" && merchTaxRate > 0
-      ? merchNetAfterDiscounts - merchNetAfterDiscounts / (1 + merchTaxRate)
-      : merchNetAfterDiscounts * merchTaxRate;
+    merchTaxMethod === "divisor" && merchTaxRateDecimal > 0
+      ? merchNetAfterDiscounts - merchNetAfterDiscounts / (1 + merchTaxRateDecimal)
+      : merchNetAfterDiscounts * merchTaxRateDecimal;
   // After tax is taken out of the net (per user spec).
   const merchTotalNet = merchNetAfterDiscounts - merchTotalTax;
-  const merchVenueShare = merchTotalNet * merchSplitVenuePct;
+  const merchVenueShare = merchTotalNet * merchSplitVenuePctDecimal;
   const merchArtistShare = merchTotalNet - merchVenueShare;
 
   // Merch seller fee — eaten by venue or artist depending on contract.
@@ -410,7 +413,7 @@ export default function SettlementDetailPage() {
       artist_name: artistName || null,
       deal_type: dealType,
       guarantee: guaranteeInput,
-      backend_percentage: backendPctInput,
+      backend_percentage: backendPctInput / 100, // store as decimal in DB
       bonus_structure: bonusStructureParsed,
       radius_clause: radiusClause || null,
 
@@ -448,8 +451,8 @@ export default function SettlementDetailPage() {
       // Merch
       merch_items: merchItems,
       merch_discounts: merchDiscounts,
-      merch_split_venue_pct: merchSplitVenuePct,
-      merch_tax_rate: merchTaxRate,
+      merch_split_venue_pct: merchSplitVenuePct / 100, // store as decimal
+      merch_tax_rate: merchTaxRate / 100,
       merch_tax_method: merchTaxMethod,
       merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
@@ -467,12 +470,22 @@ export default function SettlementDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Save failed");
-      const updated = await res.json();
+      const updated = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          (updated && typeof updated === "object" && "error" in updated && typeof (updated as { error?: unknown }).error === "string"
+            ? (updated as { error: string }).error
+            : null) || `Save failed (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
       setSettlement((prev) => (prev ? { ...prev, ...updated } : updated));
       setSuccess(status === "finalized" ? "Settlement finalized." : "Draft saved.");
-    } catch {
-      setError("Failed to save.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Failed to save: ${err.message}`
+          : "Failed to save."
+      );
     } finally {
       setSaving(false);
     }
@@ -589,7 +602,7 @@ export default function SettlementDetailPage() {
       artist_name: artistName,
       deal_type: dealType,
       guarantee: guaranteeInput,
-      backend_percentage: backendPctInput,
+      backend_percentage: backendPctInput / 100, // PDF expects decimal
       radius_clause: radiusClause,
       total_gross: totalGross,
       ticketing_fees: ticketingFees,
@@ -625,8 +638,8 @@ export default function SettlementDetailPage() {
       // Merch
       merch_items: merchItems,
       merch_discounts: merchDiscounts,
-      merch_split_venue_pct: merchSplitVenuePct,
-      merch_tax_rate: merchTaxRate,
+      merch_split_venue_pct: merchSplitVenuePct / 100, // store as decimal
+      merch_tax_rate: merchTaxRate / 100,
       merch_tax_method: merchTaxMethod,
       merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
@@ -803,7 +816,7 @@ export default function SettlementDetailPage() {
         </div>
         <div>
           <label className="admin-form-label">
-            Backend % (decimal, e.g. 0.85 = 85%)
+            Backend % <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 85 for 85%)</span>
           </label>
           <input
             type="number"
@@ -812,6 +825,7 @@ export default function SettlementDetailPage() {
             value={backendPctInput}
             onChange={(e) => setBackendPctInput(Number(e.target.value))}
             disabled={isFinalized}
+            placeholder="85"
           />
         </div>
         <div>
@@ -1397,27 +1411,30 @@ export default function SettlementDetailPage() {
         </div>
         <div>
           <label className="admin-form-label">
-            Venue Split % (decimal — e.g. 0.20 = 20%)
+            Venue Split % <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 20 for 20%)</span>
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            className="admin-form-input"
+            value={merchSplitVenuePct}
+            onChange={(e) => setMerchSplitVenuePct(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="20"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">
+            Merch Sales Tax Rate <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 9.5 for 9.5%)</span>
           </label>
           <input
             type="number"
             step="0.01"
             className="admin-form-input"
-            value={merchSplitVenuePct}
-            onChange={(e) => setMerchSplitVenuePct(Number(e.target.value))}
-            disabled={isFinalized}
-          />
-        </div>
-        <div>
-          <label className="admin-form-label">Merch Sales Tax Rate (decimal)</label>
-          <input
-            type="number"
-            step="0.001"
-            className="admin-form-input"
             value={merchTaxRate}
             onChange={(e) => setMerchTaxRate(Number(e.target.value))}
             disabled={isFinalized}
-            placeholder="0.095 = 9.5%"
+            placeholder="9.5"
           />
         </div>
         <div>
@@ -1488,7 +1505,7 @@ export default function SettlementDetailPage() {
         </div>
         <div style={rowStyle}>
           <span style={{ ...labelStyle, paddingLeft: 12 }}>
-            − Sales Tax ({(merchTaxRate * 100).toFixed(2)}%
+            − Sales Tax ({merchTaxRate.toFixed(2)}%
             {merchTaxMethod === "divisor" ? ", divided out" : ", added on top"})
           </span>
           <span style={valStyle}>({fmt(merchTotalTax)})</span>
@@ -1499,7 +1516,7 @@ export default function SettlementDetailPage() {
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>
-            Venue Share ({(merchSplitVenuePct * 100).toFixed(1)}% of net)
+            Venue Share ({merchSplitVenuePct.toFixed(1)}% of net)
           </span>
           <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(merchVenueShare)}
@@ -1559,7 +1576,7 @@ export default function SettlementDetailPage() {
         {(dealType === "VS" || dealType === "PLUS" || dealType === "DOOR") && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Artist Backend ({(backendPctInput * 100).toFixed(2)}%
+              Artist Backend ({backendPctInput.toFixed(2)}%
               {dealType === "DOOR" ? " of net" : " of splitpoint"})
             </span>
             <span style={valStyle}>{fmt(artistBackend)}</span>
