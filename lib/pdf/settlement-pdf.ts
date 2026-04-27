@@ -582,9 +582,7 @@ export async function exportVenueSettlementPDF(
   const merchResult = drawMerchSection(doc, settlement, y);
   y = merchResult.y;
 
-  y = drawSettlementCalc(doc, settlement, merchResult.artistPaidSellerFee, merchResult.venuePaidTax, y);
-
-  // Deposits detail
+ // Deposits detail
   if (deposits.length > 0) {
     y = secH(doc, "Deposits & Advances", y);
     for (const d of deposits) {
@@ -592,6 +590,9 @@ export async function exportVenueSettlementPDF(
       y = moneyRow(doc, label, fmt(d.amount), y, { indent: 2 });
     }
     y += 1;
+
+  y = drawSettlementCalc(doc, settlement, merchResult.artistPaidSellerFee, merchResult.venuePaidTax, y);
+
   }
 
   // Ancillary + Venue P&L
