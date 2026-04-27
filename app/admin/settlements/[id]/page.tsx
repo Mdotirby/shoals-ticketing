@@ -1474,7 +1474,7 @@ export default function SettlementDetailPage() {
           </div>
         )}
         <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
-          <span style={{ ...labelStyle, fontWeight: 600 }}>Net (pre-tax base)</span>
+          <span style={{ ...labelStyle, fontWeight: 600 }}>Net</span>
           <span style={valStyle}>{fmt(merchNetAfterDiscounts)}</span>
         </div>
         <div style={rowStyle}>
