@@ -1490,20 +1490,20 @@ export default function SettlementDetailPage() {
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>
-            VENUE Take ({merchSplitVenuePct.toFixed(1)}% of net)
+            Split to VENUE ({merchSplitVenuePct.toFixed(1)}%)
           </span>
           <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(merchVenueShare)}
           </span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>ARTIST Take</span>
+          <span style={labelStyle}>Split to ARTIST</span>
           <span style={valStyle}>{fmt(merchArtistShare)}</span>
         </div>
         {merchSellerFee > 0 && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Merch Seller Fee (paid by {merchSellerFeePayer})
+              Merch Seller Fee (Paid by {merchSellerFeePayer})
             </span>
             <span style={valStyle}>{fmt(merchSellerFee)}</span>
           </div>
@@ -1597,15 +1597,19 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>Cash Advances</span>
           <span style={valStyle}>{fmt(totalCashAdvances)}</span>
         </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Buyouts (Production/Catering)</span>
+          <span style={valStyle}>{fmt(totalCashAdvances)}</span>
+        </div>
         {merchVenueShare > 0 && (
           <div style={rowStyle}>
-            <span style={labelStyle}>VENUE Merch Take</span>
+            <span style={labelStyle}>Merch split to VENUE ({merchSplitVenuePct.toFixed(1)}%)</span>
             <span style={valStyle}>{fmt(merchVenueShare)}</span>
           </div>
         )}
         {artistPaidMerchSellerFee > 0 && (
           <div style={rowStyle}>
-            <span style={labelStyle}>Merch Seller Fee (artist-paid)</span>
+            <span style={labelStyle}>Merch Seller Fee (Paid by ARTIST)</span>
             <span style={valStyle}>{fmt(artistPaidMerchSellerFee)}</span>
           </div>
         )}
