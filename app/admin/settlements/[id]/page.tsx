@@ -742,7 +742,7 @@ export default function SettlementDetailPage() {
       <div className="admin-page-header">
         <div>
           <h1 className="admin-page-title">
-            Settlement — {settlement.event_title || artistName || "Event"}
+            Settlement: {settlement.event_title || artistName || "Event"}
             {isFinalized && (
               <span style={{
                 marginLeft: 12, fontSize: 13,
@@ -754,7 +754,7 @@ export default function SettlementDetailPage() {
             )}
           </h1>
           <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 14, margin: "4px 0 0" }}>
-            {artistName || "—"} · {eventDateLabel}
+            {artistName || ""} · {eventDateLabel}
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
