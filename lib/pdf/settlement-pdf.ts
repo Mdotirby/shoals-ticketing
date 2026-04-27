@@ -273,12 +273,12 @@ function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
 
   y = secH(doc, "Financial Summary", y);
   y = moneyRow(doc, `Tickets Sold (paying): ${s.tickets_sold_count || 0}`, "", y);
-  y = moneyRow(doc, "Total Gross Receipts", fmt(grossReceipts), y, { bold: true });
-  y = moneyRow(doc, "Less: Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, "Less: Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, `Less: Tax (${taxPct}%, ${taxLabel})`, `(${fmt(s.taxes || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, "Less: CC / Processing Fees", `(${fmt(s.cc_fees || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, "= Net Receipts (artist split base)", fmt(s.net_receipts || 0), y, { highlight: true });
+  y = moneyRow(doc, "Gross Receipts", fmt(grossReceipts), y, { bold: true });
+  y = moneyRow(doc, "Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
+  y = moneyRow(doc, "Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
+  y = moneyRow(doc, `Tax (${taxPct}%, ${taxLabel})`, `(${fmt(s.taxes || 0)})`, y, { indent: 4 });
+  y = moneyRow(doc, "CC / Processing Fees", `(${fmt(s.cc_fees || 0)})`, y, { indent: 4 });
+  y = moneyRow(doc, "Net Receipts", fmt(s.net_receipts || 0), y, { highlight: true });
   return y + 1;
 }
 
@@ -297,7 +297,7 @@ function drawExpenses(doc: Doc, expenses: (SettlementExpense | ExpenseRow)[], y:
   }
   for (const e of expenses) {
     const amt = "actual_amount" in e ? Number(e.actual_amount) || 0 : 0;
-    y = moneyRow(doc, `${e.name} (${e.category})`, fmt(amt), y, { indent: 2 });
+    y = moneyRow(doc, `${e.name}`, fmt(amt), y, { indent: 2 });
     total += amt;
   }
   y = moneyRow(doc, "Total Expenses", fmt(total), y, { bold: true });
@@ -360,12 +360,12 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
   const taxPct = ((s.merch_tax_rate || 0) * 100).toFixed(2);
   const taxLabel = s.merch_tax_method === "divisor" ? "divided out" : "added on top";
 
-  y = moneyRow(doc, "Total Gross Merch", fmt(s.merch_total_gross || 0), y, { bold: true });
+  y = moneyRow(doc, "Gross Merch", fmt(s.merch_total_gross || 0), y, { bold: true });
   if (discounts > 0) y = moneyRow(doc, "Less: Discounts / Free Merch", `(${fmt(discounts)})`, y, { indent: 4 });
-  y = moneyRow(doc, `Less: Sales Tax (${taxPct}%, ${taxLabel})`, `(${fmt(totalTax)})`, y, { indent: 4 });
-  y = moneyRow(doc, "= Net Merch Sales", fmt(s.merch_total_net || 0), y, { bold: true });
-  y = moneyRow(doc, `Venue Share (${splitPct}% of net)`, fmt(venueShare), y, { indent: 4 });
-  y = moneyRow(doc, "Artist Share", fmt(s.merch_artist_share || 0), y, { indent: 4 });
+  y = moneyRow(doc, `Sales Tax (${taxPct}%, ${taxLabel})`, `(${fmt(totalTax)})`, y, { indent: 4 });
+  y = moneyRow(doc, "Net Merch Sales", fmt(s.merch_total_net || 0), y, { bold: true });
+  y = moneyRow(doc, `Venue Take (${splitPct}% of net)`, fmt(venueShare), y, { indent: 4 });
+  y = moneyRow(doc, "Artist Take", fmt(s.merch_artist_share || 0), y, { indent: 4 });
   if (sellerFee > 0) {
     y = moneyRow(doc, `Merch Seller Fee (paid by ${sellerPayer})`, fmt(sellerFee), y, { indent: 4 });
   }
@@ -397,30 +397,30 @@ function drawSettlementCalc(
   y = moneyRow(doc, "Less: Total Expenses", `(${fmt(s.total_expenses)})`, y, { indent: 4 });
 
   if (dealType === "VS" || dealType === "PLUS") {
-    y = moneyRow(doc, "Less: Splitpoint (= Guarantee)", `(${fmt(s.guarantee || 0)})`, y, { indent: 4 });
-    y = moneyRow(doc, "= Overage", fmt(netAfterExpenses - (s.guarantee || 0)), y, { bold: true });
+    y = moneyRow(doc, "Backend Threshold", `(${fmt(s.guarantee || 0)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Backend Lift", fmt(netAfterExpenses - (s.guarantee || 0)), y, { bold: true });
     y = moneyRow(doc, `Artist Backend (${pct}% of overage)`, fmt(s.artist_backend), y, { indent: 4 });
     y = moneyRow(doc, "Artist Guarantee", fmt(s.guarantee), y, { indent: 4 });
   } else if (dealType === "DOOR") {
-    y = moneyRow(doc, "= Net After Expenses", fmt(netAfterExpenses), y, { bold: true });
+    y = moneyRow(doc, "Net After Expenses", fmt(netAfterExpenses), y, { bold: true });
     y = moneyRow(doc, `Artist Backend (${pct}% of net)`, fmt(s.artist_backend), y, { indent: 4 });
   } else {
     // FLAT / CO_PROMOTE
     y = moneyRow(doc, "Artist Guarantee", fmt(s.guarantee), y, { indent: 4 });
   }
-  y = moneyRow(doc, "ARTIST TOTAL", fmt(s.artist_total), y, { bold: true });
+  y = moneyRow(doc, "ARTIST WALKOUT", fmt(s.artist_total), y, { bold: true });
 
   // Deductions to balance due
   if ((s.deposit_paid || 0) > 0)
-    y = moneyRow(doc, "Less: Deposits Paid", `(${fmt(s.deposit_paid)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Deposits Paid", `(${fmt(s.deposit_paid)})`, y, { indent: 4 });
   if ((s.cash_advance || 0) > 0)
-    y = moneyRow(doc, "Less: Cash Advances", `(${fmt(s.cash_advance)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Cash Advances", `(${fmt(s.cash_advance)})`, y, { indent: 4 });
   if ((s.merch_venue_share || 0) > 0)
-    y = moneyRow(doc, "Less: Venue Merch Share", `(${fmt(s.merch_venue_share || 0)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Venue Merch Take", `(${fmt(s.merch_venue_share || 0)})`, y, { indent: 4 });
   if (artistPaidMerchSellerFee > 0)
-    y = moneyRow(doc, "Less: Merch Seller Fee (artist-paid)", `(${fmt(artistPaidMerchSellerFee)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Merch Seller Fee (paid by artist)", `(${fmt(artistPaidMerchSellerFee)})`, y, { indent: 4 });
   if (venuePaidMerchTax > 0)
-    y = moneyRow(doc, "Less: Merch Tax (venue paying)", `(${fmt(venuePaidMerchTax)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Merch Sales Tax (venue covers)", `(${fmt(venuePaidMerchTax)})`, y, { indent: 4 });
 
   y = moneyRow(doc, "BALANCE DUE TO ARTIST", fmt(s.balance_due), y, { highlight: true });
   return y + 1;
@@ -442,7 +442,7 @@ function drawSignatures(doc: Doc, y: number): number {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(S);
   doc.setTextColor(80, 80, 80);
-  doc.text("Artist / Agent", MARGIN, y + 12);
+  doc.text("Tour Manager / Aritst Rep.", MARGIN, y + 12);
   doc.line(MARGIN, y + 17, MARGIN + lineW, y + 17);
   doc.text("Date", MARGIN, y + 21);
 
@@ -620,7 +620,7 @@ export async function exportVenueSettlementPDF(
         if (item.amount > 0) y = moneyRow(doc, item.name || "Other", fmt(item.amount), y, { indent: 2 });
       }
     }
-    y = moneyRow(doc, "Total Ancillary Revenue", fmt(totalAnc), y, { bold: true });
+    y = moneyRow(doc, "Gross Ancillary Revenue", fmt(totalAnc), y, { bold: true });
     y += 1;
   }
 
@@ -630,13 +630,13 @@ export async function exportVenueSettlementPDF(
   const venueNetProfit = settlement.venue_net_profit ?? (venueTotalRevenue - venueTotalCosts);
 
   y = secH(doc, "Venue P&L", y);
-  y = moneyRow(doc, "Total Revenue (Net + Ancillary)", fmt(venueTotalRevenue), y, { bold: true });
-  y = moneyRow(doc, "Less: Total Expenses", `(${fmt(settlement.total_expenses)})`, y, { indent: 4 });
-  y = moneyRow(doc, "Less: Artist Total", `(${fmt(settlement.artist_total)})`, y, { indent: 4 });
+  y = moneyRow(doc, "Gross Revenue:", fmt(venueTotalRevenue), y, { bold: true });
+  y = moneyRow(doc, "Total Expenses", `(${fmt(settlement.total_expenses)})`, y, { indent: 4 });
+  y = moneyRow(doc, "Artist Walkout", `(${fmt(settlement.artist_total)})`, y, { indent: 4 });
   if (merchResult.venuePaidSellerFee > 0) {
-    y = moneyRow(doc, "Less: Merch Seller Fee (venue-paid)", `(${fmt(merchResult.venuePaidSellerFee)})`, y, { indent: 4 });
+    y = moneyRow(doc, "Merch Seller Fee (venue-paid)", `(${fmt(merchResult.venuePaidSellerFee)})`, y, { indent: 4 });
   }
-  y = moneyRow(doc, "VENUE NET PROFIT", fmt(venueNetProfit), y, { highlight: true });
+  y = moneyRow(doc, "NET PROFIT TO VENUE", fmt(venueNetProfit), y, { highlight: true });
   y += 1;
 
   y = drawSignatures(doc, y);
