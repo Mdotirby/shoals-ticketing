@@ -1519,7 +1519,7 @@ export default function SettlementDetailPage() {
         <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(208,194,144,0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
           <strong style={{ color: "#d0c290" }}>Owed to VENUE from artist:</strong>
           {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
-          {" (deducted from Balance Due.)"}
+          {" (deducted from Balance Due)"}
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
             {fmt(merchVenueShare)} to VENUE
             {artistPaidMerchSellerFee > 0 && <> + {fmt(artistPaidMerchSellerFee)} seller fee</>}
