@@ -981,13 +981,6 @@ export default function SettlementDetailPage() {
           §3  TAX CONFIG (read-only summary; values come from event/venue)
       ════════════════════════════════════════════ */}
       <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.18)", borderRadius: 6, padding: "12px 16px", margin: "16px 0" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13 }}>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>
-            Service fees, facility fees, and tax are pulled from this event&rsquo;s venue config and are
-            <strong style={{ color: "#d0c290" }}> not editable here</strong>. Edit them in
-            Admin → Venues. CC processing fee appears as an auto-expense below.
-          </span>
-        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13, marginTop: 12 }}>
           <div>
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Service Fee:</span>{" "}
