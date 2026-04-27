@@ -844,7 +844,7 @@ export default function SettlementDetailPage() {
             value={bonusStructureRaw}
             onChange={(e) => setBonusStructureRaw(e.target.value)}
             disabled={isFinalized}
-            placeholder='e.g. {"75% sold":"$500","sellout":"$1000"}'
+            placeholder='e.g. 75% sold +$500, Sellout +$1000'
           />
         </div>
       </div>
@@ -862,7 +862,7 @@ export default function SettlementDetailPage() {
             disabled={refreshing}
             title="Re-pull live ticket sales, fees, and tax from the orders table"
           >
-            {refreshing ? "Refreshing…" : "↻ Refresh from Orders"}
+            {refreshing ? "Refreshing…" : "↻ Refresh"}
           </button>
         )}
       </div>
@@ -1010,8 +1010,8 @@ export default function SettlementDetailPage() {
               disabled={isFinalized}
               title="How the venue applies tax: added on top of the ticket price (default) or already included in the ticket price"
             >
-              <option value="multiplier">Venue absorbs</option>
-              <option value="divisor">Taxes paid by ticket buyer</option>
+              <option value="multiplier">Paid by Venue</option>
+              <option value="divisor">Paid by Customer</option>
             </select>
           </div>
         </div>
@@ -1350,7 +1350,7 @@ export default function SettlementDetailPage() {
           {merchItems.length > 0 && (
             <tfoot>
               <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
-                <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Total Gross Merch</td>
+                <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Gross Merch</td>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(merchTotalGross)}</td>
                 <td />
               </tr>
@@ -1399,7 +1399,7 @@ export default function SettlementDetailPage() {
         </div>
         <div>
           <label className="admin-form-label">
-            Merch Sales Tax Rate <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 9.5 for 9.5%)</span>
+            Merch Tax Rate <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 9.5 for 9.5%)</span>
           </label>
           <input
             type="number"
@@ -1419,8 +1419,8 @@ export default function SettlementDetailPage() {
             onChange={(e) => setMerchTaxMethod(e.target.value as TaxMethod)}
             disabled={isFinalized}
           >
-            <option value="multiplier">Add on top (net is pre-tax)</option>
-            <option value="divisor">Divide out (net is tax-incl.)</option>
+            <option value="multiplier">Multiplier</option>
+            <option value="divisor">Divisor</option>
           </select>
         </div>
         <div>
@@ -1431,8 +1431,8 @@ export default function SettlementDetailPage() {
             onChange={(e) => setMerchTaxPayer(e.target.value as MerchTaxPayer)}
             disabled={isFinalized}
           >
-            <option value="artist">Artist retains tax (their tax to file)</option>
-            <option value="venue">Venue pays tax (deducted from artist balance)</option>
+            <option value="artist">Artist retains tax</option>
+            <option value="venue">Venue pays tax</option>
           </select>
         </div>
         <div>
@@ -1455,8 +1455,8 @@ export default function SettlementDetailPage() {
             onChange={(e) => setMerchSellerFeePayer(e.target.value as MerchSellerFeePayer)}
             disabled={isFinalized}
           >
-            <option value="venue">Venue (counts as venue expense)</option>
-            <option value="artist">Artist (deducted from balance due)</option>
+            <option value="venue">Venue (Venue Expense)</option>
+            <option value="artist">Artist (deducted from Artist Guarantee)</option>
           </select>
         </div>
       </div>
@@ -1464,40 +1464,40 @@ export default function SettlementDetailPage() {
       {/* Merch math summary */}
       <div style={{ maxWidth: 540, marginTop: 16 }}>
         <div style={rowStyle}>
-          <span style={labelStyle}>Total Gross Merch</span>
+          <span style={labelStyle}>Gross Merch</span>
           <span style={valStyle}>{fmt(merchTotalGross)}</span>
         </div>
         {merchDiscounts > 0 && (
           <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>− Discounts / Free Merch</span>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>Discounts / Free Merch</span>
             <span style={valStyle}>({fmt(merchDiscounts)})</span>
           </div>
         )}
         <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
-          <span style={{ ...labelStyle, fontWeight: 600 }}>= Net (pre-tax base)</span>
+          <span style={{ ...labelStyle, fontWeight: 600 }}>Net (pre-tax base)</span>
           <span style={valStyle}>{fmt(merchNetAfterDiscounts)}</span>
         </div>
         <div style={rowStyle}>
           <span style={{ ...labelStyle, paddingLeft: 12 }}>
-            − Sales Tax ({merchTaxRate.toFixed(2)}%
-            {merchTaxMethod === "divisor" ? ", divided out" : ", added on top"})
+            Sales Tax ({merchTaxRate.toFixed(2)}%
+            {merchTaxMethod === "divisor" ? ", Divisor" : ", Multiplier"})
           </span>
           <span style={valStyle}>({fmt(merchTotalTax)})</span>
         </div>
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700 }}>= Net Merch Sales</span>
+          <span style={{ ...labelStyle, fontWeight: 700 }}>Net Merch Sales</span>
           <span style={valStyle}>{fmt(merchTotalNet)}</span>
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>
-            Venue Share ({merchSplitVenuePct.toFixed(1)}% of net)
+            VENUE Take ({merchSplitVenuePct.toFixed(1)}% of net)
           </span>
           <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(merchVenueShare)}
           </span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>Artist Share</span>
+          <span style={labelStyle}>ARTIST Take</span>
           <span style={valStyle}>{fmt(merchArtistShare)}</span>
         </div>
         {merchSellerFee > 0 && (
@@ -1511,17 +1511,17 @@ export default function SettlementDetailPage() {
         {merchTotalTax > 0 && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Sales Tax ({merchTaxPayer === "venue" ? "venue pays — deducted from artist" : "artist retains — files separately"})
+              Sales Tax ({merchTaxPayer === "venue" ? "VENUE pays (deducted from ARTIST)" : "ARTIST retains (files separately)"})
             </span>
             <span style={valStyle}>{fmt(merchTotalTax)}</span>
           </div>
         )}
         <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(208,194,144,0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-          <strong style={{ color: "#d0c290" }}>Owed to venue from artist:</strong>
+          <strong style={{ color: "#d0c290" }}>Owed to VENUE from artist:</strong>
           {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
-          {" — deducted from Balance Due below."}
+          {" (deducted from Balance Due.)"}
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
-            = {fmt(merchVenueShare)} venue share
+            = {fmt(merchVenueShare)} to VENUE
             {artistPaidMerchSellerFee > 0 && <> + {fmt(artistPaidMerchSellerFee)} seller fee</>}
             {venuePaidMerchTax > 0 && <> + {fmt(venuePaidMerchTax)} tax (venue paying)</>}
           </div>
@@ -1531,24 +1531,24 @@ export default function SettlementDetailPage() {
       {/* ════════════════════════════════════════════
           §7  SETTLEMENT CALCULATION
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Settlement Calculation</h2>
+      <h2 style={sectionTitleStyle}>Settlement</h2>
       <div style={{ maxWidth: 500 }}>
         <div style={rowStyle}>
           <span style={labelStyle}>Net Receipts</span>
           <span style={valStyle}>{fmt(netReceipts)}</span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>– Total Expenses</span>
+          <span style={labelStyle}>Total Expenses</span>
           <span style={valStyle}>{fmt(totalExpenses)}</span>
         </div>
         {(dealType === "VS" || dealType === "PLUS") && (
           <>
             <div style={rowStyle}>
-              <span style={labelStyle}>– Splitpoint (= Guarantee)</span>
+              <span style={labelStyle}>Backend Threshold</span>
               <span style={valStyle}>{fmt(splitpoint)}</span>
             </div>
             <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-              <span style={{ ...labelStyle, fontWeight: 700 }}>= Overage</span>
+              <span style={{ ...labelStyle, fontWeight: 700 }}>Backend</span>
               <span style={{ ...valStyle, color: netAfterExpenses - guaranteeInput >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
                 {fmt(netAfterExpenses - guaranteeInput)}
               </span>
@@ -1557,7 +1557,7 @@ export default function SettlementDetailPage() {
         )}
         {dealType === "DOOR" && (
           <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-            <span style={{ ...labelStyle, fontWeight: 700 }}>= Net After Expenses</span>
+            <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
             <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
               {fmt(netAfterExpenses)}
             </span>
@@ -1590,28 +1590,28 @@ export default function SettlementDetailPage() {
           <span style={valStyle}>{fmt(artistTotal)}</span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>– Deposits Paid</span>
+          <span style={labelStyle}>Deposits Paid</span>
           <span style={valStyle}>{fmt(totalDeposits)}</span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>– Cash Advances</span>
+          <span style={labelStyle}>Cash Advances</span>
           <span style={valStyle}>{fmt(totalCashAdvances)}</span>
         </div>
         {merchVenueShare > 0 && (
           <div style={rowStyle}>
-            <span style={labelStyle}>– Venue Merch Share</span>
+            <span style={labelStyle}>VENUE Merch Take</span>
             <span style={valStyle}>{fmt(merchVenueShare)}</span>
           </div>
         )}
         {artistPaidMerchSellerFee > 0 && (
           <div style={rowStyle}>
-            <span style={labelStyle}>– Merch Seller Fee (artist-paid)</span>
+            <span style={labelStyle}>Merch Seller Fee (artist-paid)</span>
             <span style={valStyle}>{fmt(artistPaidMerchSellerFee)}</span>
           </div>
         )}
         {venuePaidMerchTax > 0 && (
           <div style={rowStyle}>
-            <span style={labelStyle}>– Merch Tax (venue paying — artist reimburses)</span>
+            <span style={labelStyle}>Merch Sales Tax (Paid by VENUE)</span>
             <span style={valStyle}>{fmt(venuePaidMerchTax)}</span>
           </div>
         )}
@@ -1620,7 +1620,7 @@ export default function SettlementDetailPage() {
           borderBottom: "3px solid var(--admin-primary, #d0c290)",
           paddingBottom: 10,
         }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Balance Due to Artist</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Balance Due to ARTIST</span>
           <span style={{
             ...valStyle, fontSize: 18,
             color: balanceDue >= 0 ? "var(--admin-primary, #d0c290)" : "#ff9a9a",
