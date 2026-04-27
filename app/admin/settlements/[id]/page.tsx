@@ -1521,7 +1521,7 @@ export default function SettlementDetailPage() {
           {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
           {" (deducted from Balance Due.)"}
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
-            = {fmt(merchVenueShare)} to VENUE
+            {fmt(merchVenueShare)} to VENUE
             {artistPaidMerchSellerFee > 0 && <> + {fmt(artistPaidMerchSellerFee)} seller fee</>}
             {venuePaidMerchTax > 0 && <> + {fmt(venuePaidMerchTax)} tax (venue paying)</>}
           </div>
@@ -1707,7 +1707,7 @@ export default function SettlementDetailPage() {
           <span style={valStyle}>{fmt(netReceipts + totalAncillary)}</span>
         </div>
         <div style={rowStyle}>
-          <span style={labelStyle}>– Total Expenses + Artist Total</span>
+          <span style={labelStyle}>Total Expenses + Artist Total</span>
           <span style={valStyle}>{fmt(totalExpenses + artistTotal)}</span>
         </div>
         <div style={{
