@@ -1010,8 +1010,8 @@ export default function SettlementDetailPage() {
               disabled={isFinalized}
               title="How the venue applies tax: added on top of the ticket price (default) or already included in the ticket price"
             >
-              <option value="multiplier">Add on top</option>
-              <option value="divisor">Divide out (incl.)</option>
+              <option value="multiplier">Venue absorbs</option>
+              <option value="divisor">Taxes paid by ticket buyer</option>
             </select>
           </div>
         </div>
@@ -1024,44 +1024,43 @@ export default function SettlementDetailPage() {
       <h2 style={sectionTitleStyle}>Financial Summary</h2>
       <div style={{ maxWidth: 560 }}>
         <div style={rowStyle}>
-          <span style={labelStyle}>Tickets Sold (paying)</span>
+          <span style={labelStyle}>Tickets Sold (Excl. Comps)</span>
           <span style={valStyle}>{ticketsSold}</span>
         </div>
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>Total Gross Receipts</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>Gross Receipts</span>
           <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(grossReceipts)}
           </span>
         </div>
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>− Service Fees Collected</span>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees Collected</span>
           <span style={valStyle}>({fmt(ticketingFees)})</span>
         </div>
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>− Facility Fees Collected</span>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Facility Fees Collected</span>
           <span style={valStyle}>({fmt(facilityFees)})</span>
         </div>
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>
-            − Tax Collected ({(taxRate * 100).toFixed(2)}%
-            {taxMethod === "divisor" ? ", divided out" : ", added on top"})
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Tax Collected ({(taxRate * 100).toFixed(2)}%
+            {taxMethod === "divisor" ? ", divisor" : ", multiplier"})
           </span>
           <span style={valStyle}>({fmt(taxes)})</span>
         </div>
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>− CC / Processing Fees</span>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>CC / Processing Fees</span>
           <span style={valStyle}>({fmt(ccFees)})</span>
         </div>
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>= Net Receipts (artist split base)</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Net Receipts</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(netReceipts)}
           </span>
         </div>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>
-          Service / Facility / Tax / CC fees are pass-throughs — collected from the customer
-          and remitted out (to the platform, facility fund, government, and the payment processor respectively).
-          The artist deal is calculated on what&rsquo;s left.
+          Service / Facility / Tax / CC fees are pass-throughs — collected from the ticket buyer
+          and distributed out (to platform, facility, State & Local governments, and the payment processor respectively).
+          The artist payouts is calculated on what&rsquo;s left.
         </p>
       </div>
 

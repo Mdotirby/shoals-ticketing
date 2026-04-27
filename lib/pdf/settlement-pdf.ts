@@ -526,7 +526,7 @@ export async function exportArtistSettlementPDF(
 
   drawFooter(doc, "Artist Settlement");
 
-  const filename = `${sanitize(settlement.artist_name ?? "Artist")}-${sanitize(eventDateLabel)}-${sanitize(venue.name)}-Artist_Settlement.pdf`;
+  const filename = `${sanitize(settlement.artist_name ?? "Artist")}-${sanitize(eventDateLabel)}-${sanitize(venue.name)}-Artist Settlement.pdf`;
   doc.save(filename);
 }
 

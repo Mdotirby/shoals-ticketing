@@ -100,8 +100,8 @@ export default function AdminSettlementsPage() {
         <Link href="/admin/orders" style={{ color: "var(--admin-primary, #d0c290)" }}>
           Sales
         </Link>{" "}
-        and click <strong>+ Create Settlement</strong>. Drafts auto-pull live
-        ticket sales from orders every time you open them; finalized settlements
+        and click <strong>+ Create Settlement</strong>. Drafts auto-run ticket
+        audits every time you open them; finalized settlements
         are locked.
       </p>
 
