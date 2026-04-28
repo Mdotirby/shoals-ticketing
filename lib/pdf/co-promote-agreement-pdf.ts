@@ -42,7 +42,7 @@ function dealClauseText(a: CoPromoteAgreement): string {
     case "rev_share_after_tax":
       return (
         `Promoter and Venue shall split gross ticket revenue at ${buyerPct}% to Promoter and ` +
-        `${venuePct}% to Venue, calculated AFTER the deduction of all applicable sales and ` +
+        `${venuePct}% to Venue, calculated AFTER the deduction of all applicable fees, sales and ` +
         `use taxes and BEFORE any deduction for show expenses (artist guarantee, production, ` +
         `marketing, etc.). Promoter shall be solely responsible for all show expenses out of ` +
         `its ${buyerPct}% share.${exclusionText}`
@@ -76,10 +76,10 @@ function buildSettlementExample(a: CoPromoteAgreement): {
   rows: Array<{ label: string; amount: string }>;
   heading: string;
 } {
-  const capacity = a.expected_capacity || 300;
-  const avgPrice = 30; // illustrative
+  const capacity = a.expected_capacity || 200;
+  const avgPrice = 20; // illustrative
   const exampleGross = capacity * avgPrice;
-  const taxRate = 0.09; // illustrative 9%
+  const taxRate = 0.0975; // illustrative 9.75%
   const tax = exampleGross * taxRate;
   const afterTax = exampleGross - tax;
 
@@ -95,9 +95,9 @@ function buildSettlementExample(a: CoPromoteAgreement): {
   rows.push({ label: `Gross Revenue (${capacity} tickets @ ${fmt(avgPrice)})`, amount: fmt(exampleGross) });
 
   if (a.deal_structure !== "rev_share_gross" && a.deal_structure !== "flat_rent") {
-    rows.push({ label: `Less Sales Tax (${(taxRate * 100).toFixed(1)}%)`, amount: `(${fmt(tax)})` });
-    rows.push({ label: "Revenue Base for Split", amount: fmt(base) });
-  }
+    rows.push({ label: `Sales Tax (${(taxRate * 100).toFixed(1)}%)`, amount: `(${fmt(tax)})` });
+    rows.push({ label: "Revenue Splitpoint", amount: fmt(base) });
+  
 
   if (a.deal_structure === "flat_rent") {
     rows.push({ label: `Venue Rental Fee (flat)`, amount: fmt(rent) });
