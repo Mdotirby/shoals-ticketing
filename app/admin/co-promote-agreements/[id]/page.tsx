@@ -503,9 +503,9 @@ export default function CoPromoteAgreementDetailPage() {
               border: "1px solid rgba(208,194,144,0.2)",
               borderRadius: 12, padding: 20, marginBottom: 16,
             }}>
-              <div style={{ ...sectionTitle, marginTop: 0 }}>Illustrative Settlement</div>
+              <div style={{ ...sectionTitle, marginTop: 0 }}>Settlement Preview</div>
               <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "0 0 12px" }}>
-                At {agreement.expected_capacity ?? 0} tickets @ $30 avg, 9% tax
+                At {agreement.expected_capacity ?? 0} tickets @ $20 avg, 9.75% tax
               </p>
               <div style={{
                 background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: 14, fontSize: 12,
@@ -513,17 +513,17 @@ export default function CoPromoteAgreementDetailPage() {
                 <Row label="Gross Revenue" value={fmtCurrency(preview.gross)} />
                 {agreement.deal_structure !== "rev_share_gross" && agreement.deal_structure !== "flat_rent" && (
                   <>
-                    <Row label="− Sales Tax" value={`(${fmtCurrency(preview.tax)})`} muted />
-                    <Row label="Revenue Base" value={fmtCurrency(preview.base)} bold />
+                    <Row label="Sales Tax" value={`(${fmtCurrency(preview.tax)})`} muted />
+                    <Row label="Net After Tax" value={fmtCurrency(preview.base)} bold />
                   </>
                 )}
                 <div style={{ margin: "8px 0", height: 1, background: "rgba(208,194,144,0.3)" }} />
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", color: "#6ab4ff", fontWeight: 700 }}>
-                  <span>Venue Takes</span>
+                  <span>To VENUE</span>
                   <span>{fmtCurrency(preview.venueShare)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", color: "#7ddb7d", fontWeight: 700 }}>
-                  <span>You Keep</span>
+                  <span>To PROMOTER</span>
                   <span>{fmtCurrency(preview.buyerShare)}</span>
                 </div>
               </div>
