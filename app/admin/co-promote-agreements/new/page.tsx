@@ -102,8 +102,8 @@ const DEFAULTS: Form = {
 
   settlement_timing: "night_of_show",
 
-  preview_avg_price: "30",
-  preview_tax_rate: "9",
+  preview_avg_price: "20",
+  preview_tax_rate: "9.75",
 };
 
 const fmtCurrency = (n: number) =>

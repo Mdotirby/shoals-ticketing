@@ -56,8 +56,8 @@ export default function CoPromoteAgreementDetailPage() {
   const preview = useMemo(() => {
     if (!agreement) return null;
     const capacity = agreement.expected_capacity ?? 0;
-    const avgPrice = 30;
-    const taxRate = 0.09;
+    const avgPrice = 20;
+    const taxRate = 0.0975;
     const gross = capacity * avgPrice;
     const tax = gross * taxRate;
     const afterTax = gross - tax;
