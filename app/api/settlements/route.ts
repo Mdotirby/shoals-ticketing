@@ -29,23 +29,120 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? [], { status: 200 });
 }
 
-// POST /api/settlements — create a settlement for a SPECIFIC event.
+// POST /api/settlements
 //
-// Behavior:
-//   1. Requires event_id. Looks up the event row.
-//   2. Finds the linked offer ONLY by venue_id + event_date (or event_venue_id).
-//      If no confident match, the settlement is created with empty deal terms
-//      so the user can fill them in manually — never silently grabs "the
-//      latest offer at the venue" (that's the Kruse → Jed Harrelson bug).
-//   3. Auto-pulls actual ticket sales from orders + tickets (real revenue,
-//      not list-price × count). Comps are counted but excluded from gross.
-//   4. Pre-fills expenses from the offer's fixed/variable expenses if matched.
-//   5. If a settlement already exists for the event, returns it instead of
-//      creating a duplicate (idempotent).
+// VenueCore settlement (default):
+//   Requires event_id. Auto-audits real ticket sales from orders.
+//
+// Manual / external settlement (source = 'external'):
+//   event_id is optional. All financial figures come from the request body.
+//   computeEventAudit() is skipped entirely.
 export async function POST(request: Request) {
   const admin = createAdminClient();
   const body = await request.json();
 
+  const isExternal = body.source === "external";
+
+  // ── External / manual settlement path ────────────────────────────────────
+  if (isExternal) {
+    const venueId = body.venue_id || null;
+    // For external settlements we don't require event_id or venue_id —
+    // the user may be creating one for a show that isn't in the system at all.
+
+    // Idempotent on event_id when provided
+    if (body.event_id) {
+      const { data: existingExt } = await admin
+        .from("settlements")
+        .select("*")
+        .eq("event_id", body.event_id)
+        .eq("source", "external")
+        .maybeSingle();
+      if (existingExt) return NextResponse.json(existingExt, { status: 200 });
+    }
+
+    const manualGross = Number(body.manual_gross ?? 0);
+    const manualTicketsSold = Number(body.manual_tickets_sold ?? 0);
+    const manualTicketingFee = Number(body.manual_ticketing_fee ?? 0);
+    const manualFacilityFee = Number(body.manual_facility_fee ?? 0);
+    const manualTaxRate = Number(body.manual_tax_rate ?? 0);
+    const manualTaxMethod = body.manual_tax_method ?? "multiplier";
+    const manualProcessingFee = Number(body.manual_processing_fee ?? 0);
+
+    // Derive downstream totals from the manual figures
+    const ticketingFees = manualTicketingFee * manualTicketsSold;
+    const facilityFees = manualFacilityFee * manualTicketsSold;
+    const taxes =
+      manualTaxMethod === "divisor" && manualTaxRate > 0
+        ? manualGross - manualGross / (1 + manualTaxRate)
+        : manualGross * manualTaxRate;
+    const adjGross = manualGross - ticketingFees - facilityFees;
+    const netReceipts = adjGross - taxes - manualProcessingFee;
+
+    const guarantee = Number(body.guarantee ?? 0);
+
+    const { data: settlement, error: settleErr } = await admin
+      .from("settlements")
+      .insert({
+        event_id: body.event_id || null,
+        venue_id: venueId,
+        source: "external",
+
+        event_title: body.event_title || null,
+        event_date: body.event_date || null,
+
+        artist_name: body.artist_name || null,
+        guarantee,
+        deal_type: body.deal_type || null,
+        backend_percentage: Number(body.backend_percentage ?? 0),
+        radius_clause: body.radius_clause || null,
+
+        // Manual figures stored for display / edit
+        manual_gross: manualGross,
+        manual_tickets_sold: manualTicketsSold,
+        manual_ticket_price: Number(body.manual_ticket_price ?? 0),
+        manual_ticketing_fee: manualTicketingFee,
+        manual_facility_fee: manualFacilityFee,
+        manual_tax_rate: manualTaxRate,
+        manual_tax_method: manualTaxMethod,
+        manual_processing_fee: manualProcessingFee,
+
+        // Derived from manual figures (same columns as VenueCore settlements)
+        ticket_audit: [],
+        tickets_sold_count: manualTicketsSold,
+        comp_count: 0,
+        comp_face_value: 0,
+        total_gross: manualGross,
+        ticketing_fees: ticketingFees,
+        facility_fees: facilityFees,
+        cc_fees: manualProcessingFee,
+        ticketing_fee_per_ticket: manualTicketingFee,
+        facility_fee_per_ticket: manualFacilityFee,
+        adj_gross: adjGross,
+        taxes,
+        tax_rate: manualTaxRate,
+        tax_method: manualTaxMethod,
+        net_receipts: netReceipts,
+
+        total_expenses: 0,
+        splitpoint: 0,
+        artist_backend: 0,
+        artist_total: guarantee,
+        deposit_paid: 0,
+        cash_advance: 0,
+        balance_due: 0,
+
+        status: "draft",
+      })
+      .select()
+      .single();
+
+    if (settleErr) {
+      return NextResponse.json({ error: settleErr.message }, { status: 500 });
+    }
+    return NextResponse.json(settlement, { status: 201 });
+  }
+
+  // ── VenueCore audit-based settlement path ─────────────────────────────────
   if (!body.event_id) {
     return NextResponse.json(
       { error: "event_id is required" },
@@ -141,6 +238,7 @@ export async function POST(request: Request) {
       offer_id: offerMatch?.id ?? body.offer_id ?? null,
       contract_id: body.contract_id || null,
       venue_id: venueId,
+      source: "venuecore",
 
       // Event snapshot
       event_title: event.title || null,

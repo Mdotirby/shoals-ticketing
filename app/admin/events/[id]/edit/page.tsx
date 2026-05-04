@@ -82,6 +82,10 @@ export default function AdminEditEventPage() {
   // Free event state
   const [isFree, setIsFree] = useState(false);
 
+  // External ticketing state
+  const [externalTicketUrl, setExternalTicketUrl] = useState("");
+  const [externalTicketLabel, setExternalTicketLabel] = useState("");
+
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
   const [onSaleTime, setOnSaleTime] = useState("");
@@ -224,6 +228,10 @@ export default function AdminEditEventPage() {
         if (event.landing_page_slug) {
           setLandingPageSlug(event.landing_page_slug);
         }
+
+        // Load external ticketing fields
+        setExternalTicketUrl(event.external_ticket_url || "");
+        setExternalTicketLabel(event.external_ticket_label || "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -536,6 +544,9 @@ export default function AdminEditEventPage() {
           tax_exempt: isPrivate ? form.tax_exempt : false,
           start_time: isPrivate && form.start_time ? `${form.date}T${form.start_time}:00` : null,
           end_time: isPrivate && form.end_time ? `${form.date}T${form.end_time}:00` : null,
+          // External ticketing
+          external_ticket_url: externalTicketUrl.trim() || null,
+          external_ticket_label: externalTicketLabel.trim() || null,
         }),
       });
 
@@ -1028,6 +1039,48 @@ export default function AdminEditEventPage() {
             )}
           </div>
         )}
+
+        {/* ── External Ticketing Link ── */}
+        <div className="admin-form-label admin-form-full" style={{
+          padding: 16, borderRadius: 10,
+          background: externalTicketUrl ? "rgba(245,158,11,0.06)" : "rgba(208,194,144,0.04)",
+          border: `1px solid ${externalTicketUrl ? "rgba(245,158,11,0.2)" : "rgba(208,194,144,0.12)"}`,
+          marginTop: 8,
+        }}>
+          <span style={{ color: externalTicketUrl ? "#f59e0b" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+            External Ticketing Link
+          </span>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+            If tickets are sold on another platform (Eventbrite, AXS, venue box office, etc.), paste the link here.
+            The &ldquo;Buy Tickets&rdquo; button on your event page will route directly to that URL instead of VenueCore checkout.
+          </p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ flex: 2 }}>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Ticketing URL</span>
+              <input
+                className="admin-form-input"
+                type="url"
+                placeholder="https://www.eventbrite.com/e/..."
+                value={externalTicketUrl}
+                onChange={(e) => setExternalTicketUrl(e.target.value)}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Button Label (optional)</span>
+              <input
+                className="admin-form-input"
+                placeholder="Get Tickets"
+                value={externalTicketLabel}
+                onChange={(e) => setExternalTicketLabel(e.target.value)}
+              />
+            </div>
+          </div>
+          {externalTicketUrl && (
+            <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8, margin: "8px 0 0" }}>
+              ⚠ VenueCore checkout is disabled for this event. Tickets link out to the URL above.
+            </p>
+          )}
+        </div>
 
         {/* ── On-Sale Date & Time (only for hard ticket events) ── */}
         {isHardTicket && (

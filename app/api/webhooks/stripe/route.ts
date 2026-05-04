@@ -7,10 +7,31 @@ import { createAdminClient } from "@/lib/supabase-server";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
+import { earnBenefits } from "@/lib/fwb/earn";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+// ── GoTrue admin lookup by email (service-role REST endpoint) ────────────────
+async function lookupUserIdByEmail(email: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users?filter=${encodeURIComponent(`email.eq.${email}`)}`,
+      {
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY!}`,
+        },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.users?.[0]?.id as string) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // ── Shared order-creation function ──────────────────────────────────────────
 // Called by both checkout.session.completed and payment_intent.succeeded handlers
@@ -377,6 +398,26 @@ async function processTicketOrder({
         seatAssignments,
       });
     }
+
+    // 10. FWB benefits earn — credit points if buyer opted in and has an account
+    if (fwbOptIn && customerEmail && eventData?.venue_id) {
+      try {
+        const userId = await lookupUserIdByEmail(customerEmail.toLowerCase());
+        if (userId) {
+          await earnBenefits({
+            userId,
+            venueId: eventData.venue_id,
+            amountSpent: totalAmount,
+            eventId,
+            orderId: order.id,
+            supabase: admin,
+          });
+          console.log(`FWB benefits earned for user ${userId} on order ${order.id}`);
+        }
+      } catch (err) {
+        console.error("FWB earn error (non-fatal):", err);
+      }
+    }
   } catch (err) {
     console.error("Webhook processing error:", err);
   }
@@ -553,7 +594,7 @@ export async function POST(request: Request) {
         promoCodeId: meta.promo_code_id || null,
         promoCode: meta.promo_code || null,
         seatIdsRaw: meta.seat_ids || null,
-        fwbOptIn: false,
+        fwbOptIn: meta.fwb_opt_in === "true",
         trackingRef: meta.tracking_ref || null,
         stripeReferenceId: paymentIntent.id,
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),

@@ -35,6 +35,8 @@ type EventData = {
   description: string | null;
   isFree: boolean;
   onSaleAt: string | null;
+  externalTicketUrl: string | null;
+  externalTicketLabel: string | null;
 };
 
 type FeaturedArtist = {
@@ -837,7 +839,17 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
           </div>
 
           {/* Countdown or CTA */}
-          {isPast ? (
+          {event.externalTicketUrl ? (
+            <a
+              href={event.externalTicketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="lp-cta-btn"
+              style={{ textAlign: "center", textDecoration: "none" }}
+            >
+              {event.externalTicketLabel || "Get Tickets"} →
+            </a>
+          ) : isPast ? (
             <div className="lp-past-banner">This event has already taken place</div>
           ) : !ticketsOnSale ? (
             <div className="lp-countdown">
@@ -919,7 +931,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
       </section>
 
       {/* ── INLINE CHECKOUT SECTION ─────────────────────────────────────── */}
-      {checkoutOpen && !isPast && ticketsOnSale && (
+      {checkoutOpen && !isPast && ticketsOnSale && !event.externalTicketUrl && (
         <section
           className="lp-checkout-section"
           ref={checkoutRef}

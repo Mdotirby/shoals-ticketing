@@ -101,6 +101,17 @@ export default function SettlementDetailPage() {
     useState<MerchSellerFeePayer>("venue");
 
   const isFinalized = settlement?.status === "finalized";
+  const isExternal = settlement?.source === "external";
+
+  // ── Manual entry state (external settlements only) ────────────────
+  const [manualGross, setManualGross] = useState(0);
+  const [manualTicketsSold, setManualTicketsSold] = useState(0);
+  const [manualTicketPrice, setManualTicketPrice] = useState(0);
+  const [manualTicketingFee, setManualTicketingFee] = useState(0);
+  const [manualFacilityFee, setManualFacilityFee] = useState(0);
+  const [manualTaxRate, setManualTaxRate] = useState(0);
+  const [manualTaxMethod, setManualTaxMethod] = useState<TaxMethod>("multiplier");
+  const [manualProcessingFee, setManualProcessingFee] = useState(0);
 
   /* ─── Hydrate state from a fetched / refreshed settlement ─── */
   const hydrate = useCallback((data: Settlement) => {
@@ -122,6 +133,18 @@ export default function SettlementDetailPage() {
     setTaxMethod((data.tax_method as TaxMethod) || "multiplier");
     setTicketingFeePerTicket(Number(data.ticketing_fee_per_ticket) || 0);
     setFacilityFeePerTicket(Number(data.facility_fee_per_ticket) || 0);
+
+    // Manual entry fields (external settlements)
+    if (data.source === "external") {
+      setManualGross(Number(data.manual_gross) || 0);
+      setManualTicketsSold(Number(data.manual_tickets_sold) || 0);
+      setManualTicketPrice(Number(data.manual_ticket_price) || 0);
+      setManualTicketingFee(Number(data.manual_ticketing_fee) || 0);
+      setManualFacilityFee(Number(data.manual_facility_fee) || 0);
+      setManualTaxRate((Number(data.manual_tax_rate) || 0) * 100);
+      setManualTaxMethod((data.manual_tax_method as TaxMethod) || "multiplier");
+      setManualProcessingFee(Number(data.manual_processing_fee) || 0);
+    }
 
     setBarRevenue(Number(data.bar_revenue) || 0);
     setConcessionsRevenue(Number(data.concessions_revenue) || 0);
@@ -165,15 +188,15 @@ export default function SettlementDetailPage() {
         setExpenses(initial.expenses || []);
         setDeposits(initial.deposits || []);
 
-        if (initial.status === "draft") {
+        if (initial.status === "draft" && initial.source !== "external") {
           // Silent refresh-from-orders so the audit + fee totals are live.
+          // External (manual) settlements skip this — they have no order data.
           try {
             const refreshed = await fetch(`/api/settlements/${id}/refresh`, {
               method: "POST",
             }).then((r) => r.json());
             if (active && refreshed && !refreshed.error) {
               hydrate(refreshed);
-              // Refresh endpoint may have created/updated the auto CC expense.
               if (Array.isArray(refreshed.expenses)) setExpenses(refreshed.expenses);
               if (Array.isArray(refreshed.deposits)) setDeposits(refreshed.deposits);
             }
@@ -200,32 +223,30 @@ export default function SettlementDetailPage() {
     comps: ticketAudit.reduce((s, r) => s + r.comps, 0),
     gross: ticketAudit.reduce((s, r) => s + (r.gross || 0), 0),
   };
-  const totalGross = auditTotals.gross;
+
+  // For external settlements all financial figures come from manual state.
+  // For VenueCore settlements they come from the ticket audit + stored fee state.
+  const manualTaxRateDecimal = manualTaxRate / 100;
+  const totalGross = isExternal ? manualGross : auditTotals.gross;
+  const effectiveTicketingFees = isExternal
+    ? manualTicketingFee * manualTicketsSold
+    : ticketingFees;
+  const effectiveFacilityFees = isExternal
+    ? manualFacilityFee * manualTicketsSold
+    : facilityFees;
+  const effectiveCcFees = isExternal ? manualProcessingFee : ccFees;
+  const effectiveTaxRate = isExternal ? manualTaxRateDecimal : taxRate;
+  const effectiveTaxMethod: TaxMethod = isExternal ? manualTaxMethod : taxMethod;
 
   // ── Math model ────────────────────────────────────────────────────
-  //   Total Gross Receipts (= what was actually collected from customers)
-  //     − Service Fees Collected
-  //     − Facility Fees Collected
-  //     − Tax Collected
-  //     − CC / Processing Fees
-  //   = Net Receipts (artist split base)
-  //
-  // Tax: honor the chosen method.
-  //   multiplier → tax added on top of the ticket price (default)
-  //   divisor    → ticket price is tax-inclusive
   const taxes =
-    taxMethod === "divisor" && taxRate > 0
-      ? totalGross - totalGross / (1 + taxRate)
-      : totalGross * taxRate;
-  // grossReceipts = total customer paid (matches the ticket sales dashboard)
+    effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
+      ? totalGross - totalGross / (1 + effectiveTaxRate)
+      : totalGross * effectiveTaxRate;
   const grossReceipts =
-    totalGross + ticketingFees + facilityFees + taxes + ccFees;
-  // Net Receipts = what's left after every pass-through fee/tax is deducted.
-  // This is the artist split base.
+    totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
   const netReceipts =
-    grossReceipts - ticketingFees - facilityFees - taxes - ccFees;
-  // Legacy alias kept for the saved settlement schema (DB column adj_gross).
-  // Under the new unified walk, adj_gross is the same as net_receipts.
+    grossReceipts - effectiveTicketingFees - effectiveFacilityFees - taxes - effectiveCcFees;
   const adjGross = netReceipts;
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
@@ -345,11 +366,11 @@ export default function SettlementDetailPage() {
     artistPaidMerchSellerFee;
 
   // Per-ticket all-in (for display)
-  const ticketsSold = settlement?.tickets_sold_count ?? auditTotals.sold;
+  const ticketsSold = isExternal ? manualTicketsSold : (settlement?.tickets_sold_count ?? auditTotals.sold);
   const compCount = settlement?.comp_count ?? auditTotals.comps;
   const grossPerTicket = ticketsSold > 0 ? totalGross / ticketsSold : 0;
-  const ccFeePerTicket = ticketsSold > 0 ? ccFees / ticketsSold : 0;
-  const totalCustomerPaid = totalGross + ticketingFees + facilityFees + taxes + ccFees;
+  const ccFeePerTicket = ticketsSold > 0 ? effectiveCcFees / ticketsSold : 0;
+  const totalCustomerPaid = totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
 
   /* ─── Recalculate variable expenses when totalGross changes ─── */
   const recalcVariableExpenses = useCallback(
@@ -416,13 +437,26 @@ export default function SettlementDetailPage() {
       bonus_structure: bonusStructureParsed,
       radius_clause: radiusClause || null,
 
-      // Fee / tax breakdown
-      ticketing_fees: ticketingFees,
-      facility_fees: facilityFees,
-      cc_fees: ccFees,
+      // Fee / tax breakdown (effective values for both VenueCore + external)
+      ticketing_fees: effectiveTicketingFees,
+      facility_fees: effectiveFacilityFees,
+      cc_fees: effectiveCcFees,
       taxes,
-      tax_rate: taxRate,
-      tax_method: taxMethod,
+      tax_rate: effectiveTaxRate,
+      tax_method: effectiveTaxMethod,
+
+      // Manual entry fields (saved for external settlements; ignored for VenueCore)
+      ...(isExternal ? {
+        manual_gross: manualGross,
+        manual_tickets_sold: manualTicketsSold,
+        manual_ticket_price: manualTicketPrice,
+        manual_ticketing_fee: manualTicketingFee,
+        manual_facility_fee: manualFacilityFee,
+        manual_tax_rate: manualTaxRate / 100, // store as decimal
+        manual_tax_method: manualTaxMethod,
+        manual_processing_fee: manualProcessingFee,
+        tickets_sold_count: manualTicketsSold,
+      } : {}),
 
       // Calculated
       total_gross: totalGross,
@@ -604,15 +638,15 @@ export default function SettlementDetailPage() {
       backend_percentage: backendPctInput / 100, // PDF expects decimal
       radius_clause: radiusClause,
       total_gross: totalGross,
-      ticketing_fees: ticketingFees,
-      facility_fees: facilityFees,
-      cc_fees: ccFees,
-      ticketing_fee_per_ticket: ticketingFeePerTicket,
-      facility_fee_per_ticket: facilityFeePerTicket,
+      ticketing_fees: effectiveTicketingFees,
+      facility_fees: effectiveFacilityFees,
+      cc_fees: effectiveCcFees,
+      ticketing_fee_per_ticket: isExternal ? manualTicketingFee : ticketingFeePerTicket,
+      facility_fee_per_ticket: isExternal ? manualFacilityFee : facilityFeePerTicket,
       adj_gross: adjGross,
       taxes,
-      tax_rate: taxRate,
-      tax_method: taxMethod,
+      tax_rate: effectiveTaxRate,
+      tax_method: effectiveTaxMethod,
       net_receipts: netReceipts,
       total_expenses: totalExpenses,
       splitpoint,
@@ -850,11 +884,13 @@ export default function SettlementDetailPage() {
       </div>
 
       {/* ════════════════════════════════════════════
-          §2  TICKET AUDIT
+          §2  TICKET AUDIT / MANUAL ENTRY
       ════════════════════════════════════════════ */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={sectionTitleStyle}>Ticket Audit</h2>
-        {!isFinalized && (
+        <h2 style={sectionTitleStyle}>
+          {isExternal ? "Revenue Figures" : "Ticket Audit"}
+        </h2>
+        {!isFinalized && !isExternal && (
           <button
             className="admin-header-btn"
             style={{ fontSize: 13 }}
@@ -866,6 +902,69 @@ export default function SettlementDetailPage() {
           </button>
         )}
       </div>
+
+      {isExternal ? (
+        /* ── Manual entry panel for external settlements ── */
+        <>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 16 }}>
+            Enter the actual figures from your external box office or ticketing platform.
+          </p>
+          <div className="admin-form-grid">
+            <div>
+              <label className="admin-form-label">Gross Revenue ($)</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={manualGross} disabled={isFinalized}
+                onChange={(e) => setManualGross(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Tickets Sold</label>
+              <input type="number" min="0" className="admin-form-input"
+                value={manualTicketsSold} disabled={isFinalized}
+                onChange={(e) => setManualTicketsSold(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Ticket Face Price ($)</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={manualTicketPrice} disabled={isFinalized}
+                onChange={(e) => setManualTicketPrice(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Processing Fee ($ total)</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={manualProcessingFee} disabled={isFinalized}
+                onChange={(e) => setManualProcessingFee(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Ticketing Fee ($ per ticket)</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={manualTicketingFee} disabled={isFinalized}
+                onChange={(e) => setManualTicketingFee(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Facility Fee ($ per ticket)</label>
+              <input type="number" step="0.01" min="0" className="admin-form-input"
+                value={manualFacilityFee} disabled={isFinalized}
+                onChange={(e) => setManualFacilityFee(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Tax Rate (%)</label>
+              <input type="number" step="0.01" min="0" max="100" className="admin-form-input"
+                value={manualTaxRate} disabled={isFinalized}
+                onChange={(e) => setManualTaxRate(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="admin-form-label">Tax Method</label>
+              <select className="admin-form-input" value={manualTaxMethod} disabled={isFinalized}
+                onChange={(e) => setManualTaxMethod(e.target.value as TaxMethod)}>
+                <option value="multiplier">Added on top (multiplier)</option>
+                <option value="divisor">Included in price (divisor)</option>
+              </select>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* ── VenueCore audit table ── */
+        <>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
           <thead>
@@ -894,11 +993,11 @@ export default function SettlementDetailPage() {
               const svcFeeTotal = (row.ticketing_fee || 0) * row.sold;
               const facFeeTotal = (row.facility_fee || 0) * row.sold;
               const tierTax =
-                taxMethod === "divisor" && taxRate > 0
-                  ? row.gross - row.gross / (1 + taxRate)
-                  : row.gross * taxRate;
+                effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
+                  ? row.gross - row.gross / (1 + effectiveTaxRate)
+                  : row.gross * effectiveTaxRate;
               const totalSold = auditTotals.sold || 1;
-              const tierCcShare = ccFees * (row.sold / totalSold);
+              const tierCcShare = effectiveCcFees * (row.sold / totalSold);
               // Gross Receipts for this tier = price × sold + fees + tax + cc share
               const tierGrossReceipts =
                 row.gross + svcFeeTotal + facFeeTotal + tierTax + tierCcShare;
@@ -956,10 +1055,10 @@ export default function SettlementDetailPage() {
                     : "—"}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ticketingFees)}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(facilityFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveTicketingFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveFacilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(ccFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
                   {fmt(grossReceipts)}
                 </td>
@@ -976,6 +1075,8 @@ export default function SettlementDetailPage() {
           <> {compCount} comp ticket{compCount === 1 ? "" : "s"} would have been worth <strong>{fmt(settlement.comp_face_value || 0)}</strong> at price — informational only.</>
         )}
       </p>
+      </>
+      )}
 
       {/* ════════════════════════════════════════════
           §3  TAX CONFIG (read-only summary; values come from event/venue)
@@ -984,28 +1085,30 @@ export default function SettlementDetailPage() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13, marginTop: 12 }}>
           <div>
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Service Fee:</span>{" "}
-            <strong>{fmt(ticketingFeePerTicket)}</strong>{" "}
+            <strong>{fmt(isExternal ? manualTicketingFee : ticketingFeePerTicket)}</strong>{" "}
             <span style={{ color: "rgba(255,255,255,0.35)" }}>per ticket</span>
           </div>
           <div>
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Facility Fee:</span>{" "}
-            <strong>{fmt(facilityFeePerTicket)}</strong>{" "}
+            <strong>{fmt(isExternal ? manualFacilityFee : facilityFeePerTicket)}</strong>{" "}
             <span style={{ color: "rgba(255,255,255,0.35)" }}>per ticket</span>
           </div>
           <div>
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Tax Rate:</span>{" "}
-            <strong>{(taxRate * 100).toFixed(2)}%</strong>{" "}
-            <select
-              className="admin-form-input"
-              style={{ width: 150, marginLeft: 8, display: "inline" }}
-              value={taxMethod}
-              onChange={(e) => setTaxMethod(e.target.value as TaxMethod)}
-              disabled={isFinalized}
-              title="How the venue applies tax: added on top of the ticket price (default) or already included in the ticket price"
-            >
-              <option value="multiplier">Paid by Venue</option>
-              <option value="divisor">Paid by Customer</option>
-            </select>
+            <strong>{(effectiveTaxRate * 100).toFixed(2)}%</strong>{" "}
+            {!isExternal && (
+              <select
+                className="admin-form-input"
+                style={{ width: 150, marginLeft: 8, display: "inline" }}
+                value={taxMethod}
+                onChange={(e) => setTaxMethod(e.target.value as TaxMethod)}
+                disabled={isFinalized}
+                title="How the venue applies tax: added on top of the ticket price (default) or already included in the ticket price"
+              >
+                <option value="multiplier">Paid by Venue</option>
+                <option value="divisor">Paid by Customer</option>
+              </select>
+            )}
           </div>
         </div>
       </div>
@@ -1026,24 +1129,30 @@ export default function SettlementDetailPage() {
             {fmt(grossReceipts)}
           </span>
         </div>
+        {effectiveTicketingFees > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees Collected</span>
+            <span style={valStyle}>({fmt(effectiveTicketingFees)})</span>
+          </div>
+        )}
+        {effectiveFacilityFees > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>Facility Fees Collected</span>
+            <span style={valStyle}>({fmt(effectiveFacilityFees)})</span>
+          </div>
+        )}
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees Collected</span>
-          <span style={valStyle}>({fmt(ticketingFees)})</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>Facility Fees Collected</span>
-          <span style={valStyle}>({fmt(facilityFees)})</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>Tax Collected ({(taxRate * 100).toFixed(2)}%
-            {taxMethod === "divisor" ? ", divisor" : ", multiplier"})
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Tax Collected ({(effectiveTaxRate * 100).toFixed(2)}%
+            {effectiveTaxMethod === "divisor" ? ", divisor" : ", multiplier"})
           </span>
           <span style={valStyle}>({fmt(taxes)})</span>
         </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>CC / Processing Fees</span>
-          <span style={valStyle}>({fmt(ccFees)})</span>
-        </div>
+        {effectiveCcFees > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>CC / Processing Fees</span>
+            <span style={valStyle}>({fmt(effectiveCcFees)})</span>
+          </div>
+        )}
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Net Receipts</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>

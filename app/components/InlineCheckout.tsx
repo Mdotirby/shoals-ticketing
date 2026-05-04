@@ -138,8 +138,9 @@ function CheckoutForm({
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
+  const [fwbOptIn, setFwbOptIn] = useState(false);
 
-  // FWB signup state
+  // FWB signup state (post-payment one-click)
   const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
   // ── Fee calculation matching OrderSummary + create-intent API ────────────
@@ -231,6 +232,7 @@ function CheckoutForm({
           buyerName: buyerName.trim(),
           buyerEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
+          fwbOptIn,
           promoCode: promoCode || undefined,
           selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
@@ -473,6 +475,19 @@ function CheckoutForm({
             autoComplete="tel"
           />
         </div>
+
+        {/* FWB opt-in */}
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 4 }}>
+          <input
+            type="checkbox"
+            checked={fwbOptIn}
+            onChange={(e) => setFwbOptIn(e.target.checked)}
+            style={{ marginTop: 2, accentColor: "#d0c290", width: 16, height: 16, flexShrink: 0 }}
+          />
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
+            Sign me up for exclusive offers &amp; rewards
+          </span>
+        </label>
 
         {/* Stripe Card Fields (only for paid checkout) */}
         {!isFullyFree && (

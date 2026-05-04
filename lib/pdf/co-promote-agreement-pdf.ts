@@ -97,7 +97,7 @@ function buildSettlementExample(a: CoPromoteAgreement): {
   if (a.deal_structure !== "rev_share_gross" && a.deal_structure !== "flat_rent") {
     rows.push({ label: `Sales Tax (${(taxRate * 100).toFixed(1)}%)`, amount: `(${fmt(tax)})` });
     rows.push({ label: "Revenue Splitpoint", amount: fmt(base) });
-  
+  }
 
   if (a.deal_structure === "flat_rent") {
     rows.push({ label: `Venue Rental Fee (flat)`, amount: fmt(rent) });

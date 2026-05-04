@@ -52,6 +52,8 @@ type EventData = {
   is_free?: boolean;
   on_sale_at?: string;
   closed_out_at?: string | null;
+  external_ticket_url?: string | null;
+  external_ticket_label?: string | null;
 };
 
 // Date helpers imported from @/lib/dates
@@ -590,7 +592,38 @@ export default function EventDetailClient() {
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column">
-              {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) ? (
+              {event.external_ticket_url ? (
+                /* ── External Ticketing ── */
+                <div style={{
+                  background: "rgba(208,194,144,0.04)",
+                  border: "1px solid rgba(208,194,144,0.15)",
+                  borderRadius: 12,
+                  padding: 28,
+                  textAlign: "center",
+                }}>
+                  <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: "0 0 20px" }}>
+                    Tickets for this show are sold through an external platform.
+                  </p>
+                  <a
+                    href={event.external_ticket_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      padding: "14px 32px",
+                      background: "linear-gradient(135deg, #d0c290, #b8a870)",
+                      color: "#0b0d1d",
+                      fontWeight: 700,
+                      fontSize: 15,
+                      borderRadius: 10,
+                      textDecoration: "none",
+                      letterSpacing: 0.3,
+                    }}
+                  >
+                    {event.external_ticket_label || "Get Tickets"} →
+                  </a>
+                </div>
+              ) : pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) ? (
                 /* ── Past / Closed-Out Show — purchases locked ── */
                 <div style={{
                   background: "rgba(255,255,255,0.03)",

@@ -46,10 +46,24 @@ export type MerchTaxPayer = "artist" | "venue";
 
 export type Settlement = {
   id: string;
-  event_id: string;
+  event_id?: string | null;
   offer_id?: string;
   contract_id?: string;
   venue_id: string;
+
+  // 'venuecore' = audit-based from real orders (default)
+  // 'external'  = all figures entered manually; no order data
+  source?: "venuecore" | "external";
+
+  // Manual entry fields — only used when source = 'external'
+  manual_gross?: number | null;
+  manual_tickets_sold?: number | null;
+  manual_ticket_price?: number | null;
+  manual_ticketing_fee?: number | null;
+  manual_facility_fee?: number | null;
+  manual_tax_rate?: number | null;
+  manual_tax_method?: TaxMethod | null;
+  manual_processing_fee?: number | null;
 
   // Event snapshot (for PDF labeling)
   event_title?: string;

@@ -49,6 +49,12 @@ export async function POST(
       { status: 400 }
     );
   }
+  if (settlement.source === "external") {
+    return NextResponse.json(
+      { error: "Manual settlements do not pull from orders — edit the figures directly." },
+      { status: 400 }
+    );
+  }
 
   // 2. Re-run the audit
   const audit = await computeEventAudit(admin, settlement.event_id);

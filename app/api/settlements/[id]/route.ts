@@ -46,6 +46,17 @@ const WRITABLE_COLUMNS = new Set([
   "status",
   "finalized_at",
   "finalized_by",
+  // Source
+  "source",
+  // Manual entry fields (external settlements)
+  "manual_gross",
+  "manual_tickets_sold",
+  "manual_ticket_price",
+  "manual_ticketing_fee",
+  "manual_facility_fee",
+  "manual_tax_rate",
+  "manual_tax_method",
+  "manual_processing_fee",
   // Event snapshot
   "event_title",
   "event_date",
