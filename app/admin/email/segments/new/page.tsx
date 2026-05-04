@@ -75,6 +75,61 @@ function fieldType(key: string): string {
   return FIELDS.find((f) => f.key === key)?.type ?? "string";
 }
 
+// One-click preset segments. Each sets name, conditions, and match op.
+const QUICK_PRESETS: {
+  label: string;
+  description: string;
+  name: string;
+  op: "AND" | "OR";
+  conditions: Condition[];
+}[] = [
+  {
+    label: "All Newsletter Subscribers",
+    description: "Every contact in your list",
+    name: "All Newsletter Subscribers",
+    op: "AND",
+    conditions: [], // empty → compiles to email.not.is.null → everyone
+  },
+  {
+    label: "FWB Members",
+    description: "Loyalty program subscribers only",
+    name: "FWB Members",
+    op: "AND",
+    conditions: [{ field: "is_fwb_subscriber", op: "eq", value: true }],
+  },
+  {
+    label: "Past Ticket Buyers",
+    description: "Anyone who has placed at least one order",
+    name: "Past Ticket Buyers",
+    op: "AND",
+    conditions: [{ field: "total_orders", op: "gt", value: 0 }],
+  },
+  {
+    label: "VIPs ($500+ spent)",
+    description: "High-value customers",
+    name: "VIPs — $500+ Lifetime",
+    op: "AND",
+    conditions: [{ field: "total_spent", op: "gte", value: 500 }],
+  },
+  {
+    label: "Lapsed (60+ days)",
+    description: "Bought tickets but haven't been back in 60+ days",
+    name: "Lapsed Buyers — 60 Days",
+    op: "AND",
+    conditions: [
+      { field: "total_orders", op: "gt", value: 0 },
+      { field: "last_order_at", op: "older_than_days", value: 60 },
+    ],
+  },
+  {
+    label: "Never Purchased",
+    description: "On the list but never bought a ticket",
+    name: "Never Purchased",
+    op: "AND",
+    conditions: [{ field: "total_orders", op: "eq", value: 0 }],
+  },
+];
+
 export default function NewSegmentPage() {
   const router = useRouter();
   const venueId = getCookie("venue-id") || "";
@@ -136,6 +191,35 @@ export default function NewSegmentPage() {
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>New Segment</h1>
 
       <div className="admin-form">
+        {/* ── Quick-start presets ── */}
+        <div style={{ marginBottom: 18 }}>
+          <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginBottom: 8 }}>
+            Start from a preset, then customize:
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {QUICK_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                title={p.description}
+                onClick={() => {
+                  setName(p.name);
+                  setMatchOp(p.op);
+                  setConditions(p.conditions);
+                  setPreview(null);
+                }}
+                style={{
+                  padding: "6px 12px", fontSize: 12, cursor: "pointer", borderRadius: 6,
+                  background: "rgba(208,194,144,0.08)", color: "#d0c290",
+                  border: "1px solid rgba(208,194,144,0.25)", fontWeight: 500,
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="admin-form-grid">
           <label className="admin-form-label">Name *
             <input className="admin-form-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. VIPs · $500+ in last 12 months" />

@@ -24,21 +24,21 @@ export async function POST(req: NextRequest) {
   }
   try {
     const campaign = await createCampaign(createAdminClient(), {
-      venue_id: body.venue_id ?? null,
-      segment_id: body.segment_id ?? null,
-      event_id: body.event_id ?? null,
+      venue_id: body.venue_id || null,
+      segment_id: body.segment_id || null,
+      event_id: body.event_id || null,
       name: body.name,
       subject: body.subject,
-      preview_text: body.preview_text ?? null,
-      from_name: body.from_name ?? null,
-      from_email: body.from_email ?? null,
-      reply_to: body.reply_to ?? null,
+      preview_text: body.preview_text || null,
+      from_name: body.from_name || null,
+      from_email: body.from_email || null,
+      reply_to: body.reply_to || null,
       content_html: body.content_html,
-      content_text: body.content_text ?? null,
-      template_key: body.template_key ?? null,
+      content_text: body.content_text || null,
+      template_key: body.template_key || null,
       body_json: body.body_json ?? null,
-      scheduled_at: body.scheduled_at ?? null,
-      created_by: body.created_by ?? null,
+      scheduled_at: body.scheduled_at || null,
+      created_by: body.created_by || null,
     });
     return NextResponse.json(campaign);
   } catch (e) {

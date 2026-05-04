@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
   const { data, error } = await admin
     .from("ee_segments")
     .insert({
-      venue_id: body.venue_id ?? null,
+      venue_id: body.venue_id || null,
       name: body.name,
-      description: body.description ?? null,
+      description: body.description || null,
       rules,
       last_count,
       last_evaluated: last_count !== null ? new Date().toISOString() : null,
-      created_by: body.created_by ?? null,
+      created_by: body.created_by || null,
     })
     .select()
     .single();
