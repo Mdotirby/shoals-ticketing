@@ -602,7 +602,7 @@ export default function EventDetailClient() {
                   textAlign: "center",
                 }}>
                   <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: "0 0 20px" }}>
-                    Tickets for this show are sold through an external platform.
+                    Tickets for this show are sold directly through Hernando's Hideaway.
                   </p>
                   <a
                     href={event.external_ticket_url}
