@@ -1,15 +1,5 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/$1" }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/scan-events",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/update-metrics",
-      "schedule": "0 18 * * *"
-    }
   ]
 }
