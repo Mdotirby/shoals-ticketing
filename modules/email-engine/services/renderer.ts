@@ -85,9 +85,14 @@ function htmlToText(html: string): string {
 export function renderEmail(args: RenderArgs): Rendered {
   const { context, utm = {}, unsubscribe_url } = args;
 
+  // Include unsubscribe_url in context so templates can embed {{unsubscribe_url}} inline.
+  const fullContext: RenderContext = unsubscribe_url
+    ? { ...context, unsubscribe_url }
+    : context;
+
   // 1. Variable substitution
-  let html = replaceVars(args.content_html, context);
-  const subject = replaceVars(args.subject, context);
+  let html = replaceVars(args.content_html, fullContext);
+  const subject = replaceVars(args.subject, fullContext);
 
   // Remove <img> tags with empty src — happens when {{event_image}} resolves
   // to "" because no image was supplied. Avoids visible broken-image icons
@@ -102,9 +107,17 @@ export function renderEmail(args: RenderArgs): Rendered {
   };
   html = stampUtmOnLinks(html, utmAll);
 
-  // 3. Unsubscribe footer (append once)
+  // 3. Unsubscribe footer — inject before </body> so it renders inside the email
+  //    body background. Only added when the template hasn't embedded its own
+  //    <!-- ee-footer --> block (dark templates do this to control styling).
   if (unsubscribe_url && !html.includes(FOOTER_MARK)) {
-    html = html + "\n" + unsubscribeFooter(unsubscribe_url);
+    const footer = "\n" + unsubscribeFooter(unsubscribe_url);
+    const bodyClose = html.lastIndexOf("</body>");
+    if (bodyClose !== -1) {
+      html = html.slice(0, bodyClose) + footer + "\n" + html.slice(bodyClose);
+    } else {
+      html = html + footer;
+    }
   }
 
   // 4. Text body

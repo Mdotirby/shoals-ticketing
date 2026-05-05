@@ -56,7 +56,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    const body = JSON.parse(rawBody) as { type?: string; data?: Record<string, unknown> };
+    type ResendEvent = { type?: string; data?: { email_id?: string; id?: string; [k: string]: unknown } };
+    const body = JSON.parse(rawBody) as ResendEvent;
     const { type, data } = body;
 
     if (!type || !data) {
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    const messageId = data.email_id || data.id;
+    const messageId = data.email_id ?? data.id;
 
     if (!messageId) {
       return NextResponse.json({ received: true });

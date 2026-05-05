@@ -49,12 +49,6 @@ const WRAP_CLOSE = `    </table>
 </table>
 </body></html>`;
 
-function hero(image: string): string {
-  return `<tr><td>
-    <img src="${image}" alt="" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0">
-  </td></tr>`;
-}
-
 function heroConditional(): string {
   // Only renders if {{event_image}} is a non-empty string (our renderer
   // leaves it empty otherwise, and our dispatcher strips empty <img> tags
@@ -229,10 +223,12 @@ function eventAnnouncementHtml(): string {
         <div style="height:1px;background:rgba(255,255,255,0.09);margin:8px 0"></div>
       </td></tr>
 
-      <!-- Footer identity -->
+      <!-- Footer identity + unsubscribe (<!-- ee-footer --> tells renderer not to append a second footer) -->
+      <!-- ee-footer -->
       <tr><td align="center" style="padding:18px 28px 26px">
         <div style="color:rgba(255,255,255,0.4);font-size:12px;line-height:1.55">
-          Sent by <strong style="color:rgba(255,255,255,0.75)">{{venue_name}}</strong> because you asked to hear about new shows.
+          Sent by <strong style="color:rgba(255,255,255,0.75)">{{venue_name}}</strong> because you asked to hear about new shows.<br>
+          <a href="{{unsubscribe_url}}" style="color:rgba(255,255,255,0.35);text-decoration:underline;margin-top:6px;display:inline-block">Unsubscribe</a>
         </div>
       </td></tr>
 
@@ -352,9 +348,11 @@ function fwbLateAnnounceHtml(): string {
         <div style="height:1px;background:rgba(255,255,255,0.09);margin:8px 0"></div>
       </td></tr>
 
+      <!-- ee-footer -->
       <tr><td align="center" style="padding:18px 28px 26px">
         <div style="color:rgba(255,255,255,0.4);font-size:12px;line-height:1.55">
-          Sent by <strong style="color:rgba(255,255,255,0.75)">{{venue_name}}</strong> because you're on the FWB list.
+          Sent by <strong style="color:rgba(255,255,255,0.75)">{{venue_name}}</strong> because you're on the FWB list.<br>
+          <a href="{{unsubscribe_url}}" style="color:rgba(255,255,255,0.35);text-decoration:underline;margin-top:6px;display:inline-block">Unsubscribe</a>
         </div>
       </td></tr>
 

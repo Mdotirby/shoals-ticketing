@@ -325,6 +325,7 @@ export async function enqueueCampaign(
         from_email: campaign.from_email || DEFAULT_FROM,
         from_name: campaign.from_name,
         reply_to: campaign.reply_to,
+        available_at: new Date().toISOString(),
       };
     });
 
