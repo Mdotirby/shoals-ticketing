@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
-import { previewRules } from "@/modules/email-engine";
+import { previewRules, refreshAllAttributes } from "@/modules/email-engine";
 
 // POST /api/email-engine/segments/preview
 // Body: { rules: SegmentRuleGroup }
@@ -8,8 +8,11 @@ import { previewRules } from "@/modules/email-engine";
 export async function POST(req: NextRequest) {
   const body = await req.json();
   if (!body?.rules) return NextResponse.json({ error: "rules required" }, { status: 400 });
+  const admin = createAdminClient();
   try {
-    const res = await previewRules(createAdminClient(), body.rules);
+    // Refresh contact attributes so segment counts reflect current purchase/engagement data.
+    await refreshAllAttributes(admin);
+    const res = await previewRules(admin, body.rules);
     return NextResponse.json(res);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

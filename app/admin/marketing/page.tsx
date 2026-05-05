@@ -118,24 +118,14 @@ const marketingTools = [
     desc: "Manage loyalty program, tiers, and rewards",
   },
   {
-    title: "Newsletter",
-    href: "/admin/marketing/newsletters",
-    desc: "Create and send email newsletters",
+    title: "Email Campaigns",
+    href: "/admin/email",
+    desc: "Create and send email campaigns to your list",
   },
   {
-    title: "Email Templates",
-    href: "/admin/marketing/templates",
-    desc: "Design email templates",
-  },
-  {
-    title: "Campaigns",
-    href: "/admin/marketing/campaigns",
-    desc: "Manage marketing campaigns",
-  },
-  {
-    title: "Automations",
-    href: "/admin/marketing/automations",
-    desc: "Set up automated email flows",
+    title: "Segments",
+    href: "/admin/email/segments",
+    desc: "Build audience segments for targeted sends",
   },
   {
     title: "Ad Spend",

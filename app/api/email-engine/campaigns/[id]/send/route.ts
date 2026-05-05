@@ -4,6 +4,7 @@ import {
   sendCampaignNow,
   processQueue,
   finalizeCampaignIfDrained,
+  refreshAllAttributes,
   EMAIL_ENGINE,
 } from "@/modules/email-engine";
 
@@ -20,10 +21,13 @@ export async function POST(
   const { id } = await params;
   const admin = createAdminClient();
   try {
-    // 1. Build the dispatch queue (renders per-recipient, flips to 'sending')
+    // 1. Materialise contact attributes so segment membership is current
+    await refreshAllAttributes(admin);
+
+    // 2. Build the dispatch queue (renders per-recipient, flips to 'sending')
     const enqueueResult = await sendCampaignNow(admin, id);
 
-    // 2. Loop until the queue is fully drained for this send.
+    // 3. Loop until the queue is fully drained for this send.
     //    Each batch is DISPATCH_BATCH_SIZE (100) emails. Cap at 50 iterations
     //    (5,000 recipients) to stay within maxDuration.
     let totalSent = 0;
@@ -39,7 +43,7 @@ export async function POST(
       if (batch.attempted === 0) break; // queue empty — done
     }
 
-    // 3. Mark the campaign as sent
+    // 4. Mark the campaign as sent
     await finalizeCampaignIfDrained(admin, id);
 
     return NextResponse.json({

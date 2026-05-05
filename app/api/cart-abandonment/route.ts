@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { runAutomationTick, processQueue, EMAIL_ENGINE } from "@/modules/email-engine";
 
 // POST /api/cart-abandonment — Track a cart abandonment (called when user enters email but doesn't complete checkout)
 export async function POST(req: NextRequest) {
@@ -40,10 +41,17 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ tracked: true });
 }
 
-// GET /api/cart-abandonment — List pending abandonments (admin)
+// GET /api/cart-abandonment — List pending abandonments (admin).
+// Also ticks the automation engine so cart-abandonment emails drain without a cron.
 export async function GET(req: NextRequest) {
   const eventId = req.nextUrl.searchParams.get("event_id");
   const admin = createAdminClient();
+
+  // Fire-and-forget: tick automations + drain any queued emails.
+  // Errors are swallowed so the list view never breaks due to a dispatch failure.
+  runAutomationTick(admin).then(() =>
+    processQueue(admin, { limit: EMAIL_ENGINE.DISPATCH_BATCH_SIZE })
+  ).catch((e) => console.warn("[cart-abandonment GET] automation tick failed:", e));
 
   let query = admin
     .from("cart_abandonment")

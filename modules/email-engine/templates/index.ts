@@ -23,7 +23,8 @@ export type EmailTemplate = {
     | "post_event"
     | "presale"
     | "welcome"
-    | "reengagement";
+    | "reengagement"
+    | "fwb";
   description: string;
   /** Default subject line */
   subject: string;
@@ -241,6 +242,128 @@ function eventAnnouncementHtml(): string {
 </body></html>`;
 }
 
+/**
+ * FWB Late Announcement — "For Our People, You Should Know About This".
+ *
+ * Sent when the operator forgot to tell FWB subscribers before public on-sale.
+ * Tone: honest, warm, no excuses — just "tickets are live, grab yours."
+ * Design mirrors event_announcement_v1 (same navy/gold palette, hero image,
+ * meta row, gold CTA) but swaps the countdown for an "ON SALE NOW" badge.
+ */
+function fwbLateAnnounceHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>{{event_name}}</title>
+</head>
+<body style="margin:0;padding:0;background:#111827;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#ffffff;line-height:1.55;-webkit-font-smoothing:antialiased">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;line-height:1">
+  We should've told you about this one first — tickets are on sale now.
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#111827">
+  <tr><td align="center" style="padding:24px 12px">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0"
+           style="max-width:600px;background:#111827;border-radius:20px;overflow:hidden;border:1px solid rgba(255,255,255,0.09)">
+
+      <!-- HERO image + fade -->
+      <tr><td style="padding:0;background:#111827" align="center">
+        <div style="line-height:0;background:#0d1220">
+          <img src="{{event_image}}" alt="{{event_name}}" width="600"
+               style="display:block;width:100%;max-width:600px;height:auto;border:0">
+        </div>
+        <div style="height:40px;background:linear-gradient(180deg,rgba(17,24,39,0.0) 0%,#111827 100%);margin-top:-40px;position:relative"></div>
+      </td></tr>
+
+      <!-- HERO TEXT -->
+      <tr><td style="padding:4px 28px 24px;background:#111827">
+        <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:{{venue_primary_color}};font-weight:700;margin-bottom:12px">
+          ★ For Our People — You Should Know About This
+        </div>
+        <h1 style="margin:0 0 16px;color:#ffffff;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-0.02em">
+          {{event_name}}
+        </h1>
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding-right:16px;color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">📅</span>&nbsp;{{event_date_short}}
+            </td>
+            <td style="padding-right:16px;color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">⏰</span>&nbsp;{{event_time}}
+            </td>
+            <td style="color:rgba(255,255,255,0.7);font-size:14px" valign="middle">
+              <span style="color:rgba(255,255,255,0.5)">📍</span>&nbsp;{{venue_name}}
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+
+      <!-- COPY -->
+      <tr><td style="padding:8px 28px 0">
+        <p style="margin:0;color:rgba(255,255,255,0.85);font-size:15px;line-height:1.6">
+          Hey {{first_name}} — real talk, we should've told you about this one first. You're on the FWB list for a reason, and this one deserves your attention. Tickets are live right now.
+        </p>
+      </td></tr>
+
+      <!-- ON SALE NOW badge card -->
+      <tr><td style="padding:18px 28px 6px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+               style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:14px">
+          <tr><td style="padding:22px 20px 20px" align="center">
+            <div style="font-size:13px;letter-spacing:0.05em;text-transform:uppercase;color:rgba(255,255,255,0.5);font-weight:500;margin-bottom:10px">
+              Tickets available now
+            </div>
+            <div style="font-size:28px;font-weight:800;color:{{venue_primary_color}};line-height:1;letter-spacing:0.04em;text-transform:uppercase">
+              ON SALE NOW
+            </div>
+            <div style="color:rgba(255,255,255,0.55);font-size:12px;margin-top:14px;line-height:1.55;padding:0 8px">
+              Don't sleep on this one — availability is first-come, first-served.
+            </div>
+          </td></tr>
+        </table>
+      </td></tr>
+
+      <!-- CTA -->
+      <tr><td align="center" style="padding:24px 24px 10px">
+        <!--[if mso]>
+        <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="{{event_url}}" style="height:52px;v-text-anchor:middle;width:340px;" arcsize="14%" fillcolor="{{venue_primary_color}}" stroke="f">
+          <w:anchorlock/>
+          <center style="color:#111827;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;">Get Your Tickets →</center>
+        </v:roundrect>
+        <![endif]-->
+        <!--[if !mso]><!-- -->
+        <a href="{{event_url}}"
+           style="display:inline-block;background:{{venue_primary_color}};color:#111827;text-decoration:none;padding:16px 32px;border-radius:12px;font-weight:700;font-size:15px;letter-spacing:0.3px">
+          Get Your Tickets →
+        </a>
+        <!--<![endif]-->
+      </td></tr>
+
+      <tr><td align="center" style="padding:6px 28px 28px">
+        <div style="color:rgba(255,255,255,0.45);font-size:12px;line-height:1.6;max-width:440px;margin:0 auto">
+          You're getting this because you're on the FWB list. We love you for it.
+        </div>
+      </td></tr>
+
+      <tr><td style="padding:0 28px">
+        <div style="height:1px;background:rgba(255,255,255,0.09);margin:8px 0"></div>
+      </td></tr>
+
+      <tr><td align="center" style="padding:18px 28px 26px">
+        <div style="color:rgba(255,255,255,0.4);font-size:12px;line-height:1.55">
+          Sent by <strong style="color:rgba(255,255,255,0.75)">{{venue_name}}</strong> because you're on the FWB list.
+        </div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
 // ───── Templates ────────────────────────────────────────────────────────
 export const EMAIL_TEMPLATES: EmailTemplate[] = [
   {
@@ -262,6 +385,28 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
       "You're seeing this before the public. Tickets open to the list now; public on-sale " +
       "{{on_sale_date}} at {{on_sale_time}}.\n\n" +
       "Get early access: {{event_url}}",
+  },
+
+  {
+    key: "fwb_late_announce_v1",
+    name: "FWB Late Announcement — On Sale Now",
+    category: "fwb",
+    description:
+      "For when you forgot to tell FWB subscribers before public on-sale. Honest, warm tone — " +
+      "dark navy/gold design mirrors the event landing page. Swaps countdown for an 'ON SALE NOW' badge.",
+    suggested_trigger: "new_event_announcement",
+    subject: "{{event_name}} — on sale now (for our people)",
+    preview_text:
+      "We should've told you about this one first — tickets are live right now.",
+    content_html: fwbLateAnnounceHtml(),
+    content_text:
+      "FOR OUR PEOPLE — YOU SHOULD KNOW ABOUT THIS\n\n" +
+      "{{event_name}}\n" +
+      "{{event_date}} · {{event_time}} · {{venue_name}}\n\n" +
+      "Hey {{first_name}} — real talk, we should've told you about this one first. " +
+      "You're on the FWB list for a reason, and this one deserves your attention. " +
+      "Tickets are live right now.\n\n" +
+      "ON SALE NOW — get yours: {{event_url}}",
   },
 
   {

@@ -1,12 +1,62 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
+
+export const runtime = "nodejs";
+
+// Verify Resend/Svix webhook signature when RESEND_WEBHOOK_SECRET is set.
+// Signed content: "{svix-id}.{svix-timestamp}.{raw-body}"
+// Secret format from dashboard: "whsec_<base64>"
+async function verifySignature(request: Request): Promise<{ ok: boolean; rawBody: string }> {
+  const rawBody = await request.text();
+  const secret = process.env.RESEND_WEBHOOK_SECRET;
+  if (!secret) {
+    // Not configured — log and pass through so existing behaviour is unchanged.
+    console.warn("[Resend webhook] RESEND_WEBHOOK_SECRET not set — skipping signature check");
+    return { ok: true, rawBody };
+  }
+
+  const msgId = request.headers.get("svix-id") ?? "";
+  const msgTimestamp = request.headers.get("svix-timestamp") ?? "";
+  const msgSig = request.headers.get("svix-signature") ?? "";
+
+  if (!msgId || !msgTimestamp || !msgSig) {
+    return { ok: false, rawBody };
+  }
+
+  // Reject replays older than 5 minutes
+  const tsSeconds = parseInt(msgTimestamp, 10);
+  if (Math.abs(Date.now() / 1000 - tsSeconds) > 300) {
+    return { ok: false, rawBody };
+  }
+
+  const keyBytes = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const signedContent = `${msgId}.${msgTimestamp}.${rawBody}`;
+  const computed = createHmac("sha256", keyBytes).update(signedContent).digest("base64");
+
+  const signatures = msgSig.split(" ").map((s) => s.replace(/^v1,/, ""));
+  const match = signatures.some((sig) => {
+    try {
+      return timingSafeEqual(Buffer.from(sig, "base64"), Buffer.from(computed, "base64"));
+    } catch {
+      return false;
+    }
+  });
+
+  return { ok: match, rawBody };
+}
 
 // POST /api/webhooks/resend — Resend webhook for email events
 // Configure in Resend dashboard: https://resend.com/webhooks
 // Events: email.delivered, email.opened, email.clicked, email.bounced, email.complained
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const { ok, rawBody } = await verifySignature(request);
+    if (!ok) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
+    const body = JSON.parse(rawBody) as { type?: string; data?: Record<string, unknown> };
     const { type, data } = body;
 
     if (!type || !data) {
