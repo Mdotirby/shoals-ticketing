@@ -23,6 +23,7 @@ export type ProposalData = {
   event_name: string;
   event_date: string;
   event_venue: string;
+  event_type_label?: string;
   // Client
   client_name: string;
   client_email?: string;
@@ -34,7 +35,13 @@ export type ProposalData = {
   tax_rate: number;
   tax_amount: number;
   total: number;
-  // Terms
+  // Payment terms (optional — shown as its own section when provided)
+  deposit_pct?: number;
+  deposit_amount?: number;
+  deposit_due?: string;
+  balance_due_date?: string;
+  cancellation_policy?: string;
+  // Text
   notes?: string;
   terms?: string;
   // Venue
@@ -83,6 +90,7 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
   // ── EVENT DETAILS ──
   y = drawSectionHeader(doc, "Event Details", y);
   y = drawLabelValue(doc, "Event", data.event_name, y);
+  if (data.event_type_label) y = drawLabelValue(doc, "Type", data.event_type_label, y);
   y = drawLabelValue(doc, "Date", data.event_date, y);
   y = drawLabelValue(doc, "Venue", data.event_venue, y);
   y += 4;
@@ -158,6 +166,33 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
   doc.text("TOTAL:", MARGIN + 103, y + 5);
   doc.text(fmt(data.total), MARGIN + CONTENT_WIDTH - 3, y + 5, { align: "right" });
   y += 16;
+
+  // ── PAYMENT TERMS ──
+  const hasPaymentTerms = data.deposit_pct || data.deposit_amount || data.deposit_due || data.balance_due_date;
+  if (hasPaymentTerms) {
+    y = ensureSpace(doc, 30, y);
+    y = drawSectionHeader(doc, "Payment Terms", y);
+    if (data.deposit_pct && data.deposit_amount) {
+      y = drawLabelValue(doc, "Deposit Required",
+        `${data.deposit_pct}% — ${fmt(data.deposit_amount)}`, y);
+    }
+    if (data.deposit_due) {
+      y = drawLabelValue(doc, "Deposit Due", data.deposit_due, y);
+    }
+    if (data.balance_due_date) {
+      y = drawLabelValue(doc, "Balance Due", data.balance_due_date, y);
+    }
+    if (data.cancellation_policy) {
+      y += 2;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...MID_GRAY);
+      doc.text("Cancellation Policy:", MARGIN + 3, y);
+      y += 4;
+      y = drawParagraph(doc, data.cancellation_policy, y, { fontSize: 8, indent: 6 });
+    }
+    y += 6;
+  }
 
   // ── NOTES ──
   if (data.notes) {

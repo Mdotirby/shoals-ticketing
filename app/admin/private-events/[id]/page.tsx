@@ -36,6 +36,43 @@ type RevenueItem = {
   amount: number;
 };
 
+type QuoteLineItem = {
+  category: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+};
+
+type Quote = {
+  id: string;
+  proposal_number: string;
+  version: number;
+  status: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  client_company: string;
+  line_items: QuoteLineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  deposit_pct: number;
+  deposit_amount: number;
+  deposit_due: string;
+  balance_due_date: string;
+  cancellation_policy: string;
+  valid_until: string;
+  notes: string;
+  terms: string;
+  event_type_label: string;
+  accepted_at: string | null;
+  accepted_by: string | null;
+  declined_at: string | null;
+  created_at: string;
+};
+
 type LineItem = {
   description: string;
   category?: string;
@@ -162,7 +199,8 @@ export default function PrivateEventManagement() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [revenue, setRevenue] = useState<RevenueItem[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [tab, setTab] = useState<"details" | "client" | "attachments" | "billing">("details");
+  const [tab, setTab] = useState<"details" | "client" | "attachments" | "billing" | "quote">("details");
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Invoices & payments
@@ -234,10 +272,19 @@ export default function PrivateEventManagement() {
 
   useEffect(() => { loadRevenue(); }, [loadRevenue]);
 
+  const loadQuotes = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await fetch(`/api/private-events/${id}/proposals`);
+      if (res.ok) setQuotes(await res.json());
+    } catch { /* ignore */ }
+  }, [id]);
+
   useEffect(() => {
     if (tab === "attachments") loadAttachments();
     if (tab === "billing") { loadRevenue(); loadInvoices(); }
-  }, [tab, loadAttachments, loadRevenue, loadInvoices]);
+    if (tab === "quote") loadQuotes();
+  }, [tab, loadAttachments, loadRevenue, loadInvoices, loadQuotes]);
 
   useEffect(() => { if (tab === "billing") loadPayments(); }, [tab, invoices, loadPayments]);
 
@@ -259,6 +306,7 @@ export default function PrivateEventManagement() {
   const tabs = [
     { key: "details" as const, label: "Event Details" },
     { key: "client" as const, label: "Client Details" },
+    { key: "quote" as const, label: "Quote" },
     { key: "attachments" as const, label: "Attachments" },
     { key: "billing" as const, label: "Billing" },
   ];
@@ -296,6 +344,9 @@ export default function PrivateEventManagement() {
       {/* Tab content */}
       {tab === "details" && <EventDetailsTab event={event} onUpdate={loadEvent} />}
       {tab === "client" && <ClientDetailsTab event={event} onUpdate={loadEvent} />}
+      {tab === "quote" && (
+        <QuoteTab event={event} quotes={quotes} onUpdate={() => { loadQuotes(); loadEvent(); }} venueSlug={venueSlug} />
+      )}
       {tab === "attachments" && <AttachmentsTab eventId={event.id} attachments={attachments} onUpdate={loadAttachments} />}
       {tab === "billing" && (
         <BillingTab
@@ -1065,6 +1116,632 @@ function BillingTab({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  TAB 5: QUOTE BUILDER
+// ═════════════════════════════════════════════════════════════════════
+
+const QUOTE_CATEGORIES = [
+  "Room Rental", "A/V Production", "Food & Beverage", "Staffing",
+  "Setup & Teardown", "Décor & Linens", "Entertainment", "Additional Fees", "Custom",
+];
+
+const QUOTE_TEMPLATES: Record<string, Omit<QuoteLineItem, "amount">[]> = {
+  wedding: [
+    { category: "Room Rental",    description: "Main Hall — Full Day",            quantity: 1, unit_price: 2500 },
+    { category: "A/V Production", description: "Sound System & Lighting Package", quantity: 1, unit_price: 800  },
+    { category: "Staffing",       description: "Event Coordinator",               quantity: 1, unit_price: 500  },
+    { category: "Staffing",       description: "Bartender",                       quantity: 2, unit_price: 250  },
+    { category: "Décor & Linens", description: "House Linens Package",            quantity: 1, unit_price: 300  },
+    { category: "Additional Fees",description: "Cake Cutting Fee",                quantity: 1, unit_price: 150  },
+  ],
+  corporate: [
+    { category: "Room Rental",    description: "Main Hall",                       quantity: 1, unit_price: 1500 },
+    { category: "A/V Production", description: "Sound & Projection Package",      quantity: 1, unit_price: 600  },
+    { category: "Food & Beverage",description: "F&B Minimum",                     quantity: 1, unit_price: 1000 },
+    { category: "Staffing",       description: "Event Coordinator",               quantity: 1, unit_price: 350  },
+  ],
+  birthday: [
+    { category: "Room Rental",    description: "Main Hall",                       quantity: 1, unit_price: 1200 },
+    { category: "Food & Beverage",description: "Bar Package",                     quantity: 1, unit_price: 800  },
+    { category: "Staffing",       description: "Bartender",                       quantity: 1, unit_price: 250  },
+    { category: "Entertainment",  description: "DJ Fee",                          quantity: 1, unit_price: 500  },
+  ],
+};
+
+function emptyLineItem(): QuoteLineItem {
+  return { category: "Room Rental", description: "", quantity: 1, unit_price: 0, amount: 0 };
+}
+
+function emptyQuoteForm(event: EventData): {
+  line_items: QuoteLineItem[];
+  notes: string; terms: string; valid_days: number;
+  deposit_pct: number; deposit_due: string; balance_due_date: string;
+  cancellation_policy: string; event_type_label: string; tax_exempt: boolean;
+} {
+  return {
+    line_items: [emptyLineItem()],
+    notes: "", terms: "",
+    valid_days: 14,
+    deposit_pct: 25,
+    deposit_due: "On Acceptance",
+    balance_due_date: "30 Days Before Event",
+    cancellation_policy: "Cancellations made more than 30 days before the event date will receive a refund of the deposit less a 10% administrative fee. Cancellations within 30 days of the event are non-refundable.",
+    event_type_label: "",
+    tax_exempt: event.tax_exempt || false,
+  };
+}
+
+function QuoteTab({ event, quotes, onUpdate, venueSlug }: {
+  event: EventData;
+  quotes: Quote[];
+  onUpdate: () => void;
+  venueSlug: string;
+}) {
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [form, setForm] = useState(() => emptyQuoteForm(event));
+  const [saving, setSaving] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [decliningId, setDecliningId] = useState<string | null>(null);
+
+  const TAX_RATE = form.tax_exempt ? 0 : 0.095;
+  const subtotal = form.line_items.reduce((s, i) => s + i.amount, 0);
+  const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const total = subtotal + taxAmount;
+  const depositAmount = Math.round(total * (form.deposit_pct / 100) * 100) / 100;
+
+  const updateLineItem = (idx: number, field: keyof QuoteLineItem, val: string | number) => {
+    setForm((prev) => {
+      const items = prev.line_items.map((item, i) => {
+        if (i !== idx) return item;
+        const updated = { ...item, [field]: val };
+        // Recalculate amount when qty or unit_price changes
+        if (field === "quantity" || field === "unit_price") {
+          updated.amount = Math.round(Number(updated.quantity) * Number(updated.unit_price) * 100) / 100;
+        }
+        return updated;
+      });
+      return { ...prev, line_items: items };
+    });
+  };
+
+  const applyTemplate = (key: string) => {
+    const tpl = QUOTE_TEMPLATES[key];
+    if (!tpl) return;
+    setForm((prev) => ({
+      ...prev,
+      line_items: tpl.map((t) => ({ ...t, amount: Math.round(t.quantity * t.unit_price * 100) / 100 })),
+    }));
+  };
+
+  const openNew = () => {
+    setEditingQuote(null);
+    setForm(emptyQuoteForm(event));
+    setShowBuilder(true);
+  };
+
+  const openEdit = (q: Quote) => {
+    setEditingQuote(q);
+    setForm({
+      line_items: q.line_items || [emptyLineItem()],
+      notes: q.notes || "",
+      terms: q.terms || "",
+      valid_days: q.valid_until
+        ? Math.max(1, Math.ceil((new Date(q.valid_until).getTime() - Date.now()) / 86400000))
+        : 14,
+      deposit_pct: q.deposit_pct || 25,
+      deposit_due: q.deposit_due || "On Acceptance",
+      balance_due_date: q.balance_due_date || "30 Days Before Event",
+      cancellation_policy: q.cancellation_policy || "",
+      event_type_label: q.event_type_label || "",
+      tax_exempt: event.tax_exempt || false,
+    });
+    setShowBuilder(true);
+  };
+
+  const saveQuote = async (): Promise<Quote | null> => {
+    setSaving(true);
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + form.valid_days);
+
+    const payload = {
+      line_items: form.line_items.filter((i) => i.description && i.amount >= 0),
+      subtotal,
+      tax_rate: TAX_RATE,
+      tax_amount: taxAmount,
+      total,
+      deposit_pct: form.deposit_pct,
+      deposit_amount: depositAmount,
+      deposit_due: form.deposit_due,
+      balance_due_date: form.balance_due_date,
+      cancellation_policy: form.cancellation_policy,
+      notes: form.notes,
+      terms: form.terms,
+      valid_until: validUntil.toISOString().split("T")[0],
+      event_type_label: form.event_type_label,
+      client_name: event.client_name || event.contact_name || "",
+      client_email: event.client_email || event.contact_email || "",
+      client_phone: event.client_phone || event.contact_phone || "",
+      client_company: event.client_company || "",
+      status: editingQuote?.status === "accepted" ? "accepted" : "draft",
+    };
+
+    try {
+      let res: Response;
+      if (editingQuote) {
+        res = await fetch(`/api/private-events/${event.id}/proposals/${editingQuote.id}`, {
+          method: "PUT", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`/api/private-events/${event.id}/proposals`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!res.ok) { alert("Failed to save quote"); setSaving(false); return null; }
+      const saved = await res.json();
+      onUpdate();
+      return saved;
+    } catch { alert("Error saving quote"); setSaving(false); return null; }
+    finally { setSaving(false); }
+  };
+
+  const handleSaveDraft = async () => {
+    const saved = await saveQuote();
+    if (saved) { setShowBuilder(false); setEditingQuote(null); }
+  };
+
+  const handleDownloadPDF = async (q?: Quote) => {
+    let quote = q ?? editingQuote;
+    // If called from builder, save first
+    if (!q) {
+      const saved = await saveQuote();
+      if (!saved) return;
+      quote = saved;
+    }
+    if (!quote) return;
+    setDownloadingId(quote.id);
+    try {
+      const { exportProposalPDF } = await import("@/lib/pdf/proposal-pdf");
+      const validDate = quote.valid_until
+        ? new Date(quote.valid_until + "T12:00:00").toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+        : "—";
+      await exportProposalPDF({
+        proposal_number: `${quote.proposal_number}${(quote.version || 1) > 1 ? `-v${quote.version}` : ""}`,
+        date: new Date(quote.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+        valid_until: validDate,
+        event_name: event.title,
+        event_date: safeDate(event.date),
+        event_venue: event.venue,
+        client_name: quote.client_name || event.client_name || event.contact_name || "Client",
+        client_email: quote.client_email || event.client_email || event.contact_email,
+        client_phone: quote.client_phone || event.client_phone || event.contact_phone,
+        client_company: quote.client_company || event.client_company,
+        event_type_label: quote.event_type_label || undefined,
+        line_items: (quote.line_items || []).map((i) => ({
+          description: i.description,
+          category: i.category,
+          amount: i.amount,
+        })),
+        subtotal: quote.subtotal,
+        tax_rate: quote.tax_rate,
+        tax_amount: quote.tax_amount,
+        total: quote.total,
+        deposit_pct: quote.deposit_pct || undefined,
+        deposit_amount: quote.deposit_amount || undefined,
+        deposit_due: quote.deposit_due || undefined,
+        balance_due_date: quote.balance_due_date || undefined,
+        cancellation_policy: quote.cancellation_policy || undefined,
+        notes: quote.notes || undefined,
+        terms: quote.terms || undefined,
+        venue_name: event.venue,
+        venue_slug: venueSlug,
+      });
+      if (!q) { setShowBuilder(false); setEditingQuote(null); onUpdate(); }
+    } finally { setDownloadingId(null); }
+  };
+
+  const handleAccept = async (q: Quote) => {
+    if (!confirm(`Mark "${q.proposal_number}" as accepted and confirm this event booking?`)) return;
+    setAcceptingId(q.id);
+    try {
+      const res = await fetch(`/api/private-events/${event.id}/proposals/${q.id}/accept`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accepted_by: "Admin" }),
+      });
+      if (res.ok) { onUpdate(); }
+      else alert("Failed to accept quote");
+    } finally { setAcceptingId(null); }
+  };
+
+  const handleDecline = async (q: Quote) => {
+    if (!confirm(`Mark "${q.proposal_number}" as declined?`)) return;
+    setDecliningId(q.id);
+    try {
+      const res = await fetch(`/api/private-events/${event.id}/proposals/${q.id}/decline`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) { onUpdate(); }
+      else alert("Failed to decline quote");
+    } finally { setDecliningId(null); }
+  };
+
+  const handleDelete = async (q: Quote) => {
+    if (!confirm(`Delete quote ${q.proposal_number}? This cannot be undone.`)) return;
+    await fetch(`/api/private-events/${event.id}/proposals/${q.id}`, { method: "DELETE" });
+    onUpdate();
+  };
+
+  // ── LIST VIEW ─────────────────────────────────────────────────────
+  if (!showBuilder) {
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <h3 style={{ color: "#fff", margin: 0, fontSize: 16 }}>Quotes & Estimates</h3>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "4px 0 0" }}>
+              Build a quote, download the PDF, and send it manually. Mark accepted when the client confirms.
+            </p>
+          </div>
+          <button onClick={openNew} style={btnPrimary}>+ New Quote</button>
+        </div>
+
+        {quotes.length === 0 ? (
+          <div style={{ ...cardStyle, textAlign: "center", padding: "48px 24px" }}>
+            <p style={{ color: "rgba(255,255,255,0.3)", margin: "0 0 16px", fontSize: 15 }}>No quotes yet</p>
+            <button onClick={openNew} style={btnPrimary}>Build First Quote</button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {quotes.map((q) => (
+              <div key={q.id} style={{ ...cardStyle, marginBottom: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ color: GOLD, fontWeight: 700, fontSize: 15 }}>{q.proposal_number}</span>
+                      {(q.version || 1) > 1 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>v{q.version}</span>}
+                      {statusBadge(q.status || "draft")}
+                    </div>
+                    <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
+                      Created {safeDate(q.created_at)}
+                      {q.valid_until && ` · Valid until ${safeDate(q.valid_until)}`}
+                      {q.accepted_at && ` · Accepted ${safeDate(q.accepted_at)}${q.accepted_by ? ` by ${q.accepted_by}` : ""}`}
+                    </div>
+                    {q.event_type_label && (
+                      <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 2 }}>{q.event_type_label}</div>
+                    )}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ color: "#fff", fontWeight: 700, fontSize: 18 }}>{fmt(q.total)}</div>
+                    {(q.deposit_pct > 0) && (
+                      <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                        Deposit: {fmt(q.deposit_amount)} ({q.deposit_pct}%)
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => handleDownloadPDF(q)}
+                    disabled={downloadingId === q.id}
+                    style={{ ...btnPrimary, fontSize: 12, padding: "8px 16px" }}
+                  >
+                    {downloadingId === q.id ? "Generating..." : "⬇ Download PDF"}
+                  </button>
+                  {q.status !== "accepted" && (
+                    <>
+                      <button onClick={() => openEdit(q)} style={{ ...btnSecondary, fontSize: 12, padding: "8px 16px" }}>
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleAccept(q)}
+                        disabled={acceptingId === q.id}
+                        style={{
+                          fontSize: 12, padding: "8px 16px", borderRadius: 8, fontWeight: 600, cursor: "pointer",
+                          background: "rgba(34,197,94,0.12)", color: "#22c55e",
+                          border: "1px solid rgba(34,197,94,0.3)",
+                        }}
+                      >
+                        {acceptingId === q.id ? "Confirming..." : "✓ Mark Accepted"}
+                      </button>
+                      {q.status !== "declined" && (
+                        <button
+                          onClick={() => handleDecline(q)}
+                          disabled={decliningId === q.id}
+                          style={{ ...btnDanger, fontSize: 12, padding: "8px 14px" }}
+                        >
+                          {decliningId === q.id ? "..." : "Mark Declined"}
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {q.status === "accepted" && (
+                    <span style={{ fontSize: 12, color: "#22c55e", padding: "8px 0" }}>
+                      ✓ Event confirmed from this quote
+                    </span>
+                  )}
+                  <button onClick={() => handleDelete(q)} style={{ ...btnDanger, fontSize: 11, padding: "6px 10px", marginLeft: "auto" }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── BUILDER VIEW ──────────────────────────────────────────────────
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <div>
+          <button
+            onClick={() => { setShowBuilder(false); setEditingQuote(null); }}
+            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 13, padding: 0, marginBottom: 6 }}
+          >
+            ← Back to Quotes
+          </button>
+          <h3 style={{ color: GOLD, margin: 0, fontSize: 18 }}>
+            {editingQuote ? `Edit ${editingQuote.proposal_number}` : "New Quote"}
+          </h3>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: "4px 0 0" }}>
+            {event.title} · {safeDate(event.date)}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={handleSaveDraft} disabled={saving} style={{ ...btnSecondary, fontSize: 13 }}>
+            {saving ? "Saving..." : "Save Draft"}
+          </button>
+          <button
+            onClick={() => handleDownloadPDF()}
+            disabled={saving || !!downloadingId}
+            style={{ ...btnPrimary, fontSize: 13 }}
+          >
+            {downloadingId ? "Generating PDF..." : saving ? "Saving..." : "Save & Download PDF"}
+          </button>
+        </div>
+      </div>
+
+      {/* Template selector */}
+      <div style={{ ...cardStyle, marginBottom: 20 }}>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+          Start from template (optional)
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {[
+            { key: "wedding", label: "Wedding Reception" },
+            { key: "corporate", label: "Corporate Event" },
+            { key: "birthday", label: "Birthday / Social" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => applyTemplate(t.key)}
+              style={{
+                padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                background: "rgba(208,194,144,0.08)", color: GOLD,
+                border: "1px solid rgba(208,194,144,0.2)",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+          <button
+            onClick={() => setForm((p) => ({ ...p, line_items: [emptyLineItem()] }))}
+            style={{
+              padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+              background: "transparent", color: "rgba(255,255,255,0.4)",
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            Start Blank
+          </button>
+        </div>
+      </div>
+
+      {/* Event type label */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>Event Type (for PDF)</label>
+        <input
+          style={inputStyle}
+          value={form.event_type_label}
+          onChange={(e) => setForm((p) => ({ ...p, event_type_label: e.target.value }))}
+          placeholder="e.g. Wedding Reception, Corporate Dinner, Birthday Party"
+        />
+      </div>
+
+      {/* Line items */}
+      <div style={{ ...cardStyle }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h4 style={{ color: "#fff", margin: 0, fontSize: 15 }}>Line Items</h4>
+          <button
+            onClick={() => setForm((p) => ({ ...p, line_items: [...p.line_items, emptyLineItem()] }))}
+            style={{ ...btnSecondary, fontSize: 12, padding: "6px 14px" }}
+          >
+            + Add Item
+          </button>
+        </div>
+
+        {/* Header row */}
+        <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 60px 90px 90px 32px", gap: 8, marginBottom: 8, padding: "0 0 8px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          {["Category", "Description", "Qty", "Unit Price", "Total", ""].map((h) => (
+            <span key={h} style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>{h}</span>
+          ))}
+        </div>
+
+        {form.line_items.map((item, idx) => (
+          <div key={idx} style={{ display: "grid", gridTemplateColumns: "160px 1fr 60px 90px 90px 32px", gap: 8, marginBottom: 8, alignItems: "center" }}>
+            <select
+              value={item.category}
+              onChange={(e) => updateLineItem(idx, "category", e.target.value)}
+              style={{ ...inputStyle, padding: "7px 10px", fontSize: 12 }}
+            >
+              {QUOTE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input
+              style={{ ...inputStyle, fontSize: 13 }}
+              value={item.description}
+              onChange={(e) => updateLineItem(idx, "description", e.target.value)}
+              placeholder="Description"
+            />
+            <input
+              type="number" min="1"
+              style={{ ...inputStyle, fontSize: 13, textAlign: "right" }}
+              value={item.quantity}
+              onChange={(e) => updateLineItem(idx, "quantity", parseFloat(e.target.value) || 1)}
+            />
+            <input
+              type="number" min="0" step="0.01"
+              style={{ ...inputStyle, fontSize: 13, textAlign: "right" }}
+              value={item.unit_price}
+              onChange={(e) => updateLineItem(idx, "unit_price", parseFloat(e.target.value) || 0)}
+            />
+            <div style={{ color: "#fff", fontSize: 13, fontWeight: 600, textAlign: "right", paddingRight: 4 }}>
+              {fmt(item.amount)}
+            </div>
+            <button
+              onClick={() => setForm((p) => ({ ...p, line_items: p.line_items.filter((_, i) => i !== idx) }))}
+              style={{ background: "none", border: "none", color: "rgba(255,80,80,0.6)", cursor: "pointer", fontSize: 16, padding: 0 }}
+              title="Remove"
+            >×</button>
+          </div>
+        ))}
+
+        {/* Totals */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 12, paddingTop: 12, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <div style={{ display: "flex", gap: 40 }}>
+            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>Subtotal</span>
+            <span style={{ color: "#fff", fontSize: 13, fontWeight: 600, minWidth: 80, textAlign: "right" }}>{fmt(subtotal)}</span>
+          </div>
+          {!form.tax_exempt && (
+            <div style={{ display: "flex", gap: 40 }}>
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 13 }}>Tax (9.5%)</span>
+              <span style={{ color: "#fff", fontSize: 13, fontWeight: 600, minWidth: 80, textAlign: "right" }}>{fmt(taxAmount)}</span>
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 40 }}>
+            <span style={{ color: GOLD, fontSize: 16, fontWeight: 700 }}>Total</span>
+            <span style={{ color: GOLD, fontSize: 16, fontWeight: 700, minWidth: 80, textAlign: "right" }}>{fmt(total)}</span>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+            <input type="checkbox" checked={form.tax_exempt} onChange={(e) => setForm((p) => ({ ...p, tax_exempt: e.target.checked }))} />
+            Tax Exempt
+          </label>
+        </div>
+      </div>
+
+      {/* Payment Terms */}
+      <div style={{ ...cardStyle }}>
+        <h4 style={{ color: "#fff", margin: "0 0 16px", fontSize: 15 }}>Payment Terms</h4>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+          <div>
+            <label style={labelStyle}>Deposit %</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="number" min="0" max="100"
+                style={{ ...inputStyle, flex: 1 }}
+                value={form.deposit_pct}
+                onChange={(e) => setForm((p) => ({ ...p, deposit_pct: parseFloat(e.target.value) || 0 }))}
+              />
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, whiteSpace: "nowrap" }}>
+                = {fmt(depositAmount)}
+              </span>
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Deposit Due</label>
+            <select style={inputStyle} value={form.deposit_due} onChange={(e) => setForm((p) => ({ ...p, deposit_due: e.target.value }))}>
+              <option>On Acceptance</option>
+              <option>Within 7 Days</option>
+              <option>Within 14 Days</option>
+              <option>Within 30 Days</option>
+              <option>Custom</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Balance Due</label>
+            <select style={inputStyle} value={form.balance_due_date} onChange={(e) => setForm((p) => ({ ...p, balance_due_date: e.target.value }))}>
+              <option>30 Days Before Event</option>
+              <option>14 Days Before Event</option>
+              <option>7 Days Before Event</option>
+              <option>Day of Show</option>
+              <option>Custom</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Quote Valid For (days)</label>
+            <input
+              type="number" min="1"
+              style={inputStyle}
+              value={form.valid_days}
+              onChange={(e) => setForm((p) => ({ ...p, valid_days: parseInt(e.target.value) || 14 }))}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Cancellation Policy</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+            value={form.cancellation_policy}
+            onChange={(e) => setForm((p) => ({ ...p, cancellation_policy: e.target.value }))}
+            placeholder="Describe your cancellation and refund terms..."
+          />
+        </div>
+      </div>
+
+      {/* Notes & Terms */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
+        <div style={cardStyle}>
+          <label style={{ ...labelStyle, marginBottom: 8, display: "block" }}>Internal Notes (not on PDF)</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+            value={form.notes}
+            onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+            placeholder="Notes for your team only..."
+          />
+        </div>
+        <div style={cardStyle}>
+          <label style={{ ...labelStyle, marginBottom: 8, display: "block" }}>Terms & Conditions (on PDF)</label>
+          <textarea
+            style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+            value={form.terms}
+            onChange={(e) => setForm((p) => ({ ...p, terms: e.target.value }))}
+            placeholder="Additional terms for the client..."
+          />
+        </div>
+      </div>
+
+      {/* Bottom actions */}
+      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <button
+          onClick={() => { setShowBuilder(false); setEditingQuote(null); }}
+          style={{ ...btnSecondary, fontSize: 13, color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.15)" }}
+        >
+          Cancel
+        </button>
+        <button onClick={handleSaveDraft} disabled={saving} style={{ ...btnSecondary, fontSize: 13 }}>
+          {saving ? "Saving..." : "Save Draft"}
+        </button>
+        <button
+          onClick={() => handleDownloadPDF()}
+          disabled={saving || !!downloadingId}
+          style={{ ...btnPrimary, fontSize: 13 }}
+        >
+          {downloadingId ? "Generating PDF..." : "Save & Download PDF"}
+        </button>
+      </div>
     </div>
   );
 }
