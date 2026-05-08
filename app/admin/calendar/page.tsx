@@ -16,6 +16,7 @@ type CalendarEvent = {
   status: string;
   event_type: string | null;
   booking_status: string | null;
+  hold_level: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   contact_email: string | null;
@@ -33,6 +34,7 @@ type EventForm = {
   venue: string;
   event_type: string;
   booking_status: string;
+  hold_level: string;
   contact_name: string;
   contact_phone: string;
   contact_email: string;
@@ -43,6 +45,13 @@ type EventForm = {
   calendar_color: string;
   status: string;
   description: string;
+};
+
+type HoldForm = {
+  title: string;
+  date: string;
+  event_type: string;
+  hold_level: string;
 };
 
 // Booking status colors (primary color coding for calendar)
@@ -64,6 +73,12 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
   ticketed: "rgba(208,194,144,0.85)",    // legacy support
   non_ticketed: "rgba(100,149,237,0.85)",
   private: "rgba(180,100,200,0.85)",
+};
+
+const HOLD_LEVEL_COLORS: Record<string, string> = {
+  H1: "rgba(255,90,70,1)",
+  H2: "rgba(255,160,40,1)",
+  H3: "rgba(255,200,50,1)",
 };
 
 const EVENT_TYPE_BG: Record<string, string> = {
@@ -117,6 +132,7 @@ function emptyForm(dateStr?: string): EventForm {
     venue: "",
     event_type: "non_ticketed",
     booking_status: "confirmed",
+    hold_level: "",
     contact_name: "",
     contact_phone: "",
     contact_email: "",
@@ -127,6 +143,15 @@ function emptyForm(dateStr?: string): EventForm {
     calendar_color: "",
     status: "published",
     description: "",
+  };
+}
+
+function emptyHoldForm(dateStr?: string): HoldForm {
+  return {
+    title: "",
+    date: dateStr || new Date().toISOString().split("T")[0],
+    event_type: "private",
+    hold_level: "H1",
   };
 }
 
@@ -144,6 +169,11 @@ export default function CalendarPage() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+
+  // Quick Hold modal state
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [holdForm, setHoldForm] = useState<HoldForm>(emptyHoldForm());
+  const [holdSaving, setHoldSaving] = useState(false);
 
   // Venue info
   const [venueId, setVenueId] = useState<string | null>(null);
@@ -284,6 +314,7 @@ export default function CalendarPage() {
       venue: event.venue || "",
       event_type: event.event_type || "hard_ticket",
       booking_status: event.booking_status || "confirmed",
+      hold_level: event.hold_level || "",
       contact_name: event.contact_name || "",
       contact_phone: event.contact_phone || "",
       contact_email: event.contact_email || "",
@@ -314,6 +345,7 @@ export default function CalendarPage() {
       venue: form.venue || venueName,
       event_type: form.event_type,
       booking_status: form.booking_status,
+      hold_level: form.booking_status === "hold" ? (form.hold_level || null) : null,
       contact_name: form.contact_name || null,
       contact_phone: form.contact_phone || null,
       contact_email: form.contact_email || null,
@@ -377,6 +409,46 @@ export default function CalendarPage() {
     }
   };
 
+  // Open quick hold modal
+  const openQuickHold = (dateStr?: string) => {
+    setHoldForm(emptyHoldForm(dateStr));
+    setShowHoldModal(true);
+  };
+
+  // Save quick hold
+  const handleSaveHold = async () => {
+    if (!holdForm.title.trim() || !holdForm.date) return;
+    setHoldSaving(true);
+
+    const payload = {
+      title: holdForm.title.trim(),
+      date: `${holdForm.date}T12:00:00`,
+      end_time: null,
+      venue: venueName || "",
+      event_type: holdForm.event_type,
+      booking_status: "hold",
+      hold_level: holdForm.hold_level || null,
+      notes: null,
+      calendar_color: null,
+      status: "published",
+      venue_id: venueId,
+    };
+
+    try {
+      await fetch("/api/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setShowHoldModal(false);
+      fetchEvents();
+    } catch (err) {
+      console.error("Hold save failed:", err);
+    } finally {
+      setHoldSaving(false);
+    }
+  };
+
   /** Get the display color for an event based on booking_status (primary) */
   const getEventColor = (ev: CalendarEvent) => {
     if (ev.calendar_color) return ev.calendar_color;
@@ -407,7 +479,7 @@ export default function CalendarPage() {
       )}
 
       {/* Legend — Booking Status */}
-      <div style={{ display: "flex", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap", alignItems: "center" }}>
         {[
           { label: "Confirmed", status: "confirmed" },
           { label: "Hold", status: "hold" },
@@ -418,7 +490,23 @@ export default function CalendarPage() {
             {l.label}
           </div>
         ))}
-        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px", alignSelf: "stretch" }} />
+        {[
+          { label: "H1", level: "H1" },
+          { label: "H2", level: "H2" },
+          { label: "H3", level: "H3" },
+        ].map((l) => (
+          <div key={l.level} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 11, color: "rgba(255,255,255,0.4)" }}>
+            <span style={{
+              fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 700,
+              background: `${HOLD_LEVEL_COLORS[l.level].replace(",1)", ",0.15)")}`,
+              color: HOLD_LEVEL_COLORS[l.level],
+              border: `1px solid ${HOLD_LEVEL_COLORS[l.level].replace(",1)", ",0.3)")}`,
+            }}>{l.label}</span>
+            {l.level === "H1" ? "Highest" : l.level === "H2" ? "Medium" : "Lowest"}
+          </div>
+        ))}
+        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px", alignSelf: "stretch" }} />
         {[
           { label: "Hard Ticket", type: "hard_ticket" },
           { label: "Non-Ticketed", type: "non_ticketed" },
@@ -451,11 +539,26 @@ export default function CalendarPage() {
           </>
         )}
         <button
+          onClick={() => openQuickHold()}
+          style={{
+            padding: isMobile ? "8px 14px" : "10px 20px",
+            fontSize: isMobile ? 11 : 13,
+            background: "rgba(255,200,50,0.1)",
+            border: "1px solid rgba(255,200,50,0.3)",
+            borderRadius: 8,
+            color: "rgba(255,200,50,0.9)",
+            cursor: "pointer",
+            fontWeight: 600,
+          }}
+        >
+          + Quick Hold
+        </button>
+        <button
           onClick={() => openNewEvent()}
           className="admin-form-submit"
           style={{ padding: isMobile ? "8px 14px" : "10px 20px", fontSize: isMobile ? 11 : 13 }}
         >
-          + Add
+          + Add Event
         </button>
       </div>
 
@@ -535,6 +638,17 @@ export default function CalendarPage() {
                       }}>
                         {ev.booking_status || "—"}
                       </span>
+                      {/* Hold level badge */}
+                      {ev.hold_level && (
+                        <span style={{
+                          fontSize: 10, padding: "1px 6px", borderRadius: 3, fontWeight: 800,
+                          background: HOLD_LEVEL_COLORS[ev.hold_level]?.replace(",1)", ",0.15)"),
+                          color: HOLD_LEVEL_COLORS[ev.hold_level],
+                          border: `1px solid ${HOLD_LEVEL_COLORS[ev.hold_level]?.replace(",1)", ",0.3)")}`,
+                        }}>
+                          {ev.hold_level}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -618,6 +732,8 @@ export default function CalendarPage() {
                   const bg = getEventBg(ev);
                   const type = ev.event_type || "hard_ticket";
                   const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
+                  const isHold = ev.booking_status === "hold";
+                  const holdLevel = ev.hold_level;
                   return (
                     <div
                       key={ev.id}
@@ -625,7 +741,7 @@ export default function CalendarPage() {
                         e.stopPropagation();
                         openEditEvent(ev);
                       }}
-                      title={`${ev.title} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
+                      title={`${ev.title}${holdLevel ? ` [${holdLevel}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
                       style={{
                         fontSize: 10,
                         padding: "2px 6px",
@@ -633,7 +749,7 @@ export default function CalendarPage() {
                         borderRadius: 4,
                         background: bg,
                         color,
-                        borderLeft: `3px solid ${color}`,
+                        borderLeft: `3px ${isHold ? "dashed" : "solid"} ${color}`,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
@@ -644,10 +760,19 @@ export default function CalendarPage() {
                         gap: 4,
                       }}
                     >
-                      <span style={{
-                        width: 5, height: 5, borderRadius: "50%",
-                        background: typeColor, flexShrink: 0,
-                      }} />
+                      {holdLevel ? (
+                        <span style={{
+                          fontSize: 8, padding: "0px 3px", borderRadius: 2, fontWeight: 800,
+                          background: HOLD_LEVEL_COLORS[holdLevel]?.replace(",1)", ",0.2)"),
+                          color: HOLD_LEVEL_COLORS[holdLevel],
+                          flexShrink: 0, lineHeight: "14px",
+                        }}>{holdLevel}</span>
+                      ) : (
+                        <span style={{
+                          width: 5, height: 5, borderRadius: "50%",
+                          background: typeColor, flexShrink: 0,
+                        }} />
+                      )}
                       {ev.title}
                     </div>
                   );
@@ -665,6 +790,153 @@ export default function CalendarPage() {
 
       {loading && (
         <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 16 }}>Loading events...</p>
+      )}
+
+      {/* ── Quick Hold Modal ── */}
+      {showHoldModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={() => setShowHoldModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f1128",
+              borderRadius: 16,
+              border: "1px solid rgba(255,200,50,0.2)",
+              padding: 28,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
+            <h2 style={{ color: "rgba(255,200,50,0.9)", fontSize: 18, margin: "0 0 6px", fontWeight: 700 }}>
+              Quick Hold
+            </h2>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: "0 0 20px" }}>
+              Blocks the date without a full event. You can promote it later.
+            </p>
+
+            {/* Hold Priority */}
+            <label style={labelStyle}>Hold Priority</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {["H1", "H2", "H3"].map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setHoldForm({ ...holdForm, hold_level: level })}
+                  style={{
+                    flex: 1,
+                    padding: "10px 8px",
+                    borderRadius: 8,
+                    border: `1px solid ${holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.1)"}`,
+                    background: holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level].replace(",1)", ",0.15)") : "transparent",
+                    color: holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.4)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {level}
+                  <div style={{ fontSize: 9, fontWeight: 400, marginTop: 2, opacity: 0.7 }}>
+                    {level === "H1" ? "Highest" : level === "H2" ? "Medium" : "Lowest"}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Hold Name */}
+            <label style={labelStyle}>Hold Name *</label>
+            <input
+              className="admin-form-input"
+              value={holdForm.title}
+              onChange={(e) => setHoldForm({ ...holdForm, title: e.target.value })}
+              placeholder="e.g. Smith Wedding, Band Inquiry, Corporate Event"
+              style={{ width: "100%", marginBottom: 14 }}
+              autoFocus
+            />
+
+            {/* Event Type */}
+            <label style={labelStyle}>Type</label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              {[
+                { value: "private", label: "Rental / Private" },
+                { value: "hard_ticket", label: "Hard Ticket" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setHoldForm({ ...holdForm, event_type: opt.value })}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: `1px solid ${holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.1)"}`,
+                    background: holdForm.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(208,194,144,0.15)") : "transparent",
+                    color: holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.4)",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Date */}
+            <label style={labelStyle}>Date *</label>
+            <input
+              type="date"
+              className="admin-form-input"
+              value={holdForm.date}
+              onChange={(e) => setHoldForm({ ...holdForm, date: e.target.value })}
+              style={{ width: "100%", marginBottom: 20 }}
+            />
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={handleSaveHold}
+                disabled={holdSaving || !holdForm.title.trim() || !holdForm.date}
+                style={{
+                  flex: 1,
+                  padding: "12px 20px",
+                  background: "rgba(255,200,50,0.15)",
+                  border: "1px solid rgba(255,200,50,0.4)",
+                  borderRadius: 8,
+                  color: "rgba(255,200,50,0.95)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: holdSaving || !holdForm.title.trim() || !holdForm.date ? "not-allowed" : "pointer",
+                  opacity: holdSaving || !holdForm.title.trim() || !holdForm.date ? 0.5 : 1,
+                }}
+              >
+                {holdSaving ? "Saving..." : "Save Hold"}
+              </button>
+              <button
+                onClick={() => setShowHoldModal(false)}
+                style={{
+                  padding: "12px 20px",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "rgba(255,255,255,0.5)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Event Modal ── */}
@@ -765,6 +1037,36 @@ export default function CalendarPage() {
                 </button>
               ))}
             </div>
+
+            {/* Hold Level — shown only when booking_status is "hold" */}
+            {form.booking_status === "hold" && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Hold Priority</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["H1", "H2", "H3"].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setForm({ ...form, hold_level: form.hold_level === level ? "" : level })}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        border: `1px solid ${form.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.1)"}`,
+                        background: form.hold_level === level ? HOLD_LEVEL_COLORS[level].replace(",1)", ",0.15)") : "transparent",
+                        color: form.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.4)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {level} {level === "H1" ? "— Highest" : level === "H2" ? "— Medium" : "— Lowest"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Date & Times */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   endDate.setDate(endDate.getDate() + 7); // 7 days after month end
 
   // Full column set including new private event / booking_status fields
-  const fullColumns = "id, title, venue, date, end_time, price, status, event_type, booking_status, contact_name, contact_phone, contact_email, notes, calendar_color, image_url, venue_id";
+  const fullColumns = "id, title, venue, date, end_time, price, status, event_type, booking_status, hold_level, contact_name, contact_phone, contact_email, notes, calendar_color, image_url, venue_id";
   const fallbackColumns = "id, title, venue, date, end_time, price, status, event_type, notes, calendar_color, image_url, venue_id";
   const basicColumns = "id, title, venue, date, price, status, image_url, venue_id";
 
@@ -117,6 +117,7 @@ export async function POST(req: NextRequest) {
     notes: body.notes || null,
     event_type: eventType,
     booking_status: body.booking_status || "confirmed",
+    hold_level: body.hold_level || null,
     contact_name: body.contact_name || null,
     contact_phone: body.contact_phone || null,
     contact_email: body.contact_email || null,
@@ -166,6 +167,7 @@ export async function PUT(req: NextRequest) {
   if (body.notes !== undefined) updates.notes = body.notes;
   if (body.event_type !== undefined) updates.event_type = body.event_type;
   if (body.booking_status !== undefined) updates.booking_status = body.booking_status;
+  if (body.hold_level !== undefined) updates.hold_level = body.hold_level;
   if (body.contact_name !== undefined) updates.contact_name = body.contact_name;
   if (body.contact_phone !== undefined) updates.contact_phone = body.contact_phone;
   if (body.contact_email !== undefined) updates.contact_email = body.contact_email;
