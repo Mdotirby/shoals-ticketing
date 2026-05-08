@@ -243,7 +243,7 @@ export default function AdminCreateEventPage() {
     e.preventDefault();
     setError("");
 
-    const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+    const isHardTicket = ["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type);
 
     // Validate tiers only for hard ticket events
     if (isHardTicket) {
@@ -398,9 +398,16 @@ export default function AdminCreateEventPage() {
         }).catch(() => {}); // non-blocking
       }
 
-      // Redirect private events to management hub, others to events list
+      // Routing after event creation based on type
       if (form.event_type === "private") {
+        // Private events → management hub (billing, client details, attachments)
         router.push(`/admin/private-events/${event.id}`);
+      } else if (form.event_type === "co_promote") {
+        // Co-promote → offer creation pre-linked to this event (VS deal)
+        router.push(`/admin/offers/new?event_id=${event.id}&event_date=${form.date}&deal_type=VS`);
+      } else if (form.event_type === "rental_box_office") {
+        // Rental / Box Office → offer creation pre-linked (FLAT fee deal)
+        router.push(`/admin/offers/new?event_id=${event.id}&event_date=${form.date}&deal_type=FLAT`);
       } else {
         router.push("/admin/events");
       }
@@ -411,7 +418,7 @@ export default function AdminCreateEventPage() {
     }
   };
 
-  const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+  const isHardTicket = ["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type);
   const isPrivate = form.event_type === "private";
 
   return (
@@ -424,33 +431,43 @@ export default function AdminCreateEventPage() {
         {/* Event Type Selector */}
         <div className="admin-form-label admin-form-full">
           Event Type
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
             {[
-              { value: "hard_ticket", label: "Hard Ticket" },
-              { value: "non_ticketed", label: "Non-Ticketed" },
-              { value: "private", label: "Private Event" },
+              { value: "hard_ticket",        label: "Hard Ticket",        color: "#d0c290",           bg: "rgba(208,194,144,0.1)" },
+              { value: "non_ticketed",        label: "Non-Ticketed",       color: "rgba(100,149,237,0.9)", bg: "rgba(100,149,237,0.1)" },
+              { value: "private",             label: "Private Event",      color: "rgba(180,100,200,0.9)", bg: "rgba(180,100,200,0.1)" },
+              { value: "co_promote",          label: "Co-Promote",         color: "rgba(255,140,0,0.9)",   bg: "rgba(255,140,0,0.1)" },
+              { value: "rental_box_office",   label: "Rental / Box Office", color: "rgba(80,200,220,0.9)", bg: "rgba(80,200,220,0.1)" },
             ].map((opt) => (
               <button
                 key={opt.value}
                 type="button"
                 onClick={() => setForm({ ...form, event_type: opt.value })}
                 style={{
-                  flex: 1,
+                  flex: "1 1 auto",
                   padding: "10px 14px",
                   borderRadius: 8,
-                  border: `1px solid ${form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.1)"}`,
-                  background: form.event_type === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
-                  color: form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
+                  border: `1px solid ${form.event_type === opt.value ? opt.color : "rgba(255,255,255,0.1)"}`,
+                  background: form.event_type === opt.value ? opt.bg : "transparent",
+                  color: form.event_type === opt.value ? opt.color : "rgba(255,255,255,0.5)",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
                   transition: "all 0.15s",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {opt.label}
               </button>
             ))}
           </div>
+          {(form.event_type === "co_promote" || form.event_type === "rental_box_office") && (
+            <p style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+              {form.event_type === "co_promote"
+                ? "After creating this event you'll be taken to the offer builder to set deal terms (split %, guarantee, expenses)."
+                : "After creating this event you'll be taken to the offer builder to set the flat rental fee and deal terms."}
+            </p>
+          )}
         </div>
 
         {/* Host / Organization Selector */}

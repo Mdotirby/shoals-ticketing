@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 const ALLOWED_COLUMNS = new Set<string>([
   // Identity / linkage
   "artist_name", "venue", "venue_address", "venue_contact", "venue_phone",
-  "event_date", "venue_id", "event_venue_id",
+  "event_date", "venue_id", "event_venue_id", "event_id",
   // Agency
   "agency", "agent_name", "agent_phone", "agent_email",
   // Show details

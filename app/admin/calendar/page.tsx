@@ -70,9 +70,11 @@ const BOOKING_STATUS_BG: Record<string, string> = {
 // Event type indicator (secondary - shown as small badge)
 const EVENT_TYPE_COLORS: Record<string, string> = {
   hard_ticket: "rgba(208,194,144,0.85)",
-  ticketed: "rgba(208,194,144,0.85)",    // legacy support
+  ticketed: "rgba(208,194,144,0.85)",       // legacy support
   non_ticketed: "rgba(100,149,237,0.85)",
   private: "rgba(180,100,200,0.85)",
+  co_promote: "rgba(255,140,0,0.85)",
+  rental_box_office: "rgba(80,200,220,0.85)",
 };
 
 const HOLD_LEVEL_COLORS: Record<string, string> = {
@@ -86,6 +88,8 @@ const EVENT_TYPE_BG: Record<string, string> = {
   ticketed: "rgba(208,194,144,0.15)",
   non_ticketed: "rgba(100,149,237,0.15)",
   private: "rgba(180,100,200,0.15)",
+  co_promote: "rgba(255,140,0,0.15)",
+  rental_box_office: "rgba(80,200,220,0.15)",
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -511,6 +515,8 @@ export default function CalendarPage() {
           { label: "Hard Ticket", type: "hard_ticket" },
           { label: "Non-Ticketed", type: "non_ticketed" },
           { label: "Private", type: "private" },
+          { label: "Co-Promote", type: "co_promote" },
+          { label: "Rental / Box Office", type: "rental_box_office" },
         ].map((l) => (
           <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.35)" }}>
             <div style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8, borderRadius: "50%", background: EVENT_TYPE_COLORS[l.type] }} />

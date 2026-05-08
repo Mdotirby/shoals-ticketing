@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import { formatPhoneNumber } from "@/lib/formatPhone";
@@ -45,11 +45,15 @@ function emptyLineup(): ShowLineupItem {
 
 export default function AdminCreateOfferPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [isOwnerRole, setIsOwnerRole] = useState(false);
+
+  // Linked event — populated when arriving from event creation flow
+  const [linkedEventId, setLinkedEventId] = useState<string | null>(null);
 
   // Resolved venue_id — from cookie or admin_users table
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
@@ -91,6 +95,17 @@ export default function AdminCreateOfferPage() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [promoterAddress, setPromoterAddress] = useState("");
   const [venueAddress, setVenueAddress] = useState("");
+
+  // Prefill from URL params when arriving from event creation flow
+  // e.g. /admin/offers/new?event_id=xxx&event_date=2026-06-15&deal_type=VS
+  useEffect(() => {
+    const eventId = searchParams.get("event_id");
+    const eventDate = searchParams.get("event_date");
+    const dealType = searchParams.get("deal_type");
+    if (eventId) setLinkedEventId(eventId);
+    if (eventDate) setEventDate(eventDate);
+    if (dealType) setDealType(dealType);
+  }, [searchParams]);
 
   // Fetch agents + buyer info once resolvedVenueId is available
   useEffect(() => {
@@ -391,6 +406,7 @@ export default function AdminCreateOfferPage() {
           venue_phone: venuePhone || null,
           venue_id: resolvedVenueId || null,
           event_venue_id: selectedEventVenueId || null,
+          event_id: linkedEventId || null,
           event_date: eventDate || null,
           agency, agent_name: agentName, agent_phone: agentPhone, agent_email: agentEmail,
           day_of_event: dayOfEvent, num_shows: parseInt(numShows) || 1,
@@ -424,7 +440,14 @@ export default function AdminCreateOfferPage() {
         throw new Error(data.error || "Failed to create offer");
       }
 
-      router.push("/admin/offers");
+      const created = await res.json().catch(() => null);
+      // If we came from an event creation flow, go directly to the offer detail
+      // so the user can finish filling out deal terms
+      if (created?.id) {
+        router.push(`/admin/offers/${created.id}`);
+      } else {
+        router.push("/admin/offers");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {

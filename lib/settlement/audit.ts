@@ -372,12 +372,22 @@ export async function findOfferForEvent(
 
   if (!event) return null;
 
+  // Primary match: direct event_id FK — most reliable, no ambiguity
+  const { data: byEventId } = await admin
+    .from("artist_offers")
+    .select("*")
+    .eq("event_id", eventId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (byEventId) return { id: byEventId.id, data: byEventId };
+
   const eventDateStr =
     typeof event.date === "string"
       ? event.date.slice(0, 10) // 'YYYY-MM-DD' for comparison with offers.event_date
       : null;
 
-  // Try strict match: venue_id + event_date
+  // Fallback: venue_id + event_date (pre-FK legacy matching)
   if (eventDateStr && event.venue_id) {
     const { data: byDate } = await admin
       .from("artist_offers")

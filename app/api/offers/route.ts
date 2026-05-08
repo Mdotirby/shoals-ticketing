@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       event_date: body.event_date || null,
       venue_id: body.venue_id || null,
       event_venue_id: body.event_venue_id || null,
+      event_id: body.event_id || null,
       // Agency
       agency: body.agency || null,
       agent_name: body.agent_name || null,
