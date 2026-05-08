@@ -179,6 +179,10 @@ export default function CalendarPage() {
   const [holdForm, setHoldForm] = useState<HoldForm>(emptyHoldForm());
   const [holdSaving, setHoldSaving] = useState(false);
 
+  // UI toggle state
+  const [showLegend, setShowLegend] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   // Venue info
   const [venueId, setVenueId] = useState<string | null>(null);
   const [venueName, setVenueName] = useState("");
@@ -478,51 +482,81 @@ export default function CalendarPage() {
       <h1 className="admin-page-title" style={isMobile ? { fontSize: 20, marginBottom: 4 } : undefined}>Calendar</h1>
       {!isMobile && (
         <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
-          {venueName ? `${venueName} — ` : ""}Manage your venue events, holds, and private bookings.
+          {venueName ? `${venueName} — ` : ""}Manage your shows, holds, and private bookings.
         </p>
       )}
 
-      {/* Legend — Booking Status */}
-      <div style={{ display: "flex", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap", alignItems: "center" }}>
-        {[
-          { label: "Confirmed", status: "confirmed" },
-          { label: "Hold", status: "hold" },
-          { label: "Cancelled", status: "cancelled" },
-        ].map((l) => (
-          <div key={l.status} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.5)" }}>
-            <div style={{ width: isMobile ? 8 : 12, height: isMobile ? 8 : 12, borderRadius: 3, background: BOOKING_STATUS_COLORS[l.status] }} />
-            {l.label}
+      {/* Legend — collapsible */}
+      <div style={{ marginBottom: isMobile ? 10 : 16, position: "relative" }}>
+        <button
+          onClick={() => setShowLegend((v) => !v)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 11, color: "rgba(255,255,255,0.4)", background: "none",
+            border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6,
+            padding: "4px 10px", cursor: "pointer",
+            transition: "color 0.15s, border-color 0.15s",
+          }}
+        >
+          <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
+            {["confirmed","hold","cancelled"].map((s) => (
+              <span key={s} style={{ width: 7, height: 7, borderRadius: 2, background: BOOKING_STATUS_COLORS[s], display: "inline-block" }} />
+            ))}
+          </span>
+          Legend
+          <span style={{ opacity: 0.5, fontSize: 9, transform: showLegend ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▾</span>
+        </button>
+
+        {showLegend && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100,
+            background: "#0f1128", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 10, padding: "14px 16px",
+            display: "flex", flexDirection: "column", gap: 12,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            minWidth: 260,
+          }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Status</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                {[{ label: "Confirmed", status: "confirmed" },{ label: "Hold", status: "hold" },{ label: "Cancelled", status: "cancelled" }].map((l) => (
+                  <div key={l.status} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 3, background: BOOKING_STATUS_COLORS[l.status] }} />
+                    {l.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Hold Priority</div>
+              <div style={{ display: "flex", gap: 12 }}>
+                {[{ label: "H1 — Highest", level: "H1" },{ label: "H2 — Medium", level: "H2" },{ label: "H3 — Lowest", level: "H3" }].map((l) => (
+                  <div key={l.level} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 700, background: HOLD_LEVEL_COLORS[l.level]?.replace(",1)",",0.15)"), color: HOLD_LEVEL_COLORS[l.level], border: `1px solid ${HOLD_LEVEL_COLORS[l.level]?.replace(",1)",",0.3)")}` }}>{l.level}</span>
+                    {l.label.replace(`${l.level} — `, "")}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Show Type</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+                {[
+                  { label: "Hard Ticket", type: "hard_ticket" },
+                  { label: "Internal", type: "non_ticketed" },
+                  { label: "Private Rental", type: "private" },
+                  { label: "Co-Promote", type: "co_promote" },
+                  { label: "Rental / Box Office", type: "rental_box_office" },
+                ].map((l) => (
+                  <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: EVENT_TYPE_COLORS[l.type] }} />
+                    {l.label}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        ))}
-        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px", alignSelf: "stretch" }} />
-        {[
-          { label: "H1", level: "H1" },
-          { label: "H2", level: "H2" },
-          { label: "H3", level: "H3" },
-        ].map((l) => (
-          <div key={l.level} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 11, color: "rgba(255,255,255,0.4)" }}>
-            <span style={{
-              fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 700,
-              background: `${HOLD_LEVEL_COLORS[l.level].replace(",1)", ",0.15)")}`,
-              color: HOLD_LEVEL_COLORS[l.level],
-              border: `1px solid ${HOLD_LEVEL_COLORS[l.level].replace(",1)", ",0.3)")}`,
-            }}>{l.label}</span>
-            {l.level === "H1" ? "Highest" : l.level === "H2" ? "Medium" : "Lowest"}
-          </div>
-        ))}
-        <div style={{ width: 1, background: "rgba(255,255,255,0.1)", margin: "0 4px", alignSelf: "stretch" }} />
-        {[
-          { label: "Hard Ticket", type: "hard_ticket" },
-          { label: "Non-Ticketed", type: "non_ticketed" },
-          { label: "Private", type: "private" },
-          { label: "Co-Promote", type: "co_promote" },
-          { label: "Rental / Box Office", type: "rental_box_office" },
-        ].map((l) => (
-          <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: isMobile ? 10 : 12, color: "rgba(255,255,255,0.35)" }}>
-            <div style={{ width: isMobile ? 6 : 8, height: isMobile ? 6 : 8, borderRadius: "50%", background: EVENT_TYPE_COLORS[l.type] }} />
-            {l.label}
-          </div>
-        ))}
+        )}
       </div>
 
       {/* Month Navigation */}
@@ -535,14 +569,9 @@ export default function CalendarPage() {
         <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: isMobile ? 10 : 12, padding: isMobile ? "4px 10px" : "6px 14px" }}>Today</button>
         {!isMobile && <div style={{ flex: 1 }} />}
         {!isMobile && (
-          <>
-            <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
-              Events List
-            </Link>
-            <Link href="/admin/events/new" style={{ padding: "8px 16px", fontSize: 12, color: "#d0c290", textDecoration: "none", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, background: "rgba(208,194,144,0.08)", display: "inline-flex", alignItems: "center" }}>
-              + Hard Ticket Event
-            </Link>
-          </>
+          <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
+            All Shows
+          </Link>
         )}
         <button
           onClick={() => openQuickHold()}
@@ -564,7 +593,7 @@ export default function CalendarPage() {
           className="admin-form-submit"
           style={{ padding: isMobile ? "8px 14px" : "10px 20px", fontSize: isMobile ? 11 : 13 }}
         >
-          + Add Event
+          + New Show
         </button>
       </div>
 
@@ -971,11 +1000,13 @@ export default function CalendarPage() {
             }}
           >
             <h2 style={{ color: "#d0c290", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
-              {editingEvent ? "Edit Event" : "New Calendar Event"}
+              {editingEvent
+                ? (editingEvent.booking_status === "hold" ? "Edit Hold" : "Edit Show")
+                : "New Show"}
             </h2>
 
             {/* Title */}
-            <label style={labelStyle}>Event Title *</label>
+            <label style={labelStyle}>Show Name *</label>
             <input
               className="admin-form-input"
               value={form.title}
@@ -984,8 +1015,8 @@ export default function CalendarPage() {
               style={{ width: "100%", marginBottom: 14 }}
             />
 
-            {/* Event Type */}
-            <label style={labelStyle}>Event Type</label>
+            {/* Show Type */}
+            <label style={labelStyle}>Show Type</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               {[
                 { value: "non_ticketed", label: "Non-Ticketed" },
@@ -1014,8 +1045,8 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            {/* Booking Status */}
-            <label style={labelStyle}>Booking Status</label>
+            {/* Status */}
+            <label style={labelStyle}>Status</label>
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               {[
                 { value: "confirmed", label: "Confirmed" },
@@ -1220,48 +1251,69 @@ export default function CalendarPage() {
               style={{ width: "100%", marginBottom: 14, resize: "vertical" }}
             />
 
-            {/* Color */}
-            <label style={labelStyle}>Custom Calendar Color (optional — overrides status color)</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-              {["", "#50c878", "#ffc832", "#ff6b6b", "#d0c290", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setForm({ ...form, calendar_color: c })}
-                  style={{
-                    width: 28, height: 28, borderRadius: "50%",
-                    background: c || "rgba(255,255,255,0.1)",
-                    border: form.calendar_color === c ? "2px solid #fff" : "2px solid transparent",
-                    cursor: "pointer",
-                    position: "relative",
-                  }}
-                >
-                  {c === "" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(255,255,255,0.4)" }}>×</span>}
-                </button>
-              ))}
-            </div>
-
-            {/* Status */}
-            <label style={labelStyle}>Visibility</label>
-            <select
-              className="admin-form-input"
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-              style={{ width: "100%", marginBottom: 20 }}
+            {/* Advanced — color override + visibility (collapsed by default) */}
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                fontSize: 11, color: "rgba(255,255,255,0.3)",
+                background: "none", border: "none", cursor: "pointer",
+                padding: "0 0 14px", marginTop: -4,
+              }}
             >
-              <option value="published">Published</option>
-              <option value="draft">Draft</option>
-            </select>
+              <span style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
+              Advanced
+            </button>
+
+            {showAdvanced && (
+              <>
+                <label style={labelStyle}>Custom Color (overrides status color)</label>
+                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+                  {["", "#50c878", "#ffc832", "#ff6b6b", "#d0c290", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm({ ...form, calendar_color: c })}
+                      style={{
+                        width: 28, height: 28, borderRadius: "50%",
+                        background: c || "rgba(255,255,255,0.1)",
+                        border: form.calendar_color === c ? "2px solid #fff" : "2px solid transparent",
+                        cursor: "pointer", position: "relative",
+                      }}
+                    >
+                      {c === "" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(255,255,255,0.4)" }}>×</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Visibility — only relevant for public ticketed shows */}
+                {["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type) && (
+                  <>
+                    <label style={labelStyle}>Visibility</label>
+                    <select
+                      className="admin-form-input"
+                      value={form.status}
+                      onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      style={{ width: "100%", marginBottom: 14 }}
+                    >
+                      <option value="published">Published</option>
+                      <option value="draft">Draft</option>
+                    </select>
+                  </>
+                )}
+              </>
+            )}
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "wrap" : "nowrap", marginTop: 6 }}>
               <button
                 onClick={handleSave}
                 disabled={saving || !form.title.trim()}
                 className="admin-form-submit"
                 style={{ flex: 1, padding: "12px 20px" }}
               >
-                {saving ? "Saving..." : editingEvent ? "Update Event" : "Create Event"}
+                {saving ? "Saving..." : editingEvent ? "Save Changes" : "Create Show"}
               </button>
               {editingEvent && (
                 <button
@@ -1277,7 +1329,7 @@ export default function CalendarPage() {
                     fontWeight: 600,
                   }}
                 >
-                  Delete
+                  {editingEvent.booking_status === "hold" ? "Delete Hold" : "Delete Show"}
                 </button>
               )}
               <button
@@ -1301,11 +1353,11 @@ export default function CalendarPage() {
               <p style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
                 {editingEvent.event_type === "private" ? (
                   <a href={`/admin/private-events/${editingEvent.id}`} style={{ color: "rgba(180,100,200,0.6)", textDecoration: "underline" }}>
-                    Open Private Event Management Hub →
+                    Manage Rental →
                   </a>
                 ) : (
                   <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
-                    Open full event editor →
+                    View Full Details →
                   </a>
                 )}
               </p>

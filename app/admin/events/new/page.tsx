@@ -423,14 +423,14 @@ export default function AdminCreateEventPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Create New Event</h1>
+      <h1 className="admin-page-title">Create New Show</h1>
 
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
-        {/* Event Type Selector */}
+        {/* Show Type Selector */}
         <div className="admin-form-label admin-form-full">
-          Event Type
+          Show Type
           <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
             {[
               { value: "hard_ticket",        label: "Hard Ticket",        color: "#d0c290",           bg: "rgba(208,194,144,0.1)" },
@@ -1104,7 +1104,7 @@ export default function AdminCreateEventPage() {
           className="admin-form-submit"
           disabled={loading || uploading}
         >
-          {loading ? "Creating..." : "Create Event"}
+          {loading ? "Creating..." : (form.event_type === "co_promote" || form.event_type === "rental_box_office") ? "Create Show & Build Offer" : "Create Show"}
         </button>
       </form>
 

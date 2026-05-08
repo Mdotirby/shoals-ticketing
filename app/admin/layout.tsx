@@ -22,28 +22,34 @@ type SidebarGroup = {
   roles: string[];
 };
 
+// Dashboard shown standalone above all groups
+const dashboardItem: SidebarItem = {
+  label: "Dashboard",
+  href: "/admin",
+  roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"],
+};
+
 const sidebarGroups: SidebarGroup[] = [
   {
     groupLabel: "Shows",
     icon: "shows",
     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
     items: [
-      { label: "Dashboard",    href: "/admin",              roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"] },
-      { label: "Calendar",     href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Events",       href: "/admin/events",       roles: ["owner","venue_admin","full_admin"] },
-      { label: "Seating",      href: "/admin/seating",      roles: ["owner","venue_admin"] },
+      { label: "Calendar",      href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
+      { label: "Shows",         href: "/admin/events",       roles: ["owner","venue_admin","full_admin"] },
+      { label: "Seating",       href: "/admin/seating",      roles: ["owner","venue_admin"] },
     ],
   },
   {
-    groupLabel: "Business",
+    groupLabel: "Finance",
     icon: "business",
     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
     items: [
-      { label: "Sales",        href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
-      { label: "Reports",      href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
-      { label: "Booking",      href: "/admin/offers",       roles: ["owner","venue_admin"] },
-      { label: "Settlements",  href: "/admin/settlements",  roles: ["owner","venue_admin"] },
-      { label: "Contracts",    href: "/admin/contracts",    roles: ["owner","venue_admin"] },
+      { label: "Ticket Sales",  href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
+      { label: "Offers",        href: "/admin/offers",       roles: ["owner","venue_admin"] },
+      { label: "Settlements",   href: "/admin/settlements",  roles: ["owner","venue_admin"] },
+      { label: "Contracts",     href: "/admin/contracts",    roles: ["owner","venue_admin"] },
+      { label: "Reports",       href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
     ],
   },
   {
@@ -51,22 +57,29 @@ const sidebarGroups: SidebarGroup[] = [
     icon: "dayofshow",
     roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"],
     items: [
-      { label: "Scanner",      href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
-      { label: "Guest Lists",  href: "/admin/guest-lists",  roles: ["owner","venue_admin","full_admin","artist"] },
-      { label: "Live Pulse",   href: "/admin/live",         roles: ["owner","venue_admin","full_admin"] },
+      { label: "Scanner",       href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
+      { label: "Guest Lists",   href: "/admin/guest-lists",  roles: ["owner","venue_admin","full_admin","artist"] },
+      { label: "Live Pulse",    href: "/admin/live",         roles: ["owner","venue_admin","full_admin"] },
     ],
   },
   {
-    groupLabel: "Growth",
+    groupLabel: "Marketing",
     icon: "growth",
     roles: ["owner","venue_admin","full_admin"],
     items: [
-      { label: "Marketing",    href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
-      { label: "Email Engine", href: "/admin/email",        roles: ["owner","super_admin","venue_admin","full_admin"] },
-      { label: "Market Radar", href: "/admin/market-radar", roles: ["owner","venue_admin"] },
-      { label: "Auctions",     href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Partners",     href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
-      { label: "Agents",       href: "/admin/agents",       roles: ["owner","venue_admin"] },
+      { label: "Campaigns",     href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
+      { label: "Email",         href: "/admin/email",        roles: ["owner","super_admin","venue_admin","full_admin"] },
+      { label: "Market Radar",  href: "/admin/market-radar", roles: ["owner","venue_admin"] },
+      { label: "Auctions",      href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
+      { label: "Sponsors",      href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
+    ],
+  },
+  {
+    groupLabel: "Contacts",
+    icon: "contacts",
+    roles: ["owner","venue_admin"],
+    items: [
+      { label: "Agents",        href: "/admin/agents",       roles: ["owner","venue_admin"] },
     ],
   },
   {
@@ -74,11 +87,11 @@ const sidebarGroups: SidebarGroup[] = [
     icon: "settings",
     roles: ["owner","venue_admin"],
     items: [
-      { label: "Site Branding",    href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
-      { label: "Venue Management", href: "/portal",                     roles: ["owner","venue_admin"] },
-      { label: "SOPs",             href: "/admin/sops",                 roles: ["owner","venue_admin"] },
-      { label: "Permissions",      href: "/admin/settings/permissions", roles: ["owner"] },
-      { label: "Onboarding",       href: "/admin/onboarding",           roles: ["owner"] },
+      { label: "Branding",      href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
+      { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
+      { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
+      { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
+      { label: "Onboarding",    href: "/admin/onboarding",           roles: ["owner"] },
     ],
   },
 ];
@@ -87,7 +100,8 @@ const sidebarGroups: SidebarGroup[] = [
 const partnerItem: SidebarItem = { label: "Partner Dashboard", href: "/admin/partner-dashboard", roles: ["partner"] };
 
 // Flatten for permission lookups
-const allSidebarItems = sidebarGroups.flatMap((g) => g.items).concat([partnerItem]);
+const allSidebarItems = sidebarGroups.flatMap((g) => g.items).concat([partnerItem, dashboardItem]);
+void allSidebarItems; // used by isItemVisible via closure
 
 /** Minimal frosted-glass SVG icons for sidebar groups */
 function SidebarIcon({ name }: { name: string }) {
@@ -101,6 +115,8 @@ function SidebarIcon({ name }: { name: string }) {
       return <svg {...s}><path d="M15 5v2M9 5v2" /><rect x="3" y="4" width="18" height="6" rx="2" /><path d="M3 10v8a2 2 0 002 2h14a2 2 0 002-2v-8" /><path d="M9 14h6" /></svg>;
     case "growth":
       return <svg {...s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>;
+    case "contacts":
+      return <svg {...s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>;
     case "settings":
       return <svg {...s}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>;
     default:
@@ -108,31 +124,33 @@ function SidebarIcon({ name }: { name: string }) {
   }
 }
 
-// Map sidebar labels to tab_key used in sidebar_permissions table
+// Map sidebar labels to tab_key used in sidebar_permissions table.
+// New label names map to the same underlying tab_key so DB permissions are unchanged.
 const TAB_KEY_MAP: Record<string, string> = {
   "Dashboard": "dashboard",
   "Calendar": "calendar",
-  "Events": "events",
-  "Booking": "booking",
+  "Shows": "events",           // was "Events"
+  "Seating": "seating",
+  "Ticket Sales": "sales",     // was "Sales"
+  "Offers": "booking",         // was "Booking"
   "Settlements": "settlements",
   "Contracts": "contracts",
-  "Partners": "partners",
-  "Auctions": "auctions",
   "Reports": "reports",
-  "Sales": "sales",
-  "Live Pulse": "live_pulse",
   "Scanner": "scanner",
   "Guest Lists": "guest_lists",
-  "Marketing": "marketing",
-  "Email Engine": "email_engine",
+  "Live Pulse": "live_pulse",
+  "Campaigns": "marketing",    // was "Marketing"
+  "Email": "email_engine",     // was "Email Engine"
+  "Market Radar": "market_radar",
+  "Auctions": "auctions",
+  "Sponsors": "partners",      // was "Partners"
   "Agents": "agents",
-  "Partner Dashboard": "partner_dashboard",
-  "Seating": "seating",
-  "SOPs": "sops",
-  "Venue Management": "venue_management",
-  "Site Branding": "site_branding",
-  "Onboarding": "onboarding",
+  "Branding": "site_branding", // was "Site Branding"
+  "Venue Portal": "venue_management", // was "Venue Management"
+  "Procedures": "sops",        // was "SOPs"
   "Permissions": "permissions",
+  "Onboarding": "onboarding",
+  "Partner Dashboard": "partner_dashboard",
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -287,7 +305,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // Artists get a hardcoded sidebar
-  const ARTIST_ALLOWED_LABELS = ["Dashboard", "Sales", "Guest Lists"];
+  const ARTIST_ALLOWED_LABELS = ["Dashboard", "Ticket Sales", "Guest Lists"];
 
   const isItemVisible = (item: SidebarItem): boolean => {
     if (userRole === "artist") return ARTIST_ALLOWED_LABELS.includes(item.label);
@@ -302,8 +320,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     .map((g) => ({ ...g, items: g.items.filter(isItemVisible) }))
     .filter((g) => g.items.length > 0);
 
-  // Flatten for mobile dropdown
-  const visibleItems = visibleGroups.flatMap((g) => g.items);
+  // Flatten for mobile dropdown — Dashboard first, then groups, then partner
+  const visibleItems: SidebarItem[] = [];
+  if (isItemVisible(dashboardItem)) visibleItems.push(dashboardItem);
+  visibleItems.push(...visibleGroups.flatMap((g) => g.items));
   if (userRole === "partner" && isItemVisible(partnerItem)) {
     visibleItems.push(partnerItem);
   }
@@ -433,6 +453,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <nav className="admin-sidebar-nav">
+          {/* Dashboard — standalone above all groups */}
+          {isItemVisible(dashboardItem) && (
+            <Link
+              href={dashboardItem.href}
+              className={`admin-sidebar-link ${pathname === dashboardItem.href ? "active" : ""}`}
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                fontSize: 13,
+                padding: "7px 14px",
+                marginBottom: 6,
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: "var(--vc-radius-sm)",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+              </svg>
+              Dashboard
+            </Link>
+          )}
           {visibleGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.groupLabel);
             const hasActivePage = group.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)));
