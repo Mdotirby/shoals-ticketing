@@ -7,6 +7,7 @@ export async function GET(request) {
   const venueId = searchParams.get("venue_id");
   const venueSlug = searchParams.get("venue_slug");
   const showAll = searchParams.get("all"); // for admin: show all statuses
+  const excludeHolds = searchParams.get("exclude_holds"); // for Shows page: omit hold-status events
   // include=past  → return ONLY past / closed-out events (for /events/past archive)
   // include=all   → return both upcoming + past (admin convenience)
   // (default)     → return ONLY upcoming, open events
@@ -36,6 +37,13 @@ export async function GET(request) {
     query = query.or("event_type.is.null,event_type.neq.private");
     // Exclude events on hold — only confirmed (or unset) booking_status should be public
     query = query.or("booking_status.eq.confirmed,booking_status.is.null");
+  }
+
+  // Exclude holds from the admin Shows list — holds belong on the calendar, not here.
+  // Use .or() with .is.null to safely handle legacy rows where booking_status is unset,
+  // since PostgreSQL's != operator does not match NULL rows.
+  if (excludeHolds) {
+    query = query.or("booking_status.neq.hold,booking_status.is.null");
   }
 
   // Admin event_type filter

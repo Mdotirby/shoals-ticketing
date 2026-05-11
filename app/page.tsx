@@ -7,6 +7,7 @@ import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import NewsletterSignup from "./components/NewsletterSignup";
 import { Event } from "@/lib/types/event";
+import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
 
@@ -36,6 +37,9 @@ export default function HomePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [homeSponsors, setHomeSponsors] = useState<Sponsor[]>([]);
+  const sponsorRef = useRef(null);
+  const sponsorInView = useInView(sponsorRef, { once: true, margin: "-60px" });
 
   // Use venue-specific hero images from public folder
   const HERO_IMAGE_1 = isVenueSubdomain ? `/hero-images/${venueSlug}/hero.jpg` : DEFAULT_HERO_1;
@@ -50,6 +54,13 @@ export default function HomePage() {
         e.venue.toLowerCase().includes(q)
     );
   }, [events, query]);
+
+  useEffect(() => {
+    fetch("/api/sponsors?homepage=1")
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setHomeSponsors(data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const params = isVenueSubdomain ? `?venue_slug=${venueSlug}` : "";
@@ -88,12 +99,71 @@ export default function HomePage() {
               See What&apos;s Coming <span className="cta-arrow">→</span>
             </Link>
 
-            {/* Partner logos — hidden until real sponsors are configured */}
+            {/* Partner logos strip removed from hero — rendered as its own section below */}
           </div>
         </section>
 
         {/* ── GOLD SEPARATOR ── */}
         <div className="home-gold-separator" />
+
+        {/* ── PROUD PARTNERS STRIP ── */}
+        {homeSponsors.length > 0 && (
+          <section ref={sponsorRef} style={{ padding: "32px 24px", textAlign: "center", borderBottom: "1px solid rgba(208,194,144,0.08)" }}>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={sponsorInView ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(208,194,144,0.5)", marginBottom: 20 }}
+            >
+              Proud Partners
+            </motion.p>
+            <motion.div
+              initial="hidden"
+              animate={sponsorInView ? "visible" : "hidden"}
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
+              style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: "16px 40px" }}
+            >
+              {homeSponsors.map(sponsor => (
+                <motion.a
+                  key={sponsor.id}
+                  href={sponsor.website_url ?? "#"}
+                  target={sponsor.website_url ? "_blank" : undefined}
+                  rel="noopener noreferrer"
+                  variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
+                  whileHover={{ scale: 1.06, opacity: 1 }}
+                  style={{ opacity: 0.6, transition: "opacity 0.2s", display: "inline-flex", alignItems: "center" }}
+                >
+                  {sponsor.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={sponsor.logo_url}
+                      alt={sponsor.name}
+                      style={{
+                        height: sponsor.tier === "title" ? 52 : sponsor.tier === "presenting" ? 40 : 30,
+                        maxWidth: 160,
+                        objectFit: "contain",
+                        filter: "grayscale(1) brightness(1.8)",
+                      }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.7)", letterSpacing: "0.05em" }}>
+                      {sponsor.name}
+                    </span>
+                  )}
+                </motion.a>
+              ))}
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={sponsorInView ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+            >
+              <Link href="/partners" style={{ display: "inline-block", marginTop: 16, fontSize: 11, color: "rgba(208,194,144,0.4)", textDecoration: "none", letterSpacing: "0.08em" }}>
+                View All Partners →
+              </Link>
+            </motion.div>
+          </section>
+        )}
 
         {/* ── UPCOMING SHOWS SECTION ── */}
         <section className="home-upcoming-section">

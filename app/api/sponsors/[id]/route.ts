@@ -42,6 +42,11 @@ export async function PUT(
       website_url: body.website_url || null,
       tier: body.tier,
       event_id: body.event_id || null,
+      bio: body.bio || null,
+      display_on_homepage: body.display_on_homepage ?? false,
+      is_active: body.is_active ?? true,
+      contact_name: body.contact_name || null,
+      contact_email: body.contact_email || null,
     })
     .eq("id", id)
     .select()

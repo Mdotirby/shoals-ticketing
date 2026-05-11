@@ -35,7 +35,7 @@ export default function AdminEventsPage() {
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
-    const params = new URLSearchParams({ all: "1" });
+    const params = new URLSearchParams({ all: "1", exclude_holds: "1" });
     if (venueId) params.set("venue_id", venueId);
     if (eventTypeFilter !== "all") params.set("event_type", eventTypeFilter);
 
