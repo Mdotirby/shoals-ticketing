@@ -745,6 +745,29 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // ── Track external ticket click-through ───────────────────────────────────
+  const handleExternalTicketClick = useCallback(() => {
+    trackFbEvent("InitiateCheckout", {
+      content_name: event.title,
+      content_ids: [event.id],
+      value: displayPrice,
+      currency: "USD",
+      num_items: 1,
+    });
+    // Record in event_views with external_ticket_click source so reports can separate
+    // click-throughs from page views
+    const sessionId = sessionStorage.getItem("vc_session") || "";
+    fetch(`/api/landing/${event.id}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: sessionId,
+        utm_source: "external_ticket_click",
+        referrer_url: window.location.href,
+      }),
+    }).catch(() => {});
+  }, [event.id, event.title, displayPrice]);
+
   // ── CTA click handler — opens inline checkout ──────────────────────────────
   const handleGetTickets = useCallback(() => {
     if (!ticketsOnSale) return;
@@ -846,6 +869,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               rel="noopener noreferrer"
               className="lp-cta-btn"
               style={{ textAlign: "center", textDecoration: "none" }}
+              onClick={handleExternalTicketClick}
             >
               {event.externalTicketLabel || "Get Tickets"} →
             </a>
@@ -1192,19 +1216,36 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
       )}
 
       {/* ── STICKY MOBILE CTA ────────────────────────────────────────── */}
-      {!isPast && ticketsOnSale && !checkoutOpen && (
+      {!isPast && (ticketsOnSale || event.externalTicketUrl) && !checkoutOpen && (
         <div className={`lp-sticky-bar ${isCtaVisible ? "lp-sticky-bar-visible" : ""}`}>
           <div className="lp-sticky-price">
-            {isFree ? "Free" : `$${(displayPrice * quantity).toFixed(2)}`}
-            {!isFree && (
+            {event.externalTicketUrl
+              ? (event.externalTicketLabel || "Get Tickets")
+              : isFree
+                ? "Free"
+                : `$${(displayPrice * quantity).toFixed(2)}`}
+            {!event.externalTicketUrl && !isFree && (
               <span className="lp-sticky-price-label">
                 {quantity > 1 ? "total" : "per ticket"} · ALL-IN
               </span>
             )}
           </div>
-          <button type="button" className="lp-sticky-cta" onClick={handleGetTickets}>
-            Get Tickets
-          </button>
+          {event.externalTicketUrl ? (
+            <a
+              href={event.externalTicketUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="lp-sticky-cta"
+              style={{ textDecoration: "none", textAlign: "center" }}
+              onClick={handleExternalTicketClick}
+            >
+              Get Tickets →
+            </a>
+          ) : (
+            <button type="button" className="lp-sticky-cta" onClick={handleGetTickets}>
+              Get Tickets
+            </button>
+          )}
         </div>
       )}
     </main>
