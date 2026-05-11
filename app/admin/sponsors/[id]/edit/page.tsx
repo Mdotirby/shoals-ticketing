@@ -229,6 +229,8 @@ export default function AdminEditSponsorPage() {
         tax_rate: 0,
         tax_amount: 0,
         total: pkg.price,
+        amount_paid: 0,
+        balance_due: pkg.price,
         payment_url: undefined,
         venue_name: venueName || "West 72 Entertainment",
         venue_slug: undefined,
