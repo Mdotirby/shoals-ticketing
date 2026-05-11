@@ -50,6 +50,7 @@ type EventForm = {
 type HoldForm = {
   title: string;
   date: string;
+  end_date: string;
   event_type: string;
   hold_level: string;
 };
@@ -154,6 +155,7 @@ function emptyHoldForm(dateStr?: string): HoldForm {
   return {
     title: "",
     date: dateStr || new Date().toISOString().split("T")[0],
+    end_date: "",
     event_type: "private",
     hold_level: "H1",
   };
@@ -268,14 +270,35 @@ export default function CalendarPage() {
     return days;
   }, [currentMonth]);
 
-  // Group events by date string — uses safe date parsing to avoid timezone bugs
+  // Group events by date — multi-day events are added to every day they span
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    events.forEach((e) => {
-      const key = dateKey(e.date);
+
+    const addToDay = (key: string, ev: CalendarEvent) => {
       if (!map[key]) map[key] = [];
-      map[key].push(e);
+      if (!map[key].find(x => x.id === ev.id)) map[key].push(ev);
+    };
+
+    events.forEach((e) => {
+      const startKey = dateKey(e.date);
+      const endKey = e.end_time ? dateKey(e.end_time) : null;
+
+      if (endKey && endKey !== startKey) {
+        // Multi-day: walk day by day from start to end
+        const cursor = safeDate(e.date);
+        cursor.setHours(12, 0, 0, 0);
+        const endD = safeDate(e.end_time!);
+        endD.setHours(12, 0, 0, 0);
+        while (cursor <= endD) {
+          const k = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+          addToDay(k, e);
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      } else {
+        addToDay(startKey, e);
+      }
     });
+
     return map;
   }, [events]);
 
@@ -431,7 +454,9 @@ export default function CalendarPage() {
     const payload = {
       title: holdForm.title.trim(),
       date: `${holdForm.date}T12:00:00`,
-      end_time: null,
+      end_time: holdForm.end_date && holdForm.end_date > holdForm.date
+        ? `${holdForm.end_date}T12:00:00`
+        : null,
       venue: venueName || "",
       event_type: holdForm.event_type,
       booking_status: "hold",
@@ -468,6 +493,17 @@ export default function CalendarPage() {
     if (ev.calendar_color) return ev.calendar_color.replace("0.85", "0.12").replace("0.9", "0.12");
     const bs = ev.booking_status || "confirmed";
     return BOOKING_STATUS_BG[bs] || BOOKING_STATUS_BG.confirmed;
+  };
+
+  // Determines where in a multi-day span a given day falls
+  const getSpanPosition = (ev: CalendarEvent, dayKey: string): "single" | "start" | "middle" | "end" => {
+    if (!ev.end_time) return "single";
+    const startKey = dateKey(ev.date);
+    const endKey = dateKey(ev.end_time);
+    if (startKey === endKey) return "single";
+    if (dayKey === startKey) return "start";
+    if (dayKey === endKey) return "end";
+    return "middle";
   };
 
   const today = new Date();
@@ -761,7 +797,7 @@ export default function CalendarPage() {
                   {day.date.getDate()}
                 </div>
 
-                {/* Desktop: show event labels with booking_status color + event type indicator */}
+                {/* Desktop: event pills with multi-day span support */}
                 {dayEvents.slice(0, 3).map((ev) => {
                   const color = getEventColor(ev);
                   const bg = getEventBg(ev);
@@ -769,46 +805,64 @@ export default function CalendarPage() {
                   const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
                   const isHold = ev.booking_status === "hold";
                   const holdLevel = ev.hold_level;
+                  const pos = getSpanPosition(ev, key);
+                  const isSpan = pos !== "single";
+
+                  // Cell has padding: "4px 6px" — negative margins cancel it to bleed to edge
+                  const spanStyle: React.CSSProperties = isSpan ? {
+                    borderRadius:
+                      pos === "start" ? "4px 0 0 4px" :
+                      pos === "end"   ? "0 4px 4px 0" : 0,
+                    marginLeft:  (pos === "middle" || pos === "end") ? -6 : 0,
+                    marginRight: (pos === "start" || pos === "middle") ? -6 : 0,
+                    borderLeft:  (pos === "start") ? `3px ${isHold ? "dashed" : "solid"} ${color}` : "none",
+                    paddingLeft: (pos === "middle" || pos === "end") ? 4 : 6,
+                  } : {
+                    borderRadius: 4,
+                    borderLeft: `3px ${isHold ? "dashed" : "solid"} ${color}`,
+                    paddingLeft: 6,
+                  };
+
                   return (
                     <div
                       key={ev.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditEvent(ev);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }}
                       title={`${ev.title}${holdLevel ? ` [${holdLevel}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
                       style={{
                         fontSize: 10,
-                        padding: "2px 6px",
+                        paddingTop: 2,
+                        paddingBottom: 2,
+                        paddingRight: 4,
                         marginBottom: 2,
-                        borderRadius: 4,
                         background: bg,
                         color,
-                        borderLeft: `3px ${isHold ? "dashed" : "solid"} ${color}`,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
-                        textOverflow: "ellipsis",
+                        textOverflow: pos === "start" || pos === "single" ? "ellipsis" : "clip",
                         cursor: "pointer",
                         fontWeight: 500,
                         display: "flex",
                         alignItems: "center",
                         gap: 4,
+                        ...spanStyle,
                       }}
                     >
-                      {holdLevel ? (
-                        <span style={{
-                          fontSize: 8, padding: "0px 3px", borderRadius: 2, fontWeight: 800,
-                          background: HOLD_LEVEL_COLORS[holdLevel]?.replace(",1)", ",0.2)"),
-                          color: HOLD_LEVEL_COLORS[holdLevel],
-                          flexShrink: 0, lineHeight: "14px",
-                        }}>{holdLevel}</span>
-                      ) : (
-                        <span style={{
-                          width: 5, height: 5, borderRadius: "50%",
-                          background: typeColor, flexShrink: 0,
-                        }} />
+                      {/* Show badge + title only on start or single-day events */}
+                      {(pos === "single" || pos === "start") && (
+                        <>
+                          {holdLevel ? (
+                            <span style={{
+                              fontSize: 8, padding: "0px 3px", borderRadius: 2, fontWeight: 800,
+                              background: HOLD_LEVEL_COLORS[holdLevel]?.replace(",1)", ",0.2)"),
+                              color: HOLD_LEVEL_COLORS[holdLevel],
+                              flexShrink: 0, lineHeight: "14px",
+                            }}>{holdLevel}</span>
+                          ) : (
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: typeColor, flexShrink: 0 }} />
+                          )}
+                          {ev.title}
+                        </>
                       )}
-                      {ev.title}
                     </div>
                   );
                 })}
@@ -925,15 +979,30 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            {/* Date */}
-            <label style={labelStyle}>Date *</label>
-            <input
-              type="date"
-              className="admin-form-input"
-              value={holdForm.date}
-              onChange={(e) => setHoldForm({ ...holdForm, date: e.target.value })}
-              style={{ width: "100%", marginBottom: 20 }}
-            />
+            {/* Dates */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div>
+                <label style={labelStyle}>Start Date *</label>
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  value={holdForm.date}
+                  onChange={(e) => setHoldForm({ ...holdForm, date: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>End Date <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
+                <input
+                  type="date"
+                  className="admin-form-input"
+                  value={holdForm.end_date}
+                  min={holdForm.date || undefined}
+                  onChange={(e) => setHoldForm({ ...holdForm, end_date: e.target.value })}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            </div>
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 10 }}>
