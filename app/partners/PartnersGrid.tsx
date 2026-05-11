@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import { motion, AnimatePresence, useInView, type Variants } from "framer-motion";
 import type { Sponsor } from "@/lib/types/sponsor";
 
 type Props = {
@@ -16,12 +16,12 @@ const TIER_CONFIG = {
   supporting: { label: "Supporting Partners",  logoH: 40, fontSize: 15, cols: "repeat(auto-fit, minmax(160px, 1fr))" },
 };
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 32 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
