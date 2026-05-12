@@ -831,7 +831,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
     line_items: [{ category: "Room Rental", description: "", quantity: 1, unit_price: 0, amount: 0 }] as QuoteLineItem[],
     notes: "", terms: "", valid_days: 14, deposit_pct: 25,
     deposit_due: "On Acceptance", balance_due_date: "30 Days Before Event",
-    cancellation_policy: "", tax_exempt: event.tax_exempt ?? false,
+    cancellation_policy: "", tax_exempt: false,
   });
   const [delivInput, setDelivInput] = useState("");
   const [deliverables, setDeliverables] = useState<string[]>([]);
