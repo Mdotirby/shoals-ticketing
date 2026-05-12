@@ -323,6 +323,11 @@ export default function CalendarPage() {
     setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   };
 
+  const navigateYear = (dir: 1 | -1) => {
+    const [y, m] = currentMonth.split("-").map(Number);
+    setCurrentMonth(`${y + dir}-${String(m).padStart(2, "0")}`);
+  };
+
   // Month label
   const monthLabel = useMemo(() => {
     const [y, m] = currentMonth.split("-").map(Number);
@@ -631,6 +636,62 @@ export default function CalendarPage() {
         </button>
       </div>
 
+      {/* Year / Month Quick-Select Strip */}
+      {(() => {
+        const year = parseInt(currentMonth.split("-")[0]);
+        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            marginBottom: isMobile ? 10 : 14,
+            overflowX: "auto", paddingBottom: 2,
+          }}>
+            {/* Year prev */}
+            <button
+              onClick={() => navigateYear(-1)}
+              style={{ ...navBtnStyle, padding: "3px 9px", fontSize: 13, flexShrink: 0, lineHeight: 1.2 }}
+            >‹</button>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)", flexShrink: 0, minWidth: 34, textAlign: "center" }}>
+              {year}
+            </span>
+            <button
+              onClick={() => navigateYear(1)}
+              style={{ ...navBtnStyle, padding: "3px 9px", fontSize: 13, flexShrink: 0, lineHeight: 1.2 }}
+            >›</button>
+
+            {/* Month pills */}
+            {MONTHS.map((m, i) => {
+              const monthNum = String(i + 1).padStart(2, "0");
+              const isActive = currentMonth === `${year}-${monthNum}`;
+              const isToday = (() => {
+                const now = new Date();
+                return now.getFullYear() === year && now.getMonth() === i;
+              })();
+              return (
+                <button
+                  key={m}
+                  onClick={() => setCurrentMonth(`${year}-${monthNum}`)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: isActive ? 700 : 500,
+                    border: `1px solid ${isActive ? "#d0c290" : isToday ? "rgba(208,194,144,0.25)" : "rgba(255,255,255,0.1)"}`,
+                    background: isActive ? "rgba(208,194,144,0.15)" : "transparent",
+                    color: isActive ? "#d0c290" : isToday ? "rgba(208,194,144,0.5)" : "rgba(255,255,255,0.35)",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Calendar: Mobile List View / Desktop Grid */}
       {isMobile ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 0, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
@@ -828,8 +889,7 @@ export default function CalendarPage() {
                       title={`${ev.title}${holdLevel ? ` [${holdLevel}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
                       style={{
                         fontSize: 10,
-                        paddingTop: 2,
-                        paddingBottom: 2,
+                        height: 18,
                         paddingRight: 4,
                         marginBottom: 2,
                         background: bg,
@@ -842,6 +902,7 @@ export default function CalendarPage() {
                         display: "flex",
                         alignItems: "center",
                         gap: 4,
+                        boxSizing: "border-box",
                         ...spanStyle,
                       }}
                     >
