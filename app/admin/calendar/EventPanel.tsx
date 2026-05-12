@@ -516,7 +516,7 @@ function OffersTab({ eventId, event, venueSlug, onUpdate }: { eventId: string; e
     const { exportOfferPDF } = await import("@/lib/pdf/offer-pdf").catch(() => ({ exportOfferPDF: null }));
     if (!exportOfferPDF) { window.open(`/admin/offers/${offer.id}`, "_blank"); return; }
     const full = await fetch(`/api/offers/${offer.id}`).then(r => r.json()).catch(() => null);
-    if (full) await exportOfferPDF(full);
+    if (full) await exportOfferPDF(full, null);
   };
 
   if (loading) return <p style={{ color: "rgba(255,255,255,0.4)" }}>Loading offers…</p>;
