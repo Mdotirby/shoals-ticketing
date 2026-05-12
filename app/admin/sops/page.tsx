@@ -72,24 +72,24 @@ const SOP_TEMPLATES: SOPTemplate[] = [
         ],
       },
       {
-        heading: "2. Offer Accepted — Create the Event",
+        heading: "2. Offer Accepted — Calendar to Live",
         steps: [
-          { title: "Create the Event", details: ["Once the offer is accepted, navigate to Admin → Events → + New Event", "Fill in event title, date, time, and venue", "Upload the event image (recommended: 1200x630px)", "Write the event description", "Link the event to the accepted offer (for settlement tracking)"] },
-          { title: "Configure Ticket Tiers", details: ["Add ticket tiers (e.g., General Admission, VIP, Meet & Greet)", "Set price, quantity available, and sort order for each tier", "Configure any promo codes or early bird pricing", "Set the on-sale date if tickets should go live later"] },
-          { title: "Generate the Contract", details: ["From the offer detail page, click 'Generate Contract'", "Review the auto-generated contract terms", "Send the contract for signature", "Track signature status"] },
+          { title: "Block the Date on the Calendar", details: ["Navigate to Admin → Calendar", "Click + New Show and set booking_status to Confirmed, event type to Hard Ticket or Co-Promote", "Fill in title, date/time, and any contact info", "The event pill appears immediately on the calendar in green (confirmed)"] },
+          { title: "Open the Event Panel", details: ["Click the event pill on the calendar to open the Event Panel (right-side drawer)", "The Details tab shows all editable event metadata inline", "Switch to the Offers tab — link or create the artist offer directly from the panel", "Switch to Contracts to generate and track the artist contract"] },
+          { title: "Configure Ticket Sales", details: ["From the Event Panel, open the Ticket Sales tab to see real-time sales data", "To set up ticket tiers, use the full event editor linked from the Details tab", "Add tiers (GA, VIP, Meet & Greet), prices, quantities, and on-sale dates", "Event goes live on the public site once status is set to Published"] },
         ],
       },
       {
         heading: "3. Pre-Show",
         steps: [
-          { title: "Marketing & Promotion", details: ["Event automatically appears on the public events page", "Use Admin → Marketing to create email campaigns", "Share the event link on social media", "Monitor ticket sales in Admin → Sales and Admin → Marketing Hub"] },
+          { title: "Marketing & Promotion", details: ["Event automatically appears on the public events page", "Use Admin → Marketing to create email campaigns", "Share the event link on social media", "Monitor ticket sales live in the Event Panel → Ticket Sales tab"] },
           { title: "Day-of Preparation", details: ["Prepare the guest list in Admin → Guest Lists", "Set up the box office scanner in Admin → Scanner", "Brief door staff on the scanning process", "Enable Live Pulse for real-time event monitoring"] },
         ],
       },
       {
         heading: "4. Post-Show",
         steps: [
-          { title: "Settlement", details: ["Navigate to Admin → Settlements", "Review ticket sales, expenses, and revenue", "Generate the settlement sheet PDF", "Send to the artist's agent for review and approval", "Process payment according to the deal terms"] },
+          { title: "Settlement", details: ["Click the event pill on the calendar to open the Event Panel", "Switch to the Settlement tab — all ticket revenue is auto-calculated", "Review expenses, artist guarantee, and backend split", "Generate the settlement PDF and send to the artist's agent", "Process payment according to deal terms"] },
         ],
       },
     ],
@@ -155,7 +155,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       {
         heading: "2. Proposal & Contract",
         steps: [
-          { title: "Create Private Event", details: ["Navigate to Admin → Events → + New Event", "Set event type to 'Private'", "Fill in client details and event specifications", "Set the rental fee, catering costs, and any add-on services"] },
+          { title: "Create Private Event", details: ["Navigate to Admin → Calendar", "Click '+ New Show', set event type to 'Private', and fill in client name, date, and notes", "Or use '+ Quick Hold' to block the date while you gather details — upgrade to a full event later", "The event is created immediately and appears as a purple pill on the calendar", "Click the event pill to open the Event Panel — use the Client, Quote, and Invoice tabs to manage the full lifecycle"] },
           { title: "Generate Contract", details: ["The system generates a rental contract with:", "- Venue rental fee and payment schedule", "- Deposit amount and due date", "- Cancellation policy and refund terms", "- Liability and insurance requirements", "- Setup/teardown time windows", "- Noise ordinance and occupancy limits", "- Catering and alcohol policies", "- Force majeure clause", "Send contract to client for review and signature"] },
         ],
       },
@@ -397,7 +397,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       {
         heading: "Assigning a Layout to an Event",
         steps: [
-          { title: "Link Layout to Event", details: ["Navigate to Admin → Shows → Events → Edit Event", "Scroll to the 'Reserved Seating' section", "Check 'Enable Reserved Seating' checkbox", "Select the layout from the dropdown", "Save the event", "Customers will now see the interactive seat map when purchasing tickets"] },
+          { title: "Link Layout to Event", details: ["Click the event pill on the Calendar to open the Event Panel", "From the Details tab, click 'View Full Details' to open the full event editor", "Scroll to the 'Reserved Seating' section", "Check 'Enable Reserved Seating' and select the layout from the dropdown", "Save the event", "Customers will now see the interactive seat map when purchasing tickets"] },
         ],
       },
       {

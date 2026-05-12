@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
-import Link from "next/link";
+import EventPanel from "./EventPanel";
 
 type CalendarEvent = {
   id: string;
@@ -170,7 +170,10 @@ export default function CalendarPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  // Modal state
+  // Event panel — opens when clicking an existing event pill
+  const [panelEvent, setPanelEvent] = useState<CalendarEvent | null>(null);
+
+  // Modal state — used only for creating NEW events
   const [showModal, setShowModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm());
@@ -604,11 +607,6 @@ export default function CalendarPage() {
         <button onClick={nextMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&rarr;</button>
         <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: isMobile ? 10 : 12, padding: isMobile ? "4px 10px" : "6px 14px" }}>Today</button>
         {!isMobile && <div style={{ flex: 1 }} />}
-        {!isMobile && (
-          <Link href="/admin/events" style={{ padding: "8px 16px", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, display: "inline-flex", alignItems: "center" }}>
-            All Shows
-          </Link>
-        )}
         <button
           onClick={() => openQuickHold()}
           style={{
@@ -661,7 +659,7 @@ export default function CalendarPage() {
               return (
                 <div
                   key={ev.id}
-                  onClick={() => openEditEvent(ev)}
+                  onClick={() => setPanelEvent(ev)}
                   style={{
                     display: "flex",
                     gap: 14,
@@ -826,7 +824,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={ev.id}
-                      onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }}
+                      onClick={(e) => { e.stopPropagation(); setPanelEvent(ev); }}
                       title={`${ev.title}${holdLevel ? ` [${holdLevel}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
                       style={{
                         fontSize: 10,
@@ -879,6 +877,15 @@ export default function CalendarPage() {
 
       {loading && (
         <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 16 }}>Loading events...</p>
+      )}
+
+      {/* ── Event Panel ── */}
+      {panelEvent && (
+        <EventPanel
+          event={panelEvent}
+          onClose={() => setPanelEvent(null)}
+          onUpdate={fetchEvents}
+        />
       )}
 
       {/* ── Quick Hold Modal ── */}
