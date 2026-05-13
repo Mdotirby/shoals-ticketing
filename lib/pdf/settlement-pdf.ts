@@ -5,7 +5,7 @@
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
 import {
-  addPdfHeader, drawFooter, ensureSpace,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, LIGHT_GRAY,
   type Doc,
@@ -15,6 +15,7 @@ import {
 type VenueInfo = {
   name: string;
   slug?: string;
+  logo_url?: string | null;
   address_street?: string | null;
   address_city?: string | null;
   address_state?: string | null;
@@ -472,6 +473,7 @@ export async function exportArtistSettlementPDF(
   const v: VenueInfo = {
     name: venue.name,
     slug: (venue as Venue).slug ?? undefined,
+    logo_url: (venue as Venue).logo_url ?? undefined,
     address_street: venue.address_street ?? undefined,
     address_city: venue.address_city ?? undefined,
     address_state: venue.address_state ?? undefined,
@@ -485,12 +487,15 @@ export async function exportArtistSettlementPDF(
       })
     : "TBD";
 
+  const vcIcon = await loadVenueCoreFavicon();
+
   // Header (compact, no buyer info on settlements)
   let y = await addPdfHeader(doc, {
     title: `Artist Settlement — ${eventTitle}`,
     venueName: v.name,
     venueAddress: venueAddress(v),
     venueSlug: v.slug,
+    logoUrl: v.logo_url,
     showBuyerInfo: false,
     compact: true,
   });
@@ -524,7 +529,7 @@ export async function exportArtistSettlementPDF(
 
   y = drawSignatures(doc, y);
 
-  drawFooter(doc, "Artist Settlement");
+  drawFooter(doc, "Artist Settlement", { vcIconDataUrl: vcIcon ?? undefined });
 
   const filename = `${sanitize(settlement.artist_name ?? "Artist")}-${sanitize(eventDateLabel)}-${sanitize(venue.name)}-Artist Settlement.pdf`;
   doc.save(filename);
@@ -545,6 +550,7 @@ export async function exportVenueSettlementPDF(
   const v: VenueInfo = {
     name: venue.name,
     slug: (venue as Venue).slug ?? undefined,
+    logo_url: (venue as Venue).logo_url ?? undefined,
     address_street: venue.address_street ?? undefined,
     address_city: venue.address_city ?? undefined,
     address_state: venue.address_state ?? undefined,
@@ -558,11 +564,14 @@ export async function exportVenueSettlementPDF(
       })
     : "TBD";
 
+  const vcIcon = await loadVenueCoreFavicon();
+
   let y = await addPdfHeader(doc, {
     title: `Venue Settlement — ${eventTitle}`,
     venueName: v.name,
     venueAddress: venueAddress(v),
     venueSlug: v.slug,
+    logoUrl: v.logo_url,
     showBuyerInfo: false,
     compact: true,
   });
@@ -641,7 +650,7 @@ export async function exportVenueSettlementPDF(
 
   y = drawSignatures(doc, y);
 
-  drawFooter(doc, "Venue Settlement");
+  drawFooter(doc, "Venue Settlement", { vcIconDataUrl: vcIcon ?? undefined });
 
   const filename = `${sanitize(eventTitle)}-${sanitize(eventDateLabel)}-Venue_Settlement.pdf`;
   doc.save(filename);

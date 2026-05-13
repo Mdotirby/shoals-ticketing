@@ -1,11 +1,10 @@
 /**
- * Proposal PDF Generator — uses shared header utility.
- * Professional proposal for private events. HAS buyer info (client contact).
+ * Proposal PDF Generator — compact layout matching offer-pdf gold standard.
+ * Compact header, dark section bars, tight two-column blocks, small fonts.
  */
 import {
-  addPdfHeader, drawFooter, ensureSpace, drawSectionHeader, drawLabelValue,
-  drawParagraph, fmt,
-  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
+  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, LIGHT_GRAY, MID_GRAY,
   type Doc,
 } from "./pdf-header";
 
@@ -50,189 +49,300 @@ export type ProposalData = {
   venue_slug?: string;
 };
 
+// ── Compact layout constants (match offer-pdf) ────────────────────────
+const S = 7;      // small label text
+const M = 7.5;    // value / body text
+const H = 8;      // section header text
+const RH = 3.8;   // row height
+const halfW = CONTENT_WIDTH / 2 - 4;
+const leftX = MARGIN + 2;
+const rightX = MARGIN + halfW + 8;
+const rValX = rightX + 28;
+
+function fmt(n: number): string {
+  return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Full-width dark section header bar */
+function secH(doc: Doc, title: string, y: number, width?: number): number {
+  const w = width ?? CONTENT_WIDTH;
+  y = ensureSpace(doc, 8, y);
+  doc.setFillColor(...DARK);
+  doc.rect(MARGIN, y, w, 5.5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(H);
+  doc.setTextColor(...GOLD);
+  doc.text(title.toUpperCase(), MARGIN + 2, y + 3.8);
+  doc.setTextColor(0, 0, 0);
+  return y + 8;
+}
+
+/** Compact label:value pair */
+function lv(
+  doc: Doc, label: string, val: string, y: number,
+  opts?: { x?: number; valX?: number; maxW?: number; color?: [number, number, number] }
+): number {
+  const x = opts?.x ?? leftX;
+  const valXPos = opts?.valX ?? (x + 28);
+  const maxW = opts?.maxW ?? 52;
+  const lines: string[] = doc.splitTextToSize(val || "—", maxW);
+  const neededH = Math.max(1, lines.length) * RH;
+  y = ensureSpace(doc, neededH, y);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(S);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`${label}:`, x, y);
+  doc.setFont("helvetica", opts?.color ? "bold" : "normal");
+  doc.setFontSize(M);
+  doc.setTextColor(...(opts?.color || [0, 0, 0]));
+  for (let i = 0; i < lines.length; i++) doc.text(lines[i], valXPos, y + i * RH);
+  doc.setTextColor(0, 0, 0);
+  return y + neededH;
+}
+
+/** Right-aligned money row */
+function moneyRow(doc: Doc, label: string, amount: string, y: number, opts?: { bold?: boolean; highlight?: boolean; indent?: number }): number {
+  y = ensureSpace(doc, RH + 1, y);
+  if (opts?.highlight) {
+    doc.setFillColor(...GOLD);
+    doc.rect(MARGIN, y - 2.5, CONTENT_WIDTH, RH + 1.5, "F");
+    doc.setTextColor(...DARK);
+  } else {
+    doc.setTextColor(0, 0, 0);
+  }
+  doc.setFont("helvetica", opts?.bold || opts?.highlight ? "bold" : "normal");
+  doc.setFontSize(M);
+  doc.text(label, leftX + (opts?.indent || 0), y);
+  doc.text(amount, MARGIN + CONTENT_WIDTH - 2, y, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+  return y + RH;
+}
+
 // ═════════════════════════════════════════════════════════════════════
 //  PROPOSAL PDF EXPORT
 // ═════════════════════════════════════════════════════════════════════
 export async function exportProposalPDF(data: ProposalData): Promise<void> {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
+  const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true }) as Doc;
 
-  // ── HEADER (HAS buyer info — client contact) ──
+  const vcIcon = await loadVenueCoreFavicon();
+
+  // ── COMPACT HEADER (matches offer PDF) ──
   let y = await addPdfHeader(doc, {
     title: "Event Proposal",
     venueName: data.venue_name,
     venueAddress: data.venue_address,
     venueSlug: data.venue_slug,
+    compact: true,
     showBuyerInfo: true,
     buyerInfo: {
-      contact: data.client_name,
       company: data.client_company,
-      phone: data.client_phone,
+      contact: data.client_name,
       email: data.client_email,
+      phone: data.client_phone,
     },
   });
 
-  // Proposal meta info
+  // Proposal meta line
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MID_GRAY);
-  doc.text(`Proposal #: ${data.proposal_number}  |  Date: ${data.date}  |  Valid Until: ${data.valid_until}`, MARGIN, y);
+  doc.setFontSize(S);
+  doc.setTextColor(100, 100, 100);
+  doc.text(
+    `Proposal #: ${data.proposal_number}  |  Date: ${data.date}  |  Valid Until: ${data.valid_until}`,
+    MARGIN + 2, y
+  );
   y += 6;
 
-  // ── CLIENT INFO ──
-  y = drawSectionHeader(doc, "Client Information", y);
-  y = drawLabelValue(doc, "Name", data.client_name, y);
-  if (data.client_company) y = drawLabelValue(doc, "Company", data.client_company, y);
-  if (data.client_email) y = drawLabelValue(doc, "Email", data.client_email, y);
-  if (data.client_phone) y = drawLabelValue(doc, "Phone", data.client_phone, y);
-  y += 4;
+  // ════════════════════════════════════════════════════════
+  //  CLIENT + EVENT — two columns
+  // ════════════════════════════════════════════════════════
+  y = secH(doc, "Client & Event Details", y);
+  const infoStartY = y;
 
-  // ── EVENT DETAILS ──
-  y = drawSectionHeader(doc, "Event Details", y);
-  y = drawLabelValue(doc, "Event", data.event_name, y);
-  if (data.event_type_label) y = drawLabelValue(doc, "Type", data.event_type_label, y);
-  y = drawLabelValue(doc, "Date", data.event_date, y);
-  y = drawLabelValue(doc, "Venue", data.event_venue, y);
-  y += 4;
+  // Left column: Client
+  let lY = infoStartY;
+  lY = lv(doc, "Client", data.client_name, lY);
+  if (data.client_company) lY = lv(doc, "Company", data.client_company, lY);
+  if (data.client_email)   lY = lv(doc, "Email",   data.client_email,   lY);
+  if (data.client_phone)   lY = lv(doc, "Phone",   data.client_phone,   lY);
 
-  // ── COST BREAKDOWN ──
-  y = drawSectionHeader(doc, "Cost Breakdown", y);
+  // Right column: Event
+  let rY = infoStartY;
+  rY = lv(doc, "Event",  data.event_name,              rY, { x: rightX, valX: rValX, maxW: 50 });
+  rY = lv(doc, "Date",   data.event_date,              rY, { x: rightX, valX: rValX, maxW: 50 });
+  rY = lv(doc, "Venue",  data.event_venue,             rY, { x: rightX, valX: rValX, maxW: 50 });
+  if (data.event_type_label)
+    rY = lv(doc, "Type", data.event_type_label,        rY, { x: rightX, valX: rValX, maxW: 50 });
+
+  y = Math.max(lY, rY) + 2;
+
+  // ════════════════════════════════════════════════════════
+  //  LINE ITEMS TABLE
+  // ════════════════════════════════════════════════════════
+  y = secH(doc, "Cost Breakdown", y);
 
   // Table header
-  y = ensureSpace(doc, 10, y);
+  y = ensureSpace(doc, 8, y);
   doc.setFillColor(...LIGHT_GRAY);
-  doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
+  doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  doc.text("#", MARGIN + 3, y + 5);
-  doc.text("DESCRIPTION", MARGIN + 12, y + 5);
-  doc.text("CATEGORY", MARGIN + 110, y + 5);
-  doc.text("AMOUNT", MARGIN + CONTENT_WIDTH - 3, y + 5, { align: "right" });
-  y += 9;
-
-  // Line items
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  for (let i = 0; i < data.line_items.length; i++) {
-    const item = data.line_items[i];
-    y = ensureSpace(doc, 8, y);
-
-    if (i % 2 === 0) {
-      doc.setFillColor(249, 249, 246);
-      doc.rect(MARGIN, y - 1, CONTENT_WIDTH, 7, "F");
-    }
-
-    doc.setTextColor(...DARK);
-    doc.text(`${i + 1}`, MARGIN + 3, y + 4);
-    // Truncate description to fit before category column
-    const descMaxW = 110 - 12 - 3;
-    const desc: string = doc.splitTextToSize(item.description || "—", descMaxW)[0] || item.description || "—";
-    doc.text(desc, MARGIN + 12, y + 4);
-    doc.setTextColor(102, 102, 102);
-    doc.text(item.category || "", MARGIN + 110, y + 4);
-    doc.setTextColor(...DARK);
-    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 3, y + 4, { align: "right" });
-    y += 7;
-  }
-
-  // Totals
-  y += 2;
-  doc.setDrawColor(...MID_GRAY);
-  doc.setLineWidth(0.3);
-  doc.line(MARGIN + 100, y, MARGIN + CONTENT_WIDTH, y);
-  y += 5;
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...DARK);
-  doc.text("Subtotal:", MARGIN + 110, y);
-  doc.text(fmt(data.subtotal), MARGIN + CONTENT_WIDTH - 3, y, { align: "right" });
+  doc.setFontSize(6.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text("#",           MARGIN + 2,                  y + 2);
+  doc.text("DESCRIPTION", MARGIN + 10,                 y + 2);
+  doc.text("CATEGORY",    MARGIN + 120,                y + 2);
+  doc.text("AMOUNT",      MARGIN + CONTENT_WIDTH - 2,  y + 2, { align: "right" });
   y += 6;
 
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(M);
+  for (let i = 0; i < data.line_items.length; i++) {
+    const item = data.line_items[i];
+    y = ensureSpace(doc, RH + 1, y);
+    if (i % 2 === 0) {
+      doc.setFillColor(249, 249, 246);
+      doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, RH + 1, "F");
+    }
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${i + 1}`, MARGIN + 2, y);
+    const desc: string = doc.splitTextToSize(item.description || "—", 106)[0] || "—";
+    doc.text(desc, MARGIN + 10, y);
+    if (item.category) {
+      doc.setTextColor(100, 100, 100);
+      doc.text(item.category, MARGIN + 120, y);
+    }
+    doc.setTextColor(0, 0, 0);
+    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 2, y, { align: "right" });
+    y += RH + 0.5;
+  }
+  y += 1;
+
+  // ── Totals block ──
+  doc.setDrawColor(...MID_GRAY);
+  doc.setLineWidth(0.2);
+  doc.line(MARGIN + 100, y, MARGIN + CONTENT_WIDTH, y);
+  y += 3;
+
+  y = moneyRow(doc, "Subtotal", fmt(data.subtotal), y);
   if (data.tax_rate > 0) {
-    doc.text(`Tax (${(data.tax_rate * 100).toFixed(2)}%):`, MARGIN + 110, y);
-    doc.text(fmt(data.tax_amount), MARGIN + CONTENT_WIDTH - 3, y, { align: "right" });
-    y += 6;
+    y = moneyRow(doc, `Tax (${(data.tax_rate * 100).toFixed(2)}%)`, fmt(data.tax_amount), y, { indent: 4 });
   }
 
-  // Total highlight
-  y = ensureSpace(doc, 12, y);
+  // Total highlight bar
+  y = ensureSpace(doc, 8, y);
   doc.setFillColor(...DARK);
-  doc.rect(MARGIN + 100, y - 2, CONTENT_WIDTH - 100, 10, "F");
+  doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 6.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(...GOLD);
-  doc.text("TOTAL:", MARGIN + 103, y + 5);
-  doc.text(fmt(data.total), MARGIN + CONTENT_WIDTH - 3, y + 5, { align: "right" });
-  y += 16;
+  doc.text("TOTAL:", MARGIN + 2, y + 3.5);
+  doc.text(fmt(data.total), MARGIN + CONTENT_WIDTH - 2, y + 3.5, { align: "right" });
+  y += 10;
 
-  // ── PAYMENT TERMS ──
-  const hasPaymentTerms = data.deposit_pct || data.deposit_amount || data.deposit_due || data.balance_due_date;
-  if (hasPaymentTerms) {
-    y = ensureSpace(doc, 30, y);
-    y = drawSectionHeader(doc, "Payment Terms", y);
-    if (data.deposit_pct && data.deposit_amount) {
-      y = drawLabelValue(doc, "Deposit Required",
-        `${data.deposit_pct}% — ${fmt(data.deposit_amount)}`, y);
-    }
-    if (data.deposit_due) {
-      y = drawLabelValue(doc, "Deposit Due", data.deposit_due, y);
-    }
-    if (data.balance_due_date) {
-      y = drawLabelValue(doc, "Balance Due", data.balance_due_date, y);
-    }
+  // ════════════════════════════════════════════════════════
+  //  PAYMENT TERMS — two columns
+  // ════════════════════════════════════════════════════════
+  const hasPayment = data.deposit_pct || data.deposit_amount || data.deposit_due || data.balance_due_date;
+  if (hasPayment) {
+    y = secH(doc, "Payment Terms", y);
+    const ptStartY = y;
+
+    let plY = ptStartY;
+    if (data.deposit_pct && data.deposit_amount)
+      plY = lv(doc, "Deposit", `${data.deposit_pct}% — ${fmt(data.deposit_amount)}`, plY);
+    if (data.deposit_due)
+      plY = lv(doc, "Dep. Due", data.deposit_due, plY);
+
+    let prY = ptStartY;
+    if (data.balance_due_date)
+      prY = lv(doc, "Bal. Due", data.balance_due_date, prY, { x: rightX, valX: rValX, maxW: 50 });
+
+    y = Math.max(plY, prY) + 2;
+
     if (data.cancellation_policy) {
-      y += 2;
+      y = ensureSpace(doc, 10, y);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
-      doc.setTextColor(...MID_GRAY);
-      doc.text("Cancellation Policy:", MARGIN + 3, y);
-      y += 4;
-      y = drawParagraph(doc, data.cancellation_policy, y, { fontSize: 8, indent: 6 });
+      doc.setFontSize(S);
+      doc.setTextColor(80, 80, 80);
+      doc.text("Cancellation Policy:", leftX, y);
+      y += RH + 1;
+      const cancelLines: string[] = doc.splitTextToSize(data.cancellation_policy, CONTENT_WIDTH - 4);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(M);
+      doc.setTextColor(0, 0, 0);
+      for (const line of cancelLines) {
+        y = ensureSpace(doc, RH, y);
+        doc.text(line, leftX + 4, y);
+        y += RH;
+      }
+      y += 2;
     }
-    y += 6;
   }
 
-  // ── NOTES ──
+  // ════════════════════════════════════════════════════════
+  //  NOTES
+  // ════════════════════════════════════════════════════════
   if (data.notes) {
-    y = drawSectionHeader(doc, "Notes", y);
-    y = drawParagraph(doc, data.notes, y, { fontSize: 9, indent: 3 });
-    y += 6;
+    y = secH(doc, "Notes", y);
+    const noteLines: string[] = doc.splitTextToSize(data.notes, CONTENT_WIDTH - 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(M);
+    doc.setTextColor(0, 0, 0);
+    for (const line of noteLines) {
+      y = ensureSpace(doc, RH, y);
+      doc.text(line, leftX + 2, y);
+      y += RH;
+    }
+    y += 2;
   }
 
-  // ── TERMS & CONDITIONS ──
-  const defaultTerms = `1. This proposal is valid for 30 days from the date of issue.\n2. A signed contract and deposit are required to confirm booking.\n3. The deposit amount (typically 25-30% of total) is non-refundable.\n4. Final payment is due 7 days before the event date.\n5. Additional services or changes may affect the final total.\n6. Cancellation policy applies as outlined in the rental contract.`;
-  y = drawSectionHeader(doc, "Terms & Conditions", y);
-  const termsText = data.terms || defaultTerms;
-  for (const line of termsText.split("\n")) {
-    y = drawParagraph(doc, line, y, { fontSize: 8, indent: 3 });
-    y += 1;
+  // ════════════════════════════════════════════════════════
+  //  TERMS & CONDITIONS
+  // ════════════════════════════════════════════════════════
+  const defaultTerms = [
+    "1. This proposal is valid for 30 days from the date of issue.",
+    "2. A signed contract and deposit are required to confirm booking.",
+    "3. The deposit amount is non-refundable per the cancellation policy.",
+    "4. Final payment is due per the schedule outlined above.",
+    "5. Additional services or changes may affect the final total.",
+  ];
+  y = secH(doc, "Terms & Conditions", y);
+  const termsLines = data.terms ? data.terms.split("\n") : defaultTerms;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(M);
+  doc.setTextColor(60, 60, 60);
+  for (const line of termsLines) {
+    const wrapped: string[] = doc.splitTextToSize(line, CONTENT_WIDTH - 6);
+    for (const wl of wrapped) {
+      y = ensureSpace(doc, RH, y);
+      doc.text(wl, leftX + 2, y);
+      y += RH;
+    }
   }
-  y += 8;
+  y += 4;
 
-  // ── SIGNATURE LINE ──
-  y = ensureSpace(doc, 40, y);
-  y += 5;
+  // ════════════════════════════════════════════════════════
+  //  SIGNATURE LINES
+  // ════════════════════════════════════════════════════════
+  y = ensureSpace(doc, 28, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(S);
+  doc.setTextColor(80, 80, 80);
   doc.setDrawColor(...DARK);
   doc.setLineWidth(0.3);
 
-  // Client signature
-  doc.line(MARGIN + 3, y + 20, MARGIN + 80, y + 20);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  doc.text("Client Signature", MARGIN + 3, y + 25);
-  doc.text("Date: _______________", MARGIN + 3, y + 31);
+  const sigW = halfW - 4;
+  doc.line(MARGIN, y + 14, MARGIN + sigW, y + 14);
+  doc.text("Client Signature", MARGIN, y + 18);
+  doc.line(MARGIN, y + 23, MARGIN + sigW, y + 23);
+  doc.text("Date", MARGIN, y + 27);
 
-  // Venue signature
-  doc.line(MARGIN + 100, y + 20, MARGIN + CONTENT_WIDTH - 3, y + 20);
-  doc.text("Venue Representative", MARGIN + 100, y + 25);
-  doc.text("Date: _______________", MARGIN + 100, y + 31);
+  doc.line(rightX - 2, y + 14, rightX - 2 + sigW, y + 14);
+  doc.text("Venue Representative", rightX - 2, y + 18);
+  doc.line(rightX - 2, y + 23, rightX - 2 + sigW, y + 23);
+  doc.text("Date", rightX - 2, y + 27);
 
-  // ── Footer ──
-  drawFooter(doc, "Event Proposal");
+  drawFooter(doc, "Event Proposal", { vcIconDataUrl: vcIcon ?? undefined });
 
-  const filename = `Proposal-${data.proposal_number}.pdf`;
-  doc.save(filename);
+  doc.save(`Proposal-${data.proposal_number}.pdf`);
 }

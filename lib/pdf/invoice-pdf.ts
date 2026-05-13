@@ -1,11 +1,10 @@
 /**
- * Invoice PDF Generator — uses shared header utility.
- * Professional invoice for private event billing.
+ * Invoice PDF Generator — compact layout matching offer-pdf gold standard.
+ * Compact header, dark section bars, tight two-column blocks, small fonts.
  */
 import {
-  addPdfHeader, drawFooter, ensureSpace, drawSectionHeader, drawLabelValue,
-  drawRow, drawDivider, fmt,
-  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
+  MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, LIGHT_GRAY, MID_GRAY,
   type Doc,
 } from "./pdf-header";
 
@@ -45,6 +44,72 @@ export type InvoicePDFData = {
   venue_slug?: string;
 };
 
+// ── Compact layout constants (match offer-pdf) ────────────────────────
+const S = 7;
+const M = 7.5;
+const H = 8;
+const RH = 3.8;
+const halfW = CONTENT_WIDTH / 2 - 4;
+const leftX = MARGIN + 2;
+const rightX = MARGIN + halfW + 8;
+const rValX = rightX + 28;
+
+function fmt(n: number): string {
+  return "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function secH(doc: Doc, title: string, y: number, width?: number): number {
+  const w = width ?? CONTENT_WIDTH;
+  y = ensureSpace(doc, 8, y);
+  doc.setFillColor(...DARK);
+  doc.rect(MARGIN, y, w, 5.5, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(H);
+  doc.setTextColor(...GOLD);
+  doc.text(title.toUpperCase(), MARGIN + 2, y + 3.8);
+  doc.setTextColor(0, 0, 0);
+  return y + 8;
+}
+
+function lv(
+  doc: Doc, label: string, val: string, y: number,
+  opts?: { x?: number; valX?: number; maxW?: number; color?: [number, number, number] }
+): number {
+  const x = opts?.x ?? leftX;
+  const valXPos = opts?.valX ?? (x + 28);
+  const maxW = opts?.maxW ?? 52;
+  const lines: string[] = doc.splitTextToSize(val || "—", maxW);
+  const neededH = Math.max(1, lines.length) * RH;
+  y = ensureSpace(doc, neededH, y);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(S);
+  doc.setTextColor(80, 80, 80);
+  doc.text(`${label}:`, x, y);
+  doc.setFont("helvetica", opts?.color ? "bold" : "normal");
+  doc.setFontSize(M);
+  doc.setTextColor(...(opts?.color || [0, 0, 0]));
+  for (let i = 0; i < lines.length; i++) doc.text(lines[i], valXPos, y + i * RH);
+  doc.setTextColor(0, 0, 0);
+  return y + neededH;
+}
+
+function moneyRow(doc: Doc, label: string, amount: string, y: number, opts?: { bold?: boolean; highlight?: boolean; indent?: number }): number {
+  y = ensureSpace(doc, RH + 1, y);
+  if (opts?.highlight) {
+    doc.setFillColor(...GOLD);
+    doc.rect(MARGIN, y - 2.5, CONTENT_WIDTH, RH + 1.5, "F");
+    doc.setTextColor(...DARK);
+  } else {
+    doc.setTextColor(0, 0, 0);
+  }
+  doc.setFont("helvetica", opts?.bold || opts?.highlight ? "bold" : "normal");
+  doc.setFontSize(M);
+  doc.text(label, leftX + (opts?.indent || 0), y);
+  doc.text(amount, MARGIN + CONTENT_WIDTH - 2, y, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+  return y + RH;
+}
+
 // ═════════════════════════════════════════════════════════════════════
 //  INVOICE PDF EXPORT
 // ═════════════════════════════════════════════════════════════════════
@@ -52,170 +117,158 @@ export async function exportInvoicePDF(data: InvoicePDFData): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true }) as Doc;
 
-  // ── HEADER (with buyer info — client contact) ──
+  const vcIcon = await loadVenueCoreFavicon();
+
+  // ── COMPACT HEADER with client info on left ──
   let y = await addPdfHeader(doc, {
     title: "Invoice",
     venueName: data.venue_name,
     venueAddress: data.venue_address,
     venueSlug: data.venue_slug,
+    compact: true,
     showBuyerInfo: true,
     buyerInfo: {
-      contact: data.client_name,
       company: data.client_company,
-      phone: data.client_phone,
+      contact: data.client_name,
       email: data.client_email,
+      phone: data.client_phone,
       address: data.client_address,
     },
   });
 
-  // Invoice meta info
+  // Invoice meta line
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MID_GRAY);
+  doc.setFontSize(S);
+  doc.setTextColor(100, 100, 100);
   doc.text(
     `Invoice #: ${data.invoice_number}  |  Date: ${data.invoice_date}  |  Due: ${data.due_date}`,
-    MARGIN, y,
+    MARGIN + 2, y
   );
   y += 6;
 
-  // ── BILL TO ──
-  y = drawSectionHeader(doc, "Bill To", y);
-  y = drawLabelValue(doc, "Name", data.client_name, y);
-  if (data.client_company) y = drawLabelValue(doc, "Company", data.client_company, y);
-  if (data.client_address) y = drawLabelValue(doc, "Address", data.client_address, y);
-  if (data.client_email) y = drawLabelValue(doc, "Email", data.client_email, y);
-  if (data.client_phone) y = drawLabelValue(doc, "Phone", data.client_phone, y);
-  y += 4;
+  // ════════════════════════════════════════════════════════
+  //  BILL TO + EVENT — two columns
+  // ════════════════════════════════════════════════════════
+  y = secH(doc, "Bill To & Event Details", y);
+  const infoStartY = y;
 
-  // ── EVENT REFERENCE ──
-  y = drawSectionHeader(doc, "Event Details", y);
-  y = drawLabelValue(doc, "Event", data.event_name, y);
-  y = drawLabelValue(doc, "Date", data.event_date, y);
-  y += 4;
+  // Left column: Client
+  let lY = infoStartY;
+  lY = lv(doc, "Client",  data.client_name,    lY);
+  if (data.client_company) lY = lv(doc, "Company", data.client_company, lY);
+  if (data.client_address) lY = lv(doc, "Address", data.client_address, lY, { maxW: 50 });
+  if (data.client_email)   lY = lv(doc, "Email",   data.client_email,   lY);
+  if (data.client_phone)   lY = lv(doc, "Phone",   data.client_phone,   lY);
 
-  // ── LINE ITEMS TABLE ──
-  y = drawSectionHeader(doc, "Invoice Items", y);
+  // Right column: Event + Invoice dates
+  let rY = infoStartY;
+  rY = lv(doc, "Event",    data.event_name,       rY, { x: rightX, valX: rValX, maxW: 50 });
+  rY = lv(doc, "Evt. Date",data.event_date,        rY, { x: rightX, valX: rValX, maxW: 50 });
+  rY = lv(doc, "Inv. Date",data.invoice_date,      rY, { x: rightX, valX: rValX, maxW: 50 });
+  rY = lv(doc, "Due",      data.due_date,          rY, { x: rightX, valX: rValX, maxW: 50 });
+
+  y = Math.max(lY, rY) + 2;
+
+  // ════════════════════════════════════════════════════════
+  //  LINE ITEMS TABLE
+  // ════════════════════════════════════════════════════════
+  y = secH(doc, "Invoice Items", y);
 
   // Table header
-  y = ensureSpace(doc, 10, y);
+  y = ensureSpace(doc, 8, y);
   doc.setFillColor(...LIGHT_GRAY);
-  doc.rect(MARGIN, y, CONTENT_WIDTH, 7, "F");
+  doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.setTextColor(...DARK);
-  doc.text("#", MARGIN + 3, y + 5);
-  doc.text("DESCRIPTION", MARGIN + 12, y + 5);
-  doc.text("AMOUNT", MARGIN + CONTENT_WIDTH - 3, y + 5, { align: "right" });
-  y += 9;
+  doc.setFontSize(6.5);
+  doc.setTextColor(80, 80, 80);
+  doc.text("#",        MARGIN + 2,                 y + 2);
+  doc.text("DESCRIPTION", MARGIN + 10,             y + 2);
+  doc.text("AMOUNT",   MARGIN + CONTENT_WIDTH - 2, y + 2, { align: "right" });
+  y += 6;
 
-  // Line items
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(M);
   for (let i = 0; i < data.line_items.length; i++) {
     const item = data.line_items[i];
-    y = ensureSpace(doc, 8, y);
-
+    y = ensureSpace(doc, RH + 1, y);
     if (i % 2 === 0) {
       doc.setFillColor(249, 249, 246);
-      doc.rect(MARGIN, y - 1, CONTENT_WIDTH, 7, "F");
+      doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, RH + 1, "F");
     }
-
-    doc.setTextColor(...DARK);
-    doc.text(`${i + 1}`, MARGIN + 3, y + 4);
-    // Truncate description to fit
-    const descMaxW = CONTENT_WIDTH - 12 - 30;
-    const desc: string = doc.splitTextToSize(item.description || "—", descMaxW)[0] || item.description || "—";
-    doc.text(desc, MARGIN + 12, y + 4);
-    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 3, y + 4, { align: "right" });
-    y += 7;
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${i + 1}`, MARGIN + 2, y);
+    const desc: string = doc.splitTextToSize(item.description || "—", CONTENT_WIDTH - 30)[0] || "—";
+    doc.text(desc, MARGIN + 10, y);
+    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 2, y, { align: "right" });
+    y += RH + 0.5;
   }
+  y += 1;
 
-  // ── TOTALS ──
-  y += 2;
+  // ── Totals ──
   doc.setDrawColor(...MID_GRAY);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.2);
   doc.line(MARGIN + 100, y, MARGIN + CONTENT_WIDTH, y);
-  y += 5;
+  y += 3;
 
-  // Subtotal
-  y = drawRow(doc, "Subtotal", fmt(data.subtotal), y);
-
-  // Tax
+  y = moneyRow(doc, "Subtotal", fmt(data.subtotal), y);
   if (data.tax_exempt) {
-    y = drawRow(doc, "Tax", "Tax Exempt", y);
+    y = moneyRow(doc, "Tax", "Tax Exempt", y, { indent: 4 });
   } else if (data.tax_rate > 0) {
-    y = drawRow(doc, `Tax (${(data.tax_rate * 100).toFixed(2)}%)`, fmt(data.tax_amount), y);
+    y = moneyRow(doc, `Tax (${(data.tax_rate * 100).toFixed(2)}%)`, fmt(data.tax_amount), y, { indent: 4 });
   }
 
-  // Total
-  y = ensureSpace(doc, 12, y);
+  // Total bar
+  y = ensureSpace(doc, 8, y);
   doc.setFillColor(...DARK);
-  doc.rect(MARGIN + 100, y - 2, CONTENT_WIDTH - 100, 10, "F");
+  doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 6.5, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(...GOLD);
-  doc.text("TOTAL:", MARGIN + 103, y + 5);
-  doc.text(fmt(data.total), MARGIN + CONTENT_WIDTH - 3, y + 5, { align: "right" });
-  y += 14;
+  doc.text("TOTAL:", MARGIN + 2, y + 3.5);
+  doc.text(fmt(data.total), MARGIN + CONTENT_WIDTH - 2, y + 3.5, { align: "right" });
+  y += 10;
 
-  // Amount Paid
   if (data.amount_paid > 0) {
-    y = drawRow(doc, "Amount Paid", fmt(data.amount_paid), y);
+    y = moneyRow(doc, "Amount Paid", fmt(data.amount_paid), y, { indent: 4 });
   }
-
-  // Balance Due (highlighted if > 0)
   if (data.balance_due > 0) {
-    y = drawRow(doc, "BALANCE DUE", fmt(data.balance_due), y, { bold: true, highlight: true });
+    y = moneyRow(doc, "BALANCE DUE", fmt(data.balance_due), y, { highlight: true });
   } else {
-    y = drawRow(doc, "Balance Due", "$0.00 — PAID IN FULL", y, { bold: true });
+    y = moneyRow(doc, "Balance Due", "$0.00 — PAID IN FULL", y, { bold: true });
   }
+  y += 2;
 
-  y += 8;
-
-  // ── PAYMENT INSTRUCTIONS ──
+  // ── Payment instructions ──
   if (data.balance_due > 0) {
-    y = drawDivider(doc, y);
-    y += 2;
-    y = ensureSpace(doc, 20, y);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(...DARK);
-    doc.text("Payment Instructions", MARGIN + 3, y);
-    y += 6;
-
+    y = ensureSpace(doc, 16, y);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(...DARK);
-    doc.text("Please submit payment by the due date listed above.", MARGIN + 3, y);
-    y += 5;
-
+    doc.setFontSize(M);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Please remit payment by the due date listed above.", leftX, y);
+    y += RH + 1;
     if (data.payment_url) {
-      doc.text("Pay online:", MARGIN + 3, y);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(S);
+      doc.setTextColor(80, 80, 80);
+      doc.text("Pay online:", leftX, y);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(M);
       doc.setTextColor(0, 102, 204);
-      doc.text(data.payment_url, MARGIN + 28, y);
-      doc.setTextColor(...DARK);
-      y += 5;
+      doc.text(data.payment_url, leftX + 22, y);
+      y += RH + 1;
     }
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...MID_GRAY);
-    doc.text("For questions about this invoice, please contact the venue directly.", MARGIN + 3, y);
-    y += 8;
+    doc.setTextColor(0, 0, 0);
+    y += 4;
   }
 
-  // ── THANK YOU ──
-  y = ensureSpace(doc, 20, y);
-  y = drawDivider(doc, y);
-  y += 4;
+  // ── Thank you ──
+  y = ensureSpace(doc, 10, y);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.setTextColor(...GOLD);
   doc.text("Thank you for your business!", PAGE_WIDTH / 2, y, { align: "center" });
 
-  // ── Footer ──
-  drawFooter(doc, "Invoice");
+  drawFooter(doc, "Invoice", { vcIconDataUrl: vcIcon ?? undefined });
 
-  const filename = `Invoice-${data.invoice_number}.pdf`;
-  doc.save(filename);
+  doc.save(`Invoice-${data.invoice_number}.pdf`);
 }

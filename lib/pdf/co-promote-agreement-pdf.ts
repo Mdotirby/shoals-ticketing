@@ -6,7 +6,7 @@
  * the room and takes a cut of revenue.
  */
 import {
-  addPdfHeader, drawFooter, ensureSpace, drawClause,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace, drawClause,
   drawParagraph, fmt,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -131,12 +131,14 @@ export async function exportCoPromoteAgreementPDF(
 ): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
+  const vcIcon = await loadVenueCoreFavicon();
 
   // ── HEADER ──
   let y = await addPdfHeader(doc, {
     title: "Co-Promotion Agreement",
     venueName: ourVenueName || data.buyer_company_name,
     venueAddress: ourVenueAddress,
+    compact: true,
     showBuyerInfo: true,
     buyerInfo: {
       contact: data.partner_contact_name || "",
@@ -426,7 +428,7 @@ export async function exportCoPromoteAgreementPDF(
   y = sigYStart + 24;
 
   // ── FOOTER ──
-  drawFooter(doc, "Co-Promotion Agreement");
+  drawFooter(doc, "Co-Promotion Agreement", { vcIconDataUrl: vcIcon ?? undefined });
 
   const filename = `CoPromote-${data.agreement_number}.pdf`;
   doc.save(filename);

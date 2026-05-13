@@ -3,7 +3,7 @@
  * Legal-style document with numbered sections. HAS buyer info (client).
  */
 import {
-  addPdfHeader, drawFooter, ensureSpace, drawSectionHeader,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace, drawSectionHeader,
   drawParagraph, drawClause, fmt,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -67,6 +67,7 @@ export type RentalContractData = {
 export async function exportRentalContractPDF(data: RentalContractData): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
+  const vcIcon = await loadVenueCoreFavicon();
 
   // ── HEADER (HAS buyer info — client) ──
   let y = await addPdfHeader(doc, {
@@ -74,6 +75,7 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
     venueName: data.venue_name,
     venueAddress: data.venue_address,
     venueSlug: data.venue_slug,
+    compact: true,
     showBuyerInfo: true,
     buyerInfo: {
       contact: data.client_name,
@@ -323,7 +325,7 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
   doc.text("Date: _______________", MARGIN + 100, y + 29);
 
   // ── Footer ──
-  drawFooter(doc, "Rental Contract");
+  drawFooter(doc, "Rental Contract", { vcIconDataUrl: vcIcon ?? undefined });
 
   const filename = `RentalContract-${data.contract_number}.pdf`;
   doc.save(filename);

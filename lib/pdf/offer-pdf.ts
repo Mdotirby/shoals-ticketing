@@ -6,7 +6,7 @@
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem } from "../types/offer";
 import type { Venue } from "../types/venue";
 import {
-  addPdfHeader, drawFooter, ensureSpace,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize, formatTime12hr,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -72,6 +72,7 @@ export type OfferPdfData = {
 export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
+  const vcIcon = await loadVenueCoreFavicon();
 
   const venueSlug = venue?.slug || "";
   const venueName = String(data.venue || venue?.name || "Venue");
@@ -469,7 +470,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   y = lv("ARTIST TOTAL", `$${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y, { color: GOLD });
   y += 2;
 
-  drawFooter(doc, "Artist Offer");
+  drawFooter(doc, "Artist Offer", { vcIconDataUrl: vcIcon ?? undefined });
 
   // Save
   const fileDateStr = data.event_date

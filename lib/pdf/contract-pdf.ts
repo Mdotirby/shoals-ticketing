@@ -2,7 +2,7 @@ import type { Contract } from "../types/contract";
 import type { ArtistOffer } from "../types/offer";
 import type { Venue } from "../types/venue";
 import {
-  addPdfHeader, drawFooter, ensureSpace, drawSectionHeader, drawLabelValue,
+  addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace, drawSectionHeader, drawLabelValue,
   drawDivider, drawParagraph, drawClause, fmt, sanitize, formatTime12hr,
   MARGIN, PAGE_WIDTH, PAGE_HEIGHT, CONTENT_WIDTH, DARK, GOLD, WHITE, MID_GRAY, LIGHT_GRAY,
   type Doc,
@@ -26,6 +26,7 @@ export async function exportContractPDF(
 ): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: [PAGE_WIDTH, PAGE_HEIGHT], compress: true });
+  const vcIcon = await loadVenueCoreFavicon();
 
   const artistName = offer.artist_name ?? "Artist";
   const eventDate = offer.event_date ?? new Date().toLocaleDateString();
@@ -47,6 +48,7 @@ export async function exportContractPDF(
     venueAddress: venueFullAddress(venue),
     venueSlug: venue.slug,
     logoUrl: venue.logo_url,
+    compact: true,
     showBuyerInfo: true,
     buyerInfo: {
       company: buyerCompany,
@@ -383,7 +385,7 @@ export async function exportContractPDF(
   doc.text("Date", rx, y + 62);
 
   // Footer on all pages
-  drawFooter(doc, "Performance Agreement");
+  drawFooter(doc, "Performance Agreement", { vcIconDataUrl: vcIcon ?? undefined });
 
   // Save
   const filename = `${sanitize(artistName)}-${sanitize(eventDate)}-Performance_Agreement.pdf`;
