@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import Link from "next/link";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
 
@@ -645,7 +646,7 @@ export default function EventSalesDetailPage() {
                     type="tel"
                     className="admin-form-input"
                     value={compPhone}
-                    onChange={(e) => setCompPhone(e.target.value)}
+                    onChange={(e) => setCompPhone(formatPhoneNumber(e.target.value))}
                     placeholder="(555) 123-4567"
                     disabled={compSaving}
                   />

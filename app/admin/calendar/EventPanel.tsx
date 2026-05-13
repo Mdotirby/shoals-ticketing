@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import { getCookie } from "@/lib/cookies";
 import { useVenue } from "@/app/components/VenueContext";
 
@@ -787,7 +788,7 @@ function ClientTab({ event, onUpdate }: { event: CalendarEvent; onUpdate: () => 
           <div key={f.key} style={f.key === "client_billing_address" ? { gridColumn: "span 2" } : {}}>
             <label style={lbl}>{f.label}</label>
             <input style={inp} type={f.type || "text"} value={String(form[f.key])}
-              onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />
+              onChange={e => setForm(p => ({ ...p, [f.key]: f.key === "client_phone" ? formatPhoneNumber(e.target.value) : e.target.value }))} />
           </div>
         ))}
       </div>

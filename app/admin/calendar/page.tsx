@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import EventPanel from "./EventPanel";
@@ -1327,7 +1328,7 @@ export default function CalendarPage() {
                     <input
                       className="admin-form-input"
                       value={form.contact_phone}
-                      onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
+                      onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
                       placeholder="(555) 123-4567"
                       style={{ width: "100%" }}
                     />

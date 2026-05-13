@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { trackFbEvent } from "@/lib/fbq";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -488,7 +489,7 @@ function CheckoutForm({
           className="lp-checkout-input"
           placeholder="(555) 123-4567"
           value={buyerPhone}
-          onChange={(e) => setBuyerPhone(e.target.value)}
+          onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
           autoComplete="tel"
         />
       </div>

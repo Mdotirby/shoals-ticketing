@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import type { CoPromoteDealStructure, CoPromoteSettlementTiming } from "@/lib/types/co-promote";
@@ -305,7 +306,7 @@ export default function NewCoPromoteAgreementPage() {
               </label>
               <label className="admin-form-label">
                 Phone
-                <input className="admin-form-input" value={form.buyer_phone} onChange={(e) => setField("buyer_phone", e.target.value)} />
+                <input className="admin-form-input" value={form.buyer_phone} onChange={(e) => setField("buyer_phone", formatPhoneNumber(e.target.value))} />
               </label>
               <label className="admin-form-label admin-form-full">
                 Address
@@ -338,7 +339,7 @@ export default function NewCoPromoteAgreementPage() {
               </label>
               <label className="admin-form-label">
                 Phone
-                <input className="admin-form-input" value={form.partner_phone} onChange={(e) => setField("partner_phone", e.target.value)} />
+                <input className="admin-form-input" value={form.partner_phone} onChange={(e) => setField("partner_phone", formatPhoneNumber(e.target.value))} />
               </label>
             </div>
 

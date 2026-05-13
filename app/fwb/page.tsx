@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import Link from "next/link";
 
 // ── Tier data ─────────────────────────────────────────────────────────────────
@@ -280,7 +281,7 @@ function FWBContent() {
                     type="tel"
                     placeholder="(555) 123-4567"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                     autoComplete="tel"
                   />
                 </div>

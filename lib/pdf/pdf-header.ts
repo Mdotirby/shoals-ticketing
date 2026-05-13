@@ -273,13 +273,14 @@ export async function loadVenueLogo(venueSlug?: string, logoUrl?: string | null)
     logoUrls.push(abs);
   }
 
-  // 2. Slug-based paths (try exact case, then lowercase)
+  // 2. Slug-based paths — try exact case, Title case (West72), and lowercase
   if (venueSlug) {
     logoUrls.push(`${origin}/logos/${venueSlug}/logo.png`);
     const lower = venueSlug.toLowerCase();
-    if (lower !== venueSlug) {
-      logoUrls.push(`${origin}/logos/${lower}/logo.png`);
-    }
+    const titleCase = venueSlug.charAt(0).toUpperCase() + venueSlug.slice(1).toLowerCase();
+    // Title case catches "West72" when slug is stored as "west72"
+    if (titleCase !== venueSlug) logoUrls.push(`${origin}/logos/${titleCase}/logo.png`);
+    if (lower !== venueSlug && lower !== titleCase) logoUrls.push(`${origin}/logos/${lower}/logo.png`);
   }
 
   // 3. Default fallback

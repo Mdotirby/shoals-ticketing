@@ -198,22 +198,23 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
   doc.setFontSize(M);
   for (let i = 0; i < data.line_items.length; i++) {
     const item = data.line_items[i];
-    y = ensureSpace(doc, RH + 1, y);
+    y = ensureSpace(doc, RH + 1.5, y);
     if (i % 2 === 0) {
       doc.setFillColor(249, 249, 246);
-      doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, RH + 1, "F");
+      doc.rect(MARGIN, y - 1, CONTENT_WIDTH, RH + 1.5, "F");
     }
+    const ty = y + 2; // vertically center text within the row rect
     doc.setTextColor(0, 0, 0);
-    doc.text(`${i + 1}`, MARGIN + 2, y);
+    doc.text(`${i + 1}`, MARGIN + 2, ty);
     const desc: string = doc.splitTextToSize(item.description || "—", 106)[0] || "—";
-    doc.text(desc, MARGIN + 10, y);
+    doc.text(desc, MARGIN + 10, ty);
     if (item.category) {
       doc.setTextColor(100, 100, 100);
-      doc.text(item.category, MARGIN + 120, y);
+      doc.text(item.category, MARGIN + 120, ty);
     }
     doc.setTextColor(0, 0, 0);
-    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 2, y, { align: "right" });
-    y += RH + 0.5;
+    doc.text(fmt(item.amount), MARGIN + CONTENT_WIDTH - 2, ty, { align: "right" });
+    y += RH + 1.5;
   }
   y += 1;
 

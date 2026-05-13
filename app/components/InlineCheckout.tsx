@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
+import { formatPhoneNumber } from "@/lib/formatPhone";
 import {
   Elements,
   CardNumberElement,
@@ -471,7 +472,7 @@ function CheckoutForm({
             className="ic-input"
             placeholder="(555) 123-4567"
             value={buyerPhone}
-            onChange={(e) => setBuyerPhone(e.target.value)}
+            onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
             autoComplete="tel"
           />
         </div>
