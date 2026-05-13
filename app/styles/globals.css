@@ -5252,11 +5252,11 @@ select.admin-form-input {
 .offer-scaling-header,
 .offer-scaling-row {
   display: grid;
-  /* Name | Seats | Comps | Kills | Sellable | Net Price | Fac.Fee | Tkt Fee | Price | Tax/Ticket | All-In | Gross | remove */
-  grid-template-columns: 1.4fr 0.7fr 0.7fr 0.7fr 0.7fr 0.9fr 0.7fr 0.7fr 0.8fr 0.8fr 0.9fr 1fr auto;
+  /* Name | Seats | Comps | Kills | Sellable | Net Price | Fac.Fee | Tkt Fee | Price | Tax/Ticket | CC/Ticket | All-In | Gross | remove */
+  grid-template-columns: 1.3fr 0.65fr 0.65fr 0.65fr 0.65fr 0.85fr 0.65fr 0.65fr 0.75fr 0.75fr 0.75fr 0.85fr 1fr auto;
   gap: 6px;
   align-items: center;
-  min-width: 1100px;
+  min-width: 1200px;
 }
 
 .offer-scaling-header {
@@ -5476,7 +5476,7 @@ select.admin-form-input {
 
   .offer-scaling-header,
   .offer-scaling-row {
-    min-width: 1100px;
+    min-width: 1200px;
   }
 
   .offer-detail-grid {

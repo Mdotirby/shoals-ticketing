@@ -284,13 +284,12 @@ export default function AdminCreateOfferPage() {
   ]);
 
   // ── Calculated values ──
+  // grossPotential = face + fees (used for variable expense % calc — PRO fees base)
   const grossPotential = scaling.reduce((sum, r) => sum + r.sellable_cap * r.price, 0);
-  // Adj Gross = Gross - all ticketing + facility fees per seat
   const totalFees = scaling.reduce((sum, r) => sum + ((r.ticketing_fee || 0) + (r.facility_fee || 0)) * r.sellable_cap, 0);
+  // adjGross = face × sellable (traditional basis, drives net/splitpoint)
   const adjGross = grossPotential - totalFees;
 
-  // Divisor: tax is baked into face price — extract it, reducing net.
-  // Multiplier: tax is collected from customers on top — pass-through, net = adjGross.
   const taxRateDecimal = parseFloat(taxRate || "0") / 100;
   let netPotential: number;
   let taxAmount: number;
@@ -299,8 +298,19 @@ export default function AdminCreateOfferPage() {
     taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
   } else {
     taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
-    netPotential = adjGross; // customer funds the tax — promoter nets the full adj gross
+    netPotential = adjGross; // = face × sellable; taxes collected separately and remitted
   }
+
+  // Display gross: what the box office actually collects from customers (excl. CC fees).
+  // Multiplier = face + fees + tax per ticket summed across tiers (matches scaling table rows).
+  // Divisor = grossPotential (tax baked into face price, no additional collection).
+  const displayGross = taxMode === "divisor"
+    ? grossPotential
+    : scaling.reduce((sum, r) => {
+        const taxPer = Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
+        return sum + r.sellable_cap * ((r.price || 0) + taxPer);
+      }, 0);
+  const displayAdjGross = displayGross - totalFees;
 
   const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
   const totalVariable = variableExpenses.reduce((s, e) => s + (e.amount || 0), 0);
@@ -634,13 +644,15 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Ticket Scaling</h2>
         <div className="offer-scaling-table">
           <div className="offer-scaling-header">
-            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Tax/Ticket</span><span>All-In</span><span>Gross</span>
+            <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Tax/Ticket</span><span>CC/Ticket</span><span>All-In</span><span>Gross</span>
           </div>
           {scaling.map((r, i) => {
             const taxPerTicket = taxMode === "divisor"
               ? Math.round(r.net_price * taxRateDecimal / (1 + taxRateDecimal) * 100) / 100
               : Math.round(r.net_price * taxRateDecimal * 100) / 100;
             const allIn = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
+            const ccPerTicket = Math.round(allIn * 0.029 * 100) / 100;
+            const tierGross = r.sellable_cap * allIn;
             return (
             <div key={i} className="offer-scaling-row">
               <input type="text" className="admin-form-input" value={r.name} onChange={(e) => { const v = e.target.value; setScaling((p) => p.map((x, j) => j === i ? { ...x, name: v } : x)); }} />
@@ -653,8 +665,9 @@ export default function AdminCreateOfferPage() {
               <span className="offer-calc-cell">${(r.ticketing_fee || 0).toFixed(2)}</span>
               <span className="offer-calc-cell">${r.price.toFixed(2)}</span>
               <span className="offer-calc-cell">${taxPerTicket.toFixed(2)}</span>
+              <span className="offer-calc-cell">${ccPerTicket.toFixed(2)}</span>
               <span className="offer-calc-cell">${allIn.toFixed(2)}</span>
-              <span className="offer-calc-cell">${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span className="offer-calc-cell">${tierGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
               {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setScaling((p) => p.filter((_, j) => j !== i))}>✕</button>}
             </div>
             );
@@ -668,8 +681,8 @@ export default function AdminCreateOfferPage() {
         <div className="offer-totals-row">
           <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>
           <span>Sellable: <strong>{scaling.reduce((s, r) => s + r.sellable_cap, 0)}</strong></span>
-          <span>Gross Potential: <strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-          <span>Adj. Gross: <strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+          <span>Gross Potential: <strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+          <span>Adj. Gross: <strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
         </div>
 
         {/* ═══ SECTION 5: Expenses ═══ */}
@@ -708,9 +721,10 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Potential at Sellout</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Tax Collected (${taxRate}% — from customers):` : `Tax (${taxRate}% — embedded in price):`}</span><strong>${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Less: Fees ({taxMode === "multiplier" ? "tkt + fac" : "tkt + fac"}):</span><strong>(${totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Less: Tax (${taxRate}% — remitted to govt):` : `Less: Tax (${taxRate}% — extracted from price):`}</span><strong>(${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (

@@ -136,9 +136,10 @@ export default function AdminOfferDetailPage() {
     const fixedExp = Array.isArray(form.fixed_expenses) ? form.fixed_expenses as Array<{ amount: number }> : [];
     const varExp = Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{ rate: number; amount: number }> : [];
 
+    // grossPotential = face + fees (base for PRO/variable expense % calc)
     const grossPotential = scaling.reduce((s, r) => s + (Number(r.sellable_cap) || 0) * (Number(r.price) || 0), 0);
     const totalFees = scaling.reduce((s, r) => s + ((Number(r.ticketing_fee) || 0) + (Number(r.facility_fee) || 0)) * (Number(r.sellable_cap) || 0), 0);
-    const adjGross = grossPotential - totalFees;
+    const adjGross = grossPotential - totalFees; // = face × sellable; drives net/splitpoint
 
     const rawTaxRate = Number(form.tax_rate) || 0;
     const taxRatePct = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
@@ -152,12 +153,20 @@ export default function AdminOfferDetailPage() {
       taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
     } else {
       taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
-      netPotential = adjGross; // customer funds the tax — promoter nets the full adj gross
+      netPotential = adjGross; // = face × sellable; taxes collected from customers and remitted
     }
 
+    // displayGross = what box office actually collects from customers (excl. CC fees).
+    // Sums allIn per tier to match the Gross column in the scaling table.
+    const displayGross = taxMethod === "divisor"
+      ? grossPotential
+      : scaling.reduce((s, r) => {
+          const taxPer = Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
+          return s + (Number(r.sellable_cap) || 0) * ((Number(r.price) || 0) + taxPer);
+        }, 0);
+    const displayAdjGross = displayGross - totalFees;
+
     const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    // Variable expenses amount is stored (rate × gross_potential at save time), but for live display
-    // we recompute it from the live gross so editing tiers updates these too.
     const totalVariable = varExp.reduce((s, e) => s + ((Number(e.rate) || 0) * grossPotential), 0);
     const totalExpenses = totalFixed + totalVariable;
 
@@ -166,6 +175,9 @@ export default function AdminOfferDetailPage() {
     return {
       grossPotential,
       adjGross,
+      displayGross,
+      displayAdjGross,
+      totalFees,
       taxRatePct,
       taxAmount,
       netPotential,
@@ -519,7 +531,7 @@ export default function AdminOfferDetailPage() {
             <>
               <div className="offer-scaling-table">
                 <div className="offer-scaling-header">
-                  <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Tax/Ticket</span><span>All-In</span><span>Gross</span>
+                  <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Tax/Ticket</span><span>CC/Ticket</span><span>All-In</span><span>Gross</span>
                 </div>
                 {scaling.map((r, i) => {
                   const np = Number(r.net_price || 0);
@@ -530,6 +542,7 @@ export default function AdminOfferDetailPage() {
                     ? Math.round(np * trd / (1 + trd) * 100) / 100
                     : Math.round(np * trd * 100) / 100;
                   const allIn = tm === "divisor" ? price : price + taxPerTicket;
+                  const ccPerTicket = Math.round(allIn * 0.029 * 100) / 100;
                   const sellable = Number(r.sellable_cap || 0);
                   return (
                     <div key={i} className="offer-scaling-row">
@@ -563,8 +576,9 @@ export default function AdminOfferDetailPage() {
                       <span className="offer-calc-cell">${tf.toFixed(2)}</span>
                       <span className="offer-calc-cell">${price.toFixed(2)}</span>
                       <span className="offer-calc-cell">${taxPerTicket.toFixed(2)}</span>
+                      <span className="offer-calc-cell">${ccPerTicket.toFixed(2)}</span>
                       <span className="offer-calc-cell">${allIn.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${(sellable * price).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span className="offer-calc-cell">${(sellable * allIn).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
                       {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => updateField("ticket_scaling", scaling.filter((_, j) => j !== i))}>✕</button>}
                     </div>
                   );
@@ -578,8 +592,8 @@ export default function AdminOfferDetailPage() {
               <div className="offer-totals-row">
                 <span>Total Cap: <strong>{scaling.reduce((s, r) => s + Number(r.seats || 0), 0)}</strong></span>
                 <span>Sellable: <strong>{scaling.reduce((s, r) => s + Number(r.sellable_cap || 0), 0)}</strong></span>
-                <span>Gross Potential: <strong>${live.grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-                <span>Adj. Gross: <strong>${live.adjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                <span>Gross Potential: <strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                <span>Adj. Gross: <strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
               </div>
             </>
           );
@@ -632,9 +646,10 @@ export default function AdminOfferDetailPage() {
         <h2 className="admin-form-section-title">Financials</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${live.grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax Collected (${live.taxRatePct.toFixed(2)}% — from customers):` : `Tax (${live.taxRatePct.toFixed(2)}% — embedded in price):`}</span><strong>${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Less: Fees (tkt + fac):</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Less: Tax (${live.taxRatePct.toFixed(2)}% — remitted to govt):` : `Less: Tax (${live.taxRatePct.toFixed(2)}% — extracted from price):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
