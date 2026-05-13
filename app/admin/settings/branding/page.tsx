@@ -616,13 +616,16 @@ export default function BrandingPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Save failed");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Save failed (${res.status})`);
+      }
       setSaved(true);
       // Clear sessionStorage cache so VenueThemeProvider refetches
       try { sessionStorage.clear(); } catch {}
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setError("Failed to save. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save. Please try again.");
     } finally {
       setSaving(false);
     }

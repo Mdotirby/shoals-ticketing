@@ -10,7 +10,7 @@ import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useIsMobile } from "@/lib/useIsMobile";
 
-type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null };
+type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null; tax_method?: string | null };
 
 type RevenueItem = {
   id?: string;
@@ -52,6 +52,7 @@ export default function AdminEditEventPage() {
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
   const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
+  const [taxMethod, setTaxMethod] = useState<"multiplier" | "divisor">("multiplier");
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
   const [availableHosts, setAvailableHosts] = useState<{ id: string; name: string }[]>([]);
 
@@ -291,7 +292,7 @@ export default function AdminEditEventPage() {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
       getSupabaseBrowser()
         .from("event_venues")
-        .select("id, name, full_address, contact_name, phone, facility_fee, ticketing_fee, tax_rate")
+        .select("id, name, full_address, contact_name, phone, facility_fee, ticketing_fee, tax_rate, tax_method")
         .order("name")
         .then(({ data }: { data: EventVenue[] | null }) => {
           if (data) {
@@ -299,7 +300,10 @@ export default function AdminEditEventPage() {
             // If we already have a selected venue, populate its fees
             if (selectedEventVenueId) {
               const v = data.find((x) => x.id === selectedEventVenueId);
-              if (v) setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+              if (v) {
+                setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+                if (v.tax_method === "divisor") setTaxMethod("divisor");
+              }
             }
           }
         });
@@ -559,20 +563,19 @@ export default function AdminEditEventPage() {
       // flows into the landing page, order summary, and checkout intent. The
       // "Apply Facility Fee" toggle only sets events.facility_fee_enabled;
       // the actual dollar amount lives on event_venues.facility_fee.
-      if (isHardTicket && !isFree && selectedEventVenueId && facilityFeeEnabled) {
-        const amount = Number(selectedVenueFees.facility_fee ?? 0);
-        if (!isNaN(amount) && amount >= 0) {
-          try {
-            const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
-            const supabase = getSupabaseBrowser();
-            await supabase
-              .from("event_venues")
-              .update({ facility_fee: amount })
-              .eq("id", selectedEventVenueId);
-          } catch (feeErr) {
-            console.error("Failed to persist facility_fee on event_venue:", feeErr);
-            // Non-fatal — event itself was updated successfully.
+      if (isHardTicket && !isFree && selectedEventVenueId) {
+        try {
+          const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+          const supabase = getSupabaseBrowser();
+          const venueUpdate: Record<string, unknown> = { tax_method: taxMethod };
+          if (facilityFeeEnabled) {
+            const amount = Number(selectedVenueFees.facility_fee ?? 0);
+            if (!isNaN(amount) && amount >= 0) venueUpdate.facility_fee = amount;
           }
+          await supabase.from("event_venues").update(venueUpdate).eq("id", selectedEventVenueId);
+        } catch (feeErr) {
+          console.error("Failed to persist venue settings:", feeErr);
+          // Non-fatal — event itself was updated successfully.
         }
       }
 
@@ -1188,6 +1191,34 @@ export default function AdminEditEventPage() {
             )}
             <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
               When enabled, this amount is added to each ticket and shown to buyers as a line item.
+            </p>
+          </div>
+        )}
+
+        {/* ── Tax Method (only for hard ticket events) ── */}
+        {isHardTicket && !isFree && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(208,194,144,0.04)",
+            border: "1px solid rgba(208,194,144,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 10 }}>
+              Tax Method
+            </span>
+            <select
+              className="admin-form-input"
+              value={taxMethod}
+              onChange={(e) => setTaxMethod(e.target.value as "multiplier" | "divisor")}
+              style={{ maxWidth: 320 }}
+            >
+              <option value="multiplier">Multiplier — customer pays tax on top of face price</option>
+              <option value="divisor">Divisor — tax is baked into the face price</option>
+            </select>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+              {taxMethod === "multiplier"
+                ? "Tax is added on top at checkout. Use this for most shows."
+                : "Tax is embedded in the face price — checkout will not add it again. Match this to your offer's tax method."}
             </p>
           </div>
         )}

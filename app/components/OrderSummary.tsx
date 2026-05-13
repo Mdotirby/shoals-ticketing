@@ -18,6 +18,7 @@ type OrderSummaryProps = {
   ticketingFee: number;   // flat dollar per ticket (venue_ticket_fee)
   facilityFee: number;    // flat dollar per ticket (venue facility_fee)
   taxRate: number;        // venue_tax_rate — accepts 9.5 or 0.095
+  taxMethod?: "multiplier" | "divisor"; // divisor = tax baked into face price, don't add at checkout
   onCheckout: () => void;
   /** Called when a promo code is applied or removed. Passes the code string or null. */
   onPromoApplied?: (promoCode: string | null) => void;
@@ -31,11 +32,13 @@ export default function OrderSummary({
   ticketingFee,
   facilityFee,
   taxRate,
+  taxMethod = "multiplier",
   onCheckout,
   onPromoApplied,
   onFreeCheckout,
 }: OrderSummaryProps) {
-  const rate = normalizeTaxRate(taxRate);
+  // Divisor = tax baked into face price; don't charge it again at checkout.
+  const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
   const hasSelection = selectedTicket !== null && quantity > 0;
 
   // ── Free checkout state ──

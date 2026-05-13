@@ -42,6 +42,7 @@ type InlineCheckoutProps = {
   ticketingFee?: number;
   facilityFee?: number;
   taxRate?: number;
+  taxMethod?: "multiplier" | "divisor";
 };
 
 // ── Stripe loader (singleton) ────────────────────────────────────────────────
@@ -122,6 +123,7 @@ function CheckoutForm({
   ticketingFee = 0,
   facilityFee = 0,
   taxRate = 0,
+  taxMethod = "multiplier",
 }: InlineCheckoutProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -145,7 +147,8 @@ function CheckoutForm({
   const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
   // ── Fee calculation matching OrderSummary + create-intent API ────────────
-  const rate = normalizeTaxRate(taxRate);
+  // Divisor = tax baked into face price; don't add it again at checkout.
+  const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
   const subtotal = ticketPrice * quantity;
   const totalTicketingFee = ticketingFee * quantity;
   const totalFacilityFee = facilityFee * quantity;

@@ -160,12 +160,14 @@ export async function POST(request: Request) {
     }
 
     // ── Calculate all fees ────────────────────────────────────────────────
+    // Divisor = tax baked into face price; don't add it again at checkout.
+    const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
     const breakdown = calculateFees({
       ticketPriceCents,
       discountCentsPerTicket: promoResult?.discountCentsPerTicket ?? 0,
       ticketingFee: fees.ticketingFee,
       facilityFee: fees.facilityFee,
-      taxRate: fees.taxRate,
+      taxRate: effectiveTaxRate,
       quantity: effectiveQuantity,
     });
 

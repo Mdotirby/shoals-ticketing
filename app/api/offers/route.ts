@@ -83,6 +83,8 @@ export async function POST(request: Request) {
       gross_potential: body.gross_potential || 0,
       adj_gross: body.adj_gross || 0,
       tax_rate: body.tax_rate || 0,
+      tax_method: body.tax_method || "multiplier",
+      tax_amount: body.tax_amount || 0,
       net_potential: body.net_potential || 0,
       splitpoint: body.splitpoint || 0,
       artist_backend: body.artist_backend || 0,

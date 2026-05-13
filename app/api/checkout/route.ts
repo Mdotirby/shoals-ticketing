@@ -66,19 +66,21 @@ export async function POST(request: Request) {
     let facilityFee = 0;
     let venueRebate = 0;
     let taxRate = 0.095;
+    let taxMethod: "multiplier" | "divisor" = "multiplier";
     let feesResolved = false;
 
     // 1. Try event_venues first (per physical venue)
     if (event.event_venue_id) {
       const { data: evData } = await admin
         .from("event_venues")
-        .select("ticketing_fee, facility_fee, tax_rate")
+        .select("ticketing_fee, facility_fee, tax_rate, tax_method")
         .eq("id", event.event_venue_id)
         .single();
       if (evData) {
         if (evData.ticketing_fee != null) { ticketingFee = evData.ticketing_fee; feesResolved = true; }
         if (evData.facility_fee != null && event.facility_fee_enabled !== false) { facilityFee = evData.facility_fee; }
         if (evData.tax_rate != null) { taxRate = evData.tax_rate; feesResolved = true; }
+        if (evData.tax_method === "divisor") taxMethod = "divisor";
       }
     }
 
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
     if (!feesResolved && event.venue_id) {
       const { data: venueData } = await admin
         .from("venues")
-        .select("ticketing_fee, facility_fee, venue_rebate, tax_rate")
+        .select("ticketing_fee, facility_fee, venue_rebate, tax_rate, tax_method")
         .eq("id", event.venue_id)
         .single();
 
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
         facilityFee = venueData.facility_fee ?? 0;
         venueRebate = venueData.venue_rebate ?? 0;
         taxRate = venueData.tax_rate ?? 0.095;
+        if (venueData.tax_method === "divisor") taxMethod = "divisor";
       }
     }
 
@@ -214,8 +217,9 @@ export async function POST(request: Request) {
     const ticketingFeeCents = Math.round(ticketingFee * 100);
     const facilityFeeCents = Math.round(facilityFee * 100);
 
-    // Calculate tax on discounted ticket price
-    const taxCents = Math.round(discountedTicketPriceCents * taxRate);
+    // Divisor = tax baked into face price; don't add it again at checkout.
+    const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
+    const taxCents = Math.round(discountedTicketPriceCents * effectiveTaxRate);
 
     // Calculate Stripe processing fee on the total
     const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * effectiveQuantity;

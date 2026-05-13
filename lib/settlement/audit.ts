@@ -95,6 +95,7 @@ async function resolveEventFees(
   ticketing_fee: number;
   facility_fee: number;
   tax_rate: number;
+  tax_method: TaxMethod;
 }> {
   const { data: event } = await admin
     .from("events")
@@ -102,14 +103,14 @@ async function resolveEventFees(
     .eq("id", eventId)
     .single();
 
-  if (!event) return { ticketing_fee: 0, facility_fee: 0, tax_rate: 0 };
+  if (!event) return { ticketing_fee: 0, facility_fee: 0, tax_rate: 0, tax_method: "multiplier" };
 
-  let fees = { ticketing_fee: 0, facility_fee: 0, tax_rate: 0 };
+  let fees = { ticketing_fee: 0, facility_fee: 0, tax_rate: 0, tax_method: "multiplier" as TaxMethod };
 
   if (event.event_venue_id) {
     const { data: ev } = await admin
       .from("event_venues")
-      .select("ticketing_fee, facility_fee, tax_rate")
+      .select("ticketing_fee, facility_fee, tax_rate, tax_method")
       .eq("id", event.event_venue_id)
       .maybeSingle();
     if (ev) {
@@ -117,13 +118,14 @@ async function resolveEventFees(
         ticketing_fee: num(ev.ticketing_fee),
         facility_fee: num(ev.facility_fee),
         tax_rate: num(ev.tax_rate),
+        tax_method: ev.tax_method === "divisor" ? "divisor" : "multiplier",
       };
     }
   }
   if ((!fees.ticketing_fee && !fees.tax_rate) && event.venue_id) {
     const { data: v } = await admin
       .from("venues")
-      .select("ticketing_fee, facility_fee, tax_rate")
+      .select("ticketing_fee, facility_fee, tax_rate, tax_method")
       .eq("id", event.venue_id)
       .maybeSingle();
     if (v) {
@@ -131,6 +133,7 @@ async function resolveEventFees(
         ticketing_fee: num(v.ticketing_fee),
         facility_fee: num(v.facility_fee),
         tax_rate: num(v.tax_rate),
+        tax_method: v.tax_method === "divisor" ? "divisor" : "multiplier",
       };
     }
   }
@@ -329,9 +332,9 @@ export async function computeEventAudit(
   // Checkout adds tax on top of the face price (multiplier), so we default to
   // that. The settlement page can override per-event if a venue runs
   // tax-inclusive pricing.
-  const tax_method: TaxMethod = "multiplier";
+  const tax_method: TaxMethod = fees.tax_method;
   const taxes =
-    tax_method === ("divisor" as TaxMethod) && fees.tax_rate > 0
+    tax_method === "divisor" && fees.tax_rate > 0
       ? total_gross - total_gross / (1 + fees.tax_rate)
       : total_gross * fees.tax_rate;
 

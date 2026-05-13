@@ -35,7 +35,6 @@ const DEFAULT_FIXED: ExpenseItem[] = [
 const DEFAULT_VARIABLE: VariableExpenseItem[] = [
   { name: "ASCAP", rate: 0.008, amount: 0 }, { name: "BMI", rate: 0.008, amount: 0 },
   { name: "SESAC", rate: 0.0003, amount: 0 }, { name: "GMR", rate: 0.0015, amount: 0 },
-  { name: "Credit Card (Stripe)", rate: 0.03, amount: 0 },
 ];
 
 export default function AdminOfferDetailPage() {
@@ -144,7 +143,7 @@ export default function AdminOfferDetailPage() {
     const rawTaxRate = Number(form.tax_rate) || 0;
     const taxRatePct = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
     const taxRateDecimal = taxRatePct / 100;
-    const taxMethod = (form.tax_method as string) || "divisor";
+    const taxMethod = (form.tax_method as string) || "multiplier";
 
     let netPotential: number;
     let taxAmount: number;
@@ -153,7 +152,7 @@ export default function AdminOfferDetailPage() {
       taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
     } else {
       taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
-      netPotential = Math.round((adjGross - taxAmount) * 100) / 100;
+      netPotential = adjGross; // customer funds the tax — promoter nets the full adj gross
     }
 
     const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
@@ -329,7 +328,7 @@ export default function AdminOfferDetailPage() {
         gross_potential: live.grossPotential,
         adj_gross: live.adjGross,
         tax_rate: form.tax_rate as number,
-        tax_method: (form.tax_method as "divisor" | "multiplier") || "divisor",
+        tax_method: (form.tax_method as "divisor" | "multiplier") || "multiplier",
         net_potential: live.netPotential,
         splitpoint: live.splitpoint,
         artist_backend: form.artist_backend as number,
@@ -489,9 +488,9 @@ export default function AdminOfferDetailPage() {
             <div className="admin-form-grid">
               <label className="admin-form-label">
                 Tax Method
-                <select className="admin-form-input" value={String(form.tax_method || "divisor")} onChange={(e) => updateField("tax_method", e.target.value)}>
-                  <option value="divisor">Divisor (default)</option>
-                  <option value="multiplier">Multiplier</option>
+                <select className="admin-form-input" value={String(form.tax_method || "multiplier")} onChange={(e) => updateField("tax_method", e.target.value)}>
+                  <option value="multiplier">Multiplier (default — customer pays tax on top)</option>
+                  <option value="divisor">Divisor (tax baked into face price)</option>
                 </select>
               </label>
               <label className="admin-form-label">
@@ -505,7 +504,17 @@ export default function AdminOfferDetailPage() {
         {/* ── Ticket Scaling ── */}
         <h2 className="admin-form-section-title">Ticket Scaling</h2>
         <div className="admin-tiers-list">
-          {(Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : []).map((r, i) => (
+          {(Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : []).map((r, i) => {
+            const rawTax = Number(form.tax_rate) || 0;
+            const trd = (rawTax > 0 && rawTax < 1 ? rawTax * 100 : rawTax) / 100;
+            const tm = (form.tax_method as string) || "multiplier";
+            const np = Number(r.net_price || 0);
+            const taxPerTicket = tm === "divisor"
+              ? Math.round(np * trd / (1 + trd) * 100) / 100
+              : Math.round(np * trd * 100) / 100;
+            const price = Number(r.price || 0);
+            const allIn = tm === "divisor" ? price : price + taxPerTicket;
+            return (
             <div key={i} className="admin-tier-row">
               <input type="text" className="admin-form-input admin-tier-input" value={String(r.name || "")} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], name: e.target.value }; updateField("ticket_scaling", s); }} placeholder="Tier name" />
               <input type="number" className="admin-form-input admin-tier-input" value={r.seats || ""} onChange={(e) => {
@@ -513,34 +522,29 @@ export default function AdminOfferDetailPage() {
                 const v = parseInt(e.target.value) || 0;
                 const ff = Number(s[i].facility_fee || 0);
                 const tf = Number(s[i].ticketing_fee || 0);
-                const np = Number(s[i].net_price || 0);
+                const np2 = Number(s[i].net_price || 0);
                 s[i] = {
                   ...s[i],
                   seats: v,
                   sellable_cap: v - Number(s[i].comps || 0) - Number(s[i].kills || 0),
-                  // Keep price in sync so live revenue reflects current fees
-                  price: np + ff + tf,
+                  price: np2 + ff + tf,
                 };
                 updateField("ticket_scaling", s);
               }} placeholder="Seats" />
               <input type="number" className="admin-form-input admin-tier-input admin-tier-price" value={r.net_price || ""} onChange={(e) => {
                 const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
-                const np = parseFloat(e.target.value) || 0;
+                const np2 = parseFloat(e.target.value) || 0;
                 const ff = Number(s[i].facility_fee || 0);
                 const tf = Number(s[i].ticketing_fee || 0);
-                s[i] = {
-                  ...s[i],
-                  net_price: np,
-                  // price = net price + facility fee + ticketing fee. Keeping
-                  // this in sync is what makes gross potential update live as
-                  // the user types (the `live` memo reads r.price).
-                  price: np + ff + tf,
-                };
+                s[i] = { ...s[i], net_price: np2, price: np2 + ff + tf };
                 updateField("ticket_scaling", s);
               }} placeholder="Net $" step="0.01" />
               <span className="offer-calc-cell" style={{ minWidth: 50, fontSize: 12 }}>{r.sellable_cap || 0} sell</span>
+              <span className="offer-calc-cell" style={{ minWidth: 60, fontSize: 12 }}>Tax ${taxPerTicket.toFixed(2)}</span>
+              <span className="offer-calc-cell" style={{ minWidth: 70, fontSize: 12 }}>All-In ${allIn.toFixed(2)}</span>
             </div>
-          ))}
+            );
+          })}
           <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...(Array.isArray(form.ticket_scaling) ? form.ticket_scaling : []), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: 0, net_price: 0, facility_fee: 0, ticketing_fee: 0 }])}>+ Add Tier</button>
         </div>
 
@@ -593,7 +597,7 @@ export default function AdminOfferDetailPage() {
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross Potential:</span><strong>${live.grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.adjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Tax ({live.taxRatePct.toFixed(2)}%):</span><strong>${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax Collected (${live.taxRatePct.toFixed(2)}% — from customers):` : `Tax (${live.taxRatePct.toFixed(2)}% — embedded in price):`}</span><strong>${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
