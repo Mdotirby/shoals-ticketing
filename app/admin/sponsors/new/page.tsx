@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 type EventOption = { id: string; title: string };
@@ -10,6 +10,10 @@ export default function AdminCreateSponsorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [events, setEvents] = useState<EventOption[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
     name: "", logo_url: "", website_url: "", tier: "supporting",
@@ -23,6 +27,24 @@ export default function AdminCreateSponsorPage() {
       .then(data => { if (Array.isArray(data)) setEvents(data); })
       .catch(() => {});
   }, []);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "sponsor-logos");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
+      const { url } = await res.json();
+      setForm(p => ({ ...p, logo_url: url }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,9 +92,70 @@ export default function AdminCreateSponsorPage() {
             </select>
           </label>
 
-          <label className="admin-form-label">
-            Logo URL
-            <input className="admin-form-input" type="url" value={form.logo_url} onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://example.com/logo.png" />
+          {/* Logo — drag and drop upload */}
+          <label className="admin-form-label admin-form-full">
+            Logo
+            <div className="admin-image-upload-area">
+              {form.logo_url ? (
+                <div className="admin-image-preview-wrapper">
+                  <img
+                    src={form.logo_url}
+                    alt="Partner logo"
+                    className="admin-image-preview"
+                    style={{ objectFit: "contain", background: "rgba(255,255,255,0.05)", borderRadius: 8 }}
+                  />
+                  <button
+                    type="button"
+                    className="admin-image-remove-btn"
+                    onClick={() => {
+                      setForm(p => ({ ...p, logo_url: "" }));
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="admin-image-dropzone"
+                  style={isDragging ? { borderColor: "#d0c290", background: "rgba(208,194,144,0.05)" } : undefined}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) handleUpload(file);
+                  }}
+                >
+                  {uploading ? (
+                    <span className="admin-image-uploading">Uploading…</span>
+                  ) : (
+                    <>
+                      <span className="admin-image-dropzone-icon">🖼</span>
+                      <span className="admin-image-dropzone-text">
+                        Drop logo here or click to upload
+                      </span>
+                      <span className="admin-image-dropzone-hint">
+                        PNG, JPG, WEBP, or SVG — transparent PNG works best
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                className="admin-image-file-input"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(file);
+                }}
+              />
+            </div>
+            {uploadError && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{uploadError}</p>}
           </label>
 
           <label className="admin-form-label">
@@ -122,7 +205,7 @@ export default function AdminCreateSponsorPage() {
           </div>
         </div>
 
-        <button type="submit" className="admin-form-submit" disabled={loading}>
+        <button type="submit" className="admin-form-submit" disabled={loading || uploading}>
           {loading ? "Creating..." : "Create Partner"}
         </button>
       </form>

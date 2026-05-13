@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
 const MAX_SIZE = 45 * 1024 * 1024; // 45 MB
 
 export async function POST(request: Request) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // Support different buckets: "event-images" (default), "venue-logos", or "hero-images"
     const bucketParam = formData.get("bucket") as string | null;
-    const allowedBuckets = ["event-images", "venue-logos", "hero-images", "artist-avatars"];
+    const allowedBuckets = ["event-images", "venue-logos", "hero-images", "artist-avatars", "sponsor-logos"];
     const bucket = bucketParam && allowedBuckets.includes(bucketParam) ? bucketParam : "event-images";
     const filePath = fileName;
 

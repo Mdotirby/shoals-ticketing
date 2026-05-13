@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { SponsorPackage } from "@/lib/types/sponsor";
 import { getCookie } from "@/lib/cookies";
@@ -93,8 +93,31 @@ export default function AdminEditSponsorPage() {
   const [deliverableInput, setDeliverableInput] = useState("");
   const [generatingInvoice, setGeneratingInvoice] = useState<string | null>(null);
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const venueId = getCookie("venue-id") || "";
   const venueName = getCookie("venue-name") || "";
+
+  const handleLogoUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("bucket", "sponsor-logos");
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
+      const { url } = await res.json();
+      setForm(p => ({ ...p, logo_url: url }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const loadPackages = useCallback(async () => {
     const res = await fetch(`/api/sponsors/${id}/packages`);
@@ -277,9 +300,66 @@ export default function AdminEditSponsorPage() {
                 <option value="supporting">Supporting Partner</option>
               </select>
             </div>
-            <div>
-              <label style={lbl}>Logo URL</label>
-              <input style={inp} type="url" value={form.logo_url} onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))} placeholder="https://example.com/logo.png" />
+            <div style={{ gridColumn: "span 2" }}>
+              <label style={lbl}>Logo</label>
+              <div className="admin-image-upload-area">
+                {form.logo_url ? (
+                  <div className="admin-image-preview-wrapper">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={form.logo_url}
+                      alt={form.name}
+                      className="admin-image-preview"
+                      style={{ objectFit: "contain", background: "rgba(255,255,255,0.05)", borderRadius: 8 }}
+                    />
+                    <button
+                      type="button"
+                      className="admin-image-remove-btn"
+                      onClick={() => {
+                        setForm(p => ({ ...p, logo_url: "" }));
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="admin-image-dropzone"
+                    style={isDragging ? { borderColor: "#d0c290", background: "rgba(208,194,144,0.05)" } : undefined}
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files[0];
+                      if (file) handleLogoUpload(file);
+                    }}
+                  >
+                    {uploading ? (
+                      <span className="admin-image-uploading">Uploading…</span>
+                    ) : (
+                      <>
+                        <span className="admin-image-dropzone-icon">🖼</span>
+                        <span className="admin-image-dropzone-text">Drop logo here or click to upload</span>
+                        <span className="admin-image-dropzone-hint">PNG, JPG, WEBP, or SVG — transparent PNG works best</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="admin-image-file-input"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleLogoUpload(file);
+                  }}
+                />
+              </div>
+              {uploadError && <p style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>{uploadError}</p>}
             </div>
             <div>
               <label style={lbl}>Website URL</label>
@@ -332,15 +412,6 @@ export default function AdminEditSponsorPage() {
               </span>
             </label>
           </div>
-
-          {/* Logo preview */}
-          {form.logo_url && (
-            <div style={{ ...card, textAlign: "center" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={form.logo_url} alt={form.name} style={{ maxHeight: 80, maxWidth: 300, objectFit: "contain" }} />
-              <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 8 }}>Logo preview</p>
-            </div>
-          )}
 
           <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
             <button type="submit" style={btnPrimary} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</button>
