@@ -142,32 +142,42 @@ function ImageUpload({
   bucket,
   onUploaded,
   aspectHint,
+  accept = "image/png,image/jpeg,image/webp",
 }: {
   label: string;
   value: string | null;
   bucket: string;
   onUploaded: (url: string) => void;
   aspectHint?: string;
+  accept?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
+    setUploadError("");
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("bucket", bucket);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error || "Upload failed");
+      }
       const data = await res.json();
       if (data.url) onUploaded(data.url);
     } catch (e) {
-      console.error("Upload error:", e);
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setUploading(false);
     }
   };
+
+  const borderColor = isDragging ? "var(--vc-gold)" : "var(--vc-border)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -189,9 +199,17 @@ function ImageUpload({
       </label>
       <div
         onClick={() => inputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={e => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files[0];
+          if (file) handleUpload(file);
+        }}
         style={{
-          background: "var(--vc-surface)",
-          border: "2px dashed var(--vc-border)",
+          background: isDragging ? "rgba(208,194,144,0.05)" : "var(--vc-surface)",
+          border: `2px dashed ${borderColor}`,
           borderRadius: "var(--vc-radius-md)",
           padding: value ? 0 : "32px 16px",
           cursor: "pointer",
@@ -202,10 +220,10 @@ function ImageUpload({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          transition: "border-color 200ms ease",
+          transition: "border-color 150ms ease, background 150ms ease",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--vc-gold)")}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--vc-border)")}
+        onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "var(--vc-gold)"; }}
+        onMouseLeave={e => { if (!isDragging) e.currentTarget.style.borderColor = "var(--vc-border)"; }}
       >
         {uploading ? (
           <span style={{ color: "var(--vc-text-secondary)", fontSize: 13 }}>Uploading...</span>
@@ -217,36 +235,32 @@ function ImageUpload({
             style={{ width: "100%", height: "auto", maxHeight: 200, objectFit: "contain" }}
           />
         ) : (
-          <div style={{ color: "var(--vc-text-muted)", fontSize: 13 }}>
-            Click to upload
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, color: "var(--vc-text-muted)", fontSize: 13 }}>
+            <span>{isDragging ? "Drop to upload" : "Drop here or click to upload"}</span>
+            <span style={{ fontSize: 11, opacity: 0.6 }}>{accept.replace(/image\//g, "").replace(/,/g, ", ").toUpperCase()}</span>
           </div>
         )}
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp"
+          accept={accept}
           style={{ display: "none" }}
-          onChange={(e) => {
+          onChange={e => {
             const file = e.target.files?.[0];
             if (file) handleUpload(file);
           }}
         />
       </div>
+      {uploadError && (
+        <span style={{ fontSize: 11, color: "var(--vc-danger)" }}>{uploadError}</span>
+      )}
       {value && (
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onUploaded("");
-          }}
+          onClick={e => { e.stopPropagation(); onUploaded(""); }}
           style={{
-            background: "none",
-            border: "none",
-            color: "var(--vc-danger)",
-            fontSize: 12,
-            cursor: "pointer",
-            padding: 0,
-            textAlign: "left",
+            background: "none", border: "none", color: "var(--vc-danger)",
+            fontSize: 12, cursor: "pointer", padding: 0, textAlign: "left",
           }}
         >
           Remove image
@@ -734,6 +748,7 @@ export default function BrandingPage() {
                 bucket="venue-logos"
                 onUploaded={(url) => update("logo_url", url)}
                 aspectHint="Square or horizontal"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
               />
               <ImageUpload
                 label="Favicon"
@@ -741,6 +756,7 @@ export default function BrandingPage() {
                 bucket="venue-logos"
                 onUploaded={(url) => update("favicon_url", url)}
                 aspectHint="Square, 32x32+"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
               />
               <ImageUpload
                 label="Hero Image"
