@@ -24,6 +24,7 @@ export type RentalContractData = {
   venue_phone?: string;
   venue_email?: string;
   venue_slug?: string;
+  venue_logo_url?: string | null;
   // Lessor (configurable per venue)
   lessor_name?: string;       // e.g. "John Smith" — defaults to "Management"
   lessor_company?: string;    // e.g. "ABC LLC" — defaults to venue_name
@@ -75,6 +76,7 @@ export async function exportRentalContractPDF(data: RentalContractData): Promise
     venueName: data.venue_name,
     venueAddress: data.venue_address,
     venueSlug: data.venue_slug,
+    logoUrl: data.venue_logo_url,
     compact: true,
     showBuyerInfo: true,
     buyerInfo: {

@@ -206,14 +206,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           // venue_id resolved from admin record
           const { data: venue } = await supabase
             .from("venues")
-            .select("name, slug")
+            .select("name, slug, logo_url")
             .eq("id", adminRecord.venue_id)
             .single();
           if (venue) {
             setVenueName(venue.name || "");
             if (venue.slug) setVenueSlugResolved(venue.slug);
-            // Persist venue name in cookie for instant sidebar display
+            // Persist venue info in cookies for PDF exports and sidebar
             document.cookie = `venue-name=${encodeURIComponent(venue.name || "")}; path=/; samesite=lax`;
+            document.cookie = `venue-slug=${encodeURIComponent(venue.slug || "")}; path=/; samesite=lax`;
+            if (venue.logo_url) document.cookie = `venue-logo=${encodeURIComponent(venue.logo_url)}; path=/; samesite=lax`;
           }
         } else if (adminRecord.role === "owner") {
           setVenueName(cookieVenueName ? decodeURIComponent(cookieVenueName) : "All Venues");
@@ -253,6 +255,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       setVenueName(v.name || "");
                       if (v.slug) setVenueSlugResolved(v.slug);
                       document.cookie = `venue-name=${encodeURIComponent(v.name || "")}; path=/; samesite=lax`;
+                      document.cookie = `venue-slug=${encodeURIComponent(v.slug || "")}; path=/; samesite=lax`;
+                      if (v.logo_url) document.cookie = `venue-logo=${encodeURIComponent(v.logo_url)}; path=/; samesite=lax`;
                     }
                   }
                 } catch {}

@@ -47,6 +47,7 @@ export type ProposalData = {
   venue_name: string;
   venue_address?: string;
   venue_slug?: string;
+  venue_logo_url?: string | null;
 };
 
 // ── Compact layout constants (match offer-pdf) ────────────────────────
@@ -133,6 +134,7 @@ export async function exportProposalPDF(data: ProposalData): Promise<void> {
     venueName: data.venue_name,
     venueAddress: data.venue_address,
     venueSlug: data.venue_slug,
+    logoUrl: data.venue_logo_url,
     compact: true,
     showBuyerInfo: true,
     buyerInfo: {

@@ -234,6 +234,7 @@ export default function AdminEditSponsorPage() {
         payment_url: undefined,
         venue_name: venueName || "West 72 Entertainment",
         venue_slug: undefined,
+        venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
       });
     } finally { setGeneratingInvoice(null); }
   };

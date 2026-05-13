@@ -905,6 +905,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
       deposit_due: q.deposit_due, balance_due_date: q.balance_due_date,
       cancellation_policy: q.cancellation_policy, notes: q.notes, terms: q.terms,
       venue_name: venueName, venue_slug: venueSlug,
+      venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
     });
     setDownloadingId(null);
   };
@@ -1080,6 +1081,7 @@ function InvoicesTab({ event, venueSlug }: { event: CalendarEvent; venueSlug: st
       amount_paid: inv.amount_paid, balance_due: inv.balance_due,
       payment_url: `${typeof window !== "undefined" ? window.location.origin : ""}/pay/${inv.id}`,
       venue_name: event.venue || "", venue_slug: venueSlug,
+      venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
     });
     setGeneratingId(null);
   };

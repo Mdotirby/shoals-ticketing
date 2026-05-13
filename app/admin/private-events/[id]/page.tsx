@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { useVenue } from "@/app/components/VenueContext";
+import { getCookie } from "@/lib/cookies";
 import Link from "next/link";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
@@ -848,6 +849,7 @@ function BillingTab({
       terms: "",
       venue_name: event.venue,
       venue_slug: venueSlug,
+      venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
     });
   };
 
@@ -909,6 +911,7 @@ function BillingTab({
       deposit_percent: 20,
       deposit_amount: total * 0.2,
       insurance_required: true,
+      venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
     });
   };
 
@@ -938,6 +941,7 @@ function BillingTab({
       payment_url: paymentUrl,
       venue_name: event.venue,
       venue_slug: venueSlug,
+      venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
     });
   };
 
@@ -1342,6 +1346,7 @@ function QuoteTab({ event, quotes, onUpdate, venueSlug }: {
         terms: quote.terms || undefined,
         venue_name: event.venue,
         venue_slug: venueSlug,
+        venue_logo_url: decodeURIComponent(getCookie("venue-logo") || "") || null,
       });
       if (!q) { setShowBuilder(false); setEditingQuote(null); onUpdate(); }
     } finally { setDownloadingId(null); }
