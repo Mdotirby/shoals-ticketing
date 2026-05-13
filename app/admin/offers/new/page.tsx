@@ -302,15 +302,23 @@ export default function AdminCreateOfferPage() {
   }
 
   // Display gross: what the box office actually collects from customers (excl. CC fees).
-  // Multiplier = face + fees + tax per ticket summed across tiers (matches scaling table rows).
-  // Divisor = grossPotential (tax baked into face price, no additional collection).
-  const displayGross = taxMode === "divisor"
-    ? grossPotential
-    : scaling.reduce((sum, r) => {
-        const taxPer = Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
-        return sum + r.sellable_cap * ((r.price || 0) + taxPer);
-      }, 0);
-  const displayAdjGross = displayGross - totalFees;
+  // displayGross = true all-in × sellable: what customers collectively pay (incl. CC).
+  const displayGross = scaling.reduce((sum, r) => {
+    const taxPer = taxMode === "divisor"
+      ? 0
+      : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
+    const preCC = (r.price || 0) + taxPer;
+    const cc = Math.round(preCC * 0.029 * 100) / 100;
+    return sum + r.sellable_cap * (preCC + cc);
+  }, 0);
+  // totalCC = Stripe's share — customer-funded, goes to Stripe not promoter
+  const totalCC = scaling.reduce((sum, r) => {
+    const taxPer = taxMode === "divisor" ? 0 : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
+    const preCC = (r.price || 0) + taxPer;
+    return sum + r.sellable_cap * Math.round(preCC * 0.029 * 100) / 100;
+  }, 0);
+  const preCCGross = displayGross - totalCC;      // what promoter receives from Stripe
+  const displayAdjGross = preCCGross - totalFees; // after ticketing/facility fees removed
 
   const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
   const totalVariable = variableExpenses.reduce((s, e) => s + (e.amount || 0), 0);
@@ -650,8 +658,9 @@ export default function AdminCreateOfferPage() {
             const taxPerTicket = taxMode === "divisor"
               ? Math.round(r.net_price * taxRateDecimal / (1 + taxRateDecimal) * 100) / 100
               : Math.round(r.net_price * taxRateDecimal * 100) / 100;
-            const allIn = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
-            const ccPerTicket = Math.round(allIn * 0.029 * 100) / 100;
+            const preCC = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
+            const ccPerTicket = Math.round(preCC * 0.029 * 100) / 100;
+            const allIn = preCC + ccPerTicket;
             const tierGross = r.sellable_cap * allIn;
             return (
             <div key={i} className="offer-scaling-row">
@@ -721,8 +730,9 @@ export default function AdminCreateOfferPage() {
         <h2 className="admin-form-section-title">Potential at Sellout</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross Potential:</span><strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Less: Fees ({taxMode === "multiplier" ? "tkt + fac" : "tkt + fac"}):</span><strong>(${totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Gross (All-In × Sellable):</span><strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Less: Stripe Fees (~2.9%):</span><strong>(${totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Less: Tkt &amp; Fac. Fees:</span><strong>(${totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Less: Tax (${taxRate}% — remitted to govt):` : `Less: Tax (${taxRate}% — extracted from price):`}</span><strong>(${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
