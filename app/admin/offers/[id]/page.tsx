@@ -588,7 +588,7 @@ export default function AdminOfferDetailPage() {
                       <span className="offer-calc-cell">${taxPerTicket.toFixed(2)}</span>
                       <span className="offer-calc-cell">${ccPerTicket.toFixed(2)}</span>
                       <span className="offer-calc-cell">${allIn.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${(sellable * allIn).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span className="offer-calc-cell">${(sellable * allIn).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => updateField("ticket_scaling", scaling.filter((_, j) => j !== i))}>✕</button>}
                     </div>
                   );
@@ -602,8 +602,8 @@ export default function AdminOfferDetailPage() {
               <div className="offer-totals-row">
                 <span>Total Cap: <strong>{scaling.reduce((s, r) => s + Number(r.seats || 0), 0)}</strong></span>
                 <span>Sellable: <strong>{scaling.reduce((s, r) => s + Number(r.sellable_cap || 0), 0)}</strong></span>
-                <span>Gross Potential: <strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-                <span>Adj. Gross: <strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+                <span>Gross Potential: <strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+                <span>Adj. Gross: <strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
               </div>
             </>
           );

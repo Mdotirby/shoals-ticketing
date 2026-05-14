@@ -676,7 +676,7 @@ export default function AdminCreateOfferPage() {
               <span className="offer-calc-cell">${taxPerTicket.toFixed(2)}</span>
               <span className="offer-calc-cell">${ccPerTicket.toFixed(2)}</span>
               <span className="offer-calc-cell">${allIn.toFixed(2)}</span>
-              <span className="offer-calc-cell">${tierGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span className="offer-calc-cell">${tierGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => setScaling((p) => p.filter((_, j) => j !== i))}>✕</button>}
             </div>
             );
@@ -690,8 +690,8 @@ export default function AdminCreateOfferPage() {
         <div className="offer-totals-row">
           <span>Total Cap: <strong>{scaling.reduce((s, r) => s + r.seats, 0)}</strong></span>
           <span>Sellable: <strong>{scaling.reduce((s, r) => s + r.sellable_cap, 0)}</strong></span>
-          <span>Gross Potential: <strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
-          <span>Adj. Gross: <strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></span>
+          <span>Gross Potential: <strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+          <span>Adj. Gross: <strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
         </div>
 
         {/* ═══ SECTION 5: Expenses ═══ */}
@@ -707,7 +707,7 @@ export default function AdminCreateOfferPage() {
               </div>
             ))}
             <button type="button" className="admin-tier-add-btn" onClick={() => setFixedExpenses((p) => [...p, { name: "", amount: 0 }])}>+ New Expense</button>
-            <div className="offer-expense-total">Fixed Total: <strong>${totalFixed.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-expense-total">Fixed Total: <strong>${totalFixed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
 
           <div className="offer-expenses-col">
@@ -719,10 +719,10 @@ export default function AdminCreateOfferPage() {
                 <span className="offer-var-amount">${exp.amount.toFixed(2)}</span>
               </div>
             ))}
-            <div className="offer-expense-total">Variable Total: <strong>${totalVariable.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+            <div className="offer-expense-total">Variable Total: <strong>${totalVariable.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
-        <div className="offer-total-expenses">Total Expenses: <strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></div>
+        <div className="offer-total-expenses">Total Expenses: <strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
 
 
 
