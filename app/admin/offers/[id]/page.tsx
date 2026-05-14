@@ -657,10 +657,10 @@ export default function AdminOfferDetailPage() {
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross (All-In × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Less: Stripe Fees (~2.9%):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
-            <div className="offer-potential-row"><span>Less: Tkt &amp; Fac. Fees:</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Stripe Fees (~2.9%):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Tkt &amp; Fac. Fees:</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Less: Tax (${live.taxRatePct.toFixed(2)}% — remitted to govt):` : `Less: Tax (${live.taxRatePct.toFixed(2)}% — extracted from price):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax (${live.taxRatePct.toFixed(2)}% Multiplier):` : `Tax (${live.taxRatePct.toFixed(2)}% Divisor):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
@@ -676,7 +676,7 @@ export default function AdminOfferDetailPage() {
               const artistTotal = Math.max(Number(form.guarantee || 0), backendCalc);
               const backendVS = Math.max(backendCalc - Number(form.guarantee || 0), 0);
               return <>
-                <div className="offer-potential-row"><span>Backend (VS):</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row"><span>Overage:</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                 <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>;
             })()}
