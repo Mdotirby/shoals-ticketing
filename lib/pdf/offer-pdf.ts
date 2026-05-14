@@ -379,7 +379,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     return yPos + 9;
   };
 
-  let revY = secHLeft("Revenue Breakdown", revStartY);
+  let revY = secHLeft("Fees", revStartY);
   const totalSellable = scaling.reduce((s: number, r: TicketScalingRow) => s + (r.sellable_cap || 0), 0);
   const pdfFacilityFee = scaling.length > 0 ? (scaling[0] as TicketScalingRow).facility_fee || 0 : 0;
   const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).ticketing_fee || ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee)) : 0;
@@ -387,47 +387,66 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
 
   revY = lv("Fac. Fee/Tkt", `$${pdfFacilityFee.toFixed(2)}`, revY);
-  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
   revY = lv("Tkt Fee/Tkt", `$${pdfTicketingFee.toFixed(2)}`, revY);
+  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
   revY = lv("Total Tkt Rev", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
-  revY = lv("Combined Rev", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
+  revY = lv("Total Fee Revenue", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
 
   // ── Right: Potential at Sellout ──
-  // Compute gross & adj gross from tier data so the PDF is always correct
-  const grossPotential = scaling.length > 0
-    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + (t.sellable_cap * t.price), 0)
-    : Number(data.gross_potential || 0);
-  const adjGross = scaling.length > 0
-    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + (t.sellable_cap * (t.net_price || 0)), 0)
-    : Number(data.adj_gross || 0);
+  // Mirror the exact waterfall used on the offer pages:
+  //   Gross (All-In × Sellable) → Less Stripe → Less Fees → Adj Gross → Less Tax → Net
   const rawTaxRate = Number(data.tax_rate || 0);
-  // Normalize: if stored as percentage (e.g. 9.5), convert to decimal (0.095)
   const taxRateDecimal = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
   const taxMethod = data.tax_method || "multiplier";
+
+  // Traditional adj gross = face × sellable (drives tax and net calc)
+  const adjGross = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + t.sellable_cap * (t.net_price || 0), 0)
+    : Number(data.adj_gross || 0);
+  const totalFeesPDF = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + ((t.ticketing_fee || 0) + (t.facility_fee || 0)) * t.sellable_cap, 0)
+    : 0;
+
+  // All-in display gross: face + fees + tax (multiplier) + CC per tier
+  const displayGrossPDF = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => {
+        const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
+        const preCC = (t.price || 0) + taxPer;
+        const cc = Math.round(preCC * 0.029 * 100) / 100;
+        return sum + t.sellable_cap * (preCC + cc);
+      }, 0)
+    : Number(data.gross_potential || 0);
+  const totalCCPDF = scaling.length > 0
+    ? scaling.reduce((sum: number, t: TicketScalingRow) => {
+        const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
+        const preCC = (t.price || 0) + taxPer;
+        return sum + t.sellable_cap * Math.round(preCC * 0.029 * 100) / 100;
+      }, 0)
+    : 0;
+  const displayAdjGrossPDF = Math.round((displayGrossPDF - totalCCPDF - totalFeesPDF) * 100) / 100;
+
   let netPotential: number;
   let taxAmount: number;
   if (taxMethod === "divisor") {
-    // Tax baked into face price — extract it, reducing promoter net
-    netPotential = adjGross / (1 + taxRateDecimal);
-    taxAmount = adjGross - netPotential;
+    netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
+    taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
   } else {
-    // Customer pays tax on top — promoter nets the full adj gross
-    taxAmount = adjGross * taxRateDecimal;
-    netPotential = adjGross;
+    taxAmount = Math.round(adjGross * taxRateDecimal * 100) / 100;
+    netPotential = Math.round(adjGross * 100) / 100;
   }
-  netPotential = Math.round(netPotential * 100) / 100;
-  taxAmount = Math.round(taxAmount * 100) / 100;
 
   const taxPct = taxRateDecimal * 100;
   const taxLabel = taxMethod === "multiplier"
-    ? `Tax (${taxPct.toFixed(2)}% — collected from customers)`
-    : `Tax (${taxPct.toFixed(2)}% — embedded in price)`;
+    ? `Less: Tax (${taxPct.toFixed(2)}% — remitted)`
+    : `Less: Tax (${taxPct.toFixed(2)}% — embedded)`;
 
   let potY = secHRight("Potential at Sellout", revStartY);
-  potY = lv("Gross Pot.", `${f2(grossPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Adj. Gross", `${f2(adjGross)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv(taxLabel, `${f2(taxAmount)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Net Pot.", `${f2(netPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Gross Potential", `${f2(displayGrossPDF)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Stripe (~2.9%)", `(${f2(totalCCPDF)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Tkt & Fac. Fees", `(${f2(totalFeesPDF)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Adj. Gross", `${f2(displayAdjGrossPDF)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv(taxLabel, `(${f2(taxAmount)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Net Potential", `${f2(netPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   potY = lv("Expenses", `${f2(Number(data.total_expenses || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   if (data.deal_type !== "FLAT") {
     potY = lv("Splitpoint", `${f2(Number(data.splitpoint || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
@@ -458,11 +477,11 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   if (dealType === "VS") {
     artistTotal = splitpoint * backendPct;
     backendAmt = Math.max(artistTotal - guarantee, 0);
-    backendLabel = "Backend (VS)";
+    backendLabel = "Overage (VS)";
   } else if (dealType === "PLUS") {
     backendAmt = splitpoint * backendPct;
     artistTotal = guarantee + backendAmt;
-    backendLabel = "Backend (PLUS)";
+    backendLabel = "Overage (PLUS)";
   }
 
   y = lv("Guarantee", f2(guarantee), y);
