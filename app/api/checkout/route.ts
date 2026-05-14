@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { pastEventReason } from "@/lib/events/closeout";
+import { resolveVenueFees } from "@/lib/checkout-helpers";
 
 // Stripe charges 2.9% + $0.30 per transaction
 const STRIPE_PERCENT_FEE = 0.029;
@@ -61,50 +62,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
-    // Fetch venue-specific fees — prefer event_venues, fall back to venues
-    let ticketingFee = 3.0;
-    let facilityFee = 0;
-    let venueRebate = 0;
-    let taxRate = 0.095;
-    let taxMethod: "multiplier" | "divisor" = "multiplier";
-    let feesResolved = false;
-
-    // 1. Try event_venues first (per physical venue)
-    if (event.event_venue_id) {
-      const { data: evData } = await admin
-        .from("event_venues")
-        .select("ticketing_fee, facility_fee, tax_rate, tax_method")
-        .eq("id", event.event_venue_id)
-        .single();
-      if (evData) {
-        if (evData.ticketing_fee != null) { ticketingFee = evData.ticketing_fee; feesResolved = true; }
-        if (evData.facility_fee != null && event.facility_fee_enabled !== false) { facilityFee = evData.facility_fee; }
-        if (evData.tax_rate != null) { taxRate = evData.tax_rate; feesResolved = true; }
-        if (evData.tax_method === "divisor") taxMethod = "divisor";
-      }
-    }
-
-    // 2. Fall back to venues table if event_venues didn't resolve fees
-    if (!feesResolved && event.venue_id) {
-      const { data: venueData } = await admin
-        .from("venues")
-        .select("ticketing_fee, facility_fee, venue_rebate, tax_rate, tax_method")
-        .eq("id", event.venue_id)
-        .single();
-
-      if (venueData) {
-        ticketingFee = venueData.ticketing_fee ?? 3.0;
-        facilityFee = venueData.facility_fee ?? 0;
-        venueRebate = venueData.venue_rebate ?? 0;
-        taxRate = venueData.tax_rate ?? 0.095;
-        if (venueData.tax_method === "divisor") taxMethod = "divisor";
-      }
-    }
-
-    // 3. If facility_fee_enabled is false, force facilityFee = 0
-    if (event.facility_fee_enabled === false) {
-      facilityFee = 0;
-    }
+    // Fetch venue-specific fees via shared helper (event_venues → venues → defaults)
+    const fees = await resolveVenueFees(admin, event);
+    const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod } = fees;
 
     // ── Promo code validation ──
     let promoCodeId = "";
@@ -361,6 +321,7 @@ export async function POST(request: Request) {
         facility_fee: String(facilityFee),
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
+        tax_method: taxMethod,
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
         fwb_opt_in: fwb_opt_in ? "true" : "false",

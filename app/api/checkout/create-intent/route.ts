@@ -193,6 +193,7 @@ export async function POST(request: Request) {
         facility_fee: String(fees.facilityFee),
         venue_rebate: String(fees.venueRebate),
         tax_rate: String(fees.taxRate),
+        tax_method: fees.taxMethod,
         buyer_name: buyerName || "",
         buyer_email: buyerEmail || "",
         buyer_phone: buyerPhone || "",

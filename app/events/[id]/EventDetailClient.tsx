@@ -68,7 +68,7 @@ export default function EventDetailClient() {
   const [quantity, setQuantity] = useState(1);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [featuredArtists, setFeaturedArtists] = useState<FeaturedArtist[]>([]);
-  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 });
+  const [venueFees, setVenueFees] = useState({ ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095, tax_method: "multiplier" as "multiplier" | "divisor" });
   const [hostedByName, setHostedByName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,6 +230,7 @@ export default function EventDetailClient() {
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
                   facility_fee: Number(v.facility_fee) || 0,
                   tax_rate: Number(v.tax_rate) || 0.095,
+                  tax_method: v.tax_method === "divisor" ? "divisor" : "multiplier",
                 });
                 // Override facility fee if disabled on this event
                 if (data.facility_fee_enabled === false) {
@@ -268,6 +269,7 @@ export default function EventDetailClient() {
                     ticketing_fee: ev.ticketing_fee != null ? Number(ev.ticketing_fee) : prev.ticketing_fee,
                     facility_fee: ev.facility_fee != null ? Number(ev.facility_fee) : prev.facility_fee,
                     tax_rate: ev.tax_rate != null ? Number(ev.tax_rate) : prev.tax_rate,
+                    tax_method: ev.tax_method === "divisor" ? "divisor" : "multiplier",
                   }));
                   // Override facility fee if disabled on this event
                   if (data.facility_fee_enabled === false) {
@@ -671,6 +673,7 @@ export default function EventDetailClient() {
                   ticketingFee={venueFees.ticketing_fee}
                   facilityFee={venueFees.facility_fee}
                   taxRate={venueFees.tax_rate}
+                  taxMethod={venueFees.tax_method}
                 />
               ) : !ticketsOnSale ? (
                 /* ── On-Sale Countdown ── */
@@ -713,6 +716,7 @@ export default function EventDetailClient() {
                     ticketingFee={venueFees.ticketing_fee}
                     facilityFee={venueFees.facility_fee}
                     taxRate={venueFees.tax_rate}
+                    taxMethod={venueFees.tax_method}
                     onCheckout={handleCheckout}
                     onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                     onFreeCheckout={handleFreeCheckout}

@@ -109,6 +109,8 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const halfW = CONTENT_WIDTH / 2 - 4;
   const leftX = MARGIN + 2;
   const rightX = MARGIN + halfW + 8;
+  // Dollar formatter — always 2 decimal places
+  const f2 = (n: number) => `$${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   /** Draw a compact section header bar */
   const secH = (title: string, yPos: number, width?: number): number => {
@@ -205,7 +207,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   // Left column
   let dlY = dealStartY;
-  dlY = lv("Guarantee", `$${Number(data.guarantee || 0).toLocaleString()}`, dlY);
+  dlY = lv("Guarantee", f2(Number(data.guarantee || 0)), dlY);
   dlY = lv("Deal Type", String(data.deal_type || "FLAT"), dlY);
   dlY = lv("Backend %", `${data.backend_percentage || 0}%`, dlY);
   dlY = lv("Radius", `${data.radius_distance || "—"}mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, dlY, { maxW: 50 });
@@ -214,7 +216,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   // Right column
   let drY = dealStartY;
-  drY = lv("Deposit", `$${Number(data.deposit_amount || 0).toLocaleString()} (${data.deposit_pct || 0}%)`, drY, { x: rightX, valX: rValX, maxW: 50 });
+  drY = lv("Deposit", `${f2(Number(data.deposit_amount || 0))} (${data.deposit_pct || 0}%)`, drY, { x: rightX, valX: rValX, maxW: 50 });
   drY = lv("Dep. Due", String(data.deposit_due || "—"), drY, { x: rightX, valX: rValX, maxW: 50 });
   drY = lv("Bal. Due", String(data.balance_due || "Day of Show"), drY, { x: rightX, valX: rValX, maxW: 50 });
   drY = lv("Merch", String(data.merch_split || "—"), drY, { x: rightX, valX: rValX, maxW: 50 });
@@ -267,7 +269,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
       const values = [
         tierName, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap),
         `$${(r.net_price || 0).toFixed(2)}`, `$${facFee.toFixed(2)}`, `$${(tktFee > 0 ? tktFee : 0).toFixed(2)}`,
-        `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString()}`
+        `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       ];
       values.forEach((v, i) => doc.text(v, tCols[i], y));
       y += RH;
@@ -300,14 +302,14 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
       fixY = ensureSpace(doc, RH + 1, fixY);
       const name = doc.splitTextToSize(e.name, 56)[0] || e.name;
       doc.text(name, leftX, fixY);
-      doc.text(`$${e.amount.toLocaleString()}`, leftX + 60, fixY);
+      doc.text(f2(e.amount), leftX + 60, fixY);
       fixY += RH;
     }
   }
   fixY += 0.5;
   doc.setFont("helvetica", "bold");
   doc.text("Fixed Total", leftX, fixY);
-  doc.text(`$${Number(data.total_fixed || 0).toLocaleString()}`, leftX + 60, fixY);
+  doc.text(f2(Number(data.total_fixed || 0)), leftX + 60, fixY);
   fixY += RH;
 
   // ── Variable Expenses (right column) ──
@@ -328,14 +330,14 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
       const name = doc.splitTextToSize(e.name, 44)[0] || e.name;
       doc.text(name, rightX, varY);
       doc.text(`${(e.rate * 100).toFixed(2)}%`, rightX + 48, varY);
-      doc.text(`$${e.amount.toLocaleString()}`, rightX + 64, varY);
+      doc.text(f2(e.amount), rightX + 64, varY);
       varY += RH;
     }
   }
   varY += 0.5;
   doc.setFont("helvetica", "bold");
   doc.text("Variable Total", rightX, varY);
-  doc.text(`$${Number(data.total_variable || 0).toLocaleString()}`, rightX + 64, varY);
+  doc.text(f2(Number(data.total_variable || 0)), rightX + 64, varY);
   varY += RH;
 
   y = Math.max(fixY, varY) + 1;
@@ -346,7 +348,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(...DARK);
-  doc.text(`Total Expenses:  $${Number(data.total_expenses || 0).toLocaleString()}`, MARGIN + 3, y + 3);
+  doc.text(`Total Expenses:  ${f2(Number(data.total_expenses || 0))}`, MARGIN + 3, y + 3);
   y += 7.5;
 
   // ════════════════════════════════════════════════════════
@@ -401,29 +403,34 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const rawTaxRate = Number(data.tax_rate || 0);
   // Normalize: if stored as percentage (e.g. 9.5), convert to decimal (0.095)
   const taxRateDecimal = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
-  const taxMethod = data.tax_method || "divisor";
+  const taxMethod = data.tax_method || "multiplier";
   let netPotential: number;
   let taxAmount: number;
   if (taxMethod === "divisor") {
+    // Tax baked into face price — extract it, reducing promoter net
     netPotential = adjGross / (1 + taxRateDecimal);
     taxAmount = adjGross - netPotential;
   } else {
+    // Customer pays tax on top — promoter nets the full adj gross
     taxAmount = adjGross * taxRateDecimal;
-    netPotential = adjGross - taxAmount;
+    netPotential = adjGross;
   }
-  // Round to 2 decimal places
   netPotential = Math.round(netPotential * 100) / 100;
   taxAmount = Math.round(taxAmount * 100) / 100;
 
-  let potY = secHRight("Potential at Sellout", revStartY);
-  potY = lv("Gross Pot.", `$${grossPotential.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Adj. Gross", `$${adjGross.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   const taxPct = taxRateDecimal * 100;
-  potY = lv(`Tax (${taxPct.toFixed(1)}% ${taxMethod})`, `$${taxAmount.toFixed(2)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Net Pot.", `$${netPotential.toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Expenses", `$${Number(data.total_expenses || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  const taxLabel = taxMethod === "multiplier"
+    ? `Tax (${taxPct.toFixed(2)}% — collected from customers)`
+    : `Tax (${taxPct.toFixed(2)}% — embedded in price)`;
+
+  let potY = secHRight("Potential at Sellout", revStartY);
+  potY = lv("Gross Pot.", `${f2(grossPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Adj. Gross", `${f2(adjGross)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv(taxLabel, `${f2(taxAmount)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Net Pot.", `${f2(netPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+  potY = lv("Expenses", `${f2(Number(data.total_expenses || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   if (data.deal_type !== "FLAT") {
-    potY = lv("Splitpoint", `$${Number(data.splitpoint || 0).toLocaleString()}`, potY, { x: rightX, valX: rValX, maxW: 50 });
+    potY = lv("Splitpoint", `${f2(Number(data.splitpoint || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
   }
 
   y = Math.max(revY, potY) + 1;
@@ -458,7 +465,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     backendLabel = "Backend (PLUS)";
   }
 
-  y = lv("Guarantee", `$${guarantee.toLocaleString()}`, y);
+  y = lv("Guarantee", f2(guarantee), y);
   if (backendLabel) {
     y = lv(backendLabel, `$${backendAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
   }
