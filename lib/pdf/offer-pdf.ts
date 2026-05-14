@@ -437,8 +437,8 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   const taxPct = taxRateDecimal * 100;
   const taxLabel = taxMethod === "multiplier"
-    ? `Less: Tax (${taxPct.toFixed(2)}% — remitted)`
-    : `Less: Tax (${taxPct.toFixed(2)}% — embedded)`;
+    ? `Tax (${taxPct.toFixed(2)}% Multiplier)`
+    : `Tax (${taxPct.toFixed(2)}% Divisor)`;
 
   let potY = secHRight("Potential at Sellout", revStartY);
   potY = lv("Gross Potential", `${f2(displayGrossPDF)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
