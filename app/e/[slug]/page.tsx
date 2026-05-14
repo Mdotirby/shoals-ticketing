@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
-  const priceStr = event.price ? `$${event.price} ALL-IN` : "Free";
+  const priceStr = event.price ? `$${event.price}` : "Free";
   const description = dateStr
     ? `${dateStr} · ${event.venue || ""} · ${priceStr}`
     : event.description?.slice(0, 160) || `Get tickets at ${operator.name}`;

@@ -910,7 +910,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                     ${(displayPrice * quantity).toFixed(2)}
                   </span>
                   <span className="lp-checkout-price-label">
-                    {quantity > 1 ? "total" : "per ticket"} &middot; ALL-IN
+                    {quantity > 1 ? "total" : "per ticket"} &middot; Price
                   </span>
                 </div>
               )}
@@ -1227,7 +1227,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 : `$${(displayPrice * quantity).toFixed(2)}`}
             {!event.externalTicketUrl && !isFree && (
               <span className="lp-sticky-price-label">
-                {quantity > 1 ? "total" : "per ticket"} · ALL-IN
+                {quantity > 1 ? "total" : "per ticket"} · Price
               </span>
             )}
           </div>

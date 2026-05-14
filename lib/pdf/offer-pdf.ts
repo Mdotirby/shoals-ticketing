@@ -233,21 +233,26 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     y = ensureSpace(doc, 10, y);
     y = secH("Ticket Scaling", y);
 
+    const rawTaxRateScaling = Number(data.tax_rate || 0);
+    const taxRateDecScaling = rawTaxRateScaling > 1 ? rawTaxRateScaling / 100 : rawTaxRateScaling;
+    const taxMethodScaling = data.tax_method || "multiplier";
+
     const tCols = [
       MARGIN + 2,    // Tier name
-      MARGIN + 32,   // Seats
-      MARGIN + 46,   // Comps
-      MARGIN + 58,   // Kills
-      MARGIN + 70,   // Sellable
-      MARGIN + 86,   // Net Price
-      MARGIN + 104,  // Fac. Fee
-      MARGIN + 120,  // Tkt Fee
-      MARGIN + 136,  // Price
-      MARGIN + 154,  // Gross
+      MARGIN + 30,   // Seats
+      MARGIN + 41,   // Comps
+      MARGIN + 51,   // Sellable (Kills removed)
+      MARGIN + 63,   // Net Price
+      MARGIN + 79,   // Fac. Fee
+      MARGIN + 90,   // Tkt Fee
+      MARGIN + 102,  // Price
+      MARGIN + 116,  // Tax/Tkt
+      MARGIN + 130,  // CC/Tkt
+      MARGIN + 144,  // All-In
+      MARGIN + 160,  // Gross
     ];
-    const tHeaders = ["Scaling", "Seats", "Comps", "Kills", "Sell", "Net $", "Fac.", "Tkt.", "Price", "Gross"];
+    const tHeaders = ["Scaling", "Seats", "Comps", "Sell", "Net $", "Fac.", "Tkt.", "Sub.", "Tax/Tkt", "CC/Tkt", "Price", "Gross"];
 
-    // Header row
     doc.setFillColor(...LIGHT_GRAY);
     doc.rect(MARGIN, y - 1.5, CONTENT_WIDTH, 4.5, "F");
     doc.setFont("helvetica", "bold");
@@ -256,20 +261,29 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     tHeaders.forEach((h, i) => doc.text(h, tCols[i], y + 1.5));
     y += 5;
 
-    // Data rows
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setTextColor(0, 0, 0);
     const tierMaxW = tCols[1] - tCols[0] - 2;
     for (const r of scaling) {
       y = ensureSpace(doc, RH + 1, y);
       const facFee = r.facility_fee || 0;
       const tktFee = r.ticketing_fee || (r.price - (r.net_price || 0) - facFee);
+      const taxPer = taxMethodScaling === "divisor"
+        ? Math.round((r.net_price || 0) * taxRateDecScaling / (1 + taxRateDecScaling) * 100) / 100
+        : Math.round((r.net_price || 0) * taxRateDecScaling * 100) / 100;
+      const preCC = (r.price || 0) + (taxMethodScaling === "divisor" ? 0 : taxPer);
+      const ccPer = Math.round(preCC * 0.029 * 100) / 100;
+      const allIn = preCC + ccPer;
+      const tierGross = (r.sellable_cap || 0) * allIn;
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
       const values = [
-        tierName, String(r.seats), String(r.comps), String(r.kills), String(r.sellable_cap),
-        `$${(r.net_price || 0).toFixed(2)}`, `$${facFee.toFixed(2)}`, `$${(tktFee > 0 ? tktFee : 0).toFixed(2)}`,
-        `$${r.price?.toFixed(2)}`, `$${(r.sellable_cap * r.price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        tierName, String(r.seats), String(r.comps), String(r.sellable_cap),
+        `$${(r.net_price || 0).toFixed(2)}`, `$${facFee.toFixed(2)}`,
+        `$${(tktFee > 0 ? tktFee : 0).toFixed(2)}`, `$${(r.price || 0).toFixed(2)}`,
+        `$${taxPer.toFixed(2)}`, `$${ccPer.toFixed(2)}`,
+        `$${allIn.toFixed(2)}`,
+        `$${tierGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       ];
       values.forEach((v, i) => doc.text(v, tCols[i], y));
       y += RH;
@@ -352,62 +366,22 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   y += 7.5;
 
   // ════════════════════════════════════════════════════════
-  //  REVENUE BREAKDOWN + POTENTIAL AT SELLOUT — side by side
+  //  POTENTIAL AT SELLOUT — full width, 2-column grid
   // ════════════════════════════════════════════════════════
   y = ensureSpace(doc, 10, y);
-  const revStartY = y;
+  y = secH("Potential at Sellout", y);
+  const potStartY = y;
 
-  // ── Left: Revenue Breakdown ──
-  const secHLeft = (title: string, yPos: number): number => {
-    doc.setFillColor(...DARK);
-    doc.rect(MARGIN, yPos, halfW + 2, 5.5, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(H);
-    doc.setTextColor(...GOLD);
-    doc.text(title.toUpperCase(), MARGIN + 2, yPos + 3.8);
-    doc.setTextColor(...DARK);
-    return yPos + 9;
-  };
-  const secHRight = (title: string, yPos: number): number => {
-    doc.setFillColor(...DARK);
-    doc.rect(rightX - 4, yPos, halfW + 5, 5.5, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(H);
-    doc.setTextColor(...GOLD);
-    doc.text(title.toUpperCase(), rightX - 2, yPos + 3.8);
-    doc.setTextColor(...DARK);
-    return yPos + 9;
-  };
-
-  let revY = secHLeft("Fees", revStartY);
-  const totalSellable = scaling.reduce((s: number, r: TicketScalingRow) => s + (r.sellable_cap || 0), 0);
-  const pdfFacilityFee = scaling.length > 0 ? (scaling[0] as TicketScalingRow).facility_fee || 0 : 0;
-  const pdfTicketingFee = scaling.length > 0 ? ((scaling[0] as TicketScalingRow).ticketing_fee || ((scaling[0] as TicketScalingRow).price - (scaling[0] as TicketScalingRow).net_price - pdfFacilityFee)) : 0;
-  const totalFacilityFeeRevenue = totalSellable * pdfFacilityFee;
-  const totalTicketingFeeRevenue = totalSellable * pdfTicketingFee;
-
-  revY = lv("Fac. Fee/Tkt", `$${pdfFacilityFee.toFixed(2)}`, revY);
-  revY = lv("Tkt Fee/Tkt", `$${pdfTicketingFee.toFixed(2)}`, revY);
-  revY = lv("Total Fac. Rev", `$${totalFacilityFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
-  revY = lv("Total Tkt Rev", `$${totalTicketingFeeRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
-  revY = lv("Total Fee Revenue", `$${(totalFacilityFeeRevenue + totalTicketingFeeRevenue).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, revY);
-
-  // ── Right: Potential at Sellout ──
-  // Mirror the exact waterfall used on the offer pages:
-  //   Gross (All-In × Sellable) → Less Stripe → Less Fees → Adj Gross → Less Tax → Net
   const rawTaxRate = Number(data.tax_rate || 0);
   const taxRateDecimal = rawTaxRate > 1 ? rawTaxRate / 100 : rawTaxRate;
   const taxMethod = data.tax_method || "multiplier";
 
-  // Traditional adj gross = face × sellable (drives tax and net calc)
   const adjGross = scaling.length > 0
     ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + t.sellable_cap * (t.net_price || 0), 0)
     : Number(data.adj_gross || 0);
   const totalFeesPDF = scaling.length > 0
     ? scaling.reduce((sum: number, t: TicketScalingRow) => sum + ((t.ticketing_fee || 0) + (t.facility_fee || 0)) * t.sellable_cap, 0)
     : 0;
-
-  // All-in display gross: face + fees + tax (multiplier) + CC per tier
   const displayGrossPDF = scaling.length > 0
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
@@ -437,22 +411,47 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
 
   const taxPct = taxRateDecimal * 100;
   const taxLabel = taxMethod === "multiplier"
-    ? `Tax (${taxPct.toFixed(2)}% Multiplier)`
-    : `Tax (${taxPct.toFixed(2)}% Divisor)`;
+    ? `Tax (${taxPct.toFixed(2)}% — remitted)`
+    : `Tax (${taxPct.toFixed(2)}% — embedded)`;
 
-  let potY = secHRight("Potential at Sellout", revStartY);
-  potY = lv("Gross Potential", `${f2(displayGrossPDF)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Stripe (~2.9%)", `(${f2(totalCCPDF)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Tkt & Fac. Fees", `(${f2(totalFeesPDF)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Adj. Gross", `${f2(displayAdjGrossPDF)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv(taxLabel, `(${f2(taxAmount)})`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Net Potential", `${f2(netPotential)}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  potY = lv("Expenses", `${f2(Number(data.total_expenses || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  if (data.deal_type !== "FLAT") {
-    potY = lv("Splitpoint", `${f2(Number(data.splitpoint || 0))}`, potY, { x: rightX, valX: rValX, maxW: 50 });
-  }
+  // 4-column grid: leftLabel | leftVal | rightLabel | rightVal
+  const colW = CONTENT_WIDTH / 2 - 4;
+  const potL  = MARGIN + 2;           // left label
+  const potLV = MARGIN + colW - 18;   // left value (right-ish of left half)
+  const potR  = MARGIN + CONTENT_WIDTH / 2 + 4;  // right label
+  const potRV = MARGIN + CONTENT_WIDTH - 18;       // right value
 
-  y = Math.max(revY, potY) + 1;
+  const potRow = (
+    lLabel: string, lVal: string,
+    rLabel: string, rVal: string,
+    yPos: number,
+    bold = false,
+  ): number => {
+    yPos = ensureSpace(doc, RH, yPos);
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    doc.setFontSize(M);
+    doc.setTextColor(80, 80, 80);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(S);
+    doc.text(`${lLabel}:`, potL, yPos);
+    doc.text(`${rLabel}:`, potR, yPos);
+    doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(M);
+    doc.setTextColor(0, 0, 0);
+    doc.text(lVal, potLV, yPos);
+    doc.text(rVal, potRV, yPos);
+    return yPos + RH;
+  };
+
+  const hasSplipoint = data.deal_type !== "FLAT";
+  let potY = potStartY;
+  potY = potRow("Gross (Price × Sell)", f2(displayGrossPDF), taxLabel, `(${f2(taxAmount)})`, potY);
+  potY = potRow("CC Fee", `(${f2(totalCCPDF)})`, "Net Potential", f2(netPotential), potY, true);
+  potY = potRow("Tkt & Fac. Fees", `(${f2(totalFeesPDF)})`, "Expenses", f2(Number(data.total_expenses || 0)), potY);
+  potY = potRow(
+    "Adj. Gross", f2(displayAdjGrossPDF),
+    hasSplipoint ? "Splitpoint" : "", hasSplipoint ? f2(Number(data.splitpoint || 0)) : "",
+    potY, true,
+  );
+  y = potY + 1;
 
   // ════════════════════════════════════════════════════════
   //  ARTIST POTENTIAL AT SELLOUT — compact

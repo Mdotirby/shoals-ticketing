@@ -540,7 +540,7 @@ export default function AdminOfferDetailPage() {
             <>
               <div className="offer-scaling-table">
                 <div className="offer-scaling-header">
-                  <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Price</span><span>Tax/Ticket</span><span>CC/Ticket</span><span>All-In</span><span>Gross</span>
+                  <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Sub.</span><span>Tax/Ticket</span><span>CC/Ticket</span><span>Price</span><span>Gross</span>
                 </div>
                 {scaling.map((r, i) => {
                   const np = Number(r.net_price || 0);
@@ -656,7 +656,7 @@ export default function AdminOfferDetailPage() {
         <h2 className="admin-form-section-title">Financials</h2>
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross (All-In × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            <div className="offer-potential-row"><span>Gross (Price × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Stripe Fees (~2.9%):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Tkt &amp; Fac. Fees:</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
