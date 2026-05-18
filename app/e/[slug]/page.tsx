@@ -274,6 +274,7 @@ export default async function LandingPage({ params }: Props) {
       attendeeCount={orderCount || 0}
       featuredArtists={featuredArtists}
       venueInfo={venueInfo}
+      slug={slug}
       fees={{
         ticketingFee: fees.ticketing_fee,
         facilityFee: fees.facility_fee,

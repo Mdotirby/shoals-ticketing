@@ -71,6 +71,7 @@ type Props = {
   featuredArtists?: FeaturedArtist[];
   venueInfo?: VenueInfo;
   fees?: Fees;
+  slug?: string;
 };
 
 // Stripe charges 2.9% + $0.30 per transaction — keep aligned with
@@ -644,7 +645,7 @@ function CheckoutForm({
 
 // ── Main Landing Page Component ──────────────────────────────────────────────
 
-export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees }: Props) {
+export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "" }: Props) {
   // Fall back to sensible defaults if the server didn't pass fees (older
   // callers / unit tests).
   const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
@@ -831,7 +832,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         <div className="lp-hero-content">
           <h1 className="lp-headline">{event.title}</h1>
           <p className="lp-subheadline">
-            {isPast ? "This event has passed" : "Don\u2019t miss out \u2014 limited availability"}
+            {isPast ? "This event has passed" : slug === "payton-howie" ? "A girl with 4 million streams, a Garth Brooks tour credit, and a Saturday night in June." : "Don\u2019t miss out \u2014 limited availability"}
           </p>
 
           <div className="lp-meta">
@@ -1051,8 +1052,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">Unforgettable Experience</div>
-                <div className="lp-bullet-desc">A live event you&apos;ll be talking about for weeks</div>
+                <div className="lp-bullet-title">{slug === "payton-howie" ? "No Jumbotron" : "Unforgettable Experience"}</div>
+                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Someone who’s shared stages with Lainey Wilson, Parker McCollum, and Ashley McBryde is playing a room where you can actually see her face." : "A live event you’ll be talking about for weeks"}</div>
               </div>
             </div>
             <div className="lp-bullet">
@@ -1063,8 +1064,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">Limited Availability</div>
-                <div className="lp-bullet-desc">Tickets are going fast &mdash; don&apos;t wait</div>
+                <div className="lp-bullet-title">{slug === "payton-howie" ? "Not a Gamble" : "Limited Availability"}</div>
+                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Four million career streams and a tour history that reads like a country radio playlist — you're not taking a chance on an unknown, you're catching someone on the way up." : "Tickets are going fast — don't wait"}</div>
               </div>
             </div>
             <div className="lp-bullet">
@@ -1077,8 +1078,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">Join the Crowd</div>
-                <div className="lp-bullet-desc">{socialProofText}</div>
+                <div className="lp-bullet-title">{slug === "payton-howie" ? "$29. All In." : "Join the Crowd"}</div>
+                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Saturday night, live country music in Florence, no service fee math — the whole ticket is twenty-nine dollars." : socialProofText}</div>
               </div>
             </div>
           </div>
@@ -1087,6 +1088,11 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
           {event.description && (
             <div className="lp-about">
               <h3 className="lp-about-heading">About the Event</h3>
+              {slug === "payton-howie" && (
+                <p className="lp-about-text" style={{ fontStyle: "italic", marginBottom: "0.75rem" }}>
+                  There&apos;s a version of this where you watch Payton Howie headline an amphitheater in a few years and kick yourself for skipping the $29 show at a brewery in Florence.
+                </p>
+              )}
               <p className="lp-about-text">{event.description}</p>
             </div>
           )}
