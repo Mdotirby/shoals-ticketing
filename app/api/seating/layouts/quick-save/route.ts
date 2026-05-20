@@ -67,24 +67,24 @@ export async function POST(req: Request) {
   }
 
   // 4. Batch insert seats
-  if (seats.length > 0) {
-    const seatRows = seats
-      .map((s: { _sectionId: string; _objectId: string; row_label: string; seat_number: number; x_ft: number; y_ft: number }) => {
-        const realSectionId = sectionIdMap.get(s._sectionId);
-        const realObjectId = objectIdMap.get(s._objectId);
-        if (!realSectionId || !realObjectId) return null;
-        return {
-          section_id: realSectionId,
-          object_id: realObjectId,
-          row_label: s.row_label,
-          seat_number: s.seat_number,
-          x_ft: s.x_ft,
-          y_ft: s.y_ft,
-          status: "available",
-        };
-      })
-      .filter(Boolean);
+  const seatRows = seats
+    .map((s: { _sectionId: string; _objectId: string; row_label: string; seat_number: number; x_ft: number; y_ft: number }) => {
+      const realSectionId = sectionIdMap.get(s._sectionId);
+      const realObjectId = objectIdMap.get(s._objectId);
+      if (!realSectionId || !realObjectId) return null;
+      return {
+        section_id: realSectionId,
+        object_id: realObjectId,
+        row_label: s.row_label,
+        seat_number: s.seat_number,
+        x_ft: s.x_ft,
+        y_ft: s.y_ft,
+        status: "available",
+      };
+    })
+    .filter(Boolean);
 
+  if (seatRows.length > 0) {
     // Insert in batches of 200 to avoid payload limits
     for (let i = 0; i < seatRows.length; i += 200) {
       const batch = seatRows.slice(i, i + 200);
@@ -99,11 +99,14 @@ export async function POST(req: Request) {
     }
   }
 
+  const droppedSeats = seats.length - seatRows.length;
+
   return NextResponse.json({
     success: true,
     layout_id: layoutRow.id,
     sections_created: sectionIdMap.size,
     objects_created: objectIdMap.size,
-    seats_created: seats.length,
+    seats_created: seatRows.length,
+    ...(droppedSeats > 0 && { warning: `${droppedSeats} seats dropped due to missing section/object mapping` }),
   });
 }

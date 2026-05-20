@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import SeatMap from "@/app/components/seating/SeatMap";
+import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { SectionFull } from "@/lib/seating/types";
 
 type SelectedSeat = {
@@ -19,7 +20,7 @@ export default function EventSeatingPage() {
   const router = useRouter();
   const eventId = params.id as string;
 
-  const [event, setEvent] = useState<{ id: string; title: string; venue: string; date: string; price: number } | null>(null);
+  const [event, setEvent] = useState<{ id: string; title: string; venue: string; date: string } | null>(null);
   const [sections, setSections] = useState<SectionFull[]>([]);
   const [roomW, setRoomW] = useState(100);
   const [roomH, setRoomH] = useState(60);
@@ -31,6 +32,7 @@ export default function EventSeatingPage() {
 
   const selectedIds = new Set(selected.map((s) => s.id));
 
+  // ─── load event + seating ─────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       fetch(`/api/events/${eventId}`).then((r) => r.json()),
@@ -45,15 +47,52 @@ export default function EventSeatingPage() {
         setError("No seating layout available for this event.");
       }
     }).catch(() => setError("Failed to load event."))
-    .finally(() => setLoading(false));
+      .finally(() => setLoading(false));
   }, [eventId]);
 
+  // ─── realtime seat status updates ────────────────────────────────────────
+  const sectionsRef = useRef(sections);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
+
+  useEffect(() => {
+    if (!sections.length) return;
+
+    const supabase = getSupabaseBrowser();
+    const channel = supabase
+      .channel(`seats-event-${eventId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "seats" },
+        (payload: { new: Record<string, unknown> }) => {
+          const updated = payload.new as { id: string; status: string; held_until: string | null };
+          setSections((prev) =>
+            prev.map((sec) => ({
+              ...sec,
+              seats: sec.seats.map((seat) =>
+                seat.id === updated.id
+                  ? { ...seat, status: updated.status as "available" | "held" | "sold", held_until: updated.held_until }
+                  : seat
+              ),
+            }))
+          );
+          // If a selected seat was just grabbed by someone else, deselect it
+          if (updated.status !== "available") {
+            setSelected((prev) => prev.filter((s) => s.id !== updated.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [sections.length, eventId]); // re-subscribe only when sections first load
+
+  // ─── seat selection ───────────────────────────────────────────────────────
   const handleSeatClick = useCallback((seatId: string, sectionId: string) => {
     setSelected((prev) => {
       const exists = prev.find((s) => s.id === seatId);
       if (exists) return prev.filter((s) => s.id !== seatId);
 
-      const sec = sections.find((s) => s.id === sectionId);
+      const sec = sectionsRef.current.find((s) => s.id === sectionId);
       if (!sec) return prev;
       const seat = sec.seats.find((s) => s.id === seatId);
       if (!seat) return prev;
@@ -67,10 +106,11 @@ export default function EventSeatingPage() {
         color: sec.color,
       }];
     });
-  }, [sections]);
+  }, []);
 
   const totalCents = selected.reduce((s, seat) => s + seat.priceCents, 0);
 
+  // ─── checkout ─────────────────────────────────────────────────────────────
   const handleCheckout = async () => {
     if (selected.length === 0) return;
     setReserving(true);
@@ -99,8 +139,16 @@ export default function EventSeatingPage() {
     }
   };
 
-  if (loading) return <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><p>Loading seating…</p></main>;
-  if (error) return <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center" }}><p>{error}</p></main>;
+  if (loading) return (
+    <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p>Loading seating…</p>
+    </main>
+  );
+  if (error) return (
+    <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p>{error}</p>
+    </main>
+  );
 
   return (
     <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#fff", padding: "20px 16px 80px" }}>
@@ -124,19 +172,24 @@ export default function EventSeatingPage() {
         </div>
 
         {/* Legend */}
-        <div style={{ display: "flex", gap: 16, justifyContent: "center", marginBottom: 16 }}>
-          {sections.map((s) => (
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 16 }}>
+          {sections.filter((s) => s.type !== "stage").map((s) => (
             <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, display: "inline-block" }} />
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
               {s.name} — ${(s.price_cents / 100).toFixed(2)}
             </span>
           ))}
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-            <span style={{ width: 10, height: 10, borderRadius: 3, background: "rgba(255,255,255,0.06)", display: "inline-block" }} /> Sold
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} />
+            Held (temporary)
+          </span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", display: "inline-block" }} />
+            Sold
           </span>
         </div>
 
-        {/* Selected */}
+        {/* Selected seats */}
         {selected.length > 0 && (
           <div style={{ background: "#111118", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: 20 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 12 }}>Selected Seats ({selected.length})</h2>
@@ -149,10 +202,11 @@ export default function EventSeatingPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>Total: ${(totalCents / 100).toFixed(2)}</span>
-              <button onClick={handleCheckout} disabled={reserving} style={{
-                padding: "10px 28px", background: reserving ? "rgba(99,102,241,0.3)" : "#6366f1",
-                border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: reserving ? "wait" : "pointer",
-              }}>
+              <button
+                onClick={handleCheckout}
+                disabled={reserving}
+                style={{ padding: "10px 28px", background: reserving ? "rgba(99,102,241,0.3)" : "#6366f1", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: reserving ? "wait" : "pointer" }}
+              >
                 {reserving ? "Reserving…" : "Proceed to Checkout"}
               </button>
             </div>

@@ -92,32 +92,38 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }).select("id").single();
 
     if (objErr || !inserted) {
-      console.error("Failed to insert object:", objErr);
-      objectIds.push("");
-      continue;
+      // Roll back the section so we don't leave orphaned partial data
+      await admin.from("sections").delete().eq("id", section.id);
+      return NextResponse.json({ error: "Failed to insert object: " + (objErr?.message || "") }, { status: 500 });
     }
     objectIds.push(inserted.id);
   }
 
   // 4. Insert seats (batch)
   if (result.seats.length > 0) {
-    const seatRows = result.seats.map((s) => ({
-      section_id: section.id,
-      object_id: objectIds[s._objectIndex] || objectIds[0],
-      row_label: s.row_label,
-      seat_number: s.seat_number,
-      x_ft: s.x_ft,
-      y_ft: s.y_ft,
-      status: "available",
-    }));
+    const seatRows = result.seats.map((s) => {
+      const objectId = objectIds[s._objectIndex];
+      if (!objectId) return null;
+      return {
+        section_id: section.id,
+        object_id: objectId,
+        row_label: s.row_label,
+        seat_number: s.seat_number,
+        x_ft: s.x_ft,
+        y_ft: s.y_ft,
+        status: "available",
+      };
+    }).filter(Boolean);
+
+    if (seatRows.length < result.seats.length) {
+      await admin.from("sections").delete().eq("id", section.id);
+      return NextResponse.json({ error: "Seat/object index mismatch — generation aborted" }, { status: 500 });
+    }
 
     const { error: seatErr } = await admin.from("seats").insert(seatRows);
     if (seatErr) {
-      console.error("Failed to insert seats:", seatErr);
-      return NextResponse.json({
-        error: "Section created but seats failed: " + seatErr.message,
-        section_id: section.id,
-      }, { status: 500 });
+      await admin.from("sections").delete().eq("id", section.id);
+      return NextResponse.json({ error: "Seats failed: " + seatErr.message }, { status: 500 });
     }
   }
 

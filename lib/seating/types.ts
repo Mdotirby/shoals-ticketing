@@ -1,6 +1,6 @@
 /** Seating System V3 — Clean Types */
 
-export type SectionType = "table" | "row" | "ga";
+export type SectionType = "table" | "row" | "ga" | "stage";
 export type ObjectType = "table_group" | "row_block" | "ga_zone" | "stage" | "label";
 export type SeatStatus = "available" | "held" | "sold";
 
