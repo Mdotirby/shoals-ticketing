@@ -393,12 +393,12 @@ export default function SeatMap({
                     : `${sec.color}cc`;
                   const tableCursor = isAvailable || isTableSelected ? "pointer" : "not-allowed";
                   const fontSize = Math.max(10, pw / 5);
-
                   const tooltipText = `${sec.name} · T${meta.table_number} · ${seatIds.length} seats — $${(sec.price_cents / 100).toFixed(2)}${isTableSelected ? " (Selected)" : isTableHeld ? " (Held)" : isTableSold ? " (Sold)" : ""}`;
 
                   return (
+                    // NOTE: seat circles for this table are rendered INSIDE this group (not in the
+                    // seat loop below) so that clicking any seat dot also triggers the table handler.
                     <g key={obj.id}
-                      transform={`rotate(${obj.rotation} ${pcx} ${pcy})`}
                       style={{ cursor: tableCursor }}
                       onMouseEnter={(e) => {
                         setHoveredObjId(obj.id);
@@ -415,16 +415,44 @@ export default function SeatMap({
                         if (isAvailable || isTableSelected) onTableClick?.(seatIds, sec.id, obj.id);
                       }}
                     >
-                      <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2}
-                        fill={ellipseFill} stroke={ellipseStroke}
-                        strokeWidth={isTableSelected || isHovered ? 2 : 1}
+                      {/* Invisible hit-area ellipse covering the full seat orbit radius so
+                          clicking anywhere in the table unit (including between seat dots)
+                          is captured here rather than falling through to the SVG pan handler */}
+                      <ellipse cx={pcx} cy={pcy}
+                        rx={pw / 2 + seatR * 2.2} ry={ph / 2 + seatR * 2.2}
+                        fill="rgba(0,0,0,0)" stroke="none"
+                        style={{ pointerEvents: "all" }}
                       />
-                      <text x={pcx} y={pcy + 1} fill={labelFill} fontSize={fontSize} fontWeight={700} textAnchor="middle" dominantBaseline="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
-                        T{meta.table_number}
-                      </text>
-                      <text x={pcx} y={pcy + fontSize + 3} fill={isTableSelected ? "rgba(255,255,255,0.7)" : `${sec.color}80`} fontSize={Math.max(7, fontSize * 0.65)} textAnchor="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
-                        ${(sec.price_cents / 100).toFixed(0)}
-                      </text>
+                      {/* Visible table ellipse */}
+                      <g transform={`rotate(${obj.rotation} ${pcx} ${pcy})`}>
+                        <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2}
+                          fill={ellipseFill} stroke={ellipseStroke}
+                          strokeWidth={isTableSelected || isHovered ? 2 : 1}
+                          style={{ pointerEvents: "none" }}
+                        />
+                        <text x={pcx} y={pcy + 1} fill={labelFill} fontSize={fontSize} fontWeight={700} textAnchor="middle" dominantBaseline="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
+                          T{meta.table_number}
+                        </text>
+                        <text x={pcx} y={pcy + fontSize + 3} fill={isTableSelected ? "rgba(255,255,255,0.7)" : `${sec.color}80`} fontSize={Math.max(7, fontSize * 0.65)} textAnchor="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
+                          ${(sec.price_cents / 100).toFixed(0)}
+                        </text>
+                      </g>
+                      {/* Seat dots — rendered inside the group so all clicks bubble to the handler above */}
+                      {tableSeats.map((seat) => {
+                        const sx = ft(seat.x_ft), sy = ft(seat.y_ft);
+                        const isSeatSelected = selectedSeatIds.has(seat.id);
+                        const isSeatHeld = seat.status === "held";
+                        const isSeatSold = seat.status === "sold";
+                        return (
+                          <circle key={seat.id} cx={sx} cy={sy} r={seatR * 0.75}
+                            fill={isSeatSold ? "rgba(255,255,255,0.08)" : isSeatHeld ? "#f59e0b" : isSeatSelected ? "#fff" : sec.color}
+                            opacity={isSeatSold ? 0.3 : isSeatHeld ? 0.5 : isSeatSelected ? 0.9 : 0.5}
+                            stroke={isSeatSelected ? sec.color : "none"}
+                            strokeWidth={isSeatSelected ? 1 : 0}
+                            style={{ pointerEvents: "none" }}
+                          />
+                        );
+                      })}
                     </g>
                   );
                 }
@@ -477,8 +505,11 @@ export default function SeatMap({
               return null;
             })}
 
-            {/* Seats */}
+            {/* Seats — skip sells_as_table sections in interactive mode; those seats are
+                already rendered inside their table group above for correct z-order / click handling */}
             {sec.seats.map((seat) => {
+              if (sec.sells_as_table && interactive) return null;
+
               // Apply drag offset to seats belonging to dragged object
               let sx = ft(seat.x_ft), sy = ft(seat.y_ft);
               if (dragOffset && seat.object_id === dragOffset.objectId) {
@@ -489,22 +520,6 @@ export default function SeatMap({
               const isSelected = selectedSeatIds.has(seat.id);
               const isSold = seat.status === "sold";
               const isHeld = seat.status === "held" && !isSelected;
-
-              // In table-sale mode: seats are visual indicators only — the table ellipse handles interaction
-              if (sec.sells_as_table && interactive) {
-                const isTableSelected = isSelected;
-                return (
-                  <circle
-                    key={seat.id}
-                    cx={sx} cy={sy} r={seatR * 0.75}
-                    fill={isSold ? "rgba(255,255,255,0.08)" : isHeld ? "#f59e0b" : isTableSelected ? "#fff" : sec.color}
-                    opacity={isSold ? 0.3 : isHeld ? 0.5 : isTableSelected ? 0.9 : 0.5}
-                    stroke={isTableSelected ? sec.color : "none"}
-                    strokeWidth={isTableSelected ? 1 : 0}
-                    style={{ pointerEvents: "none" }}
-                  />
-                );
-              }
 
               let fill = sec.color;
               let opacity = 0.8;

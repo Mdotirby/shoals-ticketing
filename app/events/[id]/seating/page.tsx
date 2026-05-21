@@ -158,6 +158,9 @@ export default function EventSeatingPage() {
   const totalCents = selected.reduce((s, item) => s + item.priceCents, 0);
   const allSeatIds = selected.flatMap((item) => (item.kind === "table" ? item.seatIds : [item.id]));
 
+  // Ticketable sections only — stage is shown on the map for orientation but is never purchasable
+  const ticketableSections = sections.filter((s) => s.type !== "stage" && s.price_cents > 0);
+
   // ─── checkout ─────────────────────────────────────────────────────────────
   const handleCheckout = async () => {
     if (allSeatIds.length === 0) return;
@@ -221,7 +224,7 @@ export default function EventSeatingPage() {
 
         {/* Legend */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", marginBottom: 16 }}>
-          {sections.filter((s) => s.type !== "stage").map((s) => (
+          {ticketableSections.map((s) => (
             <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
               {s.name}{s.sells_as_table ? " (full table)" : ""} — ${(s.price_cents / 100).toFixed(2)}
