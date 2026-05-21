@@ -83,7 +83,12 @@ export default function EventDetailClient() {
   const [seatingRoomW, setSeatingRoomW] = useState(100);
   const [seatingRoomH, setSeatingRoomH] = useState(60);
   const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; sectionName: string; rowLabel: string; seatNumber: number; priceCents: number; color: string }[]>([]);
-  const selectedSeatIds = new Set(selectedSeats.map((s) => s.seatId));
+  const [selectedTables, setSelectedTables] = useState<{ objectId: string; seatIds: string[]; tableLabel: string; seatCount: number; sectionName: string; priceCents: number; color: string }[]>([]);
+  const selectedSeatIds = new Set([
+    ...selectedSeats.map((s) => s.seatId),
+    ...selectedTables.flatMap((t) => t.seatIds),
+  ]);
+  const hasSeatingSelection = selectedSeats.length > 0 || selectedTables.length > 0;
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
@@ -184,6 +189,26 @@ export default function EventDetailClient() {
         sectionName: sec.name,
         rowLabel: seat.row_label,
         seatNumber: seat.seat_number,
+        priceCents: sec.price_cents,
+        color: sec.color,
+      }];
+    });
+  }, [seatingSections]);
+
+  const handleTableClick = useCallback((seatIds: string[], sectionId: string, objectId: string) => {
+    setSelectedTables((prev) => {
+      const exists = prev.find((t) => t.objectId === objectId);
+      if (exists) return prev.filter((t) => t.objectId !== objectId);
+      const sec = seatingSections.find((s) => s.id === sectionId);
+      if (!sec) return prev;
+      const obj = sec.objects.find((o) => o.id === objectId);
+      const tableNum = (obj?.metadata as { table_number?: number })?.table_number ?? "?";
+      return [...prev, {
+        objectId,
+        seatIds,
+        tableLabel: `Table ${tableNum}`,
+        seatCount: seatIds.length,
+        sectionName: sec.name,
         priceCents: sec.price_cents,
         color: sec.color,
       }];
@@ -341,58 +366,33 @@ export default function EventDetailClient() {
       .finally(() => setIsLoading(false));
   }, [eventId]);
 
-  // Sync selected seats → ticket type + quantity for Order Summary
+  // Sync selected seats/tables → ticket type + quantity for Order Summary
   useEffect(() => {
-    if (!reservedSeatingEnabled || selectedSeats.length === 0) return;
+    if (!reservedSeatingEnabled) return;
 
-    // Check if user selected a full table (all seats at same table)
-    const tableLabels = selectedSeats.map((s) => s.rowLabel);
-    const uniqueTables = [...new Set(tableLabels)];
-    const isFullTable = uniqueTables.length === 1 && uniqueTables[0].startsWith("T") && (() => {
-      const tableSec = seatingSections.find((sec) => sec.seats.some((s) => s.id === selectedSeats[0].seatId));
-      if (!tableSec) return false;
-      const tableSeats = tableSec.seats.filter((s) => s.row_label === uniqueTables[0]);
-      return tableSeats.length === selectedSeats.length;
-    })();
+    // Table selection takes priority
+    if (selectedTables.length > 0) {
+      const firstTable = selectedTables[0];
+      const sectionName = firstTable.sectionName.toLowerCase();
+      const tablePrice = firstTable.priceCents / 100;
+      const matchByPrice = ticketTypes.find((t) => Math.abs(t.price - tablePrice) < 0.01);
+      const matchByName = ticketTypes.find((t) => sectionName.includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(sectionName));
+      const bestMatch = matchByPrice ?? matchByName ?? ticketTypes[0] ?? null;
+      if (bestMatch) setSelectedTicketId(bestMatch.id);
+      setQuantity(selectedTables.length);
+      return;
+    }
+
+    if (selectedSeats.length === 0) return;
 
     const seatPrice = selectedSeats[0].priceCents / 100;
-
-    // Try to find matching ticket type
-    let bestMatch: string | null = null;
-
-    if (isFullTable) {
-      // Look for "full table" type first
-      const fullTableType = ticketTypes.find((t) =>
-        t.name.toLowerCase().includes("full table") || t.name.toLowerCase().includes("full tbl")
-      );
-      if (fullTableType) {
-        bestMatch = fullTableType.id;
-        setQuantity(1);
-        setSelectedTicketId(bestMatch);
-        return;
-      }
-    }
-
-    // Find individual seat type matching the price
+    const sectionName = selectedSeats[0].sectionName.toLowerCase();
     const matchByPrice = ticketTypes.find((t) => Math.abs(t.price - seatPrice) < 0.01);
-    if (matchByPrice) {
-      bestMatch = matchByPrice.id;
-    } else {
-      // Find type with closest name match to the section name
-      const sectionName = selectedSeats[0].sectionName.toLowerCase();
-      const nameMatch = ticketTypes.find((t) => sectionName.includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(sectionName));
-      if (nameMatch) bestMatch = nameMatch.id;
-    }
-
-    if (!bestMatch && ticketTypes.length > 0) {
-      bestMatch = ticketTypes[0].id;
-    }
-
-    if (bestMatch) {
-      setSelectedTicketId(bestMatch);
-    }
+    const matchByName = ticketTypes.find((t) => sectionName.includes(t.name.toLowerCase()) || t.name.toLowerCase().includes(sectionName));
+    const bestMatch = matchByPrice ?? matchByName ?? (ticketTypes.length > 0 ? ticketTypes[0] : null);
+    if (bestMatch) setSelectedTicketId(bestMatch.id);
     setQuantity(selectedSeats.length);
-  }, [selectedSeats, ticketTypes, reservedSeatingEnabled, seatingSections]);
+  }, [selectedSeats, selectedTables, ticketTypes, reservedSeatingEnabled]);
 
   const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
   const appliedPromoRef = useRef<string | null>(null);
@@ -548,24 +548,34 @@ export default function EventDetailClient() {
                           interactive={true}
                           selectedSeatIds={selectedSeatIds}
                           onSeatClick={handleSeatClick}
+                          onTableClick={handleTableClick}
                         />
                       </div>
-                      {/* Legend */}
+                      {/* Legend — skip stage and zero-price sections (not purchasable) */}
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 8 }}>
-                        {seatingSections.filter((s) => s.type !== "ga" || s.name !== "Stage").map((s) => (
+                        {seatingSections.filter((s) => s.type !== "stage" && s.price_cents > 0).map((s) => (
                           <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "rgba(255,255,255,0.5)" }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: s.color, display: "inline-block" }} />
-                            {s.name} — ${(s.price_cents / 100).toFixed(2)}
+                            <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, display: "inline-block" }} />
+                            {s.name}{s.sells_as_table ? " (full table)" : ""} — ${(s.price_cents / 100).toFixed(2)}
                           </span>
                         ))}
                       </div>
-                      {/* Selected seats list */}
-                      {selectedSeats.length > 0 && (
+                      {/* Selection summary */}
+                      {hasSeatingSelection && (
                         <div style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 8, padding: 10, marginTop: 8 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: "#818cf8", marginBottom: 6 }}>
-                            Your Seats ({selectedSeats.length})
+                            Your Selection ({selectedSeats.length + selectedTables.length} {selectedSeats.length + selectedTables.length === 1 ? "item" : "items"})
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {selectedTables.map((t) => (
+                              <div key={t.objectId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: t.color, display: "inline-block" }} />
+                                  {t.tableLabel} ({t.seatCount} seats) — {t.sectionName}
+                                </span>
+                                <span style={{ color: "rgba(255,255,255,0.5)" }}>${(t.priceCents / 100).toFixed(2)}</span>
+                              </div>
+                            ))}
                             {selectedSeats.map((s) => (
                               <div key={s.seatId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                                 <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -578,7 +588,7 @@ export default function EventDetailClient() {
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,0.08)", fontSize: 13, fontWeight: 700 }}>
                             <span>Total</span>
-                            <span>${(selectedSeats.reduce((s, seat) => s + seat.priceCents, 0) / 100).toFixed(2)}</span>
+                            <span>${((selectedSeats.reduce((s, seat) => s + seat.priceCents, 0) + selectedTables.reduce((s, t) => s + t.priceCents, 0)) / 100).toFixed(2)}</span>
                           </div>
                         </div>
                       )}
@@ -667,7 +677,7 @@ export default function EventDetailClient() {
                   ticketPrice={selectedTicket?.price || event.price || 0}
                   quantity={quantity}
                   promoCode={appliedPromoRef.current}
-                  selectedSeatIds={reservedSeatingEnabled ? selectedSeats.map((s) => s.seatId) : undefined}
+                  selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
                   isFreeEvent={isFreeEvent}
                   onBack={() => setCheckoutStep("browse")}
                   ticketingFee={venueFees.ticketing_fee}
@@ -721,7 +731,7 @@ export default function EventDetailClient() {
                     onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                     onFreeCheckout={handleFreeCheckout}
                   />
-                  {reservedSeatingEnabled && selectedSeats.length === 0 && (
+                  {reservedSeatingEnabled && !hasSeatingSelection && (
                     <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
                       Select seats from the map to continue
                     </p>
