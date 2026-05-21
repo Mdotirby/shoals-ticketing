@@ -12,6 +12,11 @@ type Props = {
   interactive: boolean;
   selectedSeatIds: Set<string>;
   onSeatClick: (seatId: string, sectionId: string) => void;
+  /**
+   * Called when a customer clicks a table in a section where sells_as_table=true.
+   * Receives all seat IDs belonging to that table object.
+   */
+  onTableClick?: (seatIds: string[], sectionId: string, objectId: string) => void;
   /** Admin drag-to-move mode */
   draggable?: boolean;
   onObjectMoved?: (objectId: string, newXFt: number, newYFt: number) => void;
@@ -36,6 +41,7 @@ export default function SeatMap({
   interactive,
   selectedSeatIds,
   onSeatClick,
+  onTableClick,
   draggable = false,
   onObjectMoved,
 }: Props) {
@@ -47,6 +53,7 @@ export default function SeatMap({
 
   const baseVb = useRef<Vb>({ x: 0, y: 0, w: 1000, h: 800 });
   const [isPanning, setIsPanning] = useState(false);
+  const [hoveredObjId, setHoveredObjId] = useState<string | null>(null);
   const panRef = useRef<{ x: number; y: number; vbx: number; vby: number } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const [dragOffset, setDragOffset] = useState<{ objectId: string; dxFt: number; dyFt: number } | null>(null);
@@ -361,6 +368,68 @@ export default function SeatMap({
 
               if (obj.type === "table_group") {
                 const meta = obj.metadata as { table_number?: number };
+
+                if (sec.sells_as_table && interactive) {
+                  const tableSeats = sec.seats.filter((s) => s.object_id === obj.id);
+                  const seatIds = tableSeats.map((s) => s.id);
+                  const isTableSelected = seatIds.length > 0 && seatIds.every((id) => selectedSeatIds.has(id));
+                  const isTableHeld = tableSeats.some((s) => s.status === "held");
+                  const isTableSold = tableSeats.some((s) => s.status === "sold");
+                  const isHovered = hoveredObjId === obj.id;
+                  const isAvailable = !isTableHeld && !isTableSold;
+
+                  const ellipseFill = isTableSold ? `${sec.color}06`
+                    : isTableHeld ? "#f59e0b18"
+                    : isTableSelected ? `${sec.color}45`
+                    : isHovered ? `${sec.color}28`
+                    : `${sec.color}15`;
+                  const ellipseStroke = isTableSelected ? "#fff"
+                    : isTableHeld ? "#f59e0b60"
+                    : isTableSold ? `${sec.color}20`
+                    : isHovered ? `${sec.color}cc`
+                    : `${sec.color}50`;
+                  const labelFill = isTableSelected ? "#fff"
+                    : isTableSold ? `${sec.color}40`
+                    : `${sec.color}cc`;
+                  const tableCursor = isAvailable || isTableSelected ? "pointer" : "not-allowed";
+                  const fontSize = Math.max(10, pw / 5);
+
+                  const tooltipText = `${sec.name} · T${meta.table_number} · ${seatIds.length} seats — $${(sec.price_cents / 100).toFixed(2)}${isTableSelected ? " (Selected)" : isTableHeld ? " (Held)" : isTableSold ? " (Sold)" : ""}`;
+
+                  return (
+                    <g key={obj.id}
+                      transform={`rotate(${obj.rotation} ${pcx} ${pcy})`}
+                      style={{ cursor: tableCursor }}
+                      onMouseEnter={(e) => {
+                        setHoveredObjId(obj.id);
+                        const rect = containerRef.current?.getBoundingClientRect();
+                        setTooltip({ screenX: e.clientX - (rect?.left ?? 0), screenY: e.clientY - (rect?.top ?? 0), text: tooltipText });
+                      }}
+                      onMouseMove={(e) => {
+                        const rect = containerRef.current?.getBoundingClientRect();
+                        setTooltip((prev) => prev ? { ...prev, screenX: e.clientX - (rect?.left ?? 0), screenY: e.clientY - (rect?.top ?? 0) } : null);
+                      }}
+                      onMouseLeave={() => { setHoveredObjId(null); setTooltip(null); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isAvailable || isTableSelected) onTableClick?.(seatIds, sec.id, obj.id);
+                      }}
+                    >
+                      <ellipse cx={pcx} cy={pcy} rx={pw / 2} ry={ph / 2}
+                        fill={ellipseFill} stroke={ellipseStroke}
+                        strokeWidth={isTableSelected || isHovered ? 2 : 1}
+                      />
+                      <text x={pcx} y={pcy + 1} fill={labelFill} fontSize={fontSize} fontWeight={700} textAnchor="middle" dominantBaseline="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
+                        T{meta.table_number}
+                      </text>
+                      <text x={pcx} y={pcy + fontSize + 3} fill={isTableSelected ? "rgba(255,255,255,0.7)" : `${sec.color}80`} fontSize={Math.max(7, fontSize * 0.65)} textAnchor="middle" fontFamily="system-ui" style={{ pointerEvents: "none" }}>
+                        ${(sec.price_cents / 100).toFixed(0)}
+                      </text>
+                    </g>
+                  );
+                }
+
+                // Builder / non-table-sale mode
                 return (
                   <g key={obj.id} {...dragAttr}
                     transform={`rotate(${obj.rotation} ${pcx} ${pcy})`}
@@ -421,11 +490,27 @@ export default function SeatMap({
               const isSold = seat.status === "sold";
               const isHeld = seat.status === "held" && !isSelected;
 
+              // In table-sale mode: seats are visual indicators only — the table ellipse handles interaction
+              if (sec.sells_as_table && interactive) {
+                const isTableSelected = isSelected;
+                return (
+                  <circle
+                    key={seat.id}
+                    cx={sx} cy={sy} r={seatR * 0.75}
+                    fill={isSold ? "rgba(255,255,255,0.08)" : isHeld ? "#f59e0b" : isTableSelected ? "#fff" : sec.color}
+                    opacity={isSold ? 0.3 : isHeld ? 0.5 : isTableSelected ? 0.9 : 0.5}
+                    stroke={isTableSelected ? sec.color : "none"}
+                    strokeWidth={isTableSelected ? 1 : 0}
+                    style={{ pointerEvents: "none" }}
+                  />
+                );
+              }
+
               let fill = sec.color;
               let opacity = 0.8;
               let stroke = "none";
               let sw = 0;
-              const cursor = interactive ? (isSold || isHeld ? "not-allowed" : "pointer") : draggable ? "default" : "default";
+              const cursor = interactive ? (isSold || isHeld ? "not-allowed" : "pointer") : "default";
 
               if (isSold) { fill = "rgba(255,255,255,0.06)"; opacity = 0.4; }
               else if (isHeld) { fill = "#f59e0b"; opacity = 0.6; }

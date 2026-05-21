@@ -98,6 +98,7 @@ export default function QuickBuildPage() {
       type: sec.type,
       price_cents: sec.price_cents,
       color: sec.color,
+      sells_as_table: false,
       created_at: "",
       objects: result.objects.filter((o) => o._sectionId === sec._id).map((o) => ({
         id: o._id,

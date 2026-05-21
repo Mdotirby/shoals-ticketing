@@ -20,6 +20,8 @@ export type Section = {
   type: SectionType;
   price_cents: number;
   color: string;
+  /** When true, customers click the whole table to purchase all seats at once */
+  sells_as_table: boolean;
   created_at: string;
 };
 

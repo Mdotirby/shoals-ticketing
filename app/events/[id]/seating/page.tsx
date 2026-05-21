@@ -7,6 +7,7 @@ import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { SectionFull } from "@/lib/seating/types";
 
 type SelectedSeat = {
+  kind: "seat";
   id: string;
   sectionName: string;
   rowLabel: string;
@@ -14,6 +15,19 @@ type SelectedSeat = {
   priceCents: number;
   color: string;
 };
+
+type SelectedTable = {
+  kind: "table";
+  objectId: string;
+  seatIds: string[];
+  tableLabel: string;
+  seatCount: number;
+  sectionName: string;
+  priceCents: number;
+  color: string;
+};
+
+type SelectedItem = SelectedSeat | SelectedTable;
 
 export default function EventSeatingPage() {
   const params = useParams();
@@ -26,13 +40,19 @@ export default function EventSeatingPage() {
   const [roomH, setRoomH] = useState(60);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<SelectedSeat[]>([]);
+  const [selected, setSelected] = useState<SelectedItem[]>([]);
   const [reserving, setReserving] = useState(false);
   const [reserveError, setReserveError] = useState<string | null>(null);
 
-  const selectedIds = new Set(selected.map((s) => s.id));
+  const sectionsRef = useRef(sections);
+  useEffect(() => { sectionsRef.current = sections; }, [sections]);
 
-  // ─── load event + seating ─────────────────────────────────────────────────
+  // All seat IDs currently in the selection (for the map)
+  const selectedIds = new Set(
+    selected.flatMap((item) => (item.kind === "table" ? item.seatIds : [item.id]))
+  );
+
+  // ─── load ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       fetch(`/api/events/${eventId}`).then((r) => r.json()),
@@ -50,13 +70,9 @@ export default function EventSeatingPage() {
       .finally(() => setLoading(false));
   }, [eventId]);
 
-  // ─── realtime seat status updates ────────────────────────────────────────
-  const sectionsRef = useRef(sections);
-  useEffect(() => { sectionsRef.current = sections; }, [sections]);
-
+  // ─── realtime seat status ─────────────────────────────────────────────────
   useEffect(() => {
     if (!sections.length) return;
-
     const supabase = getSupabaseBrowser();
     const channel = supabase
       .channel(`seats-event-${eventId}`)
@@ -75,22 +91,25 @@ export default function EventSeatingPage() {
               ),
             }))
           );
-          // If a selected seat was just grabbed by someone else, deselect it
+          // Deselect any individual seat that was grabbed by someone else
           if (updated.status !== "available") {
-            setSelected((prev) => prev.filter((s) => s.id !== updated.id));
+            setSelected((prev) => prev.filter((item) => {
+              if (item.kind === "seat") return item.id !== updated.id;
+              // For tables: deselect the whole table if any of its seats went unavailable
+              return !item.seatIds.includes(updated.id);
+            }));
           }
         }
       )
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
-  }, [sections.length, eventId]); // re-subscribe only when sections first load
+  }, [sections.length, eventId]);
 
-  // ─── seat selection ───────────────────────────────────────────────────────
+  // ─── individual seat click ────────────────────────────────────────────────
   const handleSeatClick = useCallback((seatId: string, sectionId: string) => {
     setSelected((prev) => {
-      const exists = prev.find((s) => s.id === seatId);
-      if (exists) return prev.filter((s) => s.id !== seatId);
+      const exists = prev.find((item) => item.kind === "seat" && item.id === seatId);
+      if (exists) return prev.filter((item) => !(item.kind === "seat" && item.id === seatId));
 
       const sec = sectionsRef.current.find((s) => s.id === sectionId);
       if (!sec) return prev;
@@ -98,6 +117,7 @@ export default function EventSeatingPage() {
       if (!seat) return prev;
 
       return [...prev, {
+        kind: "seat" as const,
         id: seat.id,
         sectionName: sec.name,
         rowLabel: seat.row_label,
@@ -108,11 +128,39 @@ export default function EventSeatingPage() {
     });
   }, []);
 
-  const totalCents = selected.reduce((s, seat) => s + seat.priceCents, 0);
+  // ─── whole-table click ────────────────────────────────────────────────────
+  const handleTableClick = useCallback((seatIds: string[], sectionId: string, objectId: string) => {
+    setSelected((prev) => {
+      const existingIdx = prev.findIndex((item) => item.kind === "table" && item.objectId === objectId);
+      if (existingIdx !== -1) {
+        // Toggle off
+        return prev.filter((_, i) => i !== existingIdx);
+      }
+
+      const sec = sectionsRef.current.find((s) => s.id === sectionId);
+      if (!sec) return prev;
+      const obj = sec.objects.find((o) => o.id === objectId);
+      const tableNum = (obj?.metadata as { table_number?: number })?.table_number ?? "?";
+
+      return [...prev, {
+        kind: "table" as const,
+        objectId,
+        seatIds,
+        tableLabel: `Table ${tableNum}`,
+        seatCount: seatIds.length,
+        sectionName: sec.name,
+        priceCents: sec.price_cents,
+        color: sec.color,
+      }];
+    });
+  }, []);
+
+  const totalCents = selected.reduce((s, item) => s + item.priceCents, 0);
+  const allSeatIds = selected.flatMap((item) => (item.kind === "table" ? item.seatIds : [item.id]));
 
   // ─── checkout ─────────────────────────────────────────────────────────────
   const handleCheckout = async () => {
-    if (selected.length === 0) return;
+    if (allSeatIds.length === 0) return;
     setReserving(true);
     setReserveError(null);
     try {
@@ -124,14 +172,13 @@ export default function EventSeatingPage() {
       const res = await fetch(`/api/seating/events/${eventId}/reserve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seat_ids: selected.map((s) => s.id), session_id: sessionId }),
+        body: JSON.stringify({ seat_ids: allSeatIds, session_id: sessionId }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to reserve seats");
       }
-      const seatIds = selected.map((s) => s.id).join(",");
-      router.push(`/checkout?event=${eventId}&seat_ids=${seatIds}&qty=${selected.length}`);
+      router.push(`/checkout?event=${eventId}&seat_ids=${allSeatIds.join(",")}&qty=${selected.length}`);
     } catch (err) {
       setReserveError(err instanceof Error ? err.message : "Failed to reserve seats");
     } finally {
@@ -168,6 +215,7 @@ export default function EventSeatingPage() {
             interactive={true}
             selectedSeatIds={selectedIds}
             onSeatClick={handleSeatClick}
+            onTableClick={handleTableClick}
           />
         </div>
 
@@ -176,7 +224,7 @@ export default function EventSeatingPage() {
           {sections.filter((s) => s.type !== "stage").map((s) => (
             <span key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
               <span style={{ width: 10, height: 10, borderRadius: "50%", background: s.color, display: "inline-block" }} />
-              {s.name} — ${(s.price_cents / 100).toFixed(2)}
+              {s.name}{s.sells_as_table ? " (full table)" : ""} — ${(s.price_cents / 100).toFixed(2)}
             </span>
           ))}
           <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
@@ -189,16 +237,24 @@ export default function EventSeatingPage() {
           </span>
         </div>
 
-        {/* Selected seats */}
+        {/* Selected items */}
         {selected.length > 0 && (
           <div style={{ background: "#111118", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: 20 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 12 }}>Selected Seats ({selected.length})</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 12 }}>
+              Your Selection ({selected.length} {selected.length === 1 ? "item" : "items"})
+            </h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
-              {selected.map((s) => (
-                <span key={s.id} style={{ padding: "4px 10px", borderRadius: 6, background: `${s.color}20`, border: `1px solid ${s.color}40`, color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
-                  {s.sectionName} · {s.rowLabel} · #{s.seatNumber} — ${(s.priceCents / 100).toFixed(2)}
-                </span>
-              ))}
+              {selected.map((item) => {
+                const key = item.kind === "table" ? item.objectId : item.id;
+                const label = item.kind === "table"
+                  ? `${item.tableLabel} (${item.seatCount} seats) — $${(item.priceCents / 100).toFixed(2)}`
+                  : `${item.sectionName} · ${item.rowLabel} · #${item.seatNumber} — $${(item.priceCents / 100).toFixed(2)}`;
+                return (
+                  <span key={key} style={{ padding: "4px 10px", borderRadius: 6, background: `${item.color}20`, border: `1px solid ${item.color}40`, color: "rgba(255,255,255,0.8)", fontSize: 12 }}>
+                    {label}
+                  </span>
+                );
+              })}
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontSize: 16, fontWeight: 700 }}>Total: ${(totalCents / 100).toFixed(2)}</span>

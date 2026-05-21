@@ -11,6 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (body.name !== undefined) updates.name = body.name;
   if (body.price_cents !== undefined) updates.price_cents = body.price_cents;
   if (body.color !== undefined) updates.color = body.color;
+  if (body.sells_as_table !== undefined) updates.sells_as_table = body.sells_as_table;
 
   const { data, error } = await admin.from("sections").update(updates).eq("id", id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

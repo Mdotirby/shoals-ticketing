@@ -21,6 +21,8 @@ type EditingSection = {
   name: string;
   price: string;
   color: string;
+  type: string;
+  sells_as_table: boolean;
 };
 
 type StageForm = {
@@ -222,7 +224,7 @@ export default function LayoutBuilderPage() {
 
   // ─── edit section ─────────────────────────────────────────────────────────
   const openEdit = useCallback((sec: SectionFull) => {
-    setEditingSection({ id: sec.id, name: sec.name, price: (sec.price_cents / 100).toFixed(2), color: sec.color });
+    setEditingSection({ id: sec.id, name: sec.name, price: (sec.price_cents / 100).toFixed(2), color: sec.color, type: sec.type, sells_as_table: sec.sells_as_table ?? false });
     setShowGen(false);
     setShowStage(false);
   }, []);
@@ -237,6 +239,7 @@ export default function LayoutBuilderPage() {
         name: editingSection.name,
         price_cents: Math.round(parseFloat(editingSection.price) * 100) || 0,
         color: editingSection.color,
+        sells_as_table: editingSection.sells_as_table,
       }),
     });
     if (res.ok) {
@@ -283,25 +286,40 @@ export default function LayoutBuilderPage() {
   const handleObjectMoved = useCallback(async (objectId: string, newXFt: number, newYFt: number) => {
     const lid = currentLayoutId;
     if (!lid) return;
-    // Optimistic update
-    setSections((prev) => prev.map((sec) => ({
-      ...sec,
-      objects: sec.objects.map((obj) => obj.id === objectId ? { ...obj, x_ft: newXFt, y_ft: newYFt } : obj),
-      seats: sec.seats.map((seat) => {
-        if (seat.object_id !== objectId) return seat;
-        const obj = sec.objects.find((o) => o.id === objectId);
-        if (!obj) return seat;
-        return { ...seat, x_ft: seat.x_ft + (newXFt - obj.x_ft), y_ft: seat.y_ft + (newYFt - obj.y_ft) };
-      }),
-    })));
 
-    // Persist to server
-    await fetch(`/api/seating/objects/${objectId}`, {
+    // Snapshot the pre-move object position so we can compute seat deltas
+    let origXFt = newXFt, origYFt = newYFt;
+    setSections((prev) => {
+      for (const sec of prev) {
+        const obj = sec.objects.find((o) => o.id === objectId);
+        if (obj) { origXFt = obj.x_ft; origYFt = obj.y_ft; break; }
+      }
+      const dxFt = newXFt - origXFt;
+      const dyFt = newYFt - origYFt;
+      return prev.map((sec) => ({
+        ...sec,
+        objects: sec.objects.map((obj) =>
+          obj.id === objectId ? { ...obj, x_ft: newXFt, y_ft: newYFt } : obj
+        ),
+        seats: sec.seats.map((seat) =>
+          seat.object_id === objectId
+            ? { ...seat, x_ft: seat.x_ft + dxFt, y_ft: seat.y_ft + dyFt }
+            : seat
+        ),
+      }));
+    });
+
+    // Persist — if it fails, reload from DB so optimistic state doesn't linger
+    const res = await fetch(`/api/seating/objects/${objectId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ x_ft: newXFt, y_ft: newYFt }),
     });
-  }, [currentLayoutId]);
+    if (!res.ok) {
+      console.error("Object move failed, reloading from DB");
+      reload(lid);
+    }
+  }, [currentLayoutId, reload]);
 
   const totalSeats = sections.reduce((sum, s) => sum + s.seats.length, 0);
   const totalCapacity = sections.reduce((sum, s) => {
@@ -431,6 +449,34 @@ export default function LayoutBuilderPage() {
                   <button key={c} onClick={() => setEditingSection((s) => s ? { ...s, color: c } : null)} style={{ width: 22, height: 22, borderRadius: 4, background: c, border: editingSection.color === c ? "2px solid #fff" : "2px solid transparent", cursor: "pointer", padding: 0 }} />
                 ))}
               </div>
+              {editingSection.type === "table" && (
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                    <div
+                      onClick={() => setEditingSection((s) => s ? { ...s, sells_as_table: !s.sells_as_table } : null)}
+                      style={{
+                        width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+                        background: editingSection.sells_as_table ? "#6366f1" : "rgba(255,255,255,0.12)",
+                        position: "relative", cursor: "pointer", transition: "background 0.15s",
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute", top: 3, left: editingSection.sells_as_table ? 18 : 3,
+                        width: 14, height: 14, borderRadius: "50%", background: "#fff",
+                        transition: "left 0.15s",
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", userSelect: "none" }}>
+                      Sell as full table
+                    </span>
+                  </label>
+                  {editingSection.sells_as_table && (
+                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", margin: "6px 0 0 46px" }}>
+                      Customers click the table to purchase all seats at once. Set the price above to the per-table price (e.g. $800).
+                    </p>
+                  )}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => setEditingSection(null)} style={{ flex: 1, padding: "7px 0", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "#a1a1aa", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleEditSave} disabled={editSaving} style={{ flex: 2, padding: "7px 0", background: "#6366f1", border: "none", borderRadius: 6, color: "#fff", fontSize: 12, fontWeight: 600, cursor: editSaving ? "wait" : "pointer" }}>{editSaving ? "Saving…" : "Save Changes"}</button>

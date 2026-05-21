@@ -44,19 +44,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const dy = (body.y_ft ?? current.y_ft) - current.y_ft;
 
   if (dx !== 0 || dy !== 0) {
-    // Fetch seats for this object, shift each one
     const { data: seats } = await admin.from("seats").select("id, x_ft, y_ft").eq("object_id", id);
     if (seats && seats.length > 0) {
-      const shifted = seats.map((s: { id: string; x_ft: number; y_ft: number }) => ({
-        id: s.id,
-        x_ft: parseFloat((s.x_ft + dx).toFixed(4)),
-        y_ft: parseFloat((s.y_ft + dy).toFixed(4)),
-      }));
-      // Upsert shifted positions
-      const { error: seatErr } = await admin.from("seats").upsert(shifted);
-      if (seatErr) {
-        console.error("Failed to shift seats:", seatErr);
-        return NextResponse.json({ error: "Object moved but seats failed to shift: " + seatErr.message }, { status: 500 });
+      // Individual updates per seat — batch upsert with partial columns hits NOT NULL constraints
+      for (const s of seats as { id: string; x_ft: number; y_ft: number }[]) {
+        const { error: seatErr } = await admin
+          .from("seats")
+          .update({
+            x_ft: parseFloat((s.x_ft + dx).toFixed(4)),
+            y_ft: parseFloat((s.y_ft + dy).toFixed(4)),
+          })
+          .eq("id", s.id);
+
+        if (seatErr) {
+          console.error("Failed to shift seat", s.id, seatErr);
+          return NextResponse.json({ error: "Object moved but seats failed to shift: " + seatErr.message }, { status: 500 });
+        }
       }
     }
   }
