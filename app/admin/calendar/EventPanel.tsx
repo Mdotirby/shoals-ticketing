@@ -262,7 +262,7 @@ export default function EventPanel({ event, onClose, onUpdate }: Props) {
             <a href={`/admin/private-events/${event.id}`} style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>
               Full Rental Hub →
             </a>
-          ) : event.event_type && event.event_type !== "non_ticketed" && event.booking_status !== "hold" ? (
+          ) : event.event_type && event.event_type !== "non_ticketed" ? (
             <a href={`/admin/events/${event.id}/edit`} style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>
               Full Event Editor →
             </a>
