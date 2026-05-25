@@ -14,12 +14,13 @@ body {
 :root {
   --background: var(--vc-bg);
   --foreground: #ffffff;
-  --gold: #d0c290;
 
   /* ── Design System Tokens ── */
 
   /* Surfaces */
   --vc-bg:              #111827;
+  --vc-bg-deep:         #0b0d1d;
+  --vc-bg-mid:          #1a1d35;
   --vc-surface:         rgba(255, 255, 255, 0.04);
   --vc-surface-hover:   rgba(255, 255, 255, 0.07);
   --vc-surface-active:  rgba(208, 194, 144, 0.10);
@@ -36,9 +37,21 @@ body {
   --vc-text-muted:      rgba(255, 255, 255, 0.3);
   --vc-text-disabled:   rgba(255, 255, 255, 0.2);
 
-  /* Accent */
+  /* Brand gold — single source of truth */
   --vc-gold:            #d0c290;
   --vc-gold-hover:      #e0d4a8;
+  --vc-gold-dark:       #b8a66e;
+  --vc-gold-5:          rgba(208, 194, 144, 0.05);
+  --vc-gold-8:          rgba(208, 194, 144, 0.08);
+  --vc-gold-10:         rgba(208, 194, 144, 0.10);
+  --vc-gold-12:         rgba(208, 194, 144, 0.12);
+  --vc-gold-15:         rgba(208, 194, 144, 0.15);
+  --vc-gold-20:         rgba(208, 194, 144, 0.20);
+  --vc-gold-25:         rgba(208, 194, 144, 0.25);
+  --vc-gold-30:         rgba(208, 194, 144, 0.30);
+  --vc-gold-35:         rgba(208, 194, 144, 0.35);
+  --vc-gold-40:         rgba(208, 194, 144, 0.40);
+  --vc-gold-50:         rgba(208, 194, 144, 0.50);
   --vc-gold-muted:      rgba(208, 194, 144, 0.15);
 
   /* Status */
@@ -48,9 +61,11 @@ body {
   --vc-info:            #7eb8da;
 
   /* Shadows */
+  --vc-shadow-sm:          0 2px 8px rgba(0, 0, 0, 0.20);
   --vc-shadow-glass:       0 4px 24px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   --vc-shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10);
   --vc-shadow-glass-lg:    0 8px 40px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --vc-shadow-gold:        0 4px 20px rgba(208, 194, 144, 0.20);
 
   /* Radius */
   --vc-radius-sm:  8px;
@@ -61,6 +76,11 @@ body {
   /* Blur */
   --vc-blur:       blur(16px);
   --vc-blur-heavy: blur(24px);
+
+  /* Venue theming defaults (overridden per-venue by VenueThemeProvider) */
+  --venue-primary:   #d0c290;
+  --venue-secondary: #111827;
+  --venue-accent:    #1a1d35;
 }
 
 body {
@@ -74,7 +94,7 @@ body {
 
 .site-header {
   width: 100%;
-  background: rgba(11, 13, 29, 0.72);
+  background: rgba(11, 13, 29, 0.72); /* --vc-bg-deep at 72% */
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
@@ -130,7 +150,7 @@ body {
   right: 0;
   bottom: 0;
   height: 2px;
-  background-color: var(--gold);
+  background-color: var(--vc-gold);
   box-shadow: 0 0 12px rgba(208,194,144,0.6);
   opacity: 0;
   transform: translateY(6px);
@@ -271,12 +291,12 @@ body {
 
 .upcoming-events-overlay-left {
   left: 0;
-  background: linear-gradient(90deg, #303051 0%, rgba(48, 48, 81, 0) 100%);
+  background: linear-gradient(90deg, var(--vc-bg) 0%, transparent 100%);
 }
 
 .upcoming-events-overlay-right {
   right: 0;
-  background: linear-gradient(270deg, #303051 0%, rgba(48, 48, 81, 0) 100%);
+  background: linear-gradient(270deg, var(--vc-bg) 0%, transparent 100%);
 }
 
 .upcoming-events-content-container {
@@ -408,7 +428,7 @@ body {
 .event-badge svg { opacity: 0.5; }
 
 .event-price-badge {
-  background-color: #242b64;
+  background-color: var(--vc-bg-mid);
 }
 
 /* ── Event Badges (inline pills) ── */
@@ -524,7 +544,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(180deg, #0b0d1d 0%, #202045 40%, #0b0d1d 100%);
+  background: linear-gradient(180deg, var(--vc-bg-deep) 0%, var(--vc-bg-mid) 40%, var(--vc-bg-deep) 100%);
 }
 
 .ticket-page-loading {
@@ -574,7 +594,7 @@ body {
   left: 0;
   right: 0;
   height: 50%;
-  background: linear-gradient(0deg, rgba(11,13,29,1) 0%, transparent 100%);
+  background: linear-gradient(0deg, var(--vc-bg-deep) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -943,7 +963,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(11, 13, 29, 0.7);
+  background: rgba(11, 13, 29, 0.7); /* sold-out overlay */
   font-family: var(--font-bayon), sans-serif;
   font-size: 24px;
   color: rgba(255, 255, 255, 0.6);
@@ -1447,7 +1467,7 @@ body {
 
 .newsletter-submit {
   padding: 12px 28px;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
   color: var(--vc-bg);
   font-weight: 700;
   font-size: 14px;
@@ -1984,9 +2004,9 @@ body {
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(11, 13, 29, 0.3) 0%,
-    rgba(11, 13, 29, 0.6) 60%,
-    #0b0d1d 100%
+    color-mix(in srgb, var(--vc-bg-deep) 30%, transparent) 0%,
+    color-mix(in srgb, var(--vc-bg-deep) 60%, transparent) 60%,
+    var(--vc-bg-deep) 100%
   );
   z-index: 1;
 }
@@ -2313,8 +2333,8 @@ border-radius: 0px 0px 0px 0px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(11,13,29,0.95) 0%, rgba(32,32,69,0.7) 100%);
-  border: 1px solid rgba(208,194,144,0.08);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--vc-bg-deep) 95%, transparent) 0%, color-mix(in srgb, var(--vc-bg-mid) 70%, transparent) 100%);
+  border: 1px solid var(--vc-gold-8);
   border-radius: 16px;
   padding: 24px 28px;
   margin-bottom: 16px;
@@ -2420,7 +2440,7 @@ border-radius: 0px 0px 0px 0px;
   flex-shrink: 0;
 }
 .elc-photo-placeholder {
-  background: linear-gradient(145deg, #2a2a5e, #1a1a3e);
+  background: linear-gradient(145deg, var(--vc-bg-mid), var(--vc-bg-deep));
 }
 
 /* ============================================================
@@ -2882,7 +2902,7 @@ select.admin-form-input {
 }
 
 .image-cropper-modal {
-  background: #12142a;
+  background: var(--vc-bg-deep);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   width: 100%;
@@ -2950,7 +2970,7 @@ select.admin-form-input {
 }
 
 .image-cropper-btn.confirm {
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
   color: var(--vc-bg);
 }
 
@@ -3104,7 +3124,7 @@ select.admin-form-input {
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
   color: var(--vc-bg);
   font-family: var(--font-urbanist), sans-serif;
   font-size: 15px;
@@ -3744,7 +3764,7 @@ select.admin-form-input {
   width: 32px;
   height: 32px;
   border: 3px solid rgba(208,194,144,0.2);
-  border-top-color: var(--gold);
+  border-top-color: var(--vc-gold);
   border-radius: 50%;
   animation: dash-spin 0.8s linear infinite;
 }
@@ -3790,7 +3810,7 @@ select.admin-form-input {
   height: 40px;
   border-radius: 10px;
   background: rgba(208,194,144,0.1);
-  color: var(--gold);
+  color: var(--vc-gold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3837,7 +3857,7 @@ select.admin-form-input {
 }
 
 .dash-kpi-highlight .dash-kpi-value {
-  color: var(--gold);
+  color: var(--vc-gold);
 }
 
 .dash-kpi-secondary {
@@ -3893,7 +3913,7 @@ select.admin-form-input {
 .dash-lifetime-value {
   font-family: var(--font-bayon), sans-serif;
   font-size: 20px;
-  color: var(--gold);
+  color: var(--vc-gold);
 }
 
 .dash-lifetime-divider {
@@ -3948,13 +3968,13 @@ select.admin-form-input {
   padding: 3px 10px;
   border-radius: 20px;
   background: rgba(208,194,144,0.1);
-  color: var(--gold);
+  color: var(--vc-gold);
   font-weight: 600;
 }
 
 .dash-panel-link {
   font-size: 12px;
-  color: var(--gold);
+  color: var(--vc-gold);
   text-decoration: none;
   font-weight: 600;
   transition: opacity 0.2s;
@@ -3988,7 +4008,7 @@ select.admin-form-input {
 
 .dash-empty-cta {
   font-size: 13px;
-  color: var(--gold);
+  color: var(--vc-gold);
   text-decoration: none;
   font-weight: 600;
 }
@@ -4020,7 +4040,7 @@ select.admin-form-input {
 
 .dash-tier-count {
   font-size: 12px;
-  color: var(--gold);
+  color: var(--vc-gold);
   font-weight: 600;
 }
 
@@ -4034,7 +4054,7 @@ select.admin-form-input {
 
 .dash-tier-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--gold), #b5a66e);
+  background: linear-gradient(90deg, var(--vc-gold), #b5a66e);
   border-radius: 4px;
   transition: width 0.6s ease;
 }
@@ -4075,7 +4095,7 @@ select.admin-form-input {
 .dash-event-countdown {
   font-size: 12px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--vc-gold);
 }
 
 .dash-event-date-text {
@@ -4121,7 +4141,7 @@ select.admin-form-input {
 
 .dash-event-revenue {
   font-size: 12px;
-  color: var(--gold);
+  color: var(--vc-gold);
 }
 
 /* Recent Orders List */
@@ -4151,7 +4171,7 @@ select.admin-form-input {
   height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(208,194,144,0.2), rgba(208,194,144,0.05));
-  color: var(--gold);
+  color: var(--vc-gold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5864,12 +5884,6 @@ select.admin-form-input {
    Applied when venue-slug cookie is set via VenueThemeProvider
    ============================================================ */
 
-:root {
-  --venue-primary: #d0c290;
-  --venue-secondary: #111827;
-  --venue-accent: #202045;
-}
-
 /* Override key colors with venue theme variables */
 .site-header.header-scrolled { background: rgba(11, 13, 29, 0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
 .home-page { background: var(--vc-bg); }
@@ -6873,7 +6887,7 @@ select.admin-form-input {
 
 .auction-create-back {
   font-size: 13px;
-  color: var(--gold);
+  color: var(--vc-gold);
   text-decoration: none;
   font-weight: 600;
   display: inline-flex;
@@ -6927,7 +6941,7 @@ select.admin-form-input {
   height: 40px;
   border-radius: 10px;
   background: rgba(208,194,144,0.1);
-  color: var(--gold);
+  color: var(--vc-gold);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7037,7 +7051,7 @@ select.admin-form-input {
 
 .auction-uploading {
   font-size: 13px;
-  color: var(--gold);
+  color: var(--vc-gold);
   font-weight: 600;
 }
 
@@ -7172,7 +7186,7 @@ select.admin-form-input {
 
 .auction-toggle-checkbox:checked + .auction-toggle-switch::after {
   transform: translateX(18px);
-  background: var(--gold);
+  background: var(--vc-gold);
 }
 
 /* Submit actions */
@@ -7733,7 +7747,7 @@ select.admin-form-input {
 
 /* Gold text utility */
 .about-gold-text {
-  color: var(--gold);
+  color: var(--vc-gold);
   font-family: var(--font-bayon), sans-serif;
 }
 
@@ -7752,7 +7766,7 @@ select.admin-form-input {
 .about-label-text {
   font-size: 13px;
   letter-spacing: 0.15em;
-  color: var(--gold);
+  color: var(--vc-gold);
   font-weight: 600;
   text-transform: uppercase;
   white-space: nowrap;
@@ -7762,7 +7776,7 @@ select.admin-form-input {
   display: block;
   width: 40px;
   height: 2px;
-  background: var(--gold);
+  background: var(--vc-gold);
   opacity: 0.5;
 }
 
@@ -7816,7 +7830,7 @@ select.admin-form-input {
 
 .about-cta-btn:hover {
   background: rgba(208,194,144,0.1);
-  border-color: var(--gold);
+  border-color: var(--vc-gold);
 }
 
 .about-philosophy-image {
@@ -7897,7 +7911,7 @@ select.admin-form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gold);
+  color: var(--vc-gold);
   margin-bottom: 20px;
 }
 
@@ -8056,7 +8070,7 @@ select.admin-form-input {
 .contact-field input:focus,
 .contact-field select:focus,
 .contact-field textarea:focus {
-  border-color: var(--gold);
+  border-color: var(--vc-gold);
   box-shadow: 0 0 0 2px rgba(208,194,144,0.15);
 }
 
@@ -8082,7 +8096,7 @@ select.admin-form-input {
 .contact-submit-btn {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #d0c290 0%, #b5a66e 100%);
+  background: linear-gradient(135deg, var(--vc-gold) 0%, var(--vc-gold-dark) 100%);
   border: none;
   border-radius: 8px;
   color: var(--vc-bg);
@@ -8111,7 +8125,7 @@ select.admin-form-input {
 .contact-info-label {
   font-size: 13px;
   letter-spacing: 0.15em;
-  color: var(--gold);
+  color: var(--vc-gold);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -8147,7 +8161,7 @@ select.admin-form-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gold);
+  color: var(--vc-gold);
   flex-shrink: 0;
 }
 
@@ -8169,7 +8183,7 @@ select.admin-form-input {
 
 .contact-method-link {
   font-size: 14px;
-  color: var(--gold);
+  color: var(--vc-gold);
   text-decoration: none;
   transition: opacity 0.2s;
 }
@@ -8214,7 +8228,7 @@ select.admin-form-input {
 }
 
 .contact-social-icons a:hover {
-  color: var(--gold);
+  color: var(--vc-gold);
 }
 
 /* Contact page responsive */
@@ -8525,7 +8539,7 @@ body:has(.lp-main) .site-footer {
   border: none;
   border-radius: var(--vc-radius-md);
   background: var(--vc-gold);
-  color: #111827;
+  color: var(--vc-bg);
   font-size: 16px;
   font-weight: 800;
   cursor: pointer;
@@ -8721,7 +8735,7 @@ body:has(.lp-main) .site-footer {
   border: none;
   border-radius: var(--vc-radius-md);
   background: var(--vc-gold);
-  color: #111827;
+  color: var(--vc-bg);
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
@@ -9094,7 +9108,7 @@ body:has(.lp-main) .site-footer {
   border: none;
   border-radius: var(--vc-radius-md);
   background: var(--venue-primary, var(--vc-gold));
-  color: #111827;
+  color: var(--vc-bg);
   font-size: 16px;
   font-weight: 800;
   font-family: inherit;
@@ -9124,7 +9138,7 @@ body:has(.lp-main) .site-footer {
   width: 18px;
   height: 18px;
   border: 2px solid rgba(17, 24, 39, 0.3);
-  border-top-color: #111827;
+  border-top-color: var(--vc-bg);
   border-radius: 50%;
   animation: lp-spin 0.6s linear infinite;
 }
@@ -9673,8 +9687,8 @@ body:has(.lp-main) .site-footer {
 .ic-pay-btn {
   width: 100%;
   padding: 16px 0;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-weight: 800;
   font-size: 16px;
   border: none;
@@ -9814,8 +9828,8 @@ body:has(.lp-main) .site-footer {
 
 .ic-fwb-join-btn {
   padding: 12px 32px;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-weight: 800;
   font-size: 15px;
   border: none;
@@ -9938,8 +9952,8 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   padding: 14px 36px;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-weight: 800;
   font-size: 15px;
   border: none;
@@ -10180,8 +10194,8 @@ body:has(.lp-main) .site-footer {
 .fwb-signup-submit {
   width: 100%;
   padding: 14px 0;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-weight: 800;
   font-size: 15px;
   border: none;
@@ -10243,8 +10257,8 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   padding: 12px 28px;
-  background: linear-gradient(135deg, #d0c290, #b8a66e);
-  color: #0b0d1d;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-weight: 700;
   font-size: 14px;
   border: none;
