@@ -78,6 +78,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
+        data-operator={operatorSlug}
         className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}

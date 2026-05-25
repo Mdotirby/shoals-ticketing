@@ -83,6 +83,13 @@ body {
   --venue-accent:    #1a1d35;
 }
 
+/* ── West72 operator theme — black background, same gold ── */
+body[data-operator="west72"] {
+  --vc-bg:      #0a0a0a;
+  --vc-bg-deep: #000000;
+  --vc-bg-mid:  #111111;
+}
+
 body {
   font-family: var(--font-urbanist), sans-serif;
   background: var(--vc-bg);

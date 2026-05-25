@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { getCookie } from "@/lib/cookies";
 
 type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist";
 
@@ -112,10 +113,12 @@ export default function AdminLoginPage() {
     <div className="admin-login-page">
       <div className="admin-login-card">
         <Image
-          src="/VenueCore_Logos/VenueCore_Stacked_Color.png"
-          alt="VenueCore"
-          width={120}
-          height={120}
+          src={getCookie("operatorSlug") === "west72"
+            ? "/West72_Logos/W72_tech_lockup_white.png"
+            : "/VenueCore_Logos/VenueCore_Stacked_Color.png"}
+          alt={getCookie("operatorSlug") === "west72" ? "West 72 Entertainment" : "VenueCore"}
+          width={getCookie("operatorSlug") === "west72" ? 200 : 120}
+          height={getCookie("operatorSlug") === "west72" ? 60 : 120}
           className="admin-login-logo"
           unoptimized
         />

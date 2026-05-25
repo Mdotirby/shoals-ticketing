@@ -350,6 +350,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname]);
 
+  const operatorIconFallback = getCookie("operatorSlug") === "west72"
+    ? "/West72_Logos/W72_tech_icon_white.png"
+    : "/VenueCore_Logos/VenueCore_Icon_Color.png";
+
   return (
     <div className="admin-shell">
       {/* Force password change modal — blocks all interaction */}
@@ -363,8 +367,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile topbar — avatar dropdown */}
       <div className="admin-mobile-topbar">
         <SafeImage
-          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/VenueCore_Logos/VenueCore_Icon_Color.png"; })()}
-          fallback="/VenueCore_Logos/VenueCore_Icon_Color.png"
+          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorIconFallback; })()}
+          fallback={operatorIconFallback}
           alt="VenueCore"
           style={{ width: 36, height: 36, objectFit: "contain" }}
         />
@@ -435,8 +439,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           ) : (
             <SafeImage
-              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/VenueCore_Logos/VenueCore_Icon_Color.png"; })()}
-              fallback="/VenueCore_Logos/VenueCore_Icon_Color.png"
+              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorIconFallback; })()}
+              fallback={operatorIconFallback}
               alt={venueName || "VenueCore"}
               className="admin-sidebar-logo"
               style={{ width: 80, height: 80, objectFit: "contain" }}
