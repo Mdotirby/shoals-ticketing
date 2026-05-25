@@ -88,6 +88,23 @@ body[data-operator="west72"] {
   --vc-bg:      #0a0a0a;
   --vc-bg-deep: #000000;
   --vc-bg-mid:  #111111;
+  background:   #0a0a0a;
+}
+
+/* Override hardcoded rgba values that bypass CSS variables */
+body[data-operator="west72"] .site-header {
+  background: rgba(0, 0, 0, 0.72);
+}
+body[data-operator="west72"] .site-header.header-scrolled {
+  background: rgba(0, 0, 0, 0.92);
+}
+body[data-operator="west72"] .admin-shell {
+  background: #0a0a0a;
+}
+@media (max-width: 768px) {
+  body[data-operator="west72"] .admin-sidebar {
+    background: rgba(0, 0, 0, 0.95);
+  }
 }
 
 body {
