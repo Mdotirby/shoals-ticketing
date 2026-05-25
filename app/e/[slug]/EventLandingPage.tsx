@@ -832,7 +832,11 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         <div className="lp-hero-content">
           <h1 className="lp-headline">{event.title}</h1>
           <p className="lp-subheadline">
-            {isPast ? "This event has passed" : slug === "payton-howie" ? "A girl with 4 million streams, a Garth Brooks tour credit, and a Saturday night in June." : "Don\u2019t miss out \u2014 limited availability"}
+            {isPast
+              ? "This event has passed"
+              : event.isFree
+                ? `Free live music at ${event.venue || "the venue"} \u2014 grab your spot.`
+                : `Live at ${event.venue || "the venue"} \u2014 don\u2019t miss it.`}
           </p>
 
           <div className="lp-meta">
@@ -1040,11 +1044,12 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         </section>
       )}
 
-      {/* ── MID SECTION — Why you can't miss this ─────────────────────── */}
+      {/* ── MID SECTION — Why you can’t miss this ─────────────────────── */}
       {!isPast && (
         <section className="lp-mid">
           <h2 className="lp-mid-heading">Why You Can&apos;t Miss This</h2>
           <div className="lp-bullets">
+            {/* Bullet 1 — live experience / intimacy */}
             <div className="lp-bullet">
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1052,10 +1057,16 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">{slug === "payton-howie" ? "No Jumbotron" : "Unforgettable Experience"}</div>
-                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Someone who’s shared stages with Lainey Wilson, Parker McCollum, and Ashley McBryde is playing a room where you can actually see her face." : "A live event you’ll be talking about for weeks"}</div>
+                <div className="lp-bullet-title">Up Close &amp; Personal</div>
+                <div className="lp-bullet-desc">
+                  {event.venue
+                    ? `${event.venue} is a room where you actually feel it — no screens between you and the stage.`
+                    : "A live event where you can actually feel the music — no jumbotrons, no distance."}
+                </div>
               </div>
             </div>
+
+            {/* Bullet 2 — price or urgency */}
             <div className="lp-bullet">
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1064,10 +1075,30 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">{slug === "payton-howie" ? "Not a Gamble" : "Limited Availability"}</div>
-                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Four million career streams and a tour history that reads like a country radio playlist — you're not taking a chance on an unknown, you're catching someone on the way up." : "Tickets are going fast — don't wait"}</div>
+                {!event.isFree && displayPrice > 0 ? (
+                  <>
+                    <div className="lp-bullet-title">${displayPrice.toFixed(0)}. All In.</div>
+                    <div className="lp-bullet-desc">
+                      Straightforward pricing — no surprise fees when you get to checkout.
+                    </div>
+                  </>
+                ) : event.isFree ? (
+                  <>
+                    <div className="lp-bullet-title">Free to Attend</div>
+                    <div className="lp-bullet-desc">
+                      No ticket price, no catch — just grab your spot and show up.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="lp-bullet-title">Limited Availability</div>
+                    <div className="lp-bullet-desc">Capacity is limited — don&apos;t wait until it&apos;s sold out.</div>
+                  </>
+                )}
               </div>
             </div>
+
+            {/* Bullet 3 — social proof */}
             <div className="lp-bullet">
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1078,8 +1109,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">{slug === "payton-howie" ? "$29. All In." : "Join the Crowd"}</div>
-                <div className="lp-bullet-desc">{slug === "payton-howie" ? "Saturday night, live country music in Florence, no service fee math — the whole ticket is twenty-nine dollars." : socialProofText}</div>
+                <div className="lp-bullet-title">
+                  {attendeeCount >= 10 ? "People Are Coming" : "Secure Your Spot"}
+                </div>
+                <div className="lp-bullet-desc">{socialProofText}</div>
               </div>
             </div>
           </div>
@@ -1088,11 +1121,6 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
           {event.description && (
             <div className="lp-about">
               <h3 className="lp-about-heading">About the Event</h3>
-              {slug === "payton-howie" && (
-                <p className="lp-about-text" style={{ fontStyle: "italic", marginBottom: "0.75rem" }}>
-                  There&apos;s a version of this where you watch Payton Howie headline an amphitheater in a few years and kick yourself for skipping the $29 show at a brewery in Florence.
-                </p>
-              )}
               <p className="lp-about-text">{event.description}</p>
             </div>
           )}
