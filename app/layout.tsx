@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bayon, Cairo, Geist, Geist_Mono, Urbanist } from "next/font/google";
+import { Bayon, Cairo, Urbanist } from "next/font/google";
 import { cookies } from "next/headers";
 import "./styles/globals.css";
 import Header from "./components/Header";
@@ -10,16 +10,6 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import TrackingPixels from "./components/TrackingPixels";
 import { getOperator } from "@/lib/operators";
 
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const urbanist = Urbanist({
   variable: "--font-urbanist",
@@ -45,16 +35,33 @@ export async function generateMetadata(): Promise<Metadata> {
   const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
   const operator = getOperator(operatorSlug);
 
+  const isVenueCore = operator.slug === "venuecore";
+
   return {
     title: operator.name,
     description: operator.tagline,
-    icons: {
-      icon: [
-        { url: operator.favicon, sizes: "32x32", type: "image/png" },
-        { url: operator.favicon, sizes: "192x192", type: "image/png" },
-      ],
-      apple: operator.favicon,
-    },
+    icons: isVenueCore
+      ? {
+          icon: [
+            { url: "/favicons/icon_32.ico", sizes: "32x32" },
+            { url: "/favicons/icon_64.ico", sizes: "64x64" },
+            { url: "/favicons/icon_128.ico", sizes: "128x128" },
+            { url: "/VenueCore_Logos/app_icon_navy_512.png", sizes: "192x192", type: "image/png" },
+            { url: "/VenueCore_Logos/app_icon_navy_512.png", sizes: "512x512", type: "image/png" },
+          ],
+          apple: [
+            { url: "/favicons/icon_180.ico", sizes: "180x180" },
+          ],
+          shortcut: "/favicons/icon_32.ico",
+        }
+      : {
+          icon: [
+            { url: operator.favicon, sizes: "32x32" },
+            { url: operator.favicon, sizes: "192x192" },
+          ],
+          apple: operator.favicon,
+          shortcut: operator.favicon,
+        },
   };
 }
 
@@ -71,7 +78,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
+        className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
       >
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
         <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />
