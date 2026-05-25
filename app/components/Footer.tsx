@@ -72,11 +72,12 @@ export default function Footer() {
       <div className="footer-content">
         <div className="footer-brand">
           <Image
-            src={operator.logo}
+            src={operator.logoWhite}
             alt={operator.logoAlt}
-            width={127}
-            height={127}
+            width={200}
+            height={40}
             className="footer-logo"
+            unoptimized
           />
           <p className="footer-description">{operator.footerDescription}</p>
         </div>

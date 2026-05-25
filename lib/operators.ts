@@ -11,10 +11,16 @@ export type OperatorConfig = {
   name: string;
   shortName: string;
   domain: string;
-  /** Path to the logo image in /public */
+  /** Horizontal color logo — used in header on light/transparent backgrounds */
   logo: string;
+  /** Horizontal white logo — used in footer on dark backgrounds */
+  logoWhite: string;
+  /** Icon-only logo — used in admin sidebar and collapsed nav */
+  logoIcon: string;
+  /** Stacked logo — used on auth/login/splash screens */
+  logoStacked: string;
   logoAlt: string;
-  /** Path to favicon PNG in /public — used in <head> */
+  /** Path to favicon in /public/favicons */
   favicon: string;
   supportEmail: string;
   contactEmail: string;
@@ -35,9 +41,12 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     name: "VenueCore",
     shortName: "VenueCore",
     domain: "venuecore.live",
-    logo: "/VenueCore_VenueCore-FullLogo.png",
-    logoAlt: "VenueCore Logo",
-    favicon: "/favicons/venuecore.ico",
+    logo: "/VenueCore_Logos/VenueCore_Horizontal_Color.png",
+    logoWhite: "/VenueCore_Logos/VenueCore_Horizontal_White.png",
+    logoIcon: "/VenueCore_Logos/VenueCore_Icon_Color.png",
+    logoStacked: "/VenueCore_Logos/VenueCore_Stacked_Color.png",
+    logoAlt: "VenueCore",
+    favicon: "/favicons/icon_32.ico",
     supportEmail: "support@venuecore.live",
     contactEmail: "contact@venuecore.live",
     privacyEmail: "privacy@venuecore.com",
@@ -54,7 +63,10 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     shortName: "West 72",
     domain: "west72ent.com",
     logo: "/logos/West72/logo.png",
-    logoAlt: "West 72 Entertainment Logo",
+    logoWhite: "/logos/West72/logo.png",
+    logoIcon: "/logos/West72/logo.png",
+    logoStacked: "/logos/West72/logo.png",
+    logoAlt: "West 72 Entertainment",
     favicon: "/logos/West72/logo.png",
     supportEmail: "support@west72ent.com",
     contactEmail: "contact@west72ent.com",

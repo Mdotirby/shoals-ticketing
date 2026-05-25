@@ -363,8 +363,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile topbar — avatar dropdown */}
       <div className="admin-mobile-topbar">
         <SafeImage
-          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
-          fallback="/logos/default/logo.png"
+          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/VenueCore_Logos/VenueCore_Icon_Color.png"; })()}
+          fallback="/VenueCore_Logos/VenueCore_Icon_Color.png"
           alt="VenueCore"
           style={{ width: 36, height: 36, objectFit: "contain" }}
         />
@@ -435,8 +435,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           ) : (
             <SafeImage
-              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/logos/default/logo.png"; })()}
-              fallback="/logos/default/logo.png"
+              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : "/VenueCore_Logos/VenueCore_Icon_Color.png"; })()}
+              fallback="/VenueCore_Logos/VenueCore_Icon_Color.png"
               alt={venueName || "VenueCore"}
               className="admin-sidebar-logo"
               style={{ width: 80, height: 80, objectFit: "contain" }}

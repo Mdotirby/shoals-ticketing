@@ -112,11 +112,12 @@ export default function AdminLoginPage() {
     <div className="admin-login-page">
       <div className="admin-login-card">
         <Image
-          src="/beige-brown-logo.png"
-          alt="VenueCore Logo"
-          width={127}
-          height={127}
+          src="/VenueCore_Logos/VenueCore_Stacked_Color.png"
+          alt="VenueCore"
+          width={120}
+          height={120}
           className="admin-login-logo"
+          unoptimized
         />
         <h1 className="admin-login-title">{showForgot ? "Reset Password" : "Admin Login"}</h1>
         <p className="admin-login-subtitle">

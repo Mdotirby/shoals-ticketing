@@ -64,10 +64,11 @@ export default function Header() {
           <Image
             src={operator.logo}
             alt={operator.logoAlt}
-            width={200}
-            height={200}
+            width={320}
+            height={56}
             priority
             unoptimized
+            className="header-logo-img"
           />
         </Link>
 

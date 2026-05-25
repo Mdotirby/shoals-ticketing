@@ -120,9 +120,10 @@ body {
   align-items: center;
 }
 
-.header-logo img {
-  width: clamp(96px, 8vw, 127px) !important;
-  height: clamp(96px, 8vw, 127px) !important;
+.header-logo img,
+.header-logo-img {
+  width: clamp(140px, 14vw, 200px) !important;
+  height: auto !important;
   object-fit: contain;
 }
 
@@ -464,9 +465,10 @@ body {
     min-height: 88px;
   }
 
-  .header-logo img {
-    width: 74px !important;
-    height: 74px !important;
+  .header-logo img,
+  .header-logo-img {
+    width: 130px !important;
+    height: auto !important;
   }
 
   .hamburger {
@@ -1692,8 +1694,9 @@ body {
 }
 
 .footer-logo {
-  width: 140px;
+  width: 180px;
   height: auto;
+  object-fit: contain;
 }
 
 .footer-description {
@@ -2551,8 +2554,9 @@ border-radius: 0px 0px 0px 0px;
 }
 
 .admin-login-logo {
-  width: 100px;
+  width: 120px;
   height: auto;
+  object-fit: contain;
 }
 
 .admin-login-title {
@@ -5902,26 +5906,22 @@ select.admin-form-input {
 .digital-ticket-event { color: var(--venue-primary); }
 .digital-ticket-card { border-color: color-mix(in srgb, var(--venue-primary) 20%, transparent); }
 
-/* External venue logo in header */
+/* Header logo sizing — horizontal variant */
 .header-logo-img {
-  width: clamp(96px, 8vw, 127px);
-  height: clamp(96px, 8vw, 127px);
+  width: clamp(140px, 14vw, 200px);
+  height: auto;
   object-fit: contain;
+  transition: width 300ms ease;
 }
 
 .site-header.header-scrolled .header-logo-img {
-  width: clamp(64px, 5vw, 80px);
-  height: clamp(64px, 5vw, 80px);
-}
-
-.header-logo-img {
-  transition: width 300ms ease, height 300ms ease;
+  width: clamp(120px, 10vw, 160px);
 }
 
 @media (max-width: 768px) {
   .header-logo-img {
-    width: 74px;
-    height: 74px;
+    width: 130px;
+    height: auto;
   }
 }
 
