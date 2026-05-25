@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useOperator } from "./OperatorContext";
+import { useVenueTheme } from "./VenueThemeProvider";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -18,24 +19,21 @@ const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
 export default function Header() {
   const pathname = usePathname();
   const operator = useOperator();
+  const venueTheme = useVenueTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
-  // Compute visibility flag (but don't return yet — hooks must come first)
   const isHidden = HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 40);
-    };
+    const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Close mobile nav when clicking outside
   const handleOutsideClick = useCallback((e: MouseEvent) => {
     if (
       navRef.current &&
@@ -48,22 +46,28 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    if (isMenuOpen) {
-      document.addEventListener("mousedown", handleOutsideClick);
-    }
+    if (isMenuOpen) document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [isMenuOpen, handleOutsideClick]);
 
-  // Don't render the public header on admin/portal/agent pages
   if (isHidden) return null;
+
+  // On a venue subdomain, show the venue's own logo from Supabase storage.
+  // Fall back to the operator horizontal logo otherwise.
+  const logoSrc = venueTheme.isVenueSubdomain && venueTheme.logo_url
+    ? venueTheme.logo_url
+    : operator.logo;
+  const logoAlt = venueTheme.isVenueSubdomain && venueTheme.name
+    ? venueTheme.name
+    : operator.logoAlt;
 
   return (
     <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
       <div className="header-inner">
         <Link href="/" className="header-logo" aria-label="Go to homepage">
           <Image
-            src={operator.logo}
-            alt={operator.logoAlt}
+            src={logoSrc}
+            alt={logoAlt}
             width={320}
             height={56}
             priority

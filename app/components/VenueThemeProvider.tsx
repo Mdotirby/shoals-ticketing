@@ -152,9 +152,8 @@ export default function VenueThemeProvider({ children }: { children: React.React
 }
 
 /**
- * Inject venue branding colors as CSS custom properties on the document root.
- * This activates all the var(--venue-primary) / var(--venue-secondary) /
- * var(--venue-accent) overrides already defined in globals.css.
+ * Inject venue branding as CSS custom properties + update the browser favicon.
+ * Activates all var(--venue-primary/secondary/accent) overrides in globals.css.
  */
 function injectCSSVariables(theme: VenueTheme) {
   const root = document.documentElement;
@@ -169,5 +168,16 @@ function injectCSSVariables(theme: VenueTheme) {
   }
   if (isValidHex(theme.accent_color)) {
     root.style.setProperty("--venue-accent", theme.accent_color);
+  }
+
+  // Swap favicon dynamically so the browser tab reflects the venue brand
+  if (theme.favicon_url) {
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = theme.favicon_url;
   }
 }

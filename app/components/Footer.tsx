@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useVenue } from "@/app/components/VenueContext";
 import { useOperator } from "@/app/components/OperatorContext";
-import { useState, useEffect } from "react";
+import { useVenueTheme } from "@/app/components/VenueThemeProvider";
 
 const infoLinks = [
   { label: "About", href: "/about" },
@@ -20,9 +19,8 @@ const managementLinks = [
 
 export default function Footer() {
   const operator = useOperator();
-  const { venueSlug, isVenueSubdomain } = useVenue();
+  const venueTheme = useVenueTheme();
 
-  // Service links vary by operator
   const serviceLinks =
     operator.slug === "venuecore"
       ? [
@@ -38,48 +36,46 @@ export default function Footer() {
           { label: "Auctions", href: "/auctions" },
         ];
 
-  const defaultConnectLinks = [
-    { label: "Instagram", href: operator.instagramUrl },
-    { label: "Facebook", href: operator.facebookUrl },
-    { label: "Email Us", href: `mailto:${operator.contactEmail}` },
-  ];
+  // On a venue subdomain, use venue social links from the theme; otherwise operator defaults.
+  const connectLinks = venueTheme.isVenueSubdomain
+    ? [
+        ...(venueTheme.instagram_url ? [{ label: "Instagram", href: venueTheme.instagram_url }] : []),
+        ...(venueTheme.facebook_url ? [{ label: "Facebook", href: venueTheme.facebook_url }] : []),
+        {
+          label: "Email Us",
+          href: `mailto:${venueTheme.contact_email ?? venueTheme.support_email ?? operator.contactEmail}`,
+        },
+      ]
+    : [
+        { label: "Instagram", href: operator.instagramUrl },
+        { label: "Facebook", href: operator.facebookUrl },
+        { label: "Email Us", href: `mailto:${operator.contactEmail}` },
+      ];
 
-  const [connectLinks, setConnectLinks] = useState(defaultConnectLinks);
-
-  // Load venue-specific social links when on a venue subdomain
-  useEffect(() => {
-    if (!isVenueSubdomain) return;
-    fetch("/api/venues")
-      .then((r) => r.json())
-      .then((venues: Array<Record<string, unknown>>) => {
-        if (!Array.isArray(venues)) return;
-        const v = venues.find((x) => x.slug === venueSlug);
-        if (v) {
-          const links = [];
-          if (v.instagram_url) links.push({ label: "Instagram", href: v.instagram_url as string });
-          if (v.facebook_url) links.push({ label: "Facebook", href: v.facebook_url as string });
-          if (v.buyer_email) links.push({ label: "Email Us", href: `mailto:${v.buyer_email}` });
-          else links.push({ label: "Email Us", href: `mailto:${operator.contactEmail}` });
-          if (links.length > 0) setConnectLinks(links.length >= 2 ? links : defaultConnectLinks);
-        }
-      })
-      .catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [venueSlug, isVenueSubdomain]);
+  // Footer is always dark — use white logo on subdomains if available, else operator white logo.
+  const logoSrc = venueTheme.isVenueSubdomain && venueTheme.logo_url
+    ? venueTheme.logo_url
+    : operator.logoWhite;
+  const logoAlt = venueTheme.isVenueSubdomain && venueTheme.name
+    ? venueTheme.name
+    : operator.logoAlt;
+  const footerDesc = venueTheme.isVenueSubdomain && venueTheme.footer_description
+    ? venueTheme.footer_description
+    : operator.footerDescription;
 
   return (
     <footer className="site-footer">
       <div className="footer-content">
         <div className="footer-brand">
           <Image
-            src={operator.logoWhite}
-            alt={operator.logoAlt}
+            src={logoSrc}
+            alt={logoAlt}
             width={200}
             height={40}
             className="footer-logo"
             unoptimized
           />
-          <p className="footer-description">{operator.footerDescription}</p>
+          <p className="footer-description">{footerDesc}</p>
         </div>
 
         <div className="footer-links-group">
