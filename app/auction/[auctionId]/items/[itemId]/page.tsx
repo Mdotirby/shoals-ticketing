@@ -139,7 +139,7 @@ export default function AuctionItemBidPage() {
     : 0;
 
   const isWinning = session && item?.current_winner_id === session.bidder_id;
-  const isOpen = auction?.status === "open";
+  const isOpen = auction?.status === "open" || auction?.status === "published";
 
   const handleQuickBid = () => {
     setBidAmount(minBid.toFixed(2));

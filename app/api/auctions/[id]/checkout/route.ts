@@ -226,18 +226,16 @@ export async function POST(request: Request, context: RouteContext) {
       bidder_id,
       type: "auction",
     },
-    success_url: `${baseUrl}/auction/${auctionId}/checkout?success=true&order=${orderId}`,
-    cancel_url: `${baseUrl}/auction/${auctionId}/checkout?canceled=true`,
+    // embedded mode uses return_url, NOT success_url/cancel_url
     ui_mode: "embedded",
+    return_url: `${baseUrl}/auction/${auctionId}/checkout?session_id={CHECKOUT_SESSION_ID}&order=${orderId}`,
   });
 
-  // Store the payment intent on the order
-  if (session.payment_intent) {
-    await supabase
-      .from("auction_orders")
-      .update({ stripe_payment_intent_id: session.payment_intent })
-      .eq("id", orderId);
-  }
+  // Store the session id on the order for webhook lookup
+  await supabase
+    .from("auction_orders")
+    .update({ stripe_payment_intent_id: session.id })
+    .eq("id", orderId);
 
   return NextResponse.json({
     order_id: orderId,

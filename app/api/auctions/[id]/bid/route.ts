@@ -9,6 +9,7 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "auction@venuecore.live";
 
 // POST /api/auctions/[id]/bid — place a bid
 export async function POST(request: Request, context: RouteContext) {
+  const host = request.headers.get("host") || "";
   const { id: auctionId } = await context.params;
   const supabase = createAdminClient();
   const body = await request.json();
@@ -140,7 +141,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   // ── 8. Send outbid email to previous winner (fire-and-forget) ──
   if (previousWinnerId && previousWinnerId !== bidder_id && resend) {
-    sendOutbidEmail(supabase, previousWinnerId, item, auctionId, auction.name, bidAmount).catch(
+    sendOutbidEmail(supabase, previousWinnerId, item, auctionId, auction.name, bidAmount, host).catch(
       (err) => console.error("Outbid email error:", err)
     );
   }
@@ -171,7 +172,8 @@ async function sendOutbidEmail(
   item: any,
   auctionId: string,
   auctionName: string,
-  newBidAmount: number
+  newBidAmount: number,
+  host: string
 ) {
   if (!resend) return;
 
@@ -200,7 +202,8 @@ async function sendOutbidEmail(
     if (nw) newWinnerName = `${nw.first_name} ${nw.last_name.charAt(0)}.`;
   }
 
-  const itemUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://venuecore.live"}/auction/${auctionId}/items/${item.id}`;
+  const baseUrl = host ? `https://${host}` : (process.env.NEXT_PUBLIC_BASE_URL || "https://venuecore.live");
+  const itemUrl = `${baseUrl}/auction/${auctionId}/items/${item.id}`;
 
   await resend.emails.send({
     from: FROM_EMAIL,

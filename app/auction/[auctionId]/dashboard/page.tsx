@@ -109,47 +109,28 @@ export default function AuctionDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async (bidderId: string) => {
-    const [auctionRes, itemsRes, bidsRes] = await Promise.all([
+    const [auctionRes, itemsRes] = await Promise.all([
       fetch(`/api/auctions/${auctionId}`).then((r) => r.json()),
-      fetch(`/api/auctions/${auctionId}/items`).then((r) => r.json()),
-      // We'll compute my bids from the items data
-      Promise.resolve(null),
+      // bidder_id filter returns only items this bidder has bid on, with my_highest_bid
+      fetch(`/api/auctions/${auctionId}/items?bidder_id=${bidderId}`).then((r) => r.json()),
     ]);
 
     if (auctionRes.name) setAuction(auctionRes);
 
     if (Array.isArray(itemsRes)) {
-      // Find items I've bid on by checking the bids endpoint
-      // For efficiency, we filter items where I'm either winner or have placed bids
-      // We'll need to fetch my bids
-      const myBidsRes = await fetch(`/api/auctions/${auctionId}/items`);
-      const allItems = await myBidsRes.json();
-
-      // For now, show all items where current_winner_id matches,
-      // plus we need to track items I bid on but am not winning
-      // This requires checking auction_bids for this bidder
-      // Since we can't query bids by bidder from client easily,
-      // we show all items and mark which ones the user is winning
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const itemStatuses: ItemStatus[] = (Array.isArray(allItems) ? allItems : []).map(
-        (item: any) => ({
-          id: item.id as string,
-          name: item.name as string,
-          starting_bid: item.starting_bid as number,
-          min_increment: item.min_increment as number,
-          current_bid: item.current_bid as number | null,
-          current_winner_id: item.current_winner_id as string | null,
-          current_winner_name: item.current_winner_name as string | null,
-          bid_count: item.bid_count as number,
-          my_highest_bid: 0, // Will be tracked client-side
-          is_winning: item.current_winner_id === bidderId,
-        })
-      );
-
-      // Only show items they've interacted with or are interested in
-      // For dashboard, show items where user is winning or was outbid
-      // Since we can't easily get "items I bid on" without a dedicated API,
-      // we show all items but highlight status
+      const itemStatuses: ItemStatus[] = itemsRes.map((item: any) => ({
+        id: item.id as string,
+        name: item.name as string,
+        starting_bid: item.starting_bid as number,
+        min_increment: item.min_increment as number,
+        current_bid: item.current_bid as number | null,
+        current_winner_id: item.current_winner_id as string | null,
+        current_winner_name: item.current_winner_name as string | null,
+        bid_count: item.bid_count as number,
+        my_highest_bid: item.my_highest_bid as number ?? 0,
+        is_winning: item.current_winner_id === bidderId,
+      }));
       setMyItems(itemStatuses);
     }
   }, [auctionId]);

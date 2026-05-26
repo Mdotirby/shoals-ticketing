@@ -27,6 +27,12 @@ export default function AdminAuctionsPage() {
   const [auctions, setAuctions] = useState<Auction[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    await fetch(`/api/auctions/${id}`, { method: "DELETE" });
+    setAuctions((prev) => prev.filter((a) => a.id !== id));
+  };
+
   useEffect(() => {
     const venueId = getCookie("venue-id");
     const url = venueId ? `/api/auctions?venue_id=${venueId}` : "/api/auctions";
@@ -105,6 +111,14 @@ export default function AdminAuctionsPage() {
                 >
                   Reports
                 </Link>
+                {auction.status === "draft" && (
+                  <button
+                    onClick={() => handleDelete(auction.id, auction.name)}
+                    className="admin-btn admin-btn-sm admin-btn-danger"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           ))}

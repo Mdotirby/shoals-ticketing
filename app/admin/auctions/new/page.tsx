@@ -6,12 +6,15 @@ import { getCookie } from "@/lib/cookies";
 import Link from "next/link";
 
 type EventOption = { id: string; title: string };
+type VenueOption = { id: string; name: string };
 
 export default function AdminCreateAuctionPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [events, setEvents] = useState<EventOption[]>([]);
+  const [venues, setVenues] = useState<VenueOption[]>([]);
+  const [selectedVenueId, setSelectedVenueId] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -34,10 +37,17 @@ export default function AdminCreateAuctionPage() {
   useEffect(() => {
     fetch("/api/events")
       .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setEvents(data);
-      })
+      .then((data) => { if (Array.isArray(data)) setEvents(data); })
       .catch(() => {});
+
+    // If no venue-id cookie (operator-level admin), load venue list for picker
+    const cookieVenueId = getCookie("venue-id");
+    if (!cookieVenueId) {
+      fetch("/api/venues")
+        .then((r) => r.json())
+        .then((data) => { if (Array.isArray(data)) setVenues(data); })
+        .catch(() => {});
+    }
   }, []);
 
   const handleChange = (
@@ -67,9 +77,9 @@ export default function AdminCreateAuctionPage() {
     setLoading(true);
     setError("");
 
-    const venueId = getCookie("venue-id");
+    const venueId = getCookie("venue-id") || selectedVenueId;
     if (!venueId) {
-      setError("No venue assigned. Contact your administrator.");
+      setError("Please select a venue for this auction.");
       setLoading(false);
       return;
     }
@@ -177,6 +187,23 @@ export default function AdminCreateAuctionPage() {
           </div>
 
           <div className="auction-create-fields">
+            {venues.length > 0 && (
+              <label className="admin-form-label">
+                <span>Venue <span className="auction-required">*</span></span>
+                <select
+                  value={selectedVenueId}
+                  onChange={(e) => setSelectedVenueId(e.target.value)}
+                  className="admin-form-input"
+                  required
+                >
+                  <option value="">— Select a venue —</option>
+                  {venues.map((v) => (
+                    <option key={v.id} value={v.id}>{v.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <label className="admin-form-label">
               <span>Auction Name <span className="auction-required">*</span></span>
               <input

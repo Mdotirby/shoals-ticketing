@@ -178,19 +178,21 @@ export default function AdminEditAuctionPage() {
       return;
     }
 
-    // 2. Update existing items
-    for (const item of existingItems) {
-      await fetch(`/api/auctions/${auctionId}/items/${item.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: item.name,
-          starting_bid: item.starting_bid,
-          min_increment: item.min_increment,
-          reserve_price: item.reserve_price,
-        }),
-      });
-    }
+    // 2. Update existing items in parallel
+    await Promise.all(
+      existingItems.map((item) =>
+        fetch(`/api/auctions/${auctionId}/items/${item.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: item.name,
+            starting_bid: item.starting_bid,
+            min_increment: item.min_increment,
+            reserve_price: item.reserve_price,
+          }),
+        })
+      )
+    );
 
     // 3. Create new items (skip empty ones)
     const validNew = newItems.filter((i) => i.name.trim());

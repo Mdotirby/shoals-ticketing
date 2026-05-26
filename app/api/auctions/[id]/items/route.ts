@@ -5,13 +5,17 @@ import { v4 as uuidv4 } from "uuid";
 type RouteContext = { params: Promise<{ id: string }> };
 
 // GET /api/auctions/[id]/items — list all items for an auction
-export async function GET(_request: Request, context: RouteContext) {
+// Optional ?bidder_id=xxx to return only items the bidder has bid on
+export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const supabase = createAdminClient();
+  const { searchParams } = new URL(request.url);
+  const bidderId = searchParams.get("bidder_id");
 
+  // Use correct FK constraint name from migration: fk_auction_items_winner
   const { data, error } = await supabase
     .from("auction_items")
-    .select("*, auction_bidders!auction_items_current_winner_id_fkey(first_name, last_name)")
+    .select("*, auction_bidders!fk_auction_items_winner(first_name, last_name)")
     .eq("auction_id", id)
     .order("sort_order", { ascending: true });
 
@@ -19,14 +23,24 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Flatten winner name and get bid counts
+  // Flatten winner name and get bid counts (+ optional my_highest_bid)
   const items = await Promise.all(
     (data || []).map(async (item: Record<string, unknown>) => {
-      // Count bids for this item
-      const { count } = await supabase
-        .from("auction_bids")
-        .select("id", { count: "exact", head: true })
-        .eq("item_id", item.id as string);
+      const [{ count }, bidderBid] = await Promise.all([
+        supabase
+          .from("auction_bids")
+          .select("id", { count: "exact", head: true })
+          .eq("item_id", item.id as string),
+        bidderId
+          ? supabase
+              .from("auction_bids")
+              .select("amount")
+              .eq("item_id", item.id as string)
+              .eq("bidder_id", bidderId)
+              .order("amount", { ascending: false })
+              .limit(1)
+          : Promise.resolve({ data: null }),
+      ]);
 
       const winner = item.auction_bidders as Record<string, unknown> | null;
       return {
@@ -35,10 +49,16 @@ export async function GET(_request: Request, context: RouteContext) {
           ? `${winner.first_name} ${(winner.last_name as string).charAt(0)}.`
           : null,
         bid_count: count || 0,
+        my_highest_bid: bidderBid.data?.[0]?.amount ?? null,
         auction_bidders: undefined,
       };
     })
   );
+
+  // If bidder_id filter requested, only return items the bidder has bid on
+  if (bidderId) {
+    return NextResponse.json(items.filter((i) => i.my_highest_bid !== null));
+  }
 
   return NextResponse.json(items);
 }

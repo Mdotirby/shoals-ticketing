@@ -2202,16 +2202,28 @@ body {
 }
 
 /* Hero Section */
+@-webkit-keyframes kenBurns {
+  0%   { -webkit-transform: scale(1) translateZ(0); transform: scale(1) translateZ(0); }
+  100% { -webkit-transform: scale(1.08) translateZ(0); transform: scale(1.08) translateZ(0); }
+}
 @keyframes kenBurns {
   0%   { transform: scale(1) translateZ(0); }
   100% { transform: scale(1.08) translateZ(0); }
 }
 
+@-webkit-keyframes arrowNudge {
+  0%, 55%, 100% { -webkit-transform: translateX(0); transform: translateX(0); }
+  75%            { -webkit-transform: translateX(5px); transform: translateX(5px); }
+}
 @keyframes arrowNudge {
   0%, 55%, 100% { transform: translateX(0); }
   75%            { transform: translateX(5px); }
 }
 
+@-webkit-keyframes separatorDraw {
+  0%   { -webkit-transform: scaleX(0); transform: scaleX(0); opacity: 0; }
+  100% { -webkit-transform: scaleX(1); transform: scaleX(1); opacity: 1; }
+}
 @keyframes separatorDraw {
   0%   { transform: scaleX(0); opacity: 0; }
   100% { transform: scaleX(1); opacity: 1; }
@@ -2233,8 +2245,13 @@ body {
   background-size: cover;
   background-position: center 30%;
   background-repeat: no-repeat;
+  -webkit-animation: kenBurns 30s ease-in-out alternate infinite;
   animation: kenBurns 30s ease-in-out alternate infinite;
-  will-change: transform;
+  /* Force GPU layer on iOS Safari to prevent composite conflicts */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .home-hero-overlay {
@@ -2242,9 +2259,9 @@ body {
   inset: 0;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--vc-bg-deep) 30%, transparent) 0%,
-    color-mix(in srgb, var(--vc-bg-deep) 60%, transparent) 60%,
-    var(--vc-bg-deep) 100%
+    rgba(11, 13, 29, 0.30) 0%,
+    rgba(11, 13, 29, 0.60) 60%,
+    rgba(11, 13, 29, 1.00) 100%
   );
   z-index: 1;
 }
@@ -2255,10 +2272,13 @@ body {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-   padding: 0 clamp(20px, 4vw, 60px) clamp(40px, 6vw, 60px);
+  padding: 0 clamp(20px, 4vw, 60px) clamp(40px, 6vw, 60px);
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* Force own composite layer so Framer Motion opacity/transform works inside overflow:hidden on iOS */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .home-hero-title {
@@ -2311,6 +2331,7 @@ body {
 .cta-arrow {
   display: inline-block;
   font-size: 16px;
+  -webkit-animation: arrowNudge 3.2s ease-in-out 2s infinite;
   animation: arrowNudge 3.2s ease-in-out 2s infinite;
 }
 
@@ -2351,6 +2372,7 @@ body {
     transparent 100%
   );
   transform-origin: center;
+  -webkit-animation: separatorDraw 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
   animation: separatorDraw 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
 }
 

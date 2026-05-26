@@ -35,7 +35,8 @@ export default function AuctionCheckoutPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const auctionId = params.auctionId as string;
-  const isSuccess = searchParams.get("success") === "true";
+  const sessionId = searchParams.get("session_id");
+  const isSuccess = !!sessionId; // Stripe returns session_id on successful embedded checkout return
   const isCanceled = searchParams.get("canceled") === "true";
 
   const [session, setSession] = useState<BidderSession | null>(null);
@@ -82,6 +83,8 @@ export default function AuctionCheckoutPage() {
             setWonItems(won);
             const total = won.reduce((sum: number, i: WonItem) => sum + i.current_bid, 0);
             setOrderTotal(total);
+            // Pre-populate grand total so order summary is consistent before payment selection
+            setGrandTotal(total);
           }
           setLoading(false);
         })
@@ -207,6 +210,13 @@ export default function AuctionCheckoutPage() {
               <div className="auction-checkout-line auction-checkout-fee">
                 <span>Processing Fee</span>
                 <span>${processingFee.toFixed(2)}</span>
+              </div>
+            )}
+            {processingFee === 0 && paymentMethod === "" && (
+              <div className="auction-checkout-line auction-checkout-fee-note">
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                  Credit/debit adds ~3% processing fee
+                </span>
               </div>
             )}
             <div className="auction-checkout-line auction-checkout-total">

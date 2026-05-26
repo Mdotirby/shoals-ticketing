@@ -6,10 +6,12 @@ import jsPDF from "jspdf";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://venuecore.live";
-
 // GET /api/auctions/[id]/qr-codes — generate printable PDF of all item QR codes
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
+  const host = request.headers.get("host") || "";
+  const BASE_URL = host
+    ? `https://${host}`
+    : (process.env.NEXT_PUBLIC_BASE_URL || "https://venuecore.live");
   const { id: auctionId } = await context.params;
   const supabase = createAdminClient();
 
