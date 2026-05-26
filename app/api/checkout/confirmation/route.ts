@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const { data: order, error } = await admin
     .from("orders")
-    .select("id, customer_name, customer_email, quantity, total_amount, event_id, status")
+    .select("id, customer_name, customer_email, customer_phone, quantity, total_amount, event_id, status")
     .eq("stripe_checkout_session_id", sessionId)
     .single();
 

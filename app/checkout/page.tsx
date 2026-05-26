@@ -10,12 +10,15 @@ import {
 } from "@stripe/react-stripe-js";
 import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
 function CheckoutContent() {
+  const operator = useOperator();
+  const isWest72 = operator.slug === "west72";
   const searchParams = useSearchParams();
   const eventId = searchParams.get("event");
   const quantity = Number(searchParams.get("qty") || "1");
@@ -270,10 +273,22 @@ function CheckoutContent() {
               onChange={(e) => setFwbOptIn(e.target.checked)}
             />
             <span>
-              Yes, sign me up for <strong>Friends with Benefits</strong> — get early access to tickets, 
+              Yes, sign me up for <strong>Friends with Benefits</strong> — get early access to tickets,
               exclusive offers, and event updates via email and text. You can unsubscribe at any time.
             </span>
           </label>
+          {isWest72 && fwbOptIn && (
+            <p style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.4)",
+              margin: "-6px 0 0 28px",
+              lineHeight: 1.6,
+              fontStyle: "italic",
+            }}>
+              We&apos;ll text you when there&apos;s a show, send the link first, and otherwise leave you alone.
+              We&apos;re not gonna text you good morning. We have boundaries.
+            </p>
+          )}
 
           <label className="pre-checkout-checkbox">
             <input
