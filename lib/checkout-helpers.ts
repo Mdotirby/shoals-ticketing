@@ -1,7 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
-// Stripe charges 2.9% + $0.30 per transaction
-export const STRIPE_PERCENT_FEE = 0.029;
+// Stripe charges 2.7% + $0.30 per transaction
+export const STRIPE_PERCENT_FEE = 0.027;
 export const STRIPE_FLAT_FEE_CENTS = 30;
 
 // ── Types ────────────────────────────────────────────────────────────────────

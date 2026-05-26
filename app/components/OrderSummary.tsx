@@ -155,13 +155,6 @@ export default function OrderSummary({
             <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
           </div>
 
-          <div className="order-summary-divider" />
-
-          <div className="order-summary-line order-summary-line-sub">
-            <span className="order-summary-line-label">Subtotal</span>
-            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
-          </div>
-
           {/* ── Promo Code Section ── */}
           {!appliedPromo ? (
             <div style={{ margin: "8px 0" }}>

@@ -307,7 +307,7 @@ export async function computeEventAudit(
     cc_fees_residual >= 0
       ? cc_fees_residual
       : stripe_gross > 0
-        ? stripe_gross * 0.029 + paid_order_count * 0.3
+        ? stripe_gross * 0.027 + paid_order_count * 0.3
         : 0;
 
   // 9. Sort and finalize

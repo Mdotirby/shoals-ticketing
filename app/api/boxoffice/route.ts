@@ -3,8 +3,8 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-// Stripe charges 2.9% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.029;
+// Stripe charges 2.7% + $0.30 per transaction
+const STRIPE_PERCENT_FEE = 0.027;
 const STRIPE_FLAT_FEE_CENTS = 30;
 
 export async function POST(request: Request) {

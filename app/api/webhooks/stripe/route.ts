@@ -197,7 +197,7 @@ async function processTicketOrder({
     const ticketRevenue = totalAmount;
     const totalTicketingFee = ticketingFee * quantity;
     const taxCollected = Math.round(ticketRevenue * taxRate * 100) / 100;
-    const stripeFee = Math.round((totalAmount * 0.029 + 0.30) * 100) / 100;
+    const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
 
     await admin.from("settlement_ledger").insert({
       order_id: order.id,

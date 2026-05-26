@@ -308,14 +308,14 @@ export default function AdminCreateOfferPage() {
       ? 0
       : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    const cc = Math.round(preCC * 0.029 * 100) / 100;
+    const cc = Math.round(preCC * 0.027 * 100) / 100;
     return sum + r.sellable_cap * (preCC + cc);
   }, 0);
   // totalCC = Stripe's share — customer-funded, goes to Stripe not promoter
   const totalCC = scaling.reduce((sum, r) => {
     const taxPer = taxMode === "divisor" ? 0 : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    return sum + r.sellable_cap * Math.round(preCC * 0.029 * 100) / 100;
+    return sum + r.sellable_cap * Math.round(preCC * 0.027 * 100) / 100;
   }, 0);
   const preCCGross = displayGross - totalCC;      // what promoter receives from Stripe
   const displayAdjGross = preCCGross - totalFees; // after ticketing/facility fees removed
@@ -659,7 +659,7 @@ export default function AdminCreateOfferPage() {
               ? Math.round(r.net_price * taxRateDecimal / (1 + taxRateDecimal) * 100) / 100
               : Math.round(r.net_price * taxRateDecimal * 100) / 100;
             const preCC = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
-            const ccPerTicket = Math.round(preCC * 0.029 * 100) / 100;
+            const ccPerTicket = Math.round(preCC * 0.027 * 100) / 100;
             const allIn = preCC + ccPerTicket;
             const tierGross = r.sellable_cap * allIn;
             return (

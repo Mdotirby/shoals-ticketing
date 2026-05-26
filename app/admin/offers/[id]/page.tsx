@@ -162,13 +162,13 @@ export default function AdminOfferDetailPage() {
         ? 0
         : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      const cc = Math.round(preCC * 0.029 * 100) / 100;
+      const cc = Math.round(preCC * 0.027 * 100) / 100;
       return s + (Number(r.sellable_cap) || 0) * (preCC + cc);
     }, 0);
     const totalCC = scaling.reduce((s, r) => {
       const taxPer = taxMethod === "divisor" ? 0 : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      return s + (Number(r.sellable_cap) || 0) * Math.round(preCC * 0.029 * 100) / 100;
+      return s + (Number(r.sellable_cap) || 0) * Math.round(preCC * 0.027 * 100) / 100;
     }, 0);
     const preCCGross = displayGross - totalCC;
     const displayAdjGross = preCCGross - totalFees;
@@ -551,7 +551,7 @@ export default function AdminOfferDetailPage() {
                     ? Math.round(np * trd / (1 + trd) * 100) / 100
                     : Math.round(np * trd * 100) / 100;
                   const preCC = tm === "divisor" ? price : price + taxPerTicket;
-                  const ccPerTicket = Math.round(preCC * 0.029 * 100) / 100;
+                  const ccPerTicket = Math.round(preCC * 0.027 * 100) / 100;
                   const allIn = preCC + ccPerTicket;
                   const sellable = Number(r.sellable_cap || 0);
                   return (

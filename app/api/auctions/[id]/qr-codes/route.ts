@@ -29,7 +29,7 @@ export async function GET(request: Request, context: RouteContext) {
   // Fetch all items
   const { data: items } = await supabase
     .from("auction_items")
-    .select("id, name, starting_bid, qr_code")
+    .select("id, name, starting_bid, min_increment, qr_code")
     .eq("auction_id", auctionId)
     .order("sort_order", { ascending: true });
 
@@ -64,24 +64,38 @@ export async function GET(request: Request, context: RouteContext) {
     const centerX = pageWidth / 2;
 
     // ── Top: Auction Name ──
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text(auction.name, centerX, yOffset + 15, { align: "center" });
+    doc.text(auction.name, centerX, yOffset + 14, { align: "center" });
 
     // ── Item Name ──
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text(item.name, centerX, yOffset + 25, { align: "center" });
+    doc.text(item.name, centerX, yOffset + 23, { align: "center" });
 
     // ── Starting Bid ──
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont("helvetica", "normal");
     doc.text(
       `Starting Bid: $${parseFloat(item.starting_bid).toFixed(2)}`,
       centerX,
-      yOffset + 33,
+      yOffset + 31,
       { align: "center" }
     );
+
+    // ── Min Bid Increment ──
+    if (item.min_increment) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+      doc.text(
+        `Min Bid Increment: $${parseFloat(item.min_increment).toFixed(2)}`,
+        centerX,
+        yOffset + 38,
+        { align: "center" }
+      );
+      doc.setTextColor(0, 0, 0);
+    }
 
     // ── QR Code ──
     const itemUrl = `${BASE_URL}/auction/${auctionId}/items/${item.id}`;
@@ -92,7 +106,7 @@ export async function GET(request: Request, context: RouteContext) {
     });
 
     const qrSize = 70; // mm
-    doc.addImage(qrDataUrl, "PNG", centerX - qrSize / 2, yOffset + 38, qrSize, qrSize);
+    doc.addImage(qrDataUrl, "PNG", centerX - qrSize / 2, yOffset + 44, qrSize, qrSize);
 
     // ── Scan message below QR ──
     doc.setFontSize(12);
@@ -100,7 +114,7 @@ export async function GET(request: Request, context: RouteContext) {
     doc.text(
       "Use your phone to scan the code and place your bid",
       centerX,
-      yOffset + 38 + qrSize + 8,
+      yOffset + 44 + qrSize + 7,
       { align: "center" }
     );
 

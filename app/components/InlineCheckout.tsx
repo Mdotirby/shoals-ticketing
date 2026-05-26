@@ -100,7 +100,7 @@ const stripeAppearance = {
 // ── Checkout Form (inside Elements provider) ─────────────────────────────────
 
 // Fee constants — same as OrderSummary and create-intent API
-const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_PERCENT_FEE = 0.027;
 const STRIPE_FLAT_FEE = 0.30;
 
 function normalizeTaxRate(rate: number): number {

@@ -273,7 +273,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
         ? Math.round((r.net_price || 0) * taxRateDecScaling / (1 + taxRateDecScaling) * 100) / 100
         : Math.round((r.net_price || 0) * taxRateDecScaling * 100) / 100;
       const preCC = (r.price || 0) + (taxMethodScaling === "divisor" ? 0 : taxPer);
-      const ccPer = Math.round(preCC * 0.029 * 100) / 100;
+      const ccPer = Math.round(preCC * 0.027 * 100) / 100;
       const allIn = preCC + ccPer;
       const tierGross = (r.sellable_cap || 0) * allIn;
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
@@ -386,7 +386,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        const cc = Math.round(preCC * 0.029 * 100) / 100;
+        const cc = Math.round(preCC * 0.027 * 100) / 100;
         return sum + t.sellable_cap * (preCC + cc);
       }, 0)
     : Number(data.gross_potential || 0);
@@ -394,7 +394,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        return sum + t.sellable_cap * Math.round(preCC * 0.029 * 100) / 100;
+        return sum + t.sellable_cap * Math.round(preCC * 0.027 * 100) / 100;
       }, 0)
     : 0;
   const displayAdjGrossPDF = Math.round((displayGrossPDF - totalCCPDF - totalFeesPDF) * 100) / 100;
