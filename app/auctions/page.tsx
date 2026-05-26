@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/app/components/Footer";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const features = [
   {
@@ -56,6 +57,8 @@ const features = [
 ];
 
 export default function AuctionsAboutPage() {
+  const operator = useOperator();
+  const isVenueCore = operator.slug === "venuecore";
   return (
     <div className="auctions-about-page">
       {/* Hero Section */}
@@ -192,16 +195,18 @@ export default function AuctionsAboutPage() {
         </div>
       </section>
 
-      {/* Powered By */}
-      <div className="auctions-powered-by">
-        <Image
-          src="/VenueCore_VenueCore-Horizontal.png"
-          alt="VenueCore"
-          width={140}
-          height={40}
-          style={{ objectFit: "contain", opacity: 0.5 }}
-        />
-      </div>
+      {/* Powered By — only show VenueCore attribution on VenueCore domain */}
+      {isVenueCore && (
+        <div className="auctions-powered-by">
+          <Image
+            src="/VenueCore_VenueCore-Horizontal.png"
+            alt="VenueCore"
+            width={140}
+            height={40}
+            style={{ objectFit: "contain", opacity: 0.5 }}
+          />
+        </div>
+      )}
 
       <Footer />
     </div>

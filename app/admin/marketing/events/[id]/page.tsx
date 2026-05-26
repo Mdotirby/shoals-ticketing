@@ -169,14 +169,14 @@ export default function EventMarketingDetailPage() {
   /* Generate QR code when event loads */
   useEffect(() => {
     if (!id) return;
-    const eventUrl = `${typeof window !== "undefined" ? window.location.origin : "https://venuecore.live"}/events/${id}`;
+    const eventUrl = `${window.location.origin}/events/${id}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (import("qrcode") as Promise<any>).then((QRCode) => {
       QRCode.toDataURL(eventUrl, { width: 300, margin: 2 }).then((url: string) => setQrDataUrl(url));
     }).catch(() => console.warn("QR code generation failed"));
   }, [id]);
 
-  const eventUrl = `${typeof window !== "undefined" ? window.location.origin : "https://venuecore.live"}/events/${id}`;
+  const eventUrl = `${window.location.origin}/events/${id}`;
 
   function downloadQr() {
     if (!qrDataUrl) return;

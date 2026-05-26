@@ -98,7 +98,7 @@ export default function AdminLoginPage() {
     try {
       const supabase = getSupabaseBrowser();
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: "https://venuecore.live/login?reset=true",
+        redirectTo: `${typeof window !== "undefined" ? window.location.origin : "https://venuecore.live"}/admin/login?reset=true`,
       });
       if (error) throw error;
       setResetMsg("If that email exists, a reset link has been sent. Check your inbox.");
@@ -114,11 +114,11 @@ export default function AdminLoginPage() {
       <div className="admin-login-card">
         <Image
           src={getCookie("operatorSlug") === "west72"
-            ? "/West72_Logos/W72_tech_lockup_white.png"
+            ? "/West72_Logos/W72_tech_wordmark_white.png"
             : "/VenueCore_Logos/VenueCore_Stacked_Color.png"}
           alt={getCookie("operatorSlug") === "west72" ? "West 72 Entertainment" : "VenueCore"}
-          width={getCookie("operatorSlug") === "west72" ? 200 : 120}
-          height={getCookie("operatorSlug") === "west72" ? 60 : 120}
+          width={getCookie("operatorSlug") === "west72" ? 220 : 120}
+          height={getCookie("operatorSlug") === "west72" ? 48 : 120}
           className="admin-login-logo"
           unoptimized
         />
@@ -144,7 +144,7 @@ export default function AdminLoginPage() {
                 className="admin-form-input"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                placeholder="admin@venuecore.live"
+                placeholder="admin@example.com"
                 required
               />
             </label>
@@ -172,7 +172,7 @@ export default function AdminLoginPage() {
                 className="admin-form-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@venuecore.live"
+                placeholder="admin@example.com"
                 required
               />
             </label>

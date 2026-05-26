@@ -527,7 +527,7 @@ export default function OrderDetailPage() {
 
                 {/* Link to the buyer-facing ticket page */}
                 <a
-                  href={`https://venuecore.live/tickets/${ticket.qr_code}`}
+                  href={`${typeof window !== "undefined" ? window.location.origin : ""}/tickets/${ticket.qr_code}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

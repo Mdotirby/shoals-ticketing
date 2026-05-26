@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import type { BidderSession } from "@/lib/types/auction";
+import { useOperator } from "@/app/components/OperatorContext";
 
 type AuctionInfo = {
   id: string;
@@ -35,6 +36,7 @@ function getBidderSession(auctionId: string): BidderSession | null {
 }
 
 export default function AuctionLandingPage() {
+  const operator = useOperator();
   const params = useParams();
   const router = useRouter();
   const auctionId = params.auctionId as string;
@@ -153,7 +155,7 @@ export default function AuctionLandingPage() {
 
       {/* Footer */}
       <footer className="auction-footer">
-        <span>Powered by <strong>VenueCore</strong></span>
+        {operator.slug === "venuecore" && <span>Powered by <strong>VenueCore</strong></span>}
       </footer>
     </div>
   );

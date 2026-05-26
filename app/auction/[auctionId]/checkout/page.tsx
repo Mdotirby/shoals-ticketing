@@ -9,6 +9,7 @@ import {
   EmbeddedCheckout,
 } from "@stripe/react-stripe-js";
 import type { BidderSession } from "@/lib/types/auction";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -30,6 +31,7 @@ function getBidderSession(auctionId: string): BidderSession | null {
 }
 
 export default function AuctionCheckoutPage() {
+  const operator = useOperator();
   const params = useParams();
   const searchParams = useSearchParams();
   const auctionId = params.auctionId as string;
@@ -281,7 +283,7 @@ export default function AuctionCheckoutPage() {
       )}
 
       <footer className="auction-footer">
-        <span>Powered by <strong>VenueCore</strong></span>
+        {operator.slug === "venuecore" && <span>Powered by <strong>VenueCore</strong></span>}
       </footer>
     </div>
   );

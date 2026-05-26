@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { BidderSession } from "@/lib/types/auction";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { useOperator } from "@/app/components/OperatorContext";
 
 export default function AuctionRegisterPage() {
+  const operator = useOperator();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -193,7 +195,7 @@ export default function AuctionRegisterPage() {
       </div>
 
       <footer className="auction-footer">
-        <span>Powered by <strong>VenueCore</strong></span>
+        {operator.slug === "venuecore" && <span>Powered by <strong>VenueCore</strong></span>}
       </footer>
     </div>
   );

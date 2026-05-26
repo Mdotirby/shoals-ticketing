@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { BidderSession } from "@/lib/types/auction";
+import { useOperator } from "@/app/components/OperatorContext";
 
 type ItemData = {
   id: string;
@@ -35,6 +36,7 @@ function getBidderSession(auctionId: string): BidderSession | null {
 }
 
 export default function AuctionItemBidPage() {
+  const operator = useOperator();
   const params = useParams();
   const router = useRouter();
   const auctionId = params.auctionId as string;
@@ -357,7 +359,7 @@ export default function AuctionItemBidPage() {
       )}
 
       <footer className="auction-footer">
-        <span>Powered by <strong>VenueCore</strong></span>
+        {operator.slug === "venuecore" && <span>Powered by <strong>VenueCore</strong></span>}
       </footer>
     </div>
   );

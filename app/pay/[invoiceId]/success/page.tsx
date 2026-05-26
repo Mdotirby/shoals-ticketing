@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const GOLD = "#d0c290";
 const DARK = "#0b0d1d";
@@ -12,6 +13,7 @@ function fmt(n: number) {
 }
 
 function SuccessContent() {
+  const operator = useOperator();
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
@@ -69,7 +71,7 @@ function SuccessContent() {
         {/* Footer */}
         <div style={{ marginTop: 32, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-            Powered by VenueCore · venuecore.live
+            {operator.slug === "venuecore" ? "Powered by VenueCore · venuecore.live" : operator.name}
           </p>
         </div>
       </div>

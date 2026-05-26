@@ -350,8 +350,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname]);
 
-  const operatorIconFallback = getCookie("operatorSlug") === "west72"
+  const isWest72Operator = getCookie("operatorSlug") === "west72";
+  const operatorIconFallback = isWest72Operator
     ? "/West72_Logos/W72_tech_icon_white.png"
+    : "/VenueCore_Logos/VenueCore_Icon_Color.png";
+  const operatorWordmarkFallback = isWest72Operator
+    ? "/West72_Logos/W72_tech_wordmark_white.png"
     : "/VenueCore_Logos/VenueCore_Icon_Color.png";
 
   return (
@@ -369,7 +373,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SafeImage
           src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorIconFallback; })()}
           fallback={operatorIconFallback}
-          alt="VenueCore"
+          alt={isWest72Operator ? "West 72 Entertainment" : "VenueCore"}
           style={{ width: 36, height: 36, objectFit: "contain" }}
         />
         <div className="admin-mobile-dropdown-wrapper">
@@ -439,11 +443,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             />
           ) : (
             <SafeImage
-              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorIconFallback; })()}
-              fallback={operatorIconFallback}
+              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorWordmarkFallback; })()}
+              fallback={operatorWordmarkFallback}
               alt={venueName || "VenueCore"}
               className="admin-sidebar-logo"
-              style={{ width: 80, height: 80, objectFit: "contain" }}
+              style={isWest72Operator && !venueSlugResolved && venueSlug === "default"
+                ? { width: 160, height: 40, objectFit: "contain" }
+                : { width: 80, height: 80, objectFit: "contain" }}
             />
           )}
           {adminName && (

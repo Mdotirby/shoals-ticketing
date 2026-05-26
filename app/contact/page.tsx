@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Footer from "../components/Footer";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const REASON_OPTIONS = [
   "General Inquiry",
@@ -14,6 +15,7 @@ const REASON_OPTIONS = [
 ];
 
 export default function ContactPage() {
+  const operator = useOperator();
   const [form, setForm] = useState({
     fullName: "",
     email: "",
@@ -184,8 +186,8 @@ export default function ContactPage() {
                     <p className="contact-method-desc">
                       We typically respond within 1&ndash;2 business days.
                     </p>
-                    <a href="mailto:contact@venuecore.live" className="contact-method-link">
-                      contact@venuecore.live
+                    <a href={`mailto:${operator.contactEmail}`} className="contact-method-link">
+                      {operator.contactEmail}
                     </a>
                   </div>
                 </div>

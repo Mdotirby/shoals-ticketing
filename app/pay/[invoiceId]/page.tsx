@@ -7,6 +7,7 @@ import {
   EmbeddedCheckoutProvider,
   EmbeddedCheckout,
 } from "@stripe/react-stripe-js";
+import { useOperator } from "@/app/components/OperatorContext";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -43,6 +44,7 @@ function safeDate(d: string) {
 }
 
 export default function PayInvoicePage() {
+  const operator = useOperator();
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,7 +238,7 @@ export default function PayInvoicePage() {
       {/* Footer */}
       <div style={{ textAlign: "center", padding: "24px 0", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.2)" }}>
-          Powered by VenueCore · venuecore.live
+          {operator.slug === "venuecore" ? "Powered by VenueCore · venuecore.live" : operator.name}
         </p>
       </div>
     </div>

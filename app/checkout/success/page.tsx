@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
+import { useOperator } from "@/app/components/OperatorContext";
 
 type ConfirmationData = {
   order: {
@@ -27,6 +28,7 @@ function formatDate(d: string) {
 }
 
 function SuccessContent() {
+  const operator = useOperator();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [data, setData] = useState<ConfirmationData | null>(null);
@@ -143,8 +145,8 @@ function SuccessContent() {
             Terms of Sale
           </Link>.
           Questions? Email{" "}
-          <a href="mailto:support@venuecore.live" style={{ color: "rgba(208,194,144,0.6)" }}>
-            support@venuecore.live
+          <a href={`mailto:${operator.supportEmail}`} style={{ color: "rgba(208,194,144,0.6)" }}>
+            {operator.supportEmail}
           </a>
         </p>
       </div>

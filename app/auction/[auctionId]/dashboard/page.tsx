@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import type { BidderSession } from "@/lib/types/auction";
+import { useOperator } from "@/app/components/OperatorContext";
 
 type ItemStatus = {
   id: string;
@@ -97,6 +98,7 @@ function CountdownTimer({ closeTime }: { closeTime: string }) {
 }
 
 export default function AuctionDashboardPage() {
+  const operator = useOperator();
   const params = useParams();
   const router = useRouter();
   const auctionId = params.auctionId as string;
@@ -336,7 +338,7 @@ export default function AuctionDashboardPage() {
       )}
 
       <footer className="auction-footer">
-        <span>Powered by <strong>VenueCore</strong></span>
+        {operator.slug === "venuecore" && <span>Powered by <strong>VenueCore</strong></span>}
       </footer>
     </div>
   );

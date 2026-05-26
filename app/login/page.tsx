@@ -192,7 +192,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
     try {
       const supabase = getSupabaseBrowser();
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: "https://venuecore.live/login?reset=true",
+        redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/login?reset=true`,
       });
       if (error) throw error;
       setMsg("If that email exists, a reset link has been sent. Check your inbox.");
@@ -254,7 +254,7 @@ export default function LoginPage() {
         <section className="ticket-hero">
           {isWest72 && (
             <Image
-              src="/West72_Logos/W72_tech_lockup_white.png"
+              src="/West72_Logos/W72_tech_wordmark_white.png"
               alt="West 72 Entertainment"
               width={220}
               height={66}

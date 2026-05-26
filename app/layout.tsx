@@ -54,14 +54,33 @@ export async function generateMetadata(): Promise<Metadata> {
           ],
           shortcut: "/favicons/icon_32.ico",
         }
-      : {
-          icon: [
-            { url: operator.favicon, sizes: "32x32" },
-            { url: operator.favicon, sizes: "192x192" },
-          ],
-          apple: operator.favicon,
-          shortcut: operator.favicon,
-        },
+      : operatorSlug === "west72"
+        ? {
+            icon: [
+              // Light mode (light browser chrome): dark icon is readable
+              { url: "/favicons/West72/W72_tech_icon_solid_black.ico", sizes: "any", media: "(prefers-color-scheme: light)" },
+              // Dark mode (dark browser chrome): white icon is readable
+              { url: "/favicons/West72/W72_tech_icon_solid_white.ico", sizes: "any", media: "(prefers-color-scheme: dark)" },
+              // Fallback for browsers that don't support media queries on icons
+              { url: "/favicons/West72/W72_tech_icon_solid_white.ico", sizes: "32x32" },
+              // High-res / PWA
+              { url: "/West72_Logos/W72_tech_icon_solid_white.png", sizes: "192x192", type: "image/png" },
+              { url: "/West72_Logos/W72_tech_icon_solid_white.png", sizes: "512x512", type: "image/png" },
+            ],
+            apple: [
+              // Apple touch icon: iOS adds white background, so use black icon for contrast
+              { url: "/West72_Logos/W72_tech_icon_solid_black.png", sizes: "180x180" },
+            ],
+            shortcut: "/favicons/West72/W72_tech_icon_solid_white.ico",
+          }
+        : {
+            icon: [
+              { url: operator.favicon, sizes: "32x32" },
+              { url: operator.favicon, sizes: "192x192" },
+            ],
+            apple: operator.favicon,
+            shortcut: operator.favicon,
+          },
   };
 }
 
