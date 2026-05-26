@@ -115,7 +115,7 @@ export default function SeatMap({
     setVb(newVb);
   }, [sections, roomWidthFt, roomHeightFt, ppf, seatR]);
 
-  // ─── native wheel listener (passive: false) ───────────────────────────────
+  // ─── native wheel + touch listeners (passive: false to enable preventDefault) ──
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -140,8 +140,49 @@ export default function SeatMap({
       });
     };
 
+    const onTouchMoveNative = (e: TouchEvent) => {
+      e.preventDefault(); // blocks browser pinch-zoom and scroll on the map
+      if (!touchRef.current) return;
+
+      if (e.touches.length === 1 && touchRef.current.id1 === undefined) {
+        const t = e.touches[0];
+        const rect = svg.getBoundingClientRect();
+        const cur = vbRef.current;
+        const dx = (t.clientX - touchRef.current.x0) / rect.width * cur.w;
+        const dy = (t.clientY - touchRef.current.y0) / rect.height * cur.h;
+        setVb((prev) => ({ ...prev, x: prev.x - dx, y: prev.y - dy }));
+        touchRef.current.x0 = t.clientX;
+        touchRef.current.y0 = t.clientY;
+      } else if (e.touches.length === 2 && touchRef.current.lastDist !== undefined) {
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        const factor = touchRef.current.lastDist / dist;
+        const rect = svg.getBoundingClientRect();
+        const midX = (t0.clientX + t1.clientX) / 2;
+        const midY = (t0.clientY + t1.clientY) / 2;
+        const mx = (midX - rect.left) / rect.width;
+        const my = (midY - rect.top) / rect.height;
+        setVb((prev) => {
+          const newW = prev.w * factor;
+          const newH = prev.h * factor;
+          if (newW > baseVb.current.w * 3 || newW < baseVb.current.w * 0.05) return prev;
+          return {
+            x: prev.x + (prev.w - newW) * mx,
+            y: prev.y + (prev.h - newH) * my,
+            w: newW,
+            h: newH,
+          };
+        });
+        touchRef.current.lastDist = dist;
+      }
+    };
+
     svg.addEventListener("wheel", onWheel, { passive: false });
-    return () => svg.removeEventListener("wheel", onWheel);
+    svg.addEventListener("touchmove", onTouchMoveNative, { passive: false });
+    return () => {
+      svg.removeEventListener("wheel", onWheel);
+      svg.removeEventListener("touchmove", onTouchMoveNative);
+    };
   }, []);
 
   // ─── helpers ──────────────────────────────────────────────────────────────
@@ -234,50 +275,7 @@ export default function SeatMap({
     }
   }, []);
 
-  const onTouchMove = useCallback((e: React.TouchEvent<SVGSVGElement>) => {
-    e.preventDefault();
-    if (!touchRef.current) return;
-
-    if (e.touches.length === 1 && touchRef.current.id1 === undefined) {
-      const t = e.touches[0];
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const cur = vbRef.current;
-      const dx = (t.clientX - touchRef.current.x0) / rect.width * cur.w;
-      const dy = (t.clientY - touchRef.current.y0) / rect.height * cur.h;
-      setVb((prev) => ({
-        ...prev,
-        x: prev.x - dx,
-        y: prev.y - dy,
-      }));
-      touchRef.current.x0 = t.clientX;
-      touchRef.current.y0 = t.clientY;
-    } else if (e.touches.length === 2 && touchRef.current.lastDist !== undefined) {
-      const t0 = e.touches[0], t1 = e.touches[1];
-      const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-      const factor = touchRef.current.lastDist / dist;
-      const svg = svgRef.current;
-      if (!svg) return;
-      const rect = svg.getBoundingClientRect();
-      const midX = (t0.clientX + t1.clientX) / 2;
-      const midY = (t0.clientY + t1.clientY) / 2;
-      const mx = (midX - rect.left) / rect.width;
-      const my = (midY - rect.top) / rect.height;
-      setVb((prev) => {
-        const newW = prev.w * factor;
-        const newH = prev.h * factor;
-        if (newW > baseVb.current.w * 3 || newW < baseVb.current.w * 0.05) return prev;
-        return {
-          x: prev.x + (prev.w - newW) * mx,
-          y: prev.y + (prev.h - newH) * my,
-          w: newW,
-          h: newH,
-        };
-      });
-      touchRef.current.lastDist = dist;
-    }
-  }, []);
+  // onTouchMove is handled via native listener (passive: false) in the wheel useEffect above
 
   const onTouchEnd = useCallback(() => { touchRef.current = null; }, []);
 
@@ -300,7 +298,7 @@ export default function SeatMap({
   return (
     <div
       ref={containerRef}
-      style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden", background: "#111118", position: "relative" }}
+      style={{ flex: 1, width: "100%", height: "100%", overflow: "hidden", background: "var(--vc-bg-mid)", position: "relative", touchAction: "none" }}
     >
       {/* Reset zoom button */}
       <button
@@ -354,7 +352,6 @@ export default function SeatMap({
         onMouseUp={onMouseUp}
         onMouseLeave={onMouseUp}
         onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         {sections.map((sec) => (

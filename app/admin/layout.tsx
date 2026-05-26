@@ -371,20 +371,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile topbar — avatar dropdown */}
       <div className="admin-mobile-topbar">
-        {/* Always use the operator brand icon here — venue logos are for the sidebar header */}
-        <SafeImage
-          src={operatorIconFallback}
-          fallback={operatorIconFallback}
-          alt={isWest72Operator ? "West 72 Entertainment" : "VenueCore"}
-          style={{ width: 36, height: 36, objectFit: "contain" }}
-        />
+        {/* Operator icon on left — hidden for west72 (brand lives in the avatar button) */}
+        {!isWest72Operator && (
+          <SafeImage
+            src={operatorIconFallback}
+            fallback={operatorIconFallback}
+            alt="VenueCore"
+            style={{ width: 36, height: 36, objectFit: "contain" }}
+          />
+        )}
         <div className="admin-mobile-dropdown-wrapper">
           <button
             className="admin-mobile-avatar-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle navigation"
           >
-            {avatarUrl ? (
+            {isWest72Operator ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src="/West72_Logos/W72_tech_icon_black.png" alt="W72" className="admin-mobile-avatar-img" style={{ borderRadius: 6, padding: 3, background: "#fff" }} />
+            ) : avatarUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
             ) : (

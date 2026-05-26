@@ -190,27 +190,27 @@ export default function EventSeatingPage() {
   };
 
   if (loading) return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <main style={{ minHeight: "100vh", background: "var(--vc-bg-deep)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <p>Loading seating…</p>
     </main>
   );
   if (error) return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <main style={{ minHeight: "100vh", background: "var(--vc-bg-deep)", color: "#f87171", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <p>{error}</p>
     </main>
   );
 
   return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0f", color: "#fff", padding: "20px 16px 80px" }}>
+    <main style={{ minHeight: "100vh", background: "var(--vc-bg-deep)", color: "#fff", padding: "20px 16px 80px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <a href={`/events/${eventId}`} style={{ color: "#818cf8", fontSize: 14, textDecoration: "none", marginBottom: 16, display: "inline-block" }}>← Back to Event</a>
+        <a href={`/events/${eventId}`} style={{ color: "var(--vc-gold)", fontSize: 14, textDecoration: "none", marginBottom: 16, display: "inline-block" }}>← Back to Event</a>
 
         {event && (
           <h1 style={{ fontSize: "clamp(18px, 4vw, 26px)", fontWeight: 800, margin: "0 0 16px" }}>{event.title} — Select Your Seats</h1>
         )}
 
         {/* Seat Map */}
-        <div style={{ height: "calc(100vh - 240px)", minHeight: 300, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: 16 }}>
+        <div className="seating-map-container">
           <SeatMap
             sections={sections}
             roomWidthFt={roomW}
@@ -242,7 +242,7 @@ export default function EventSeatingPage() {
 
         {/* Selected items */}
         {selected.length > 0 && (
-          <div style={{ background: "#111118", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: 20 }}>
+          <div style={{ background: "var(--vc-bg-mid)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)", padding: 20 }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, marginTop: 0, marginBottom: 12 }}>
               Your Selection ({selected.length} {selected.length === 1 ? "item" : "items"})
             </h2>
@@ -264,7 +264,7 @@ export default function EventSeatingPage() {
               <button
                 onClick={handleCheckout}
                 disabled={reserving}
-                style={{ padding: "10px 28px", background: reserving ? "rgba(99,102,241,0.3)" : "#6366f1", border: "none", borderRadius: 8, color: "#fff", fontSize: 14, fontWeight: 700, cursor: reserving ? "wait" : "pointer" }}
+                style={{ padding: "10px 28px", background: reserving ? "var(--vc-gold-30)" : "var(--vc-gold)", border: "none", borderRadius: 8, color: reserving ? "rgba(255,255,255,0.5)" : "var(--vc-bg-deep)", fontSize: 14, fontWeight: 700, cursor: reserving ? "wait" : "pointer" }}
               >
                 {reserving ? "Reserving…" : "Proceed to Checkout"}
               </button>
