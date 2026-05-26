@@ -118,6 +118,11 @@ body[data-operator="west72"] .home-hero-overlay {
   );
 }
 
+/* Login / ticket-page: black instead of navy gradient */
+body[data-operator="west72"] .ticket-page {
+  background: #0a0a0a;
+}
+
 /* Event cards: charcoal grey surface instead of navy */
 body[data-operator="west72"] .events-grid-card {
   background: #1c1c1c;

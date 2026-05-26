@@ -67,7 +67,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     logoIcon: "/West72_Logos/W72_tech_icon_white.png",
     logoStacked: "/West72_Logos/W72_tech_lockup_white.png",
     logoAlt: "West 72 Entertainment",
-    favicon: "/logos/West72/logo.png",
+    favicon: "/favicons/West72/W72_tech_icon_solid_white.ico",
     supportEmail: "support@west72ent.com",
     contactEmail: "contact@west72ent.com",
     privacyEmail: "privacy@west72ent.com",

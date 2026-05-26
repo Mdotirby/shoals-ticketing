@@ -2,7 +2,9 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { getCookie } from "@/lib/cookies";
 import Footer from "@/app/components/Footer";
 
 type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist" | "agent";
@@ -244,11 +246,22 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
 
 export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
+  const isWest72 = getCookie("operatorSlug") === "west72";
 
   return (
     <>
       <main className="ticket-page">
         <section className="ticket-hero">
+          {isWest72 && (
+            <Image
+              src="/West72_Logos/W72_tech_lockup_white.png"
+              alt="West 72 Entertainment"
+              width={220}
+              height={66}
+              style={{ marginBottom: 24, objectFit: "contain" }}
+              unoptimized
+            />
+          )}
           <h1 className="ticket-hero-title">{showForgot ? "Reset Password" : "Log In"}</h1>
         </section>
 
