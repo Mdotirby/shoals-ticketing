@@ -389,6 +389,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             className="admin-mobile-avatar-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle navigation"
+            style={isWest72Operator ? { borderRadius: 12 } : undefined}
           >
             {isWest72Operator ? (
               /* eslint-disable-next-line @next/next/no-img-element */
