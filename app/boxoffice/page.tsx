@@ -37,6 +37,7 @@ function BoxOfficeContent() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerZip, setBuyerZip] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -116,6 +117,7 @@ function BoxOfficeContent() {
         buyer_name: buyerName.trim(),
         buyer_email: buyerEmail.trim(),
         buyer_phone: buyerPhone.trim(),
+        buyer_zip: buyerZip.trim() || undefined,
       }),
     });
 
@@ -379,6 +381,29 @@ function BoxOfficeContent() {
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
               placeholder="(555)-555-1234"
+              style={{
+                width: "100%",
+                padding: "12px 14px",
+                borderRadius: 8,
+                border: "1px solid rgba(208,194,144,0.2)",
+                background: "rgba(255,255,255,0.05)",
+                color: "#fff",
+                fontSize: 15,
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              ZIP Code <span style={{ fontWeight: 400, opacity: 0.55, textTransform: "none" }}>(optional)</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={buyerZip}
+              onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              placeholder="35630"
+              autoComplete="postal-code"
               style={{
                 width: "100%",
                 padding: "12px 14px",

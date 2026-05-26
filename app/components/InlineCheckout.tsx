@@ -131,6 +131,7 @@ function CheckoutForm({
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerZip, setBuyerZip] = useState("");
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
@@ -236,6 +237,7 @@ function CheckoutForm({
           buyerName: buyerName.trim(),
           buyerEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
+          buyerZip: buyerZip.trim() || undefined,
           fwbOptIn,
           promoCode: promoCode || undefined,
           selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
@@ -263,6 +265,7 @@ function CheckoutForm({
               name: buyerName.trim(),
               email: buyerEmail.trim(),
               phone: buyerPhone.trim() || undefined,
+              address: buyerZip.trim() ? { postal_code: buyerZip.trim() } : undefined,
             },
           },
         }
@@ -477,6 +480,22 @@ function CheckoutForm({
             value={buyerPhone}
             onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
             autoComplete="tel"
+          />
+        </div>
+
+        <div className="ic-field">
+          <label className="ic-label" htmlFor="ic-zip">
+            ZIP Code <span className="ic-optional">(optional)</span>
+          </label>
+          <input
+            id="ic-zip"
+            type="text"
+            inputMode="numeric"
+            className="ic-input"
+            placeholder="35630"
+            value={buyerZip}
+            onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+            autoComplete="postal-code"
           />
         </div>
 

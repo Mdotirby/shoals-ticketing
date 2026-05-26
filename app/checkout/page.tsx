@@ -32,6 +32,7 @@ function CheckoutContent() {
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerZip, setBuyerZip] = useState("");
   const [fwbOptIn, setFwbOptIn] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -117,6 +118,7 @@ function CheckoutContent() {
         buyer_name: buyerName.trim(),
         buyer_email: buyerEmail.trim(),
         buyer_phone: buyerPhone.trim(),
+        buyer_zip: buyerZip.trim() || undefined,
         fwb_opt_in: fwbOptIn,
         promo_code: promoValid ? promoCode.trim() : undefined,
         seat_ids: seatIds.length > 0 ? seatIds : undefined,
@@ -203,6 +205,19 @@ function CheckoutContent() {
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
               placeholder="(555)-555-1234"
+            />
+          </div>
+
+          <div className="pre-checkout-field">
+            <label htmlFor="buyer-zip">ZIP Code <span style={{ fontWeight: 400, opacity: 0.55 }}>(optional)</span></label>
+            <input
+              id="buyer-zip"
+              type="text"
+              inputMode="numeric"
+              value={buyerZip}
+              onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              placeholder="35630"
+              autoComplete="postal-code"
             />
           </div>
 

@@ -12,7 +12,7 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -324,6 +324,7 @@ export async function POST(request: Request) {
         tax_method: taxMethod,
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
+        buyer_zip: buyer_zip || "",
         fwb_opt_in: fwb_opt_in ? "true" : "false",
         source: "online",
         promo_code: promoCodeStr,
