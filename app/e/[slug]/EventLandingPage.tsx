@@ -758,6 +758,23 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // ── Scroll-triggered reveals ───────────────────────────────────────────────
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("lp-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -32px 0px" }
+    );
+    document.querySelectorAll(".lp-reveal").forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
   // ── Track external ticket click-through ───────────────────────────────────
   const handleExternalTicketClick = useCallback(() => {
     trackFbEvent("InitiateCheckout", {
@@ -1058,10 +1075,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
       {/* ── MID SECTION — Why you can’t miss this ─────────────────────── */}
       {!isPast && (
         <section className="lp-mid">
-          <h2 className="lp-mid-heading">Why You Can&apos;t Miss This</h2>
+          <h2 className="lp-mid-heading lp-reveal">Why You Can&apos;t Miss This</h2>
           <div className="lp-bullets">
             {/* Bullet 1 — live experience / intimacy */}
-            <div className="lp-bullet">
+            <div className="lp-bullet lp-reveal" style={{ transitionDelay: "0s" }}>
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -1078,7 +1095,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             </div>
 
             {/* Bullet 2 — price or urgency */}
-            <div className="lp-bullet">
+            <div className="lp-bullet lp-reveal" style={{ transitionDelay: "0.12s" }}>
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
@@ -1110,7 +1127,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             </div>
 
             {/* Bullet 3 — social proof */}
-            <div className="lp-bullet">
+            <div className="lp-bullet lp-reveal" style={{ transitionDelay: "0.24s" }}>
               <div className="lp-bullet-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -1130,7 +1147,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
           {/* Artist / description */}
           {event.description && (
-            <div className="lp-about">
+            <div className="lp-about lp-reveal" style={{ transitionDelay: "0.12s" }}>
               <h3 className="lp-about-heading">About the Event</h3>
               <p className="lp-about-text">{event.description}</p>
             </div>
@@ -1141,15 +1158,15 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
       {/* ── FEATURED ARTISTS ───────────────────────────────────────────── */}
       {featuredArtists.length > 0 && (
         <section className="lp-artists-section">
-          <h2 className="lp-artists-heading">Featured Artists</h2>
+          <h2 className="lp-artists-heading lp-reveal">Featured Artists</h2>
           <div className="lp-artists-grid">
-            {featuredArtists.map((artist) => {
+            {featuredArtists.map((artist, artistIdx) => {
               const Wrapper = artist.website_url ? "a" : "div";
               const wrapperProps = artist.website_url
                 ? { href: artist.website_url, target: "_blank", rel: "noopener noreferrer", style: { textDecoration: "none" } as React.CSSProperties }
                 : {};
               return (
-                <Wrapper key={artist.id} className="lp-artist-card" {...wrapperProps}>
+                <Wrapper key={artist.id} className="lp-artist-card lp-reveal" style={{ transitionDelay: `${artistIdx * 0.08}s` }} {...wrapperProps}>
                   <div className="lp-artist-avatar">
                     {artist.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -1173,7 +1190,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
       {/* ── VENUE MAP / DIRECTIONS ────────────────────────────────────── */}
       {venueInfo && (venueInfo.lat || venueInfo.address) && (
-        <section className="lp-venue-section">
+        <section className="lp-venue-section lp-reveal">
           <h2 className="lp-venue-heading">Getting Here</h2>
           <div className="lp-venue-layout">
             {/* Map */}
@@ -1238,7 +1255,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
       {/* ── SOCIAL PROOF BANNER ───────────────────────────────────────── */}
       {!isPast && attendeeCount >= 5 && (
-        <section className="lp-social-proof">
+        <section className="lp-social-proof lp-reveal">
           <div className="lp-social-proof-inner">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -1253,7 +1270,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
       {/* ── BOTTOM CTA SECTION ─────────────────────────────────────── */}
       {!isPast && ticketsOnSale && !checkoutOpen && (
-        <section className="lp-bottom-cta">
+        <section className="lp-bottom-cta lp-reveal">
           <p className="lp-bottom-cta-text">Ready to secure your spot?</p>
           <button type="button" className="lp-cta-btn lp-cta-btn-lg" onClick={handleGetTickets}>
             Get Tickets
