@@ -74,9 +74,9 @@ type Props = {
   slug?: string;
 };
 
-// Stripe charges 2.9% + $0.30 per transaction — keep aligned with
+// Stripe charges 2.7% + $0.30 per transaction — keep aligned with
 // app/e/[slug]/page.tsx and OrderSummary.tsx.
-const STRIPE_PERCENT_FEE = 0.029;
+const STRIPE_PERCENT_FEE = 0.027;
 const STRIPE_FLAT_FEE = 0.3;
 
 type OrderDetails = {
@@ -662,6 +662,17 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
   const isFree = event.isFree || displayPrice === 0;
 
+  // Total for the CTA — fee applied once per transaction, not per ticket.
+  // allInPrice already bakes in a per-ticket flat fee, so multiplying by quantity
+  // over-charges on the flat portion. Compute from basePrice instead.
+  const ctaPreStripe = selectedTier
+    ? (selectedTier.basePrice + resolvedFees.ticketingFee + resolvedFees.facilityFee +
+        Math.round(selectedTier.basePrice * resolvedFees.taxRate * 100) / 100) * quantity
+    : 0;
+  const ctaTotal = ctaPreStripe > 0
+    ? Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    : 0;
+
   // ── Persist tracking ref ──────────────────────────────────────────────────
   useEffect(() => {
     const ref = searchParams.get("ref");
@@ -912,7 +923,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               {!isFree && !checkoutOpen && (
                 <div className="lp-checkout-price-display">
                   <span className="lp-checkout-price-amount">
-                    ${(displayPrice * quantity).toFixed(2)}
+                    ${ctaTotal.toFixed(2)}
                   </span>
                   <span className="lp-checkout-price-label">
                     {quantity > 1 ? "total" : "per ticket"} &middot; Price
@@ -1258,7 +1269,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               ? (event.externalTicketLabel || "Get Tickets")
               : isFree
                 ? "Free"
-                : `$${(displayPrice * quantity).toFixed(2)}`}
+                : `$${ctaTotal.toFixed(2)}`}
             {!event.externalTicketUrl && !isFree && (
               <span className="lp-sticky-price-label">
                 {quantity > 1 ? "total" : "per ticket"} · Price

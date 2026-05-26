@@ -152,8 +152,8 @@ export default async function LandingPage({ params }: Props) {
     .eq("status", "paid");
 
   // 5. Build ticket type data with all-in prices
-  // Stripe charges 2.9% + $0.30 per transaction (same as OrderSummary)
-  const STRIPE_PERCENT_FEE = 0.029;
+  // Stripe charges 2.7% + $0.30 per transaction (same as OrderSummary)
+  const STRIPE_PERCENT_FEE = 0.027;
   const STRIPE_FLAT_FEE = 0.3;
 
   function calcAllIn(base: number): number {

@@ -83,7 +83,6 @@ export default function AuctionCheckoutPage() {
             setWonItems(won);
             const total = won.reduce((sum: number, i: WonItem) => sum + i.current_bid, 0);
             setOrderTotal(total);
-            // Pre-populate grand total so order summary is consistent before payment selection
             setGrandTotal(total);
           }
           setLoading(false);
@@ -215,7 +214,7 @@ export default function AuctionCheckoutPage() {
             {processingFee === 0 && paymentMethod === "" && (
               <div className="auction-checkout-line auction-checkout-fee-note">
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
-                  Credit/debit adds ~3% processing fee
+                  Credit/debit adds a processing fee
                 </span>
               </div>
             )}

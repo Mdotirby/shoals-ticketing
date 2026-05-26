@@ -101,10 +101,10 @@ export async function POST(request: Request, context: RouteContext) {
     0
   );
 
-  // Processing fee: Stripe ~2.9% + $0.30 per transaction (only for CC)
+  // Processing fee: 2.7% + $0.30 per transaction (only for CC)
   const processingFee =
     payment_method === "credit_debit"
-      ? Math.round((totalAmount * 0.029 + 0.3) * 100) / 100
+      ? Math.round((totalAmount * 0.027 + 0.3) * 100) / 100
       : 0;
 
   const grandTotal = Math.round((totalAmount + processingFee) * 100) / 100;
@@ -211,7 +211,7 @@ export async function POST(request: Request, context: RouteContext) {
                 currency: "usd",
                 product_data: {
                   name: "Processing Fee",
-                  description: "Credit/Debit card processing fee",
+                  description: "Credit/Debit card processing fee (2.7% + $0.30)",
                 },
                 unit_amount: Math.round(processingFee * 100),
               },

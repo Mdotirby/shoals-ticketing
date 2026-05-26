@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
 
-// Stripe charges 2.9% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.029;
+// Stripe charges 2.7% + $0.30 per transaction
+const STRIPE_PERCENT_FEE = 0.027;
 const STRIPE_FLAT_FEE = 0.3;
 
 /** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */

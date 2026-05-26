@@ -380,15 +380,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             style={{ width: 36, height: 36, objectFit: "contain" }}
           />
         )}
-        <div className="admin-mobile-dropdown-wrapper">
+        {/* Push dropdown to the right on west72 (no left icon to balance it) */}
+        <div className="admin-mobile-dropdown-wrapper" style={isWest72Operator ? { marginLeft: "auto" } : undefined}>
           <button
             className="admin-mobile-avatar-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle navigation"
+            style={isWest72Operator ? { borderRadius: 12 } : undefined}
           >
             {isWest72Operator ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img src="/West72_Logos/W72_tech_icon_black.png" alt="W72" className="admin-mobile-avatar-img" style={{ borderRadius: 6, padding: 3, background: "#fff" }} />
+              <img src="/West72_Logos/W72_tech_icon_white.png" alt="W72" className="admin-mobile-avatar-img" style={{ borderRadius: 8, objectFit: "contain" }} />
             ) : avatarUrl ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
