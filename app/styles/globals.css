@@ -8790,14 +8790,15 @@ body:has(.lp-main) .site-footer {
 .lp-hero-gradient {
   position: absolute;
   inset: 0;
-  /* Multi-stop gradient: solid at bottom for text readability, fades up for image visibility */
+  /* Warm gold-tinted overlay — solid at bottom for readability, opens up toward top */
   background: linear-gradient(
     to top,
     var(--vc-bg) 0%,
-    rgba(17, 24, 39, 0.95) 30%,
-    rgba(17, 24, 39, 0.6) 55%,
-    rgba(17, 24, 39, 0.2) 75%,
-    rgba(17, 24, 39, 0.1) 100%
+    rgba(10, 8, 4, 0.97) 25%,
+    rgba(14, 11, 5, 0.72) 50%,
+    rgba(12, 10, 4, 0.35) 72%,
+    rgba(208, 194, 144, 0.04) 88%,
+    transparent 100%
   );
   z-index: 1;
 }
@@ -8805,7 +8806,9 @@ body:has(.lp-main) .site-footer {
 .lp-hero-fallback {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background:
+    radial-gradient(ellipse at 65% 35%, rgba(208, 194, 144, 0.1) 0%, transparent 65%),
+    linear-gradient(160deg, #0d0a05 0%, #120e07 45%, #0a0a0f 100%);
   z-index: 0;
 }
 
@@ -9334,13 +9337,14 @@ body:has(.lp-main) .site-footer {
   }
 
   .lp-hero-gradient {
-    /* Stronger gradient at the bottom of the image for smooth transition to content */
+    /* Mobile: stronger base gradient since image sits above content */
     background: linear-gradient(
       to top,
       var(--vc-bg) 0%,
-      rgba(17, 24, 39, 0.95) 20%,
-      rgba(17, 24, 39, 0.5) 60%,
-      rgba(17, 24, 39, 0.05) 100%
+      rgba(10, 8, 4, 0.98) 18%,
+      rgba(14, 11, 5, 0.6) 55%,
+      rgba(208, 194, 144, 0.03) 85%,
+      transparent 100%
     );
   }
 

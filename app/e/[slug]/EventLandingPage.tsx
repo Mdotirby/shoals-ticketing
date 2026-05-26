@@ -150,6 +150,7 @@ function CheckoutForm({
   displayPrice,
   isFree,
   onBack,
+  fees,
 }: {
   event: EventData;
   selectedTier: TicketType;
@@ -157,7 +158,6 @@ function CheckoutForm({
   displayPrice: number;
   isFree: boolean;
   onBack: () => void;
-  /** Currently only consumed by the parent's itemized summary block. */
   fees?: Fees;
 }) {
   const stripe = useStripe();
@@ -185,16 +185,43 @@ function CheckoutForm({
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
   const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
-  const estimatedTotal = displayPrice * quantity;
+  // Correct total: flat CC fee applied once per transaction, not once per ticket.
+  // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
+  const basePreStripe =
+    selectedTier.basePrice > 0
+      ? (
+          selectedTier.basePrice +
+          (fees?.ticketingFee ?? 0) +
+          (fees?.facilityFee ?? 0) +
+          Math.round(selectedTier.basePrice * (fees?.taxRate ?? 0) * 100) / 100
+        ) * quantity
+      : displayPrice * quantity;
+  const estimatedTotal =
+    basePreStripe > 0
+      ? Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      : 0;
 
-  // Calculate discounted total
-  const discountedPerTicket = promoApplied && discountType
-    ? discountType === "percentage"
-      ? displayPrice * (1 - discountValue / 100)
-      : Math.max(0, displayPrice - discountValue)
-    : displayPrice;
-  const discountedTotal = Math.max(0, discountedPerTicket * quantity);
-  const isFullyFree = isFree || (promoApplied && discountedTotal === 0);
+  // Discounted total — apply promo to base price, then recalculate fees + CC fee once
+  const discountedBasePerTicket =
+    promoApplied && discountType
+      ? discountType === "percentage"
+        ? selectedTier.basePrice * (1 - discountValue / 100)
+        : Math.max(0, selectedTier.basePrice - discountValue)
+      : selectedTier.basePrice;
+  const discountedPreStripe =
+    discountedBasePerTicket > 0
+      ? (
+          discountedBasePerTicket +
+          (fees?.ticketingFee ?? 0) +
+          (fees?.facilityFee ?? 0) +
+          Math.round(discountedBasePerTicket * (fees?.taxRate ?? 0) * 100) / 100
+        ) * quantity
+      : 0;
+  const discountedTotal =
+    discountedPreStripe > 0
+      ? Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      : 0;
+  const isFullyFree = isFree || (promoApplied && discountedBasePerTicket <= 0);
 
   // Promo code validation handler
   const handleApplyPromo = async () => {
