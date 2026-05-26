@@ -2126,6 +2126,15 @@ body {
   text-shadow: 0 2px 40px rgba(0, 0, 0, 0.4);
 }
 
+.home-hero-subtitle {
+  margin: 4px 0 0;
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  color: rgba(255,255,255,0.7);
+  font-weight: 400;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.4);
+  max-width: 560px;
+}
+
 .home-hero-cta {
   display: inline-flex;
   align-items: center;

@@ -106,6 +106,10 @@ export default function VenueThemeProvider({ children }: { children: React.React
     fetch(`/api/venues?slug=${venueSlug}`)
       .then((r) => r.json())
       .then((venue) => {
+        if (venue?.error) {
+          console.warn(`[VenueTheme] slug="${venueSlug}" not found in DB:`, venue.error);
+          return;
+        }
         if (venue && !venue.error) {
           const t: VenueTheme = {
             name: venue.name || "",
@@ -141,7 +145,7 @@ export default function VenueThemeProvider({ children }: { children: React.React
           try { sessionStorage.setItem(cacheKey, JSON.stringify(t)); } catch {}
         }
       })
-      .catch(() => {});
+      .catch((err) => { console.warn(`[VenueTheme] fetch error for slug="${venueSlug}":`, err); });
   }, [venueSlug, isVenueSubdomain]);
 
   return (

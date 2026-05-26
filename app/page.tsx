@@ -41,9 +41,10 @@ export default function HomePage() {
   const sponsorRef = useRef(null);
   const sponsorInView = useInView(sponsorRef, { once: true, margin: "-60px" });
 
-  // Use venue-specific hero images from public folder
-  const HERO_IMAGE_1 = isVenueSubdomain ? `/hero-images/${venueSlug}/hero.jpg` : DEFAULT_HERO_1;
-  const HERO_IMAGE_2 = DEFAULT_HERO_2;
+  // Hero: prefer DB-stored URL (uploaded via branding page), fall back to static file, then default
+  const staticSlugHero = isVenueSubdomain ? `/hero-images/${venueSlug}/hero.jpg` : DEFAULT_HERO_1;
+  const HERO_IMAGE_1 = venueTheme.hero_image_url || staticSlugHero;
+  const HERO_IMAGE_2 = venueTheme.hero_image_2_url || DEFAULT_HERO_2;
 
   const filtered = useMemo(() => {
     if (!query) return events;
@@ -90,13 +91,16 @@ export default function HomePage() {
           <div className="home-hero-overlay" />
           <div className="home-hero-content">
             <h1 className="home-hero-title">
-              Feel the Music.
-              <br />
-              Live the Moment.
+              {venueTheme.homepage_headline || (
+                <>Feel the Music.<br />Live the Moment.</>
+              )}
             </h1>
+            {venueTheme.homepage_subheadline && (
+              <p className="home-hero-subtitle">{venueTheme.homepage_subheadline}</p>
+            )}
 
-            <Link href="/events" className="home-hero-cta">
-              See What&apos;s Coming <span className="cta-arrow">→</span>
+            <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
+              {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
             </Link>
 
             {/* Partner logos strip removed from hero — rendered as its own section below */}
