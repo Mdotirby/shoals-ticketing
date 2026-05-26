@@ -369,24 +369,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Mobile topbar — avatar dropdown */}
+      {/* Mobile topbar — centered wordmark + right dropdown */}
       <div className="admin-mobile-topbar">
-        {/* Operator icon on left — hidden for west72 (brand lives in the avatar button) */}
-        {!isWest72Operator && (
-          <SafeImage
-            src={operatorIconFallback}
-            fallback={operatorIconFallback}
-            alt="VenueCore"
-            style={{ width: 36, height: 36, objectFit: "contain" }}
+        {/* Left spacer — matches width of the dropdown button to keep wordmark truly centered */}
+        <div style={{ width: 48, flexShrink: 0 }} />
+
+        {/* Centered wordmark — links to homepage */}
+        <Link href="/" style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={isWest72Operator ? "/West72_Logos/W72_tech_wordmark_white.png" : "/VenueCore_Logos/VenueCore_Wordmark_White.png"}
+            alt={isWest72Operator ? "West72" : "VenueCore"}
+            style={{ height: 22, objectFit: "contain" }}
           />
-        )}
-        {/* Push dropdown to the right on west72 (no left icon to balance it) */}
-        <div className="admin-mobile-dropdown-wrapper" style={isWest72Operator ? { marginLeft: "auto" } : undefined}>
+        </Link>
+
+        <div className="admin-mobile-dropdown-wrapper">
           <button
             className="admin-mobile-avatar-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle navigation"
-            style={isWest72Operator ? { borderRadius: 12 } : undefined}
           >
             {isWest72Operator ? (
               /* eslint-disable-next-line @next/next/no-img-element */

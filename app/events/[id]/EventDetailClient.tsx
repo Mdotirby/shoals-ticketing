@@ -895,32 +895,6 @@ export default function EventDetailClient() {
         <FAQAccordion />
       </main>
 
-      {/* ── Sticky mobile "Get Tickets" bar ── */}
-      {checkoutStep === "browse" && ticketsOnSale && !isFreeEvent && !event.external_ticket_url && !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) && (
-        <div className="sticky-get-tickets-bar">
-          <div className="sticky-get-tickets-inner">
-            <div className="sticky-get-tickets-price">
-              {selectedTicket ? (
-                <>
-                  <span className="sticky-ticket-name">{selectedTicket.name}</span>
-                  <span className="sticky-ticket-amount">${selectedTicket.price.toFixed(2)}</span>
-                </>
-              ) : (
-                <span className="sticky-ticket-name">Select Tickets</span>
-              )}
-            </div>
-            <button
-              type="button"
-              className="sticky-get-tickets-btn"
-              onClick={handleCheckout}
-              disabled={!selectedTicket && !reservedSeatingEnabled}
-            >
-              Get Tickets
-            </button>
-          </div>
-        </div>
-      )}
-
       <Footer />
     </>
   );
