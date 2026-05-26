@@ -549,10 +549,20 @@ body {
     position: relative;
   }
 
+  /* 3-zone layout: [empty] [logo centered] [hamburger right] */
   .header-inner {
     width: 100%;
     padding: 0 16px;
     min-height: 60px;
+    display: grid;
+    grid-template-columns: 40px 1fr 40px;
+    align-items: center;
+  }
+
+  /* Logo sits in the center column */
+  .header-logo {
+    grid-column: 2;
+    justify-self: center;
   }
 
   .header-logo img,
@@ -561,26 +571,64 @@ body {
     height: auto !important;
   }
 
+  /* Hamburger sits in the third column */
   .hamburger {
+    grid-column: 3;
     display: flex;
-    margin-left: auto;
+    justify-self: end;
+    margin-left: 0;
   }
 
+  /* Mobile nav dropdown */
   .header-nav {
     display: none;
     flex-direction: column;
+    gap: 0;
     width: 100%;
     position: absolute;
     top: 100%;
     left: 0;
-    padding: 16px;
-    background: var(--vc-bg);
-    border-bottom: 1px solid rgba(208,194,144,0.08);
-    z-index: 999;
+    right: 0;
+    background: var(--vc-bg-deep, #0a0a0a);
+    border-top: 1px solid rgba(208,194,144,0.12);
+    border-bottom: 1px solid rgba(208,194,144,0.12);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    z-index: 1000;
+    overflow: hidden;
   }
 
   .header-nav.open {
     display: flex;
+  }
+
+  /* Mobile nav links — large, tappable, full-width */
+  .header-nav .header-nav-link {
+    display: block;
+    width: 100%;
+    padding: 18px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.92);
+    text-decoration: none;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    transition: background 150ms ease, color 150ms ease;
+  }
+
+  .header-nav .header-nav-link:last-child {
+    border-bottom: none;
+  }
+
+  .header-nav .header-nav-link:active,
+  .header-nav .header-nav-link:hover {
+    background: rgba(208,194,144,0.08);
+    color: var(--vc-gold);
+  }
+
+  /* Hide the desktop underline animation on mobile */
+  .header-nav .header-nav-link::after {
+    display: none;
   }
 
   .home-events-page {
@@ -1953,6 +2001,16 @@ body {
 
   .footer-brand {
     max-width: 100%;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-logo {
+    width: 160px;
+  }
+
+  .footer-description {
+    text-align: center;
   }
 
   .footer-links-group {
@@ -1964,7 +2022,12 @@ body {
   .footer-bottom {
     flex-direction: column;
     gap: 10px;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+  }
+
+  .footer-legal {
+    justify-content: center;
   }
 }
 

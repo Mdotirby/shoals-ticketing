@@ -79,9 +79,17 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Inject operator/venue slugs into the forwarded request headers so that
+  // server components (including generateMetadata) can read them on the very
+  // first request — before the browser has stored the cookie from a prior visit.
+  const forwardedHeaders = new Headers(request.headers);
+  const existingCookies = request.headers.get("cookie") || "";
+  const slugCookies = `operatorSlug=${operatorSlug}; venueSlug=${venueSlug || "default"}`;
+  forwardedHeaders.set("cookie", existingCookies ? `${existingCookies}; ${slugCookies}` : slugCookies);
+
   // Create response with venue slug cookie
   let response = NextResponse.next({
-    request: { headers: request.headers },
+    request: { headers: forwardedHeaders },
   });
 
   // ── Always refresh the Supabase session (keeps user logged in) ──
@@ -98,7 +106,7 @@ export async function middleware(request: NextRequest) {
             request.cookies.set(name, value)
           );
           response = NextResponse.next({
-            request: { headers: request.headers },
+            request: { headers: forwardedHeaders },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
