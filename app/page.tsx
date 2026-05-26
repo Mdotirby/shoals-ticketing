@@ -218,20 +218,35 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── NEWSLETTER SIGNUP ── */}
-        <NewsletterSignup />
-
-        {/* ── SECOND HERO IMAGE ── */}
-        <section
-          className="home-hero-secondary"
-          style={{
-            backgroundImage: HERO_IMAGE_2
-              ? `url(${HERO_IMAGE_2})`
-              : "linear-gradient(180deg, #202045 0%, #0b0d1d 100%)",
-          }}
-        >
-          <div className="home-hero-overlay" />
-        </section>
+        {/* ── NEWSLETTER / FWB SECTION ── */}
+        {operator.slug === "west72" ? (
+          /* West72: FWB form floats over the rock band hero image */
+          <div
+            className="west72-fwb-hero"
+            style={{
+              backgroundImage: HERO_IMAGE_2
+                ? `url(${HERO_IMAGE_2})`
+                : "linear-gradient(180deg, #0a0a0a 0%, #1a1008 100%)",
+            }}
+          >
+            <div className="west72-fwb-overlay" />
+            <NewsletterSignup />
+          </div>
+        ) : (
+          <>
+            <NewsletterSignup />
+            <section
+              className="home-hero-secondary"
+              style={{
+                backgroundImage: HERO_IMAGE_2
+                  ? `url(${HERO_IMAGE_2})`
+                  : "linear-gradient(180deg, #202045 0%, #0b0d1d 100%)",
+              }}
+            >
+              <div className="home-hero-overlay" />
+            </section>
+          </>
+        )}
 
         {/* ── CTA SECTION ── */}
         <section className="home-cta-section">
