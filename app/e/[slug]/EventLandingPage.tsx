@@ -889,9 +889,11 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
           <p className="lp-subheadline">
             {isPast
               ? "This event has passed"
-              : event.isFree
-                ? `Free live music at ${event.venue || "the venue"} \u2014 grab your spot.`
-                : `Live at ${event.venue || "the venue"} \u2014 don\u2019t miss it.`}
+              : slug === "payton-howie"
+                ? "A girl with 4 million streams, a Garth Brooks tour credit, and a Saturday night in June."
+                : event.isFree
+                  ? `Free live music at ${event.venue || "the venue"} \u2014 grab your spot.`
+                  : `Live at ${event.venue || "the venue"} \u2014 don\u2019t miss it.`}
           </p>
 
           <div className="lp-meta">
@@ -1112,12 +1114,21 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">Up Close &amp; Personal</div>
-                <div className="lp-bullet-desc">
-                  {event.venue
-                    ? `${event.venue} is a room where you actually feel it — no screens between you and the stage.`
-                    : "A live event where you can actually feel the music — no jumbotrons, no distance."}
-                </div>
+                {slug === "payton-howie" ? (
+                  <>
+                    <div className="lp-bullet-title">No Jumbotron</div>
+                    <div className="lp-bullet-desc">Someone who&apos;s shared stages with Lainey Wilson, Parker McCollum, and Ashley McBryde is playing a room where you can actually see her face.</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="lp-bullet-title">Up Close &amp; Personal</div>
+                    <div className="lp-bullet-desc">
+                      {event.venue
+                        ? `${event.venue} is a room where you actually feel it — no screens between you and the stage.`
+                        : "A live event where you can actually feel the music — no jumbotrons, no distance."}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -1130,7 +1141,12 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                {!event.isFree && displayPrice > 0 ? (
+                {slug === "payton-howie" ? (
+                  <>
+                    <div className="lp-bullet-title">Not a Gamble</div>
+                    <div className="lp-bullet-desc">Four million career streams and a tour history that reads like a country radio playlist — you&apos;re not taking a chance on an unknown, you&apos;re catching someone on the way up.</div>
+                  </>
+                ) : !event.isFree && displayPrice > 0 ? (
                   <>
                     <div className="lp-bullet-title">${displayPrice.toFixed(0)}. All In.</div>
                     <div className="lp-bullet-desc">
@@ -1164,19 +1180,35 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </svg>
               </div>
               <div>
-                <div className="lp-bullet-title">
-                  {attendeeCount >= 10 ? "People Are Coming" : "Secure Your Spot"}
-                </div>
-                <div className="lp-bullet-desc">{socialProofText}</div>
+                {slug === "payton-howie" ? (
+                  <>
+                    <div className="lp-bullet-title">$29. All In.</div>
+                    <div className="lp-bullet-desc">Saturday night, live country music in Florence, no service fee math — the whole ticket is twenty-nine dollars.</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="lp-bullet-title">
+                      {attendeeCount >= 10 ? "People Are Coming" : "Secure Your Spot"}
+                    </div>
+                    <div className="lp-bullet-desc">{socialProofText}</div>
+                  </>
+                )}
               </div>
             </div>
           </div>
 
           {/* Artist / description */}
-          {event.description && (
+          {(event.description || slug === "payton-howie") && (
             <div className="lp-about lp-reveal" style={{ transitionDelay: "0.12s" }}>
               <h3 className="lp-about-heading">About the Event</h3>
-              <p className="lp-about-text">{event.description}</p>
+              {slug === "payton-howie" && (
+                <p className="lp-about-text" style={{ fontStyle: "italic", marginBottom: "0.75em" }}>
+                  There&apos;s a version of this where you watch Payton Howie headline an amphitheater in a few years and kick yourself for skipping the $29 show at a brewery in Florence.
+                </p>
+              )}
+              {event.description && (
+                <p className="lp-about-text">{event.description}</p>
+              )}
             </div>
           )}
         </section>
