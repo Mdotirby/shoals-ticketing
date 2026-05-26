@@ -2730,6 +2730,7 @@ body {
 @media (max-width: 768px) {
   .home-hero {
     min-height: 70vh;
+    background-position: center 30%;
   }
 
   .home-hero-content {

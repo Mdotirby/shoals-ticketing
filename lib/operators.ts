@@ -33,6 +33,9 @@ export type OperatorConfig = {
   copyright: string;
   /** Meta (Facebook) Pixel ID — fires on every page for this operator */
   metaPixelId?: string;
+  /** Hardcoded hero images for the operator root domain — never pulled from Supabase */
+  heroImage: string;
+  heroImage2: string;
 };
 
 export const OPERATORS: Record<string, OperatorConfig> = {
@@ -56,6 +59,8 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     instagramUrl: "https://instagram.com",
     facebookUrl: "https://facebook.com",
     copyright: "VenueCore",
+    heroImage: "/hero-images/default/hero.jpg",
+    heroImage2: "/hero-images/default/hero2.jpg",
   },
   west72: {
     slug: "west72",
@@ -78,6 +83,8 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     facebookUrl: "https://facebook.com",
     copyright: "West 72 Entertainment",
     metaPixelId: "708986435149013",
+    heroImage: "/hero-images/default/hero.jpg",
+    heroImage2: "/hero-images/default/hero2.jpg",
   },
 };
 

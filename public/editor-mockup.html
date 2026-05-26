@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>West72 Site Editor — Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #111; color: #fff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+  /* TOP TOOLBAR */
+  .toolbar {
+    height: 52px; background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+    display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; z-index: 100;
+  }
+  .toolbar-brand { display: flex; align-items: center; gap: 10px; margin-right: 12px; }
+  .toolbar-brand .w72-dot { width: 28px; height: 28px; background: #c9a96e; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: #111; letter-spacing: -0.5px; }
+  .toolbar-brand span { font-size: 13px; font-weight: 600; color: #e0e0e0; }
+  .toolbar-brand .badge { font-size: 10px; background: #2a2a2a; color: #888; padding: 2px 6px; border-radius: 4px; margin-left: 4px; }
+  .divider { width: 1px; height: 28px; background: #2a2a2a; }
+  .btn { height: 32px; padding: 0 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+  .btn-ghost { background: transparent; color: #888; }
+  .btn-ghost:hover { background: #2a2a2a; color: #fff; }
+  .btn-ghost.active { color: #fff; }
+  .btn-secondary { background: #2a2a2a; color: #ccc; }
+  .btn-secondary:hover { background: #333; color: #fff; }
+  .btn-primary { background: #c9a96e; color: #111; font-weight: 600; }
+  .btn-primary:hover { background: #d4b87a; }
+  .btn-danger { background: transparent; color: #ff6b6b; border: 1px solid #ff6b6b44; }
+  .spacer { flex: 1; }
+  .device-group { display: flex; gap: 2px; background: #222; border-radius: 6px; padding: 2px; }
+  .device-btn { width: 30px; height: 28px; border-radius: 4px; border: none; cursor: pointer; background: transparent; color: #666; display: flex; align-items: center; justify-content: center; font-size: 14px; transition: all 0.15s; }
+  .device-btn.active { background: #333; color: #fff; }
+  .zoom-control { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; }
+  .zoom-control select { background: #222; border: 1px solid #333; color: #ccc; font-size: 11px; padding: 3px 6px; border-radius: 4px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade8066; }
+  .status-text { font-size: 11px; color: #4ade80; }
+
+  /* MAIN LAYOUT */
+  .editor-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* LEFT SIDEBAR */
+  .sidebar-left {
+    width: 220px; background: #161616; border-right: 1px solid #222;
+    display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+  }
+  .sidebar-tabs { display: flex; border-bottom: 1px solid #222; }
+  .sidebar-tab { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
+  .sidebar-tab.active { color: #c9a96e; border-bottom-color: #c9a96e; }
+  .sidebar-section { padding: 8px 0; }
+  .sidebar-section-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 14px 4px; }
+  .section-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px; cursor: pointer; font-size: 12px; color: #aaa;
+    transition: all 0.12s; border-left: 2px solid transparent;
+    position: relative;
+  }
+  .section-item:hover { background: #1e1e1e; color: #fff; }
+  .section-item.active { background: #1e1e1e; color: #c9a96e; border-left-color: #c9a96e; }
+  .section-item .drag-handle { color: #333; font-size: 10px; cursor: grab; }
+  .section-item .drag-handle:hover { color: #666; }
+  .section-item .section-eye { margin-left: auto; color: #444; font-size: 11px; }
+  .section-item .section-eye:hover { color: #888; }
+  .section-badge { font-size: 9px; background: #c9a96e22; color: #c9a96e; padding: 1px 5px; border-radius: 3px; margin-left: auto; }
+
+  /* CENTER PREVIEW */
+  .preview-area {
+    flex: 1; display: flex; flex-direction: column; background: #0d0d0d; overflow: hidden;
+  }
+  .preview-bar {
+    height: 36px; background: #161616; border-bottom: 1px solid #1e1e1e;
+    display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0;
+  }
+  .url-bar { flex: 1; background: #1e1e1e; border-radius: 6px; height: 24px; display: flex; align-items: center; padding: 0 10px; gap: 6px; max-width: 400px; }
+  .url-bar .lock { color: #4ade80; font-size: 10px; }
+  .url-bar span { font-size: 11px; color: #666; }
+  .preview-frame-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; overflow: auto; }
+  .preview-frame {
+    width: 100%; max-width: 1280px; height: 100%;
+    background: #fff; border-radius: 8px; overflow: hidden;
+    box-shadow: 0 0 0 1px #ffffff11, 0 20px 60px #00000066;
+    position: relative;
+  }
+
+  /* FAKE WEST72 SITE INSIDE PREVIEW */
+  .site-nav {
+    background: #0a0a0a; padding: 0 40px; height: 72px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: relative; border-bottom: 1px solid #1a1a1a;
+  }
+  .site-nav .logo-zone {
+    display: flex; align-items: center; gap: 12px;
+    padding: 4px 8px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; transition: border 0.15s;
+    position: relative;
+  }
+  .site-nav .logo-zone:hover { border-color: #3b82f6; }
+  .site-nav .logo-zone:hover::after {
+    content: '✎  Logo'; position: absolute; top: -28px; left: 0;
+    background: #3b82f6; color: #fff; font-size: 10px; padding: 3px 8px;
+    border-radius: 4px; white-space: nowrap;
+  }
+  .site-nav .logo-zone.selected { border-color: #3b82f6; box-shadow: 0 0 0 3px #3b82f622; }
+  .logo-img { height: 32px; filter: invert(1); }
+  .site-nav nav { display: flex; gap: 28px; }
+  .site-nav nav a { color: #888; font-size: 13px; text-decoration: none; }
+  .site-nav nav a:hover { color: #fff; }
+  .site-nav .nav-cta { background: #c9a96e; color: #111; padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none; }
+
+  .site-hero {
+    height: 520px; background: linear-gradient(135deg, #0a0a0a 0%, #1a1008 50%, #0a0a0a 100%);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; cursor: pointer;
+    border: 2px solid transparent; transition: border 0.15s;
+  }
+  .site-hero:hover { border-color: #3b82f6; }
+  .site-hero:hover .edit-overlay { opacity: 1; }
+  .site-hero.selected { border-color: #3b82f6; }
+  .edit-overlay {
+    position: absolute; inset: 0; background: #3b82f611;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .edit-overlay-btn { background: #3b82f6; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .hero-bg { position: absolute; inset: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><defs><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs><rect width="400" height="300" filter="url(%23n)" opacity="0.15"/></svg>'); background-size: cover; }
+  .hero-content { position: relative; text-align: center; color: #fff; }
+  .hero-content h1 { font-size: 56px; font-weight: 800; letter-spacing: -1px; line-height: 1.05; color: #fff; }
+  .hero-content h1 span { color: #c9a96e; }
+  .hero-content p { margin-top: 16px; font-size: 18px; color: #888; }
+  .hero-content .hero-cta { margin-top: 32px; display: flex; gap: 12px; justify-content: center; }
+  .hero-content .hero-cta a { padding: 14px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; }
+  .cta-gold { background: #c9a96e; color: #111; }
+  .cta-outline { border: 1px solid #444; color: #ccc; }
+
+  .site-section { padding: 60px 40px; background: #fff; }
+  .site-section h2 { font-size: 32px; font-weight: 700; color: #111; margin-bottom: 12px; }
+  .site-section p { color: #666; font-size: 15px; line-height: 1.6; max-width: 600px; }
+  .section-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+  .section-card { background: #f5f5f5; border-radius: 10px; padding: 24px; }
+  .section-card h3 { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 8px; }
+  .section-card p { font-size: 13px; color: #666; }
+  .card-icon { width: 36px; height: 36px; background: #c9a96e22; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; font-size: 18px; }
+
+  /* EDIT SELECTION RING */
+  .selected-element { border: 2px solid #3b82f6 !important; box-shadow: 0 0 0 4px #3b82f622 !important; }
+  .edit-tag {
+    position: absolute; top: -1px; left: -1px; background: #3b82f6;
+    color: #fff; font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 4px 0 4px 0; letter-spacing: 0.04em;
+  }
+
+  /* RIGHT INSPECTOR */
+  .inspector {
+    width: 280px; background: #161616; border-left: 1px solid #222;
+    display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+  }
+  .inspector-header { padding: 12px 14px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+  .inspector-header h3 { font-size: 12px; font-weight: 600; color: #e0e0e0; display: flex; align-items: center; gap: 8px; }
+  .inspector-header .section-type { font-size: 10px; background: #c9a96e22; color: #c9a96e; padding: 2px 7px; border-radius: 4px; }
+  .inspector-close { color: #444; font-size: 14px; cursor: pointer; }
+  .inspector-close:hover { color: #888; }
+  .prop-group { padding: 12px 14px; border-bottom: 1px solid #1e1e1e; }
+  .prop-group-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .prop-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .prop-label { font-size: 11px; color: #888; }
+  .prop-value { font-size: 11px; color: #ccc; }
+  .upload-zone {
+    border: 1.5px dashed #333; border-radius: 8px; padding: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; transition: all 0.15s; margin-bottom: 12px;
+  }
+  .upload-zone:hover { border-color: #c9a96e; background: #c9a96e0a; }
+  .upload-zone .upload-icon { font-size: 22px; color: #444; }
+  .upload-zone .upload-text { font-size: 11px; color: #666; text-align: center; }
+  .upload-zone .upload-hint { font-size: 10px; color: #444; }
+  .img-preview { width: 100%; height: 80px; background: linear-gradient(135deg, #1a1008, #0a0a0a); border-radius: 6px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .img-preview .crop-overlay { position: absolute; inset: 8px; border: 1.5px dashed #c9a96e; border-radius: 3px; }
+  .img-preview .img-label { position: absolute; bottom: 4px; right: 6px; font-size: 9px; color: #c9a96e; background: #0008; padding: 1px 5px; border-radius: 3px; }
+  .position-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 12px; }
+  .pos-btn { height: 32px; border-radius: 5px; border: 1.5px solid #2a2a2a; background: #1e1e1e; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666; transition: all 0.12s; }
+  .pos-btn:hover { border-color: #444; color: #aaa; }
+  .pos-btn.active { border-color: #c9a96e; background: #c9a96e1a; color: #c9a96e; }
+  .slider-row { margin-bottom: 12px; }
+  .slider-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+  .slider-label span { color: #888; }
+  .slider-label .val { color: #ccc; }
+  input[type=range] { width: 100%; accent-color: #c9a96e; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .toggle-row label { font-size: 11px; color: #888; }
+  .toggle { width: 32px; height: 18px; background: #333; border-radius: 9px; position: relative; cursor: pointer; transition: background 0.15s; }
+  .toggle.on { background: #c9a96e; }
+  .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: left 0.15s; }
+  .toggle.on::after { left: 16px; }
+  .crop-btn { width: 100%; height: 32px; background: #1e1e1e; border: 1.5px solid #333; border-radius: 6px; color: #c9a96e; font-size: 11px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s; }
+  .crop-btn:hover { background: #c9a96e1a; border-color: #c9a96e66; }
+  .apply-btn { width: 100%; height: 36px; background: #3b82f6; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .apply-btn:hover { background: #2563eb; }
+
+  /* CROP MODAL */
+  .modal-backdrop { position: fixed; inset: 0; background: #000000bb; z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal { background: #1a1a1a; border-radius: 12px; width: 680px; border: 1px solid #2a2a2a; overflow: hidden; box-shadow: 0 40px 100px #00000088; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h3 { font-size: 14px; font-weight: 600; }
+  .modal-header p { font-size: 11px; color: #666; margin-top: 2px; }
+  .modal-close { color: #555; font-size: 18px; cursor: pointer; }
+  .modal-close:hover { color: #fff; }
+  .modal-body { padding: 20px; }
+  .crop-area {
+    background: #0d0d0d; border-radius: 8px; height: 300px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; margin-bottom: 16px;
+  }
+  .crop-img-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #1a1008 0%, #0a0a0a 100%); opacity: 0.6; }
+  .crop-selection {
+    position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px #00000077;
+    width: 580px; height: 220px; cursor: move;
+  }
+  .crop-handle { position: absolute; width: 10px; height: 10px; background: #fff; border-radius: 2px; }
+  .crop-handle.tl { top: -5px; left: -5px; cursor: nw-resize; }
+  .crop-handle.tr { top: -5px; right: -5px; cursor: ne-resize; }
+  .crop-handle.bl { bottom: -5px; left: -5px; cursor: sw-resize; }
+  .crop-handle.br { bottom: -5px; right: -5px; cursor: se-resize; }
+  .crop-info { display: flex; gap: 16px; margin-bottom: 16px; }
+  .crop-stat { background: #222; border-radius: 6px; padding: 8px 12px; flex: 1; }
+  .crop-stat label { font-size: 10px; color: #666; display: block; margin-bottom: 3px; }
+  .crop-stat input { background: transparent; border: none; color: #ccc; font-size: 13px; width: 100%; }
+  .aspect-btns { display: flex; gap: 6px; margin-bottom: 16px; }
+  .aspect-btn { padding: 5px 10px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: #888; font-size: 11px; cursor: pointer; }
+  .aspect-btn.active { border-color: #c9a96e; color: #c9a96e; background: #c9a96e11; }
+  .modal-footer { padding: 16px 20px; border-top: 1px solid #222; display: flex; justify-content: flex-end; gap: 10px; }
+  .modal-footer .btn-cancel { background: #222; color: #888; border: none; padding: 0 16px; height: 36px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .modal-footer .btn-apply { background: #c9a96e; color: #111; border: none; padding: 0 20px; height: 36px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+
+  /* PUBLISH PANEL */
+  .publish-panel {
+    position: fixed; right: 16px; top: 68px; width: 300px;
+    background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px;
+    padding: 18px; box-shadow: 0 20px 60px #00000066; z-index: 500;
+    display: none;
+  }
+  .publish-panel.open { display: block; }
+  .publish-panel h3 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .publish-panel p { font-size: 11px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+  .publish-changes { margin-bottom: 16px; }
+  .change-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: #222; border-radius: 5px; margin-bottom: 4px; font-size: 11px; color: #ccc; }
+  .change-dot { width: 6px; height: 6px; border-radius: 50%; background: #c9a96e; flex-shrink: 0; }
+  .publish-btn-main { width: 100%; height: 40px; background: #c9a96e; border: none; border-radius: 8px; color: #111; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+  .publish-btn-main:hover { background: #d4b87a; }
+  .publish-note { font-size: 10px; color: #444; text-align: center; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+
+  /* ANIMATIONS */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .live-dot { animation: pulse 2s infinite; }
+
+  /* LOGO position indicator */
+  .logo-pos-indicator {
+    position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; background: #3b82f6; color: #fff; padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .logo-zone:hover .logo-pos-indicator { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- TOP TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-brand">
+    <div class="w72-dot">W72</div>
+    <span>Site Editor</span>
+    <span class="badge">west72ent.com</span>
+  </div>
+  <div class="divider"></div>
+  <button class="btn btn-ghost" title="Undo">↩ Undo</button>
+  <button class="btn btn-ghost" title="Redo">↪ Redo</button>
+  <div class="divider"></div>
+  <div class="device-group">
+    <button class="device-btn active" title="Desktop">🖥</button>
+    <button class="device-btn" title="Tablet">📱</button>
+    <button class="device-btn" title="Mobile">📲</button>
+  </div>
+  <div class="zoom-control">
+    <span>Zoom</span>
+    <select><option>100%</option><option>75%</option><option>50%</option></select>
+  </div>
+  <div class="spacer"></div>
+  <div class="status-dot live-dot"></div>
+  <span class="status-text">Live preview</span>
+  <div class="divider"></div>
+  <button class="btn btn-secondary">Save Draft</button>
+  <button class="btn btn-primary" id="publishBtn">⬆ Publish</button>
+</div>
+
+<!-- EDITOR BODY -->
+<div class="editor-body">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar-left">
+    <div class="sidebar-tabs">
+      <div class="sidebar-tab active">Sections</div>
+      <div class="sidebar-tab">Assets</div>
+    </div>
+    <div style="flex:1; overflow-y:auto; padding: 8px 0;">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Page Structure</div>
+        <div class="section-item" style="color:#888; font-size:11px; padding-bottom:2px;">
+          <span style="color:#555;">⠿</span>
+          <span style="font-size:10px; color:#444;">Drag to reorder sections</span>
+        </div>
+        <div class="section-item active" id="navItem" onclick="selectSection('nav')">
+          <span class="drag-handle">⠿</span>
+          <span>🔲 Navbar</span>
+          <span class="section-badge">LOGO</span>
+          <span class="section-eye">👁</span>
+        </div>
+        <div class="section-item" id="heroItem" onclick="selectSection('hero')">
+          <span class="drag-handle">⠿</span>
+          <span>🖼 Hero</span>
+          <span class="section-badge">IMG</span>
+          <span class="section-eye">👁</span>
+        </div>
+        <div class="section-item" id="featItem" onclick="selectSection('feat')">
+          <span class="drag-handle">⠿</span>
+          <span>📦 Features</span>
+          <span class="section-eye">👁</span>
+        </div>
+        <div class="section-item" id="aboutItem" onclick="selectSection('about')">
+          <span class="drag-handle">⠿</span>
+          <span>ℹ About</span>
+          <span class="section-eye">👁</span>
+        </div>
+        <div class="section-item" id="footerItem" onclick="selectSection('footer')">
+          <span class="drag-handle">⠿</span>
+          <span>📄 Footer</span>
+          <span class="section-eye">👁</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section" style="border-top:1px solid #1e1e1e; margin-top:4px;">
+        <div class="sidebar-section-label">Quick Actions</div>
+        <div class="section-item" onclick="openCropModal()">
+          <span>✂️</span>
+          <span>Crop Hero Image</span>
+        </div>
+        <div class="section-item">
+          <span>🎨</span>
+          <span>Brand Colors</span>
+        </div>
+        <div class="section-item">
+          <span>🔤</span>
+          <span>Typography</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER PREVIEW -->
+  <div class="preview-area">
+    <div class="preview-bar">
+      <button class="btn btn-ghost" style="font-size:11px;">←</button>
+      <button class="btn btn-ghost" style="font-size:11px;">→</button>
+      <button class="btn btn-ghost" style="font-size:11px;">↺</button>
+      <div class="url-bar">
+        <span class="lock">🔒</span>
+        <span>west72ent.com</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" style="font-size:11px;">⤢ Full Preview</button>
+    </div>
+
+    <div class="preview-frame-wrap">
+      <div class="preview-frame" id="previewFrame">
+
+        <!-- FAKE WEST72 SITE -->
+        <div class="site-nav">
+          <div class="logo-zone" id="logoZone" onclick="selectSection('nav')" style="position:relative;">
+            <img src="/West72_Logos/W72_tech_lockup_white.png" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+            <div style="display:none; align-items:center; gap:8px; color:#c9a96e; font-weight:700; font-size:16px; letter-spacing:-0.5px;">W72 <span style="color:#666; font-weight:300;">|</span> <span style="font-size:13px; color:#888; font-weight:400;">west72 entertainment</span></div>
+            <div class="logo-pos-indicator">Click to edit logo</div>
+            <div class="edit-tag" id="logoEditTag" style="display:none;">Logo</div>
+          </div>
+          <nav>
+            <a href="#">Events</a>
+            <a href="#">Artists</a>
+            <a href="#">Venues</a>
+            <a href="#">About</a>
+          </nav>
+          <a href="#" class="nav-cta">Get Tickets</a>
+        </div>
+
+        <div class="site-hero" id="heroZone" onclick="selectSection('hero')">
+          <div class="hero-bg"></div>
+          <div class="hero-content">
+            <h1>Live Music.<br/><span>Reimagined.</span></h1>
+            <p>Premium events. Exclusive access. West72 Entertainment.</p>
+            <div class="hero-cta">
+              <a href="#" class="cta-gold">Browse Events</a>
+              <a href="#" class="cta-outline">Learn More</a>
+            </div>
+          </div>
+          <div class="edit-overlay" id="heroOverlay">
+            <div class="edit-overlay-btn">🖼 Edit Hero Image</div>
+          </div>
+          <div class="edit-tag" id="heroEditTag" style="display:none;">Hero</div>
+        </div>
+
+        <div class="site-section">
+          <h2>Built for Live Music Professionals</h2>
+          <p>Everything you need to sell tickets, manage venues, and grow your audience — all in one platform.</p>
+          <div class="section-cards">
+            <div class="section-card">
+              <div class="card-icon">🎟</div>
+              <h3>Smart Ticketing</h3>
+              <p>Dynamic pricing, reserved seating, and instant payouts.</p>
+            </div>
+            <div class="section-card">
+              <div class="card-icon">📊</div>
+              <h3>Real-time Analytics</h3>
+              <p>Track sales, attendance, and revenue as it happens.</p>
+            </div>
+            <div class="section-card">
+              <div class="card-icon">🤝</div>
+              <h3>Co-Promote</h3>
+              <p>Partner with other promoters and split revenue automatically.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT INSPECTOR (shown for Navbar/Logo by default) -->
+  <div class="inspector" id="inspector">
+    <div class="inspector-header">
+      <h3>🔲 Navbar <span class="section-type" id="inspectorType">Logo</span></h3>
+      <span class="inspector-close" onclick="closeInspector()">✕</span>
+    </div>
+
+    <!-- LOGO INSPECTOR -->
+    <div id="logoInspector">
+      <div class="prop-group">
+        <div class="prop-group-label">Logo Image</div>
+        <div class="upload-zone" onclick="alert('Image picker would open here — drag in any PNG/SVG or browse files')">
+          <div class="upload-icon">⬆</div>
+          <div class="upload-text">Drop a new logo here</div>
+          <div class="upload-hint">PNG, SVG, WebP · max 5MB</div>
+        </div>
+        <div class="img-preview">
+          <span style="color:#c9a96e; font-weight:700; font-size:14px; letter-spacing:-0.5px;">W72 Logo</span>
+          <div class="img-label">Current</div>
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-label">Position</div>
+        <div class="position-grid">
+          <div class="pos-btn active">Left</div>
+          <div class="pos-btn">Center</div>
+          <div class="pos-btn" style="opacity:0.3; cursor:default;"></div>
+        </div>
+        <div class="slider-row">
+          <div class="slider-label"><span>Size</span><span class="val">32px</span></div>
+          <input type="range" min="20" max="60" value="32" />
+        </div>
+        <div class="toggle-row">
+          <label>Show on mobile</label>
+          <div class="toggle on"></div>
+        </div>
+        <div class="toggle-row">
+          <label>Show wordmark</label>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-label">Navbar Style</div>
+        <div class="slider-row">
+          <div class="slider-label"><span>Background opacity</span><span class="val">100%</span></div>
+          <input type="range" min="0" max="100" value="100" />
+        </div>
+        <div class="toggle-row">
+          <label>Sticky on scroll</label>
+          <div class="toggle on"></div>
+        </div>
+        <div class="toggle-row">
+          <label>Transparent at top</label>
+          <div class="toggle"></div>
+        </div>
+        <button class="apply-btn" onclick="alert('Changes applied to live preview!')">Apply Changes</button>
+      </div>
+    </div>
+
+    <!-- HERO INSPECTOR (hidden by default) -->
+    <div id="heroInspector" style="display:none;">
+      <div class="prop-group">
+        <div class="prop-group-label">Hero Image</div>
+        <div class="upload-zone" onclick="alert('Image picker would open here')">
+          <div class="upload-icon">⬆</div>
+          <div class="upload-text">Drop a hero image here</div>
+          <div class="upload-hint">JPG, PNG, WebP · Recommended 1920×1080</div>
+        </div>
+        <div class="img-preview">
+          <div style="position:absolute;inset:0;background:linear-gradient(135deg,#1a1008,#0a0a0a);"></div>
+          <div class="crop-overlay"></div>
+          <div class="img-label">Cropped 16:9</div>
+        </div>
+        <button class="crop-btn" onclick="openCropModal()">✂ Open Crop Editor</button>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-label">Overlay</div>
+        <div class="slider-row">
+          <div class="slider-label"><span>Dark overlay</span><span class="val">60%</span></div>
+          <input type="range" min="0" max="100" value="60" />
+        </div>
+        <div class="toggle-row">
+          <label>Show gradient</label>
+          <div class="toggle on"></div>
+        </div>
+      </div>
+
+      <div class="prop-group">
+        <div class="prop-group-label">Layout</div>
+        <div class="slider-row">
+          <div class="slider-label"><span>Section height</span><span class="val">520px</span></div>
+          <input type="range" min="300" max="900" value="520" />
+        </div>
+        <div class="position-grid">
+          <div class="pos-btn">Top</div>
+          <div class="pos-btn active">Center</div>
+          <div class="pos-btn">Bottom</div>
+        </div>
+        <button class="apply-btn" onclick="alert('Changes applied to live preview!')">Apply Changes</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CROP MODAL -->
+<div class="modal-backdrop" id="cropModal" style="display:none;" onclick="if(event.target===this)closeCropModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h3>✂ Hero Image Crop Editor</h3>
+        <p>Drag the crop box or handles to frame the perfect shot. Changes preview live.</p>
+      </div>
+      <div class="modal-close" onclick="closeCropModal()">✕</div>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+        <span style="font-size:11px; color:#666;">Aspect ratio:</span>
+        <div class="aspect-btns">
+          <button class="aspect-btn active">16:9</button>
+          <button class="aspect-btn">4:3</button>
+          <button class="aspect-btn">21:9</button>
+          <button class="aspect-btn">Free</button>
+        </div>
+      </div>
+      <div class="crop-area">
+        <div class="crop-img-bg"></div>
+        <!-- Simulated concert crowd image placeholder -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;color:#333;">
+            <div style="font-size:48px;margin-bottom:8px;">🎸</div>
+            <div style="font-size:12px;color:#444;">Hero image preview</div>
+          </div>
+        </div>
+        <div class="crop-selection">
+          <div class="crop-handle tl"></div>
+          <div class="crop-handle tr"></div>
+          <div class="crop-handle bl"></div>
+          <div class="crop-handle br"></div>
+        </div>
+      </div>
+      <div class="crop-info">
+        <div class="crop-stat"><label>X</label><input value="0" /></div>
+        <div class="crop-stat"><label>Y</label><input value="0" /></div>
+        <div class="crop-stat"><label>Width</label><input value="1920" /></div>
+        <div class="crop-stat"><label>Height</label><input value="1080" /></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeCropModal()">Cancel</button>
+      <button class="btn-apply" onclick="closeCropModal(); alert('Crop saved! Preview updated.')">Apply Crop</button>
+    </div>
+  </div>
+</div>
+
+<!-- PUBLISH PANEL -->
+<div class="publish-panel" id="publishPanel">
+  <h3>⬆ Publish Changes</h3>
+  <p>This will commit your changes to GitHub and trigger a Vercel deploy. west72ent.com goes live in ~30 seconds.</p>
+  <div class="publish-changes">
+    <div class="change-item"><div class="change-dot"></div> Logo position → Left</div>
+    <div class="change-item"><div class="change-dot"></div> Hero image updated + cropped</div>
+    <div class="change-item"><div class="change-dot"></div> Navbar sticky enabled</div>
+  </div>
+  <button class="publish-btn-main" onclick="simulateDeploy()">⬆ Commit & Deploy to Vercel</button>
+  <div class="publish-note">Commits to <strong style="color:#888;">main</strong> · Auto-deploys on Vercel</div>
+</div>
+
+<script>
+function selectSection(section) {
+  // Clear all active states
+  document.querySelectorAll('.section-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('logoEditTag').style.display = 'none';
+  document.getElementById('heroEditTag').style.display = 'none';
+
+  if (section === 'nav') {
+    document.getElementById('navItem').classList.add('active');
+    document.getElementById('logoEditTag').style.display = 'block';
+    document.getElementById('logoInspector').style.display = 'block';
+    document.getElementById('heroInspector').style.display = 'none';
+    document.getElementById('inspectorType').textContent = 'Logo';
+    document.querySelector('.inspector-header h3').innerHTML = '🔲 Navbar <span class="section-type" id="inspectorType">Logo</span>';
+  } else if (section === 'hero') {
+    document.getElementById('heroItem').classList.add('active');
+    document.getElementById('heroEditTag').style.display = 'block';
+    document.getElementById('heroInspector').style.display = 'block';
+    document.getElementById('logoInspector').style.display = 'none';
+    document.getElementById('inspectorType').textContent = 'Hero Image';
+    document.querySelector('.inspector-header h3').innerHTML = '🖼 Hero <span class="section-type" id="inspectorType">Hero Image</span>';
+  } else {
+    const map = { feat: 'featItem', about: 'aboutItem', footer: 'footerItem' };
+    if (map[section]) document.getElementById(map[section]).classList.add('active');
+    document.getElementById('logoInspector').style.display = 'none';
+    document.getElementById('heroInspector').style.display = 'none';
+    document.querySelector('.inspector-header h3').innerHTML = '📦 Section <span class="section-type" id="inspectorType">Content</span>';
+  }
+}
+
+function closeInspector() {
+  document.querySelectorAll('.section-item').forEach(el => el.classList.remove('active'));
+}
+
+function openCropModal() {
+  document.getElementById('cropModal').style.display = 'flex';
+}
+function closeCropModal() {
+  document.getElementById('cropModal').style.display = 'none';
+}
+
+let publishOpen = false;
+document.getElementById('publishBtn').onclick = function() {
+  publishOpen = !publishOpen;
+  document.getElementById('publishPanel').classList.toggle('open', publishOpen);
+};
+
+function simulateDeploy() {
+  const btn = document.querySelector('.publish-btn-main');
+  btn.textContent = '⏳ Deploying to Vercel...';
+  btn.style.background = '#333';
+  btn.style.color = '#888';
+  setTimeout(() => {
+    btn.textContent = '✅ Live on west72ent.com';
+    btn.style.background = '#4ade80';
+    btn.style.color = '#111';
+    document.querySelector('.status-text').textContent = 'Deployed 2s ago';
+    setTimeout(() => {
+      document.getElementById('publishPanel').classList.remove('open');
+      publishOpen = false;
+      btn.textContent = '⬆ Commit & Deploy to Vercel';
+      btn.style.background = '#c9a96e';
+      btn.style.color = '#111';
+    }, 2500);
+  }, 2800);
+}
+
+// Aspect ratio buttons
+document.querySelectorAll('.aspect-btn').forEach(btn => {
+  btn.onclick = function() {
+    document.querySelectorAll('.aspect-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+  };
+});
+
+// Toggle clicks
+document.querySelectorAll('.toggle').forEach(t => {
+  t.onclick = function() { this.classList.toggle('on'); };
+});
+
+// Range slider live values
+document.querySelectorAll('input[type=range]').forEach(input => {
+  input.oninput = function() {
+    const val = this.parentElement.querySelector('.val');
+    if (val) {
+      const max = parseInt(this.max);
+      const suffix = max === 100 ? '%' : max > 100 ? 'px' : '%';
+      val.textContent = this.value + suffix;
+    }
+  };
+});
+
+// Position buttons
+document.querySelectorAll('.position-grid').forEach(grid => {
+  grid.querySelectorAll('.pos-btn').forEach(btn => {
+    if (btn.style.opacity !== '0.3') {
+      btn.onclick = function() {
+        grid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      };
+    }
+  });
+});
+</script>
+</body>
+</html>

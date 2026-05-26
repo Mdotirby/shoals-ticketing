@@ -10,10 +10,7 @@ import { Event } from "@/lib/types/event";
 import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
-
-// Hero images from public folder — per-venue via slug
-const DEFAULT_HERO_1 = "/hero-images/default/hero.jpg";
-const DEFAULT_HERO_2 = "/hero-images/default/hero2.jpg";
+import { useOperator } from "./components/OperatorContext";
 function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
@@ -34,6 +31,7 @@ function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
 export default function HomePage() {
   const { venueSlug, isVenueSubdomain } = useVenue();
   const venueTheme = useVenueTheme();
+  const operator = useOperator();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -41,10 +39,15 @@ export default function HomePage() {
   const sponsorRef = useRef(null);
   const sponsorInView = useInView(sponsorRef, { once: true, margin: "-60px" });
 
-  // Hero: prefer DB-stored URL (uploaded via branding page), fall back to static file, then default
-  const staticSlugHero = isVenueSubdomain ? `/hero-images/${venueSlug}/hero.jpg` : DEFAULT_HERO_1;
-  const HERO_IMAGE_1 = venueTheme.hero_image_url || staticSlugHero;
-  const HERO_IMAGE_2 = venueTheme.hero_image_2_url || DEFAULT_HERO_2;
+  // On a root operator domain (west72ent.com, venuecore.live) use the hardcoded
+  // operator assets — no Supabase involved. On venue subdomains, prefer the
+  // DB-stored URL then fall back to the per-venue static file.
+  const HERO_IMAGE_1 = isVenueSubdomain
+    ? (venueTheme.hero_image_url || `/hero-images/${venueSlug}/hero.jpg`)
+    : operator.heroImage;
+  const HERO_IMAGE_2 = isVenueSubdomain
+    ? (venueTheme.hero_image_2_url || operator.heroImage2)
+    : operator.heroImage2;
 
   const filtered = useMemo(() => {
     if (!query) return events;
