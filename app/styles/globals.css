@@ -1991,7 +1991,8 @@ body {
   }
 
   .ticket-selection-layout { flex-direction: column; }
-  .order-summary-column { flex: none; width: 100%; min-width: 0; position: static; }
+  .ticket-cards-column { order: 2; }
+  .order-summary-column { order: 1; flex: none; width: 100%; min-width: 0; position: static; }
   .order-summary { min-width: 0; padding: 20px 16px; }
   .ticket-selection-heading { font-size: 1.5rem; }
   .ticket-hero-image-wrap { height: 220px; }
@@ -10798,6 +10799,61 @@ body:has(.lp-main) .site-footer {
   color: var(--vc-text-secondary);
 }
 
+/* ── West72 FWB checkbox dodge animation ─────────────────────────── */
+
+/* Dodge right: squish out like a bubble being pushed sideways */
+@keyframes w72FwbDodgeRight {
+  0%   { transform: translateX(0)    scaleX(1)    scaleY(1); }
+  18%  { transform: translateX(90px) scaleX(1.22) scaleY(0.82); }
+  38%  { transform: translateX(76px) scaleX(0.94) scaleY(1.06); }
+  52%  { transform: translateX(80px) scaleX(1)    scaleY(1); }
+  68%  { transform: translateX(80px) scaleX(1)    scaleY(1); }
+  84%  { transform: translateX(3px)  scaleX(1.1)  scaleY(0.92); }
+  100% { transform: translateX(0)    scaleX(1)    scaleY(1); }
+}
+
+/* Dodge left: same physics, opposite direction, slightly shorter */
+@keyframes w72FwbDodgeLeft {
+  0%   { transform: translateX(0)     scaleX(1)    scaleY(1); }
+  18%  { transform: translateX(-68px) scaleX(1.18) scaleY(0.84); }
+  38%  { transform: translateX(-58px) scaleX(0.95) scaleY(1.05); }
+  52%  { transform: translateX(-62px) scaleX(1)    scaleY(1); }
+  68%  { transform: translateX(-62px) scaleX(1)    scaleY(1); }
+  84%  { transform: translateX(-2px)  scaleX(1.08) scaleY(0.93); }
+  100% { transform: translateX(0)     scaleX(1)    scaleY(1); }
+}
+
+/* Give-up shimmy: short left-right wobble, no squish, then settles */
+@keyframes w72FwbResign {
+  0%   { transform: translateX(0); }
+  14%  { transform: translateX(-9px); }
+  32%  { transform: translateX(9px); }
+  50%  { transform: translateX(-5px); }
+  68%  { transform: translateX(5px); }
+  84%  { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
+.w72-fwb-dodge-wrap {
+  position: relative;
+  /* Contain the animation within the form so it never clips outside */
+  isolation: isolate;
+}
+
+.w72-fwb-dodge-wrap.dodging-right {
+  animation: w72FwbDodgeRight 480ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+.w72-fwb-dodge-wrap.dodging-left {
+  animation: w72FwbDodgeLeft 440ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+}
+
+.w72-fwb-dodge-wrap.resigning {
+  animation: w72FwbResign 260ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ─────────────────────────────────────────────────────────────────── */
+
 .pre-checkout-continue-btn {
   display: block;
   width: 100%;
@@ -10821,6 +10877,97 @@ body:has(.lp-main) .site-footer {
 .pre-checkout-continue-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================================================
+   CHECKOUT EXPAND ANIMATION
+   ============================================================ */
+
+@keyframes checkoutExpand {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.97); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.checkout-reveal {
+  animation: checkoutExpand 380ms cubic-bezier(0.34, 1.1, 0.64, 1) both;
+  transform-origin: top center;
+}
+
+/* ============================================================
+   STICKY MOBILE "GET TICKETS" BAR
+   ============================================================ */
+
+.sticky-get-tickets-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sticky-get-tickets-bar {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(11, 13, 29, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid rgba(208, 194, 144, 0.18);
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .sticky-get-tickets-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  .sticky-get-tickets-price {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sticky-ticket-name {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+  }
+
+  .sticky-ticket-amount {
+    font-size: 18px;
+    font-weight: 700;
+    color: #d0c290;
+    line-height: 1;
+  }
+
+  .sticky-get-tickets-btn {
+    flex-shrink: 0;
+    padding: 13px 28px;
+    background: linear-gradient(135deg, #d0c290, #b8a870);
+    color: #0b0d1d;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: opacity 150ms ease;
+  }
+
+  .sticky-get-tickets-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* Push footer above sticky bar */
+  .sticky-get-tickets-bar + footer {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
 }
 
 /* ============================================================

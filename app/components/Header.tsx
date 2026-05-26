@@ -11,6 +11,7 @@ const navItems = [
   { label: "Events", href: "/events" },
   { label: "About", href: "/about" },
   { label: "Contact", href: "/contact" },
+  { label: "Login", href: "/login" },
 ];
 
 /** Routes where the public header should be hidden (they have their own nav) */

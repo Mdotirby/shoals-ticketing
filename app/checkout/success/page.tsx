@@ -29,17 +29,37 @@ function formatDate(d: string) {
   });
 }
 
+const PREVIEW_DATA: ConfirmationData = {
+  order: {
+    id: "preview-order",
+    customer_name: "Matt Irby",
+    customer_email: "matt@west72ent.com",
+    customer_phone: "(256)-555-0172",
+    quantity: 2,
+    total_amount: 60.00,
+  },
+  event: { title: "Summer Throwdown 2026", date: "2026-07-19", venue: "The Shoals Theatre" },
+  ticket: { id: "preview-ticket", qr_code: "PREVIEW", qr_data_url: "" },
+};
+
 function SuccessContent() {
   const operator = useOperator();
   const isWest72 = operator.slug === "west72";
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const isPreview = searchParams.get("preview") === "1";
   const [data, setData] = useState<ConfirmationData | null>(null);
   const [loading, setLoading] = useState(true);
   const [layloPhone, setLayloPhone] = useState("");
   const [layloStatus, setLayloStatus] = useState<"idle" | "loading" | "success" | "dismissed">("idle");
 
   useEffect(() => {
+    if (isPreview) {
+      setData(PREVIEW_DATA);
+      setLayloPhone(formatPhoneNumber(PREVIEW_DATA.order.customer_phone!));
+      setLoading(false);
+      return;
+    }
     if (!sessionId) { setLoading(false); return; }
     fetch(`/api/checkout/confirmation?session_id=${sessionId}`)
       .then((r) => r.json())

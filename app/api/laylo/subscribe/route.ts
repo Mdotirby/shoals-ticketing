@@ -32,30 +32,25 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch("https://api.laylo.com/v1/fans/subscribe", {
+    const res = await fetch("https://laylo.com/api/graphql", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        phone: e164,
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
-        source,
+        query: `mutation { subscribeToUser(phoneNumber: "${e164}") }`,
       }),
     });
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("[Laylo] subscribe error:", res.status, err);
-      // Treat 409 (already subscribed) as success — fan is on the list
-      if (res.status === 409) {
-        return NextResponse.json({ success: true, alreadySubscribed: true });
-      }
+    const json = await res.json();
+
+    if (!res.ok || json.errors) {
+      console.error("[Laylo] subscribe error:", res.status, json.errors ?? json);
       return NextResponse.json({ error: "Laylo error" }, { status: 502 });
     }
 
+    // subscribeToUser returns true on success, false if already subscribed — both are fine
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[Laylo] fetch error:", err);

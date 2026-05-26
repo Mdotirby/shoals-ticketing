@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useSearchParams } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
@@ -20,6 +20,10 @@ function CheckoutContent() {
   const operator = useOperator();
   const isWest72 = operator.slug === "west72";
   const searchParams = useSearchParams();
+
+  // Dodge animation state — west72 FWB checkbox only
+  const dodgeCount = useRef(0);
+  const [dodgeClass, setDodgeClass] = useState("");
   const eventId = searchParams.get("event");
   const quantity = Number(searchParams.get("qty") || "1");
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +142,26 @@ function CheckoutContent() {
         No event selected. Go back and choose a ticket.
       </div>
     );
+  }
+
+  function triggerDodge() {
+    if (!isWest72 || fwbOptIn || dodgeCount.current >= 3 || dodgeClass) return;
+    const count = dodgeCount.current;
+    dodgeCount.current += 1;
+    if (count === 0) setDodgeClass("dodging-right");
+    else if (count === 1) setDodgeClass("dodging-left");
+    else setDodgeClass("resigning");
+  }
+
+  // Desktop: hover approach triggers the dodge
+  function handleFwbMouseEnter() { triggerDodge(); }
+
+  // Mobile: intercept the tap for the first 2 attempts so checkbox doesn't
+  // check immediately — the third tap goes through normally
+  function handleFwbClick(e: React.MouseEvent) {
+    if (!isWest72 || fwbOptIn || dodgeCount.current >= 2) return;
+    e.preventDefault();
+    triggerDodge();
   }
 
   // Show buyer info form first
@@ -266,17 +290,23 @@ function CheckoutContent() {
             )}
           </div>
 
-          <label className="pre-checkout-checkbox">
-            <input
-              type="checkbox"
-              checked={fwbOptIn}
-              onChange={(e) => setFwbOptIn(e.target.checked)}
-            />
-            <span>
-              Yes, sign me up for <strong>Friends with Benefits</strong> — get early access to tickets,
-              exclusive offers, and event updates via email and text. You can unsubscribe at any time.
-            </span>
-          </label>
+          <div
+            className={`w72-fwb-dodge-wrap ${dodgeClass}`}
+            onMouseEnter={handleFwbMouseEnter}
+            onAnimationEnd={() => setDodgeClass("")}
+          >
+            <label className="pre-checkout-checkbox" onClick={handleFwbClick}>
+              <input
+                type="checkbox"
+                checked={fwbOptIn}
+                onChange={(e) => setFwbOptIn(e.target.checked)}
+              />
+              <span>
+                Yes, sign me up for <strong>Friends with Benefits</strong> — get early access to tickets,
+                exclusive offers, and event updates via email and text. You can unsubscribe at any time.
+              </span>
+            </label>
+          </div>
           {isWest72 && fwbOptIn && (
             <p style={{
               fontSize: 12,

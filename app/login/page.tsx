@@ -254,11 +254,11 @@ export default function LoginPage() {
         <section className="ticket-hero">
           {isWest72 && (
             <Image
-              src="/West72_Logos/W72_tech_wordmark_white.png"
+              src="/West72_Logos/W72_tech_icon_white.png"
               alt="West 72 Entertainment"
-              width={220}
-              height={66}
-              style={{ marginBottom: 24, objectFit: "contain" }}
+              width={80}
+              height={80}
+              style={{ display: "block", margin: "0 auto 24px", objectFit: "contain" }}
               unoptimized
             />
           )}

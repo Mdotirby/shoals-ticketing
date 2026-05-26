@@ -400,10 +400,11 @@ export default function EventDetailClient() {
   // Determine if this is a free event
   const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
 
+  const orderSummaryRef = useRef<HTMLDivElement>(null);
+
   const handleCheckout = () => {
     if (!event) return;
     if (!selectedTicket && !reservedSeatingEnabled) return;
-    // Fire InitiateCheckout pixel
     trackFbEvent("InitiateCheckout", {
       content_name: event.title,
       content_ids: [event.id],
@@ -411,8 +412,10 @@ export default function EventDetailClient() {
       currency: "USD",
     });
     setCheckoutStep("checkout");
-    // Scroll to top of order summary column
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Scroll the order summary into view smoothly instead of jumping to page top
+    setTimeout(() => {
+      orderSummaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const handleFreeCheckout = async (name: string, email: string) => {
@@ -603,7 +606,7 @@ export default function EventDetailClient() {
             </div>
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
-            <div className="order-summary-column">
+            <div className="order-summary-column" ref={orderSummaryRef}>
               {event.external_ticket_url ? (
                 /* ── External Ticketing ── */
                 <div style={{
@@ -667,24 +670,26 @@ export default function EventDetailClient() {
                 </div>
               ) : checkoutStep === "checkout" ? (
                 /* ── Inline Stripe Checkout ── */
-                <InlineCheckout
-                  eventId={event.id}
-                  eventTitle={event.title}
-                  eventDate={formatEventDateFull(event.date)}
-                  eventVenue={event.venue}
-                  tierId={selectedTicket?.id}
-                  tierName={selectedTicket?.name || "General Admission"}
-                  ticketPrice={selectedTicket?.price || event.price || 0}
-                  quantity={quantity}
-                  promoCode={appliedPromoRef.current}
-                  selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
-                  isFreeEvent={isFreeEvent}
-                  onBack={() => setCheckoutStep("browse")}
-                  ticketingFee={venueFees.ticketing_fee}
-                  facilityFee={venueFees.facility_fee}
-                  taxRate={venueFees.tax_rate}
-                  taxMethod={venueFees.tax_method}
-                />
+                <div className="checkout-reveal">
+                  <InlineCheckout
+                    eventId={event.id}
+                    eventTitle={event.title}
+                    eventDate={formatEventDateFull(event.date)}
+                    eventVenue={event.venue}
+                    tierId={selectedTicket?.id}
+                    tierName={selectedTicket?.name || "General Admission"}
+                    ticketPrice={selectedTicket?.price || event.price || 0}
+                    quantity={quantity}
+                    promoCode={appliedPromoRef.current}
+                    selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
+                    isFreeEvent={isFreeEvent}
+                    onBack={() => setCheckoutStep("browse")}
+                    ticketingFee={venueFees.ticketing_fee}
+                    facilityFee={venueFees.facility_fee}
+                    taxRate={venueFees.tax_rate}
+                    taxMethod={venueFees.tax_method}
+                  />
+                </div>
               ) : !ticketsOnSale ? (
                 /* ── On-Sale Countdown ── */
                 <div style={{
@@ -885,6 +890,32 @@ export default function EventDetailClient() {
 
         <FAQAccordion />
       </main>
+
+      {/* ── Sticky mobile "Get Tickets" bar ── */}
+      {checkoutStep === "browse" && ticketsOnSale && !isFreeEvent && !event.external_ticket_url && !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) && (
+        <div className="sticky-get-tickets-bar">
+          <div className="sticky-get-tickets-inner">
+            <div className="sticky-get-tickets-price">
+              {selectedTicket ? (
+                <>
+                  <span className="sticky-ticket-name">{selectedTicket.name}</span>
+                  <span className="sticky-ticket-amount">${selectedTicket.price.toFixed(2)}</span>
+                </>
+              ) : (
+                <span className="sticky-ticket-name">Select Tickets</span>
+              )}
+            </div>
+            <button
+              type="button"
+              className="sticky-get-tickets-btn"
+              onClick={handleCheckout}
+              disabled={!selectedTicket && !reservedSeatingEnabled}
+            >
+              Get Tickets
+            </button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </>
