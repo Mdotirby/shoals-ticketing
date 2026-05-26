@@ -82,7 +82,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     privacyEmail: "privacy@west72ent.com",
     tagline: "Creating Memories, One Night at a Time.",
     footerDescription:
-      "Discover. Grab. Experience. Live. West 72 makes it easy to find upcoming shows, buy tickets in seconds, and enjoy seamless entry at the door — plus VIP packages and live auctions for the ultimate experience.",
+      "Discover. Experience. Live. West 72 makes it easy to find upcoming shows, buy tickets in seconds, and enjoy seamless entry at the door — plus VIP packages and live auctions for the ultimate experience.",
     instagramUrl: "https://instagram.com",
     facebookUrl: "https://facebook.com",
     copyright: "West 72 Entertainment",
