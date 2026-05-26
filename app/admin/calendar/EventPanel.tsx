@@ -184,7 +184,7 @@ export default function EventPanel({ event, onClose, onUpdate }: Props) {
         style={{
           position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 8999,
           width: "min(600px, 100vw)",
-          background: "#0f1128",
+          background: "var(--vc-bg-deep)",
           borderLeft: "1px solid rgba(255,255,255,0.08)",
           display: "flex", flexDirection: "column",
           transform: visible ? "translateX(0)" : "translateX(100%)",
@@ -330,7 +330,7 @@ function DetailsTab({ event, onUpdate, onClose }: { event: CalendarEvent; onUpda
         <label style={lbl}>Show Name</label>
         <input style={inp} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+      <div className="epanel-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <div>
           <label style={lbl}>Date</label>
           <input style={inp} type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
@@ -349,7 +349,7 @@ function DetailsTab({ event, onUpdate, onClose }: { event: CalendarEvent; onUpda
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+      <div className="epanel-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
         <div>
           <label style={lbl}>Status</label>
           <div style={{ display: "flex", gap: 6 }}>
@@ -427,7 +427,7 @@ function TicketSalesTab({ eventId, event }: { eventId: string; event: CalendarEv
   return (
     <div>
       {/* Summary */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+      <div className="epanel-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
         {[
           { label: "Orders", value: orders.length },
           { label: "Tickets Sold", value: totalTickets },

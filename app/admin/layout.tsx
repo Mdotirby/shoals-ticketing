@@ -350,7 +350,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname]);
 
-  const isWest72Operator = getCookie("operatorSlug") === "west72";
+  // Lazy initializer runs once on mount — cookie is always present (set by middleware, not httpOnly)
+  const [isWest72Operator] = useState(() => getCookie("operatorSlug") === "west72");
   const operatorIconFallback = isWest72Operator
     ? "/West72_Logos/W72_tech_icon_white.png"
     : "/VenueCore_Logos/VenueCore_Icon_Color.png";
@@ -370,8 +371,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile topbar — avatar dropdown */}
       <div className="admin-mobile-topbar">
+        {/* Always use the operator brand icon here — venue logos are for the sidebar header */}
         <SafeImage
-          src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorIconFallback; })()}
+          src={operatorIconFallback}
           fallback={operatorIconFallback}
           alt={isWest72Operator ? "West 72 Entertainment" : "VenueCore"}
           style={{ width: 36, height: 36, objectFit: "contain" }}

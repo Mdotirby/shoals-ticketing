@@ -598,9 +598,6 @@ export default function EventDetailClient() {
                     </div>
                   )}
 
-                  {event.description && (
-                    <p className="ticket-event-description">{event.description}</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -745,6 +742,13 @@ export default function EventDetailClient() {
               )}
             </div>
           </div>
+
+          {/* Event description — renders below order summary on mobile, full-width on desktop */}
+          {event.description && (
+            <p className="ticket-event-description ticket-event-description-below">
+              {event.description}
+            </p>
+          )}
         </section>
 
         {/* ── Featured Artists ── */}

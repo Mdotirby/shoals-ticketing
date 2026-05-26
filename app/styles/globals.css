@@ -769,6 +769,14 @@ body {
   margin: 16px 0 0;
 }
 
+/* Description lifted out of ticket-card-body — spans full width below both columns */
+.ticket-event-description-below {
+  width: 100%;
+  margin: 24px 0 0;
+  padding: 0 4px;
+  max-width: 680px;
+}
+
 /* ── Ticket Selector Row ── */
 .ticket-selector-row {
   display: flex;
@@ -1991,8 +1999,7 @@ body {
   }
 
   .ticket-selection-layout { flex-direction: column; }
-  .ticket-cards-column { order: 2; }
-  .order-summary-column { order: 1; flex: none; width: 100%; min-width: 0; position: static; }
+  .order-summary-column { flex: none; width: 100%; min-width: 0; position: static; }
   .order-summary { min-width: 0; padding: 20px 16px; }
   .ticket-selection-heading { font-size: 1.5rem; }
   .ticket-hero-image-wrap { height: 220px; }
@@ -2195,15 +2202,39 @@ body {
 }
 
 /* Hero Section */
+@keyframes kenBurns {
+  0%   { transform: scale(1) translateZ(0); }
+  100% { transform: scale(1.08) translateZ(0); }
+}
+
+@keyframes arrowNudge {
+  0%, 55%, 100% { transform: translateX(0); }
+  75%            { transform: translateX(5px); }
+}
+
+@keyframes separatorDraw {
+  0%   { transform: scaleX(0); opacity: 0; }
+  100% { transform: scaleX(1); opacity: 1; }
+}
+
 .home-hero {
   position: relative;
   width: 100%;
   min-height: 80vh;
   display: flex;
   align-items: flex-end;
+  overflow: hidden;
+}
+
+/* Ken Burns layer — animates independently of content */
+.home-hero-bg-ken {
+  position: absolute;
+  inset: 0;
   background-size: cover;
-  background-position: center;
+  background-position: center 30%;
   background-repeat: no-repeat;
+  animation: kenBurns 30s ease-in-out alternate infinite;
+  will-change: transform;
 }
 
 .home-hero-overlay {
@@ -2257,26 +2288,30 @@ body {
   display: inline-flex;
   align-items: center;
   text-align: center;
-  gap: 8px;
-  padding: 12px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  color: var(--vc-text);
+  gap: 10px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
+  color: var(--vc-bg-deep);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   text-decoration: none;
   width: fit-content;
-  transition: border-color 200ms ease, background 200ms ease;
+  box-shadow: 0 4px 24px var(--vc-gold-25);
+  transition: box-shadow 200ms ease, transform 150ms ease;
 }
 
 .home-hero-cta:hover {
-  border-color: var(--vc-gold);
-  background: rgba(208, 194, 144, 0.08);
+  box-shadow: 0 6px 32px var(--vc-gold-40);
+  transform: translateY(-1px);
 }
 
 .cta-arrow {
+  display: inline-block;
   font-size: 16px;
+  animation: arrowNudge 3.2s ease-in-out 2s infinite;
 }
 
 .home-hero-partners {
@@ -2310,11 +2345,13 @@ body {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(208, 194, 144, 0.4) 20%,
-    #d0c290 50%,
-    rgba(208, 194, 144, 0.4) 80%,
+    var(--vc-gold-40) 20%,
+    var(--vc-gold) 50%,
+    var(--vc-gold-40) 80%,
     transparent 100%
   );
+  transform-origin: center;
+  animation: separatorDraw 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.6s both;
 }
 
 /* Upcoming Shows Section */
@@ -2441,22 +2478,23 @@ body {
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  padding: 12px 28px;
-  border: 1px solid rgba(208, 194, 144, 0.3);
-  border-radius: 8px;
-  background: transparent;
+  padding: 14px 32px;
+  border: 1px solid var(--vc-gold-30);
+  border-radius: 10px;
+  background: var(--vc-gold-8);
   color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   text-decoration: none;
   position: relative;
-  transition: background 200ms ease, border-color 200ms ease;
+  transition: background 200ms ease, border-color 200ms ease, transform 150ms ease;
 }
 
 .home-cta-button:hover {
-  background: rgba(208, 194, 144, 0.08);
+  background: var(--vc-gold-15);
   border-color: var(--vc-gold);
+  transform: translateY(-1px);
 }
 
 /* ============================================================
@@ -2785,6 +2823,8 @@ body {
 @media (max-width: 768px) {
   .home-hero {
     min-height: 70vh;
+  }
+  .home-hero-bg-ken {
     background-position: center 30%;
   }
 
@@ -4715,8 +4755,8 @@ select.admin-form-input {
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--vc-bg-deep);
+  border-bottom: 1px solid var(--vc-gold-15);
   position: sticky;
   top: 0;
   z-index: 1001;
@@ -4834,9 +4874,9 @@ select.admin-form-input {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    min-width: 180px;
-    background: linear-gradient(180deg, #161840 0%, #1a1c45 100%);
-    border: 1px solid rgba(208, 194, 144, 0.15);
+    min-width: 200px;
+    background: var(--vc-bg-mid);
+    border: 1px solid var(--vc-gold-15);
     border-radius: 12px;
     padding: 6px 0;
     opacity: 0;
@@ -4845,7 +4885,7 @@ select.admin-form-input {
     pointer-events: none;
     transition: opacity 200ms ease, transform 200ms ease;
     z-index: 1003;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--vc-gold-8);
     max-height: 70vh;
     overflow-y: auto;
   }
@@ -4859,21 +4899,27 @@ select.admin-form-input {
   .admin-mobile-dropdown-link {
     display: block;
     padding: 10px 18px;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.65);
     text-decoration: none;
     font-size: 14px;
     font-weight: 500;
-    transition: background 150ms ease, color 150ms ease;
+    transition: background 150ms ease, color 150ms ease, padding-left 150ms ease;
+    border-left: 2px solid transparent;
   }
 
   .admin-mobile-dropdown-link:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: var(--vc-gold-5);
     color: var(--vc-text);
+    border-left-color: var(--vc-gold-30);
+    padding-left: 20px;
   }
 
   .admin-mobile-dropdown-link.active {
-    background: rgba(208, 194, 144, 0.1);
-    color: var(--venue-primary, #d0c290);
+    background: var(--vc-gold-10);
+    color: var(--vc-gold);
+    border-left-color: var(--vc-gold);
+    padding-left: 20px;
+    font-weight: 700;
   }
 
   /* Overlay — subtle tap-to-close, sits BELOW the dropdown */
@@ -10967,6 +11013,18 @@ body:has(.lp-main) .site-footer {
   /* Push footer above sticky bar */
   .sticky-get-tickets-bar + footer {
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================================
+   ADMIN CALENDAR — EVENT PANEL RESPONSIVE GRIDS
+   ============================================================ */
+
+/* Collapse 2-col and 3-col grids to single column on small screens */
+@media (max-width: 480px) {
+  .epanel-grid-2,
+  .epanel-grid-3 {
+    grid-template-columns: 1fr !important;
   }
 }
 

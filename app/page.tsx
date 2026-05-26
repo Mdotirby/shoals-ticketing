@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import NewsletterSignup from "./components/NewsletterSignup";
@@ -28,16 +28,37 @@ function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   );
 }
 
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+// Shared stagger variant for hero content children
+const heroItem = {
+  hidden: { opacity: 0, y: 22 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
+};
+
+// Scroll-reveal variants with optional delay
+function revealVariant(delay = 0) {
+  return {
+    hidden: { opacity: 0, y: 28 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: EASE, delay } },
+  };
+}
+
 export default function HomePage() {
   const { venueSlug, isVenueSubdomain } = useVenue();
   const venueTheme = useVenueTheme();
   const operator = useOperator();
+  const prefersReduced = useReducedMotion();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [homeSponsors, setHomeSponsors] = useState<Sponsor[]>([]);
   const sponsorRef = useRef(null);
   const sponsorInView = useInView(sponsorRef, { once: true, margin: "-60px" });
+  const upcomingRef = useRef(null);
+  const upcomingInView = useInView(upcomingRef, { once: true, margin: "-60px" });
+  const ctaRef = useRef(null);
+  const ctaInView = useInView(ctaRef, { once: true, margin: "-80px" });
 
   // On a root operator domain (west72ent.com, venuecore.live) use the hardcoded
   // operator assets — no Supabase involved. On venue subdomains, prefer the
@@ -83,31 +104,43 @@ export default function HomePage() {
     <>
       <main className="home-page">
         {/* ── HERO SECTION ── */}
-        <section
-          className="home-hero"
-          style={{
-            backgroundImage: HERO_IMAGE_1
-              ? `url(${HERO_IMAGE_1})`
-              : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
-          }}
-        >
+        <section className="home-hero">
+          {/* Ken Burns background — animates on a separate layer so content stays crisp */}
+          <div
+            className="home-hero-bg-ken"
+            style={{
+              backgroundImage: HERO_IMAGE_1
+                ? `url(${HERO_IMAGE_1})`
+                : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
+            }}
+          />
           <div className="home-hero-overlay" />
-          <div className="home-hero-content">
-            <h1 className="home-hero-title">
+          <motion.div
+            className="home-hero-content"
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.2, delayChildren: prefersReduced ? 0 : 0.35 } },
+            }}
+          >
+            <motion.h1 className="home-hero-title" variants={heroItem}>
               {venueTheme.homepage_headline || (
                 <>Feel the Music.<br />Live the Moment.</>
               )}
-            </h1>
+            </motion.h1>
             {venueTheme.homepage_subheadline && (
-              <p className="home-hero-subtitle">{venueTheme.homepage_subheadline}</p>
+              <motion.p className="home-hero-subtitle" variants={heroItem}>
+                {venueTheme.homepage_subheadline}
+              </motion.p>
             )}
 
-            <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
-              {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
-            </Link>
-
-            {/* Partner logos strip removed from hero — rendered as its own section below */}
-          </div>
+            <motion.div variants={heroItem}>
+              <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
+                {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
+              </Link>
+            </motion.div>
+          </motion.div>
         </section>
 
         {/* ── GOLD SEPARATOR ── */}
@@ -174,16 +207,22 @@ export default function HomePage() {
 
         {/* ── UPCOMING SHOWS SECTION ── */}
         <section className="home-upcoming-section">
-          <div className="home-upcoming-header">
-            <div className="events-eyebrow">
+          <motion.div
+            ref={upcomingRef}
+            className="home-upcoming-header"
+            initial="hidden"
+            animate={upcomingInView ? "visible" : "hidden"}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.12 } } }}
+          >
+            <motion.div className="events-eyebrow" variants={revealVariant()}>
               <span className="events-eyebrow-glow" />
               <span className="events-eyebrow-accent-left" />
               <span className="events-eyebrow-text">UPCOMING SHOWS</span>
               <span className="events-eyebrow-accent-right" />
-            </div>
-            <h2 className="home-upcoming-heading">
+            </motion.div>
+            <motion.h2 className="home-upcoming-heading" variants={revealVariant()}>
               What&apos;s Coming . . ?
-            </h2>
+            </motion.h2>
             <div className="home-events-search">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{color: "rgba(255,255,255,0.35)", flexShrink: 0}}>
                 <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
@@ -200,7 +239,7 @@ export default function HomePage() {
                 <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px" }}>✕</button>
               )}
             </div>
-          </div>
+          </motion.div>
 
           <div className="home-events-carousel">
             {isLoading && (
@@ -249,16 +288,34 @@ export default function HomePage() {
         )}
 
         {/* ── CTA SECTION ── */}
-        <section className="home-cta-section">
+        <section className="home-cta-section" ref={ctaRef}>
           <div className="home-cta-glow" />
-          <h2 className="home-cta-title">Get Rowdy With Us!</h2>
-          <p className="home-cta-subtitle">
+          <motion.h2
+            className="home-cta-title"
+            initial="hidden"
+            animate={ctaInView ? "visible" : "hidden"}
+            variants={revealVariant()}
+          >
+            Get Rowdy With Us!
+          </motion.h2>
+          <motion.p
+            className="home-cta-subtitle"
+            initial="hidden"
+            animate={ctaInView ? "visible" : "hidden"}
+            variants={revealVariant(prefersReduced ? 0 : 0.12)}
+          >
             Join thousands of live music fans for unforgettable nights, real-world energy,
             and meaningful connections.
-          </p>
-          <Link href="/events" className="home-cta-button">
-            🎫 See What&apos;s Coming
-          </Link>
+          </motion.p>
+          <motion.div
+            initial="hidden"
+            animate={ctaInView ? "visible" : "hidden"}
+            variants={revealVariant(prefersReduced ? 0 : 0.24)}
+          >
+            <Link href="/events" className="home-cta-button">
+              🎫 See What&apos;s Coming
+            </Link>
+          </motion.div>
         </section>
       </main>
 
