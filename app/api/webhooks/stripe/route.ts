@@ -590,7 +590,7 @@ export async function POST(request: Request) {
         customerPhone: meta.buyer_phone || "",
         customerZip: meta.buyer_zip || null,
         totalAmount: (paymentIntent.amount || 0) / 100,
-        source: "inline_checkout",
+        source: (meta.source as string) || "inline_checkout",
         promoCodeId: meta.promo_code_id || null,
         promoCode: meta.promo_code || null,
         seatIdsRaw: meta.seat_ids || null,

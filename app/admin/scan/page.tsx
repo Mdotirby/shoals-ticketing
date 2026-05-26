@@ -10,6 +10,9 @@ type ScanResult = {
   seat_assignments?: { section: string; row: string; seat: string }[];
 };
 
+const DISPLAY_MS = 5000;   // overlay stays visible for 5 seconds
+const COOLDOWN_MS = 10000; // same ticket blocked from re-scanning for 10 seconds
+
 export default function AdminScanPage() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -22,9 +25,9 @@ export default function AdminScanPage() {
   const resultTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const validateTicket = useCallback(async (qrCode: string) => {
-    // Debounce: ignore same code within 3 seconds
+    // Block same code for COOLDOWN_MS regardless of whether the overlay is still showing
     const now = Date.now();
-    if (qrCode === lastScannedRef.current && now - lastScanTimeRef.current < 3000) return;
+    if (qrCode === lastScannedRef.current && now - lastScanTimeRef.current < COOLDOWN_MS) return;
     lastScannedRef.current = qrCode;
     lastScanTimeRef.current = now;
 
@@ -55,17 +58,18 @@ export default function AdminScanPage() {
         navigator.vibrate(data.valid ? 100 : [100, 50, 100]);
       }
 
-      // Auto-clear result after 3 seconds
+      // Auto-clear overlay after DISPLAY_MS — cooldown stays active until COOLDOWN_MS
       if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
       resultTimeoutRef.current = setTimeout(() => {
         setResult(null);
-        lastScannedRef.current = "";
-      }, 3000);
+        // Do NOT reset lastScannedRef here — cooldown runs independently
+      }, DISPLAY_MS);
     } catch {
       setResult({ valid: false, reason: "Network error" });
     } finally {
       setProcessing(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startScanner = async () => {
@@ -79,7 +83,7 @@ export default function AdminScanPage() {
 
       await scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { fps: 6, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
           const code = decodedText.includes("/tickets/")
             ? decodedText.split("/tickets/").pop() || decodedText
@@ -141,7 +145,12 @@ export default function AdminScanPage() {
           transition: "opacity 200ms ease, background 200ms ease",
           pointerEvents: result ? "auto" : "none",
         }}
-        onClick={() => { setResult(null); lastScannedRef.current = ""; }}
+        onClick={() => {
+          setResult(null);
+          if (resultTimeoutRef.current) clearTimeout(resultTimeoutRef.current);
+          lastScannedRef.current = "";
+          lastScanTimeRef.current = 0;
+        }}
       >
         {result && (
           <>
@@ -193,11 +202,20 @@ export default function AdminScanPage() {
               </div>
             )}
 
-            <p style={{
-              color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 24,
-            }}>
-              Tap anywhere to dismiss
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginTop: 24 }}>
+              Tap anywhere to dismiss early
             </p>
+
+            {/* Countdown bar */}
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0, height: 5,
+              background: "rgba(255,255,255,0.2)", overflow: "hidden",
+            }}>
+              <div style={{
+                height: "100%", background: "rgba(255,255,255,0.7)",
+                animation: `scan-countdown ${DISPLAY_MS}ms linear forwards`,
+              }} />
+            </div>
           </>
         )}
       </div>
@@ -265,6 +283,10 @@ export default function AdminScanPage() {
           0% { transform: scale(0.3); opacity: 0; }
           60% { transform: scale(1.1); }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes scan-countdown {
+          from { width: 100%; }
+          to   { width: 0%; }
         }
       `}</style>
     </div>
