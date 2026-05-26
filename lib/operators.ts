@@ -36,6 +36,9 @@ export type OperatorConfig = {
   /** Hardcoded hero images for the operator root domain — never pulled from Supabase */
   heroImage: string;
   heroImage2: string;
+  /** Whether this operator hosts venue subdomains (e.g. shoals.venuecore.live).
+   *  west72ent.com is root-only — no subdomains exist or should be routed. */
+  supportsSubdomains: boolean;
 };
 
 export const OPERATORS: Record<string, OperatorConfig> = {
@@ -61,6 +64,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     copyright: "VenueCore",
     heroImage: "/hero-images/default/hero.jpg",
     heroImage2: "/hero-images/default/hero2.jpg",
+    supportsSubdomains: true,
   },
   west72: {
     slug: "west72",
@@ -85,6 +89,7 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     metaPixelId: "708986435149013",
     heroImage: "/hero-images/default/hero.jpg",
     heroImage2: "/hero-images/default/hero2.jpg",
+    supportsSubdomains: false,
   },
 };
 

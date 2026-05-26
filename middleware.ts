@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
+import { OPERATOR_DOMAIN_MAP, OPERATORS } from "@/lib/operators";
 
 /**
  * Extract operatorSlug and venueSlug from the incoming hostname.
@@ -27,7 +27,7 @@ function extractSlugs(host: string): {
     }
     if (hostname.endsWith(`.${rootDomain}`)) {
       const sub = hostname.replace(`.${rootDomain}`, "");
-      if (sub && sub !== "www") {
+      if (sub && sub !== "www" && OPERATORS[operatorSlug]?.supportsSubdomains) {
         return { operatorSlug, venueSlug: sub, isCustomDomain: false, customHostname: null };
       }
     }
