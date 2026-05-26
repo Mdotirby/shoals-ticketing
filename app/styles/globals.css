@@ -3139,7 +3139,7 @@ body {
 
 html, body { overflow-x: hidden; }
 .home-hero, .home-hero-secondary { overflow: hidden; }
-.site-header { overflow-x: clip; overflow-y: visible; }
+.site-header { overflow: visible; } /* Must be visible so the mobile nav dropdown isn't clipped */
 
 /* Sections stay on top of hero image layers */
 .home-gold-separator { position: relative; z-index: 2; }
