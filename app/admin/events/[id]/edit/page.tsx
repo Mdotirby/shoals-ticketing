@@ -135,6 +135,18 @@ export default function AdminEditEventPage() {
   const [newPromo, setNewPromo] = useState({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
   const [promoLoading, setPromoLoading] = useState(false);
 
+  // Presale state
+  type PresaleConfig = {
+    enabled: boolean;
+    code: string;
+    starts_at: string;
+    ends_at: string;
+    capacity: string;
+  };
+  const emptyPresale = (): PresaleConfig => ({ enabled: false, code: "", starts_at: "", ends_at: "", capacity: "" });
+  const [artistPresale, setArtistPresale] = useState<PresaleConfig>(emptyPresale());
+  const [venuePresale, setVenuePresale] = useState<PresaleConfig>(emptyPresale());
+
   // Landing page state
   const [landingPageSlug, setLandingPageSlug] = useState<string>("");
   const [landingPageSlugSaving, setLandingPageSlugSaving] = useState(false);
@@ -317,6 +329,34 @@ export default function AdminEditEventPage() {
       .then(data => { if (Array.isArray(data)) setAvailableHosts(data.map((v: { id: string; name: string }) => ({ id: v.id, name: v.name }))); })
       .catch(() => {});
   }, []);
+
+  // Fetch presale config
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/events/${id}/presale`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.artist) {
+          setArtistPresale({
+            enabled: data.artist.enabled ?? false,
+            code: data.artist.code ?? "",
+            starts_at: data.artist.starts_at ? data.artist.starts_at.slice(0, 16) : "",
+            ends_at: data.artist.ends_at ? data.artist.ends_at.slice(0, 16) : "",
+            capacity: data.artist.capacity ? String(data.artist.capacity) : "",
+          });
+        }
+        if (data.venue) {
+          setVenuePresale({
+            enabled: data.venue.enabled ?? false,
+            code: data.venue.code ?? "",
+            starts_at: data.venue.starts_at ? data.venue.starts_at.slice(0, 16) : "",
+            ends_at: data.venue.ends_at ? data.venue.ends_at.slice(0, 16) : "",
+            capacity: data.venue.capacity ? String(data.venue.capacity) : "",
+          });
+        }
+      })
+      .catch(() => {});
+  }, [id]);
 
   // Fetch trackable links
   useEffect(() => {
@@ -577,6 +617,15 @@ export default function AdminEditEventPage() {
           console.error("Failed to persist venue settings:", feeErr);
           // Non-fatal — event itself was updated successfully.
         }
+      }
+
+      // 1c. Save presale config (fire-and-forget if table doesn't exist yet)
+      if (isHardTicket && onSaleDate) {
+        fetch(`/api/events/${id}/presale`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ artist: artistPresale, venue: venuePresale }),
+        }).catch(() => {});
       }
 
       // 2. Replace tiers (only for hard ticket)
@@ -1143,6 +1192,148 @@ export default function AdminEditEventPage() {
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── Presale Access (only for hard ticket events with an on-sale date) ── */}
+        {isHardTicket && onSaleDate && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: "rgba(168,85,247,0.04)",
+            border: "1px solid rgba(168,85,247,0.12)",
+            marginTop: 8,
+          }}>
+            <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 14 }}>
+              Presale Access
+            </span>
+
+            {(["artist", "venue"] as const).map((type, idx) => {
+              const config = type === "artist" ? artistPresale : venuePresale;
+              const setConfig = type === "artist" ? setArtistPresale : setVenuePresale;
+              const label = type === "artist" ? "Artist Presale" : "Venue Presale";
+              return (
+                <div key={type} style={{ marginBottom: idx === 0 ? 10 : 0 }}>
+                  <div style={{
+                    borderRadius: 8,
+                    border: `1px solid ${config.enabled ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`,
+                    background: config.enabled ? "rgba(168,85,247,0.05)" : "rgba(255,255,255,0.015)",
+                    transition: "border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
+                    boxShadow: config.enabled ? "0 0 0 1px rgba(168,85,247,0.08), 0 4px 16px rgba(168,85,247,0.07)" : "none",
+                    overflow: "hidden",
+                  }}>
+                    {/* Header row — click anywhere to toggle */}
+                    <div
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", cursor: "pointer", userSelect: "none" }}
+                      onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: 700, color: config.enabled ? "#a855f7" : "rgba(255,255,255,0.55)", transition: "color 0.3s ease" }}>
+                        {label}
+                      </span>
+                      {/* Pill toggle */}
+                      <div style={{
+                        width: 40, height: 22, borderRadius: 11, flexShrink: 0, position: "relative",
+                        background: config.enabled ? "#a855f7" : "rgba(255,255,255,0.14)",
+                        transition: "background 0.22s ease",
+                      }}>
+                        <div style={{
+                          position: "absolute", top: 3,
+                          left: config.enabled ? 21 : 3,
+                          width: 16, height: 16, borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.22s ease",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Expandable body */}
+                    <div style={{
+                      maxHeight: config.enabled ? "480px" : "0px",
+                      overflow: "hidden",
+                      opacity: config.enabled ? 1 : 0,
+                      transition: "max-height 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.28s ease",
+                    }}>
+                      <div style={{ padding: "2px 14px 16px" }}>
+
+                        {/* Code input */}
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
+                            Presale Code
+                          </label>
+                          <input
+                            type="text"
+                            className="admin-form-input"
+                            value={config.code}
+                            onChange={(e) => setConfig((prev) => ({ ...prev, code: e.target.value.toUpperCase().slice(0, 15) }))}
+                            placeholder="e.g. EARLYBIRD"
+                            maxLength={15}
+                            style={{ fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase", maxWidth: 240 }}
+                          />
+                          <span style={{
+                            fontSize: 11,
+                            color: config.code.length >= 13 ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.2)",
+                            marginTop: 3, display: "block",
+                            transition: "color 0.2s ease",
+                          }}>
+                            {config.code.length}/15
+                          </span>
+                        </div>
+
+                        {/* Presale window */}
+                        <div style={{ marginBottom: 14 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6, fontWeight: 600 }}>
+                            Presale Window (optional)
+                          </span>
+                          <div style={{ display: "flex", gap: 10 }}>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Opens</span>
+                              <input
+                                type="datetime-local"
+                                className="admin-form-input"
+                                value={config.starts_at}
+                                onChange={(e) => setConfig((prev) => ({ ...prev, starts_at: e.target.value }))}
+                                style={{ fontSize: 12 }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Closes</span>
+                              <input
+                                type="datetime-local"
+                                className="admin-form-input"
+                                value={config.ends_at || (onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}` : "")}
+                                onChange={(e) => setConfig((prev) => ({ ...prev, ends_at: e.target.value }))}
+                                style={{ fontSize: 12 }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Capacity */}
+                        <div style={{ marginBottom: 12 }}>
+                          <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
+                            Max Presale Tickets (optional)
+                          </label>
+                          <input
+                            type="number"
+                            className="admin-form-input"
+                            value={config.capacity}
+                            onChange={(e) => setConfig((prev) => ({ ...prev, capacity: e.target.value }))}
+                            placeholder="No limit"
+                            min="1"
+                            step="1"
+                            style={{ maxWidth: 140 }}
+                          />
+                        </div>
+
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", margin: 0 }}>
+                          Anyone with this code can purchase tickets before the general on-sale opens.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 

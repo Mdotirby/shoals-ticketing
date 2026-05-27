@@ -72,6 +72,7 @@ type Props = {
   venueInfo?: VenueInfo;
   fees?: Fees;
   slug?: string;
+  presaleAvailable?: boolean;
 };
 
 // Stripe charges 2.7% + $0.30 per transaction — keep aligned with
@@ -672,7 +673,7 @@ function CheckoutForm({
 
 // ── Main Landing Page Component ──────────────────────────────────────────────
 
-export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "" }: Props) {
+export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "", presaleAvailable = false }: Props) {
   // Fall back to sensible defaults if the server didn't pass fees (older
   // callers / unit tests).
   const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
@@ -684,6 +685,15 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const [isCtaVisible, setIsCtaVisible] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const checkoutRef = useRef<HTMLDivElement>(null);
+
+  // Presale unlock state
+  const [presaleUnlocked, setPresaleUnlocked] = useState(false);
+  const [presalePanelVisible, setPresalePanelVisible] = useState(false);
+  const [presaleCodeInput, setPresaleCodeInput] = useState("");
+  const [presaleError, setPresaleError] = useState<string | null>(null);
+  const [presaleLoading, setPresaleLoading] = useState(false);
+  const [presaleShake, setPresaleShake] = useState(false);
+  const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
 
   const selectedTier = ticketTypes.find((t) => t.id === selectedTierId) ?? ticketTypes[0];
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
@@ -699,6 +709,20 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const ctaTotal = ctaPreStripe > 0
     ? Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0;
+
+  // ── Restore presale session ───────────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(`vc_presale_${event.id}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.unlocked) {
+          setPresaleUnlocked(true);
+          setPresaleType(parsed.type ?? null);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [event.id]);
 
   // ── Persist tracking ref ──────────────────────────────────────────────────
   useEffect(() => {
@@ -852,6 +876,45 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // ── Presale code validation ───────────────────────────────────────────────
+  const handlePresaleUnlock = useCallback(async () => {
+    const code = presaleCodeInput.trim().toUpperCase();
+    if (!code) return;
+    setPresaleLoading(true);
+    setPresaleError(null);
+
+    try {
+      const res = await fetch(`/api/events/${event.id}/presale/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        // Store in session so refresh doesn't re-lock
+        try {
+          sessionStorage.setItem(
+            `vc_presale_${event.id}`,
+            JSON.stringify({ unlocked: true, type: data.type })
+          );
+        } catch { /* ignore */ }
+        setPresaleType(data.type);
+        setPresaleUnlocked(true);
+      } else {
+        setPresaleError(data.message || "That code isn't valid or the presale window isn't open yet");
+        setPresaleShake(true);
+        setTimeout(() => setPresaleShake(false), 500);
+      }
+    } catch {
+      setPresaleError("Unable to validate code. Please try again.");
+      setPresaleShake(true);
+      setTimeout(() => setPresaleShake(false), 500);
+    } finally {
+      setPresaleLoading(false);
+    }
+  }, [event.id, presaleCodeInput]);
+
   const showTime = formatEventTime(event.date);
   const eventDate = formatEventDateFull(event.date);
 
@@ -938,13 +1001,157 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             </a>
           ) : isPast ? (
             <div className="lp-past-banner">This event has already taken place</div>
-          ) : !ticketsOnSale ? (
-            <div className="lp-countdown">
-              <span className="lp-countdown-label">Tickets on sale in</span>
-              <span className="lp-countdown-timer">{onSaleCountdown}</span>
-            </div>
+          ) : !ticketsOnSale && !presaleUnlocked ? (
+            <>
+              <style>{`
+                @keyframes lp-presale-panel-in {
+                  from { transform: translateY(-6px) scaleY(0.97); opacity: 0; }
+                  to   { transform: translateY(0) scaleY(1); opacity: 1; }
+                }
+                @keyframes lp-presale-shake {
+                  0%,100% { transform: translateX(0); }
+                  15%     { transform: translateX(-6px); }
+                  30%     { transform: translateX(6px); }
+                  50%     { transform: translateX(-4px); }
+                  65%     { transform: translateX(4px); }
+                  80%     { transform: translateX(-2px); }
+                }
+                @keyframes lp-presale-badge-in {
+                  from { transform: scale(0.88); opacity: 0; }
+                  to   { transform: scale(1); opacity: 1; }
+                }
+                @keyframes lp-ticket-slide-in {
+                  from { transform: translateY(18px); opacity: 0; }
+                  to   { transform: translateY(0); opacity: 1; }
+                }
+                .lp-presale-link {
+                  background: none;
+                  border: none;
+                  padding: 0;
+                  cursor: pointer;
+                  color: rgba(208,194,144,0.65);
+                  font-size: 13px;
+                  font-weight: 600;
+                  position: relative;
+                  display: inline-block;
+                }
+                .lp-presale-link::after {
+                  content: "";
+                  position: absolute;
+                  bottom: -1px;
+                  left: 0;
+                  width: 0;
+                  height: 1px;
+                  background: rgba(208,194,144,0.65);
+                  transition: width 0.25s ease;
+                }
+                .lp-presale-link:hover::after { width: 100%; }
+              `}</style>
+
+              <div className="lp-countdown">
+                <span className="lp-countdown-label">Tickets on sale in</span>
+                <span className="lp-countdown-timer">{onSaleCountdown}</span>
+              </div>
+
+              {presaleAvailable && (
+                <div style={{ marginTop: 16, textAlign: "center" }}>
+                  <button
+                    type="button"
+                    className="lp-presale-link"
+                    onClick={() => { setPresalePanelVisible((v) => !v); setPresaleError(null); }}
+                  >
+                    Have a presale code?
+                  </button>
+
+                  {presalePanelVisible && (
+                    <div style={{
+                      marginTop: 12,
+                      padding: "16px 18px",
+                      borderRadius: 10,
+                      background: "rgba(168,85,247,0.07)",
+                      border: "1px solid rgba(168,85,247,0.22)",
+                      animation: "lp-presale-panel-in 0.3s cubic-bezier(0.34,1.28,0.64,1) both",
+                    }}>
+                      <label style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, display: "block", marginBottom: 8, textAlign: "left" }}>
+                        Presale Code
+                      </label>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          type="text"
+                          value={presaleCodeInput}
+                          onChange={(e) => { setPresaleCodeInput(e.target.value.toUpperCase()); setPresaleError(null); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") handlePresaleUnlock(); }}
+                          placeholder="Enter code"
+                          maxLength={15}
+                          style={{
+                            flex: 1,
+                            background: "rgba(255,255,255,0.05)",
+                            border: `1px solid ${presaleError ? "rgba(239,68,68,0.6)" : "rgba(168,85,247,0.3)"}`,
+                            borderRadius: 8,
+                            padding: "10px 14px",
+                            color: "#fff",
+                            fontSize: 14,
+                            fontFamily: "monospace",
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                            outline: "none",
+                            transition: "border-color 0.3s ease",
+                            animation: presaleShake ? "lp-presale-shake 0.45s ease-out" : "none",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handlePresaleUnlock}
+                          disabled={presaleLoading || !presaleCodeInput.trim()}
+                          style={{
+                            padding: "10px 18px",
+                            borderRadius: 8,
+                            border: "1px solid rgba(168,85,247,0.4)",
+                            background: "rgba(168,85,247,0.15)",
+                            color: "#c084fc",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: presaleLoading || !presaleCodeInput.trim() ? "not-allowed" : "pointer",
+                            opacity: presaleLoading || !presaleCodeInput.trim() ? 0.5 : 1,
+                            transition: "opacity 0.2s",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {presaleLoading ? "Checking..." : "Unlock"}
+                        </button>
+                      </div>
+                      {presaleError && (
+                        <p style={{ margin: "8px 0 0", fontSize: 12, color: "rgba(239,68,68,0.85)", textAlign: "left" }}>
+                          {presaleError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <>
+              {/* Presale unlocked badge */}
+              {presaleUnlocked && presaleType && (
+                <div style={{
+                  display: "inline-block",
+                  marginBottom: 14,
+                  padding: "5px 14px",
+                  borderRadius: 20,
+                  background: "rgba(168,85,247,0.18)",
+                  border: "1px solid rgba(168,85,247,0.35)",
+                  color: "#c084fc",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  animation: "lp-presale-badge-in 0.32s cubic-bezier(0.34,1.28,0.64,1) both",
+                }}>
+                  {presaleType === "artist" ? "Artist Presale" : "Venue Presale"}
+                </div>
+              )}
+
               {/* Tier selector (only if multiple tiers) */}
               {ticketTypes.length > 1 && (
                 <div className="lp-tier-selector">

@@ -5,6 +5,7 @@ import { safeDate } from "@/lib/dates";
 type EventBadgesProps = {
   eventDate: string;        // ISO string e.g. "2025-11-08T20:00:00"
   ageRestriction?: string;  // "all_ages" | "18+" | "21+" — default all_ages
+  presaleActive?: boolean;  // show presale badge when true
 };
 
 function formatTime(date: Date) {
@@ -15,7 +16,7 @@ function formatTime(date: Date) {
   });
 }
 
-export default function EventBadges({ eventDate, ageRestriction = "all_ages" }: EventBadgesProps) {
+export default function EventBadges({ eventDate, ageRestriction = "all_ages", presaleActive = false }: EventBadgesProps) {
   const now = new Date();
   const showDate = safeDate(eventDate);
   const diffMs = showDate.getTime() - now.getTime();
@@ -35,6 +36,17 @@ export default function EventBadges({ eventDate, ageRestriction = "all_ages" }: 
 
   return (
     <div className="event-badges">
+      {presaleActive && (
+        <span className="event-badge" style={{
+          background: "rgba(168,85,247,0.15)",
+          border: "1px solid rgba(168,85,247,0.35)",
+          color: "#c084fc",
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+        }}>
+          Presale
+        </span>
+      )}
       <span className="event-badge event-badge-age">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />

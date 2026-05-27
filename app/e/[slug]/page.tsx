@@ -184,7 +184,28 @@ export default async function LandingPage({ params }: Props) {
     });
   }
 
-  // 6. Fetch featured artists assigned to this event
+  // 6. Check presale availability (no codes exposed — flag only)
+  let presaleAvailable = false;
+  try {
+    const now = new Date().toISOString();
+    const { data: presaleRows } = await admin
+      .from("event_presales")
+      .select("enabled, starts_at, ends_at")
+      .eq("event_id", event.id)
+      .eq("enabled", true);
+
+    if (presaleRows && presaleRows.length > 0) {
+      presaleAvailable = presaleRows.some((row) => {
+        if (row.starts_at && row.starts_at > now) return false;
+        if (row.ends_at && row.ends_at < now) return false;
+        return true;
+      });
+    }
+  } catch {
+    // Table may not exist yet — silently skip
+  }
+
+  // 7. Fetch featured artists assigned to this event
   const { data: assignments } = await admin
     .from("artist_event_assignments")
     .select("artist_id")
@@ -208,7 +229,7 @@ export default async function LandingPage({ params }: Props) {
     }
   }
 
-  // 7. Fetch venue info for map/directions
+  // 8. Fetch venue info for map/directions
   let venueInfo: {
     address?: string;
     lat?: number;
@@ -275,6 +296,7 @@ export default async function LandingPage({ params }: Props) {
       featuredArtists={featuredArtists}
       venueInfo={venueInfo}
       slug={slug}
+      presaleAvailable={presaleAvailable}
       fees={{
         ticketingFee: fees.ticketing_fee,
         facilityFee: fees.facility_fee,

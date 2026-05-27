@@ -33,7 +33,28 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(data, { status: 200 });
+  // Append presale availability flag (no codes exposed)
+  let presaleAvailable = false;
+  try {
+    const now = new Date().toISOString();
+    const { data: presaleRows } = await admin
+      .from("event_presales")
+      .select("enabled, starts_at, ends_at")
+      .eq("event_id", id)
+      .eq("enabled", true);
+
+    if (presaleRows && presaleRows.length > 0) {
+      presaleAvailable = presaleRows.some((row) => {
+        if (row.starts_at && row.starts_at > now) return false;
+        if (row.ends_at && row.ends_at < now) return false;
+        return true;
+      });
+    }
+  } catch {
+    // Non-fatal — table may not exist yet before migration runs
+  }
+
+  return NextResponse.json({ ...data, presaleAvailable }, { status: 200 });
 }
 
 export async function PUT(
