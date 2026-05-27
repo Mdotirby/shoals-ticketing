@@ -526,6 +526,75 @@ export default function EventDetailClient() {
 
   return (
     <>
+      {/* Presale animation styles — hoisted so they survive the unlock transition */}
+      {event?.presaleAvailable && (
+        <style>{`
+          @keyframes edc-presale-panel-in {
+            0%   { transform: translateY(-18px) scale(0.95); opacity: 0; filter: blur(10px); }
+            60%  { transform: translateY(4px)   scale(1.01); opacity: 1; filter: blur(0);   }
+            100% { transform: translateY(0)     scale(1);    opacity: 1; filter: blur(0);   }
+          }
+          @keyframes edc-presale-shake {
+            0%   { transform: translateX(0)    rotate(0deg);    }
+            10%  { transform: translateX(-10px) rotate(-1.4deg); }
+            22%  { transform: translateX(10px)  rotate(1.4deg);  }
+            35%  { transform: translateX(-7px)  rotate(-0.8deg); }
+            48%  { transform: translateX(7px)   rotate(0.8deg);  }
+            60%  { transform: translateX(-4px)  rotate(-0.3deg); }
+            72%  { transform: translateX(4px)   rotate(0.3deg);  }
+            85%  { transform: translateX(-1px);                  }
+            100% { transform: translateX(0)    rotate(0deg);    }
+          }
+          @keyframes edc-presale-badge-in {
+            0%   { transform: scale(0.68) translateY(12px); opacity: 0; }
+            55%  { transform: scale(1.09) translateY(-3px); opacity: 1; }
+            78%  { transform: scale(0.97) translateY(0);                }
+            100% { transform: scale(1)   translateY(0);    opacity: 1; }
+          }
+          @keyframes edc-presale-badge-shimmer {
+            0%   { background-position: -220% center; }
+            100% { background-position: 220% center;  }
+          }
+          @keyframes edc-presale-link-breathe {
+            0%, 100% { opacity: 0.55; }
+            50%       { opacity: 0.92; }
+          }
+          .edc-presale-link {
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            color: rgba(208, 194, 144, 0.7);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            position: relative;
+            display: inline-block;
+            animation: edc-presale-link-breathe 2.6s ease-in-out infinite;
+            transition: color 0.2s ease;
+          }
+          .edc-presale-link:hover {
+            color: rgba(208, 194, 144, 1);
+            animation: none;
+          }
+          .edc-presale-link::after {
+            content: "";
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 1px;
+            background: rgba(208, 194, 144, 0.7);
+            transition: width 0.28s ease;
+          }
+          .edc-presale-link:hover::after { width: 100%; }
+          .edc-presale-input:focus {
+            border-color: rgba(208, 194, 144, 0.45) !important;
+            box-shadow: 0 0 0 3px rgba(208, 194, 144, 0.07) !important;
+            outline: none;
+          }
+        `}</style>
+      )}
       <main className="ticket-page">
 
         {/* ── Section Header ── */}
@@ -751,149 +820,121 @@ export default function EventDetailClient() {
                 </div>
               ) : !ticketsOnSale && !presaleUnlocked ? (
                 /* ── On-Sale Countdown ── */
-                <>
-                  <style>{`
-                    @keyframes edc-presale-panel-in {
-                      from { transform: translateY(-6px); opacity: 0; }
-                      to   { transform: translateY(0); opacity: 1; }
-                    }
-                    @keyframes edc-presale-shake {
-                      0%,100% { transform: translateX(0); }
-                      15%     { transform: translateX(-6px); }
-                      30%     { transform: translateX(6px); }
-                      50%     { transform: translateX(-4px); }
-                      65%     { transform: translateX(4px); }
-                      80%     { transform: translateX(-2px); }
-                    }
-                    @keyframes edc-presale-badge-in {
-                      from { transform: scale(0.88); opacity: 0; }
-                      to   { transform: scale(1); opacity: 1; }
-                    }
-                    .edc-presale-link {
-                      background: none; border: none; padding: 0;
-                      cursor: pointer; color: rgba(208,194,144,0.65);
-                      font-size: 13px; font-weight: 600;
-                      position: relative; display: inline-block;
-                    }
-                    .edc-presale-link::after {
-                      content: ""; position: absolute; bottom: -1px; left: 0;
-                      width: 0; height: 1px; background: rgba(208,194,144,0.65);
-                      transition: width 0.25s ease;
-                    }
-                    .edc-presale-link:hover::after { width: 100%; }
-                  `}</style>
-                  <div style={{
-                    background: "rgba(59,130,246,0.06)",
-                    border: "1px solid rgba(59,130,246,0.2)",
-                    borderRadius: 12,
-                    padding: 24,
-                    textAlign: "center",
-                  }}>
-                    <p style={{ color: "#3b82f6", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-                      Tickets On Sale Soon
-                    </p>
-                    <p style={{ color: "#93c5fd", fontSize: 28, fontWeight: 800, fontFamily: "monospace", letterSpacing: 2 }}>
-                      {onSaleCountdown}
-                    </p>
-                    <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginTop: 8 }}>
-                      Check back when the countdown ends!
-                    </p>
+                <div style={{
+                  background: "rgba(20, 20, 24, 0.95)",
+                  border: "1px solid rgba(208, 194, 144, 0.2)",
+                  borderRadius: 12,
+                  padding: 24,
+                  textAlign: "center",
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)",
+                }}>
+                  <p style={{ color: "rgba(208,194,144,0.65)", fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                    Tickets On Sale Soon
+                  </p>
+                  <p style={{ color: "#d0c290", fontSize: 28, fontWeight: 800, fontFamily: "monospace", letterSpacing: 2 }}>
+                    {onSaleCountdown}
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 8 }}>
+                    Check back when the countdown ends!
+                  </p>
 
-                    {event?.presaleAvailable && (
-                      <div style={{ marginTop: 16 }}>
-                        <button
-                          type="button"
-                          className="edc-presale-link"
-                          onClick={() => { setPresalePanelVisible((v) => !v); setPresaleError(null); }}
-                        >
-                          Have a presale code?
-                        </button>
+                  {event?.presaleAvailable && (
+                    <div style={{ marginTop: 18 }}>
+                      <button
+                        type="button"
+                        className="edc-presale-link"
+                        onClick={() => { setPresalePanelVisible((v) => !v); setPresaleError(null); }}
+                      >
+                        Have a presale code?
+                      </button>
 
-                        {presalePanelVisible && (
-                          <div style={{
-                            marginTop: 12,
-                            padding: "14px 16px",
-                            borderRadius: 10,
-                            background: "rgba(168,85,247,0.07)",
-                            border: "1px solid rgba(168,85,247,0.22)",
-                            textAlign: "left",
-                            animation: "edc-presale-panel-in 0.3s cubic-bezier(0.34,1.28,0.64,1) both",
-                          }}>
-                            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontWeight: 600, display: "block", marginBottom: 8 }}>
-                              Presale Code
-                            </label>
-                            <div style={{ display: "flex", gap: 8 }}>
-                              <input
-                                type="text"
-                                value={presaleCodeInput}
-                                onChange={(e) => { setPresaleCodeInput(e.target.value.toUpperCase()); setPresaleError(null); }}
-                                onKeyDown={(e) => { if (e.key === "Enter") handlePresaleUnlock(); }}
-                                placeholder="Enter code"
-                                maxLength={15}
-                                style={{
-                                  flex: 1,
-                                  background: "rgba(255,255,255,0.05)",
-                                  border: `1px solid ${presaleError ? "rgba(239,68,68,0.6)" : "rgba(168,85,247,0.3)"}`,
-                                  borderRadius: 8,
-                                  padding: "10px 14px",
-                                  color: "#fff",
-                                  fontSize: 14,
-                                  fontFamily: "monospace",
-                                  letterSpacing: "0.06em",
-                                  textTransform: "uppercase",
-                                  outline: "none",
-                                  transition: "border-color 0.3s ease",
-                                  animation: presaleShake ? "edc-presale-shake 0.45s ease-out" : "none",
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={handlePresaleUnlock}
-                                disabled={presaleLoading || !presaleCodeInput.trim()}
-                                style={{
-                                  padding: "10px 18px",
-                                  borderRadius: 8,
-                                  border: "1px solid rgba(168,85,247,0.4)",
-                                  background: "rgba(168,85,247,0.15)",
-                                  color: "#c084fc",
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  cursor: presaleLoading || !presaleCodeInput.trim() ? "not-allowed" : "pointer",
-                                  opacity: presaleLoading || !presaleCodeInput.trim() ? 0.5 : 1,
-                                  transition: "opacity 0.2s",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {presaleLoading ? "Checking..." : "Unlock"}
-                              </button>
-                            </div>
-                            {presaleError && (
-                              <p style={{ margin: "8px 0 0", fontSize: 12, color: "rgba(239,68,68,0.85)" }}>
-                                {presaleError}
-                              </p>
-                            )}
+                      {presalePanelVisible && (
+                        <div style={{
+                          marginTop: 14,
+                          padding: "18px 20px",
+                          borderRadius: 12,
+                          background: "rgba(20, 20, 24, 0.97)",
+                          border: "1px solid rgba(255, 255, 255, 0.1)",
+                          boxShadow: "0 12px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)",
+                          textAlign: "left",
+                          animation: "edc-presale-panel-in 0.42s cubic-bezier(0.34,1.4,0.64,1) both",
+                        }}>
+                          <label style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 600, display: "block", marginBottom: 10, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                            Presale Code
+                          </label>
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input
+                              type="text"
+                              className="edc-presale-input"
+                              value={presaleCodeInput}
+                              onChange={(e) => { setPresaleCodeInput(e.target.value.toUpperCase()); setPresaleError(null); }}
+                              onKeyDown={(e) => { if (e.key === "Enter") handlePresaleUnlock(); }}
+                              placeholder="Enter code"
+                              maxLength={15}
+                              style={{
+                                flex: 1,
+                                background: "rgba(255,255,255,0.04)",
+                                border: `1px solid ${presaleError ? "rgba(239,68,68,0.65)" : "rgba(255,255,255,0.12)"}`,
+                                borderRadius: 8,
+                                padding: "11px 14px",
+                                color: "#fff",
+                                fontSize: 15,
+                                fontFamily: "monospace",
+                                letterSpacing: "0.1em",
+                                textTransform: "uppercase",
+                                transition: "border-color 0.3s ease, box-shadow 0.3s ease",
+                                animation: presaleShake ? "edc-presale-shake 0.52s ease-out" : "none",
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handlePresaleUnlock}
+                              disabled={presaleLoading || !presaleCodeInput.trim()}
+                              style={{
+                                padding: "11px 20px",
+                                borderRadius: 8,
+                                border: "1px solid rgba(208,194,144,0.35)",
+                                background: "rgba(208,194,144,0.09)",
+                                color: "#d0c290",
+                                fontSize: 13,
+                                fontWeight: 700,
+                                letterSpacing: "0.03em",
+                                cursor: presaleLoading || !presaleCodeInput.trim() ? "not-allowed" : "pointer",
+                                opacity: presaleLoading || !presaleCodeInput.trim() ? 0.45 : 1,
+                                transition: "opacity 0.2s ease, background 0.2s ease",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {presaleLoading ? "Checking..." : "Unlock"}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </>
+                          {presaleError && (
+                            <p style={{ margin: "9px 0 0", fontSize: 12, color: "rgba(239,68,68,0.85)" }}>
+                              {presaleError}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               ) : presaleUnlocked && presaleType ? (
                 /* ── Presale unlocked — show badge then normal ticket flow ── */
                 <>
                   <div style={{
                     display: "inline-block",
-                    marginBottom: 14,
-                    padding: "5px 14px",
+                    marginBottom: 16,
+                    padding: "6px 20px",
                     borderRadius: 20,
-                    background: "rgba(168,85,247,0.15)",
-                    border: "1px solid rgba(168,85,247,0.35)",
-                    color: "#c084fc",
+                    background: "linear-gradient(90deg, rgba(208,194,144,0.07) 0%, rgba(208,194,144,0.18) 40%, rgba(255,248,220,0.16) 50%, rgba(208,194,144,0.18) 60%, rgba(208,194,144,0.07) 100%)",
+                    backgroundSize: "220% auto",
+                    border: "1px solid rgba(208,194,144,0.3)",
+                    color: "#d0c290",
                     fontSize: 11,
                     fontWeight: 700,
-                    letterSpacing: "0.06em",
+                    letterSpacing: "0.1em",
                     textTransform: "uppercase",
-                    animation: "edc-presale-badge-in 0.32s cubic-bezier(0.34,1.28,0.64,1) both",
+                    animation: "edc-presale-badge-in 0.48s cubic-bezier(0.34,1.4,0.64,1) both, edc-presale-badge-shimmer 1.6s 0.45s ease-out both",
                   }}>
                     {presaleType === "artist" ? "Artist Presale" : "Venue Presale"}
                   </div>
