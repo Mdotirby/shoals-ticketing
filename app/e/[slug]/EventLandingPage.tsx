@@ -851,7 +851,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
   // ── CTA click handler — opens inline checkout ──────────────────────────────
   const handleGetTickets = useCallback(() => {
-    if (!ticketsOnSale) return;
+    if (!ticketsOnSale && !presaleUnlocked) return;
 
     // Fire Meta Pixel
     trackFbEvent("InitiateCheckout", {
