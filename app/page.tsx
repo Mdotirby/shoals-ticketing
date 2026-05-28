@@ -11,6 +11,42 @@ import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
 import { useOperator } from "./components/OperatorContext";
+function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const tierH = sponsor.tier === "title" ? 52 : sponsor.tier === "presenting" ? 40 : 30;
+  const showImg = !!sponsor.logo_url && !imgFailed;
+
+  return (
+    <motion.a
+      href={sponsor.website_url ?? "#"}
+      target={sponsor.website_url ? "_blank" : undefined}
+      rel="noopener noreferrer"
+      variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
+      whileHover={{ scale: 1.06, opacity: 1 }}
+      style={{ opacity: 0.7, transition: "opacity 0.2s", display: "inline-flex", alignItems: "center" }}
+    >
+      {showImg ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={sponsor.logo_url!}
+          alt={sponsor.sponsor_name}
+          onError={() => setImgFailed(true)}
+          style={{
+            height: tierH,
+            maxWidth: 160,
+            objectFit: "contain",
+            filter: "grayscale(0.6) brightness(1.4)",
+          }}
+        />
+      ) : (
+        <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.8)", letterSpacing: "0.05em" }}>
+          {sponsor.sponsor_name}
+        </span>
+      )}
+    </motion.a>
+  );
+}
+
 function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
@@ -164,33 +200,7 @@ export default function HomePage() {
               style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: "16px 40px" }}
             >
               {homeSponsors.map(sponsor => (
-                <motion.a
-                  key={sponsor.id}
-                  href={sponsor.website_url ?? "#"}
-                  target={sponsor.website_url ? "_blank" : undefined}
-                  rel="noopener noreferrer"
-                  variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
-                  whileHover={{ scale: 1.06, opacity: 1 }}
-                  style={{ opacity: 0.6, transition: "opacity 0.2s", display: "inline-flex", alignItems: "center" }}
-                >
-                  {sponsor.logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={sponsor.logo_url}
-                      alt={sponsor.sponsor_name}
-                      style={{
-                        height: sponsor.tier === "title" ? 52 : sponsor.tier === "presenting" ? 40 : 30,
-                        maxWidth: 160,
-                        objectFit: "contain",
-                        filter: "grayscale(1) brightness(1.8)",
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.7)", letterSpacing: "0.05em" }}>
-                      {sponsor.sponsor_name}
-                    </span>
-                  )}
-                </motion.a>
+                <SponsorLogo key={sponsor.id} sponsor={sponsor} />
               ))}
             </motion.div>
             <motion.div
