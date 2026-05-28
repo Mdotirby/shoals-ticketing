@@ -1137,9 +1137,9 @@ export default function EventDetailClient() {
                         className="sponsor-logo-link"
                       >
                         {s.logo_url ? (
-                          <img src={s.logo_url} alt={s.name} className={`sponsor-logo sponsor-logo-${tier}`} />
+                          <img src={s.logo_url} alt={s.sponsor_name} className={`sponsor-logo sponsor-logo-${tier}`} />
                         ) : (
-                          <span className={`sponsor-name-text sponsor-name-${tier}`}>{s.name}</span>
+                          <span className={`sponsor-name-text sponsor-name-${tier}`}>{s.sponsor_name}</span>
                         )}
                       </a>
                     ))}
