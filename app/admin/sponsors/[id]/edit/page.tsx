@@ -210,7 +210,7 @@ export default function AdminEditSponsorPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append("bucket", "sponsor-logos");
+      fd.append("bucket", "Sponsor-logos");
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       if (!res.ok) throw new Error((await res.json()).error || "Upload failed");
       const { url } = await res.json();
