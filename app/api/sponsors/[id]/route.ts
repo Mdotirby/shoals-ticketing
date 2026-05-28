@@ -24,7 +24,7 @@ export async function GET(
 
   const { sponsor_events, ...sponsor } = data as typeof data & { sponsor_events: { event_id: string }[] };
   return NextResponse.json(
-    { ...sponsor, event_ids: (sponsor_events ?? []).map(se => se.event_id) },
+    { ...sponsor, event_ids: (sponsor_events ?? []).map((se: { event_id: string }) => se.event_id) },
     { status: 200 }
   );
 }
