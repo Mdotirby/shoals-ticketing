@@ -120,7 +120,8 @@ export async function exportInvoicePDF(data: InvoicePDFData): Promise<void> {
 
   const vcIcon = await loadVenueCoreFavicon();
 
-  // ── COMPACT HEADER with client info on left ──
+  // ── HEADER: centered logo + venue name (letterhead style) ──
+  // Client info lives in the body "Bill To" section (Option B layout)
   let y = await addPdfHeader(doc, {
     title: "Invoice",
     venueName: data.venue_name,
@@ -128,14 +129,8 @@ export async function exportInvoicePDF(data: InvoicePDFData): Promise<void> {
     venueSlug: data.venue_slug,
     logoUrl: data.venue_logo_url,
     compact: true,
-    showBuyerInfo: true,
-    buyerInfo: {
-      company: data.client_company,
-      contact: data.client_name,
-      email: data.client_email,
-      phone: data.client_phone,
-      address: data.client_address,
-    },
+    centerLogo: true,
+    showBuyerInfo: false,
   });
 
   // Invoice meta line
@@ -149,18 +144,19 @@ export async function exportInvoicePDF(data: InvoicePDFData): Promise<void> {
   y += 6;
 
   // ════════════════════════════════════════════════════════
-  //  BILL TO + EVENT — two columns
+  //  CLIENT + EVENT — two columns
   // ════════════════════════════════════════════════════════
-  y = secH(doc, "Bill To & Event Details", y);
+  y = secH(doc, "Client & Event Details", y);
   const infoStartY = y;
 
-  // Left column: Client
+  // Left column: Client billing info
   let lY = infoStartY;
-  lY = lv(doc, "Client",  data.client_name,    lY);
-  if (data.client_company) lY = lv(doc, "Company", data.client_company, lY);
-  if (data.client_address) lY = lv(doc, "Address", data.client_address, lY, { maxW: 50 });
-  if (data.client_email)   lY = lv(doc, "Email",   data.client_email,   lY);
-  if (data.client_phone)   lY = lv(doc, "Phone",   data.client_phone,   lY);
+  // Show legal company name (client_company) prominently if present
+  if (data.client_company) lY = lv(doc, "Bill To",  data.client_company, lY, { color: [208, 194, 144] });
+  if (data.client_name)    lY = lv(doc, "Contact",  data.client_name,    lY);
+  if (data.client_address) lY = lv(doc, "Address",  data.client_address, lY, { maxW: 50 });
+  if (data.client_email)   lY = lv(doc, "Email",    data.client_email,   lY);
+  if (data.client_phone)   lY = lv(doc, "Phone",    data.client_phone,   lY);
 
   // Right column: Event + Invoice dates
   let rY = infoStartY;

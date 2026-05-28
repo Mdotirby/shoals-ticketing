@@ -14,13 +14,15 @@ export default async function PartnersPage() {
 
   const { data } = await admin
     .from("sponsors")
-    .select("*")
+    .select("*, sponsor_events(event_id)")
     .eq("is_active", true)
-    .is("event_id", null)
     .order("tier", { ascending: true })
-    .order("name", { ascending: true });
+    .order("sponsor_name", { ascending: true });
 
-  const sponsors: Sponsor[] = data ?? [];
+  const sponsors: Sponsor[] = (data ?? []).map(({ sponsor_events, ...s }) => ({
+    ...s,
+    event_ids: (sponsor_events as { event_id: string }[] ?? []).map((se) => se.event_id),
+  }));
 
   const title    = sponsors.filter(s => s.tier === "title");
   const presenting = sponsors.filter(s => s.tier === "presenting");

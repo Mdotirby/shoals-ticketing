@@ -2,11 +2,13 @@ export type SponsorTier = "title" | "presenting" | "supporting";
 
 export type Sponsor = {
   id: string;
-  name: string;
+  sponsor_name: string;           // Customer-facing display name
+  client_name: string | null;     // Legal business name (internal, for invoicing)
+  sponsor_address: string | null; // Billing address (for invoicing)
   logo_url: string | null;
   website_url: string | null;
   tier: SponsorTier;
-  event_id: string | null;
+  event_ids: string[];            // Junction table — can be assigned to multiple events
   bio: string | null;
   display_on_homepage: boolean;
   is_active: boolean;

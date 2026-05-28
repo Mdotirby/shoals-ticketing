@@ -177,7 +177,7 @@ export default function HomePage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={sponsor.logo_url}
-                      alt={sponsor.name}
+                      alt={sponsor.sponsor_name}
                       style={{
                         height: sponsor.tier === "title" ? 52 : sponsor.tier === "presenting" ? 40 : 30,
                         maxWidth: 160,
@@ -187,7 +187,7 @@ export default function HomePage() {
                     />
                   ) : (
                     <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.7)", letterSpacing: "0.05em" }}>
-                      {sponsor.name}
+                      {sponsor.sponsor_name}
                     </span>
                   )}
                 </motion.a>

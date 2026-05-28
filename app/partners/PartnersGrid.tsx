@@ -64,12 +64,12 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={sponsor.logo_url}
-            alt={sponsor.name}
+            alt={sponsor.sponsor_name}
             style={{ height: logoH, maxWidth: 220, objectFit: "contain", filter: "grayscale(0.3) brightness(1.1)", transition: "filter 0.2s" }}
           />
         ) : (
           <span style={{ fontSize, fontWeight: 800, color: "rgba(208,194,144,0.85)", textAlign: "center", letterSpacing: "0.04em" }}>
-            {sponsor.name}
+            {sponsor.sponsor_name}
           </span>
         )}
 

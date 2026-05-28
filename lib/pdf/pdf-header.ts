@@ -312,6 +312,7 @@ export type PdfHeaderOptions = {
   venueSlug?: string;      // to load venue-specific logo
   logoUrl?: string | null;  // direct logo URL from venue record
   compact?: boolean;       // compact header for single-page layouts (offers)
+  centerLogo?: boolean;    // center the logo + venue name (letterhead style, for invoices)
   showTitle?: boolean;     // show title below header bar (default: true)
   showBuyerInfo?: boolean; // only true for offers/performance agreements
   offerValidDays?: number; // show "Offer valid for X days" in compact header
@@ -459,9 +460,62 @@ async function addCompactPdfHeader(doc: Doc, options: PdfHeaderOptions): Promise
     venueAddress,
     venueSlug,
     logoUrl,
+    centerLogo = false,
     showBuyerInfo = false,
     buyerInfo,
   } = options;
+
+  // ── Letterhead layout: logo centered + venue name below ──────────────
+  if (centerLogo) {
+    const dark = getPdfOperator() === "west72" ? DARK_W72 : DARK;
+    const logo = await loadVenueLogo(venueSlug, logoUrl);
+
+    // Measure how many text lines we need below the logo
+    const textLines = [venueName, venueAddress].filter(Boolean).length;
+    const logoAreaH = 22; // mm tall for logo
+    const textAreaH = textLines * 4 + 4;
+    const headerHeight = logoAreaH + textAreaH + 6;
+
+    doc.setFillColor(...dark);
+    doc.rect(0, 0, PAGE_WIDTH, headerHeight, "F");
+    doc.setDrawColor(...GOLD);
+    doc.setLineWidth(1);
+    doc.line(0, headerHeight, PAGE_WIDTH, headerHeight);
+
+    let contentY = 5;
+
+    if (logo) {
+      const maxLogoH = 18;
+      const maxLogoW = 70;
+      const pxPerMm = logo.height / maxLogoH;
+      let logoW = logo.width / pxPerMm;
+      let logoH = maxLogoH;
+      if (logoW > maxLogoW) {
+        logoH = logoH * (maxLogoW / logoW);
+        logoW = maxLogoW;
+      }
+      const logoX = (PAGE_WIDTH - logoW) / 2;
+      doc.addImage(logo.dataUrl, "PNG", logoX, contentY, logoW, logoH);
+      contentY += logoH + 3;
+    }
+
+    // Venue name centered below logo
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...GOLD);
+    doc.text(venueName, PAGE_WIDTH / 2, contentY, { align: "center" });
+    contentY += 4.5;
+
+    if (venueAddress) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(...WHITE);
+      doc.text(venueAddress, PAGE_WIDTH / 2, contentY, { align: "center" });
+      contentY += 4;
+    }
+
+    return headerHeight + 2;
+  }
 
   const dark = getPdfOperator() === "west72" ? DARK_W72 : DARK;
 
