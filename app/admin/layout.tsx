@@ -87,6 +87,7 @@ const sidebarGroups: SidebarGroup[] = [
     roles: ["owner","venue_admin"],
     items: [
       { label: "Branding",      href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
+      { label: "FAQ Content",   href: "/admin/faqs",                 roles: ["owner","venue_admin"] },
       { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
       { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
       { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
