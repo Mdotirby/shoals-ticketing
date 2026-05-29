@@ -25,7 +25,6 @@ function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
       variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45 } } }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
-      whileHover={{ scale: 1.06 }}
       style={{ display: "inline-flex", alignItems: "center" }}
     >
       {showImg ? (
@@ -34,25 +33,14 @@ function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
           src={sponsor.logo_url!}
           alt={sponsor.sponsor_name}
           onError={() => setImgFailed(true)}
-          // Rest: white silhouette (brightness(0) kills color, invert(1) flips to white)
-          // Hover: full original color
-          animate={{
-            filter: hovered
-              ? "brightness(1) invert(0)"
-              : "brightness(0) invert(1)",
-            opacity: hovered ? 1 : 0.55,
-          }}
-          transition={{ duration: 0.3 }}
+          animate={{ scale: hovered ? 1.06 : 1 }}
+          transition={{ duration: 0.25 }}
           style={{ height: tierH, maxWidth: 160, objectFit: "contain" }}
         />
       ) : (
-        <motion.span
-          animate={{ opacity: hovered ? 1 : 0.65 }}
-          transition={{ duration: 0.3 }}
-          style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.9)", letterSpacing: "0.05em" }}
-        >
+        <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.9)", letterSpacing: "0.05em" }}>
           {sponsor.sponsor_name}
-        </motion.span>
+        </span>
       )}
     </motion.a>
   );
