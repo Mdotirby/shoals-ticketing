@@ -12,16 +12,29 @@ export const metadata = {
 export default async function PartnersPage() {
   const admin = createAdminClient();
 
-  const { data } = await admin
-    .from("sponsors")
-    .select("*, sponsor_events(event_id)")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (admin.from("sponsors") as any)
+    .select("*")
     .eq("is_active", true)
     .order("tier", { ascending: true })
     .order("sponsor_name", { ascending: true });
 
-  const sponsors: Sponsor[] = (data ?? []).map(({ sponsor_events, ...s }) => ({
+  const { data: seData } = await admin
+    .from("sponsor_events")
+    .select("sponsor_id, event_id");
+
+  const eventMap = new Map<string, string[]>();
+  for (const row of seData ?? []) {
+    const arr = eventMap.get(row.sponsor_id) ?? [];
+    arr.push(row.event_id);
+    eventMap.set(row.sponsor_id, arr);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sponsors: Sponsor[] = (data ?? []).map((s: any) => ({
     ...s,
-    event_ids: (sponsor_events as { event_id: string }[] ?? []).map((se) => se.event_id),
+    sponsor_name: s.sponsor_name || s.name || "",
+    event_ids: eventMap.get(s.id) ?? [],
   }));
 
   const title    = sponsors.filter(s => s.tier === "title");

@@ -2,8 +2,8 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 // GET: list sponsors
-// ?event_id=   → sponsors assigned to a specific event (via junction table)
-// ?homepage=1  → sponsors with display_on_homepage=true (any event assignment allowed)
+// ?event_id=   → sponsors assigned to a specific event
+// ?homepage=1  → sponsors with display_on_homepage=true
 // ?global=1    → sponsors with no event assignments
 export async function GET(request: Request) {
   const admin = createAdminClient();
@@ -12,58 +12,55 @@ export async function GET(request: Request) {
   const homepage = searchParams.get("homepage");
   const global   = searchParams.get("global");
 
-  // Detect whether the migration has run by checking for sponsor_name column.
-  // Fall back to the legacy `name` column if not yet migrated.
-  const { error: colCheck } = await admin
+  // Plain select — no join, avoids Supabase TypeScript parse errors on
+  // relationship strings when generated types may not yet reflect the migration.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = admin
     .from("sponsors")
-    .select("sponsor_name")
-    .limit(0);
-
-  const migrated = !colCheck; // no error = sponsor_name column exists
-  const nameCol  = migrated ? "sponsor_name" : "name";
-
-  // Build base query — omit sponsor_events join if migration hasn't run yet
-  let query = admin
-    .from("sponsors")
-    .select(migrated ? "*, sponsor_events(event_id)" : "*")
+    .select("*")
     .eq("is_active", true)
-    .order("tier", { ascending: true })
-    .order(nameCol, { ascending: true });
+    .order("tier", { ascending: true });
 
   if (homepage) {
     query = query.eq("display_on_homepage", true);
-  } else if (eventId && migrated) {
-    const { data: seRows } = await admin
-      .from("sponsor_events")
-      .select("sponsor_id")
-      .eq("event_id", eventId);
-    const ids = seRows?.map(r => r.sponsor_id) ?? [];
-    if (ids.length === 0) return NextResponse.json([], { status: 200 });
-    query = query.in("id", ids);
-  } else if (global && migrated) {
-    const { data: assignedRows } = await admin
-      .from("sponsor_events")
-      .select("sponsor_id");
-    const assignedIds = [...new Set(assignedRows?.map(r => r.sponsor_id) ?? [])];
-    if (assignedIds.length > 0) {
-      query = query.not("id", "in", `(${assignedIds.join(",")})`);
-    }
   }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Normalise: always expose sponsor_name + event_ids regardless of migration state
-  const sponsors = (data ?? []).map((row: Record<string, unknown>) => {
-    const seRows = (row.sponsor_events ?? []) as { event_id: string }[];
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { sponsor_events, name, ...rest } = row as Record<string, unknown> & { name?: string; sponsor_events?: unknown };
-    return {
-      ...rest,
-      sponsor_name: (rest.sponsor_name as string) || name || "",
-      event_ids: seRows.map(se => se.event_id),
-    };
-  });
+  // Fetch event assignments separately — gracefully returns [] if migration not run yet
+  const { data: seData } = await admin
+    .from("sponsor_events")
+    .select("sponsor_id, event_id");
+
+  const eventMap = new Map<string, string[]>();
+  for (const row of seData ?? []) {
+    const arr = eventMap.get(row.sponsor_id) ?? [];
+    arr.push(row.event_id);
+    eventMap.set(row.sponsor_id, arr);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let rows: any[] = data ?? [];
+
+  if (eventId) {
+    rows = rows.filter((s: any) => (eventMap.get(s.id) ?? []).includes(eventId));
+    if (rows.length === 0) return NextResponse.json([], { status: 200 });
+  } else if (global) {
+    rows = rows.filter((s: any) => !eventMap.has(s.id));
+  }
+
+  // Normalise: sponsor_name falls back to legacy `name` for pre-migration rows
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sponsors = rows.map((s: any) => ({
+    ...s,
+    sponsor_name: s.sponsor_name || s.name || "",
+    event_ids: eventMap.get(s.id) ?? [],
+  }));
+
+  sponsors.sort((a: any, b: any) =>
+    (a.sponsor_name as string).localeCompare(b.sponsor_name as string)
+  );
 
   return NextResponse.json(sponsors, { status: 200 });
 }
@@ -73,8 +70,8 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const body = await request.json();
 
-  const { data, error } = await admin
-    .from("sponsors")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (admin.from("sponsors") as any)
     .insert({
       sponsor_name:        body.sponsor_name,
       client_name:         body.client_name      || null,
@@ -96,7 +93,7 @@ export async function POST(request: Request) {
   const eventIds: string[] = body.event_ids ?? [];
   if (eventIds.length > 0 && data) {
     await admin.from("sponsor_events").insert(
-      eventIds.map(eid => ({ sponsor_id: data.id, event_id: eid }))
+      eventIds.map((eid: string) => ({ sponsor_id: data.id, event_id: eid }))
     );
   }
 
