@@ -66,6 +66,11 @@ export default function EventSalesDetailPage() {
   const [event, setEvent] = useState<EventInfo | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [viewStats, setViewStats] = useState<ViewStats | null>(null);
+  const [revSummary, setRevSummary] = useState<{
+    grossRevenue: number; ticketRevenue: number; serviceFeesGross: number;
+    taxCollected: number; processingFees: number; netToVenue: number;
+    refundTotal: number; saleCount: number; refundCount: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -205,6 +210,17 @@ export default function EventSalesDetailPage() {
         ]);
         if (eventData && !eventData.error) setEvent(eventData);
         if (Array.isArray(ordersData)) setOrders(ordersData);
+
+        // Fetch revenue summary from settlement ledger
+        try {
+          const revRes = await fetch(`/api/events/${id}/revenue-summary`);
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            if (!revData.error) setRevSummary(revData);
+          }
+        } catch {
+          // non-critical
+        }
 
         // Fetch view stats separately — may fail for events with no views
         try {
@@ -545,6 +561,75 @@ export default function EventSalesDetailPage() {
           </span>
         </div>
       </div>
+
+      {/* ── Revenue Breakdown ── */}
+      {revSummary && (
+        <div className="portal-card" style={{ marginTop: 20 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
+            <h2 className="portal-card-title" style={{ margin: 0 }}>Revenue Breakdown</h2>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
+              from settlement ledger · {revSummary.saleCount} sale{revSummary.saleCount !== 1 ? "s" : ""}
+              {revSummary.refundCount > 0 && `, ${revSummary.refundCount} refund${revSummary.refundCount !== 1 ? "s" : ""}`}
+            </span>
+          </div>
+
+          {/* Top row — the big four */}
+          <div className="dash-kpi-grid" style={{ marginBottom: 12 }}>
+            <div className="dash-kpi-card">
+              <span className="dash-kpi-label">Ticket Revenue</span>
+              <span className="dash-kpi-value">${revSummary.ticketRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>face value only</span>
+            </div>
+            <div className="dash-kpi-card">
+              <span className="dash-kpi-label">Service Fees</span>
+              <span className="dash-kpi-value">${revSummary.serviceFeesGross.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>ticketing fees collected</span>
+            </div>
+            <div className="dash-kpi-card">
+              <span className="dash-kpi-label">Taxes Collected</span>
+              <span className="dash-kpi-value">${revSummary.taxCollected.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>sales tax</span>
+            </div>
+            <div className="dash-kpi-card">
+              <span className="dash-kpi-label">Processing Fees</span>
+              <span className="dash-kpi-value" style={{ color: "#f87171" }}>
+                −${revSummary.processingFees.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>Stripe 2.7% + $0.30</span>
+            </div>
+          </div>
+
+          {/* Summary row */}
+          <div style={{
+            display: "grid", gridTemplateColumns: "1fr 1fr",
+            gap: 12, padding: "14px 16px",
+            background: "rgba(208,194,144,0.05)",
+            border: "1px solid rgba(208,194,144,0.12)",
+            borderRadius: 10,
+          }}>
+            <div>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Gross Receipts</span>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#d0c290", marginTop: 4 }}>
+                ${revSummary.grossRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              {revSummary.refundTotal > 0 && (
+                <div style={{ fontSize: 11, color: "#f87171", marginTop: 2 }}>
+                  −${revSummary.refundTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })} refunded
+                </div>
+              )}
+            </div>
+            <div>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Net to Venue</span>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#22c55e", marginTop: 4 }}>
+                ${revSummary.netToVenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                after fees &amp; processing
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Marketing Data ── */}
       {viewStats && typeof viewStats === "object" && typeof viewStats.total_views === "number" && (
