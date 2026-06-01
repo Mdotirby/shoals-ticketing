@@ -2,11 +2,11 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 /**
- * GET /api/admin/orders/[orderId]/lookup-seats?section=Section+1&from=7&to=14
+ * GET /api/admin/orders/[orderId]/lookup-seats
+ *   → returns all sections for the event's layout
  *
- * Returns the seat IDs and current status for seats in the given section
- * and seat-number range, scoped to the event attached to this order.
- * Used to preview seats before manually assigning them to the order.
+ * GET /api/admin/orders/[orderId]/lookup-seats?section_id=xxx
+ *   → returns all seats in that section with their current status
  */
 export async function GET(
   req: Request,
@@ -14,20 +14,10 @@ export async function GET(
 ) {
   const { orderId } = await params;
   const { searchParams } = new URL(req.url);
-  const sectionName = searchParams.get("section")?.trim();
-  const from = parseInt(searchParams.get("from") || "0", 10);
-  const to = parseInt(searchParams.get("to") || "0", 10);
-
-  if (!sectionName || !from || !to || from > to) {
-    return NextResponse.json(
-      { error: "section, from, and to are required (from ≤ to)" },
-      { status: 400 }
-    );
-  }
+  const sectionId = searchParams.get("section_id");
 
   const admin = createAdminClient();
 
-  // Get event_id from the order
   const { data: order } = await admin
     .from("orders")
     .select("event_id")
@@ -38,7 +28,6 @@ export async function GET(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Resolve layout for this event
   const { data: mapRow } = await admin
     .from("event_layout_maps")
     .select("layout_id")
@@ -50,38 +39,39 @@ export async function GET(
     return NextResponse.json({ error: "No seating layout for this event" }, { status: 404 });
   }
 
-  // Find the section by name
+  // ── Mode 1: no section_id → return all sections ───────────────────────────
+  if (!sectionId) {
+    const { data: sections } = await admin
+      .from("sections")
+      .select("id, name, price_cents, type, sells_as_table")
+      .eq("layout_id", mapRow.layout_id)
+      .neq("type", "stage")
+      .order("name");
+
+    return NextResponse.json({ sections: sections || [] });
+  }
+
+  // ── Mode 2: section_id → return all seats in that section ─────────────────
   const { data: section } = await admin
     .from("sections")
-    .select("id, name, price_cents")
+    .select("id, name, price_cents, sells_as_table, type")
+    .eq("id", sectionId)
     .eq("layout_id", mapRow.layout_id)
-    .ilike("name", sectionName)
     .single();
 
   if (!section) {
-    // Return all section names so the admin can see what's available
-    const { data: allSections } = await admin
-      .from("sections")
-      .select("name")
-      .eq("layout_id", mapRow.layout_id)
-      .order("name");
-    return NextResponse.json({
-      error: `Section "${sectionName}" not found.`,
-      availableSections: (allSections || []).map((s: { name: string }) => s.name),
-    }, { status: 404 });
+    return NextResponse.json({ error: "Section not found in this event's layout" }, { status: 404 });
   }
 
-  // Find seats in the number range
   const { data: seats } = await admin
     .from("seats")
-    .select("id, seat_number, row_label, status, order_id")
-    .eq("section_id", section.id)
-    .gte("seat_number", from)
-    .lte("seat_number", to)
+    .select("id, seat_number, row_label, object_id, status, order_id")
+    .eq("section_id", sectionId)
+    .order("row_label")
     .order("seat_number");
 
   return NextResponse.json({
-    section: { id: section.id, name: section.name, price_cents: section.price_cents },
+    section: { id: section.id, name: section.name, price_cents: section.price_cents, sells_as_table: section.sells_as_table, type: section.type },
     seats: seats || [],
   });
 }
