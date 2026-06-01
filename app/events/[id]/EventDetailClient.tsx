@@ -86,6 +86,7 @@ export default function EventDetailClient() {
   const [presaleLoading, setPresaleLoading] = useState(false);
   const [presaleShake, setPresaleShake] = useState(false);
   const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
+  const [otherEvents, setOtherEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean }[]>([]);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
   const [seatingRoomW, setSeatingRoomW] = useState(100);
@@ -285,6 +286,24 @@ export default function EventDetailClient() {
   }, [eventId]);
 
   // Fetch event + venue fees + ticket types
+  // Fetch other on-sale events for the "You May Also Like" section
+  useEffect(() => {
+    fetch(`/api/events?limit=8`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: { id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null }[]) => {
+        if (!Array.isArray(data)) return;
+        const now = new Date();
+        const others = data.filter((e) =>
+          e.id !== eventId &&
+          !e.closed_out_at &&
+          new Date(e.date) > now &&
+          (!e.on_sale_at || new Date(e.on_sale_at) <= now)
+        ).slice(0, 6);
+        setOtherEvents(others);
+      })
+      .catch(() => {});
+  }, [eventId]);
+
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
       .then(async (res) => {
@@ -1166,6 +1185,105 @@ export default function EventDetailClient() {
                 </div>
               );
             })}
+          </section>
+        )}
+
+        {/* ── You May Also Like ────────────────────────────────────────────── */}
+        {otherEvents.length > 0 && (
+          <section style={{ marginBottom: 40 }}>
+            <h2 style={{
+              fontSize: "clamp(16px, 3vw, 20px)", fontWeight: 800,
+              margin: "0 0 16px", color: "#fff", letterSpacing: "-0.3px",
+            }}>
+              You May Also Like
+            </h2>
+
+            {/* Carousel — horizontal scroll on mobile, grid on wide screens */}
+            <div style={{
+              display: "flex",
+              gap: 14,
+              overflowX: "auto",
+              scrollSnapType: "x mandatory",
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: 8,
+              /* hide scrollbar */
+              msOverflowStyle: "none",
+              scrollbarWidth: "none",
+            }}>
+              {otherEvents.map((ev) => {
+                const isFree = ev.is_free || ev.price === 0;
+                const dateObj = ev.date && ev.date.length === 10
+                  ? new Date(ev.date + "T12:00:00")
+                  : new Date(ev.date);
+                const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+                return (
+                  <a
+                    key={ev.id}
+                    href={`/events/${ev.id}`}
+                    style={{
+                      flex: "0 0 min(260px, 75vw)",
+                      scrollSnapAlign: "start",
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      background: "var(--vc-bg-mid, #131629)",
+                      textDecoration: "none",
+                      color: "#fff",
+                      display: "flex",
+                      flexDirection: "column",
+                      transition: "border-color 0.15s",
+                    }}
+                  >
+                    {/* Image */}
+                    <div style={{
+                      height: 140, background: "rgba(255,255,255,0.04)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      overflow: "hidden", flexShrink: 0,
+                    }}>
+                      {ev.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ev.image_url} alt={ev.title}
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.2 }}>
+                          <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          <circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/>
+                          <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/>
+                        </svg>
+                      )}
+                    </div>
+
+                    {/* Body */}
+                    <div style={{ padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, lineHeight: 1.3, color: "#fff" }}>
+                        {ev.title}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+                        {dateStr}
+                      </p>
+                      <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                        {ev.venue}
+                      </p>
+                      <span style={{
+                        marginTop: "auto", paddingTop: 10,
+                        display: "inline-block",
+                        padding: "7px 14px",
+                        borderRadius: 7,
+                        background: "var(--vc-gold, #d0c290)",
+                        color: "#0b0d1d",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textAlign: "center",
+                        alignSelf: "flex-start",
+                      }}>
+                        {isFree ? "Register Free" : `From $${ev.price?.toFixed(2) ?? "0.00"}`}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
           </section>
         )}
 
