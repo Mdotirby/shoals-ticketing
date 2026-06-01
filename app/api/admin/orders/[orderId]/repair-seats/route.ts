@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
-import { getStripe } from "@/lib/stripe";
+import { getSeatIdsFromStripe } from "@/lib/stripe-seat-repair";
 import { NextResponse } from "next/server";
 
 /**
@@ -36,21 +36,14 @@ export async function POST(
     );
   }
 
-  // Retrieve the Stripe session to get seat_ids from metadata
-  const stripe = getStripe();
+  // Retrieve seat_ids from Stripe — works for both Checkout Sessions (cs_…)
+  // and PaymentIntents (pi_…, used by inline checkout)
   let seatIds: string[] = [];
   try {
-    const session = await stripe.checkout.sessions.retrieve(
-      order.stripe_checkout_session_id
-    );
-    const raw = session.metadata?.seat_ids;
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) seatIds = parsed.filter((id) => typeof id === "string");
-    }
+    seatIds = await getSeatIdsFromStripe(order.stripe_checkout_session_id);
   } catch (e) {
     return NextResponse.json(
-      { error: `Failed to retrieve Stripe session: ${e instanceof Error ? e.message : String(e)}` },
+      { error: `Failed to retrieve Stripe record: ${e instanceof Error ? e.message : String(e)}` },
       { status: 500 }
     );
   }

@@ -215,10 +215,9 @@ export default function OrderDetailPage() {
       const res = await fetch(`/api/admin/orders/${orderId}/resend-email`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Resend failed");
-      const emailWord = data.emailsSent > 1 ? `${data.emailsSent} emails` : "1 email";
       setResendMsg({
         type: "success",
-        text: `${emailWord} sent to ${data.sentTo} — ${data.ticketCount} ticket${data.ticketCount !== 1 ? "s" : ""}, each with assigned seat.`,
+        text: `Ticket email sent to ${data.sentTo} (${data.ticketCount} ticket${data.ticketCount !== 1 ? "s" : ""})`,
       });
     } catch (e) {
       setResendMsg({ type: "error", text: e instanceof Error ? e.message : "Failed to send email" });

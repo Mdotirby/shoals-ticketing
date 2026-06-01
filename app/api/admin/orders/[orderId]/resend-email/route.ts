@@ -99,47 +99,34 @@ export async function POST(
       );
   }
 
-  // 1:1 match when ticket count equals seat count — one seat per ticket email.
-  // Otherwise (e.g. 1 ticket for a whole table) include all seats on every email.
-  const oneToOne = allSeatAssignments.length === tickets.length && tickets.length > 0;
+  // Send one email with the first ticket's QR code, all seat assignments listed,
+  // and a link to the ticket page carousel where customers can swipe all QR codes.
+  const firstTicket = tickets[0];
+  const result = await sendTicketEmail({
+    to: order.customer_email,
+    customerName: order.customer_name,
+    eventTitle: order.events.title,
+    eventDate: order.events.date,
+    eventVenue: order.events.venue,
+    ticketCount: tickets.length,
+    totalAmount: order.total_amount,
+    qrDataUrl: firstTicket.qr_data_url,
+    ticketId: firstTicket.qr_code,
+    venueSlug,
+    seatAssignments: allSeatAssignments.length > 0 ? allSeatAssignments : undefined,
+  });
 
-  // Send one email per ticket
-  let sentCount = 0;
-  for (let i = 0; i < tickets.length; i++) {
-    const ticket = tickets[i];
-    const seatAssignments = allSeatAssignments.length === 0
-      ? undefined
-      : oneToOne
-        ? [allSeatAssignments[i]]
-        : allSeatAssignments;
-
-    const result = await sendTicketEmail({
-      to: order.customer_email,
-      customerName: order.customer_name,
-      eventTitle: order.events.title,
-      eventDate: order.events.date,
-      eventVenue: order.events.venue,
-      ticketCount: tickets.length,
-      totalAmount: order.total_amount,
-      qrDataUrl: ticket.qr_data_url,
-      ticketId: ticket.qr_code,
-      venueSlug,
-      seatAssignments,
-    });
-
-    if (!result.success) {
-      return NextResponse.json(
-        { error: `Failed to send email for ticket ${i + 1}: ${result.error}` },
-        { status: 500 }
-      );
-    }
-    sentCount++;
+  if (!result.success) {
+    return NextResponse.json(
+      { error: result.error ?? "Failed to send email" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({
     success: true,
     sentTo: order.customer_email,
     ticketCount: tickets.length,
-    emailsSent: sentCount,
+    emailsSent: 1,
   });
 }
