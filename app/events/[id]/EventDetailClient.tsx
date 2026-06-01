@@ -674,6 +674,22 @@ export default function EventDetailClient() {
                   {/* Inline seat map for assigned seating */}
                   {reservedSeatingEnabled && seatingSections.length > 0 && (
                     <div style={{ marginTop: 16 }}>
+                      {/* Sold-out banners for fully-sold table sections */}
+                      {seatingSections
+                        .filter((sec) => sec.sells_as_table && sec.seats.length > 0 && sec.seats.every((s) => s.status === "sold"))
+                        .map((sec) => (
+                          <div key={sec.id} style={{
+                            marginBottom: 8, padding: "9px 14px", borderRadius: 8,
+                            background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
+                            display: "flex", alignItems: "center", gap: 8,
+                          }}>
+                            <span style={{ fontSize: 14 }}>🚫</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>
+                              {sec.name} are SOLD OUT
+                            </span>
+                          </div>
+                        ))
+                      }
                       <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 8 }}>
                         Tap seats on the map to select them
                       </p>

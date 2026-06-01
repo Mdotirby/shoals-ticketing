@@ -247,6 +247,23 @@ export default function EventSeatingPage() {
           <h1 style={{ fontSize: "clamp(18px, 4vw, 26px)", fontWeight: 800, margin: "0 0 16px" }}>{event.title} — Select Your Seats</h1>
         )}
 
+        {/* Sold-out banners — one per fully-sold table section */}
+        {sections
+          .filter((sec) => sec.sells_as_table && sec.seats.length > 0 && sec.seats.every((s) => s.status === "sold"))
+          .map((sec) => (
+            <div key={sec.id} style={{
+              marginBottom: 10, padding: "10px 16px", borderRadius: 8,
+              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <span style={{ fontSize: 16 }}>🚫</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "#f87171" }}>
+                {sec.name} are SOLD OUT
+              </span>
+            </div>
+          ))
+        }
+
         {/* Seat Map */}
         <div className="seating-map-container">
           <SeatMap
