@@ -595,19 +595,18 @@ export default function EventSalesDetailPage() {
                 )}
               </span>
             </div>
-            {orders.length > revSummary.saleCount && (
-              <button
-                onClick={handleBackfill}
-                disabled={backfilling}
-                style={{
-                  padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                  background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)",
-                  color: "#fbbf24", cursor: backfilling ? "wait" : "pointer",
-                }}
-              >
-                {backfilling ? "Backfilling…" : "Backfill Missing Orders"}
-              </button>
-            )}
+            <button
+              onClick={handleBackfill}
+              disabled={backfilling}
+              title="Recalculates all ledger entries with correct face value pricing"
+              style={{
+                padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)",
+                color: "#fbbf24", cursor: backfilling ? "wait" : "pointer",
+              }}
+            >
+              {backfilling ? "Recalculating…" : "Recalculate"}
+            </button>
           </div>
 
           {/* Top row — the big four */}

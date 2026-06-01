@@ -47,29 +47,27 @@ export async function POST(
     return NextResponse.json({ backfilled: 0, message: "No paid orders found" });
   }
 
-  // Find orders that already have a ledger entry
-  const { data: existingLedger } = await admin
+  // Delete ALL existing sale entries for this event and recreate from scratch.
+  // This ensures wrong ticket_revenue values (from earlier code) get corrected.
+  await admin
     .from("settlement_ledger")
-    .select("order_id")
+    .delete()
     .eq("event_id", eventId)
     .eq("type", "sale");
 
-  const coveredOrderIds = new Set((existingLedger || []).map((r: { order_id: string }) => r.order_id));
-  const missing = orders.filter((o: { id: string }) => !coveredOrderIds.has(o.id));
+  // Build ledger rows: ticket_revenue = face value (before fees/tax/stripe)
+  const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
 
-  if (missing.length === 0) {
-    return NextResponse.json({ backfilled: 0, message: "All orders already have ledger entries" });
-  }
-
-  // Build ledger rows using the same math as the Stripe webhook
-  const rows = missing.map((order: { id: string; total_amount: number; quantity: number; stripe_checkout_session_id: string | null }) => {
+  const rows = orders.map((order: { id: string; total_amount: number; quantity: number; stripe_checkout_session_id: string | null }) => {
     const totalAmount = Number(order.total_amount) || 0;
     const quantity = Number(order.quantity) || 1;
-    const ticketRevenue = totalAmount;
     const totalTicketingFee = Math.round(fees.ticketingFee * quantity * 100) / 100;
-    const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
-    const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
     const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
+    // Solve: gross = face*(1+taxRate) + ticketingFee + stripeFee  →  face = (gross - fees) / (1+taxRate)
+    const ticketRevenue = effectiveTaxRate > 0
+      ? Math.round(((totalAmount - totalTicketingFee - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round((totalAmount - totalTicketingFee - stripeFee) * 100) / 100;
+    const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
     const venueRebate = Math.round(fees.venueRebate * quantity * 100) / 100;
 
     return {
@@ -83,7 +81,7 @@ export async function POST(
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
       stripe_fee: stripeFee,
-      net_to_venue: ticketRevenue - totalTicketingFee - stripeFee + venueRebate,
+      net_to_venue: totalAmount - totalTicketingFee - stripeFee + venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     };
@@ -99,6 +97,6 @@ export async function POST(
 
   return NextResponse.json({
     backfilled: rows.length,
-    message: `Created ${rows.length} ledger entr${rows.length === 1 ? "y" : "ies"} from ${missing.length} order${missing.length === 1 ? "" : "s"}`,
+    message: `Recalculated ${rows.length} ledger entr${rows.length === 1 ? "y" : "ies"} with correct face value`,
   });
 }

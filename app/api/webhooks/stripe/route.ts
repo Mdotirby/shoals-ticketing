@@ -58,6 +58,7 @@ async function processTicketOrder({
   ticketingFee,
   venueRebate,
   taxRate,
+  taxMethod,
   tierId,
 }: {
   admin: ReturnType<typeof createAdminClient>;
@@ -81,6 +82,7 @@ async function processTicketOrder({
   ticketingFee: number;
   venueRebate: number;
   taxRate: number;
+  taxMethod: string;
   tierId: string | null;
 }): Promise<void> {
   // Idempotency: skip if order already exists for this stripe reference
@@ -220,10 +222,15 @@ async function processTicketOrder({
     }
 
     // 4. Write settlement ledger entry
-    const ticketRevenue = totalAmount;
-    const totalTicketingFee = ticketingFee * quantity;
-    const taxCollected = Math.round(ticketRevenue * taxRate * 100) / 100;
+    // ticket_revenue = face value only (ticket price × qty, before fees/tax/stripe)
+    const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
     const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
+    const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
+    // Solve for face value: gross = face*(1+taxRate) + ticketingFee + stripeFee
+    const ticketRevenue = effectiveTaxRate > 0
+      ? Math.round(((totalAmount - totalTicketingFee - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round((totalAmount - totalTicketingFee - stripeFee) * 100) / 100;
+    const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
 
     await admin.from("settlement_ledger").insert({
       order_id: order.id,
@@ -237,7 +244,7 @@ async function processTicketOrder({
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
       stripe_fee: stripeFee,
-      net_to_venue: ticketRevenue - totalTicketingFee - stripeFee + venueRebate,
+      net_to_venue: totalAmount - totalTicketingFee - stripeFee + venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     });
@@ -602,6 +609,7 @@ export async function POST(request: Request) {
       ticketingFee: parseFloat(session.metadata?.ticketing_fee || "3"),
       venueRebate: parseFloat(session.metadata?.venue_rebate || "0"),
       taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
+      taxMethod: session.metadata?.tax_method || "additive",
       tierId: null,
     });
   }
@@ -637,6 +645,7 @@ export async function POST(request: Request) {
         seatIdsRaw: meta.seat_ids || null,
         seatHoldSession: meta.seat_hold_session || null,
         fwbOptIn: meta.fwb_opt_in === "true",
+        taxMethod: meta.tax_method || "additive",
         trackingRef: meta.tracking_ref || null,
         stripeReferenceId: paymentIntent.id,
         stripePaymentIntentId: paymentIntent.id,
