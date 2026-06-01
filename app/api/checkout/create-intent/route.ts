@@ -154,9 +154,15 @@ export async function POST(request: Request) {
       reservedSeatIds = sr.reservedSeatIds;
       seatLabels = sr.seatLabels;
       seatSectionNames = sr.seatSectionNames;
-      effectiveQuantity = reservedSeatIds.length;
-      // For assigned seating, use average per-seat price for fee calculation
-      ticketPriceCents = Math.round(sr.seatTotalCents / effectiveQuantity);
+      // Use billing unit count: 1 per table (sells_as_table) or 1 per individual seat
+      effectiveQuantity = sr.billingUnitCount;
+      ticketPriceCents = effectiveQuantity > 0 ? Math.round(sr.seatTotalCents / effectiveQuantity) : 0;
+
+      // Safety guard: billing unit count must never exceed seat count
+      if (effectiveQuantity > reservedSeatIds.length) {
+        console.error(`PRICING GUARD: effectiveQuantity ${effectiveQuantity} > seat count ${reservedSeatIds.length}`);
+        return NextResponse.json({ error: "Pricing calculation error. Please try again." }, { status: 500 });
+      }
     }
 
     // ── Calculate all fees ────────────────────────────────────────────────

@@ -174,8 +174,10 @@ export interface SeatValidationResult {
   reservedSeatIds: string[];
   seatLabels: string[];
   seatSectionNames: string[];
-  /** Total price for all seats in cents (from section pricing) */
+  /** Total price in cents — one billing unit per table (sells_as_table) or per seat */
   seatTotalCents: number;
+  /** Number of billing units — 1 per table object or 1 per individual seat */
+  billingUnitCount: number;
 }
 
 /**
@@ -210,37 +212,51 @@ export async function validateAndHoldSeats(
     held_session: sessionId || null,
   }).in("id", seatIds);
 
-  // Look up seat details + section prices
+  // Look up seat details + section prices (including sells_as_table and object_id)
   const { data: seatDetails } = await admin
     .from("seats")
-    .select("id, row_label, seat_number, section_id")
+    .select("id, row_label, seat_number, section_id, object_id")
     .in("id", seatIds);
 
   const sectionIds = [...new Set((seatDetails || []).map((s: { section_id: string }) => s.section_id))];
   const { data: sectionDetails } = sectionIds.length
-    ? await admin.from("sections").select("id, name, price_cents").in("id", sectionIds)
+    ? await admin.from("sections").select("id, name, price_cents, sells_as_table, type").in("id", sectionIds)
     : { data: [] };
 
-  const sectionMap = new Map<string, { name: string; price_cents: number }>();
+  const sectionMap = new Map<string, { name: string; price_cents: number; sells_as_table: boolean }>();
   for (const sec of sectionDetails || []) {
-    sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents });
+    const isTable = !!sec.sells_as_table || sec.type === "table";
+    sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents, sells_as_table: isTable });
   }
 
   const seatLabels: string[] = [];
   const seatSectionNames: string[] = [];
   let seatTotalCents = 0;
+  let billingUnitCount = 0;
+  const seenTableObjects = new Set<string>();
 
   for (const seat of seatDetails || []) {
     const sec = sectionMap.get(seat.section_id);
     const priceCents = sec?.price_cents || Math.round(eventPrice * 100);
-    seatTotalCents += priceCents;
     const label = `${sec?.name || "Section"} | ${seat.row_label} | Seat ${seat.seat_number}`;
     seatLabels.push(label);
     seatSectionNames.push(sec?.name || "Section");
+
+    if (sec?.sells_as_table && seat.object_id) {
+      // Price the whole table once — not each seat individually
+      if (!seenTableObjects.has(seat.object_id)) {
+        seenTableObjects.add(seat.object_id);
+        seatTotalCents += priceCents;
+        billingUnitCount++;
+      }
+    } else {
+      seatTotalCents += priceCents;
+      billingUnitCount++;
+    }
   }
 
   return {
-    result: { reservedSeatIds: seatIds, seatLabels, seatSectionNames, seatTotalCents },
+    result: { reservedSeatIds: seatIds, seatLabels, seatSectionNames, seatTotalCents, billingUnitCount },
   };
 }
 

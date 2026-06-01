@@ -151,12 +151,14 @@ export async function POST(request: Request) {
 
       const sectionIds = [...new Set((seatDetails || []).map((s: { section_id: string }) => s.section_id))];
       const { data: sectionDetails } = sectionIds.length
-        ? await admin.from("sections").select("id, name, price_cents, sells_as_table").in("id", sectionIds)
+        ? await admin.from("sections").select("id, name, price_cents, sells_as_table, type").in("id", sectionIds)
         : { data: [] };
 
       const sectionMap = new Map<string, { name: string; price_cents: number; sells_as_table: boolean }>();
       for (const sec of sectionDetails || []) {
-        sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents, sells_as_table: !!sec.sells_as_table });
+        // Treat as a table unit if sells_as_table is true OR if the section type is "table"
+        const isTable = !!sec.sells_as_table || sec.type === "table";
+        sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents, sells_as_table: isTable });
       }
 
       // For sells_as_table sections, price_cents is the price for the whole table — not per seat.
@@ -189,6 +191,13 @@ export async function POST(request: Request) {
       const seatTotalCents = billingUnits.reduce((s, u) => s + u.priceCents, 0);
       effectiveQuantity = billingUnits.length;
       ticketPriceCents = effectiveQuantity > 0 ? Math.round(seatTotalCents / effectiveQuantity) : 0;
+
+      // Safety guard: billing unit count must never exceed seat count.
+      // If somehow more units were created than seats passed in, something is wrong — abort.
+      if (effectiveQuantity > reservedSeatIds.length) {
+        console.error(`PRICING GUARD: effectiveQuantity ${effectiveQuantity} > seat count ${reservedSeatIds.length}`);
+        return NextResponse.json({ error: "Pricing calculation error. Please try again." }, { status: 500 });
+      }
     } else {
       ticketPriceCents = Math.round(event.price * 100);
     }
