@@ -502,7 +502,7 @@ export default function OrderDetailPage() {
 
         {/* Resend email button in header */}
         <div className="admin-page-header-actions">
-          {order.status === "refunded" && (
+          {(order.status === "refunded" || order.status === "paid") && (
             <>
               <button
                 onClick={openPaymentRequest}
@@ -519,7 +519,7 @@ export default function OrderDetailPage() {
               <button
                 onClick={handleReinstateComp}
                 disabled={reinstating}
-                title="Mark as comp — no charge. Use this if you're waiving the corrected amount."
+                title="Mark as comp — no charge. Use this if you're waiving the corrected amount entirely."
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,

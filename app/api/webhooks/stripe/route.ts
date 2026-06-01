@@ -631,8 +631,9 @@ export async function POST(request: Request) {
     try {
       const charge = event.data.object as Stripe.Charge;
       const refundAmount = (charge.amount_refunded || 0) / 100;
+      const isFullRefund = charge.amount_refunded >= charge.amount;
 
-      // Find original order via payment_intent
+      // Find original order via payment_intent (stored in stripe_checkout_session_id for PI-based orders)
       const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
       if (pi) {
         const { data: order } = await admin
@@ -642,6 +643,14 @@ export async function POST(request: Request) {
           .maybeSingle();
 
         if (order) {
+          // Update order status — full refund = refunded, partial = keep paid
+          if (isFullRefund) {
+            await admin
+              .from("orders")
+              .update({ status: "refunded" })
+              .eq("id", order.id);
+          }
+
           await admin.from("settlement_ledger").insert({
             order_id: order.id,
             event_id: order.event_id,
@@ -656,7 +665,7 @@ export async function POST(request: Request) {
             net_to_platform: 0,
             type: "refund",
           });
-          console.log(`Refund $${refundAmount} recorded for order ${order.id}`);
+          console.log(`Refund $${refundAmount} recorded for order ${order.id}${isFullRefund ? " — marked refunded" : ""}`);
         }
       }
     } catch (err) {
