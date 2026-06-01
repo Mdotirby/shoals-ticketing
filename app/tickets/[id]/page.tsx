@@ -167,6 +167,7 @@ export default function TicketViewPage() {
                     margin: "16px 0", padding: "12px 16px", borderRadius: 10,
                     background: "rgba(99,102,241,0.08)",
                     border: "1px solid rgba(99,102,241,0.2)",
+                    textAlign: "center",
                   }}>
                     <span style={{
                       display: "block", fontSize: 10, fontWeight: 700,
@@ -177,7 +178,7 @@ export default function TicketViewPage() {
                     </span>
                     {ticket.seatAssignments.map((s, i) => (
                       <div key={i} style={{
-                        display: "flex", alignItems: "center", gap: 6,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                         color: "rgba(255,255,255,0.8)", fontSize: 14,
                         marginBottom: 4,
                       }}>
