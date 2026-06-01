@@ -238,6 +238,7 @@ export async function POST(
 </body>
 </html>`;
 
+    // 1. Customer email — payment link
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
@@ -246,6 +247,91 @@ export async function POST(
         to: [order.customer_email],
         subject: `Action required: complete your payment for ${order.events.title}`,
         html,
+      }),
+    });
+
+    // 2. Admin receipt — itemized exactly as Stripe received it, plus session link
+    const stripeLineItemRows = [
+      ...lineItems.map((item) => {
+        const name = item.price_data.product_data.name;
+        const unitAmount = item.price_data.unit_amount;
+        const qty = item.quantity;
+        const lineTotal = unitAmount * qty;
+        return `<tr>
+          <td style="padding:6px 0;font-size:13px;color:#333;border-bottom:1px solid #eee;">${name}</td>
+          <td style="padding:6px 0;font-size:13px;color:#333;text-align:center;border-bottom:1px solid #eee;">${qty}</td>
+          <td style="padding:6px 0;font-size:13px;color:#333;text-align:right;border-bottom:1px solid #eee;">$${(unitAmount / 100).toFixed(2)}</td>
+          <td style="padding:6px 0;font-size:13px;font-weight:600;color:#111;text-align:right;border-bottom:1px solid #eee;">$${(lineTotal / 100).toFixed(2)}</td>
+        </tr>`;
+      }),
+      `<tr>
+        <td colspan="3" style="padding:10px 0 4px;font-size:14px;font-weight:700;color:#111;">Total charged to Stripe</td>
+        <td style="padding:10px 0 4px;font-size:14px;font-weight:700;color:#111;text-align:right;">$${displayTotal}</td>
+      </tr>`,
+    ].join("");
+
+    const adminHtml = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:32px;background:#f5f5f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;padding:28px 32px;border:1px solid #e0e0e0;">
+    <h2 style="margin:0 0 4px;font-size:18px;color:#111;">Payment Request Sent</h2>
+    <p style="margin:0 0 24px;font-size:13px;color:#666;">This is your admin receipt — itemized exactly as sent to Stripe.</p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;">
+      <tr style="background:#f9f9f9;">
+        <td style="padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Customer</td>
+        <td colspan="3" style="padding:8px 12px;font-size:13px;color:#111;">${order.customer_name} &lt;${order.customer_email}&gt;</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Event</td>
+        <td colspan="3" style="padding:8px 12px;font-size:13px;color:#111;">${order.events.title}</td>
+      </tr>
+      <tr style="background:#f9f9f9;">
+        <td style="padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Order ID</td>
+        <td colspan="3" style="padding:8px 12px;font-size:13px;font-family:monospace;color:#111;">${orderId.slice(0, 8).toUpperCase()}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;">Stripe Session</td>
+        <td colspan="3" style="padding:8px 12px;font-size:13px;font-family:monospace;color:#111;">
+          <a href="https://dashboard.stripe.com/payments/${session.id}" style="color:#5469d4;">${session.id}</a>
+        </td>
+      </tr>
+    </table>
+
+    <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#111;text-transform:uppercase;letter-spacing:1px;">Stripe Line Items (exact)</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <thead>
+        <tr style="background:#f5f5f5;">
+          <th style="padding:8px 0;font-size:11px;color:#888;text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Item</th>
+          <th style="padding:8px 0;font-size:11px;color:#888;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Qty</th>
+          <th style="padding:8px 0;font-size:11px;color:#888;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Unit</th>
+          <th style="padding:8px 0;font-size:11px;color:#888;text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${stripeLineItemRows}</tbody>
+    </table>
+
+    <div style="background:#f0f7ff;border:1px solid #c0d8f0;border-radius:6px;padding:14px 16px;margin-bottom:20px;">
+      <p style="margin:0;font-size:12px;color:#444;line-height:1.6;">
+        The customer has been sent a Stripe-hosted checkout link. When they complete payment,
+        the order will automatically update to <strong>Paid</strong> at $${displayTotal}.
+        No new tickets or seat assignments will be created — their existing tickets remain valid.
+      </p>
+    </div>
+
+    <p style="margin:0;font-size:11px;color:#aaa;">Sent by VenueCore admin panel · ${new Date().toLocaleString("en-US", { timeZone: "America/Chicago" })} CT</p>
+  </div>
+</body>
+</html>`;
+
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "VenueCore Admin <tickets@venuecore.live>",
+        to: ["Matt.irby@west72ent.com"],
+        subject: `[Admin] Payment request sent — ${order.customer_name} · $${displayTotal} · ${order.events.title}`,
+        html: adminHtml,
       }),
     });
   }
