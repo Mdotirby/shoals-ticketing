@@ -286,19 +286,22 @@ export default function EventDetailClient() {
   }, [eventId]);
 
   // Fetch event + venue fees + ticket types
-  // Fetch other on-sale events for the "You May Also Like" section
+  // Fetch other on-sale Florence-area events for the "You May Also Like" section
   useEffect(() => {
-    fetch(`/api/events?limit=8`)
+    fetch(`/api/events`)
       .then((r) => r.ok ? r.json() : [])
       .then((data: { id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null }[]) => {
         if (!Array.isArray(data)) return;
         const now = new Date();
-        const others = data.filter((e) =>
-          e.id !== eventId &&
-          !e.closed_out_at &&
-          new Date(e.date) > now &&
-          (!e.on_sale_at || new Date(e.on_sale_at) <= now)
-        ).slice(0, 6);
+        const florenceKeywords = ["florence", "shoals", "sheffield", "muscle shoals", "tuscumbia", "colbert", "lauderdale"];
+        const others = data.filter((e) => {
+          if (e.id === eventId) return false;
+          if (e.closed_out_at) return false;
+          if (new Date(e.date) <= now) return false;
+          if (e.on_sale_at && new Date(e.on_sale_at) > now) return false;
+          const v = (e.venue || "").toLowerCase();
+          return florenceKeywords.some((kw) => v.includes(kw));
+        }).slice(0, 4);
         setOtherEvents(others);
       })
       .catch(() => {});
@@ -1191,60 +1194,37 @@ export default function EventDetailClient() {
         {/* ── You May Also Like ────────────────────────────────────────────── */}
         {otherEvents.length > 0 && (
           <section style={{ marginBottom: 40 }}>
-            <h2 style={{
-              fontSize: "clamp(16px, 3vw, 20px)", fontWeight: 800,
-              margin: "0 0 16px", color: "#fff", letterSpacing: "-0.3px",
-            }}>
+            <style>{`
+              .ymal-carousel { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; padding-bottom:6px; scrollbar-width:none; }
+              .ymal-carousel::-webkit-scrollbar { display:none; }
+              .ymal-card { flex:0 0 min(210px,72vw); scroll-snap-align:start; background:#131629; border-radius:12px; border:1px solid rgba(255,255,255,0.08); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; transition:transform 0.2s ease,border-color 0.2s ease; }
+              .ymal-card:hover { transform:scale(1.02); border-color:rgba(208,194,144,0.45); }
+              .ymal-img { position:relative; width:100%; aspect-ratio:16/9; background:#0b0d1d; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+              .ymal-img img { width:100%; height:100%; object-fit:cover; display:block; }
+              .ymal-img::after { content:""; position:absolute; bottom:0; left:0; right:0; height:50%; background:linear-gradient(to top,rgba(19,22,41,0.85),transparent); pointer-events:none; }
+              .ymal-body { padding:12px; display:flex; flex-direction:column; gap:6px; flex:1; }
+              .ymal-title { font-size:14px; font-weight:700; color:#fff; margin:0; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+              .ymal-meta { font-size:11px; color:rgba(255,255,255,0.5); margin:0; display:flex; align-items:center; gap:4px; }
+              .ymal-price { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:rgba(208,194,144,0.15); color:#d0c290; align-self:flex-start; }
+              .ymal-btn { display:block; width:100%; padding:9px; border:none; border-radius:7px; background:#d0c290; color:#0b0d1d; font-size:12px; font-weight:700; text-align:center; text-decoration:none; margin-top:auto; transition:opacity 0.15s; box-sizing:border-box; }
+              .ymal-btn:hover { opacity:0.88; }
+            `}</style>
+
+            <h2 style={{ fontSize: "clamp(15px, 3vw, 18px)", fontWeight: 800, margin: "0 0 14px", color: "#fff", letterSpacing: "-0.3px" }}>
               You May Also Like
             </h2>
 
-            {/* Carousel — horizontal scroll on mobile, grid on wide screens */}
-            <div style={{
-              display: "flex",
-              gap: 14,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              WebkitOverflowScrolling: "touch",
-              paddingBottom: 8,
-              /* hide scrollbar */
-              msOverflowStyle: "none",
-              scrollbarWidth: "none",
-            }}>
+            <div className="ymal-carousel">
               {otherEvents.map((ev) => {
                 const isFree = ev.is_free || ev.price === 0;
-                const dateObj = ev.date && ev.date.length === 10
-                  ? new Date(ev.date + "T12:00:00")
-                  : new Date(ev.date);
+                const dateObj = ev.date && ev.date.length === 10 ? new Date(ev.date + "T12:00:00") : new Date(ev.date);
                 const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
                 return (
-                  <a
-                    key={ev.id}
-                    href={`/events/${ev.id}`}
-                    style={{
-                      flex: "0 0 min(260px, 75vw)",
-                      scrollSnapAlign: "start",
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      background: "var(--vc-bg-mid, #131629)",
-                      textDecoration: "none",
-                      color: "#fff",
-                      display: "flex",
-                      flexDirection: "column",
-                      transition: "border-color 0.15s",
-                    }}
-                  >
-                    {/* Image */}
-                    <div style={{
-                      height: 140, background: "rgba(255,255,255,0.04)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      overflow: "hidden", flexShrink: 0,
-                    }}>
+                  <a key={ev.id} href={`/events/${ev.id}`} className="ymal-card">
+                    <div className={`ymal-img${!ev.image_url ? "" : ""}`}>
                       {ev.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ev.image_url} alt={ev.title}
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={ev.image_url} alt={ev.title} />
                       ) : (
                         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.2 }}>
                           <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1253,32 +1233,18 @@ export default function EventDetailClient() {
                         </svg>
                       )}
                     </div>
-
-                    {/* Body */}
-                    <div style={{ padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: 15, fontWeight: 700, lineHeight: 1.3, color: "#fff" }}>
-                        {ev.title}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
-                        {dateStr}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
+                    <div className="ymal-body">
+                      <h3 className="ymal-title">{ev.title}</h3>
+                      <p className="ymal-meta">{dateStr}</p>
+                      <p className="ymal-meta">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/>
+                          <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                        </svg>
                         {ev.venue}
                       </p>
-                      <span style={{
-                        marginTop: "auto", paddingTop: 10,
-                        display: "inline-block",
-                        padding: "7px 14px",
-                        borderRadius: 7,
-                        background: "var(--vc-gold, #d0c290)",
-                        color: "#0b0d1d",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        textAlign: "center",
-                        alignSelf: "flex-start",
-                      }}>
-                        {isFree ? "Register Free" : `From $${ev.price?.toFixed(2) ?? "0.00"}`}
-                      </span>
+                      <span className="ymal-price">{isFree ? "FREE" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
+                      <span className="ymal-btn">{isFree ? "Register Free" : "Get Tickets"}</span>
                     </div>
                   </a>
                 );
