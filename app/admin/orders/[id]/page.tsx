@@ -71,6 +71,7 @@ export default function EventSalesDetailPage() {
     taxCollected: number; processingFees: number; netToVenue: number;
     refundTotal: number; saleCount: number; refundCount: number;
   } | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -218,9 +219,7 @@ export default function EventSalesDetailPage() {
             const revData = await revRes.json();
             if (!revData.error) setRevSummary(revData);
           }
-        } catch {
-          // non-critical
-        }
+        } catch { /* non-critical */ }
 
         // Fetch view stats separately — may fail for events with no views
         try {
@@ -258,6 +257,24 @@ export default function EventSalesDetailPage() {
 
   const totalRevenue = orders.reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
   const totalTickets = orders.reduce((s, o) => s + (Number(o.quantity) || 1), 0);
+
+  const refreshRevSummary = async () => {
+    try {
+      const res = await fetch(`/api/events/${id}/revenue-summary`);
+      if (res.ok) { const d = await res.json(); if (!d.error) setRevSummary(d); }
+    } catch { /* ignore */ }
+  };
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    try {
+      const res = await fetch(`/api/events/${id}/revenue-summary/backfill`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) await refreshRevSummary();
+      else alert(data.error || "Backfill failed");
+    } catch { alert("Backfill failed"); }
+    finally { setBackfilling(false); }
+  };
 
   if (loading) {
     return (
@@ -565,12 +582,32 @@ export default function EventSalesDetailPage() {
       {/* ── Revenue Breakdown ── */}
       {revSummary && (
         <div className="portal-card" style={{ marginTop: 20 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
-            <h2 className="portal-card-title" style={{ margin: 0 }}>Revenue Breakdown</h2>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
-              from settlement ledger · {revSummary.saleCount} sale{revSummary.saleCount !== 1 ? "s" : ""}
-              {revSummary.refundCount > 0 && `, ${revSummary.refundCount} refund${revSummary.refundCount !== 1 ? "s" : ""}`}
-            </span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <h2 className="portal-card-title" style={{ margin: 0 }}>Revenue Breakdown</h2>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
+                {revSummary.saleCount} sale{revSummary.saleCount !== 1 ? "s" : ""}
+                {revSummary.refundCount > 0 && `, ${revSummary.refundCount} refund${revSummary.refundCount !== 1 ? "s" : ""}`}
+                {orders.length > revSummary.saleCount + revSummary.refundCount && (
+                  <span style={{ color: "#f59e0b" }}>
+                    {" · "}{orders.length - revSummary.saleCount - revSummary.refundCount} order{orders.length - revSummary.saleCount - revSummary.refundCount !== 1 ? "s" : ""} not yet in ledger
+                  </span>
+                )}
+              </span>
+            </div>
+            {orders.length > revSummary.saleCount && (
+              <button
+                onClick={handleBackfill}
+                disabled={backfilling}
+                style={{
+                  padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                  background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)",
+                  color: "#fbbf24", cursor: backfilling ? "wait" : "pointer",
+                }}
+              >
+                {backfilling ? "Backfilling…" : "Backfill Missing Orders"}
+              </button>
+            )}
           </div>
 
           {/* Top row — the big four */}
