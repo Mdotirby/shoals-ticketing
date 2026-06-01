@@ -156,7 +156,7 @@ function CheckoutContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         event_id: eventId,
-        quantity: seatIds.length > 0 ? seatIds.length : quantity,
+        quantity: quantity,
         buyer_name: buyerName.trim(),
         buyer_email: buyerEmail.trim(),
         buyer_phone: buyerPhone.trim(),
