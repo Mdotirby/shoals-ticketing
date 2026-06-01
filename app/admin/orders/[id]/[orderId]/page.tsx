@@ -154,6 +154,10 @@ export default function OrderDetailPage() {
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Repair seats state
+  const [repairing, setRepairing] = useState(false);
+  const [repairMsg, setRepairMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -211,14 +215,35 @@ export default function OrderDetailPage() {
       const res = await fetch(`/api/admin/orders/${orderId}/resend-email`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Resend failed");
+      const emailWord = data.emailsSent > 1 ? `${data.emailsSent} emails` : "1 email";
       setResendMsg({
         type: "success",
-        text: `Ticket email sent to ${data.sentTo} (${data.ticketCount} ticket${data.ticketCount !== 1 ? "s" : ""})`,
+        text: `${emailWord} sent to ${data.sentTo} — ${data.ticketCount} ticket${data.ticketCount !== 1 ? "s" : ""}, each with assigned seat.`,
       });
     } catch (e) {
       setResendMsg({ type: "error", text: e instanceof Error ? e.message : "Failed to send email" });
     } finally {
       setResending(false);
+    }
+  }
+
+  // ── Repair seat assignments ─────────────────────────────────────────────────
+  async function handleRepairSeats() {
+    setRepairing(true);
+    setRepairMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/repair-seats`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Repair failed");
+      setRepairMsg({
+        type: "success",
+        text: `Fixed — ${data.repairedSeats} seat${data.repairedSeats !== 1 ? "s" : ""} marked sold and linked to this order.`,
+      });
+      await load(); // refresh tickets/order view
+    } catch (e) {
+      setRepairMsg({ type: "error", text: e instanceof Error ? e.message : "Repair failed" });
+    } finally {
+      setRepairing(false);
     }
   }
 
@@ -299,6 +324,22 @@ export default function OrderDetailPage() {
         {/* Resend email button in header */}
         <div className="admin-page-header-actions">
           <button
+            onClick={handleRepairSeats}
+            disabled={repairing}
+            title="Looks up seat IDs from the Stripe session and marks them sold. Use when seats still show available after a completed purchase."
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#f87171",
+              cursor: repairing ? "not-allowed" : "pointer",
+              transition: "all 0.15s",
+            }}
+          >
+            {repairing ? "Repairing…" : "Repair Seat Assignments"}
+          </button>
+          <button
             onClick={handleResendEmail}
             disabled={resending || tickets.length === 0}
             style={{
@@ -315,6 +356,18 @@ export default function OrderDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Repair seats result banner */}
+      {repairMsg && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px", borderRadius: 8, fontSize: 13,
+          background: repairMsg.type === "success" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+          border: `1px solid ${repairMsg.type === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+          color: repairMsg.type === "success" ? "#22c55e" : "#ef4444",
+        }}>
+          {repairMsg.text}
+        </div>
+      )}
 
       {/* Resend result banner */}
       {resendMsg && (
