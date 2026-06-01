@@ -490,6 +490,9 @@ export default function EventDetailClient() {
           buyer_email: email,
           quantity,
           promo_code: appliedPromoRef.current,
+          seat_ids: hasSeatingSelection
+            ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)]
+            : undefined,
         }),
       });
       const data = await res.json();
