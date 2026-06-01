@@ -181,13 +181,22 @@ export async function POST(request: Request) {
     // to avoid double-counting if the payment fails after intent creation.
 
     // ── Create Stripe PaymentIntent ───────────────────────────────────────
+    // Stripe minimum charge is $0.50. Guard before calling to surface a clear error.
+    if (breakdown.totalCents < 50) {
+      console.error(`create-intent: totalCents ${breakdown.totalCents} is below Stripe minimum. ticketPriceCents=${ticketPriceCents} effectiveQuantity=${effectiveQuantity}`);
+      return NextResponse.json(
+        { error: "Order total is below the minimum charge amount. Please contact support." },
+        { status: 400 }
+      );
+    }
+
     const stripe = getStripe();
     const isAssignedSeating = reservedSeatIds.length > 0;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: breakdown.totalCents,
       currency: "usd",
-      receipt_email: buyerEmail,
+      ...(buyerEmail ? { receipt_email: buyerEmail } : {}),
       metadata: {
         event_id: event.id,
         event_title: event.title,
@@ -241,9 +250,10 @@ export async function POST(request: Request) {
       orderDetails,
     });
   } catch (err) {
-    console.error("Create PaymentIntent error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("Create PaymentIntent error:", msg);
     return NextResponse.json(
-      { error: "Failed to create payment intent" },
+      { error: `Payment failed: ${msg}` },
       { status: 500 }
     );
   }
