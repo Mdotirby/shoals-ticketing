@@ -62,3 +62,53 @@ export async function GET(
     tickets: tickets ?? [],
   });
 }
+
+// PATCH /api/admin/orders/[orderId]
+// Reinstate a refunded order as a comp — sets status=paid, source=comp, total=0,
+// and appends an internal note. Tickets and seat assignments are preserved as-is.
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
+  const { orderId } = await params;
+  const body = await req.json().catch(() => ({}));
+  const { action, note } = body;
+
+  if (action !== "reinstate_comp") {
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: order, error: findError } = await admin
+    .from("orders")
+    .select("id, status, notes")
+    .eq("id", orderId)
+    .single();
+
+  if (findError || !order) {
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
+  }
+
+  const existingNote = order.notes ? `${order.notes}\n` : "";
+  const compNote = note?.trim()
+    ? `${note.trim()}`
+    : "Billing correction: overcharge refunded, tickets honored as comp.";
+  const newNotes = `${existingNote}${compNote}`;
+
+  const { error: updateError } = await admin
+    .from("orders")
+    .update({
+      status: "paid",
+      source: "comp",
+      total_amount: 0,
+      notes: newNotes,
+    })
+    .eq("id", orderId);
+
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}

@@ -473,6 +473,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
+    // ── Handle Billing Correction Payment ──
+    // Fired when a customer pays the correct amount after an overcharge/refund.
+    // Updates the existing order — does NOT create new tickets or seat assignments.
+    if (session.metadata?.type === "billing_correction") {
+      const existingOrderId = session.metadata.order_id;
+      if (existingOrderId) {
+        const correctedAmount = (session.amount_total || 0) / 100;
+        await admin
+          .from("orders")
+          .update({
+            status: "paid",
+            total_amount: correctedAmount,
+            stripe_checkout_session_id: session.id,
+            notes: `Billing correction payment received on ${new Date().toLocaleDateString("en-US")}. Corrected total: $${correctedAmount.toFixed(2)}.`,
+          })
+          .eq("id", existingOrderId);
+        console.log(`Billing correction: order ${existingOrderId} reinstated at $${correctedAmount}`);
+      }
+      return NextResponse.json({ received: true });
+    }
+
     // ── Handle Invoice Payment ──
     if (session.metadata?.type === "invoice") {
       const invoiceId = session.metadata.invoice_id;

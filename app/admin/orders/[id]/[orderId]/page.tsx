@@ -158,6 +158,25 @@ export default function OrderDetailPage() {
   const [repairing, setRepairing] = useState(false);
   const [repairMsg, setRepairMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Reinstate as comp state
+  const [reinstating, setReinstating] = useState(false);
+  const [reinstateMsg, setReinstateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Payment request state
+  const [showPaymentRequest, setShowPaymentRequest] = useState(false);
+  const [paymentNote, setPaymentNote] = useState("");
+  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
+  const [paymentRequestMsg, setPaymentRequestMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [paymentTiers, setPaymentTiers] = useState<{ id: string; tier_name: string; price: number }[]>([]);
+  const [selectedTierId, setSelectedTierId] = useState("");
+  const [paymentQty, setPaymentQty] = useState("1");
+  const [feePreview, setFeePreview] = useState<{
+    tier: { tier_name: string; price: number };
+    breakdown: { ticketPriceCents: number; ticketingFeeCents: number; facilityFeeCents: number; taxCents: number; stripeFeeCents: number; totalCents: number; effectiveQuantity: number };
+    fees: { taxRate: number; ticketingFee: number; facilityFee: number };
+  } | null>(null);
+  const [loadingFees, setLoadingFees] = useState(false);
+
   // Manual seat assignment state
   const [showManual, setShowManual] = useState(false);
   const [manualSection, setManualSection] = useState("");
@@ -236,6 +255,81 @@ export default function OrderDetailPage() {
       setResendMsg({ type: "error", text: e instanceof Error ? e.message : "Failed to send email" });
     } finally {
       setResending(false);
+    }
+  }
+
+  // ── Send payment request to customer ───────────────────────────────────────
+  async function openPaymentRequest() {
+    setShowPaymentRequest(true);
+    setPaymentRequestMsg(null);
+    setFeePreview(null);
+    setSelectedTierId("");
+    // Load tiers for this order's event
+    const res = await fetch(`/api/admin/orders/${orderId}/fee-preview`);
+    const data = await res.json();
+    if (data.tiers) setPaymentTiers(data.tiers);
+  }
+
+  async function handleTierChange(tierId: string, qty: string) {
+    setSelectedTierId(tierId);
+    setPaymentQty(qty);
+    if (!tierId) { setFeePreview(null); return; }
+    setLoadingFees(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/fee-preview?tier_id=${tierId}&quantity=${qty || 1}`);
+      const data = await res.json();
+      if (data.breakdown) setFeePreview(data);
+    } finally {
+      setLoadingFees(false);
+    }
+  }
+
+  async function handleSendPaymentRequest() {
+    if (!feePreview) { setPaymentRequestMsg({ type: "error", text: "Select a ticket tier first." }); return; }
+    const cents = feePreview.breakdown.totalCents;
+    if (!cents || cents < 50) { setPaymentRequestMsg({ type: "error", text: "Invalid amount." }); return; }
+    setSendingPaymentRequest(true);
+    setPaymentRequestMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/payment-request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount_cents: cents, note: paymentNote || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to send payment request");
+      const total = (cents / 100).toFixed(2);
+      setPaymentRequestMsg({ type: "success", text: `Payment request for $${total} sent to ${data.sentTo}. Order will update to Paid automatically when they complete payment.` });
+      setShowPaymentRequest(false);
+      setFeePreview(null);
+      setSelectedTierId("");
+      setPaymentNote("");
+    } catch (e) {
+      setPaymentRequestMsg({ type: "error", text: e instanceof Error ? e.message : "Failed" });
+    } finally {
+      setSendingPaymentRequest(false);
+    }
+  }
+
+  // ── Reinstate refunded order as comp ───────────────────────────────────────
+  async function handleReinstateComp() {
+    if (!confirm("Reinstate this order as a comp?\n\nThis will:\n• Set status → Paid (Comp)\n• Set total → $0\n• Keep all tickets and seat assignments valid\n• Add an internal note\n\nThe customer's QR codes already work — this just cleans up the record.")) return;
+    setReinstating(true);
+    setReinstateMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reinstate_comp" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to reinstate");
+      setReinstateMsg({ type: "success", text: "Order reinstated as comp. Tickets are valid — use Resend Ticket Email to confirm with the customer." });
+      await load();
+    } catch (e) {
+      setReinstateMsg({ type: "error", text: e instanceof Error ? e.message : "Failed" });
+    } finally {
+      setReinstating(false);
     }
   }
 
@@ -408,6 +502,35 @@ export default function OrderDetailPage() {
 
         {/* Resend email button in header */}
         <div className="admin-page-header-actions">
+          {order.status === "refunded" && (
+            <>
+              <button
+                onClick={openPaymentRequest}
+                title="Send customer a Stripe payment link for the correct amount. Their seats and tickets remain valid."
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+                  background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.35)",
+                  color: "#60a5fa", cursor: "pointer",
+                }}
+              >
+                Request Correct Payment
+              </button>
+              <button
+                onClick={handleReinstateComp}
+                disabled={reinstating}
+                title="Mark as comp — no charge. Use this if you're waiving the corrected amount."
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+                  background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.35)",
+                  color: "#22c55e", cursor: reinstating ? "not-allowed" : "pointer",
+                }}
+              >
+                {reinstating ? "Reinstating…" : "Reinstate as Comp"}
+              </button>
+            </>
+          )}
           <button
             onClick={handleRepairSeats}
             disabled={repairing}
@@ -441,6 +564,147 @@ export default function OrderDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* Reinstate as comp result banner */}
+      {reinstateMsg && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px", borderRadius: 8, fontSize: 13,
+          background: reinstateMsg.type === "success" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+          border: `1px solid ${reinstateMsg.type === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+          color: reinstateMsg.type === "success" ? "#22c55e" : "#ef4444",
+        }}>
+          {reinstateMsg.text}
+        </div>
+      )}
+
+      {/* Payment request result banner */}
+      {paymentRequestMsg && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px", borderRadius: 8, fontSize: 13,
+          background: paymentRequestMsg.type === "success" ? "rgba(59,130,246,0.08)" : "rgba(239,68,68,0.08)",
+          border: `1px solid ${paymentRequestMsg.type === "success" ? "rgba(59,130,246,0.25)" : "rgba(239,68,68,0.25)"}`,
+          color: paymentRequestMsg.type === "success" ? "#60a5fa" : "#ef4444",
+        }}>
+          {paymentRequestMsg.text}
+        </div>
+      )}
+
+      {/* Payment request form */}
+      {showPaymentRequest && (
+        <div style={{
+          marginBottom: 16, padding: 20, borderRadius: 10,
+          background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)",
+        }}>
+          <p style={{ margin: "0 0 4px", fontWeight: 700, color: "#60a5fa", fontSize: 14 }}>Request Correct Payment</p>
+          <p style={{ margin: "0 0 16px", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+            Sends the customer a Stripe payment link. Their tickets and seats stay valid. Order updates to Paid automatically when they complete payment.
+          </p>
+
+          {/* Tier + quantity selectors */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 2, minWidth: 180 }}>
+              Ticket tier
+              <select
+                className="admin-form-input"
+                value={selectedTierId}
+                onChange={(e) => handleTierChange(e.target.value, paymentQty)}
+              >
+                <option value="">— Select a tier —</option>
+                {paymentTiers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.tier_name} — ${t.price.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: "0 0 90px" }}>
+              Quantity
+              <input
+                type="number"
+                min="1"
+                max="50"
+                className="admin-form-input"
+                value={paymentQty}
+                onChange={(e) => handleTierChange(selectedTierId, e.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* Order summary */}
+          {loadingFees && <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: "0 0 12px" }}>Calculating…</p>}
+          {feePreview && !loadingFees && (
+            <div style={{
+              background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: "14px 16px", marginBottom: 16,
+            }}>
+              <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Order Summary</p>
+              {(() => {
+                const b = feePreview.breakdown;
+                const f = feePreview.fees;
+                const qty = b.effectiveQuantity;
+                const rows: [string, number][] = [
+                  [`${feePreview.tier.tier_name} × ${qty}`, b.ticketPriceCents * qty],
+                  ...(b.ticketingFeeCents > 0 ? [[`Ticketing fee × ${qty}`, b.ticketingFeeCents * qty] as [string, number]] : []),
+                  ...(b.facilityFeeCents > 0 ? [[`Facility fee × ${qty}`, b.facilityFeeCents * qty] as [string, number]] : []),
+                  ...(b.taxCents > 0 ? [[`Sales tax (${(f.taxRate * 100).toFixed(1)}%) × ${qty}`, b.taxCents * qty] as [string, number]] : []),
+                  [`Processing fee`, b.stripeFeeCents],
+                ];
+                return (
+                  <>
+                    {rows.map(([label, cents]) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 5 }}>
+                        <span>{label}</span>
+                        <span>${(cents / 100).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, color: "#d0c290" }}>
+                      <span>Total</span>
+                      <span>${(b.totalCents / 100).toFixed(2)}</span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Optional message */}
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>
+            Message to customer <span style={{ opacity: 0.5 }}>(optional — default message explains the billing correction)</span>
+            <input
+              className="admin-form-input"
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.target.value)}
+              placeholder="We had a billing error and refunded your payment. Please pay the correct amount below."
+            />
+          </label>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleSendPaymentRequest}
+              disabled={sendingPaymentRequest || !feePreview}
+              style={{
+                padding: "9px 22px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+                background: !feePreview ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.15)",
+                border: "1px solid rgba(59,130,246,0.4)",
+                color: !feePreview ? "rgba(96,165,250,0.4)" : "#60a5fa",
+                cursor: sendingPaymentRequest || !feePreview ? "not-allowed" : "pointer",
+              }}
+            >
+              {sendingPaymentRequest
+                ? "Sending…"
+                : feePreview
+                  ? `Send $${(feePreview.breakdown.totalCents / 100).toFixed(2)} Payment Request`
+                  : "Send Payment Request"}
+            </button>
+            <button
+              onClick={() => { setShowPaymentRequest(false); setFeePreview(null); setSelectedTierId(""); setPaymentNote(""); }}
+              style={{ padding: "9px 14px", borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer" }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Repair seats result banner */}
       {repairMsg && (
