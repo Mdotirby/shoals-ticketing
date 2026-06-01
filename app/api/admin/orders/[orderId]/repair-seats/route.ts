@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
-import { getSeatIdsFromStripe } from "@/lib/stripe-seat-repair";
+import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
 /**
@@ -49,7 +49,7 @@ export async function POST(
     }
 
     try {
-      seatIds = await getSeatIdsFromStripe(order.stripe_checkout_session_id);
+      seatIds = await getSeatIdsFromStripeOrSession(order.stripe_checkout_session_id, order.event_id, admin);
     } catch (e) {
       return NextResponse.json(
         { error: `Failed to retrieve Stripe record: ${e instanceof Error ? e.message : String(e)}` },
@@ -100,4 +100,57 @@ export async function POST(
   }
 
   return NextResponse.json({ success: true, repairedSeats: seatIds.length, seatIds });
+}
+
+// ── Helper ─────────────────────────────────────────────────────────────────────
+// Tries seat_ids from Stripe metadata first (old approach), then falls back to
+// seat_hold_session lookup (new approach — avoids 500-char metadata limit).
+async function getSeatIdsFromStripeOrSession(
+  stripeReferenceId: string,
+  eventId: string,
+  admin: ReturnType<typeof createAdminClient>
+): Promise<string[]> {
+  const stripe = getStripe();
+
+  let metadata: Record<string, string | null> = {};
+  if (stripeReferenceId.startsWith("pi_")) {
+    const pi = await stripe.paymentIntents.retrieve(stripeReferenceId);
+    metadata = (pi.metadata || {}) as Record<string, string | null>;
+  } else if (stripeReferenceId.startsWith("cs_")) {
+    const session = await stripe.checkout.sessions.retrieve(stripeReferenceId);
+    metadata = (session.metadata || {}) as Record<string, string | null>;
+  }
+
+  // ── Try seat_ids (legacy) ──────────────────────────────────────────────────
+  const rawIds = metadata.seat_ids;
+  if (rawIds) {
+    try {
+      const parsed = JSON.parse(rawIds);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.filter((s) => typeof s === "string");
+    } catch { /* fall through */ }
+  }
+
+  // ── Try seat_hold_session (new approach) ───────────────────────────────────
+  const holdSession = metadata.seat_hold_session;
+  if (holdSession) {
+    const { data: mapRow } = await admin
+      .from("event_layout_maps").select("layout_id")
+      .eq("event_id", eventId).eq("enabled", true).single();
+    if (mapRow?.layout_id) {
+      const { data: secs } = await admin
+        .from("sections").select("id").eq("layout_id", mapRow.layout_id);
+      const sectionIds = (secs || []).map((s: { id: string }) => s.id);
+      if (sectionIds.length) {
+        const { data: heldSeats } = await admin
+          .from("seats").select("id")
+          .eq("held_session", holdSession)
+          .in("section_id", sectionIds);
+        if (heldSeats && heldSeats.length > 0) {
+          return heldSeats.map((s: { id: string }) => s.id);
+        }
+      }
+    }
+  }
+
+  return [];
 }
