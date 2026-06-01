@@ -161,9 +161,11 @@ export default function OrderDetailPage() {
   // Manual seat assignment state
   const [showManual, setShowManual] = useState(false);
   const [manualSection, setManualSection] = useState("");
+  const [manualRow, setManualRow] = useState("");
   const [manualFrom, setManualFrom] = useState("");
   const [manualTo, setManualTo] = useState("");
   const [lookupResult, setLookupResult] = useState<{ section: { name: string }; seats: { id: string; seat_number: number; row_label: string; status: string; order_id: string | null }[] } | null>(null);
+  const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [availableSections, setAvailableSections] = useState<string[]>([]);
   const [looking, setLooking] = useState(false);
@@ -271,6 +273,7 @@ export default function OrderDetailPage() {
     setLooking(true);
     setLookupError(null);
     setLookupResult(null);
+    setSelectedSeatIds(new Set());
     setAvailableSections([]);
     try {
       const params = new URLSearchParams({ section: manualSection, from: manualFrom, to: manualTo });
@@ -281,6 +284,13 @@ export default function OrderDetailPage() {
         if (data.availableSections) setAvailableSections(data.availableSections);
       } else {
         setLookupResult(data);
+        // Auto-select all available seats (not already sold to someone else)
+        const autoSelect = new Set<string>(
+          data.seats
+            .filter((s: { status: string; order_id: string | null }) => s.status !== "sold" || s.order_id === orderId)
+            .map((s: { id: string }) => s.id)
+        );
+        setSelectedSeatIds(autoSelect);
       }
     } catch {
       setLookupError("Lookup failed");
@@ -289,9 +299,17 @@ export default function OrderDetailPage() {
     }
   }
 
+  function toggleSeat(id: string) {
+    setSelectedSeatIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   async function handleManualAssign() {
-    if (!lookupResult) return;
-    const seatIds = lookupResult.seats.map((s) => s.id);
+    if (selectedSeatIds.size === 0) return;
+    const seatIds = [...selectedSeatIds];
     setConfirming(true);
     setRepairMsg(null);
     try {
@@ -305,6 +323,7 @@ export default function OrderDetailPage() {
       setRepairMsg({ type: "success", text: `Fixed — ${data.repairedSeats} seat(s) assigned to this order.` });
       setShowManual(false);
       setLookupResult(null);
+      setSelectedSeatIds(new Set());
       await load();
     } catch (e) {
       setRepairMsg({ type: "error", text: e instanceof Error ? e.message : "Assignment failed" });
@@ -444,35 +463,24 @@ export default function OrderDetailPage() {
           <p style={{ margin: "0 0 12px", fontWeight: 700, color: "#fbbf24", fontSize: 14 }}>
             Manual Seat Assignment
           </p>
+
+          {/* Search filters */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 2, minWidth: 140 }}>
-              Section name (exact)
-              <input
-                className="admin-form-input"
-                value={manualSection}
-                onChange={(e) => setManualSection(e.target.value)}
-                placeholder="e.g. Section 1"
-              />
+              Section name
+              <input className="admin-form-input" value={manualSection} onChange={(e) => setManualSection(e.target.value)} placeholder="e.g. Section 1" />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 80 }}>
+              Row <span style={{ opacity: 0.5 }}>(optional)</span>
+              <input className="admin-form-input" value={manualRow} onChange={(e) => setManualRow(e.target.value)} placeholder="A" />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 70 }}>
               Seat from
-              <input
-                type="number"
-                className="admin-form-input"
-                value={manualFrom}
-                onChange={(e) => setManualFrom(e.target.value)}
-                placeholder="7"
-              />
+              <input type="number" className="admin-form-input" value={manualFrom} onChange={(e) => setManualFrom(e.target.value)} placeholder="7" />
             </label>
-            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 80 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 70 }}>
               Seat to
-              <input
-                type="number"
-                className="admin-form-input"
-                value={manualTo}
-                onChange={(e) => setManualTo(e.target.value)}
-                placeholder="14"
-              />
+              <input type="number" className="admin-form-input" value={manualTo} onChange={(e) => setManualTo(e.target.value)} placeholder="14" />
             </label>
             <button
               onClick={handleLookupSeats}
@@ -492,59 +500,98 @@ export default function OrderDetailPage() {
             <div style={{ color: "#f87171", fontSize: 13, marginBottom: 8 }}>
               {lookupError}
               {availableSections.length > 0 && (
-                <span style={{ color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>
+                <div style={{ marginTop: 4, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
                   Available sections: {availableSections.join(", ")}
-                </span>
+                </div>
               )}
             </div>
           )}
 
-          {lookupResult && (
-            <div>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 8px" }}>
-                Found <strong style={{ color: "#fff" }}>{lookupResult.seats.length} seats</strong> in {lookupResult.section.name}:
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                {lookupResult.seats.map((s) => (
-                  <span key={s.id} style={{
-                    padding: "3px 10px", borderRadius: 6, fontSize: 12,
-                    background: s.status === "available" ? "rgba(34,197,94,0.12)" : s.order_id === orderId ? "rgba(59,130,246,0.12)" : "rgba(239,68,68,0.12)",
-                    border: `1px solid ${s.status === "available" ? "rgba(34,197,94,0.3)" : s.order_id === orderId ? "rgba(59,130,246,0.3)" : "rgba(239,68,68,0.3)"}`,
-                    color: s.status === "available" ? "#22c55e" : s.order_id === orderId ? "#60a5fa" : "#f87171",
-                  }}>
-                    {s.row_label && `${s.row_label} · `}Seat {s.seat_number} — {s.order_id === orderId ? "this order" : s.status}
-                  </span>
-                ))}
+          {lookupResult && (() => {
+            // Filter by row if specified
+            const filtered = manualRow.trim()
+              ? lookupResult.seats.filter((s) => s.row_label?.toLowerCase() === manualRow.trim().toLowerCase())
+              : lookupResult.seats;
+            const rows = [...new Set(lookupResult.seats.map((s) => s.row_label).filter(Boolean))].sort();
+
+            return (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+                    Showing <strong style={{ color: "#fff" }}>{filtered.length}</strong> seats
+                    {rows.length > 1 && !manualRow && (
+                      <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: 8, fontSize: 12 }}>
+                        ({rows.length} rows: {rows.join(", ")} — type a row letter above to filter)
+                      </span>
+                    )}
+                    {" · "}<span style={{ color: "#fbbf24" }}>{selectedSeatIds.size} selected</span>
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => setSelectedSeatIds(new Set(filtered.filter(s => s.status !== "sold" || s.order_id === orderId).map(s => s.id)))}
+                      style={{ fontSize: 11, background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, color: "rgba(255,255,255,0.45)", cursor: "pointer", padding: "2px 8px" }}>
+                      Select all
+                    </button>
+                    <button onClick={() => setSelectedSeatIds(new Set())}
+                      style={{ fontSize: 11, background: "none", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 4, color: "rgba(255,255,255,0.45)", cursor: "pointer", padding: "2px 8px" }}>
+                      Deselect all
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14, maxHeight: 220, overflowY: "auto" }}>
+                  {filtered.map((s) => {
+                    const isMine = s.order_id === orderId;
+                    const isSoldElsewhere = s.status === "sold" && !isMine;
+                    const isSelected = selectedSeatIds.has(s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        disabled={isSoldElsewhere}
+                        onClick={() => !isSoldElsewhere && toggleSeat(s.id)}
+                        style={{
+                          padding: "4px 10px", borderRadius: 6, fontSize: 12, cursor: isSoldElsewhere ? "not-allowed" : "pointer",
+                          background: isSoldElsewhere ? "rgba(239,68,68,0.08)" : isSelected ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)",
+                          border: `2px solid ${isSoldElsewhere ? "rgba(239,68,68,0.25)" : isSelected ? "rgba(34,197,94,0.6)" : "rgba(255,255,255,0.1)"}`,
+                          color: isSoldElsewhere ? "#f87171" : isSelected ? "#22c55e" : "rgba(255,255,255,0.55)",
+                          fontWeight: isSelected ? 700 : 400,
+                          transition: "all 0.1s",
+                        }}
+                      >
+                        {s.row_label ? `${s.row_label} · ` : ""}Seat {s.seat_number}
+                        {isSoldElsewhere ? " — sold" : isMine ? " — this order" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={handleManualAssign}
+                    disabled={confirming || selectedSeatIds.size === 0}
+                    style={{
+                      padding: "9px 22px", borderRadius: 8,
+                      background: selectedSeatIds.size === 0 ? "rgba(34,197,94,0.06)" : "rgba(34,197,94,0.15)",
+                      border: "1px solid rgba(34,197,94,0.4)",
+                      color: selectedSeatIds.size === 0 ? "rgba(34,197,94,0.35)" : "#22c55e",
+                      fontWeight: 700, fontSize: 13,
+                      cursor: confirming || selectedSeatIds.size === 0 ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {confirming ? "Assigning…" : `Assign ${selectedSeatIds.size} Selected Seat${selectedSeatIds.size !== 1 ? "s" : ""} to This Order`}
+                  </button>
+                  <button
+                    onClick={() => { setLookupResult(null); setLookupError(null); setSelectedSeatIds(new Set()); }}
+                    style={{ padding: "9px 14px", borderRadius: 8, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer" }}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={handleManualAssign}
-                  disabled={confirming}
-                  style={{
-                    padding: "8px 20px", borderRadius: 8,
-                    background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)",
-                    color: "#22c55e", fontWeight: 700, fontSize: 13,
-                    cursor: confirming ? "wait" : "pointer",
-                  }}
-                >
-                  {confirming ? "Assigning…" : `Assign ${lookupResult.seats.length} Seats to This Order`}
-                </button>
-                <button
-                  onClick={() => { setLookupResult(null); setLookupError(null); }}
-                  style={{
-                    padding: "8px 14px", borderRadius: 8,
-                    background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-                    color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer",
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           <button
-            onClick={() => { setShowManual(false); setLookupResult(null); setLookupError(null); }}
+            onClick={() => { setShowManual(false); setLookupResult(null); setLookupError(null); setSelectedSeatIds(new Set()); }}
             style={{ marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 12, cursor: "pointer" }}
           >
             Cancel
