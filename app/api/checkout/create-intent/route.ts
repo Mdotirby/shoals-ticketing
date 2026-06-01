@@ -218,9 +218,8 @@ export async function POST(request: Request) {
         promo_code: promoResult?.promoCodeStr || "",
         promo_code_id: promoResult?.promoCodeId || "",
         discount_per_ticket_cents: String(promoResult?.discountCentsPerTicket || 0),
-        seat_ids: reservedSeatIds.length > 0 ? JSON.stringify(reservedSeatIds) : "",
-        seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
-        seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
+        // seat_hold_session replaces seat_ids — avoids Stripe's 500-char metadata limit
+        seat_hold_session: (isAssignedSeating && sessionId) ? sessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: trackingRef || "",
         // Fee breakdown (cents) for webhook/reconciliation

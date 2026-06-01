@@ -361,9 +361,10 @@ export async function POST(request: Request) {
         source: "online",
         promo_code: promoCodeStr,
         promo_code_id: promoCodeId,
-        seat_ids: reservedSeatIds.length > 0 ? JSON.stringify(reservedSeatIds) : "",
-        seat_labels: seatLabels.length > 0 ? JSON.stringify(seatLabels) : "",
-        seat_sections: seatSectionNames.length > 0 ? JSON.stringify([...new Set(seatSectionNames)]) : "",
+        // seat_hold_session replaces seat_ids in metadata — avoids Stripe's 500-char
+        // per-value limit which breaks when purchasing 2+ tables (16+ seat UUIDs).
+        // The webhook looks up held seats by this session ID instead.
+        seat_hold_session: (isAssignedSeating && buyerSessionId) ? buyerSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: tracking_ref || "",
       },

@@ -50,6 +50,7 @@ async function processTicketOrder({
   promoCodeId,
   promoCode,
   seatIdsRaw,
+  seatHoldSession,
   fwbOptIn,
   trackingRef,
   stripeReferenceId,
@@ -71,7 +72,8 @@ async function processTicketOrder({
   source: string;
   promoCodeId: string | null;
   promoCode: string | null;
-  seatIdsRaw: string | null;
+  seatIdsRaw: string | null;       // legacy: seat UUIDs in metadata (small purchases)
+  seatHoldSession: string | null; // new: browser session used to hold the seats
   fwbOptIn: boolean;
   trackingRef: string | null;
   stripeReferenceId: string;
@@ -138,19 +140,39 @@ async function processTicketOrder({
       return;
     }
 
-    // ── Finalize reserved seats if seat_ids present ──
-    if (seatIdsRaw) {
+    // ── Finalize reserved seats ──────────────────────────────────────────────
+    // Primary path: look up by seat_hold_session (no metadata size limit).
+    // Fallback: legacy seat_ids field (kept for backward compat with old sessions).
+    if (seatHoldSession) {
+      try {
+        const { data: mapRow } = await admin
+          .from("event_layout_maps").select("layout_id")
+          .eq("event_id", eventId).eq("enabled", true).single();
+        if (mapRow?.layout_id) {
+          const { data: secs } = await admin
+            .from("sections").select("id").eq("layout_id", mapRow.layout_id);
+          const sectionIds = (secs || []).map((s: { id: string }) => s.id);
+          if (sectionIds.length) {
+            await admin.from("seats")
+              .update({ status: "sold", order_id: order.id, held_until: null, held_session: null })
+              .eq("held_session", seatHoldSession)
+              .eq("status", "held")
+              .in("section_id", sectionIds);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to finalize seats by session:", e);
+      }
+    } else if (seatIdsRaw) {
       try {
         const seatIds: string[] = JSON.parse(seatIdsRaw);
         if (Array.isArray(seatIds) && seatIds.length > 0) {
-          // Mark seats as sold and link to order (V3: no seat_reservations table)
-          await admin
-            .from("seats")
+          await admin.from("seats")
             .update({ status: "sold", order_id: order.id })
             .in("id", seatIds);
         }
       } catch (e) {
-        console.error("Failed to finalize reserved seats:", e);
+        console.error("Failed to finalize seats by id list:", e);
       }
     }
 
@@ -549,6 +571,7 @@ export async function POST(request: Request) {
       promoCodeId,
       promoCode,
       seatIdsRaw: session.metadata?.seat_ids || null,
+      seatHoldSession: session.metadata?.seat_hold_session || null,
       fwbOptIn,
       trackingRef: session.metadata?.tracking_ref || null,
       stripeReferenceId: session.id,
@@ -589,6 +612,7 @@ export async function POST(request: Request) {
         promoCodeId: meta.promo_code_id || null,
         promoCode: meta.promo_code || null,
         seatIdsRaw: meta.seat_ids || null,
+        seatHoldSession: meta.seat_hold_session || null,
         fwbOptIn: meta.fwb_opt_in === "true",
         trackingRef: meta.tracking_ref || null,
         stripeReferenceId: paymentIntent.id,

@@ -241,6 +241,7 @@ function CheckoutForm({
           fwbOptIn,
           promoCode: promoCode || undefined,
           selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
+          sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
         }),
       });
