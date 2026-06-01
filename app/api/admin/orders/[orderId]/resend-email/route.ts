@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
+import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -69,35 +70,8 @@ export async function POST(
     }
   }
 
-  // Fetch seat assignments for this order (sorted so index-matching is stable)
-  type SeatAssignment = { section: string; row: string; seat: string };
-  let allSeatAssignments: SeatAssignment[] = [];
-  const { data: orderSeats } = await admin
-    .from("seats")
-    .select("id, seat_number, row_label, section_id")
-    .eq("order_id", orderId)
-    .eq("status", "sold");
-
-  if (orderSeats && orderSeats.length > 0) {
-    const sectionIds = [...new Set(orderSeats.map((s: { section_id: string }) => s.section_id))];
-    const { data: sectionData } = await admin
-      .from("sections").select("id, name").in("id", sectionIds);
-    const sectionMap = new Map(
-      (sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name])
-    );
-
-    allSeatAssignments = (orderSeats as { section_id: string; row_label: string; seat_number: number }[])
-      .map((seat) => ({
-        section: sectionMap.get(seat.section_id) || "Section",
-        row: seat.row_label,
-        seat: String(seat.seat_number),
-      }))
-      .sort((a, b) =>
-        a.section.localeCompare(b.section) ||
-        a.row.localeCompare(b.row) ||
-        a.seat.localeCompare(b.seat, undefined, { numeric: true })
-      );
-  }
+  // Fetch seat assignments — tables show as "Table X", individual seats show row+number
+  const allSeatAssignments = await buildSeatAssignments(admin, orderId);
 
   // Send one email with the first ticket's QR code, all seat assignments listed,
   // and a link to the ticket page carousel where customers can swipe all QR codes.

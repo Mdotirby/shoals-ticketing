@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
+import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { NextResponse } from "next/server";
 
 // POST: validate and scan a ticket by QR code
@@ -46,32 +47,11 @@ export async function POST(
 
   const ev = ticket.events as unknown as { title: string; venue: string } | null;
 
-  // Look up seat assignments for this order
-  // V3 seat lookup: seats.order_id + seats.status
+  // Look up seat assignments — tables show as "Table X", individual seats show row+number
   let seatAssignments: { section: string; row: string; seat: string }[] = [];
   try {
     if (!ticket.order_id) throw new Error("no order_id");
-    const { data: orderSeats } = await admin
-      .from("seats")
-      .select("id, seat_number, row_label, section_id")
-      .eq("order_id", ticket.order_id)
-      .eq("status", "sold");
-
-    if (orderSeats && orderSeats.length > 0) {
-      const sectionIds = [...new Set(orderSeats.map((s: { section_id: string }) => s.section_id))];
-      const { data: sectionData } = await admin
-        .from("sections")
-        .select("id, name")
-        .in("id", sectionIds);
-
-      const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
-
-      seatAssignments = orderSeats.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
-        section: sectionMap.get(seat.section_id) || "Section",
-        row: seat.row_label,
-        seat: String(seat.seat_number),
-      }));
-    }
+    seatAssignments = await buildSeatAssignments(admin, ticket.order_id);
   } catch {
     // Non-critical — don't fail validation if seat lookup fails
   }

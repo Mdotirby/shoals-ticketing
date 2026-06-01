@@ -181,11 +181,17 @@ export default function TicketViewPage() {
                         color: "rgba(255,255,255,0.8)", fontSize: 14,
                         marginBottom: 4,
                       }}>
-                        <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.section}</span>
-                        <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
-                        <span>Row {s.row}</span>
-                        <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
-                        <span>Seat {s.seat}</span>
+                        {s.row ? (
+                          <>
+                            <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.section}</span>
+                            <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
+                            <span>Row {s.row}</span>
+                            <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
+                            <span>Seat {s.seat}</span>
+                          </>
+                        ) : (
+                          <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.seat}</span>
+                        )}
                       </div>
                     ))}
                   </div>

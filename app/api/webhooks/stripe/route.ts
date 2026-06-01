@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
+import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { earnBenefits } from "@/lib/fwb/earn";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
@@ -345,44 +346,13 @@ async function processTicketOrder({
       console.log(`FWB opt-in for ${customerEmail}`);
     }
 
-    // 8. Look up reserved seat details if applicable
+    // 8. Look up seat assignments — tables show as "Table X", individual seats show row+number
     let seatAssignments: { section: string; row: string; seat: string }[] | undefined;
-    if (seatIdsRaw) {
-      try {
-        const parsedSeatIds: string[] = JSON.parse(seatIdsRaw);
-        if (Array.isArray(parsedSeatIds) && parsedSeatIds.length > 0) {
-          // Fetch seat details with row and section info
-          // V3: seats have section_id + row_label directly
-          const { data: seatDetails } = await admin
-            .from("seats")
-            .select("id, seat_number, row_label, section_id")
-            .in("id", parsedSeatIds);
-
-          if (seatDetails && seatDetails.length > 0) {
-            const sectionIds = [...new Set(seatDetails.map((s: { section_id: string }) => s.section_id))];
-            const { data: sectionData } = await admin
-              .from("sections")
-              .select("id, name")
-              .in("id", sectionIds);
-
-            const sectionMap = new Map((sectionData || []).map((s: { id: string; name: string }) => [s.id, s.name]));
-
-            seatAssignments = seatDetails.map((seat: { section_id: string; row_label: string; seat_number: number }) => ({
-              section: sectionMap.get(seat.section_id) || "Section",
-              row: seat.row_label,
-              seat: String(seat.seat_number),
-            }));
-
-            seatAssignments.sort((a, b) =>
-              a.section.localeCompare(b.section) ||
-              a.row.localeCompare(b.row) ||
-              a.seat.localeCompare(b.seat, undefined, { numeric: true })
-            );
-          }
-        }
-      } catch (e) {
-        console.error("Failed to look up seat assignments for email:", e);
-      }
+    try {
+      const assignments = await buildSeatAssignments(admin, order.id);
+      if (assignments.length > 0) seatAssignments = assignments;
+    } catch (e) {
+      console.error("Failed to look up seat assignments for email:", e);
     }
 
     // 9. Send confirmation email via Resend

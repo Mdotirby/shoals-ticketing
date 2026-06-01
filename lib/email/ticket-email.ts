@@ -77,7 +77,10 @@ export function ticketEmailHtml({
                     <p style="margin:0 0 10px;font-size:14px;font-weight:700;color:#818cf8;">Your Assigned Seats</p>
                     ${seatAssignments.map((s) => `
                     <p style="margin:4px 0;font-size:14px;color:rgba(255,255,255,0.7);">
-                      <span style="color:#d0c290;font-weight:600;">${s.section}</span> &middot; Row ${s.row} &middot; Seat ${s.seat}
+                      ${s.row
+                        ? `<span style="color:#d0c290;font-weight:600;">${s.section}</span> &middot; Row ${s.row} &middot; Seat ${s.seat}`
+                        : `<span style="color:#d0c290;font-weight:700;">${s.seat}</span>`
+                      }
                     </p>`).join("")}
                   </td>
                 </tr>
