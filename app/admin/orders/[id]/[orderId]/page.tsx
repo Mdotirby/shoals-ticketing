@@ -158,6 +158,17 @@ export default function OrderDetailPage() {
   const [repairing, setRepairing] = useState(false);
   const [repairMsg, setRepairMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Manual seat assignment state
+  const [showManual, setShowManual] = useState(false);
+  const [manualSection, setManualSection] = useState("");
+  const [manualFrom, setManualFrom] = useState("");
+  const [manualTo, setManualTo] = useState("");
+  const [lookupResult, setLookupResult] = useState<{ section: { name: string }; seats: { id: string; seat_number: number; row_label: string; status: string; order_id: string | null }[] } | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
+  const [looking, setLooking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -233,16 +244,72 @@ export default function OrderDetailPage() {
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/repair-seats`, { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Repair failed");
+      if (!res.ok) {
+        // If Stripe has no seat_ids, fall back to manual assignment
+        if (data.error?.includes("No seat_ids") || data.error?.includes("no seat_ids") || data.error?.includes("manual")) {
+          setShowManual(true);
+          setRepairMsg({ type: "error", text: "Stripe has no seat record for this order. Use Manual Seat Assignment below." });
+        } else {
+          throw new Error(data.error ?? "Repair failed");
+        }
+        return;
+      }
       setRepairMsg({
         type: "success",
         text: `Fixed — ${data.repairedSeats} seat${data.repairedSeats !== 1 ? "s" : ""} marked sold and linked to this order.`,
       });
-      await load(); // refresh tickets/order view
+      await load();
     } catch (e) {
       setRepairMsg({ type: "error", text: e instanceof Error ? e.message : "Repair failed" });
     } finally {
       setRepairing(false);
+    }
+  }
+
+  // ── Manual seat lookup ──────────────────────────────────────────────────────
+  async function handleLookupSeats() {
+    setLooking(true);
+    setLookupError(null);
+    setLookupResult(null);
+    setAvailableSections([]);
+    try {
+      const params = new URLSearchParams({ section: manualSection, from: manualFrom, to: manualTo });
+      const res = await fetch(`/api/admin/orders/${orderId}/lookup-seats?${params}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setLookupError(data.error ?? "Lookup failed");
+        if (data.availableSections) setAvailableSections(data.availableSections);
+      } else {
+        setLookupResult(data);
+      }
+    } catch {
+      setLookupError("Lookup failed");
+    } finally {
+      setLooking(false);
+    }
+  }
+
+  async function handleManualAssign() {
+    if (!lookupResult) return;
+    const seatIds = lookupResult.seats.map((s) => s.id);
+    setConfirming(true);
+    setRepairMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/repair-seats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manualSeatIds: seatIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Assignment failed");
+      setRepairMsg({ type: "success", text: `Fixed — ${data.repairedSeats} seat(s) assigned to this order.` });
+      setShowManual(false);
+      setLookupResult(null);
+      await load();
+    } catch (e) {
+      setRepairMsg({ type: "error", text: e instanceof Error ? e.message : "Assignment failed" });
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -365,6 +432,123 @@ export default function OrderDetailPage() {
           color: repairMsg.type === "success" ? "#22c55e" : "#ef4444",
         }}>
           {repairMsg.text}
+        </div>
+      )}
+
+      {/* Manual seat assignment panel */}
+      {showManual && (
+        <div style={{
+          marginBottom: 16, padding: 20, borderRadius: 10,
+          background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)",
+        }}>
+          <p style={{ margin: "0 0 12px", fontWeight: 700, color: "#fbbf24", fontSize: 14 }}>
+            Manual Seat Assignment
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 2, minWidth: 140 }}>
+              Section name (exact)
+              <input
+                className="admin-form-input"
+                value={manualSection}
+                onChange={(e) => setManualSection(e.target.value)}
+                placeholder="e.g. Section 1"
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 80 }}>
+              Seat from
+              <input
+                type="number"
+                className="admin-form-input"
+                value={manualFrom}
+                onChange={(e) => setManualFrom(e.target.value)}
+                placeholder="7"
+              />
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1, minWidth: 80 }}>
+              Seat to
+              <input
+                type="number"
+                className="admin-form-input"
+                value={manualTo}
+                onChange={(e) => setManualTo(e.target.value)}
+                placeholder="14"
+              />
+            </label>
+            <button
+              onClick={handleLookupSeats}
+              disabled={looking || !manualSection || !manualFrom || !manualTo}
+              style={{
+                alignSelf: "flex-end", padding: "8px 16px", borderRadius: 8,
+                background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)",
+                color: "#fbbf24", fontWeight: 700, fontSize: 13,
+                cursor: looking ? "wait" : "pointer", whiteSpace: "nowrap",
+              }}
+            >
+              {looking ? "Looking up…" : "Look Up Seats"}
+            </button>
+          </div>
+
+          {lookupError && (
+            <div style={{ color: "#f87171", fontSize: 13, marginBottom: 8 }}>
+              {lookupError}
+              {availableSections.length > 0 && (
+                <span style={{ color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>
+                  Available sections: {availableSections.join(", ")}
+                </span>
+              )}
+            </div>
+          )}
+
+          {lookupResult && (
+            <div>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 8px" }}>
+                Found <strong style={{ color: "#fff" }}>{lookupResult.seats.length} seats</strong> in {lookupResult.section.name}:
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                {lookupResult.seats.map((s) => (
+                  <span key={s.id} style={{
+                    padding: "3px 10px", borderRadius: 6, fontSize: 12,
+                    background: s.status === "available" ? "rgba(34,197,94,0.12)" : s.order_id === orderId ? "rgba(59,130,246,0.12)" : "rgba(239,68,68,0.12)",
+                    border: `1px solid ${s.status === "available" ? "rgba(34,197,94,0.3)" : s.order_id === orderId ? "rgba(59,130,246,0.3)" : "rgba(239,68,68,0.3)"}`,
+                    color: s.status === "available" ? "#22c55e" : s.order_id === orderId ? "#60a5fa" : "#f87171",
+                  }}>
+                    {s.row_label && `${s.row_label} · `}Seat {s.seat_number} — {s.order_id === orderId ? "this order" : s.status}
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={handleManualAssign}
+                  disabled={confirming}
+                  style={{
+                    padding: "8px 20px", borderRadius: 8,
+                    background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)",
+                    color: "#22c55e", fontWeight: 700, fontSize: 13,
+                    cursor: confirming ? "wait" : "pointer",
+                  }}
+                >
+                  {confirming ? "Assigning…" : `Assign ${lookupResult.seats.length} Seats to This Order`}
+                </button>
+                <button
+                  onClick={() => { setLookupResult(null); setLookupError(null); }}
+                  style={{
+                    padding: "8px 14px", borderRadius: 8,
+                    background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+                    color: "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer",
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => { setShowManual(false); setLookupResult(null); setLookupError(null); }}
+            style={{ marginTop: 12, background: "none", border: "none", color: "rgba(255,255,255,0.3)", fontSize: 12, cursor: "pointer" }}
+          >
+            Cancel
+          </button>
         </div>
       )}
 

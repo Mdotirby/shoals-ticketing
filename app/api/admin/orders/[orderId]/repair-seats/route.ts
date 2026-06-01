@@ -5,20 +5,25 @@ import { NextResponse } from "next/server";
 /**
  * POST /api/admin/orders/[orderId]/repair-seats
  *
- * Fixes orders where payment completed but seats were never marked sold.
- * Retrieves seat_ids from the Stripe session metadata and marks them sold,
- * linking them to this order. Safe to run multiple times — only touches
- * seats that are "available" or "held" (won't overwrite seats already sold
- * to a different order).
+ * Two modes:
+ *  1. Auto (no body / empty body): pulls seat_ids from Stripe metadata.
+ *  2. Manual ({ manualSeatIds: string[] }): assigns the given seat IDs directly.
+ *
+ * Both modes refuse to overwrite seats already sold to a different order.
  */
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
   const admin = createAdminClient();
 
-  // Load the order to get the Stripe session ID
+  const body = await req.json().catch(() => ({}));
+  const manualSeatIds: string[] | undefined = Array.isArray(body?.manualSeatIds)
+    ? body.manualSeatIds
+    : undefined;
+
+  // Load the order
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select("id, stripe_checkout_session_id, event_id")
@@ -29,33 +34,38 @@ export async function POST(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  if (!order.stripe_checkout_session_id) {
-    return NextResponse.json(
-      { error: "No Stripe session ID on this order — cannot look up seat assignments." },
-      { status: 400 }
-    );
-  }
-
-  // Retrieve seat_ids from Stripe — works for both Checkout Sessions (cs_…)
-  // and PaymentIntents (pi_…, used by inline checkout)
   let seatIds: string[] = [];
-  try {
-    seatIds = await getSeatIdsFromStripe(order.stripe_checkout_session_id);
-  } catch (e) {
-    return NextResponse.json(
-      { error: `Failed to retrieve Stripe record: ${e instanceof Error ? e.message : String(e)}` },
-      { status: 500 }
-    );
+
+  if (manualSeatIds && manualSeatIds.length > 0) {
+    // ── Manual mode ──────────────────────────────────────────────────────────
+    seatIds = manualSeatIds;
+  } else {
+    // ── Auto mode: pull from Stripe ──────────────────────────────────────────
+    if (!order.stripe_checkout_session_id) {
+      return NextResponse.json(
+        { error: "No Stripe session ID on this order. Use manual assignment." },
+        { status: 400 }
+      );
+    }
+
+    try {
+      seatIds = await getSeatIdsFromStripe(order.stripe_checkout_session_id);
+    } catch (e) {
+      return NextResponse.json(
+        { error: `Failed to retrieve Stripe record: ${e instanceof Error ? e.message : String(e)}` },
+        { status: 500 }
+      );
+    }
+
+    if (seatIds.length === 0) {
+      return NextResponse.json(
+        { error: "No seat_ids found in the Stripe metadata. Use manual assignment." },
+        { status: 400 }
+      );
+    }
   }
 
-  if (seatIds.length === 0) {
-    return NextResponse.json(
-      { error: "No seat_ids found in the Stripe session metadata. This was a general-admission purchase or seat IDs were not recorded at checkout." },
-      { status: 400 }
-    );
-  }
-
-  // Verify these seats still exist and are not already sold to a different order
+  // Check for conflicts with other orders
   const { data: seats, error: seatsError } = await admin
     .from("seats")
     .select("id, status, order_id")
@@ -65,22 +75,21 @@ export async function POST(
     return NextResponse.json({ error: seatsError.message }, { status: 500 });
   }
 
-  const alreadySoldElsewhere = (seats || []).filter(
+  const conflicts = (seats || []).filter(
     (s: { status: string; order_id: string | null }) =>
       s.status === "sold" && s.order_id !== orderId
   );
 
-  if (alreadySoldElsewhere.length > 0) {
+  if (conflicts.length > 0) {
     return NextResponse.json(
       {
-        error: `${alreadySoldElsewhere.length} seat(s) are already sold to a different order. Manual intervention required.`,
-        conflicting_seat_ids: alreadySoldElsewhere.map((s: { id: string }) => s.id),
+        error: `${conflicts.length} seat(s) already sold to a different order.`,
+        conflicting_seat_ids: conflicts.map((s: { id: string }) => s.id),
       },
       { status: 409 }
     );
   }
 
-  // Mark seats sold and link to this order
   const { error: updateError } = await admin
     .from("seats")
     .update({ status: "sold", order_id: orderId, held_until: null, held_session: null })
@@ -90,9 +99,5 @@ export async function POST(
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  return NextResponse.json({
-    success: true,
-    repairedSeats: seatIds.length,
-    seatIds,
-  });
+  return NextResponse.json({ success: true, repairedSeats: seatIds.length, seatIds });
 }
