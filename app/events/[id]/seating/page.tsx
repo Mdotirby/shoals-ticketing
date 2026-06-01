@@ -70,6 +70,42 @@ export default function EventSeatingPage() {
       .finally(() => setLoading(false));
   }, [eventId]);
 
+  // ─── client-side hold expiry ──────────────────────────────────────────────
+  // Checks every 15 s for seats whose held_until has passed, marks them
+  // available locally, then calls the cron endpoint so the DB write fires
+  // a Realtime update to all other connected clients on the same map.
+  useEffect(() => {
+    const check = () => {
+      const now = Date.now();
+      let foundExpired = false;
+
+      const next = sectionsRef.current.map((sec) => ({
+        ...sec,
+        seats: sec.seats.map((seat) => {
+          if (
+            seat.status === "held" &&
+            seat.held_until &&
+            new Date(seat.held_until).getTime() < now
+          ) {
+            foundExpired = true;
+            return { ...seat, status: "available" as const, held_until: null, held_session: null };
+          }
+          return seat;
+        }),
+      }));
+
+      if (foundExpired) {
+        setSections(next);
+        // Push the change to the DB so Realtime notifies other clients
+        fetch("/api/cron/release-seats").catch(() => {});
+      }
+    };
+
+    check(); // run immediately on mount — releases any already-expired holds
+    const id = setInterval(check, 15 * 1000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── realtime seat status ─────────────────────────────────────────────────
   useEffect(() => {
     if (!sections.length) return;
@@ -181,7 +217,9 @@ export default function EventSeatingPage() {
         const data = await res.json();
         throw new Error(data.error || "Failed to reserve seats");
       }
-      router.push(`/checkout?event=${eventId}&seat_ids=${allSeatIds.join(",")}&qty=${selected.length}`);
+      const reserveData = await res.json();
+      const heldUntil = reserveData.held_until || new Date(Date.now() + 4 * 60 * 1000).toISOString();
+      router.push(`/checkout?event=${eventId}&seat_ids=${allSeatIds.join(",")}&qty=${selected.length}&held_until=${encodeURIComponent(heldUntil)}`);
     } catch (err) {
       setReserveError(err instanceof Error ? err.message : "Failed to reserve seats");
     } finally {

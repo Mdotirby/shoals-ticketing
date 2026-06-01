@@ -252,6 +252,104 @@ export default function EventSalesDetailPage() {
     );
   }
 
+  const printOrderReceipt = async (o: Order) => {
+    if (!event) return;
+    const { jsPDF } = await import("jspdf");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+    const gold: [number, number, number] = [208, 194, 144];
+    const dark: [number, number, number] = [11, 13, 29];
+    const W = 215.9;
+
+    doc.setFillColor(...dark);
+    doc.rect(0, 0, W, 279, "F");
+
+    // Header bar
+    doc.setFillColor(...gold);
+    doc.rect(0, 0, W, 22, "F");
+    doc.setTextColor(...dark);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Order Receipt", 14, 10);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`VenueCore · ${new Date(o.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`, 14, 17);
+
+    let y = 36;
+
+    const sectionHeader = (title: string) => {
+      doc.setTextColor(...gold);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(title, 14, y);
+      y += 5;
+      doc.setDrawColor(...gold);
+      doc.setLineWidth(0.2);
+      doc.line(14, y, 200, y);
+      y += 5;
+    };
+
+    const row = (label: string, value: string, highlight = false) => {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(160, 160, 160);
+      doc.text(label, 14, y);
+      if (highlight) {
+        doc.setTextColor(...gold);
+        doc.setFont("helvetica", "bold");
+      } else {
+        doc.setTextColor(255, 255, 255);
+      }
+      doc.text(value, 110, y);
+      y += 7;
+    };
+
+    const safeDate = (d: string) => (d && d.length === 10 && d[4] === "-")
+      ? new Date(d + "T12:00:00")
+      : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
+
+    sectionHeader("EVENT");
+    row("Event", event.title);
+    row("Venue", event.venue);
+    row("Date", safeDate(event.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }));
+
+    y += 4;
+    sectionHeader("CUSTOMER");
+    row("Name", o.customer_name || "—");
+    row("Email", o.customer_email || "—");
+    if (o.customer_phone) row("Phone", o.customer_phone);
+
+    y += 4;
+    sectionHeader("ORDER DETAILS");
+    row("Order ID", o.id.slice(0, 8).toUpperCase());
+    row("Order Date", new Date(o.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }));
+    row("Quantity", `${o.quantity || 1} ticket${(o.quantity || 1) !== 1 ? "s" : ""}`);
+    if (o.promo_codes?.code) {
+      const disc = o.promo_codes.discount_type === "percentage"
+        ? `${Number(o.promo_codes.discount_value)}% off`
+        : `$${Number(o.promo_codes.discount_value).toFixed(2)} off`;
+      row("Promo Code", `${o.promo_codes.code} (${disc})`);
+    }
+
+    y += 4;
+    doc.setDrawColor(...gold);
+    doc.setLineWidth(0.4);
+    doc.line(14, y, 200, y);
+    y += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...gold);
+    doc.text("TOTAL PAID", 14, y);
+    doc.text(`$${(o.total_amount || 0).toFixed(2)}`, 110, y);
+
+    y += 12;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text("All sales are final. This receipt is your proof of purchase.", 14, y);
+
+    doc.save(`Receipt-${o.id.slice(0, 8).toUpperCase()}.pdf`);
+  };
+
   const exportOrdersPDF = async () => {
     if (!event) return;
     const { jsPDF } = await import("jspdf");
@@ -531,7 +629,24 @@ export default function EventSalesDetailPage() {
                         hour: "numeric", minute: "2-digit",
                       })}
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap", display: "flex", gap: 6, alignItems: "center" }}>
+                      <button
+                        onClick={() => printOrderReceipt(o)}
+                        style={{
+                          display: "inline-block",
+                          padding: "4px 10px",
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.12)",
+                          color: "rgba(255,255,255,0.55)",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Receipt
+                      </button>
                       <Link
                         href={`/admin/orders/${id}/${o.id}`}
                         style={{

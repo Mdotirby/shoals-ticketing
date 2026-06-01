@@ -104,13 +104,15 @@ export async function POST(request: Request) {
     // This avoids the double-reserve error.
     let reservedSeatIds: string[] = [];
     if (Array.isArray(seat_ids) && seat_ids.length > 0) {
-      // Verify seats are still available
+      // Verify seats are still available or held by this same session (already reserved on the seating page)
       const { data: seatCheck } = await admin
         .from("seats")
-        .select("id, status")
+        .select("id, status, held_session")
         .in("id", seat_ids);
 
-      const unavailable = (seatCheck || []).filter((s: { status: string }) => s.status !== "available");
+      const unavailable = (seatCheck || []).filter((s: { status: string; held_session?: string | null }) =>
+        s.status !== "available" && s.held_session !== (buyerSessionId || null)
+      );
       if (unavailable.length > 0) {
         return NextResponse.json(
           { error: "Some seats are no longer available. Please re-select.", unavailable: unavailable.map((s: { id: string }) => s.id) },
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
       }
 
       // Temporarily hold seats (10 min) so no one else grabs them during checkout
-      const heldUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
       await admin.from("seats").update({
         status: "held",
         held_until: heldUntil,
@@ -137,38 +139,56 @@ export async function POST(request: Request) {
     let seatSectionNames: string[] = [];
     let ticketPriceCents: number;
     let effectiveQuantity = quantity;
+    // One billing unit per table (sells_as_table) or per seat (regular assigned seating)
+    let billingUnits: Array<{ sectionName: string; priceCents: number; labels: string[] }> = [];
 
     if (isAssignedSeating) {
       // Look up seat details + section prices from the new seating tables
       const { data: seatDetails } = await admin
         .from("seats")
-        .select("id, row_label, seat_number, section_id")
+        .select("id, row_label, seat_number, section_id, object_id")
         .in("id", reservedSeatIds);
 
       const sectionIds = [...new Set((seatDetails || []).map((s: { section_id: string }) => s.section_id))];
       const { data: sectionDetails } = sectionIds.length
-        ? await admin.from("sections").select("id, name, price_cents").in("id", sectionIds)
+        ? await admin.from("sections").select("id, name, price_cents, sells_as_table").in("id", sectionIds)
         : { data: [] };
 
-      const sectionMap = new Map<string, { name: string; price_cents: number }>();
+      const sectionMap = new Map<string, { name: string; price_cents: number; sells_as_table: boolean }>();
       for (const sec of sectionDetails || []) {
-        sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents });
+        sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents, sells_as_table: !!sec.sells_as_table });
       }
 
-      // Calculate total from actual section prices
-      let seatTotalCents = 0;
+      // For sells_as_table sections, price_cents is the price for the whole table — not per seat.
+      // Track each table object (object_id) as one billing unit so we charge the table price once.
+      const seenTableObjects = new Set<string>();
+      const tableObjectUnitIdx = new Map<string, number>();
+
       for (const seat of seatDetails || []) {
         const sec = sectionMap.get(seat.section_id);
-        const priceCents = sec?.price_cents || Math.round(event.price * 100);
-        seatTotalCents += priceCents;
-        const label = `${sec?.name || "Section"} | ${seat.row_label} | Seat ${seat.seat_number}`;
+        const priceCents = sec?.price_cents ?? Math.round(event.price * 100);
+        const secName = sec?.name ?? "Section";
+        const label = `${secName} | ${seat.row_label} | Seat ${seat.seat_number}`;
         seatLabels.push(label);
-        seatSectionNames.push(sec?.name || "Section");
+        seatSectionNames.push(secName);
+
+        if (sec?.sells_as_table && seat.object_id) {
+          if (!seenTableObjects.has(seat.object_id)) {
+            seenTableObjects.add(seat.object_id);
+            tableObjectUnitIdx.set(seat.object_id, billingUnits.length);
+            billingUnits.push({ sectionName: secName, priceCents, labels: [label] });
+          } else {
+            // Additional seat in the same table — attach label to the existing unit
+            billingUnits[tableObjectUnitIdx.get(seat.object_id)!].labels.push(label);
+          }
+        } else {
+          billingUnits.push({ sectionName: secName, priceCents, labels: [label] });
+        }
       }
 
-      // For assigned seating, use average per-seat price for fee calculation
-      effectiveQuantity = reservedSeatIds.length;
-      ticketPriceCents = Math.round(seatTotalCents / effectiveQuantity);
+      const seatTotalCents = billingUnits.reduce((s, u) => s + u.priceCents, 0);
+      effectiveQuantity = billingUnits.length;
+      ticketPriceCents = effectiveQuantity > 0 ? Math.round(seatTotalCents / effectiveQuantity) : 0;
     } else {
       ticketPriceCents = Math.round(event.price * 100);
     }
@@ -201,25 +221,28 @@ export async function POST(request: Request) {
     }> = [];
 
     if (isAssignedSeating) {
-      // For assigned seating: show each seat as a line item (or grouped by section)
-      const sectionGroups = new Map<string, { name: string; count: number; priceCents: number }>();
-      for (let i = 0; i < seatLabels.length; i++) {
-        const secName = seatSectionNames[i];
-        const existing = sectionGroups.get(secName);
+      // Group billing units by section name + unit price for Stripe line items.
+      // Each billing unit is one table (sells_as_table) or one individual seat.
+      const lineItemGroups = new Map<string, { name: string; count: number; priceCents: number; labels: string[] }>();
+      for (const unit of billingUnits) {
+        const discountedUnitPrice = Math.max(0, unit.priceCents - discountCentsPerTicket);
+        const key = `${unit.sectionName}:${discountedUnitPrice}`;
+        const existing = lineItemGroups.get(key);
         if (existing) {
           existing.count++;
+          existing.labels.push(...unit.labels);
         } else {
-          sectionGroups.set(secName, { name: secName, count: 1, priceCents: discountedTicketPriceCents });
+          lineItemGroups.set(key, { name: unit.sectionName, count: 1, priceCents: discountedUnitPrice, labels: [...unit.labels] });
         }
       }
 
-      for (const [, group] of sectionGroups) {
+      for (const [, group] of lineItemGroups) {
         lineItems.push({
           price_data: {
             currency: "usd",
             product_data: {
               name: `${event.title} — ${group.name}`,
-              description: seatLabels.filter((_, i) => seatSectionNames[i] === group.name).join(", "),
+              description: group.labels.join(", "),
             },
             unit_amount: group.priceCents,
           },

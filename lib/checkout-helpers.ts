@@ -202,8 +202,8 @@ export async function validateAndHoldSeats(
     };
   }
 
-  // Temporarily hold seats (10 min) so no one else grabs them during checkout
-  const heldUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  // Temporarily hold seats (4 min) so no one else grabs them during checkout
+  const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
   await admin.from("seats").update({
     status: "held",
     held_until: heldUntil,

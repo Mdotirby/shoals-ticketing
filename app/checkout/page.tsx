@@ -16,6 +16,45 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
+function SeatHoldTimer({ heldUntil }: { heldUntil: string }) {
+  const [secsLeft, setSecsLeft] = useState(() =>
+    Math.max(0, Math.round((new Date(heldUntil).getTime() - Date.now()) / 1000))
+  );
+
+  useEffect(() => {
+    if (secsLeft <= 0) return;
+    const id = setInterval(() => {
+      setSecsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [secsLeft]);
+
+  const mins = Math.floor(secsLeft / 60);
+  const secs = secsLeft % 60;
+  const expired = secsLeft === 0;
+  const urgent = secsLeft <= 60;
+
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "8px 14px",
+      borderRadius: 8,
+      background: expired ? "rgba(239,68,68,0.1)" : urgent ? "rgba(245,158,11,0.1)" : "rgba(255,255,255,0.05)",
+      border: `1px solid ${expired ? "rgba(239,68,68,0.4)" : urgent ? "rgba(245,158,11,0.4)" : "rgba(255,255,255,0.1)"}`,
+      fontSize: 13,
+      color: expired ? "#f87171" : urgent ? "#fbbf24" : "rgba(255,255,255,0.6)",
+      marginBottom: 16,
+    }}>
+      <span style={{ fontSize: 16 }}>{expired ? "⚠" : "🔒"}</span>
+      {expired
+        ? "Your seat hold has expired. Please go back and reselect."
+        : `Seats held for ${mins}:${String(secs).padStart(2, "0")} — complete payment before time runs out.`}
+    </div>
+  );
+}
+
 function CheckoutContent() {
   const operator = useOperator();
   const isWest72 = operator.slug === "west72";
@@ -100,6 +139,9 @@ function CheckoutContent() {
   const seatIdsParam = searchParams.get("seat_ids");
   const seatIds = seatIdsParam ? seatIdsParam.split(",").filter(Boolean) : [];
 
+  // Seat hold expiry (only present for assigned-seating purchases)
+  const heldUntilParam = searchParams.get("held_until");
+
   // Get trackable link ref from URL params (for conversion attribution)
   const trackingRef = searchParams.get("ref") || (typeof window !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : null);
 
@@ -171,6 +213,7 @@ function CheckoutContent() {
     return (
       <section className="checkout-embed-section">
         <div className="pre-checkout-form">
+          {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
           <h3>Your Information</h3>
 
           <div className="pre-checkout-field">
@@ -371,6 +414,7 @@ function CheckoutContent() {
 
   return (
     <section className="checkout-embed-section">
+      {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
       <EmbeddedCheckoutProvider
         stripe={stripePromise}
         options={{ fetchClientSecret }}

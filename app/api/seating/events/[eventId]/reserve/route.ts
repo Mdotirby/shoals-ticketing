@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-/** POST /api/seating/events/[eventId]/reserve — hold seats for 10 minutes */
+/** POST /api/seating/events/[eventId]/reserve — hold seats for 4 minutes */
 export async function POST(req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
   const body = await req.json();
@@ -47,7 +47,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
   // Atomic conditional update — only updates seats that are still available.
   // If another request grabbed any seat between our check and this update,
   // the affected_rows count will be less than seat_ids.length and we reject.
-  const heldUntil = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
   const { data: updated, error } = await admin
     .from("seats")
     .update({ status: "held", held_until: heldUntil, held_session: session_id || null })

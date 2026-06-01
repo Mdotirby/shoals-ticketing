@@ -404,7 +404,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       {
         heading: "Customer Experience",
         steps: [
-          { title: "How Customers Pick Seats", details: ["On the event page, customers see the seat map inline below the ticket selector", "They tap/click seats to select them — selected seats highlight with a white border", "The ticket type and quantity auto-update to match selected seats", "The Order Summary on the right shows each selected seat with its price", "On checkout, seats are held for 10 minutes while payment is processed", "After payment, seats are marked as 'sold' and shown as unavailable to other buyers"] },
+          { title: "How Customers Pick Seats", details: ["On the event page, customers see the seat map inline below the ticket selector", "They tap/click seats to select them — selected seats highlight with a white border", "The ticket type and quantity auto-update to match selected seats", "The Order Summary on the right shows each selected seat with its price", "On checkout, seats are held for 4 minutes while payment is processed", "After payment, seats are marked as 'sold' and shown as unavailable to other buyers"] },
         ],
       },
     ],

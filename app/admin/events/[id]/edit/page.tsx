@@ -39,6 +39,34 @@ function emptyTier(): TicketTierDraft {
   return { tier_name: "", price: "", capacity: "" };
 }
 
+// Convert a UTC ISO string to date + time strings in America/Chicago timezone
+function utcToChicago(utcIso: string): { date: string; time: string } {
+  const dt = new Date(utcIso);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+    hour12: false,
+  }).formatToParts(dt);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${hour}:${get("minute")}` };
+}
+
+// Convert a date + time entered as America/Chicago to a UTC ISO string
+function chicagoToUtcIso(date: string, time: string): string {
+  const naive = `${date}T${time || "00:00"}:00`;
+  // Start guess: CST = UTC-6
+  let guess = new Date(`${naive}-06:00`);
+  for (let i = 0; i < 3; i++) {
+    const { date: cd, time: ct } = utcToChicago(guess.toISOString());
+    const diff = new Date(naive).getTime() - new Date(`${cd}T${ct}:00`).getTime();
+    if (Math.abs(diff) < 30000) break;
+    guess = new Date(guess.getTime() + diff);
+  }
+  return guess.toISOString();
+}
+
 export default function AdminEditEventPage() {
   const router = useRouter();
   const { id } = useParams() as { id: string };
@@ -229,12 +257,11 @@ export default function AdminEditEventPage() {
           setIsFree(true);
         }
 
-        // Load on_sale_at
+        // Load on_sale_at — display in Central Time so admins set CST
         if (event.on_sale_at) {
-          const osDate = event.on_sale_at.slice(0, 10);
-          const osTimeMatch = event.on_sale_at.match(/T(\d{2}:\d{2})/);
+          const { date: osDate, time: osTime } = utcToChicago(event.on_sale_at);
           setOnSaleDate(osDate);
-          if (osTimeMatch) setOnSaleTime(osTimeMatch[1]);
+          setOnSaleTime(osTime);
         }
 
         // Load landing page slug
@@ -572,7 +599,7 @@ export default function AdminEditEventPage() {
           event_venue_id: selectedEventVenueId || null,
           facility_fee_enabled: isFree ? false : facilityFeeEnabled,
           is_free: isFree,
-          on_sale_at: onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}:00` : null,
+          on_sale_at: onSaleDate ? chicagoToUtcIso(onSaleDate, onSaleTime) : null,
           venue_id: resolvedVenueId || null,
           event_type: form.event_type,
           booking_status: form.booking_status,
@@ -1159,7 +1186,7 @@ export default function AdminEditEventPage() {
                 />
               </label>
               <label style={{ flex: 1 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Time</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Time (Central Time)</span>
                 <select
                   className="admin-form-input"
                   value={onSaleTime}
