@@ -181,7 +181,7 @@ export default function OrderDetailPage() {
   const [showManual, setShowManual] = useState(false);
   const [manualSections, setManualSections] = useState<{ id: string; name: string; price_cents: number }[]>([]);
   const [manualSectionId, setManualSectionId] = useState("");
-  const [lookupResult, setLookupResult] = useState<{ section: { name: string; sells_as_table: boolean }; seats: { id: string; seat_number: number; row_label: string; object_id: string | null; status: string; order_id: string | null }[] } | null>(null);
+  const [lookupResult, setLookupResult] = useState<{ section: { name: string; sells_as_table: boolean }; seats: { id: string; seat_number: number; row_label: string; object_id: string | null; status: string; order_id: string | null }[]; tableNumbers?: Record<string, number> } | null>(null);
   const [selectedSeatIds, setSelectedSeatIds] = useState<Set<string>>(new Set());
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [looking, setLooking] = useState(false);
@@ -765,13 +765,17 @@ export default function OrderDetailPage() {
             const isTableSection = section.sells_as_table;
 
             if (isTableSection) {
+              const tableNumbers = lookupResult.tableNumbers || {};
               const tables = new Map<string, typeof seats>();
               for (const seat of seats) {
                 const key = seat.object_id || seat.id;
                 if (!tables.has(key)) tables.set(key, []);
                 tables.get(key)!.push(seat);
               }
-              const tableList = [...tables.entries()];
+              // Sort by real table number from metadata
+              const tableList = [...tables.entries()].sort(([a], [b]) =>
+                (tableNumbers[a] ?? 999) - (tableNumbers[b] ?? 999)
+              );
               const selectedTables = tableList.filter(([, tSeats]) => tSeats.every(s => selectedSeatIds.has(s.id))).length;
 
               return (
@@ -786,14 +790,15 @@ export default function OrderDetailPage() {
                     </div>
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-                    {tableList.map(([objectId, tSeats], idx) => {
+                    {tableList.map(([objectId, tSeats]) => {
                       const isMine = tSeats.some(s => s.order_id === orderId);
                       const isSoldElsewhere = tSeats.some(s => s.status === "sold" && s.order_id !== orderId);
                       const isSelected = tSeats.every(s => selectedSeatIds.has(s.id));
+                      const tableNum = tableNumbers[objectId] ?? "?";
                       return (
                         <button key={objectId} disabled={isSoldElsewhere} onClick={() => !isSoldElsewhere && toggleTableObject(objectId, tSeats.map(s => s.id))}
                           style={{ padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: isSelected ? 700 : 400, cursor: isSoldElsewhere ? "not-allowed" : "pointer", background: isSoldElsewhere ? "rgba(239,68,68,0.08)" : isSelected ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.05)", border: `2px solid ${isSoldElsewhere ? "rgba(239,68,68,0.25)" : isSelected ? "rgba(34,197,94,0.6)" : "rgba(255,255,255,0.12)"}`, color: isSoldElsewhere ? "#f87171" : isSelected ? "#22c55e" : "rgba(255,255,255,0.6)", transition: "all 0.1s" }}>
-                          Table {idx + 1}
+                          Table {tableNum}
                           <span style={{ display: "block", fontSize: 10, opacity: 0.6, marginTop: 2 }}>
                             {tSeats.length} seats · {isSoldElsewhere ? "sold" : isMine ? "this order" : "available"}
                           </span>

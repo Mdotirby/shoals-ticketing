@@ -70,8 +70,23 @@ export async function GET(
     .order("row_label")
     .order("seat_number");
 
+  // Fetch real table numbers from object metadata so the UI shows the correct table label
+  const objectIds = [...new Set((seats || []).map((s: { object_id: string | null }) => s.object_id).filter(Boolean))] as string[];
+  const tableNumbers = new Map<string, number>();
+  if (objectIds.length > 0) {
+    const { data: objects } = await admin
+      .from("objects")
+      .select("id, metadata")
+      .in("id", objectIds);
+    for (const obj of objects || []) {
+      const num = (obj.metadata as { table_number?: number })?.table_number;
+      if (num != null) tableNumbers.set(obj.id, num);
+    }
+  }
+
   return NextResponse.json({
     section: { id: section.id, name: section.name, price_cents: section.price_cents, sells_as_table: section.sells_as_table, type: section.type },
     seats: seats || [],
+    tableNumbers: Object.fromEntries(tableNumbers),
   });
 }
