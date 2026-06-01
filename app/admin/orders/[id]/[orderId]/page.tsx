@@ -286,19 +286,19 @@ export default function OrderDetailPage() {
 
   async function handleSendPaymentRequest() {
     if (!feePreview) { setPaymentRequestMsg({ type: "error", text: "Select a ticket tier first." }); return; }
-    const cents = feePreview.breakdown.totalCents;
-    if (!cents || cents < 50) { setPaymentRequestMsg({ type: "error", text: "Invalid amount." }); return; }
+    if (!feePreview) { setPaymentRequestMsg({ type: "error", text: "Select a ticket tier first." }); return; }
     setSendingPaymentRequest(true);
     setPaymentRequestMsg(null);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/payment-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_cents: cents, note: paymentNote || undefined }),
+        // Send tier_id + quantity — the server calculates the amount, no client dollar amounts
+        body: JSON.stringify({ tier_id: selectedTierId, quantity: parseInt(paymentQty) || 1, note: paymentNote || undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to send payment request");
-      const total = (cents / 100).toFixed(2);
+      const total = ((data.totalCents ?? feePreview?.breakdown.totalCents ?? 0) / 100).toFixed(2);
       setPaymentRequestMsg({ type: "success", text: `Payment request for $${total} sent to ${data.sentTo}. Order will update to Paid automatically when they complete payment.` });
       setShowPaymentRequest(false);
       setFeePreview(null);
