@@ -7,6 +7,34 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SU
 export async function GET(_req: Request, { params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
 
+  // Release any expired holds before returning seat data.
+  // Primary release mechanism — no cron job required.
+  try {
+    const { data: mapRow } = await admin
+      .from("event_layout_maps")
+      .select("layout_id")
+      .eq("event_id", eventId)
+      .eq("enabled", true)
+      .single();
+    if (mapRow?.layout_id) {
+      const { data: secs } = await admin
+        .from("sections")
+        .select("id")
+        .eq("layout_id", mapRow.layout_id);
+      const sectionIds = (secs || []).map((s: { id: string }) => s.id);
+      if (sectionIds.length) {
+        await admin
+          .from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .eq("status", "held")
+          .lt("held_until", new Date().toISOString())
+          .in("section_id", sectionIds);
+      }
+    }
+  } catch {
+    // Non-fatal — proceed with current seat data if release fails
+  }
+
   // Look up event_layout_maps
   const { data: map } = await admin
     .from("event_layout_maps").select("*").eq("event_id", eventId).single();
