@@ -52,6 +52,7 @@ async function processTicketOrder({
   fwbOptIn,
   trackingRef,
   stripeReferenceId,
+  stripePaymentIntentId,
   ticketingFee,
   venueRebate,
   taxRate,
@@ -73,6 +74,7 @@ async function processTicketOrder({
   fwbOptIn: boolean;
   trackingRef: string | null;
   stripeReferenceId: string;
+  stripePaymentIntentId?: string | null;
   ticketingFee: number;
   venueRebate: number;
   taxRate: number;
@@ -119,6 +121,7 @@ async function processTicketOrder({
         quantity,
         total_amount: totalAmount,
         stripe_checkout_session_id: stripeReferenceId,
+        stripe_payment_intent_id: stripePaymentIntentId || null,
         status: "paid",
         fwb_opt_in: fwbOptIn,
         source,
@@ -579,6 +582,7 @@ export async function POST(request: Request) {
       fwbOptIn,
       trackingRef: session.metadata?.tracking_ref || null,
       stripeReferenceId: session.id,
+      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
       ticketingFee: parseFloat(session.metadata?.ticketing_fee || "3"),
       venueRebate: parseFloat(session.metadata?.venue_rebate || "0"),
       taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
@@ -618,6 +622,7 @@ export async function POST(request: Request) {
         fwbOptIn: meta.fwb_opt_in === "true",
         trackingRef: meta.tracking_ref || null,
         stripeReferenceId: paymentIntent.id,
+        stripePaymentIntentId: paymentIntent.id,
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),
         venueRebate: parseFloat(meta.venue_rebate || "0"),
         taxRate: parseFloat(meta.tax_rate || "0.09"),
@@ -636,11 +641,23 @@ export async function POST(request: Request) {
       // Find original order via payment_intent (stored in stripe_checkout_session_id for PI-based orders)
       const pi = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
       if (pi) {
-        const { data: order } = await admin
+        // Look up order by payment intent ID — check both columns since:
+        // - inline checkout stores pi_xxx in stripe_checkout_session_id
+        // - embedded checkout stores pi_xxx in stripe_payment_intent_id
+        let { data: order } = await admin
           .from("orders")
           .select("id, event_id")
-          .eq("stripe_checkout_session_id", pi)
+          .eq("stripe_payment_intent_id", pi)
           .maybeSingle();
+
+        if (!order) {
+          const fallback = await admin
+            .from("orders")
+            .select("id, event_id")
+            .eq("stripe_checkout_session_id", pi)
+            .maybeSingle();
+          order = fallback.data;
+        }
 
         if (order) {
           // Update order status — full refund = refunded, partial = keep paid
