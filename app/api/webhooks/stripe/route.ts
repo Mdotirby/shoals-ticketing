@@ -353,7 +353,7 @@ async function processTicketOrder({
         .eq("recovered", false);
     }
 
-    // 7. FWB opt-in — subscribe to newsletter
+    // 7. FWB opt-in — subscribe to newsletter + Laylo SMS list
     if (fwbOptIn && customerEmail) {
       const nameParts = customerName.split(" ");
       await admin.from("newsletter_subscribers").upsert({
@@ -366,6 +366,29 @@ async function processTicketOrder({
         venue_id: eventData?.venue_id || null,
       }, { onConflict: "email" });
       console.log(`FWB opt-in for ${customerEmail}`);
+
+      // Subscribe phone to Laylo SMS list if phone provided
+      if (customerPhone && process.env.LAYLO_API_KEY) {
+        try {
+          const digits = customerPhone.replace(/\D/g, "");
+          const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : null;
+          if (e164) {
+            const layloRes = await fetch("https://laylo.com/api/graphql", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${process.env.LAYLO_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ query: `mutation { subscribeToUser(phoneNumber: "${e164}") }` }),
+            });
+            const layloJson = await layloRes.json();
+            if (layloJson.errors) {
+              console.error("Laylo FWB subscribe error:", layloJson.errors);
+            } else {
+              console.log(`Laylo SMS subscribed: ${e164}`);
+            }
+          }
+        } catch (err) {
+          console.error("Laylo FWB subscribe error (non-fatal):", err);
+        }
+      }
     }
 
     // 8. Look up seat assignments — tables show as "Table X", individual seats show row+number

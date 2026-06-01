@@ -52,6 +52,7 @@ function SuccessContent() {
   const [loading, setLoading] = useState(true);
   const [layloPhone, setLayloPhone] = useState("");
   const [layloStatus, setLayloStatus] = useState<"idle" | "loading" | "success" | "dismissed">("idle");
+  const [layloError, setLayloError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isPreview) {
@@ -86,6 +87,7 @@ function SuccessContent() {
   async function handleLayloOptIn() {
     if (!layloPhone.trim()) return;
     setLayloStatus("loading");
+    setLayloError(null);
     const nameParts = (data?.order?.customer_name || "").split(" ");
     try {
       const res = await fetch("/api/laylo/subscribe", {
@@ -98,10 +100,19 @@ function SuccessContent() {
           source: "west72-post-checkout",
         }),
       });
-      if (!res.ok) throw new Error();
+      const result = await res.json();
+      if (!res.ok) {
+        const msg = result?.error || "Could not subscribe. Please try again.";
+        console.error("Laylo subscribe failed:", result);
+        setLayloError(msg);
+        setLayloStatus("idle");
+        return;
+      }
       setLayloStatus("success");
-    } catch {
-      setLayloStatus("success"); // silently succeed — don't let a Laylo error ruin the post-purchase moment
+    } catch (err) {
+      console.error("Laylo subscribe error:", err);
+      setLayloError("Connection error. Please try again.");
+      setLayloStatus("idle");
     }
   }
 
@@ -240,6 +251,11 @@ function SuccessContent() {
                 >
                   {layloStatus === "loading" ? "Joining..." : "Yes, Text Me 📱"}
                 </button>
+                {layloError && (
+                  <p style={{ color: "#f87171", fontSize: 12, margin: "0 0 8px", textAlign: "center" }}>
+                    {layloError}
+                  </p>
+                )}
                 <button
                   onClick={() => setLayloStatus("dismissed")}
                   style={{
