@@ -294,7 +294,7 @@ export default async function LandingPage({ params }: Props) {
   // 9. Fetch other upcoming events for post-checkout YMAL
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
-  const { data: otherEventsRaw } = await admin
+  let otherEventsQuery = admin
     .from("events")
     .select("id, title, venue, date, price, image_url, is_free, on_sale_at")
     .eq("status", "published")
@@ -303,6 +303,13 @@ export default async function LandingPage({ params }: Props) {
     .gte("date", todayStr)
     .order("date", { ascending: true })
     .limit(8);
+
+  // Filter by same promoter/city (venue_id) when available
+  if (event.venue_id) {
+    otherEventsQuery = otherEventsQuery.eq("venue_id", event.venue_id);
+  }
+
+  const { data: otherEventsRaw } = await otherEventsQuery;
 
   const otherEvents = (otherEventsRaw ?? [])
     .filter((e) => !e.on_sale_at || new Date(e.on_sale_at) <= now)

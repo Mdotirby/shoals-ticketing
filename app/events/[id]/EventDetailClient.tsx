@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
@@ -86,7 +87,7 @@ export default function EventDetailClient() {
   const [presaleLoading, setPresaleLoading] = useState(false);
   const [presaleShake, setPresaleShake] = useState(false);
   const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
-  const [otherEvents, setOtherEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean }[]>([]);
+  const [allEvents, setAllEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null; venue_id?: string }[]>([]);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
   const [seatingRoomW, setSeatingRoomW] = useState(100);
@@ -286,23 +287,11 @@ export default function EventDetailClient() {
   }, [eventId]);
 
   // Fetch event + venue fees + ticket types
-  // Fetch other upcoming events for the "You May Also Like" section
+  // Fetch all events for YMAL — filter derived via useMemo once event is loaded
   useEffect(() => {
     fetch(`/api/events`)
       .then((r) => r.ok ? r.json() : [])
-      .then((data: { id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null }[]) => {
-        if (!Array.isArray(data)) return;
-        const now = new Date();
-        const others = data.filter((e) => {
-          if (e.id === eventId) return false;
-          if (e.closed_out_at) return false;
-          const d = e.date && e.date.length === 10 ? new Date(`${e.date}T23:59:59`) : new Date(e.date);
-          if (d <= now) return false;
-          if (e.on_sale_at && new Date(e.on_sale_at) > now) return false;
-          return true;
-        }).slice(0, 4);
-        setOtherEvents(others);
-      })
+      .then((data) => { if (Array.isArray(data)) setAllEvents(data); })
       .catch(() => {});
   }, [eventId]);
 
@@ -480,6 +469,21 @@ export default function EventDetailClient() {
 
   const selectedTicket = ticketTypes.find((t) => t.id === selectedTicketId) ?? null;
   const appliedPromoRef = useRef<string | null>(null);
+
+  // Derive YMAL list: upcoming, on-sale, same city (matched by venue_id), capped at 4
+  const otherEvents = useMemo(() => {
+    if (!event || allEvents.length === 0) return [];
+    const now = new Date();
+    return allEvents.filter((e) => {
+      if (e.id === event.id) return false;
+      if (e.closed_out_at) return false;
+      const d = e.date && e.date.length === 10 ? new Date(`${e.date}T23:59:59`) : new Date(e.date);
+      if (d <= now) return false;
+      if (e.on_sale_at && new Date(e.on_sale_at) > now) return false;
+      if (event.venue_id && e.venue_id !== event.venue_id) return false;
+      return true;
+    }).slice(0, 4);
+  }, [allEvents, event]);
 
   // Determine if this is a free event
   const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
@@ -1222,35 +1226,36 @@ export default function EventDetailClient() {
 
         {/* ── You May Also Like ────────────────────────────────────────────── */}
         {otherEvents.length > 0 && (
-          <section style={{ marginBottom: 40 }}>
-            <style>{`
-              .ymal-carousel { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; padding-bottom:6px; scrollbar-width:none; }
-              .ymal-carousel::-webkit-scrollbar { display:none; }
-              .ymal-card { flex:0 0 min(210px,72vw); scroll-snap-align:start; background:#131629; border-radius:12px; border:1px solid rgba(255,255,255,0.08); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; transition:transform 0.2s ease,border-color 0.2s ease; }
-              .ymal-card:hover { transform:scale(1.02); border-color:rgba(208,194,144,0.45); }
-              .ymal-img { position:relative; width:100%; aspect-ratio:16/9; background:#0b0d1d; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-              .ymal-img img { width:100%; height:100%; object-fit:cover; display:block; }
-              .ymal-img::after { content:""; position:absolute; bottom:0; left:0; right:0; height:50%; background:linear-gradient(to top,rgba(19,22,41,0.85),transparent); pointer-events:none; }
-              .ymal-body { padding:12px; display:flex; flex-direction:column; gap:6px; flex:1; }
-              .ymal-title { font-size:14px; font-weight:700; color:#fff; margin:0; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-              .ymal-meta { font-size:11px; color:rgba(255,255,255,0.5); margin:0; display:flex; align-items:center; gap:4px; }
-              .ymal-price { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; background:rgba(208,194,144,0.15); color:#d0c290; align-self:flex-start; }
-              .ymal-btn { display:block; width:100%; padding:9px; border:none; border-radius:7px; background:#d0c290; color:#0b0d1d; font-size:12px; font-weight:700; text-align:center; text-decoration:none; margin-top:auto; transition:opacity 0.15s; box-sizing:border-box; }
-              .ymal-btn:hover { opacity:0.88; }
-            `}</style>
-
-            <h2 style={{ fontSize: "clamp(15px, 3vw, 18px)", fontWeight: 800, margin: "0 0 14px", color: "#fff", letterSpacing: "-0.3px" }}>
+          <section className="ymal-section">
+            <motion.h2
+              className="ymal-heading"
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
               You May Also Like
-            </h2>
+            </motion.h2>
 
-            <div className="ymal-carousel">
+            <motion.div
+              className="ymal-grid"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
+            >
               {otherEvents.map((ev) => {
                 const isFree = ev.is_free || ev.price === 0;
-                const dateObj = ev.date && ev.date.length === 10 ? new Date(ev.date + "T12:00:00") : new Date(ev.date);
+                const dateObj = ev.date && ev.date.length === 10 ? new Date(`${ev.date}T12:00:00`) : new Date(ev.date);
                 const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
                 return (
-                  <a key={ev.id} href={`/events/${ev.id}`} className="ymal-card">
-                    <div className={`ymal-img${!ev.image_url ? "" : ""}`}>
+                  <motion.a
+                    key={ev.id}
+                    href={`/events/${ev.id}`}
+                    className="ymal-card"
+                    variants={{ hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } } }}
+                  >
+                    <div className="ymal-img">
                       {ev.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={ev.image_url} alt={ev.title} />
@@ -1275,10 +1280,10 @@ export default function EventDetailClient() {
                       <span className="ymal-price">{isFree ? "FREE" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
                       <span className="ymal-btn">{isFree ? "Register Free" : "Get Tickets"}</span>
                     </div>
-                  </a>
+                  </motion.a>
                 );
               })}
-            </div>
+            </motion.div>
           </section>
         )}
 
