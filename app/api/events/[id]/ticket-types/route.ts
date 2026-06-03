@@ -9,17 +9,36 @@ export async function GET(
   const { id } = await params;
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from("ticket_tiers")
-    .select("*")
-    .eq("event_id", id)
-    .order("sort_order", { ascending: true });
+  const [{ data, error }, { data: tierSales }] = await Promise.all([
+    admin
+      .from("ticket_tiers")
+      .select("*")
+      .eq("event_id", id)
+      .order("sort_order", { ascending: true }),
+    admin
+      .from("orders")
+      .select("tier_id, quantity")
+      .eq("event_id", id)
+      .eq("status", "paid"),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data ?? [], { status: 200 });
+  const soldByTier: Record<string, number> = {};
+  for (const row of tierSales ?? []) {
+    if (row.tier_id) {
+      soldByTier[row.tier_id] = (soldByTier[row.tier_id] ?? 0) + (row.quantity ?? 1);
+    }
+  }
+
+  const tiersWithSold = (data ?? []).map((t) => ({
+    ...t,
+    quantity_sold: soldByTier[t.id] ?? 0,
+  }));
+
+  return NextResponse.json(tiersWithSold, { status: 200 });
 }
 
 // POST: create a ticket tier for an event (admin)

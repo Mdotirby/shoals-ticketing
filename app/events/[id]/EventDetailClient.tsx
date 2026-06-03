@@ -407,19 +407,21 @@ export default function EventDetailClient() {
             if (Array.isArray(tiers) && tiers.length > 0) {
               const mapped = tiers.map((t: {
                 id: string; event_id: string; tier_name: string;
-                price: number; capacity: number; sort_order: number;
+                price: number; capacity: number; sort_order: number; quantity_sold?: number;
               }) => ({
                 id: t.id,
                 event_id: t.event_id,
                 name: t.tier_name,
                 price: t.price,
                 quantity_available: t.capacity,
-                quantity_sold: 0,
+                quantity_sold: t.quantity_sold ?? 0,
                 sort_order: t.sort_order,
                 perks: ["Full event access", "Venue amenities"],
               }));
               setTicketTypes(mapped);
-              setSelectedTicketId(mapped[0]?.id ?? null);
+              // Default to first available (non-sold-out) tier
+              const firstAvailable = mapped.find((t) => t.quantity_sold < t.quantity_available) ?? mapped[0];
+              setSelectedTicketId(firstAvailable?.id ?? null);
             } else {
               const ga: TicketType = {
                 id: `${data.id}-ga`,
@@ -680,16 +682,19 @@ export default function EventDetailClient() {
                       value={selectedTicketId ?? ""}
                       onChange={(e) => setSelectedTicketId(e.target.value)}
                     >
-                      {ticketTypes.map((tt) => (
-                        <option key={tt.id} value={tt.id}>
-                          {tt.name} — ${tt.price.toFixed(2)}
-                        </option>
-                      ))}
+                      {ticketTypes.map((tt) => {
+                        const soldOut = tt.quantity_sold >= tt.quantity_available;
+                        return (
+                          <option key={tt.id} value={tt.id} disabled={soldOut}>
+                            {tt.name} — ${tt.price.toFixed(2)}{soldOut ? " (Sold Out)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                     <div className="ticket-qty-control">
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1}>−</button>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || (selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false)}>−</button>
                       <span className="ticket-qty-value">{quantity}</span>
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))}>+</button>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false}>+</button>
                     </div>
                   </div>
 

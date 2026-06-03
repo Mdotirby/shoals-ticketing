@@ -103,6 +103,20 @@ export default async function LandingPage({ params }: Props) {
     .eq("event_id", event.id)
     .order("sort_order", { ascending: true });
 
+  // 2b. Count paid tickets sold per tier
+  const { data: tierSales } = await admin
+    .from("orders")
+    .select("tier_id, quantity")
+    .eq("event_id", event.id)
+    .eq("status", "paid");
+
+  const soldByTier: Record<string, number> = {};
+  for (const row of tierSales ?? []) {
+    if (row.tier_id) {
+      soldByTier[row.tier_id] = (soldByTier[row.tier_id] ?? 0) + (row.quantity ?? 1);
+    }
+  }
+
   // 3. Fetch venue fees
   let fees = { ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 };
 
@@ -170,6 +184,7 @@ export default async function LandingPage({ params }: Props) {
       basePrice: t.price,
       allInPrice: calcAllIn(t.price),
       capacity: t.capacity,
+      quantitySold: soldByTier[t.id] ?? 0,
     };
   });
 
@@ -181,6 +196,7 @@ export default async function LandingPage({ params }: Props) {
       basePrice: event.price,
       allInPrice: calcAllIn(event.price),
       capacity: event.capacity || 500,
+      quantitySold: 0,
     });
   }
 

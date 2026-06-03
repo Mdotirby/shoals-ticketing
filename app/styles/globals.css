@@ -8971,6 +8971,24 @@ body:has(.lp-main) .site-footer {
   color: var(--vc-gold);
 }
 
+.lp-tier-btn-sold-out {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lp-tier-btn-sold-out:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lp-tier-sold-out-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* ── CTA Row (quantity + button) ── */
 .lp-cta-row {
   display: flex;

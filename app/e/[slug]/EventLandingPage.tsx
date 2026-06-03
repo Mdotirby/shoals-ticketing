@@ -23,6 +23,7 @@ type TicketType = {
   basePrice: number;
   allInPrice: number;
   capacity: number;
+  quantitySold: number;
 };
 
 type EventData = {
@@ -679,7 +680,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
-  const [selectedTierId, setSelectedTierId] = useState(ticketTypes[0]?.id ?? "");
+  const [selectedTierId, setSelectedTierId] = useState(
+    (ticketTypes.find((t) => t.quantitySold < t.capacity) ?? ticketTypes[0])?.id ?? ""
+  );
   const [onSaleCountdown, setOnSaleCountdown] = useState<string | null>(null);
   const [ticketsOnSale, setTicketsOnSale] = useState(true);
   const [isCtaVisible, setIsCtaVisible] = useState(false);
@@ -698,6 +701,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const selectedTier = ticketTypes.find((t) => t.id === selectedTierId) ?? ticketTypes[0];
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
   const isFree = event.isFree || displayPrice === 0;
+  const selectedTierSoldOut = selectedTier
+    ? selectedTier.quantitySold >= selectedTier.capacity
+    : false;
 
   // Total for the CTA — fee applied once per transaction, not per ticket.
   // allInPrice already bakes in a per-ticket flat fee, so multiplying by quantity
@@ -1184,20 +1190,28 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               {/* Tier selector (only if multiple tiers) */}
               {ticketTypes.length > 1 && (
                 <div className="lp-tier-selector">
-                  {ticketTypes.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`lp-tier-btn ${t.id === selectedTierId ? "lp-tier-btn-active" : ""}`}
-                      onClick={() => {
-                        setSelectedTierId(t.id);
-                        if (checkoutOpen) setCheckoutOpen(false);
-                      }}
-                    >
-                      <span className="lp-tier-name">{t.name}</span>
-                      <span className="lp-tier-price">${t.allInPrice.toFixed(2)}</span>
-                    </button>
-                  ))}
+                  {ticketTypes.map((t) => {
+                    const tierSoldOut = t.quantitySold >= t.capacity;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className={`lp-tier-btn ${t.id === selectedTierId ? "lp-tier-btn-active" : ""} ${tierSoldOut ? "lp-tier-btn-sold-out" : ""}`}
+                        disabled={tierSoldOut}
+                        onClick={() => {
+                          if (tierSoldOut) return;
+                          setSelectedTierId(t.id);
+                          if (checkoutOpen) setCheckoutOpen(false);
+                        }}
+                      >
+                        <span className="lp-tier-name">{t.name}</span>
+                        {tierSoldOut
+                          ? <span className="lp-tier-sold-out-label">Sold Out</span>
+                          : <span className="lp-tier-price">${t.allInPrice.toFixed(2)}</span>
+                        }
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -1223,7 +1237,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                       setQuantity((q) => Math.max(1, q - 1));
                       if (checkoutOpen) setCheckoutOpen(false);
                     }}
-                    disabled={quantity <= 1}
+                    disabled={quantity <= 1 || selectedTierSoldOut}
                   >
                     &minus;
                   </button>
@@ -1235,6 +1249,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                       setQuantity((q) => Math.min(10, q + 1));
                       if (checkoutOpen) setCheckoutOpen(false);
                     }}
+                    disabled={selectedTierSoldOut}
                   >
                     +
                   </button>
@@ -1243,9 +1258,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                   type="button"
                   className="lp-cta-btn"
                   onClick={handleGetTickets}
-                  disabled={checkoutOpen}
+                  disabled={checkoutOpen || selectedTierSoldOut}
                 >
-                  {isFree ? "Get Free Tickets" : "Get Tickets"}
+                  {selectedTierSoldOut ? "Sold Out" : isFree ? "Get Free Tickets" : "Get Tickets"}
                 </button>
               </div>
             </>
@@ -1564,7 +1579,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
       )}
 
       {/* ── BOTTOM CTA SECTION ─────────────────────────────────────── */}
-      {!isPast && ticketsOnSale && !checkoutOpen && (
+      {!isPast && ticketsOnSale && !checkoutOpen && !selectedTierSoldOut && (
         <section className="lp-bottom-cta lp-reveal">
           <p className="lp-bottom-cta-text">Ready to secure your spot?</p>
           <button type="button" className="lp-cta-btn lp-cta-btn-lg" onClick={handleGetTickets}>
@@ -1579,10 +1594,12 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
           <div className="lp-sticky-price">
             {event.externalTicketUrl
               ? (event.externalTicketLabel || "Get Tickets")
-              : isFree
-                ? "Free"
-                : `$${ctaTotal.toFixed(2)}`}
-            {!event.externalTicketUrl && !isFree && (
+              : selectedTierSoldOut
+                ? "Sold Out"
+                : isFree
+                  ? "Free"
+                  : `$${ctaTotal.toFixed(2)}`}
+            {!event.externalTicketUrl && !isFree && !selectedTierSoldOut && (
               <span className="lp-sticky-price-label">
                 {quantity > 1 ? "total" : "per ticket"} · Price
               </span>
@@ -1600,8 +1617,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               Get Tickets →
             </a>
           ) : (
-            <button type="button" className="lp-sticky-cta" onClick={handleGetTickets}>
-              Get Tickets
+            <button type="button" className="lp-sticky-cta" onClick={handleGetTickets} disabled={selectedTierSoldOut}>
+              {selectedTierSoldOut ? "Sold Out" : "Get Tickets"}
             </button>
           )}
         </div>

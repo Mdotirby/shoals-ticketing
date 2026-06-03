@@ -39,7 +39,10 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   // Divisor = tax baked into face price; don't charge it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
-  const hasSelection = selectedTicket !== null && quantity > 0;
+  const selectedTierSoldOut = selectedTicket
+    ? selectedTicket.quantity_sold >= selectedTicket.quantity_available
+    : false;
+  const hasSelection = selectedTicket !== null && quantity > 0 && !selectedTierSoldOut;
 
   // ── Free checkout state ──
   const [freeName, setFreeName] = useState("");
@@ -126,7 +129,13 @@ export default function OrderSummary({
     <div className="order-summary">
       <h2 className="order-summary-title">Order Summary</h2>
 
-      {!hasSelection ? (
+      {selectedTierSoldOut ? (
+        <div className="order-summary-empty">
+          <p className="order-summary-empty-text" style={{ color: "#f87171" }}>
+            This ticket type is sold out.
+          </p>
+        </div>
+      ) : !hasSelection ? (
         <div className="order-summary-empty">
           <svg
             className="order-summary-cart-icon"
