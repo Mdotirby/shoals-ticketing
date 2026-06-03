@@ -498,43 +498,55 @@ function CheckoutForm({
                 from { opacity: 0; transform: translateY(18px); }
                 to   { opacity: 1; transform: none; }
               }
-              .lp-ymal-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; text-align:left; }
-              .lp-ymal-card { background:rgba(255,255,255,0.04); border-radius:12px; border:1px solid rgba(255,255,255,0.08); overflow:hidden; display:flex; flex-direction:column; text-decoration:none; color:inherit; transition:transform 0.2s ease,border-color 0.2s ease,box-shadow 0.2s ease; animation:lp-ymal-in 0.42s cubic-bezier(0.22,1,0.36,1) both; }
+              .lp-ymal-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+              .lp-ymal-card {
+                box-sizing:border-box; aspect-ratio:3/2;
+                display:flex; flex-direction:column; justify-content:flex-start; align-items:flex-start;
+                padding:8px; box-shadow:inset 0 0 1px 1px #2d3139; overflow:hidden; gap:4px;
+                background-size:cover; background-repeat:no-repeat; background-position:center; background-color:#1a1c2e;
+                position:relative; border-radius:13px; isolation:isolate; text-decoration:none; color:inherit;
+                transform:translateY(0); transition:transform 180ms ease,box-shadow 180ms ease;
+                animation:lp-ymal-in 0.42s cubic-bezier(0.22,1,0.36,1) both;
+              }
               .lp-ymal-card:nth-child(1){animation-delay:0.05s;}
               .lp-ymal-card:nth-child(2){animation-delay:0.12s;}
               .lp-ymal-card:nth-child(3){animation-delay:0.19s;}
               .lp-ymal-card:nth-child(4){animation-delay:0.26s;}
-              .lp-ymal-card:hover { transform:translateY(-3px); border-color:rgba(208,194,144,0.4); box-shadow:0 8px 24px rgba(0,0,0,0.35); }
-              .lp-ymal-img { position:relative; width:100%; aspect-ratio:16/9; background:#0b0d1d; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-              .lp-ymal-img img { width:100%; height:100%; object-fit:cover; display:block; }
-              .lp-ymal-body { padding:10px; display:flex; flex-direction:column; gap:5px; flex:1; }
-              .lp-ymal-title { font-size:12px; font-weight:700; color:#fff; margin:0; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-              .lp-ymal-meta { font-size:10px; color:rgba(255,255,255,0.45); margin:0; }
-              .lp-ymal-price { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:700; background:rgba(208,194,144,0.12); color:#d0c290; align-self:flex-start; }
-              .lp-ymal-btn { display:block; width:100%; padding:8px; border:none; border-radius:6px; background:#d0c290; color:#0b0d1d; font-size:11px; font-weight:700; text-align:center; text-decoration:none; margin-top:auto; box-sizing:border-box; transition:opacity 0.15s; }
-              .lp-ymal-btn:hover { opacity:0.85; }
+              .lp-ymal-card:hover { transform:translateY(-4px); box-shadow:inset 0 0 1px 1px #2d3139,0 8px 20px rgba(0,0,0,0.35); }
+              .lp-ymal-glow { width:200%; height:80%; display:block; filter:blur(18px); background:radial-gradient(50% 50% at 50% 50%,rgba(208,194,144,0.7) 0%,rgba(0,76,255,0.02) 100%); z-index:0; border-radius:100%; position:absolute; left:50%; bottom:-55%; transform:translateX(-50%); pointer-events:none; }
+              .lp-ymal-venue { max-width:calc(100% - 8px); display:flex; align-items:center; padding:2px 6px; background-color:rgba(208,194,144,0.5); border-radius:3px; position:relative; z-index:2; font-size:9px; font-weight:700; color:#0b0d1d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+              .lp-ymal-content { width:100%; margin-top:auto; display:flex; flex-direction:column; align-items:flex-start; gap:4px; position:relative; z-index:2; }
+              .lp-ymal-title { width:100%; font-family:var(--font-bayon),sans-serif; font-size:clamp(14px,4vw,20px); line-height:1.05; color:#fff; margin:0; text-align:left; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; text-shadow:0 1px 6px rgba(0,0,0,0.6); }
+              .lp-ymal-badges { display:flex; flex-wrap:nowrap; gap:4px; }
+              .lp-ymal-badge { display:inline-flex; align-items:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); padding:3px 8px; border-radius:999px; font-size:9px; font-weight:600; color:rgba(255,255,255,0.85); white-space:nowrap; }
             `}</style>
             <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 14px" }}>
               You May Also Like
             </p>
             <div className="lp-ymal-grid">
               {otherEvents.map((ev) => {
+                const isFree = ev.is_free || ev.price === 0;
                 const dateObj = ev.date && ev.date.length === 10 ? new Date(`${ev.date}T12:00:00`) : new Date(ev.date);
                 const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
                 return (
-                  <a key={ev.id} href={`/events/${ev.id}`} className="lp-ymal-card">
-                    <div className="lp-ymal-img">
-                      {ev.image_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={ev.image_url} alt={ev.title} />
-                        : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.15 }}><path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/><circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/></svg>
-                      }
-                    </div>
-                    <div className="lp-ymal-body">
+                  <a
+                    key={ev.id}
+                    href={`/events/${ev.id}`}
+                    className="lp-ymal-card"
+                    style={{
+                      backgroundImage: ev.image_url
+                        ? `url(${ev.image_url})`
+                        : "linear-gradient(145deg, #202045 0%, #0b0d1d 100%)",
+                    }}
+                  >
+                    <span className="lp-ymal-glow" />
+                    <div className="lp-ymal-venue">{ev.venue}</div>
+                    <div className="lp-ymal-content">
                       <p className="lp-ymal-title">{ev.title}</p>
-                      <p className="lp-ymal-meta">{dateStr} · {ev.venue}</p>
-                      <span className="lp-ymal-price">{ev.is_free ? "FREE" : `$${ev.price.toFixed(2)}`}</span>
-                      <span className="lp-ymal-btn">Get Tickets</span>
+                      <div className="lp-ymal-badges">
+                        <span className="lp-ymal-badge">{isFree ? "Free" : `$${ev.price.toFixed(2)}`}</span>
+                        <span className="lp-ymal-badge">{dateStr}</span>
+                      </div>
                     </div>
                   </a>
                 );

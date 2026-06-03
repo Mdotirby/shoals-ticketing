@@ -1247,38 +1247,27 @@ export default function EventDetailClient() {
               {otherEvents.map((ev) => {
                 const isFree = ev.is_free || ev.price === 0;
                 const dateObj = ev.date && ev.date.length === 10 ? new Date(`${ev.date}T12:00:00`) : new Date(ev.date);
-                const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
                 return (
                   <motion.a
                     key={ev.id}
                     href={`/events/${ev.id}`}
                     className="ymal-card"
+                    style={{
+                      backgroundImage: ev.image_url
+                        ? `url(${ev.image_url})`
+                        : "linear-gradient(145deg, #202045 0%, #0b0d1d 100%)",
+                    }}
                     variants={{ hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } } }}
                   >
-                    <div className="ymal-img">
-                      {ev.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={ev.image_url} alt={ev.title} />
-                      ) : (
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.2 }}>
-                          <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/>
-                          <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/>
-                        </svg>
-                      )}
-                    </div>
-                    <div className="ymal-body">
+                    <span className="ymal-card-glow" />
+                    <div className="ymal-venue-badge">{ev.venue}</div>
+                    <div className="ymal-content">
                       <h3 className="ymal-title">{ev.title}</h3>
-                      <p className="ymal-meta">{dateStr}</p>
-                      <p className="ymal-meta">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/>
-                          <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-                        </svg>
-                        {ev.venue}
-                      </p>
-                      <span className="ymal-price">{isFree ? "FREE" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
-                      <span className="ymal-btn">{isFree ? "Register Free" : "Get Tickets"}</span>
+                      <div className="ymal-badges">
+                        <span className="ymal-badge">{isFree ? "Free" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
+                        <span className="ymal-badge">{dateStr}</span>
+                      </div>
                     </div>
                   </motion.a>
                 );
