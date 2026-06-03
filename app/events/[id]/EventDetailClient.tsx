@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { TicketType } from "@/lib/types/ticket";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
@@ -485,10 +485,30 @@ export default function EventDetailClient() {
   // Determine if this is a free event
   const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
 
+  // For reserved seating: derive sold-out tiers from seat-level status, not order counts.
+  // A section is sold out when every seat it contains is marked "sold".
+  const seatedSoldOutTierIds = useMemo(() => {
+    if (!reservedSeatingEnabled || seatingSections.length === 0) return new Set<string>();
+    const soldOutPrices = seatingSections
+      .filter((sec) => sec.seats.length > 0 && sec.seats.every((s) => s.status === "sold"))
+      .map((sec) => sec.price_cents / 100);
+    return new Set(
+      ticketTypes
+        .filter((t) => soldOutPrices.some((p) => Math.abs(p - t.price) < 0.01))
+        .map((t) => t.id)
+    );
+  }, [reservedSeatingEnabled, seatingSections, ticketTypes]);
+
+  const selectedTicketSoldOut =
+    seatedSoldOutTierIds.has(selectedTicketId ?? "") ||
+    (selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
+
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
   const handleCheckout = () => {
     if (!event) return;
+    // Reserved seating: seats must be selected from the map before proceeding
+    if (reservedSeatingEnabled && !hasSeatingSelection) return;
     if (!selectedTicket && !reservedSeatingEnabled) return;
     trackFbEvent("InitiateCheckout", {
       content_name: event.title,
@@ -683,7 +703,7 @@ export default function EventDetailClient() {
                       onChange={(e) => setSelectedTicketId(e.target.value)}
                     >
                       {ticketTypes.map((tt) => {
-                        const soldOut = tt.quantity_sold >= tt.quantity_available;
+                        const soldOut = seatedSoldOutTierIds.has(tt.id) || tt.quantity_sold >= tt.quantity_available;
                         return (
                           <option key={tt.id} value={tt.id} disabled={soldOut}>
                             {tt.name} — ${tt.price.toFixed(2)}{soldOut ? " (Sold Out)" : ""}
@@ -692,9 +712,9 @@ export default function EventDetailClient() {
                       })}
                     </select>
                     <div className="ticket-qty-control">
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || (selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false)}>−</button>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || selectedTicketSoldOut}>−</button>
                       <span className="ticket-qty-value">{quantity}</span>
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false}>+</button>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
                     </div>
                   </div>
 
@@ -1007,6 +1027,12 @@ export default function EventDetailClient() {
                       onCheckout={handleCheckout}
                       onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                       onFreeCheckout={handleFreeCheckout}
+                      checkoutDisabled={selectedTicketSoldOut || (reservedSeatingEnabled && !hasSeatingSelection)}
+                      checkoutDisabledMessage={
+                        selectedTicketSoldOut
+                          ? "This ticket type is sold out."
+                          : "Select seats from the map to continue."
+                      }
                     />
                   )}
                 </>
@@ -1025,24 +1051,23 @@ export default function EventDetailClient() {
                 />
               ) : (
                 /* ── Normal Browse Mode: Order Summary ── */
-                <>
-                  <OrderSummary
-                    selectedTicket={selectedTicket}
-                    quantity={quantity}
-                    ticketingFee={venueFees.ticketing_fee}
-                    facilityFee={venueFees.facility_fee}
-                    taxRate={venueFees.tax_rate}
-                    taxMethod={venueFees.tax_method}
-                    onCheckout={handleCheckout}
-                    onPromoApplied={(code) => { appliedPromoRef.current = code; }}
-                    onFreeCheckout={handleFreeCheckout}
-                  />
-                  {reservedSeatingEnabled && !hasSeatingSelection && (
-                    <p style={{ fontSize: 12, color: "#a1a1aa", textAlign: "center", marginTop: 8, fontStyle: "italic" }}>
-                      Select seats from the map to continue
-                    </p>
-                  )}
-                </>
+                <OrderSummary
+                  selectedTicket={selectedTicket}
+                  quantity={quantity}
+                  ticketingFee={venueFees.ticketing_fee}
+                  facilityFee={venueFees.facility_fee}
+                  taxRate={venueFees.tax_rate}
+                  taxMethod={venueFees.tax_method}
+                  onCheckout={handleCheckout}
+                  onPromoApplied={(code) => { appliedPromoRef.current = code; }}
+                  onFreeCheckout={handleFreeCheckout}
+                  checkoutDisabled={selectedTicketSoldOut || (reservedSeatingEnabled && !hasSeatingSelection)}
+                  checkoutDisabledMessage={
+                    selectedTicketSoldOut
+                      ? "This ticket type is sold out."
+                      : "Select seats from the map to continue."
+                  }
+                />
               )}
             </div>
           </div>

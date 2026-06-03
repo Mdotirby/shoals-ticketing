@@ -113,6 +113,24 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
+
+      // Guard: reject if tier is sold out
+      if (tier.capacity > 0) {
+        const { data: soldRows } = await admin
+          .from("orders")
+          .select("quantity")
+          .eq("event_id", eventId)
+          .eq("tier_id", tierId)
+          .eq("status", "paid");
+        const totalSold = (soldRows ?? []).reduce((sum, r) => sum + (r.quantity ?? 1), 0);
+        if (totalSold + quantity > tier.capacity) {
+          return NextResponse.json(
+            { error: "This ticket type is sold out" },
+            { status: 409 }
+          );
+        }
+      }
+
       ticketPriceDollars = tier.price;
       tierName = tier.tier_name;
     }

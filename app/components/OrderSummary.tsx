@@ -24,6 +24,10 @@ type OrderSummaryProps = {
   onPromoApplied?: (promoCode: string | null) => void;
   /** Called when total is $0 and user claims free tickets */
   onFreeCheckout?: (name: string, email: string) => void;
+  /** External override to disable the checkout button (e.g. reserved seating with no seats selected, sold-out tier) */
+  checkoutDisabled?: boolean;
+  /** Message to show instead of the empty-cart state when checkoutDisabled is true */
+  checkoutDisabledMessage?: string;
 };
 
 export default function OrderSummary({
@@ -36,6 +40,8 @@ export default function OrderSummary({
   onCheckout,
   onPromoApplied,
   onFreeCheckout,
+  checkoutDisabled = false,
+  checkoutDisabledMessage,
 }: OrderSummaryProps) {
   // Divisor = tax baked into face price; don't charge it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
@@ -129,10 +135,10 @@ export default function OrderSummary({
     <div className="order-summary">
       <h2 className="order-summary-title">Order Summary</h2>
 
-      {selectedTierSoldOut ? (
+      {selectedTierSoldOut || (checkoutDisabled && checkoutDisabledMessage) ? (
         <div className="order-summary-empty">
           <p className="order-summary-empty-text" style={{ color: "#f87171" }}>
-            This ticket type is sold out.
+            {selectedTierSoldOut ? "This ticket type is sold out." : checkoutDisabledMessage}
           </p>
         </div>
       ) : !hasSelection ? (
@@ -365,7 +371,7 @@ export default function OrderSummary({
         <button
           type="button"
           className="order-summary-checkout-btn"
-          disabled={!hasSelection}
+          disabled={!hasSelection || checkoutDisabled}
           onClick={onCheckout}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
