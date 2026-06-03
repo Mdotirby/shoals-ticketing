@@ -286,21 +286,20 @@ export default function EventDetailClient() {
   }, [eventId]);
 
   // Fetch event + venue fees + ticket types
-  // Fetch other on-sale Florence-area events for the "You May Also Like" section
+  // Fetch other upcoming events for the "You May Also Like" section
   useEffect(() => {
     fetch(`/api/events`)
       .then((r) => r.ok ? r.json() : [])
       .then((data: { id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null }[]) => {
         if (!Array.isArray(data)) return;
         const now = new Date();
-        const florenceKeywords = ["florence", "shoals", "sheffield", "muscle shoals", "tuscumbia", "colbert", "lauderdale"];
         const others = data.filter((e) => {
           if (e.id === eventId) return false;
           if (e.closed_out_at) return false;
-          if (new Date(e.date) <= now) return false;
+          const d = e.date && e.date.length === 10 ? new Date(`${e.date}T23:59:59`) : new Date(e.date);
+          if (d <= now) return false;
           if (e.on_sale_at && new Date(e.on_sale_at) > now) return false;
-          const v = (e.venue || "").toLowerCase();
-          return florenceKeywords.some((kw) => v.includes(kw));
+          return true;
         }).slice(0, 4);
         setOtherEvents(others);
       })

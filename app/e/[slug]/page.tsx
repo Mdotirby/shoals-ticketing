@@ -291,6 +291,32 @@ export default async function LandingPage({ params }: Props) {
     }
   }
 
+  // 9. Fetch other upcoming events for post-checkout YMAL
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const { data: otherEventsRaw } = await admin
+    .from("events")
+    .select("id, title, venue, date, price, image_url, is_free, on_sale_at")
+    .eq("status", "published")
+    .or("event_type.is.null,event_type.neq.private")
+    .neq("id", event.id)
+    .gte("date", todayStr)
+    .order("date", { ascending: true })
+    .limit(8);
+
+  const otherEvents = (otherEventsRaw ?? [])
+    .filter((e) => !e.on_sale_at || new Date(e.on_sale_at) <= now)
+    .slice(0, 4)
+    .map((e) => ({
+      id: e.id as string,
+      title: e.title as string,
+      venue: e.venue as string,
+      date: e.date as string,
+      price: (e.price ?? 0) as number,
+      image_url: (e.image_url ?? undefined) as string | undefined,
+      is_free: (e.is_free ?? false) as boolean,
+    }));
+
   return (
     <EventLandingPage
       event={{
@@ -318,6 +344,7 @@ export default async function LandingPage({ params }: Props) {
         facilityFee: fees.facility_fee,
         taxRate: fees.tax_rate,
       }}
+      otherEvents={otherEvents}
     />
   );
 }
