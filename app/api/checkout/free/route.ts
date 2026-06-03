@@ -178,6 +178,24 @@ export async function POST(request: Request) {
     .insert(tickets)
     .select();
 
+  // ── Pair each seat to its specific ticket ─────────────────────────────────
+  if (Array.isArray(seat_ids) && seat_ids.length > 0 && createdTickets && createdTickets.length > 0) {
+    try {
+      const sortedTickets = [...createdTickets].sort((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id));
+      const sortedSeatIds = [...seat_ids].sort();
+      await Promise.all(
+        sortedSeatIds.map((seatId: string, i: number) => {
+          if (i >= sortedTickets.length) return Promise.resolve();
+          return admin.from("seats")
+            .update({ ticket_id: sortedTickets[i].id })
+            .eq("id", seatId);
+        })
+      );
+    } catch (e) {
+      console.error("Failed to pair seats to tickets (free checkout):", e);
+    }
+  }
+
   // ── Settlement ledger entry ($0) ──────────────────────────────────────────
   try {
     await admin.from("settlement_ledger").insert({

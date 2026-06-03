@@ -14,28 +14,12 @@ type RawSeat = {
   row_label: string;
   section_id: string;
   object_id: string | null;
+  ticket_id?: string | null;
 };
 
-/**
- * Build seat assignments for an order.
- *
- * For sells_as_table sections: one entry per table object → "Table X"
- * For regular sections: one entry per seat → row + seat number
- */
-export async function buildSeatAssignments(
-  admin: AdminClient,
-  orderId: string
-): Promise<SeatAssignment[]> {
-  const { data: rawSeats } = await admin
-    .from("seats")
-    .select("id, seat_number, row_label, section_id, object_id")
-    .eq("order_id", orderId)
-    .eq("status", "sold");
+// ── Shared helpers ─────────────────────────────────────────────────────────────
 
-  if (!rawSeats || rawSeats.length === 0) return [];
-  const seats = rawSeats as RawSeat[];
-
-  // Fetch sections (need sells_as_table, type, name)
+async function fetchSectionAndObjectMaps(admin: AdminClient, seats: RawSeat[]) {
   const sectionIds = [...new Set(seats.map((s) => s.section_id))];
   const { data: sectionData } = await admin
     .from("sections")
@@ -49,7 +33,6 @@ export async function buildSeatAssignments(
     ])
   );
 
-  // Fetch table object metadata to get table numbers
   const tableObjectIds = [
     ...new Set(
       seats
@@ -71,7 +54,14 @@ export async function buildSeatAssignments(
     }
   }
 
-  // Build assignments — one per table object or one per individual seat
+  return { sectionMap, objectTableNumbers };
+}
+
+function assignmentsFromSeats(
+  seats: RawSeat[],
+  sectionMap: Map<string, { name: string; isTable: boolean }>,
+  objectTableNumbers: Map<string, number>
+): SeatAssignment[] {
   const assignments: SeatAssignment[] = [];
   const seenTableObjects = new Set<string>();
 
@@ -80,24 +70,90 @@ export async function buildSeatAssignments(
     const secName = sec?.name ?? "Section";
 
     if (sec?.isTable && seat.object_id) {
-      if (seenTableObjects.has(seat.object_id)) continue; // already added this table
+      if (seenTableObjects.has(seat.object_id)) continue;
       seenTableObjects.add(seat.object_id);
-
       const tableNum = objectTableNumbers.get(seat.object_id);
-      assignments.push({
-        section: secName,
-        row: "",
-        seat: tableNum != null ? `Table ${tableNum}` : "Table",
-      });
+      assignments.push({ section: secName, row: "", seat: tableNum != null ? `Table ${tableNum}` : "Table" });
     } else {
-      assignments.push({
-        section: secName,
-        row: seat.row_label,
-        seat: String(seat.seat_number),
-      });
+      assignments.push({ section: secName, row: seat.row_label, seat: String(seat.seat_number) });
     }
   }
 
   assignments.sort((a, b) => a.section.localeCompare(b.section) || a.seat.localeCompare(b.seat, undefined, { numeric: true }));
   return assignments;
+}
+
+// ── Public API ─────────────────────────────────────────────────────────────────
+
+/**
+ * Build seat assignments for a single order (legacy / fallback).
+ * Returns ALL seats for the order — used when ticket_id is not available.
+ */
+export async function buildSeatAssignments(
+  admin: AdminClient,
+  orderId: string
+): Promise<SeatAssignment[]> {
+  const { data: rawSeats } = await admin
+    .from("seats")
+    .select("id, seat_number, row_label, section_id, object_id, ticket_id")
+    .eq("order_id", orderId)
+    .eq("status", "sold");
+
+  if (!rawSeats || rawSeats.length === 0) return [];
+  const seats = rawSeats as RawSeat[];
+
+  const { sectionMap, objectTableNumbers } = await fetchSectionAndObjectMaps(admin, seats);
+  return assignmentsFromSeats(seats, sectionMap, objectTableNumbers);
+}
+
+/**
+ * Build seat assignments keyed by ticket_id for every ticket in an order.
+ *
+ * Returns a Map<ticketId, SeatAssignment[]> so each ticket in the carousel
+ * can show only its own assigned seat(s).
+ *
+ * Falls back to order-level (all seats on every ticket) when ticket_id has
+ * not been populated yet (pre-migration rows). In that case every ticket gets
+ * the same full list, which matches the old behaviour.
+ */
+export async function buildSeatAssignmentsByTicket(
+  admin: AdminClient,
+  orderId: string
+): Promise<Map<string, SeatAssignment[]>> {
+  const { data: rawSeats } = await admin
+    .from("seats")
+    .select("id, seat_number, row_label, section_id, object_id, ticket_id")
+    .eq("order_id", orderId)
+    .eq("status", "sold");
+
+  if (!rawSeats || rawSeats.length === 0) return new Map();
+  const seats = rawSeats as RawSeat[];
+
+  const { sectionMap, objectTableNumbers } = await fetchSectionAndObjectMaps(admin, seats);
+
+  const hasTicketIds = seats.some((s) => s.ticket_id != null);
+
+  if (!hasTicketIds) {
+    // Pre-migration: fall back to order-level — return the same list for every null key
+    // Callers should use the null key as the fallback entry.
+    const all = assignmentsFromSeats(seats, sectionMap, objectTableNumbers);
+    const result = new Map<string, SeatAssignment[]>();
+    result.set("__order__", all);
+    return result;
+  }
+
+  // Group seats by ticket_id
+  const seatsByTicket = new Map<string, RawSeat[]>();
+  for (const seat of seats) {
+    const key = seat.ticket_id ?? "__order__";
+    const bucket = seatsByTicket.get(key) ?? [];
+    bucket.push(seat);
+    seatsByTicket.set(key, bucket);
+  }
+
+  const result = new Map<string, SeatAssignment[]>();
+  for (const [ticketId, ticketSeats] of seatsByTicket) {
+    result.set(ticketId, assignmentsFromSeats(ticketSeats, sectionMap, objectTableNumbers));
+  }
+  return result;
 }

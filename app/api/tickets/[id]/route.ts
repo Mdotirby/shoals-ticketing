@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { getSeatIdsFromStripe } from "@/lib/stripe-seat-repair";
-import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
+import { buildSeatAssignments, buildSeatAssignmentsByTicket } from "@/lib/seating/buildAssignments";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -31,23 +31,35 @@ export async function GET(
     siblings = allTickets || [];
   }
 
-  // Build seat assignments — tables show as "Table X", individual seats show row+number
-  let seatAssignments: Awaited<ReturnType<typeof buildSeatAssignments>> = [];
+  // Build seat assignments per ticket so each ticket in the carousel shows its own seat.
+  // Falls back to order-level for pre-migration rows (ticket_id not yet set on seats).
+  let assignmentsByTicket = new Map<string, Awaited<ReturnType<typeof buildSeatAssignments>>>();
   if (data.order_id) {
     try {
-      seatAssignments = await buildSeatAssignments(admin, data.order_id);
+      assignmentsByTicket = await buildSeatAssignmentsByTicket(admin, data.order_id);
 
       // Auto-repair: if no sold seats linked yet, pull from Stripe and link them
-      if (seatAssignments.length === 0) {
+      const hasAny = assignmentsByTicket.size > 0;
+      if (!hasAny) {
         await tryRepairSeatsFromStripe(admin, data.order_id);
-        seatAssignments = await buildSeatAssignments(admin, data.order_id);
+        assignmentsByTicket = await buildSeatAssignmentsByTicket(admin, data.order_id);
       }
     } catch {
       // Non-fatal
     }
   }
 
-  return NextResponse.json({ ...data, siblings, seatAssignments });
+  // Attach per-ticket seat assignments to each sibling.
+  // When ticket_id is not populated (pre-migration), "__order__" holds all seats as fallback.
+  const fallbackAssignments = assignmentsByTicket.get("__order__") ?? [];
+  const siblingsWithSeats = siblings.map((s) => ({
+    ...s,
+    seatAssignments: assignmentsByTicket.get(s.id) ?? fallbackAssignments,
+  }));
+
+  const seatAssignments = assignmentsByTicket.get(data.id) ?? fallbackAssignments;
+
+  return NextResponse.json({ ...data, siblings: siblingsWithSeats, seatAssignments });
 }
 
 async function tryRepairSeatsFromStripe(

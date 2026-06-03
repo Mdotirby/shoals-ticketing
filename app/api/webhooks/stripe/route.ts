@@ -221,6 +221,70 @@ async function processTicketOrder({
       return;
     }
 
+    // 3b. Pair each seat to its specific ticket (1 seat per ticket for individual seats,
+    //     all seats in a table object to one ticket for sells_as_table sections).
+    if (createdTickets && createdTickets.length > 0 && (seatHoldSession || seatIdsRaw)) {
+      try {
+        const { data: soldSeats } = await admin
+          .from("seats")
+          .select("id, seat_number, section_id, object_id")
+          .eq("order_id", order.id)
+          .eq("status", "sold");
+
+        if (soldSeats && soldSeats.length > 0) {
+          // Fetch section info to distinguish tables vs individual seats
+          const sectionIds = [...new Set(soldSeats.map((s: { section_id: string }) => s.section_id))];
+          const { data: sectionData } = await admin
+            .from("sections")
+            .select("id, sells_as_table")
+            .in("id", sectionIds);
+
+          const isTableSection = new Map(
+            (sectionData || []).map((s: { id: string; sells_as_table: boolean }) => [s.id, !!s.sells_as_table])
+          );
+
+          // Group table seats by object_id; collect individual seats separately
+          const tableSeatsByObject = new Map<string, string[]>();
+          const individualSeatIds: string[] = [];
+
+          for (const seat of soldSeats as { id: string; seat_number: number; section_id: string; object_id: string | null }[]) {
+            if (isTableSection.get(seat.section_id) && seat.object_id) {
+              const bucket = tableSeatsByObject.get(seat.object_id) ?? [];
+              bucket.push(seat.id);
+              tableSeatsByObject.set(seat.object_id, bucket);
+            } else {
+              individualSeatIds.push(seat.id);
+            }
+          }
+
+          // Sort tickets deterministically
+          const sortedTickets = [...createdTickets].sort((a, b) => a.id.localeCompare(b.id));
+          let ticketIdx = 0;
+
+          // Assign table groups first (order matches how tables were selected)
+          for (const objectId of [...tableSeatsByObject.keys()].sort()) {
+            if (ticketIdx >= sortedTickets.length) break;
+            await admin.from("seats")
+              .update({ ticket_id: sortedTickets[ticketIdx].id })
+              .in("id", tableSeatsByObject.get(objectId)!);
+            ticketIdx++;
+          }
+
+          // Assign individual seats one-to-one
+          for (const seatId of individualSeatIds.sort()) {
+            if (ticketIdx >= sortedTickets.length) break;
+            await admin.from("seats")
+              .update({ ticket_id: sortedTickets[ticketIdx].id })
+              .eq("id", seatId);
+            ticketIdx++;
+          }
+        }
+      } catch (e) {
+        console.error("Failed to pair seats to tickets:", e);
+        // Non-fatal — display falls back to order-level seat listing
+      }
+    }
+
     // 4. Write settlement ledger entry
     // ticket_revenue = face value only (ticket price × qty, before fees/tax/stripe)
     const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;

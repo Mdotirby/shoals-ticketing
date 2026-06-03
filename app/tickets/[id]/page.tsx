@@ -11,6 +11,7 @@ type SiblingTicket = {
   customer_name: string;
   customer_email: string;
   is_scanned: boolean;
+  seatAssignments?: SeatAssignment[];
 };
 
 type SeatAssignment = {
@@ -161,8 +162,8 @@ export default function TicketViewPage() {
                   </p>
                 )}
 
-                {/* Seat assignments */}
-                {ticket.seatAssignments && ticket.seatAssignments.length > 0 && (
+                {/* Seat assignments — show the seat for THIS ticket, not the whole order */}
+                {((current.seatAssignments ?? ticket.seatAssignments) ?? []).length > 0 && (
                   <div style={{
                     margin: "16px 0", padding: "12px 16px", borderRadius: 10,
                     background: "rgba(99,102,241,0.08)",
@@ -176,7 +177,7 @@ export default function TicketViewPage() {
                     }}>
                       Your Assigned Seats
                     </span>
-                    {ticket.seatAssignments.map((s, i) => (
+                    {(current.seatAssignments ?? ticket.seatAssignments ?? []).map((s, i) => (
                       <div key={i} style={{
                         display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                         color: "rgba(255,255,255,0.8)", fontSize: 14,
