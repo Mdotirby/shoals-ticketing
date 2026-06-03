@@ -114,16 +114,16 @@ export async function POST(request: Request) {
         );
       }
 
-      // Guard: reject if tier is sold out
+      // Guard: reject if tier is sold out.
+      // Count rows in tickets (one row per physical ticket) rather than orders,
+      // because orders.tier_id is not persisted — ticket_type_id is the authoritative field.
       if (tier.capacity > 0) {
-        const { data: soldRows } = await admin
-          .from("orders")
-          .select("quantity")
+        const { count: soldCount } = await admin
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
           .eq("event_id", eventId)
-          .eq("tier_id", tierId)
-          .eq("status", "paid");
-        const totalSold = (soldRows ?? []).reduce((sum, r) => sum + (r.quantity ?? 1), 0);
-        if (totalSold + quantity > tier.capacity) {
+          .eq("ticket_type_id", tierId);
+        if ((soldCount ?? 0) + quantity > tier.capacity) {
           return NextResponse.json(
             { error: "This ticket type is sold out" },
             { status: 409 }

@@ -9,17 +9,18 @@ export async function GET(
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [{ data, error }, { data: tierSales }] = await Promise.all([
+  const [{ data, error }, { data: ticketRows }] = await Promise.all([
     admin
       .from("ticket_tiers")
       .select("*")
       .eq("event_id", id)
       .order("sort_order", { ascending: true }),
+    // Count individual tickets per tier — orders.tier_id is not persisted,
+    // but tickets.ticket_type_id is reliably set by the webhook.
     admin
-      .from("orders")
-      .select("tier_id, quantity")
-      .eq("event_id", id)
-      .eq("status", "paid"),
+      .from("tickets")
+      .select("ticket_type_id")
+      .eq("event_id", id),
   ]);
 
   if (error) {
@@ -27,9 +28,9 @@ export async function GET(
   }
 
   const soldByTier: Record<string, number> = {};
-  for (const row of tierSales ?? []) {
-    if (row.tier_id) {
-      soldByTier[row.tier_id] = (soldByTier[row.tier_id] ?? 0) + (row.quantity ?? 1);
+  for (const row of ticketRows ?? []) {
+    if (row.ticket_type_id) {
+      soldByTier[row.ticket_type_id] = (soldByTier[row.ticket_type_id] ?? 0) + 1;
     }
   }
 

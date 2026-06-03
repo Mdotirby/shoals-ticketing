@@ -103,17 +103,17 @@ export default async function LandingPage({ params }: Props) {
     .eq("event_id", event.id)
     .order("sort_order", { ascending: true });
 
-  // 2b. Count paid tickets sold per tier
-  const { data: tierSales } = await admin
-    .from("orders")
-    .select("tier_id, quantity")
-    .eq("event_id", event.id)
-    .eq("status", "paid");
+  // 2b. Count issued tickets per tier — tickets.ticket_type_id is the authoritative field
+  // (orders.tier_id is not persisted by the webhook).
+  const { data: ticketRows } = await admin
+    .from("tickets")
+    .select("ticket_type_id")
+    .eq("event_id", event.id);
 
   const soldByTier: Record<string, number> = {};
-  for (const row of tierSales ?? []) {
-    if (row.tier_id) {
-      soldByTier[row.tier_id] = (soldByTier[row.tier_id] ?? 0) + (row.quantity ?? 1);
+  for (const row of ticketRows ?? []) {
+    if (row.ticket_type_id) {
+      soldByTier[row.ticket_type_id] = (soldByTier[row.ticket_type_id] ?? 0) + 1;
     }
   }
 
