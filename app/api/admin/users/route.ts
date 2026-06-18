@@ -30,6 +30,8 @@ export async function POST(request: Request) {
     );
   }
 
+  const admin = createAdminClient();
+
   // Use service role to create auth user
   const authAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -105,7 +107,6 @@ export async function POST(request: Request) {
   }
 
   // 2. Insert admin_users row
-  const admin = createAdminClient();
   const { data, error } = await admin
     .from("admin_users")
     .insert({
