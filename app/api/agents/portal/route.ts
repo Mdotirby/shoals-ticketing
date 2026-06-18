@@ -107,29 +107,37 @@ async function buildResponse(
   // Fetch sales data for each event
   const eventsWithSales = await Promise.all(
     (events || []).map(async (event: Record<string, unknown>) => {
-      // Get orders for this event
-      const { data: orders, error: ordersError } = await admin
+      // Revenue from orders (same pattern as admin dashboard)
+      const { data: orders } = await admin
         .from("orders")
-        .select("total_amount, quantity, ticket_tiers(tier_name)")
+        .select("total_amount, quantity")
         .eq("event_id", event.id)
         .eq("status", "paid");
 
-      console.log("[portal] orders for event", event.id, "count:", orders?.length, "error:", ordersError?.message, "raw:", JSON.stringify(orders?.slice(0, 3)));
+      const totalRevenue = (orders || []).reduce((sum, o: { total_amount: number }) => sum + (o.total_amount || 0), 0);
 
-      type OrderRow = { total_amount: number; quantity: number; ticket_tiers: { tier_name: string }[] | null };
+      // Ticket count + tier breakdown from tickets table (has FK to ticket_tiers)
+      const { data: tickets } = await admin
+        .from("tickets")
+        .select("ticket_tiers(tier_name)")
+        .eq("event_id", event.id);
 
-      const typedOrders = (orders || []) as OrderRow[];
-
-      const totalSold = typedOrders.reduce((sum, o) => sum + (o.quantity || 1), 0);
-      const totalRevenue = typedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+      const totalSold = tickets?.length || 0;
 
       // Group by tier
       const byTier: Record<string, { sold: number; revenue: number }> = {};
-      for (const o of typedOrders) {
-        const tier = (o.ticket_tiers?.[0]?.tier_name) || "General";
+      for (const t of tickets || []) {
+        const tierRow = t as unknown as { ticket_tiers: { tier_name: string } | null };
+        const tier = tierRow.ticket_tiers?.tier_name || "General";
         if (!byTier[tier]) byTier[tier] = { sold: 0, revenue: 0 };
-        byTier[tier].sold += o.quantity || 1;
-        byTier[tier].revenue += o.total_amount || 0;
+        byTier[tier].sold += 1;
+      }
+      // Spread revenue proportionally across tiers by ticket count
+      const tierNames = Object.keys(byTier);
+      if (tierNames.length > 0 && totalRevenue > 0) {
+        for (const tier of tierNames) {
+          byTier[tier].revenue = parseFloat(((byTier[tier].sold / totalSold) * totalRevenue).toFixed(2));
+        }
       }
 
       // Get event views for marketing analytics
