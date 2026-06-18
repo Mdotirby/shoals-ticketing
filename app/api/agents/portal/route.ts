@@ -49,18 +49,18 @@ export async function GET() {
     .single();
 
   if (!agent) {
-    // Fallback: try matching by email
+    // Fallback: match by email — check both agent_email and email columns
     const { data: agentByEmail } = await admin
       .from("agents")
       .select("*")
-      .eq("email", user.email)
+      .or(`agent_email.eq.${user.email},email.eq.${user.email}`)
       .single();
 
     if (!agentByEmail) {
       return NextResponse.json({ error: "Agent record not found" }, { status: 404 });
     }
 
-    // Link user_id for future lookups
+    // Link user_id so future lookups hit the fast path
     await admin.from("agents").update({ user_id: user.id }).eq("id", agentByEmail.id);
 
     return buildResponse(admin, agentByEmail, adminUser);
