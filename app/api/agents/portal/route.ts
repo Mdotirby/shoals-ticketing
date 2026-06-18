@@ -108,11 +108,13 @@ async function buildResponse(
   const eventsWithSales = await Promise.all(
     (events || []).map(async (event: Record<string, unknown>) => {
       // Get orders for this event
-      const { data: orders } = await admin
+      const { data: orders, error: ordersError } = await admin
         .from("orders")
         .select("total_amount, quantity, ticket_tiers(tier_name)")
         .eq("event_id", event.id)
         .eq("status", "paid");
+
+      console.log("[portal] orders for event", event.id, "count:", orders?.length, "error:", ordersError?.message, "raw:", JSON.stringify(orders?.slice(0, 3)));
 
       type OrderRow = { total_amount: number; quantity: number; ticket_tiers: { tier_name: string }[] | null };
 
