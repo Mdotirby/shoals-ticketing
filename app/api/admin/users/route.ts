@@ -52,6 +52,55 @@ export async function POST(request: Request) {
     });
 
   if (authError) {
+    const isAlreadyExists =
+      authError.message?.toLowerCase().includes("already exists") ||
+      authError.message?.toLowerCase().includes("already registered") ||
+      authError.status === 422;
+
+    if (isAlreadyExists && email) {
+      // Look up existing admin_users row by email first
+      const { data: existingAdminUser } = await admin
+        .from("admin_users")
+        .select("id, role, email, first_name, last_name, venue_id")
+        .eq("email", email)
+        .maybeSingle();
+
+      if (existingAdminUser) {
+        if (existingAdminUser.role !== role) {
+          return NextResponse.json(
+            { error: `This email is already registered with role "${existingAdminUser.role}"` },
+            { status: 409 }
+          );
+        }
+        // Existing user with matching role — return their record so the caller can proceed
+        return NextResponse.json(existingAdminUser, { status: 200 });
+      }
+
+      // admin_users row missing but auth user exists — find auth user ID then create the row
+      const { data: { users: authUsers } } = await authAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const existingAuthUser = authUsers?.find((u) => u.email === email);
+
+      if (existingAuthUser) {
+        const { data: newAdminUser, error: insertError } = await admin
+          .from("admin_users")
+          .insert({
+            id: existingAuthUser.id,
+            email,
+            role,
+            venue_id: venue_id || null,
+            first_name: first_name || null,
+            last_name: last_name || null,
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          return NextResponse.json({ error: insertError.message }, { status: 500 });
+        }
+        return NextResponse.json(newAdminUser, { status: 200 });
+      }
+    }
+
     return NextResponse.json({ error: authError.message }, { status: 500 });
   }
 
@@ -131,27 +180,15 @@ If you didn't expect this invitation, you can safely ignore this email. Question
 </td></tr>
 </table></td></tr></table></body></html>`;
 
-    // Look up owner email for CC so owner gets a copy of every onboarding email
-    let ownerEmail: string | null = null;
-    try {
-      const { data: ownerRecord } = await admin
-        .from("admin_users")
-        .select("email")
-        .eq("role", "owner")
-        .limit(1)
-        .single();
-      if (ownerRecord?.email && ownerRecord.email !== email) {
-        ownerEmail = ownerRecord.email;
-      }
-    } catch { /* ignore — CC is best-effort */ }
+    const CC_EMAIL = "matt.irby@west72ent.com";
 
     fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "VenueCore <tickets@venuecore.live>",
+        from: "VenueCore <onboarding@west72ent.com>",
         to: [email],
-        ...(ownerEmail ? { cc: [ownerEmail] } : {}),
+        cc: email !== CC_EMAIL ? [CC_EMAIL] : [],
         subject: `Welcome to VenueCore — You're a ${roleLabel}`,
         html: welcomeHtml,
       }),

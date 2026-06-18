@@ -159,6 +159,22 @@ export default function AdminAgentsPage() {
     }
   }
 
+  async function handleRemoveAgent(agent: Agent) {
+    if (!confirm(`Remove ${agent.agent_name} from ${agent.agency}? This will revoke their login access and cannot be undone.`)) return;
+    setError("");
+    try {
+      const res = await fetch(`/api/agents?id=${agent.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to remove agent");
+      }
+      setSuccess(`${agent.agent_name} has been removed.`);
+      loadAgents();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to remove agent");
+    }
+  }
+
   async function handleOnboardAgent(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -176,12 +192,12 @@ export default function AdminAgentsPage() {
           role: "agent",
         }),
       });
+      const userData = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to create agent user");
+        throw new Error(userData.error || "Failed to create agent user");
       }
 
-      // 2. Create agents record
+      // 2. Create agents record, linking to the admin_users row
       const agentRes = await fetch("/api/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -191,6 +207,7 @@ export default function AdminAgentsPage() {
           agent_phone: onboardForm.phone || null,
           agent_email: onboardForm.email || null,
           venue_id: venueId || null,
+          user_id: userData.id || null,
         }),
       });
       if (!agentRes.ok) throw new Error("Failed to create agent record");
@@ -293,6 +310,15 @@ export default function AdminAgentsPage() {
                       >
                         Events
                       </button>
+                      {(role === "owner" || role === "venue_admin") && (
+                        <button
+                          className="admin-tier-remove-btn"
+                          style={{ fontSize: 12, padding: "4px 10px" }}
+                          onClick={() => handleRemoveAgent(agent)}
+                        >
+                          Remove
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
