@@ -113,7 +113,7 @@ export function ticketEmailHtml({
               <!-- Fine print -->
               <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
                 All sales are final. Refunds are issued only if the event is cancelled by the organizer.
-                Questions? Reply to this email or contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a>.
+                Questions? Reply to this email or contact <a href="mailto:support@west72ent.com" style="color:rgba(208,194,144,0.6);">support@west72ent.com</a>.
               </p>
             </td>
           </tr>
@@ -166,7 +166,6 @@ export async function sendTicketEmail({
     return { success: false, error: "RESEND_API_KEY not configured" };
   }
 
-  const fromEmail = venueSlug ? `${venueSlug}@venuecore.live` : "tickets@venuecore.live";
   const ticketUrl = `https://venuecore.live/tickets/${ticketId}`;
 
   const html = ticketEmailHtml({
@@ -188,7 +187,7 @@ export async function sendTicketEmail({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: `VenueCore Tickets <${fromEmail}>`,
+      from: "West 72 Entertainment <ticketing@west72ent.com>",
       to: [to],
       subject: `Your ${ticketCount > 1 ? 'tickets' : 'ticket'} for ${eventTitle}`,
       html,

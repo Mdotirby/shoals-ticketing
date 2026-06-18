@@ -243,7 +243,7 @@ export async function POST(
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "West72 Entertainment <tickets@venuecore.live>",
+        from: "West 72 Entertainment <ticketing@west72ent.com>",
         to: [order.customer_email],
         subject: `Action required: complete your payment for ${order.events.title}`,
         html,
@@ -328,7 +328,7 @@ export async function POST(
       method: "POST",
       headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: "VenueCore Admin <tickets@venuecore.live>",
+        from: "West 72 Entertainment <ticketing@west72ent.com>",
         to: ["Matt.irby@west72ent.com"],
         subject: `[Admin] Payment request sent — ${order.customer_name} · $${displayTotal} · ${order.events.title}`,
         html: adminHtml,

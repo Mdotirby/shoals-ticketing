@@ -114,21 +114,17 @@ async function buildResponse(
         .eq("event_id", event.id)
         .eq("status", "paid");
 
-      type OrderRow = { total_amount: number; quantity: number; ticket_tiers: { tier_name: string } | null };
+      type OrderRow = { total_amount: number; quantity: number; ticket_tiers: { tier_name: string }[] | null };
 
-      const totalSold = (orders || []).reduce(
-        (sum: number, o: OrderRow) => sum + (o.quantity || 1),
-        0
-      );
-      const totalRevenue = (orders || []).reduce(
-        (sum: number, o: OrderRow) => sum + (o.total_amount || 0),
-        0
-      );
+      const typedOrders = (orders || []) as OrderRow[];
+
+      const totalSold = typedOrders.reduce((sum, o) => sum + (o.quantity || 1), 0);
+      const totalRevenue = typedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
 
       // Group by tier
       const byTier: Record<string, { sold: number; revenue: number }> = {};
-      for (const o of (orders || []) as OrderRow[]) {
-        const tier = o.ticket_tiers?.tier_name || "General";
+      for (const o of typedOrders) {
+        const tier = (o.ticket_tiers?.[0]?.tier_name) || "General";
         if (!byTier[tier]) byTier[tier] = { sold: 0, revenue: 0 };
         byTier[tier].sold += o.quantity || 1;
         byTier[tier].revenue += o.total_amount || 0;

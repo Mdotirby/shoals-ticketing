@@ -327,9 +327,6 @@ export async function POST(request: Request) {
     try {
       const resendKey = process.env.RESEND_API_KEY;
       if (resendKey) {
-        const fromEmail = venueSlug
-          ? `${venueSlug}@venuecore.live`
-          : "tickets@venuecore.live";
         const ticketUrl = `https://venuecore.live/tickets/${createdTickets[0].qr_code}`;
         const formattedDate = new Date(event.date).toLocaleDateString("en-US", {
           weekday: "long",
@@ -375,7 +372,7 @@ export async function POST(request: Request) {
             </td></tr>
           </table>
           <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
-            All sales are final. Questions? Reply to this email or contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a>.
+            All sales are final. Questions? Reply to this email or contact <a href="mailto:support@west72ent.com" style="color:rgba(208,194,144,0.6);">support@west72ent.com</a>.
           </p>
         </td></tr>
         <tr><td style="padding:14px 28px;background:rgba(0,0,0,0.2);text-align:center;">
@@ -393,7 +390,7 @@ export async function POST(request: Request) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: `VenueCore Tickets <${fromEmail}>`,
+            from: "West 72 Entertainment <ticketing@west72ent.com>",
             to: [buyer_email],
             subject: `Your ${quantity > 1 ? "tickets" : "ticket"} for ${event.title}`,
             html,
