@@ -10,7 +10,7 @@ type EventData = {
   title: string;
   date: string;
   venue: string;
-  flyer_url?: string;
+  image_url?: string;
   status?: string;
   sales: {
     total_sold: number;
@@ -236,10 +236,10 @@ export default function AgentPortalPage() {
                     }}
                   >
                     <div style={{ display: "flex", gap: 16, padding: "20px 24px", flexWrap: "wrap" }}>
-                      {event.flyer_url && (
+                      {event.image_url && (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
-                          src={event.flyer_url}
+                          src={event.image_url}
                           alt={event.title}
                           style={{ width: 80, height: 80, borderRadius: 8, objectFit: "cover" }}
                         />

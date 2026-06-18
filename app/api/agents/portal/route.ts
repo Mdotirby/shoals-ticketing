@@ -28,41 +28,33 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log("[portal] user.id:", user.id, "user.email:", user.email);
-
   const admin = createAdminClient();
 
   // Verify this user has 'agent' role
-  const { data: adminUser, error: adminUserError } = await admin
+  const { data: adminUser } = await admin
     .from("admin_users")
     .select("id, role, first_name, last_name, avatar_url, venue_id")
     .eq("id", user.id)
     .single();
-
-  console.log("[portal] adminUser:", adminUser?.id, adminUser?.role, "error:", adminUserError?.message);
 
   if (!adminUser || adminUser.role !== "agent") {
     return NextResponse.json({ error: "Not an agent" }, { status: 403 });
   }
 
   // Get the agent record linked to this user
-  const { data: agent, error: agentError } = await admin
+  const { data: agent } = await admin
     .from("agents")
     .select("*")
     .eq("user_id", user.id)
     .single();
 
-  console.log("[portal] agent by user_id:", agent ? (agent as Record<string,unknown>).id : "null", "error:", agentError?.message);
-
   if (!agent) {
     // Fallback: match by email — check both agent_email and email columns
-    const { data: agentByEmail, error: emailError } = await admin
+    const { data: agentByEmail } = await admin
       .from("agents")
       .select("*")
       .or(`agent_email.eq.${user.email},email.eq.${user.email}`)
       .single();
-
-    console.log("[portal] agent by email fallback:", agentByEmail ? (agentByEmail as Record<string,unknown>).id : "null", "error:", emailError?.message);
 
     if (!agentByEmail) {
       return NextResponse.json({ error: "Agent record not found" }, { status: 404 });
@@ -83,12 +75,10 @@ async function buildResponse(
   adminUser: Record<string, unknown>
 ) {
   // Get assigned event IDs
-  const { data: assignments, error: assignError } = await admin
+  const { data: assignments } = await admin
     .from("agent_assignments")
     .select("event_id")
     .eq("agent_id", agent.id);
-
-  console.log("[portal] agent.id used for assignments:", agent.id, "assignments:", assignments?.length, "error:", assignError?.message, "raw:", JSON.stringify(assignments));
 
   const eventIds = (assignments || []).map((a: { event_id: string }) => a.event_id);
 
@@ -108,13 +98,11 @@ async function buildResponse(
   }
 
   // Fetch events with details
-  const { data: events, error: eventsError } = await admin
+  const { data: events } = await admin
     .from("events")
-    .select("id, title, date, venue, venue_id, flyer_url, status")
+    .select("id, title, date, venue, venue_id, image_url, status")
     .in("id", eventIds)
     .order("date", { ascending: false });
-
-  console.log("[portal] events query eventIds:", eventIds, "found:", events?.length, "error:", eventsError?.message, "raw:", JSON.stringify(events));
 
   // Fetch sales data for each event
   const eventsWithSales = await Promise.all(
