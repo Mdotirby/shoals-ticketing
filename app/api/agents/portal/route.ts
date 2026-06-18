@@ -110,26 +110,28 @@ async function buildResponse(
       // Get orders for this event
       const { data: orders } = await admin
         .from("orders")
-        .select("id, total, quantity, ticket_type, status")
+        .select("total_amount, quantity, ticket_tiers(tier_name)")
         .eq("event_id", event.id)
-        .neq("status", "refunded");
+        .eq("status", "paid");
+
+      type OrderRow = { total_amount: number; quantity: number; ticket_tiers: { tier_name: string } | null };
 
       const totalSold = (orders || []).reduce(
-        (sum: number, o: { quantity?: number }) => sum + (o.quantity || 1),
+        (sum: number, o: OrderRow) => sum + (o.quantity || 1),
         0
       );
       const totalRevenue = (orders || []).reduce(
-        (sum: number, o: { total?: number }) => sum + (o.total || 0),
+        (sum: number, o: OrderRow) => sum + (o.total_amount || 0),
         0
       );
 
       // Group by tier
       const byTier: Record<string, { sold: number; revenue: number }> = {};
-      for (const o of orders || []) {
-        const tier = (o as Record<string, unknown>).ticket_type as string || "General";
+      for (const o of (orders || []) as OrderRow[]) {
+        const tier = o.ticket_tiers?.tier_name || "General";
         if (!byTier[tier]) byTier[tier] = { sold: 0, revenue: 0 };
-        byTier[tier].sold += ((o as Record<string, unknown>).quantity as number) || 1;
-        byTier[tier].revenue += ((o as Record<string, unknown>).total as number) || 0;
+        byTier[tier].sold += o.quantity || 1;
+        byTier[tier].revenue += o.total_amount || 0;
       }
 
       // Get event views for marketing analytics
