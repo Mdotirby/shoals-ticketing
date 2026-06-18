@@ -108,11 +108,13 @@ async function buildResponse(
   }
 
   // Fetch events with details
-  const { data: events } = await admin
+  const { data: events, error: eventsError } = await admin
     .from("events")
     .select("id, title, date, venue, venue_id, flyer_url, status")
     .in("id", eventIds)
     .order("date", { ascending: false });
+
+  console.log("[portal] events query eventIds:", eventIds, "found:", events?.length, "error:", eventsError?.message, "raw:", JSON.stringify(events));
 
   // Fetch sales data for each event
   const eventsWithSales = await Promise.all(
