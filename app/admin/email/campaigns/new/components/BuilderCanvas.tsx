@@ -152,6 +152,7 @@ function blockSummary(block: Block): string {
     case "text":       return block.props.content.slice(0, 60);
     case "button":     return `${block.props.label} → ${block.props.url}`;
     case "event_card": return block.props.title;
+    case "info_card":  return block.props.heading;
     case "countdown":  return `${block.props.days}d ${block.props.hours}h ${block.props.minutes}m`;
     case "divider":    return "";
     case "spacer":     return `${block.props.height}px`;
