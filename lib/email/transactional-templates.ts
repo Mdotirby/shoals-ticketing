@@ -156,24 +156,69 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
 
 const USER_ONBOARDING_DEFAULT: EmailDocument = {
   version: "block-v1",
-  bg_color: "#0b0d1d",
+  bg_color: "#000000",
   blocks: [
+    // ── Logo bar ───────────────────────────────────────────────────
     {
-      id: "uo-header",
-      type: "info_card",
+      id: "uo-logo",
+      type: "image",
       props: {
-        heading: "Welcome to VenueCore",
-        accent_color: "#d0c290",
-        lines: "Hey {{display_name}}, you've been added as a {{role_label}}.",
+        src: "https://venuecore.live/West72_Logos/W72_tech_lockup_white.png",
+        alt: "West 72 Entertainment",
+        width: 260,
+        link_url: "https://venuecore.live",
+        bg_color: "#000000",
+        align: "center",
+      },
+    },
+    // Thin gold accent line below logo
+    {
+      id: "uo-logo-rule",
+      type: "divider",
+      props: { color: "#d0c290", margin_top: 0, margin_bottom: 0 },
+    },
+    // ── Hero concert photo ─────────────────────────────────────────
+    {
+      id: "uo-hero",
+      type: "image",
+      props: {
+        // Supabase storage URL — swap to your bucket path in the editor
+        src: "https://venuecore.live/hero-images/west72/hero.jpg",
+        alt: "West 72 Entertainment",
+        width: 600,
+        link_url: "",
+        bg_color: "#000000",
+        align: "center",
+      },
+    },
+    // ── Heading ────────────────────────────────────────────────────
+    {
+      id: "uo-heading",
+      type: "heading",
+      props: {
+        text: "Welcome to VenueCore",
+        level: "h1",
+        color: "#ffffff",
+        align: "center",
+        size: 36,
+      },
+    },
+    // Sub-heading as text block — uses gold for the role label via variable
+    {
+      id: "uo-subheading",
+      type: "text",
+      props: {
+        content: "Hey {{display_name}}, you've been added as a {{role_label}}.",
       },
     },
     {
-      id: "uo-body",
+      id: "uo-instructions",
       type: "text",
       props: {
         content: "Use the credentials below to sign in and get started. We recommend changing your password after your first login.",
       },
     },
+    // ── Credentials card ───────────────────────────────────────────
     {
       id: "uo-credentials",
       type: "info_card",
@@ -184,22 +229,35 @@ const USER_ONBOARDING_DEFAULT: EmailDocument = {
       },
     },
     {
+      id: "uo-spacer-1",
+      type: "spacer",
+      props: { height: 8 },
+    },
+    // ── CTA button — gold fill, black text, Outlook-safe ──────────
+    {
       id: "uo-cta",
       type: "button",
       props: {
         label: "{{cta_label}}",
         url: "{{login_url}}",
         bg_color: "#d0c290",
-        text_color: "#0b0d1d",
+        text_color: "#000000",
         align: "center",
       },
     },
+    // ── Fine print ─────────────────────────────────────────────────
     {
       id: "uo-disclaimer",
       type: "text",
       props: {
         content: "If you didn't expect this invitation, you can safely ignore this email. Questions? Contact support@venuecore.live",
       },
+    },
+    // Gold divider before footer
+    {
+      id: "uo-footer-rule",
+      type: "divider",
+      props: { color: "rgba(208,194,144,0.25)", margin_top: 8, margin_bottom: 0 },
     },
     {
       id: "uo-footer",

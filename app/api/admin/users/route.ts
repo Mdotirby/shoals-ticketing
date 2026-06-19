@@ -162,29 +162,98 @@ export async function POST(request: Request) {
         cta_label: ctaLabel,
       });
     } catch {
+      // Outlook/Apple Mail-safe fallback — mirrors the block-based design
       welcomeHtml = `<!DOCTYPE html>
-<html><body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
-<tr><td align="center">
-<table width="520" style="max-width:520px;width:100%;background:#131629;border-radius:12px;overflow:hidden;border:1px solid rgba(208,194,144,0.15);">
-<tr><td style="background:#d0c290;padding:20px 28px;">
-<h1 style="margin:0;font-size:22px;color:#0b0d1d;">Welcome to VenueCore</h1>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>Welcome to VenueCore</title></head>
+<body style="margin:0;padding:0;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000;">
+<tr><td align="center" style="padding:0;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#000000;">
+
+  <!-- Logo bar -->
+  <tr><td align="center" style="padding:24px 28px 0;background-color:#000000;">
+    <a href="https://venuecore.live" style="display:block;text-decoration:none;">
+      <img src="https://venuecore.live/West72_Logos/W72_tech_lockup_white.png" alt="West 72 Entertainment" width="260" style="display:block;width:260px;max-width:260px;height:auto;border:0;outline:none;">
+    </a>
+  </td></tr>
+
+  <!-- Gold accent rule -->
+  <tr><td style="padding:16px 0 0;background-color:#000000;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:1px;background-color:#d0c290;font-size:0;line-height:0;">&nbsp;</td></tr></table>
+  </td></tr>
+
+  <!-- Hero image -->
+  <tr><td style="padding:0;background-color:#000000;">
+    <img src="https://venuecore.live/hero-images/west72/hero.jpg" alt="West 72 Entertainment" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
+  </td></tr>
+
+  <!-- Heading -->
+  <tr><td align="center" style="padding:28px 28px 8px;background-color:#000000;">
+    <h1 style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:36px;font-weight:800;line-height:1.1;letter-spacing:-0.02em;color:#ffffff;text-align:center;">Welcome to VenueCore</h1>
+  </td></tr>
+
+  <!-- Sub-heading -->
+  <tr><td align="center" style="padding:8px 28px 4px;background-color:#000000;">
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.75);text-align:center;">
+      Hey ${displayName}, you&rsquo;ve been added as a <span style="color:#d0c290;font-weight:700;">${roleLabel}</span>.
+    </p>
+  </td></tr>
+
+  <!-- Instructions -->
+  <tr><td align="center" style="padding:8px 28px 20px;background-color:#000000;">
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.75);text-align:center;">
+      Use the credentials below to sign in and get started. We recommend changing your password after your first login.
+    </p>
+  </td></tr>
+
+  <!-- Credentials card -->
+  <tr><td style="padding:0 28px 16px;background-color:#000000;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+           style="background-color:rgba(255,255,255,0.04);border:1px solid rgba(208,194,144,0.2);border-radius:12px;">
+      <tr><td style="padding:18px 20px;">
+        <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#d0c290;">Your Login Credentials</p>
+        <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.8);">Email: ${email}</p>
+        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.8);">Temporary Password: <strong style="color:#d0c290;">${authPassword}</strong></p>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- CTA button — bg on <td> for Outlook -->
+  <tr><td align="center" style="padding:8px 24px 24px;background-color:#000000;">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+      <tr>
+        <td align="center" style="background-color:#d0c290;border-radius:10px;">
+          <a href="${loginUrl}" style="display:inline-block;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#000000;text-decoration:none;padding-top:14px;padding-bottom:14px;padding-left:36px;padding-right:36px;letter-spacing:0.2px;">
+            ${ctaLabel}
+          </a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Fine print -->
+  <tr><td align="center" style="padding:4px 28px 20px;background-color:#000000;">
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:rgba(255,255,255,0.4);text-align:center;">
+      If you didn&rsquo;t expect this invitation, you can safely ignore this email.<br>
+      Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);text-decoration:none;">support@venuecore.live</a>
+    </p>
+  </td></tr>
+
+  <!-- Gold divider + footer -->
+  <tr><td style="padding:0 28px;background-color:#000000;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:1px;background-color:rgba(208,194,144,0.25);font-size:0;line-height:0;">&nbsp;</td></tr></table>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 28px 26px;background-color:#000000;">
+    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:rgba(255,255,255,0.3);text-align:center;">
+      Sent by <strong style="color:rgba(255,255,255,0.6);">VenueCore</strong> because you were invited to join the platform.
+    </p>
+  </td></tr>
+
+</table>
 </td></tr>
-<tr><td style="padding:28px;">
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">Hey ${displayName},</p>
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">You've been added to VenueCore as a <strong style="color:#d0c290;">${roleLabel}</strong>. Use the credentials below to sign in and get started.</p>
-<table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.08);border:1px solid rgba(208,194,144,0.2);border-radius:10px;margin-bottom:24px;">
-<tr><td style="padding:18px 20px;">
-<p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">Your Login Credentials</p>
-<p style="margin:0 0 4px;font-size:15px;color:rgba(255,255,255,0.7);">Email: <strong style="color:#fff;">${email}</strong></p>
-<p style="margin:0;font-size:15px;color:rgba(255,255,255,0.7);">Temporary Password: <strong style="color:#d0c290;font-size:16px;">${authPassword}</strong></p>
-</td></tr></table>
-<p style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;margin:0 0 20px;">We recommend changing your password after your first login.</p>
-<table width="100%" style="margin-bottom:20px;"><tr><td align="center">
-<a href="${loginUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;">${ctaLabel}</a>
-</td></tr></table>
-<p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;margin:0;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">If you didn't expect this invitation, you can safely ignore this email. Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a></p>
-</td></tr></table></td></tr></table></body></html>`;
+</table>
+</body></html>`;
     }
 
     fetch("https://api.resend.com/emails", {

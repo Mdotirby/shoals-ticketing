@@ -11,6 +11,60 @@ export type BlockMeta = {
 
 export const BLOCK_REGISTRY: BlockMeta[] = [
   {
+    type: "image",
+    label: "Image",
+    description: "Standalone image — logo bar, hero photo, banner",
+    icon: "🖼",
+    defaultProps: {
+      src: "",
+      alt: "",
+      width: 600,
+      link_url: "",
+      bg_color: "#000000",
+      align: "center",
+    },
+    fields: [
+      { key: "src",      label: "Image URL",       type: "url",    placeholder: "https://..." },
+      { key: "alt",      label: "Alt text",         type: "text",   placeholder: "Logo" },
+      { key: "width",    label: "Width (px)",       type: "number", min: 40, max: 600 },
+      { key: "link_url", label: "Link URL (optional)", type: "url", placeholder: "https://..." },
+      { key: "bg_color", label: "Background color", type: "color" },
+      { key: "align",    label: "Align", type: "select", options: [
+        { label: "Center", value: "center" },
+        { label: "Left",   value: "left" },
+        { label: "Right",  value: "right" },
+      ]},
+    ],
+  },
+  {
+    type: "heading",
+    label: "Heading",
+    description: "Large bold title text",
+    icon: "H",
+    defaultProps: {
+      text: "Welcome to VenueCore",
+      level: "h1",
+      color: "#ffffff",
+      align: "center",
+      size: 32,
+    },
+    fields: [
+      { key: "text",  label: "Text",      type: "text" },
+      { key: "color", label: "Color",     type: "color" },
+      { key: "size",  label: "Font size (px)", type: "number", min: 14, max: 64 },
+      { key: "level", label: "Tag",       type: "select", options: [
+        { label: "H1 (largest)", value: "h1" },
+        { label: "H2",           value: "h2" },
+        { label: "H3",           value: "h3" },
+      ]},
+      { key: "align", label: "Align",     type: "select", options: [
+        { label: "Center", value: "center" },
+        { label: "Left",   value: "left" },
+        { label: "Right",  value: "right" },
+      ]},
+    ],
+  },
+  {
     type: "hero",
     label: "Hero",
     description: "Event image with gradient, kicker text, title, and meta row",

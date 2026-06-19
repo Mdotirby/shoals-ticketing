@@ -148,6 +148,8 @@ export function BuilderCanvas({ blocks, selectedId, onSelect, onDelete, onReorde
 
 function blockSummary(block: Block): string {
   switch (block.type) {
+    case "image":      return block.props.src ? block.props.alt || block.props.src.split("/").pop() || "image" : "no src";
+    case "heading":    return block.props.text;
     case "hero":       return block.props.title;
     case "text":       return block.props.content.slice(0, 60);
     case "button":     return `${block.props.label} → ${block.props.url}`;

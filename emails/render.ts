@@ -1,6 +1,8 @@
 import { render } from "@react-email/components";
 import { createElement } from "react";
 import type { EmailDocument, Block } from "./email-document";
+import { ImageBlock } from "./blocks/image-block";
+import { HeadingBlock } from "./blocks/heading-block";
 import { HeroBlock } from "./blocks/hero";
 import { TextBlock } from "./blocks/text-block";
 import { ButtonBlock } from "./blocks/button-block";
@@ -14,6 +16,8 @@ import { Html, Head, Body, Container } from "@react-email/components";
 
 function renderBlock(block: Block) {
   switch (block.type) {
+    case "image":      return createElement(ImageBlock,      { key: block.id, props: block.props });
+    case "heading":    return createElement(HeadingBlock,    { key: block.id, props: block.props });
     case "hero":       return createElement(HeroBlock,       { key: block.id, props: block.props });
     case "text":       return createElement(TextBlock,       { key: block.id, props: block.props });
     case "button":     return createElement(ButtonBlock,     { key: block.id, props: block.props });

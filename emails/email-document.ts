@@ -70,10 +70,29 @@ export type InfoCardBlockProps = {
   lines: string;
 };
 
+export type ImageBlockProps = {
+  src: string;
+  alt: string;
+  width: number;
+  link_url: string;
+  bg_color: string;
+  align: "left" | "center" | "right";
+};
+
+export type HeadingBlockProps = {
+  text: string;
+  level: "h1" | "h2" | "h3";
+  color: string;
+  align: "left" | "center" | "right";
+  size: number;
+};
+
 // ── Union discriminant ─────────────────────────────────────────────
 
 export type Block =
   | { id: string; type: "hero";       props: HeroBlockProps }
+  | { id: string; type: "image";      props: ImageBlockProps }
+  | { id: string; type: "heading";    props: HeadingBlockProps }
   | { id: string; type: "text";       props: TextBlockProps }
   | { id: string; type: "button";     props: ButtonBlockProps }
   | { id: string; type: "event_card"; props: EventCardBlockProps }

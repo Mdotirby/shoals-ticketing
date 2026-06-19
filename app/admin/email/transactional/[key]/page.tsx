@@ -143,6 +143,21 @@ export default function TransactionalEditorPage(props: { params: Promise<{ key: 
         )}
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button
+            onClick={() => {
+              if (!previewHtml) return;
+              const blob = new Blob([previewHtml], { type: "text/html" });
+              const url = URL.createObjectURL(blob);
+              window.open(url, "_blank");
+              // Revoke after a short delay to let the tab load
+              setTimeout(() => URL.revokeObjectURL(url), 10_000);
+            }}
+            disabled={!previewHtml}
+            title="Open full-page preview in a new browser tab"
+            style={{ padding: "7px 14px", fontSize: 11, background: "rgba(255,255,255,0.05)", color: previewHtml ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, cursor: previewHtml ? "pointer" : "default" }}
+          >
+            Full preview ↗
+          </button>
+          <button
             onClick={handleReset}
             style={{ padding: "7px 14px", fontSize: 11, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6, cursor: "pointer" }}
           >
