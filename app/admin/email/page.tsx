@@ -54,6 +54,7 @@ export default function EmailEngineHomePage() {
 
   const sections = [
     { key: "campaigns", label: "Campaigns", href: "/admin/email/campaigns", desc: "Create, preview, schedule, and send emails." },
+    { key: "transactional", label: "Transactional Emails", href: "/admin/email/transactional", desc: "Edit the ticket delivery and user onboarding email designs." },
     { key: "segments", label: "Segments", href: "/admin/email/segments", desc: "Rule-based audiences auto-built from ticket and engagement data." },
     { key: "automations", label: "Automations", href: "/admin/email/automations", desc: "Event-triggered drip flows: cart recovery, post-show, re-engagement." },
     { key: "metrics", label: "Performance", href: "/admin/email/metrics", desc: "Open, click, conversion, and revenue-per-email." },
