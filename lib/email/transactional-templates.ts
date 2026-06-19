@@ -77,21 +77,53 @@ export const SAMPLE_DATA: Record<TransactionalTemplateKey, Record<string, string
 
 const TICKET_DELIVERY_DEFAULT: EmailDocument = {
   version: "block-v1",
-  bg_color: "#0b0d1d",
+  bg_color: "#000000",
   blocks: [
+    // ── Logo bar ───────────────────────────────────────────────────
     {
-      id: "td-hero",
-      type: "hero",
+      id: "td-logo",
+      type: "image",
       props: {
-        image_url: "{{event_image}}",
-        kicker: "🎟 Your Ticket is Ready",
-        title: "{{event_title}}",
-        show_meta: false,
-        date: "",
-        time: "",
-        venue: "",
+        src: "https://venuecore.live/West72_Logos/W72_tech_lockup_white.png",
+        alt: "West 72 Entertainment",
+        width: 260,
+        link_url: "https://venuecore.live",
+        bg_color: "#000000",
+        align: "center",
       },
     },
+    // Full-width gold accent rule
+    {
+      id: "td-logo-rule",
+      type: "divider",
+      props: { color: "#d0c290", margin_top: 16, margin_bottom: 0 },
+    },
+    // ── Event hero image ───────────────────────────────────────────
+    {
+      id: "td-hero-image",
+      type: "image",
+      props: {
+        src: "{{event_image}}",
+        alt: "{{event_title}}",
+        width: 640,
+        link_url: "",
+        bg_color: "#000000",
+        align: "center",
+      },
+    },
+    // ── Heading ────────────────────────────────────────────────────
+    {
+      id: "td-heading",
+      type: "heading",
+      props: {
+        text: "Your Ticket Is Ready.",
+        level: "h1",
+        color: "#ffffff",
+        align: "center",
+        size: 34,
+      },
+    },
+    // ── Greeting ───────────────────────────────────────────────────
     {
       id: "td-greeting",
       type: "text",
@@ -99,6 +131,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
         content: "Hey {{first_name}},\n\nYou're all set! Here's everything you need for the show.",
       },
     },
+    // ── Event details card ─────────────────────────────────────────
     {
       id: "td-event-card",
       type: "event_card",
@@ -110,6 +143,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
         total: "{{total_amount}}",
       },
     },
+    // ── QR code notice ─────────────────────────────────────────────
     {
       id: "td-qr-notice",
       type: "info_card",
@@ -119,6 +153,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
         lines: "Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy — just have it ready when you arrive.",
       },
     },
+    // ── CTA button — gold fill, Outlook-safe ──────────────────────
     {
       id: "td-cta",
       type: "button",
@@ -126,21 +161,23 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
         label: "View My Ticket & QR Code",
         url: "{{ticket_url}}",
         bg_color: "#d0c290",
-        text_color: "#0b0d1d",
+        text_color: "#000000",
         align: "center",
       },
     },
-    {
-      id: "td-divider",
-      type: "divider",
-      props: { color: "rgba(255,255,255,0.06)", margin_top: 8, margin_bottom: 8 },
-    },
+    // ── Fine print ─────────────────────────────────────────────────
     {
       id: "td-fine-print",
       type: "text",
       props: {
         content: "All sales are final. Refunds are only issued if the event is cancelled by the organizer. Questions? Contact support@west72ent.com",
       },
+    },
+    // Gold divider before footer
+    {
+      id: "td-footer-rule",
+      type: "divider",
+      props: { color: "rgba(208,194,144,0.25)", margin_top: 8, margin_bottom: 0 },
     },
     {
       id: "td-footer",
@@ -185,7 +222,7 @@ const USER_ONBOARDING_DEFAULT: EmailDocument = {
         // Supabase storage URL — swap to your bucket path in the editor
         src: "https://venuecore.live/hero-images/west72/hero.jpg",
         alt: "West 72 Entertainment",
-        width: 600,
+        width: 640,
         link_url: "",
         bg_color: "#000000",
         align: "center",
@@ -263,7 +300,7 @@ const USER_ONBOARDING_DEFAULT: EmailDocument = {
       id: "uo-footer",
       type: "footer",
       props: {
-        venue_name: "VenueCore",
+        venue_name: "West 72 Entertainment",
         reason: "because you were invited to join the platform.",
         unsubscribe_url: "",
       },

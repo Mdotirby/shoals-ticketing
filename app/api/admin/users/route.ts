@@ -241,12 +241,12 @@ export async function POST(request: Request) {
   </td></tr>
 
   <!-- Gold divider + footer -->
-  <tr><td style="padding:0 28px;background-color:#000000;">
+  <tr><td style="padding:0;background-color:#000000;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:1px;background-color:rgba(208,194,144,0.25);font-size:0;line-height:0;">&nbsp;</td></tr></table>
   </td></tr>
   <tr><td align="center" style="padding:18px 28px 26px;background-color:#000000;">
     <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:rgba(255,255,255,0.3);text-align:center;">
-      Sent by <strong style="color:rgba(255,255,255,0.6);">VenueCore</strong> because you were invited to join the platform.
+      Sent by <strong style="color:rgba(255,255,255,0.6);">West 72 Entertainment</strong> because you were invited to join the platform.
     </p>
   </td></tr>
 

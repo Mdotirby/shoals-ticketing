@@ -1,4 +1,4 @@
-import { render } from "@react-email/components";
+import { render, Html, Head, Body } from "@react-email/components";
 import { createElement } from "react";
 import type { EmailDocument, Block } from "./email-document";
 import { ImageBlock } from "./blocks/image-block";
@@ -12,7 +12,6 @@ import { CountdownBlock } from "./blocks/countdown";
 import { DividerBlock } from "./blocks/divider";
 import { SpacerBlock } from "./blocks/spacer";
 import { FooterBlock } from "./blocks/footer";
-import { Html, Head, Body, Container } from "@react-email/components";
 
 function renderBlock(block: Block) {
   switch (block.type) {
@@ -31,19 +30,58 @@ function renderBlock(block: Block) {
 }
 
 export async function renderDocument(doc: EmailDocument): Promise<string> {
-  const bg = doc.bg_color || "#111827";
+  const bg = doc.bg_color || "#000000";
 
   const element = createElement(
     Html,
     { lang: "en" },
-    createElement(Head),
+    createElement(Head, null,
+      createElement("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
+      createElement("meta", { name: "x-apple-disable-message-reformatting" }),
+    ),
     createElement(
       Body,
-      { style: { margin: 0, padding: 0, backgroundColor: bg, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif", WebkitFontSmoothing: "antialiased" } },
-      createElement(
-        Container,
-        { style: { maxWidth: 600, margin: "24px auto", backgroundColor: bg, borderRadius: 20, overflow: "hidden", border: "1px solid rgba(255,255,255,0.09)" } },
-        ...doc.blocks.map(renderBlock),
+      {
+        style: {
+          margin: 0,
+          padding: 0,
+          backgroundColor: bg,
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif",
+          WebkitFontSmoothing: "antialiased" as const,
+          WebkitTextSizeAdjust: "100%" as const,
+        },
+      },
+      // Outer 100%-width table centers the email on desktop.
+      // Inner table is capped at 640px and goes full-width on mobile.
+      createElement("table", {
+        role: "presentation",
+        width: "100%",
+        cellPadding: 0,
+        cellSpacing: 0,
+        style: { borderCollapse: "collapse", backgroundColor: bg },
+      },
+        createElement("tr", null,
+          createElement("td", { align: "center", style: { padding: "24px 0" } },
+            createElement("table", {
+              role: "presentation",
+              width: "640",
+              cellPadding: 0,
+              cellSpacing: 0,
+              style: {
+                maxWidth: 640,
+                width: "100%",
+                borderCollapse: "collapse",
+                backgroundColor: bg,
+              },
+            },
+              createElement("tr", null,
+                createElement("td", { style: { padding: 0 } },
+                  ...doc.blocks.map(renderBlock),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );
