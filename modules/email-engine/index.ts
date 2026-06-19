@@ -85,9 +85,3 @@ export {
   refreshAllAttributes,
 } from "./services/attributeRefresher";
 
-// Starter template library — consumed by the UI campaign-builder
-export {
-  EMAIL_TEMPLATES,
-  getTemplate,
-  type EmailTemplate,
-} from "./templates";

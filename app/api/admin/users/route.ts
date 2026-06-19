@@ -140,14 +140,29 @@ export async function POST(request: Request) {
     };
     const roleLabel = ROLE_LABELS[role] || role;
     const displayName = first_name || "there";
-
-    // Role-specific login URL — agents go to the agent portal
     const loginUrl = role === "agent"
       ? "https://venuecore.live/login?redirect=/agent"
       : "https://venuecore.live/login";
     const ctaLabel = role === "agent" ? "Sign In to Agent Portal →" : "Sign In to VenueCore →";
+    const CC_EMAIL = "matt.irby@west72ent.com";
 
-    const welcomeHtml = `<!DOCTYPE html>
+    // Build HTML — try custom template first, fall back to legacy inline HTML
+    let welcomeHtml: string;
+    try {
+      const { loadTransactionalTemplate, replaceVars } = await import("@/lib/email/transactional-templates");
+      const { renderDocument } = await import("@/emails/render");
+      const doc = await loadTransactionalTemplate(admin, "user_onboarding");
+      const rawHtml = await renderDocument(doc);
+      welcomeHtml = replaceVars(rawHtml, {
+        display_name: displayName,
+        email: email,
+        role_label: roleLabel,
+        temp_password: authPassword,
+        login_url: loginUrl,
+        cta_label: ctaLabel,
+      });
+    } catch {
+      welcomeHtml = `<!DOCTYPE html>
 <html><body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
 <tr><td align="center">
@@ -156,32 +171,21 @@ export async function POST(request: Request) {
 <h1 style="margin:0;font-size:22px;color:#0b0d1d;">Welcome to VenueCore</h1>
 </td></tr>
 <tr><td style="padding:28px;">
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
-Hey ${displayName},</p>
-<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">
-You've been added to VenueCore as a <strong style="color:#d0c290;">${roleLabel}</strong>. Use the credentials below to sign in and get started.</p>
-
-<!-- Credentials box -->
+<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">Hey ${displayName},</p>
+<p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;margin:0 0 16px;">You've been added to VenueCore as a <strong style="color:#d0c290;">${roleLabel}</strong>. Use the credentials below to sign in and get started.</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.08);border:1px solid rgba(208,194,144,0.2);border-radius:10px;margin-bottom:24px;">
 <tr><td style="padding:18px 20px;">
 <p style="margin:0 0 8px;font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">Your Login Credentials</p>
 <p style="margin:0 0 4px;font-size:15px;color:rgba(255,255,255,0.7);">Email: <strong style="color:#fff;">${email}</strong></p>
 <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.7);">Temporary Password: <strong style="color:#d0c290;font-size:16px;">${authPassword}</strong></p>
-</td></tr>
-</table>
-
-<p style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;margin:0 0 20px;">
-We recommend changing your password after your first login.</p>
-
+</td></tr></table>
+<p style="color:rgba(255,255,255,0.5);font-size:13px;line-height:1.6;margin:0 0 20px;">We recommend changing your password after your first login.</p>
 <table width="100%" style="margin-bottom:20px;"><tr><td align="center">
 <a href="${loginUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;padding:14px 36px;border-radius:8px;text-decoration:none;font-size:15px;">${ctaLabel}</a>
 </td></tr></table>
-<p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;margin:0;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">
-If you didn't expect this invitation, you can safely ignore this email. Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a></p>
-</td></tr>
-</table></td></tr></table></body></html>`;
-
-    const CC_EMAIL = "matt.irby@west72ent.com";
+<p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:1.6;margin:0;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">If you didn't expect this invitation, you can safely ignore this email. Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);">support@venuecore.live</a></p>
+</td></tr></table></td></tr></table></body></html>`;
+    }
 
     fetch("https://api.resend.com/emails", {
       method: "POST",

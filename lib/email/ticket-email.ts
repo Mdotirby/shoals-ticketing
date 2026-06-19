@@ -168,17 +168,40 @@ export async function sendTicketEmail({
 
   const ticketUrl = `https://venuecore.live/tickets/${ticketId}`;
 
-  const html = ticketEmailHtml({
-    customerName,
-    eventTitle,
-    eventDate,
-    eventVenue,
-    ticketCount,
-    totalAmount,
-    qrDataUrl,
-    ticketUrl,
-    seatAssignments,
-  });
+  // Try loading a custom template from DB; fall back to hardcoded HTML
+  let html: string;
+  try {
+    const { createAdminClient } = await import("@/lib/supabase-server");
+    const { loadTransactionalTemplate, replaceVars } = await import("@/lib/email/transactional-templates");
+    const { renderDocument } = await import("@/emails/render");
+
+    const admin = createAdminClient();
+    const doc = await loadTransactionalTemplate(admin, "ticket_delivery");
+    const rawHtml = await renderDocument(doc);
+    html = replaceVars(rawHtml, {
+      first_name: customerName.split(" ")[0] || customerName,
+      event_title: eventTitle,
+      event_date: eventDate,
+      event_venue: eventVenue,
+      ticket_count: String(ticketCount),
+      total_amount: `$${totalAmount.toFixed(2)}`,
+      ticket_url: ticketUrl,
+      event_image: "",
+    });
+  } catch {
+    // Fallback to legacy hardcoded template
+    html = ticketEmailHtml({
+      customerName,
+      eventTitle,
+      eventDate,
+      eventVenue,
+      ticketCount,
+      totalAmount,
+      qrDataUrl,
+      ticketUrl,
+      seatAssignments,
+    });
+  }
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
