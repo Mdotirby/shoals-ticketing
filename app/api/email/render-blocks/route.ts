@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
     document: EmailDocument;
     subject?: string;
     event_id?: string;
+    sample_vars?: Record<string, string>;
   };
 
   if (!body.document?.blocks) {
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
       first_name: "Alex",
       last_name: "Example",
       email: "preview@venuecore.live",
+      // Merge any template-specific sample vars so they're substituted
+      // before the HTML is returned — prevents placeholders being blanked.
+      ...(body.sample_vars ?? {}),
     },
     utm: {
       utm_source: EMAIL_ENGINE.UTM_SOURCE,

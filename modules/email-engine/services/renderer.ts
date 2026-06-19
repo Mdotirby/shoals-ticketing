@@ -59,11 +59,10 @@ export function stampUtmOnLinks(html: string, utm: Record<string, string>): stri
   );
 }
 
-const FOOTER_MARK = "<!-- ee-footer -->";
+const FOOTER_MARK = 'data-ee-footer="1"';
 
 function unsubscribeFooter(url: string): string {
-  return `${FOOTER_MARK}
-<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e5e5;font-size:12px;color:#888;text-align:center;font-family:Helvetica,Arial,sans-serif">
+  return `<div ${FOOTER_MARK} style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e5e5;font-size:12px;color:#888;text-align:center;font-family:Helvetica,Arial,sans-serif">
   <p style="margin:0 0 6px">You're receiving this email because you opted in via VenueCore.</p>
   <p style="margin:0"><a href="${url}" style="color:#888;text-decoration:underline">Unsubscribe</a></p>
 </div>`;

@@ -175,7 +175,8 @@ async function sendViaResend(row: QueueRow, apiKey: string): Promise<string | nu
 }
 
 function extractListUnsubscribe(html: string): string | null {
-  // Matches the <a href="..."> inside the footer we inject in renderer.ts
-  const m = html.match(/<!-- ee-footer -->[\s\S]*?href="([^"]+)"/);
+  // Matches the <a href="..."> inside the footer block (data-ee-footer) or
+  // the fallback footer div we inject in renderer.ts (same attribute).
+  const m = html.match(/data-ee-footer="1"[\s\S]*?href="([^"]+)"/);
   return m ? m[1] : null;
 }

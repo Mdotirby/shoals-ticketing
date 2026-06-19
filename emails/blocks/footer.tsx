@@ -3,9 +3,8 @@ import type { FooterBlockProps } from "../email-document";
 
 export function FooterBlock({ props }: { props: FooterBlockProps }) {
   return (
-    // The <!-- ee-footer --> comment tells the dispatcher not to inject a second footer
-    <Section style={{ padding: "0 28px 26px" }}>
-      {/* ee-footer */}
+    // data-ee-footer tells the dispatcher a custom footer is already present
+    <Section data-ee-footer="1" style={{ padding: "0 28px 26px" }}>
       <Row>
         <Column>
           <div style={{ height: 1, background: "rgba(255,255,255,0.09)", margin: "8px 0 18px" }} />
