@@ -8,9 +8,11 @@ import {
   CardNumberElement,
   CardExpiryElement,
   CardCvcElement,
+  PaymentRequestButtonElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type { PaymentRequest } from "@stripe/stripe-js";
 import { trackFbEvent } from "@/lib/fbq";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -147,6 +149,9 @@ function CheckoutForm({
   // FWB signup state (post-payment one-click)
   const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
 
+  // Apple Pay / Google Pay via Stripe PaymentRequest
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+
   // ── Fee calculation matching OrderSummary + create-intent API ────────────
   // Divisor = tax baked into face price; don't add it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
@@ -171,6 +176,83 @@ function CheckoutForm({
       });
     }
   }, [cardNumberComplete, cardExpiryComplete, cardCvcComplete, addedPaymentInfo, eventTitle, eventId, estimatedTotal]);
+
+  // Apple Pay / Google Pay — set up PaymentRequest once stripe is loaded
+  useEffect(() => {
+    if (!stripe || isFullyFree) return;
+
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: { label: eventTitle, amount: Math.round(estimatedTotal * 100) },
+      requestPayerName: true,
+      requestPayerEmail: true,
+      requestPayerPhone: true,
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setIsProcessing(true);
+      setPaymentError("");
+      try {
+        const res = await fetch("/api/checkout/create-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            tierId: tierId || undefined,
+            quantity,
+            buyerName: ev.payerName || "",
+            buyerEmail: ev.payerEmail || "",
+            buyerPhone: ev.payerPhone || "",
+            fwbOptIn: false,
+            promoCode: promoCode || undefined,
+            selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
+            sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
+            trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          ev.complete("fail");
+          setPaymentError(data.error || "Payment failed. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+        setOrderDetails(data.orderDetails);
+        const { error: confirmError } = await stripe.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+        if (confirmError) {
+          ev.complete("fail");
+          setPaymentError(confirmError.message || "Payment failed. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+        ev.complete("success");
+        trackFbEvent("Purchase", {
+          content_name: eventTitle,
+          content_ids: [eventId],
+          value: data.orderDetails.total,
+          currency: "USD",
+          num_items: quantity,
+        });
+        setPaymentSuccess(true);
+      } catch {
+        ev.complete("fail");
+        setPaymentError("An unexpected error occurred. Please try again.");
+        setIsProcessing(false);
+      }
+    });
+
+    pr.canMakePayment().then((result) => {
+      if (result) setPaymentRequest(pr);
+    });
+
+    return () => { setPaymentRequest(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -394,6 +476,24 @@ function CheckoutForm({
   // ── Checkout Form ──────────────────────────────────────────────────────────
   return (
     <div className="ic-form-wrap">
+      {/* Step progress indicator */}
+      <div className="ic-progress-bar">
+        <div className="ic-progress-step ic-progress-done">
+          <span className="ic-progress-dot" />
+          <span className="ic-progress-label">Tickets</span>
+        </div>
+        <div className="ic-progress-connector ic-progress-connector-done" />
+        <div className={`ic-progress-step ${paymentSuccess ? "ic-progress-done" : "ic-progress-active"}`}>
+          <span className="ic-progress-dot" />
+          <span className="ic-progress-label">Checkout</span>
+        </div>
+        <div className={`ic-progress-connector ${paymentSuccess ? "ic-progress-connector-done" : ""}`} />
+        <div className={`ic-progress-step ${paymentSuccess ? "ic-progress-active" : ""}`}>
+          <span className="ic-progress-dot" />
+          <span className="ic-progress-label">Done</span>
+        </div>
+      </div>
+
       <div className="ic-form-header">
         <button type="button" className="ic-back-btn" onClick={onBack}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -512,6 +612,21 @@ function CheckoutForm({
             Sign me up for exclusive offers &amp; rewards
           </span>
         </label>
+
+        {/* Apple Pay / Google Pay — only appears when browser supports it and Stripe domain is configured */}
+        {paymentRequest && !isFullyFree && (
+          <div className="ic-wallet-section">
+            <PaymentRequestButtonElement
+              options={{
+                paymentRequest,
+                style: {
+                  paymentRequestButton: { theme: "dark", height: "48px", type: "buy" },
+                },
+              }}
+            />
+            <div className="ic-wallet-divider"><span>or pay by card</span></div>
+          </div>
+        )}
 
         {/* Stripe Card Fields (only for paid checkout) */}
         {!isFullyFree && (

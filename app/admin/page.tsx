@@ -401,6 +401,9 @@ export default function AdminDashboardPage() {
   }
 
   // ── OWNER / ADMIN DASHBOARD (full) ──
+  const today = new Date().toISOString().slice(0, 10);
+  const dosEvent = data.upcomingEvents.find((ev) => ev.date === today);
+
   return (
     <div className="admin-dashboard">
       {/* ── HEADER ── */}
@@ -418,6 +421,56 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* ── DAY OF SHOW BANNER — shows when an event is today ── */}
+      {dosEvent && (
+        <div className="dash-dos-banner">
+          <div className="dash-dos-badge">Day of Show</div>
+          <div className="dash-dos-body">
+            <div className="dash-dos-info">
+              <p className="dash-dos-title">{dosEvent.title}</p>
+              <p className="dash-dos-venue">{dosEvent.venue}</p>
+            </div>
+            <div className="dash-dos-stats">
+              <div className="dash-dos-stat">
+                <span className="dash-dos-stat-value">{dosEvent.ticketsSold.toLocaleString()}</span>
+                <span className="dash-dos-stat-label">Sold</span>
+              </div>
+              <div className="dash-dos-stat-divider" />
+              <div className="dash-dos-stat">
+                <span className="dash-dos-stat-value">{data.ticketsSoldToday}</span>
+                <span className="dash-dos-stat-label">Today&apos;s Drop</span>
+              </div>
+              <div className="dash-dos-stat-divider" />
+              <div className="dash-dos-stat">
+                <span className="dash-dos-stat-value">{formatCurrency(dosEvent.revenue)}</span>
+                <span className="dash-dos-stat-label">Revenue</span>
+              </div>
+            </div>
+            <div className="dash-dos-actions">
+              <Link href="/admin/scan" className="dash-dos-action-btn dash-dos-action-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
+                  <path d="M14 14h.01M14 18h.01M18 14h.01M18 18h.01" />
+                </svg>
+                Scanner
+              </Link>
+              <Link href="/admin/live" className="dash-dos-action-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="2" /><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+                </svg>
+                Live Pulse
+              </Link>
+              <Link href="/admin/guest-lists" className="dash-dos-action-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                Guest Lists
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── TOP KPI ROW ── */}
       <div className="dash-kpi-grid">

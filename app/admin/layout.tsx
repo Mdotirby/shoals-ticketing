@@ -370,10 +370,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Mobile topbar — centered wordmark + right dropdown */}
+      {/* Mobile topbar — hamburger left + page title center + nav right */}
       <div className="admin-mobile-topbar">
-        {/* Left spacer — matches width of the dropdown button to keep wordmark truly centered */}
-        <div style={{ width: 48, flexShrink: 0 }} />
+        {/* Hamburger menu button — left side */}
+        <button
+          className="admin-mobile-hamburger"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          aria-label="Toggle navigation"
+          aria-expanded={sidebarOpen}
+        >
+          {sidebarOpen ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          )}
+        </button>
 
         {/* Centered wordmark — links to homepage */}
         <Link href="/" style={{ flex: 1, display: "flex", justifyContent: "center", alignItems: "center" }}>
@@ -389,7 +404,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             className="admin-mobile-avatar-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
-            aria-label="Toggle navigation"
+            aria-label="Open navigation menu"
             style={isWest72Operator ? { borderRadius: 12 } : undefined}
           >
             {isWest72Operator ? (

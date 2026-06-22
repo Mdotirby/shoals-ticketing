@@ -11,6 +11,7 @@ import {
 import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
+import { safeDate, formatEventDateFull } from "@/lib/dates";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -55,6 +56,14 @@ function SeatHoldTimer({ heldUntil }: { heldUntil: string }) {
   );
 }
 
+type EventSummary = {
+  title: string;
+  date: string;
+  venue: string;
+  image_url?: string | null;
+  price?: number;
+};
+
 function CheckoutContent() {
   const operator = useOperator();
   const isWest72 = operator.slug === "west72";
@@ -66,6 +75,20 @@ function CheckoutContent() {
   const eventId = searchParams.get("event");
   const quantity = Number(searchParams.get("qty") || "1");
   const [error, setError] = useState<string | null>(null);
+
+  // Event context for the order summary panel
+  const [eventSummary, setEventSummary] = useState<EventSummary | null>(null);
+  useEffect(() => {
+    if (!eventId) return;
+    fetch(`/api/events/${eventId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.title) {
+          setEventSummary({ title: d.title, date: d.date, venue: d.venue, image_url: d.image_url, price: d.price });
+        }
+      })
+      .catch(() => {});
+  }, [eventId]);
 
   // Buyer info state
   const [buyerName, setBuyerName] = useState("");
@@ -208,10 +231,51 @@ function CheckoutContent() {
     triggerDodge();
   }
 
+  // Shared step bar + event context rendered above both checkout steps
+  const stepBar = (
+    <div className="co-step-bar">
+      <div className={`co-step ${!showCheckout ? "co-step-active" : "co-step-done"}`}>
+        <span className="co-step-num">{!showCheckout ? "1" : "✓"}</span>
+        <span className="co-step-label">Your Info</span>
+      </div>
+      <div className={`co-step-line ${showCheckout ? "co-step-line-done" : ""}`} />
+      <div className={`co-step ${showCheckout ? "co-step-active" : ""}`}>
+        <span className="co-step-num">2</span>
+        <span className="co-step-label">Payment</span>
+      </div>
+      <div className="co-step-line" />
+      <div className="co-step">
+        <span className="co-step-num">3</span>
+        <span className="co-step-label">Done</span>
+      </div>
+    </div>
+  );
+
+  const eventContextCard = eventSummary ? (
+    <div className="co-event-context">
+      {eventSummary.image_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={eventSummary.image_url} alt={eventSummary.title} className="co-event-thumb" />
+      )}
+      <div className="co-event-details">
+        <p className="co-event-title">{eventSummary.title}</p>
+        <p className="co-event-meta">
+          {eventSummary.date ? formatEventDateFull(eventSummary.date) : ""} · {eventSummary.venue}
+        </p>
+        <p className="co-event-qty">
+          {quantity} ticket{quantity !== 1 ? "s" : ""}
+          {eventSummary.price ? ` · $${(eventSummary.price * quantity).toFixed(2)} + fees` : ""}
+        </p>
+      </div>
+    </div>
+  ) : null;
+
   // Show buyer info form first
   if (!showCheckout) {
     return (
       <section className="checkout-embed-section">
+        {stepBar}
+        {eventContextCard}
         <div className="pre-checkout-form">
           {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
           <h3>Your Information</h3>
@@ -414,6 +478,8 @@ function CheckoutContent() {
 
   return (
     <section className="checkout-embed-section">
+      {stepBar}
+      {eventContextCard}
       {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
       <EmbeddedCheckoutProvider
         stripe={stripePromise}
