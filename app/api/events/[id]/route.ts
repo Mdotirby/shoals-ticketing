@@ -13,16 +13,16 @@ export async function GET(
   // Try with closed_out_at (closeout migration); fall back without it.
   let { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id")
     .eq("id", id)
     .single();
-  if (error && /closed_out_(at|note)|external_ticket|column .* does not exist/i.test(error.message)) {
+  if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|column .* does not exist/i.test(error.message)) {
     const retry = await admin
       .from("events")
       .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
       .eq("id", id)
       .single();
-    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null } : null;
+    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null } : null;
     error = retry.error;
   }
 
@@ -97,6 +97,7 @@ export async function PUT(
   if (body.landing_page_slug !== undefined) updates.landing_page_slug = body.landing_page_slug;
   if (body.external_ticket_url !== undefined) updates.external_ticket_url = body.external_ticket_url || null;
   if (body.external_ticket_label !== undefined) updates.external_ticket_label = body.external_ticket_label || null;
+  if (body.meta_pixel_id !== undefined) updates.meta_pixel_id = body.meta_pixel_id || null;
 
   console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
   if (updates.start_time !== undefined || updates.end_time !== undefined) {

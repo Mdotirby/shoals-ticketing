@@ -114,6 +114,7 @@ export default function AdminEditEventPage() {
   // External ticketing state
   const [externalTicketUrl, setExternalTicketUrl] = useState("");
   const [externalTicketLabel, setExternalTicketLabel] = useState("");
+  const [metaPixelId, setMetaPixelId] = useState("");
 
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
@@ -272,6 +273,7 @@ export default function AdminEditEventPage() {
         // Load external ticketing fields
         setExternalTicketUrl(event.external_ticket_url || "");
         setExternalTicketLabel(event.external_ticket_label || "");
+        setMetaPixelId(event.meta_pixel_id || "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -618,6 +620,7 @@ export default function AdminEditEventPage() {
           // External ticketing
           external_ticket_url: externalTicketUrl.trim() || null,
           external_ticket_label: externalTicketLabel.trim() || null,
+          meta_pixel_id: metaPixelId.trim() || null,
         }),
       });
 
@@ -1157,6 +1160,35 @@ export default function AdminEditEventPage() {
           {externalTicketUrl && (
             <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8, margin: "8px 0 0" }}>
               ⚠ VenueCore checkout is disabled for this event. Tickets link out to the URL above.
+            </p>
+          )}
+        </div>
+
+        {/* ── Co-Promoter / Guest Meta Pixel ── */}
+        <div className="admin-form-label admin-form-full" style={{
+          padding: 16, borderRadius: 10,
+          background: metaPixelId ? "rgba(59,130,246,0.06)" : "rgba(208,194,144,0.04)",
+          border: `1px solid ${metaPixelId ? "rgba(59,130,246,0.2)" : "rgba(208,194,144,0.12)"}`,
+          marginTop: 8,
+        }}>
+          <span style={{ color: metaPixelId ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+            Co-Promoter Meta Pixel ID
+          </span>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+            If a co-promoter or advertiser needs their Meta Pixel to fire on this event&apos;s pages
+            (for retargeting their paid social ads), paste their Pixel ID here.
+            It fires alongside the venue&apos;s pixel — both on the event detail and landing pages.
+          </p>
+          <input
+            className="admin-form-input"
+            type="text"
+            placeholder="e.g. 1660200431930684"
+            value={metaPixelId}
+            onChange={(e) => setMetaPixelId(e.target.value.trim())}
+          />
+          {metaPixelId && (
+            <p style={{ fontSize: 11, color: "#3b82f6", marginTop: 8 }}>
+              Co-promoter pixel active — firing on event detail and landing pages.
             </p>
           )}
         </div>

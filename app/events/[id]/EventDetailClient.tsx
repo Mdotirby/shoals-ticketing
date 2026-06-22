@@ -16,6 +16,7 @@ import Footer from "@/app/components/Footer";
 import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { trackFbEvent } from "@/lib/fbq";
 import { pastEventReason } from "@/lib/events/closeout";
+import TrackingPixels from "@/app/components/TrackingPixels";
 
 type FeaturedArtist = {
   id: string;
@@ -55,6 +56,7 @@ type EventData = {
   closed_out_at?: string | null;
   external_ticket_url?: string | null;
   external_ticket_label?: string | null;
+  meta_pixel_id?: string | null;
   presaleAvailable?: boolean;
 };
 
@@ -576,6 +578,8 @@ export default function EventDetailClient() {
 
   return (
     <>
+      {event?.meta_pixel_id && <TrackingPixels metaPixelId={event.meta_pixel_id} />}
+
       {/* Presale animation styles — hoisted so they survive the unlock transition */}
       {event?.presaleAvailable && (
         <style>{`

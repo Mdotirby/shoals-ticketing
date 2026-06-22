@@ -81,7 +81,7 @@ export default async function LandingPage({ params }: Props) {
   const { data: event, error: eventError } = await admin
     .from("events")
     .select(
-      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label"
+      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id"
     )
     .eq("landing_page_slug", slug)
     .eq("status", "published")
@@ -352,6 +352,7 @@ export default async function LandingPage({ params }: Props) {
         taxRate: fees.tax_rate,
       }}
       otherEvents={otherEvents}
+      metaPixelId={event.meta_pixel_id || null}
     />
   );
 }

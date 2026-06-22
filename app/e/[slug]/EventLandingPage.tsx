@@ -6,6 +6,7 @@ import { trackFbEvent } from "@/lib/fbq";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
+import TrackingPixels from "@/app/components/TrackingPixels";
 import {
   Elements,
   CardNumberElement,
@@ -85,6 +86,7 @@ type Props = {
   slug?: string;
   presaleAvailable?: boolean;
   otherEvents?: OtherEvent[];
+  metaPixelId?: string | null;
 };
 
 // Stripe charges 2.7% + $0.30 per transaction — keep aligned with
@@ -752,7 +754,7 @@ function CheckoutForm({
 
 // ── Main Landing Page Component ──────────────────────────────────────────────
 
-export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "", presaleAvailable = false, otherEvents = [] }: Props) {
+export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "", presaleAvailable = false, otherEvents = [], metaPixelId = null }: Props) {
   // Fall back to sensible defaults if the server didn't pass fees (older
   // callers / unit tests).
   const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
@@ -1015,6 +1017,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
   return (
     <main className="lp-main">
+      {metaPixelId && <TrackingPixels metaPixelId={metaPixelId} />}
+
       {/* ── Presale animation styles — hoisted so they survive the unlock transition ── */}
       {presaleAvailable && (
         <style>{`
