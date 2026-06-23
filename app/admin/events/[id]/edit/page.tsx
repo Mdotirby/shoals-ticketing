@@ -118,6 +118,7 @@ export default function AdminEditEventPage() {
   const [spotifyUrl, setSpotifyUrl] = useState("");
   const [spotifyMonthlyListeners, setSpotifyMonthlyListeners] = useState("");
   const [spotifyFeaturedTrack, setSpotifyFeaturedTrack] = useState("");
+  const [spotifyFeaturedTrackStart, setSpotifyFeaturedTrackStart] = useState("");
 
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
@@ -279,7 +280,10 @@ export default function AdminEditEventPage() {
         setMetaPixelId(event.meta_pixel_id || "");
         setSpotifyUrl(event.spotify_url || "");
         setSpotifyMonthlyListeners(event.spotify_monthly_listeners || "");
-        setSpotifyFeaturedTrack(event.spotify_featured_track || "");
+        const rawFeaturedTrack = event.spotify_featured_track || "";
+        const tMatch = rawFeaturedTrack.match(/[?&]t=(\d+)/);
+        setSpotifyFeaturedTrack(rawFeaturedTrack.replace(/[?&]t=\d+/, "").replace(/\?$/, "").trim());
+        setSpotifyFeaturedTrackStart(tMatch ? tMatch[1] : "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -629,7 +633,9 @@ export default function AdminEditEventPage() {
           meta_pixel_id: metaPixelId.trim() || null,
           spotify_url: spotifyUrl.trim() || null,
           spotify_monthly_listeners: spotifyMonthlyListeners.trim() || null,
-          spotify_featured_track: spotifyFeaturedTrack.trim() || null,
+          spotify_featured_track: spotifyFeaturedTrack.trim()
+            ? spotifyFeaturedTrack.trim() + (spotifyFeaturedTrackStart.trim() ? `?t=${spotifyFeaturedTrackStart.trim()}` : "")
+            : null,
         }),
       });
 
@@ -1217,13 +1223,30 @@ export default function AdminEditEventPage() {
             An embedded player will appear on the event page so fans can listen without leaving.
           </p>
           <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "0 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Featured Track</p>
-          <input
-            className="admin-form-input"
-            type="url"
-            placeholder="https://open.spotify.com/track/... (add ?t=45 to start at 45s)"
-            value={spotifyFeaturedTrack}
-            onChange={(e) => setSpotifyFeaturedTrack(e.target.value.trim())}
-          />
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              className="admin-form-input"
+              type="url"
+              placeholder="https://open.spotify.com/track/..."
+              value={spotifyFeaturedTrack}
+              onChange={(e) => setSpotifyFeaturedTrack(e.target.value.trim())}
+              style={{ flex: 1 }}
+            />
+            <input
+              className="admin-form-input"
+              type="number"
+              min="0"
+              placeholder="Start (sec)"
+              value={spotifyFeaturedTrackStart}
+              onChange={(e) => setSpotifyFeaturedTrackStart(e.target.value)}
+              style={{ width: 110, flexShrink: 0 }}
+            />
+          </div>
+          {spotifyFeaturedTrackStart && (
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+              Starts at {spotifyFeaturedTrackStart}s — {Math.floor(Number(spotifyFeaturedTrackStart) / 60)}:{String(Number(spotifyFeaturedTrackStart) % 60).padStart(2, "0")} into the track
+            </p>
+          )}
           <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Artist Page</p>
           <input
             className="admin-form-input"
