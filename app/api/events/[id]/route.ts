@@ -98,18 +98,29 @@ export async function PUT(
   if (body.external_ticket_url !== undefined) updates.external_ticket_url = body.external_ticket_url || null;
   if (body.external_ticket_label !== undefined) updates.external_ticket_label = body.external_ticket_label || null;
   if (body.meta_pixel_id !== undefined) updates.meta_pixel_id = body.meta_pixel_id || null;
+  if (body.spotify_url !== undefined) updates.spotify_url = body.spotify_url || null;
+  if (body.spotify_monthly_listeners !== undefined) updates.spotify_monthly_listeners = body.spotify_monthly_listeners || null;
 
   console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
   if (updates.start_time !== undefined || updates.end_time !== undefined) {
     console.log(`  start_time: ${JSON.stringify(updates.start_time)}, end_time: ${JSON.stringify(updates.end_time)}`);
   }
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("events")
     .update(updates)
     .eq("id", id)
     .select()
     .single();
+
+  // If the update itself failed due to unknown columns, retry without the new optional columns
+  if (error && /spotify_url|spotify_monthly_listeners|column .* does not exist/i.test(error.message)) {
+    delete updates.spotify_url;
+    delete updates.spotify_monthly_listeners;
+    const retry = await admin.from("events").update(updates).eq("id", id).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error(`PUT /api/events/${id} — error:`, error.message, error.code, error.details);
