@@ -117,6 +117,7 @@ export default function AdminEditEventPage() {
   const [metaPixelId, setMetaPixelId] = useState("");
   const [spotifyUrl, setSpotifyUrl] = useState("");
   const [spotifyMonthlyListeners, setSpotifyMonthlyListeners] = useState("");
+  const [spotifyFeaturedTrack, setSpotifyFeaturedTrack] = useState("");
 
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
@@ -278,6 +279,7 @@ export default function AdminEditEventPage() {
         setMetaPixelId(event.meta_pixel_id || "");
         setSpotifyUrl(event.spotify_url || "");
         setSpotifyMonthlyListeners(event.spotify_monthly_listeners || "");
+        setSpotifyFeaturedTrack(event.spotify_featured_track || "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -627,6 +629,7 @@ export default function AdminEditEventPage() {
           meta_pixel_id: metaPixelId.trim() || null,
           spotify_url: spotifyUrl.trim() || null,
           spotify_monthly_listeners: spotifyMonthlyListeners.trim() || null,
+          spotify_featured_track: spotifyFeaturedTrack.trim() || null,
         }),
       });
 
@@ -1213,6 +1216,15 @@ export default function AdminEditEventPage() {
             Paste any Spotify link — artist page, album, playlist, or single track.
             An embedded player will appear on the event page so fans can listen without leaving.
           </p>
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "0 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Featured Track</p>
+          <input
+            className="admin-form-input"
+            type="url"
+            placeholder="https://open.spotify.com/track/... (add ?t=45 to start at 45s)"
+            value={spotifyFeaturedTrack}
+            onChange={(e) => setSpotifyFeaturedTrack(e.target.value.trim())}
+          />
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Artist Page</p>
           <input
             className="admin-form-input"
             type="url"
@@ -1220,15 +1232,15 @@ export default function AdminEditEventPage() {
             value={spotifyUrl}
             onChange={(e) => setSpotifyUrl(e.target.value.trim())}
           />
+          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Listeners</p>
           <input
             className="admin-form-input"
             type="text"
-            placeholder="Monthly listeners (e.g. 2.4M or 847,000)"
+            placeholder="e.g. 2.4M or 847,000"
             value={spotifyMonthlyListeners}
             onChange={(e) => setSpotifyMonthlyListeners(e.target.value)}
-            style={{ marginTop: 8 }}
           />
-          {spotifyUrl && (
+          {(spotifyFeaturedTrack || spotifyUrl) && (
             <p style={{ fontSize: 11, color: "#1ed760", marginTop: 8 }}>
               Spotify player active — fans can listen directly on the event page.
             </p>

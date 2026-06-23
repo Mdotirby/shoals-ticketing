@@ -59,6 +59,7 @@ type EventData = {
   meta_pixel_id?: string | null;
   spotify_url?: string | null;
   spotify_monthly_listeners?: string | null;
+  spotify_featured_track?: string | null;
   presaleAvailable?: boolean;
 };
 
@@ -108,6 +109,7 @@ export default function EventDetailClient() {
   const [allEvents, setAllEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null; venue_id?: string }[]>([]);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [seatingRoomW, setSeatingRoomW] = useState(100);
   const [seatingRoomH, setSeatingRoomH] = useState(60);
   const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; sectionName: string; rowLabel: string; seatNumber: number; priceCents: number; color: string }[]>([]);
@@ -826,6 +828,24 @@ export default function EventDetailClient() {
                     </div>
                   )}
 
+                  {/* Description inside card — collapsed to 3 lines with Read More */}
+                  {event.description && (
+                    <div className="ticket-card-desc-wrap">
+                      <p className={`ticket-card-desc ${descExpanded ? "ticket-card-desc-expanded" : ""}`}>
+                        {event.description}
+                      </p>
+                      {!descExpanded && (
+                        <button
+                          type="button"
+                          className="ticket-card-desc-more"
+                          onClick={() => setDescExpanded(true)}
+                        >
+                          Read More
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                 </div>
               </div>
             </div>
@@ -1103,31 +1123,41 @@ export default function EventDetailClient() {
             </div>
           </div>
 
-          {/* Event description — renders below order summary on mobile, full-width on desktop */}
-          {event.description && (
-            <p className="ticket-event-description ticket-event-description-below">
-              {event.description}
-            </p>
-          )}
         </section>
 
-        {/* ── Spotify Embed ── */}
-        {event.spotify_url && (() => {
-          const embedUrl = getSpotifyEmbedUrl(event.spotify_url!);
-          if (!embedUrl) return null;
+        {/* ── Spotify Embeds ── */}
+        {(event.spotify_featured_track || event.spotify_url) && (() => {
+          const featuredUrl = event.spotify_featured_track ? getSpotifyEmbedUrl(event.spotify_featured_track) : null;
+          const artistUrl = event.spotify_url ? getSpotifyEmbedUrl(event.spotify_url) : null;
+          if (!featuredUrl && !artistUrl) return null;
           return (
             <section className="event-spotify-section">
               <p className="event-spotify-label">Listen Before You Go</p>
-              <iframe
-                title="Listen on Spotify"
-                src={embedUrl}
-                width="100%"
-                height="352"
-                frameBorder="0"
-                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                loading="lazy"
-                className="event-spotify-embed"
-              />
+              {featuredUrl && (
+                <iframe
+                  title="Featured track"
+                  src={featuredUrl}
+                  width="100%"
+                  height="152"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="event-spotify-embed"
+                  style={{ marginBottom: artistUrl ? 10 : 0 }}
+                />
+              )}
+              {artistUrl && (
+                <iframe
+                  title="Artist on Spotify"
+                  src={artistUrl}
+                  width="100%"
+                  height="352"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="event-spotify-embed"
+                />
+              )}
             </section>
           );
         })()}
@@ -1157,6 +1187,58 @@ export default function EventDetailClient() {
                 );
               })}
             </div>
+          </section>
+        )}
+
+        {/* ── You May Also Like ────────────────────────────────────────────── */}
+        {otherEvents.length > 0 && (
+          <section className="ymal-section">
+            <motion.h2
+              className="ymal-heading"
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+              You May Also Like
+            </motion.h2>
+
+            <motion.div
+              className="ymal-grid"
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-40px" }}
+              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
+            >
+              {otherEvents.map((ev) => {
+                const isFree = ev.is_free || ev.price === 0;
+                const dateObj = ev.date && ev.date.length === 10 ? new Date(`${ev.date}T12:00:00`) : new Date(ev.date);
+                const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                return (
+                  <motion.a
+                    key={ev.id}
+                    href={`/events/${ev.id}`}
+                    className="ymal-card"
+                    style={{
+                      backgroundImage: ev.image_url
+                        ? `url(${ev.image_url})`
+                        : "linear-gradient(145deg, #202045 0%, #0b0d1d 100%)",
+                    }}
+                    variants={{ hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } } }}
+                  >
+                    <span className="ymal-card-glow" />
+                    <div className="ymal-venue-badge">{ev.venue}</div>
+                    <div className="ymal-content">
+                      <h3 className="ymal-title">{ev.title}</h3>
+                      <div className="ymal-badges">
+                        <span className="ymal-badge">{isFree ? "Free" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
+                        <span className="ymal-badge">{dateStr}</span>
+                      </div>
+                    </div>
+                  </motion.a>
+                );
+              })}
+            </motion.div>
           </section>
         )}
 
@@ -1270,58 +1352,6 @@ export default function EventDetailClient() {
                 </div>
               );
             })}
-          </section>
-        )}
-
-        {/* ── You May Also Like ────────────────────────────────────────────── */}
-        {otherEvents.length > 0 && (
-          <section className="ymal-section">
-            <motion.h2
-              className="ymal-heading"
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-            >
-              You May Also Like
-            </motion.h2>
-
-            <motion.div
-              className="ymal-grid"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-40px" }}
-              variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
-            >
-              {otherEvents.map((ev) => {
-                const isFree = ev.is_free || ev.price === 0;
-                const dateObj = ev.date && ev.date.length === 10 ? new Date(`${ev.date}T12:00:00`) : new Date(ev.date);
-                const dateStr = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-                return (
-                  <motion.a
-                    key={ev.id}
-                    href={`/events/${ev.id}`}
-                    className="ymal-card"
-                    style={{
-                      backgroundImage: ev.image_url
-                        ? `url(${ev.image_url})`
-                        : "linear-gradient(145deg, #202045 0%, #0b0d1d 100%)",
-                    }}
-                    variants={{ hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } } }}
-                  >
-                    <span className="ymal-card-glow" />
-                    <div className="ymal-venue-badge">{ev.venue}</div>
-                    <div className="ymal-content">
-                      <h3 className="ymal-title">{ev.title}</h3>
-                      <div className="ymal-badges">
-                        <span className="ymal-badge">{isFree ? "Free" : `$${ev.price?.toFixed(2) ?? "0.00"}`}</span>
-                        <span className="ymal-badge">{dateStr}</span>
-                      </div>
-                    </div>
-                  </motion.a>
-                );
-              })}
-            </motion.div>
           </section>
         )}
 
