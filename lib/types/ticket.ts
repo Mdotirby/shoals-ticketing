@@ -22,6 +22,7 @@ export type TicketTier = {
 
 /** Shape used in the tier-builder UI before persistence */
 export type TicketTierDraft = {
+  id?: string; // present for existing tiers, absent for newly added ones
   tier_name: string;
   price: string; // string for form input
   capacity: string; // string for form input

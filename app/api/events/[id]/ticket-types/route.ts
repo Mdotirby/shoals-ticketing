@@ -70,7 +70,9 @@ export async function POST(
   return NextResponse.json(data, { status: 201 });
 }
 
-// PUT: replace all tiers for an event (admin — used by edit form)
+// PUT: upsert tiers for an event (admin — used by edit form)
+// Safe for events that already have tickets sold: existing tiers are updated
+// in place, removed tiers are only deleted if they have no ticket purchases.
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -80,50 +82,61 @@ export async function PUT(
   const body = await request.json();
 
   if (!Array.isArray(body.tiers)) {
-    return NextResponse.json(
-      { error: "tiers array is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "tiers array is required" }, { status: 400 });
   }
 
-  // Delete existing tiers for this event
-  const { error: deleteError } = await admin
-    .from("ticket_tiers")
-    .delete()
-    .eq("event_id", id);
+  type IncomingTier = { id?: string; tier_name: string; price: number; capacity: number; sort_order?: number };
 
-  if (deleteError) {
-    return NextResponse.json(
-      { error: "Failed to delete old tiers: " + deleteError.message },
-      { status: 500 }
-    );
+  // Fetch existing tier IDs and which ones have tickets sold
+  const [{ data: existingRows }, { data: soldRows }] = await Promise.all([
+    admin.from("ticket_tiers").select("id").eq("event_id", id),
+    admin.from("tickets").select("ticket_type_id").eq("event_id", id),
+  ]);
+
+  const existingIds = new Set((existingRows ?? []).map((r: { id: string }) => r.id));
+  const soldIds = new Set(
+    (soldRows ?? []).map((r: { ticket_type_id: string | null }) => r.ticket_type_id).filter(Boolean)
+  );
+  const incomingIds = new Set(
+    (body.tiers as IncomingTier[]).map((t) => t.id).filter(Boolean)
+  );
+
+  // Delete tiers that were removed from the form AND have no tickets sold
+  const toDelete = [...existingIds].filter((eid) => !incomingIds.has(eid) && !soldIds.has(eid));
+  if (toDelete.length > 0) {
+    const { error: deleteError } = await admin.from("ticket_tiers").delete().in("id", toDelete);
+    if (deleteError) {
+      return NextResponse.json({ error: "Failed to remove tiers: " + deleteError.message }, { status: 500 });
+    }
   }
 
-  // Insert new tiers
-  if (body.tiers.length > 0) {
-    const tierRows = body.tiers.map(
-      (t: { tier_name: string; price: number; capacity: number; sort_order?: number }, i: number) => ({
+  // Update existing tiers / insert new ones
+  for (const [i, t] of (body.tiers as IncomingTier[]).entries()) {
+    const sortOrder = t.sort_order ?? i;
+    if (t.id && existingIds.has(t.id)) {
+      const { error } = await admin.from("ticket_tiers").update({
+        tier_name: t.tier_name,
+        price: t.price,
+        capacity: t.capacity,
+        sort_order: sortOrder,
+      }).eq("id", t.id);
+      if (error) {
+        return NextResponse.json({ error: "Failed to update tier: " + error.message }, { status: 500 });
+      }
+    } else {
+      const { error } = await admin.from("ticket_tiers").insert({
         event_id: id,
         tier_name: t.tier_name,
         price: t.price,
         capacity: t.capacity,
-        sort_order: t.sort_order ?? i,
-      })
-    );
-
-    const { error: insertError } = await admin
-      .from("ticket_tiers")
-      .insert(tierRows);
-
-    if (insertError) {
-      return NextResponse.json(
-        { error: "Failed to insert tiers: " + insertError.message },
-        { status: 500 }
-      );
+        sort_order: sortOrder,
+      });
+      if (error) {
+        return NextResponse.json({ error: "Failed to insert tier: " + error.message }, { status: 500 });
+      }
     }
   }
 
-  // Fetch and return the new tiers
   const { data: newTiers } = await admin
     .from("ticket_tiers")
     .select("*")

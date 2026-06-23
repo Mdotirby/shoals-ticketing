@@ -290,10 +290,11 @@ export default function AdminEditEventPage() {
           setResolvedVenueId(event.venue_id);
         }
 
-        // Map existing tiers
+        // Map existing tiers — preserve id so PUT can upsert instead of delete+reinsert
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
-            tierData.map((t: { tier_name: string; price: number; capacity: number }) => ({
+            tierData.map((t: { id: string; tier_name: string; price: number; capacity: number }) => ({
+              id: t.id,
               tier_name: t.tier_name,
               price: String(t.price),
               capacity: String(t.capacity),
@@ -680,6 +681,7 @@ export default function AdminEditEventPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             tiers: tiers.map((t, i) => ({
+              ...(t.id ? { id: t.id } : {}),
               tier_name: t.tier_name.trim(),
               price: parseFloat(t.price),
               capacity: parseInt(t.capacity),
