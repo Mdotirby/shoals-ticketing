@@ -116,6 +116,7 @@ export default function AdminEditEventPage() {
   const [externalTicketLabel, setExternalTicketLabel] = useState("");
   const [metaPixelId, setMetaPixelId] = useState("");
   const [spotifyUrl, setSpotifyUrl] = useState("");
+  const [spotifyMonthlyListeners, setSpotifyMonthlyListeners] = useState("");
 
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
@@ -276,6 +277,7 @@ export default function AdminEditEventPage() {
         setExternalTicketLabel(event.external_ticket_label || "");
         setMetaPixelId(event.meta_pixel_id || "");
         setSpotifyUrl(event.spotify_url || "");
+        setSpotifyMonthlyListeners(event.spotify_monthly_listeners || "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -624,6 +626,7 @@ export default function AdminEditEventPage() {
           external_ticket_label: externalTicketLabel.trim() || null,
           meta_pixel_id: metaPixelId.trim() || null,
           spotify_url: spotifyUrl.trim() || null,
+          spotify_monthly_listeners: spotifyMonthlyListeners.trim() || null,
         }),
       });
 
@@ -1216,6 +1219,14 @@ export default function AdminEditEventPage() {
             placeholder="https://open.spotify.com/artist/..."
             value={spotifyUrl}
             onChange={(e) => setSpotifyUrl(e.target.value.trim())}
+          />
+          <input
+            className="admin-form-input"
+            type="text"
+            placeholder="Monthly listeners (e.g. 2.4M or 847,000)"
+            value={spotifyMonthlyListeners}
+            onChange={(e) => setSpotifyMonthlyListeners(e.target.value)}
+            style={{ marginTop: 8 }}
           />
           {spotifyUrl && (
             <p style={{ fontSize: 11, color: "#1ed760", marginTop: 8 }}>

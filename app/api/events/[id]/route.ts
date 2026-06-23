@@ -13,16 +13,16 @@ export async function GET(
   // Try with closed_out_at (closeout migration); fall back without it.
   let { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,spotify_url")
+    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,spotify_url,spotify_monthly_listeners")
     .eq("id", id)
     .single();
-  if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|spotify_url|column .* does not exist/i.test(error.message)) {
+  if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|spotify_url|spotify_monthly_listeners|column .* does not exist/i.test(error.message)) {
     const retry = await admin
       .from("events")
       .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
       .eq("id", id)
       .single();
-    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, spotify_url: null } : null;
+    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, spotify_url: null, spotify_monthly_listeners: null } : null;
     error = retry.error;
   }
 
