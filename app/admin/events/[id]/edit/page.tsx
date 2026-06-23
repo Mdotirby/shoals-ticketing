@@ -115,6 +115,7 @@ export default function AdminEditEventPage() {
   const [externalTicketUrl, setExternalTicketUrl] = useState("");
   const [externalTicketLabel, setExternalTicketLabel] = useState("");
   const [metaPixelId, setMetaPixelId] = useState("");
+  const [spotifyUrl, setSpotifyUrl] = useState("");
 
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
@@ -274,6 +275,7 @@ export default function AdminEditEventPage() {
         setExternalTicketUrl(event.external_ticket_url || "");
         setExternalTicketLabel(event.external_ticket_label || "");
         setMetaPixelId(event.meta_pixel_id || "");
+        setSpotifyUrl(event.spotify_url || "");
 
         // Pre-select the host (venue_id) from loaded event
         if (event.venue_id) {
@@ -621,6 +623,7 @@ export default function AdminEditEventPage() {
           external_ticket_url: externalTicketUrl.trim() || null,
           external_ticket_label: externalTicketLabel.trim() || null,
           meta_pixel_id: metaPixelId.trim() || null,
+          spotify_url: spotifyUrl.trim() || null,
         }),
       });
 
@@ -1189,6 +1192,34 @@ export default function AdminEditEventPage() {
           {metaPixelId && (
             <p style={{ fontSize: 11, color: "#3b82f6", marginTop: 8 }}>
               Co-promoter pixel active — firing on event detail and landing pages.
+            </p>
+          )}
+        </div>
+
+        {/* ── Spotify Embed ── */}
+        <div className="admin-form-label admin-form-full" style={{
+          padding: 16, borderRadius: 10,
+          background: spotifyUrl ? "rgba(30,215,96,0.06)" : "rgba(208,194,144,0.04)",
+          border: `1px solid ${spotifyUrl ? "rgba(30,215,96,0.25)" : "rgba(208,194,144,0.12)"}`,
+          marginTop: 8,
+        }}>
+          <span style={{ color: spotifyUrl ? "#1ed760" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+            Spotify — Listen Before You Go
+          </span>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+            Paste any Spotify link — artist page, album, playlist, or single track.
+            An embedded player will appear on the event page so fans can listen without leaving.
+          </p>
+          <input
+            className="admin-form-input"
+            type="url"
+            placeholder="https://open.spotify.com/artist/..."
+            value={spotifyUrl}
+            onChange={(e) => setSpotifyUrl(e.target.value.trim())}
+          />
+          {spotifyUrl && (
+            <p style={{ fontSize: 11, color: "#1ed760", marginTop: 8 }}>
+              Spotify player active — fans can listen directly on the event page.
             </p>
           )}
         </div>

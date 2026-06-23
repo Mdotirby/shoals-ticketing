@@ -57,8 +57,20 @@ type EventData = {
   external_ticket_url?: string | null;
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
+  spotify_url?: string | null;
   presaleAvailable?: boolean;
 };
+
+function getSpotifyEmbedUrl(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const match = u.pathname.match(/^\/(artist|playlist|album|track)\/([A-Za-z0-9]+)/);
+    if (!match) return null;
+    return `https://open.spotify.com/embed/${match[1]}/${match[2]}?utm_source=generator&theme=0`;
+  } catch {
+    return null;
+  }
+}
 
 // Date helpers imported from @/lib/dates
 
@@ -1086,6 +1098,27 @@ export default function EventDetailClient() {
             </p>
           )}
         </section>
+
+        {/* ── Spotify Embed ── */}
+        {event.spotify_url && (() => {
+          const embedUrl = getSpotifyEmbedUrl(event.spotify_url!);
+          if (!embedUrl) return null;
+          return (
+            <section className="event-spotify-section">
+              <p className="event-spotify-label">Listen Before You Go</p>
+              <iframe
+                title="Listen on Spotify"
+                src={embedUrl}
+                width="100%"
+                height="352"
+                frameBorder="0"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"
+                className="event-spotify-embed"
+              />
+            </section>
+          );
+        })()}
 
         {/* ── Featured Artists ── */}
         {featuredArtists.length > 0 && (

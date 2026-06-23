@@ -10302,7 +10302,6 @@ body:has(.lp-main) .site-footer {
 
 .ic-success-icon {
   margin-bottom: 8px;
-  animation: lp-success-pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
 .ic-success-heading {
@@ -10346,74 +10345,86 @@ body:has(.lp-main) .site-footer {
 /* ── FWB Post-Checkout Prompt ── */
 .ic-fwb-prompt {
   margin-top: 20px;
-  padding: 20px;
-  background: rgba(208, 194, 144, 0.05);
-  border: 1px solid rgba(208, 194, 144, 0.12);
+  padding: 24px 20px;
+  background: rgba(208, 194, 144, 0.06);
+  border: 1px solid rgba(208, 194, 144, 0.18);
   border-radius: var(--vc-radius-lg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   text-align: center;
   width: 100%;
-  animation: ic-fwb-slide-up 0.4s ease-out both;
-  animation-delay: 0.6s;
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes ic-fwb-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.ic-fwb-prompt::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(208, 194, 144, 0.4), transparent);
+}
+
+.ic-fwb-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 .ic-fwb-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: rgba(208, 194, 144, 0.12);
   color: var(--vc-gold);
+  margin-bottom: 2px;
 }
 
 .ic-fwb-heading {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
-  color: var(--vc-gold);
+  color: rgba(255, 255, 255, 0.95);
   margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 
 .ic-fwb-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.5);
   margin: 0;
-  line-height: 1.5;
-  max-width: 300px;
+  line-height: 1.6;
+  max-width: 280px;
 }
 
 .ic-fwb-join-btn {
-  padding: 12px 32px;
-  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
-  color: var(--vc-bg-deep);
+  padding: 14px 32px;
+  background: var(--vc-gold, #d0c290);
+  color: #111;
   font-weight: 800;
   font-size: 15px;
   border: none;
   border-radius: var(--vc-radius-md);
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s ease;
+  width: 100%;
+  letter-spacing: 0.01em;
   margin-top: 4px;
+  transition: filter 0.15s;
 }
 
 .ic-fwb-join-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+  filter: brightness(1.08);
+  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
 }
 
 .ic-fwb-join-btn:disabled {
@@ -10421,20 +10432,37 @@ body:has(.lp-main) .site-footer {
   cursor: not-allowed;
 }
 
+.ic-fwb-decline {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 4px 8px;
+  letter-spacing: 0.04em;
+  transition: color 0.15s;
+}
+
+.ic-fwb-decline:hover {
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .ic-fwb-fine-print {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.18);
   margin: 0;
+  letter-spacing: 0.03em;
 }
 
 .ic-fwb-done {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #10b981;
   font-size: 14px;
   font-weight: 700;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 /* ── Inline Checkout Mobile ── */
@@ -11869,6 +11897,41 @@ body:has(.lp-main) .site-footer {
   .ymal-badge {
     font-size: 9px;
     padding: 3px 8px;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   EVENT PAGE — Spotify embed
+───────────────────────────────────────────── */
+.event-spotify-section {
+  max-width: 860px;
+  margin: 0 auto 40px;
+  padding: 0 20px;
+}
+
+.event-spotify-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+  margin: 0 0 14px;
+}
+
+.event-spotify-embed {
+  border-radius: 12px;
+  border: none;
+  display: block;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .event-spotify-section {
+    padding: 0 16px;
+    margin-bottom: 28px;
+  }
+  .event-spotify-embed {
+    height: 280px;
   }
 }
 
