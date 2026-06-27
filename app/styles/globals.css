@@ -682,7 +682,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #0a0a0a;
+  background: #0a0a0a !important;
 }
 
 .ticket-page-loading {
