@@ -81,6 +81,8 @@ export default function AdminEditEventPage() {
   const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
   const [taxMethod, setTaxMethod] = useState<"multiplier" | "divisor">("multiplier");
+  // Track whether the event has its own tax_method so venue load doesn't override it
+  const taxMethodFromEventRef = useRef(false);
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
   const [availableHosts, setAvailableHosts] = useState<{ id: string; name: string }[]>([]);
 
@@ -274,6 +276,12 @@ export default function AdminEditEventPage() {
           setLandingPageSlug(event.landing_page_slug);
         }
 
+        // Load event-level tax method — takes priority over venue default
+        if (event.tax_method === "divisor" || event.tax_method === "multiplier") {
+          setTaxMethod(event.tax_method);
+          taxMethodFromEventRef.current = true;
+        }
+
         // Load external ticketing fields
         setExternalTicketUrl(event.external_ticket_url || "");
         setExternalTicketLabel(event.external_ticket_label || "");
@@ -354,7 +362,10 @@ export default function AdminEditEventPage() {
               const v = data.find((x) => x.id === selectedEventVenueId);
               if (v) {
                 setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
-                if (v.tax_method === "divisor") setTaxMethod("divisor");
+                // Only use venue default if the event doesn't have its own tax_method
+                if (!taxMethodFromEventRef.current) {
+                  setTaxMethod(v.tax_method === "divisor" ? "divisor" : "multiplier");
+                }
               }
             }
           }
@@ -632,6 +643,7 @@ export default function AdminEditEventPage() {
           external_ticket_url: externalTicketUrl.trim() || null,
           external_ticket_label: externalTicketLabel.trim() || null,
           meta_pixel_id: metaPixelId.trim() || null,
+          tax_method: taxMethod,
           spotify_url: spotifyUrl.trim() || null,
           spotify_monthly_listeners: spotifyMonthlyListeners.trim() || null,
           spotify_featured_track: spotifyFeaturedTrack.trim()
@@ -653,6 +665,8 @@ export default function AdminEditEventPage() {
         try {
           const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
           const supabase = getSupabaseBrowser();
+          // tax_method now lives on the event itself; also update the venue as a
+          // template default so new events at this venue pre-fill correctly.
           const venueUpdate: Record<string, unknown> = { tax_method: taxMethod };
           if (facilityFeeEnabled) {
             const amount = Number(selectedVenueFees.facility_fee ?? 0);

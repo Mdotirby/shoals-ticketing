@@ -57,6 +57,7 @@ type EventData = {
   external_ticket_url?: string | null;
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
+  tax_method?: "multiplier" | "divisor" | null;
   spotify_url?: string | null;
   spotify_monthly_listeners?: string | null;
   spotify_featured_track?: string | null;
@@ -346,7 +347,10 @@ export default function EventDetailClient() {
                   ticketing_fee: Number(v.ticketing_fee) || 3.0,
                   facility_fee: Number(v.facility_fee) || 0,
                   tax_rate: Number(v.tax_rate) || 0.095,
-                  tax_method: v.tax_method === "divisor" ? "divisor" : "multiplier",
+                  // Event-level tax_method wins over venue default
+                  tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
+                    ? data.tax_method
+                    : (v.tax_method === "divisor" ? "divisor" : "multiplier"),
                 });
                 // Override facility fee if disabled on this event
                 if (data.facility_fee_enabled === false) {
@@ -385,7 +389,10 @@ export default function EventDetailClient() {
                     ticketing_fee: ev.ticketing_fee != null ? Number(ev.ticketing_fee) : prev.ticketing_fee,
                     facility_fee: ev.facility_fee != null ? Number(ev.facility_fee) : prev.facility_fee,
                     tax_rate: ev.tax_rate != null ? Number(ev.tax_rate) : prev.tax_rate,
-                    tax_method: ev.tax_method === "divisor" ? "divisor" : "multiplier",
+                    // Event-level tax_method wins over event_venues default
+                    tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
+                      ? data.tax_method
+                      : (ev.tax_method === "divisor" ? "divisor" : "multiplier"),
                   }));
                   // Override facility fee if disabled on this event
                   if (data.facility_fee_enabled === false) {

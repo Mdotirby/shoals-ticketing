@@ -286,14 +286,19 @@ export default function OrderSummary({
               <span className="order-summary-line-value">${totalFacilityFee.toFixed(2)}</span>
             </div>
           )}
-          {tax > 0 && (
+          {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (
             <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">
-                Sales tax
+              <span className="order-summary-line-label">Sales tax</span>
+              <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+                Included in ticket price
               </span>
+            </div>
+          ) : tax > 0 ? (
+            <div className="order-summary-line order-summary-line-sub">
+              <span className="order-summary-line-label">Sales tax</span>
               <span className="order-summary-line-value">${tax.toFixed(2)}</span>
             </div>
-          )}
+          ) : null}
           {processingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">

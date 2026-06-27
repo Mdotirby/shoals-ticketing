@@ -21,7 +21,7 @@ export async function POST(
   // Load event + venue info needed for fee resolution
   const { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, price, venue_id, event_venue_id, facility_fee_enabled")
+    .select("id, price, venue_id, event_venue_id, facility_fee_enabled, tax_method")
     .eq("id", eventId)
     .single();
 

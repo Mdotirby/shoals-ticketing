@@ -61,16 +61,16 @@ export async function POST(request: Request) {
     // Try with closed_out_at (closeout migration); fall back without it.
     let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at, closed_out_at")
+      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at, closed_out_at, tax_method")
       .eq("id", eventId)
       .single();
-    if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
+    if (eventError && /closed_out_at|tax_method|column .* does not exist/i.test(eventError.message)) {
       const retry = await admin
         .from("events")
         .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at")
         .eq("id", eventId)
         .single();
-      event = retry.data ? { ...retry.data, closed_out_at: null } : null;
+      event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null } : null;
       eventError = retry.error;
     }
 

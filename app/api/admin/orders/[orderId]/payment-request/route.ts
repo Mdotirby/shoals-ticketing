@@ -31,7 +31,7 @@ export async function POST(
   // Load order + event
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select(`*, events!inner(id, title, date, venue, venue_id, price, event_venue_id, facility_fee_enabled)`)
+    .select(`*, events!inner(id, title, date, venue, venue_id, price, event_venue_id, facility_fee_enabled, tax_method)`)
     .eq("id", orderId)
     .single();
 

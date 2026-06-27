@@ -912,9 +912,32 @@ export default function SettlementDetailPage() {
           <div className="admin-form-grid">
             <div>
               <label className="admin-form-label">Gross Revenue ($)</label>
-              <input type="number" step="0.01" min="0" className="admin-form-input"
-                value={manualGross} disabled={isFinalized}
-                onChange={(e) => setManualGross(Number(e.target.value))} />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="number" step="0.01" min="0" className="admin-form-input"
+                  value={manualGross} disabled={isFinalized}
+                  onChange={(e) => setManualGross(Number(e.target.value))} />
+                <button
+                  type="button"
+                  disabled={isFinalized || !manualTicketPrice || !manualTicketsSold}
+                  onClick={() => setManualGross(Math.round(manualTicketPrice * manualTicketsSold * 100) / 100)}
+                  style={{
+                    whiteSpace: "nowrap",
+                    padding: "8px 14px",
+                    fontSize: 13,
+                    background: "rgba(208,194,144,0.15)",
+                    border: "1px solid rgba(208,194,144,0.4)",
+                    borderRadius: 8,
+                    color: "#d0c290",
+                    cursor: isFinalized || !manualTicketPrice || !manualTicketsSold ? "not-allowed" : "pointer",
+                    opacity: isFinalized || !manualTicketPrice || !manualTicketsSold ? 0.4 : 1,
+                  }}
+                >
+                  Calculate
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "4px 0 0" }}>
+                Set Face Price and Tickets Sold first, then click Calculate.
+              </p>
             </div>
             <div>
               <label className="admin-form-label">Tickets Sold</label>

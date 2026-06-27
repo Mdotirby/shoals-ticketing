@@ -81,7 +81,7 @@ export default async function LandingPage({ params }: Props) {
   const { data: event, error: eventError } = await admin
     .from("events")
     .select(
-      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id"
+      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id, tax_method"
     )
     .eq("landing_page_slug", slug)
     .eq("status", "published")
@@ -118,12 +118,12 @@ export default async function LandingPage({ params }: Props) {
   }
 
   // 3. Fetch venue fees
-  let fees = { ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095 };
+  let fees = { ticketing_fee: 3.0, facility_fee: 0, tax_rate: 0.095, tax_method: "multiplier" as "multiplier" | "divisor" };
 
   if (event.event_venue_id) {
     const { data: ev } = await admin
       .from("event_venues")
-      .select("ticketing_fee, facility_fee, tax_rate, name, full_address")
+      .select("ticketing_fee, facility_fee, tax_rate, tax_method, name, full_address")
       .eq("id", event.event_venue_id)
       .single();
     if (ev) {
@@ -131,12 +131,13 @@ export default async function LandingPage({ params }: Props) {
         ticketing_fee: ev.ticketing_fee != null ? Number(ev.ticketing_fee) : fees.ticketing_fee,
         facility_fee: ev.facility_fee != null ? Number(ev.facility_fee) : fees.facility_fee,
         tax_rate: ev.tax_rate != null ? Number(ev.tax_rate) : fees.tax_rate,
+        tax_method: ev.tax_method === "divisor" ? "divisor" : "multiplier",
       };
     }
   } else if (event.venue_id) {
     const { data: v } = await admin
       .from("venues")
-      .select("ticketing_fee, facility_fee, tax_rate, name")
+      .select("ticketing_fee, facility_fee, tax_rate, tax_method, name")
       .eq("id", event.venue_id)
       .single();
     if (v) {
@@ -144,8 +145,14 @@ export default async function LandingPage({ params }: Props) {
         ticketing_fee: Number(v.ticketing_fee) || fees.ticketing_fee,
         facility_fee: Number(v.facility_fee) || fees.facility_fee,
         tax_rate: Number(v.tax_rate) || fees.tax_rate,
+        tax_method: v.tax_method === "divisor" ? "divisor" : "multiplier",
       };
     }
+  }
+
+  // Event-level tax_method wins over venue default
+  if (event.tax_method === "divisor" || event.tax_method === "multiplier") {
+    fees.tax_method = event.tax_method;
   }
 
   // Zero out facility fee if disabled on this event
@@ -171,7 +178,9 @@ export default async function LandingPage({ params }: Props) {
   const STRIPE_FLAT_FEE = 0.3;
 
   function calcAllIn(base: number): number {
-    const tax = Math.round(base * fees.tax_rate * 100) / 100;
+    // Divisor: tax is baked into face price — don't add it again for the all-in display
+    const effectiveTaxRate = fees.tax_method === "divisor" ? 0 : fees.tax_rate;
+    const tax = Math.round(base * effectiveTaxRate * 100) / 100;
     const subtotalBeforeStripe = base + fees.ticketing_fee + fees.facility_fee + tax;
     const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
     return Math.round((subtotalBeforeStripe + processingFee) * 100) / 100;
@@ -350,6 +359,7 @@ export default async function LandingPage({ params }: Props) {
         ticketingFee: fees.ticketing_fee,
         facilityFee: fees.facility_fee,
         taxRate: fees.tax_rate,
+        taxMethod: fees.tax_method,
       }}
       otherEvents={otherEvents}
       metaPixelId={event.meta_pixel_id || null}

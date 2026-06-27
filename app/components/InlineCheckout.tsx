@@ -631,12 +631,17 @@ function CheckoutForm({
             <span>${totalFacilityFee.toFixed(2)}</span>
           </div>
         )}
-        {tax > 0 && (
+        {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (
           <div className="ic-order-line ic-order-line-fee">
-            <span>Tax</span>
+            <span>Sales tax</span>
+            <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+          </div>
+        ) : tax > 0 ? (
+          <div className="ic-order-line ic-order-line-fee">
+            <span>Sales tax</span>
             <span>${tax.toFixed(2)}</span>
           </div>
-        )}
+        ) : null}
         {!isFullyFree && processingFee > 0 && (
           <div className="ic-order-line ic-order-line-fee">
             <span>Processing fee</span>

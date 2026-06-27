@@ -64,6 +64,7 @@ type Fees = {
   ticketingFee: number;   // flat dollars per ticket
   facilityFee: number;    // flat dollars per ticket
   taxRate: number;        // decimal (e.g. 0.095)
+  taxMethod: "multiplier" | "divisor";
 };
 
 type OtherEvent = {
@@ -204,13 +205,15 @@ function CheckoutForm({
 
   // Correct total: flat CC fee applied once per transaction, not once per ticket.
   // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
+  // Divisor: tax baked in — don't add it again to the estimated total.
+  const effectiveTaxRateForTotal = fees?.taxMethod === "divisor" ? 0 : (fees?.taxRate ?? 0);
   const basePreStripe =
     selectedTier.basePrice > 0
       ? (
           selectedTier.basePrice +
           (fees?.ticketingFee ?? 0) +
           (fees?.facilityFee ?? 0) +
-          Math.round(selectedTier.basePrice * (fees?.taxRate ?? 0) * 100) / 100
+          Math.round(selectedTier.basePrice * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : displayPrice * quantity;
   const estimatedTotal =
@@ -231,7 +234,7 @@ function CheckoutForm({
           discountedBasePerTicket +
           (fees?.ticketingFee ?? 0) +
           (fees?.facilityFee ?? 0) +
-          Math.round(discountedBasePerTicket * (fees?.taxRate ?? 0) * 100) / 100
+          Math.round(discountedBasePerTicket * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : 0;
   const discountedTotal =
@@ -757,7 +760,7 @@ function CheckoutForm({
 export default function EventLandingPage({ event, ticketTypes, attendeeCount, featuredArtists = [], venueInfo, fees, slug = "", presaleAvailable = false, otherEvents = [], metaPixelId = null }: Props) {
   // Fall back to sensible defaults if the server didn't pass fees (older
   // callers / unit tests).
-  const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0 };
+  const resolvedFees: Fees = fees ?? { ticketingFee: 0, facilityFee: 0, taxRate: 0, taxMethod: "multiplier" };
   const searchParams = useSearchParams();
   const [quantity, setQuantity] = useState(1);
   const [selectedTierId, setSelectedTierId] = useState(
@@ -788,9 +791,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   // Total for the CTA — fee applied once per transaction, not per ticket.
   // allInPrice already bakes in a per-ticket flat fee, so multiplying by quantity
   // over-charges on the flat portion. Compute from basePrice instead.
+  const ctaEffectiveTaxRate = resolvedFees.taxMethod === "divisor" ? 0 : resolvedFees.taxRate;
   const ctaPreStripe = selectedTier
     ? (selectedTier.basePrice + resolvedFees.ticketingFee + resolvedFees.facilityFee +
-        Math.round(selectedTier.basePrice * resolvedFees.taxRate * 100) / 100) * quantity
+        Math.round(selectedTier.basePrice * ctaEffectiveTaxRate * 100) / 100) * quantity
     : 0;
   const ctaTotal = ctaPreStripe > 0
     ? Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
@@ -1363,11 +1367,13 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 app/e/[slug]/page.tsx so buyers can see exactly what they
                 owe, including any facility fee. */}
             {!isFree && selectedTier && (() => {
+              const isDivisor = resolvedFees.taxMethod === "divisor";
+              const effectiveTaxRate = isDivisor ? 0 : resolvedFees.taxRate;
               const basePrice = selectedTier.basePrice || 0;
               const subtotal = basePrice * quantity;
               const totalTicketingFee = resolvedFees.ticketingFee * quantity;
               const totalFacilityFee = resolvedFees.facilityFee * quantity;
-              const taxPerTicket = Math.round(basePrice * resolvedFees.taxRate * 100) / 100;
+              const taxPerTicket = Math.round(basePrice * effectiveTaxRate * 100) / 100;
               const totalTax = taxPerTicket * quantity;
               const preStripe = subtotal + totalTicketingFee + totalFacilityFee + totalTax;
               const processingFee = Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
@@ -1400,7 +1406,12 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                   {row(`${selectedTier.name ?? "Ticket"}${quantity > 1 ? ` \u00d7 ${quantity}` : ""}`, subtotal)}
                   {totalTicketingFee > 0 && row("Ticketing service fee", totalTicketingFee)}
                   {totalFacilityFee > 0 && row("Facility fee", totalFacilityFee)}
-                  {totalTax > 0 && row("Sales tax", totalTax)}
+                  {isDivisor && resolvedFees.taxRate > 0 ? (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
+                      <span style={{ color: "rgba(255,255,255,0.72)" }}>Sales tax</span>
+                      <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+                    </div>
+                  ) : totalTax > 0 ? row("Sales tax", totalTax) : null}
                   {processingFee > 0 && row("Processing fee", processingFee)}
                   <div style={{ height: 1, background: "rgba(255,255,255,0.1)", margin: "8px 0" }} />
                   {row("Total", total, true)}

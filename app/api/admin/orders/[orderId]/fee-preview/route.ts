@@ -34,7 +34,7 @@ export async function GET(
   // Fetch event + all tiers
   const { data: event } = await admin
     .from("events")
-    .select("id, title, price, venue_id, event_venue_id, facility_fee_enabled")
+    .select("id, title, price, venue_id, event_venue_id, facility_fee_enabled, tax_method")
     .eq("id", order.event_id)
     .single();
 

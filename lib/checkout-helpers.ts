@@ -51,7 +51,7 @@ export interface FeeBreakdown {
  */
 export async function resolveVenueFees(
   admin: SupabaseClient,
-  event: { venue_id?: string | null; event_venue_id?: string | null; facility_fee_enabled?: boolean | null }
+  event: { venue_id?: string | null; event_venue_id?: string | null; facility_fee_enabled?: boolean | null; tax_method?: string | null }
 ): Promise<VenueFees> {
   let ticketingFee = 3.0;
   let facilityFee = 0;
@@ -95,6 +95,11 @@ export async function resolveVenueFees(
   // 3. If facility_fee_enabled is false, force facilityFee = 0
   if (event.facility_fee_enabled === false) {
     facilityFee = 0;
+  }
+
+  // 4. Event-level tax_method overrides the venue default — this is the deal-specific setting.
+  if (event.tax_method === "divisor" || event.tax_method === "multiplier") {
+    taxMethod = event.tax_method;
   }
 
   return { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod };
