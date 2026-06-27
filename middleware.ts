@@ -59,6 +59,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Ticket links from pre-update emails point to venuecore.live/tickets/[id].
+  // Redirect them permanently to west72ent.com so the branded page is shown.
+  const hostname = host.split(":")[0];
+  if ((hostname === "venuecore.live" || hostname === "www.venuecore.live") && pathname.startsWith("/tickets/")) {
+    return NextResponse.redirect(`https://west72ent.com${pathname}`, 308);
+  }
+
   // ── Custom domain resolution ──
   // If we hit an unrecognized domain, look it up in the venues table
   if (isCustomDomain && customHostname) {
