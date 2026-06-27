@@ -139,11 +139,6 @@ body[data-operator="west72"] .home-hero-overlay {
   );
 }
 
-/* Login / ticket-page: black instead of navy gradient */
-body[data-operator="west72"] .ticket-page {
-  background: #0a0a0a;
-}
-
 /* Event cards: charcoal grey surface instead of navy */
 body[data-operator="west72"] .events-grid-card {
   background: #1c1c1c;
@@ -680,12 +675,6 @@ body {
    TICKET PAGE — /events/[id]
    ============================================================ */
 
-/* Hide the global site header on ticket view pages — the page renders
-   its own branded header derived from the purchase source operator. */
-body:has(.ticket-branded-header) .site-header {
-  display: none !important;
-}
-
 .ticket-page {
   box-sizing: border-box;
   width: 100%;
@@ -693,7 +682,7 @@ body:has(.ticket-branded-header) .site-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(180deg, var(--vc-bg-deep) 0%, var(--vc-bg-mid) 40%, var(--vc-bg-deep) 100%);
+  background: #0a0a0a;
 }
 
 .ticket-page-loading {
@@ -6142,36 +6131,104 @@ select.admin-form-input {
    DIGITAL TICKET PAGE
    ============================================================ */
 
+/* ============================================================
+   DIGITAL TICKET VIEW PAGE
+   ============================================================ */
+
 .digital-ticket-section {
   width: 100%;
-  max-width: 500px;
-  padding: 0 20px 48px;
-}
-
-.digital-ticket-card {
-  background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(208, 194, 144, 0.2);
-  border-radius: 20px;
-  padding: 32px 24px;
+  max-width: 480px;
+  padding: 32px 20px 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
 }
 
+/* Page heading above the card */
+.digital-ticket-page-header {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.digital-ticket-eyebrow {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--vc-gold);
+}
+
+.digital-ticket-page-title {
+  margin: 0 0 6px;
+  font-family: var(--font-bayon), sans-serif;
+  font-size: clamp(1.7rem, 5vw, 2.4rem);
+  line-height: 1.05;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+.digital-ticket-page-meta {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.digital-ticket-meta-sep {
+  opacity: 0.5;
+}
+
+/* Carousel wrapper */
+.digital-ticket-carousel {
+  position: relative;
+  width: 100%;
+}
+
+/* Liquid glass card */
+.digital-ticket-card {
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.08) inset,
+    0 24px 64px rgba(0, 0, 0, 0.6),
+    0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+}
+
+/* QR zone — top half of card */
+.digital-ticket-qr-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 28px 24px;
+  gap: 16px;
+  position: relative;
+}
+
 .digital-ticket-qr {
-  width: 220px;
-  height: 220px;
-  border-radius: 12px;
-  background: #ffffff;
-  padding: 8px;
+  width: 200px;
+  height: 200px;
+  border-radius: 14px;
+  background: #fff;
+  padding: 10px;
+  display: block;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .digital-ticket-qr-placeholder {
-  width: 220px;
-  height: 220px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.06);
+  width: 200px;
+  height: 200px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6179,65 +6236,178 @@ select.admin-form-input {
   font-size: 12px;
 }
 
-.digital-ticket-info {
-  text-align: center;
+.digital-ticket-show-at-door {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.04em;
+}
+
+.digital-ticket-scanned-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 10px;
+  background: rgba(232, 198, 106, 0.12);
+  border: 1px solid rgba(232, 198, 106, 0.3);
+  border-radius: 20px;
+  color: #e8c66a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+/* Perforated tear line */
+.digital-ticket-tear {
+  display: flex;
+  align-items: center;
+  position: relative;
+  margin: 0 -1px;
+}
+
+.digital-ticket-notch {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  position: relative;
+  z-index: 1;
+}
+
+.digital-ticket-tear-line {
+  flex: 1;
+  border-top: 1.5px dashed rgba(255, 255, 255, 0.12);
+}
+
+/* Info zone — bottom half of card */
+.digital-ticket-info-zone {
+  padding: 20px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Seat assignments */
+.digital-ticket-seats {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 12px 14px;
+  background: rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 12px;
 }
 
-.digital-ticket-event {
-  margin: 0;
-  font-family: var(--font-bayon), sans-serif;
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  color: var(--vc-gold);
+.digital-ticket-seats-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #818cf8;
 }
 
-.digital-ticket-venue {
-  margin: 0;
-  font-size: 14px;
-  color: rgba(255,255,255,0.6);
+.digital-ticket-seats-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.digital-ticket-date {
-  margin: 0;
-  font-size: 14px;
-  color: var(--vc-text-secondary);
+.digital-ticket-seat-chip {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 10px;
 }
 
-.digital-ticket-holder {
-  margin-top: 8px;
+/* Holder row */
+.digital-ticket-holder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.digital-ticket-holder-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.digital-ticket-label {
+.digital-ticket-holder-cell-right {
+  text-align: right;
+}
+
+.digital-ticket-cell-label {
   font-size: 10px;
-  color: var(--vc-text-muted);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
 }
 
-.digital-ticket-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--vc-text);
+.digital-ticket-cell-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
 }
 
-.digital-ticket-email {
-  font-size: 13px;
-  color: var(--vc-text-secondary);
+.digital-ticket-cell-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.digital-ticket-scanned {
-  margin-top: 8px;
-  padding: 8px 16px;
-  background: rgba(255,200,100,0.1);
-  border-radius: 8px;
-  color: #e8c66a;
-  font-size: 14px;
-  font-weight: 600;
+/* Arrow buttons */
+.digital-ticket-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.digital-ticket-arrow-prev { left: -18px; }
+.digital-ticket-arrow-next { right: -18px; }
+
+/* Dot pagination */
+.digital-ticket-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.digital-ticket-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  cursor: pointer;
+  transition: width 200ms ease, background 200ms ease;
+  padding: 0;
+}
+
+.digital-ticket-dot-active {
+  width: 24px;
+  background: var(--vc-gold);
 }
 
 /* ============================================================

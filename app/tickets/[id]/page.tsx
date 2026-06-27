@@ -2,9 +2,7 @@
 
 import { useEffect, useState, useRef, TouchEvent } from "react";
 import { useParams } from "next/navigation";
-import Image from "next/image";
 import Footer from "@/app/components/Footer";
-import { getOperator } from "@/lib/operators";
 
 type SiblingTicket = {
   id: string;
@@ -58,7 +56,6 @@ export default function TicketViewPage() {
       .then((data) => {
         if (data.error) { setError(data.error); return; }
         setTicket(data);
-        // Set initial index to the current ticket
         const idx = (data.siblings || []).findIndex((s: SiblingTicket) => s.qr_code === id);
         if (idx >= 0) setCurrentIndex(idx);
       })
@@ -69,7 +66,6 @@ export default function TicketViewPage() {
   if (loading) return <main className="ticket-page"><div className="ticket-page-loading">Loading ticket…</div></main>;
   if (error || !ticket) return <main className="ticket-page"><div className="ticket-page-loading">{error || "Ticket not found."}</div></main>;
 
-  const operator = getOperator(ticket.operatorSlug || "venuecore");
   const event = ticket.events;
   const siblings = ticket.siblings || [ticket];
   const totalTickets = siblings.length;
@@ -85,63 +81,46 @@ export default function TicketViewPage() {
     }
   };
 
-  const goTo = (idx: number) => setCurrentIndex(idx);
+  const seats = current.seatAssignments ?? ticket.seatAssignments ?? [];
+  const formattedDate = event?.date
+    ? safeDate(event.date).toLocaleDateString("en-US", {
+        weekday: "long", month: "long", day: "numeric", year: "numeric",
+      })
+    : null;
 
   return (
     <>
-      {/* Branded header — derived from purchase source, not URL domain */}
-      <header className="ticket-branded-header" style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px 24px",
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
-        background: "rgba(0,0,0,0.3)",
-      }}>
-        <Image
-          src={operator.logoWhite}
-          alt={operator.logoAlt}
-          width={140}
-          height={36}
-          style={{ objectFit: "contain", height: 32, width: "auto" }}
-        />
-      </header>
       <main className="ticket-page">
-        <section className="ticket-hero">
-          <h1 className="ticket-hero-title">
-            {totalTickets > 1 ? "Your Tickets" : "Your Ticket"}
-          </h1>
-        </section>
-
         <section className="digital-ticket-section">
-          {/* Ticket counter */}
-          {totalTickets > 1 && (
-            <div style={{
-              textAlign: "center", marginBottom: 12,
-              color: "rgba(255,255,255,0.5)", fontSize: 13, fontWeight: 600,
-              letterSpacing: 1,
-            }}>
-              TICKET {currentIndex + 1} OF {totalTickets}
-            </div>
-          )}
 
-          {/* Carousel container */}
+          {/* Page heading */}
+          <div className="digital-ticket-page-header">
+            <p className="digital-ticket-eyebrow">
+              {totalTickets > 1 ? `Ticket ${currentIndex + 1} of ${totalTickets}` : "Your Ticket"}
+            </p>
+            {event?.title && (
+              <h1 className="digital-ticket-page-title">{event.title}</h1>
+            )}
+            {(formattedDate || event?.venue) && (
+              <p className="digital-ticket-page-meta">
+                {formattedDate}
+                {formattedDate && event?.venue && <span className="digital-ticket-meta-sep"> · </span>}
+                {event?.venue}
+              </p>
+            )}
+          </div>
+
+          {/* Carousel */}
           <div
-            style={{ overflow: "hidden", position: "relative" }}
+            className="digital-ticket-carousel"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            {/* Arrow buttons for desktop */}
             {totalTickets > 1 && currentIndex > 0 && (
               <button
+                className="digital-ticket-arrow digital-ticket-arrow-prev"
                 onClick={() => setCurrentIndex(currentIndex - 1)}
-                style={{
-                  position: "absolute", left: 4, top: "50%", transform: "translateY(-50%)",
-                  zIndex: 10, background: "rgba(208,194,144,0.15)", border: "1px solid rgba(208,194,144,0.3)",
-                  borderRadius: "50%", width: 36, height: 36, color: "#d0c290",
-                  fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
                 aria-label="Previous ticket"
               >
                 ‹
@@ -149,133 +128,89 @@ export default function TicketViewPage() {
             )}
             {totalTickets > 1 && currentIndex < totalTickets - 1 && (
               <button
+                className="digital-ticket-arrow digital-ticket-arrow-next"
                 onClick={() => setCurrentIndex(currentIndex + 1)}
-                style={{
-                  position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)",
-                  zIndex: 10, background: "rgba(208,194,144,0.15)", border: "1px solid rgba(208,194,144,0.3)",
-                  borderRadius: "50%", width: 36, height: 36, color: "#d0c290",
-                  fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
                 aria-label="Next ticket"
               >
                 ›
               </button>
             )}
 
+            {/* Glass ticket card */}
             <div className="digital-ticket-card">
-              {current.qr_data_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={current.qr_data_url} alt="QR Code" className="digital-ticket-qr" />
-              ) : (
-                <div className="digital-ticket-qr-placeholder">
-                  <p>QR: {current.qr_code}</p>
-                </div>
-              )}
 
-              <div className="digital-ticket-info">
-                <h2 className="digital-ticket-event">{event?.title || "Event"}</h2>
-                <p className="digital-ticket-venue">{event?.venue || "Venue"}</p>
-                {event?.date && (
-                  <p className="digital-ticket-date">
-                    {safeDate(event.date).toLocaleDateString("en-US", {
-                      weekday: "long", month: "long", day: "numeric", year: "numeric",
-                    })}
-                  </p>
+              {/* QR zone */}
+              <div className="digital-ticket-qr-zone">
+                {current.is_scanned && (
+                  <div className="digital-ticket-scanned-badge">Already Scanned</div>
                 )}
+                {current.qr_data_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={current.qr_data_url} alt="QR Code" className="digital-ticket-qr" />
+                ) : (
+                  <div className="digital-ticket-qr-placeholder">
+                    <p>{current.qr_code}</p>
+                  </div>
+                )}
+                <p className="digital-ticket-show-at-door">Scan at the door for entry</p>
+              </div>
 
-                {/* Seat assignments — show the seat for THIS ticket, not the whole order */}
-                {((current.seatAssignments ?? ticket.seatAssignments) ?? []).length > 0 && (
-                  <div style={{
-                    margin: "16px 0", padding: "12px 16px", borderRadius: 10,
-                    background: "rgba(99,102,241,0.08)",
-                    border: "1px solid rgba(99,102,241,0.2)",
-                    textAlign: "center",
-                  }}>
-                    <span style={{
-                      display: "block", fontSize: 10, fontWeight: 700,
-                      color: "#818cf8", textTransform: "uppercase",
-                      letterSpacing: 1, marginBottom: 8,
-                    }}>
-                      Your Assigned Seats
-                    </span>
-                    {(current.seatAssignments ?? ticket.seatAssignments ?? []).map((s, i) => (
-                      <div key={i} style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        color: "rgba(255,255,255,0.8)", fontSize: 14,
-                        marginBottom: 4,
-                      }}>
-                        {s.row ? (
-                          <>
-                            <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.section}</span>
-                            <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
-                            <span>Row {s.row}</span>
-                            <span style={{ color: "rgba(255,255,255,0.3)" }}>&middot;</span>
-                            <span>Seat {s.seat}</span>
-                          </>
-                        ) : (
-                          <span style={{ color: "#d0c290", fontWeight: 700 }}>{s.seat}</span>
-                        )}
-                      </div>
-                    ))}
+              {/* Perforated tear line */}
+              <div className="digital-ticket-tear">
+                <span className="digital-ticket-notch digital-ticket-notch-left" />
+                <div className="digital-ticket-tear-line" />
+                <span className="digital-ticket-notch digital-ticket-notch-right" />
+              </div>
+
+              {/* Info zone */}
+              <div className="digital-ticket-info-zone">
+
+                {/* Seat assignments */}
+                {seats.length > 0 && (
+                  <div className="digital-ticket-seats">
+                    <span className="digital-ticket-seats-label">Assigned Seats</span>
+                    <div className="digital-ticket-seats-list">
+                      {seats.map((s, i) => (
+                        <span key={i} className="digital-ticket-seat-chip">
+                          {s.row
+                            ? `${s.section} · Row ${s.row} · Seat ${s.seat}`
+                            : s.seat}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                <div className="digital-ticket-holder">
-                  <span className="digital-ticket-label">Ticket Holder</span>
-                  <span className="digital-ticket-name">{current.customer_name || "Guest"}</span>
-                  <span className="digital-ticket-email">{current.customer_email}</span>
-                </div>
-
-                {current.is_scanned && (
-                  <div className="digital-ticket-scanned">Already Scanned</div>
-                )}
-
-                {/* QR Entry Notice */}
-                <div style={{
-                  marginTop: 16,
-                  padding: "12px 16px",
-                  background: "rgba(208,194,144,0.06)",
-                  border: "1px solid rgba(208,194,144,0.12)",
-                  borderRadius: 8,
-                  textAlign: "center",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}>
-                  <p style={{ color: "#d0c290", fontWeight: 700, fontSize: 13, margin: "0 0 4px" }}>
-                    Show This at the Door
-                  </p>
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0, lineHeight: 1.5 }}>
-                    Present your QR code for entry. Screenshot it, save to your photos, or print a copy.
-                  </p>
+                {/* Holder */}
+                <div className="digital-ticket-holder-row">
+                  <div className="digital-ticket-holder-cell">
+                    <span className="digital-ticket-cell-label">Ticket Holder</span>
+                    <span className="digital-ticket-cell-value">{current.customer_name || "Guest"}</span>
+                    <span className="digital-ticket-cell-sub">{current.customer_email}</span>
+                  </div>
+                  <div className="digital-ticket-holder-cell digital-ticket-holder-cell-right">
+                    <span className="digital-ticket-cell-label">Ticket #</span>
+                    <span className="digital-ticket-cell-value" style={{ fontSize: 13 }}>{current.qr_code?.slice(0, 8).toUpperCase()}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Dot indicators */}
+          {/* Dot pagination */}
           {totalTickets > 1 && (
-            <div style={{
-              display: "flex", justifyContent: "center", gap: 8, marginTop: 16,
-            }}>
+            <div className="digital-ticket-dots">
               {siblings.map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => goTo(i)}
-                  style={{
-                    width: i === currentIndex ? 24 : 8,
-                    height: 8,
-                    borderRadius: 4,
-                    background: i === currentIndex ? "#d0c290" : "rgba(255,255,255,0.2)",
-                    border: "none",
-                    cursor: "pointer",
-                    transition: "all 200ms ease",
-                    padding: 0,
-                  }}
+                  onClick={() => setCurrentIndex(i)}
+                  className={`digital-ticket-dot${i === currentIndex ? " digital-ticket-dot-active" : ""}`}
                   aria-label={`Go to ticket ${i + 1}`}
                 />
               ))}
             </div>
           )}
+
         </section>
       </main>
       <Footer />

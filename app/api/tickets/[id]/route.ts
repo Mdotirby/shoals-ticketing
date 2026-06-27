@@ -22,7 +22,7 @@ export async function GET(
 
   // Fetch sibling tickets + operator slug from the same order
   let siblings: typeof data[] = [];
-  let orderOperatorSlug = "venuecore";
+  let orderOperatorSlug: string | null = null;
   if (data.order_id) {
     const [{ data: allTickets }, { data: orderRow }] = await Promise.all([
       admin
@@ -37,7 +37,7 @@ export async function GET(
         .single(),
     ]);
     siblings = allTickets || [];
-    orderOperatorSlug = orderRow?.operator_slug || "venuecore";
+    orderOperatorSlug = orderRow?.operator_slug ?? null;
   }
 
   // Build seat assignments per ticket so each ticket in the carousel shows its own seat.
