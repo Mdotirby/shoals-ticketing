@@ -680,6 +680,12 @@ body {
    TICKET PAGE — /events/[id]
    ============================================================ */
 
+/* Hide the global site header on ticket view pages — the page renders
+   its own branded header derived from the purchase source operator. */
+body:has(.ticket-branded-header) .site-header {
+  display: none !important;
+}
+
 .ticket-page {
   box-sizing: border-box;
   width: 100%;

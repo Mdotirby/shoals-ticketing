@@ -8,6 +8,7 @@ import {
   calculateFees,
 } from "@/lib/checkout-helpers";
 import { pastEventReason } from "@/lib/events/closeout";
+import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 /**
  * POST /api/checkout/create-intent
@@ -23,6 +24,13 @@ import { pastEventReason } from "@/lib/events/closeout";
  */
 export async function POST(request: Request) {
   try {
+    // Determine which operator domain the purchase is coming from.
+    // This is stored on the PaymentIntent so the webhook can use the right
+    // ticket URL and branding when sending the confirmation email.
+    const origin = request.headers.get("origin") || request.headers.get("referer") || "";
+    const originHost = origin.replace(/^https?:\/\//, "").split("/")[0].split(":")[0];
+    const purchaseOperatorSlug = OPERATOR_DOMAIN_MAP[originHost] ?? "venuecore";
+
     const body = await request.json();
     const {
       eventId,
@@ -247,6 +255,7 @@ export async function POST(request: Request) {
         tax_cents: String(breakdown.taxCents * effectiveQuantity),
         processing_fee_cents: String(breakdown.stripeFeeCents),
         total_cents: String(breakdown.totalCents),
+        operator_slug: purchaseOperatorSlug,
       },
     });
 

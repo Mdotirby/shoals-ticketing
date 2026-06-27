@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useRef, TouchEvent } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import Footer from "@/app/components/Footer";
+import { getOperator } from "@/lib/operators";
 
 type SiblingTicket = {
   id: string;
@@ -32,6 +34,7 @@ type TicketData = {
   events?: { title: string; venue: string; date: string };
   siblings: SiblingTicket[];
   seatAssignments?: SeatAssignment[];
+  operatorSlug?: string;
 };
 
 function safeDate(d: string) {
@@ -66,6 +69,7 @@ export default function TicketViewPage() {
   if (loading) return <main className="ticket-page"><div className="ticket-page-loading">Loading ticket…</div></main>;
   if (error || !ticket) return <main className="ticket-page"><div className="ticket-page-loading">{error || "Ticket not found."}</div></main>;
 
+  const operator = getOperator(ticket.operatorSlug || "venuecore");
   const event = ticket.events;
   const siblings = ticket.siblings || [ticket];
   const totalTickets = siblings.length;
@@ -85,6 +89,23 @@ export default function TicketViewPage() {
 
   return (
     <>
+      {/* Branded header — derived from purchase source, not URL domain */}
+      <header className="ticket-branded-header" style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "16px 24px",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        background: "rgba(0,0,0,0.3)",
+      }}>
+        <Image
+          src={operator.logoWhite}
+          alt={operator.logoAlt}
+          width={140}
+          height={36}
+          style={{ objectFit: "contain", height: 32, width: "auto" }}
+        />
+      </header>
       <main className="ticket-page">
         <section className="ticket-hero">
           <h1 className="ticket-hero-title">

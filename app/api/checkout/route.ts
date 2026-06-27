@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { pastEventReason } from "@/lib/events/closeout";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
+import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 // Stripe charges 2.7% + $0.30 per transaction
 const STRIPE_PERCENT_FEE = 0.027;
@@ -11,6 +12,10 @@ const STRIPE_FLAT_FEE_CENTS = 30;
 
 export async function POST(request: Request) {
   try {
+    const purchaseOrigin = request.headers.get("origin") || request.headers.get("referer") || "";
+    const purchaseOriginHost = purchaseOrigin.replace(/^https?:\/\//, "").split("/")[0].split(":")[0];
+    const purchaseOperatorSlug = OPERATOR_DOMAIN_MAP[purchaseOriginHost] ?? "venuecore";
+
     const body = await request.json();
     const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref } = body;
 
@@ -367,6 +372,7 @@ export async function POST(request: Request) {
         seat_hold_session: (isAssignedSeating && buyerSessionId) ? buyerSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: tracking_ref || "",
+        operator_slug: purchaseOperatorSlug,
       },
     };
 

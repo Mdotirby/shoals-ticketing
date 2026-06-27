@@ -20,15 +20,24 @@ export async function GET(
     return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
   }
 
-  // Fetch sibling tickets from the same order
+  // Fetch sibling tickets + operator slug from the same order
   let siblings: typeof data[] = [];
+  let orderOperatorSlug = "venuecore";
   if (data.order_id) {
-    const { data: allTickets } = await admin
-      .from("tickets")
-      .select("id, qr_code, qr_data_url, customer_name, customer_email, is_scanned")
-      .eq("order_id", data.order_id)
-      .order("created_at", { ascending: true });
+    const [{ data: allTickets }, { data: orderRow }] = await Promise.all([
+      admin
+        .from("tickets")
+        .select("id, qr_code, qr_data_url, customer_name, customer_email, is_scanned")
+        .eq("order_id", data.order_id)
+        .order("created_at", { ascending: true }),
+      admin
+        .from("orders")
+        .select("operator_slug")
+        .eq("id", data.order_id)
+        .single(),
+    ]);
     siblings = allTickets || [];
+    orderOperatorSlug = orderRow?.operator_slug || "venuecore";
   }
 
   // Build seat assignments per ticket so each ticket in the carousel shows its own seat.
@@ -59,7 +68,7 @@ export async function GET(
 
   const seatAssignments = assignmentsByTicket.get(data.id) ?? fallbackAssignments;
 
-  return NextResponse.json({ ...data, siblings: siblingsWithSeats, seatAssignments });
+  return NextResponse.json({ ...data, siblings: siblingsWithSeats, seatAssignments, operatorSlug: orderOperatorSlug });
 }
 
 async function tryRepairSeatsFromStripe(

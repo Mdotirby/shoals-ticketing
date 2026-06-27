@@ -60,6 +60,7 @@ async function processTicketOrder({
   taxRate,
   taxMethod,
   tierId,
+  operatorSlug,
 }: {
   admin: ReturnType<typeof createAdminClient>;
   stripeWebhookEventId: string;
@@ -84,6 +85,7 @@ async function processTicketOrder({
   taxRate: number;
   taxMethod: string;
   tierId: string | null;
+  operatorSlug: string;
 }): Promise<void> {
   // Idempotency: skip if order already exists for this stripe reference
   const { data: existing } = await admin
@@ -133,6 +135,7 @@ async function processTicketOrder({
         promo_code_id: promoCodeId || null,
         tracking_link_slug: trackingRef || null,
         customer_zip: customerZip,
+        operator_slug: operatorSlug || "venuecore",
       })
       .select()
       .single();
@@ -484,6 +487,7 @@ async function processTicketOrder({
         qrDataUrl: createdTickets[0].qr_data_url,
         ticketId: createdTickets[0].qr_code,
         venueSlug,
+        operatorSlug,
         seatAssignments,
       });
     }
@@ -675,6 +679,7 @@ export async function POST(request: Request) {
       taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
       taxMethod: session.metadata?.tax_method || "additive",
       tierId: null,
+      operatorSlug: session.metadata?.operator_slug || "venuecore",
     });
   }
 
@@ -717,6 +722,7 @@ export async function POST(request: Request) {
         venueRebate: parseFloat(meta.venue_rebate || "0"),
         taxRate: parseFloat(meta.tax_rate || "0.09"),
         tierId: meta.tier_id || null,
+        operatorSlug: meta.operator_slug || "venuecore",
       });
     }
   }

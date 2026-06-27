@@ -10,6 +10,7 @@ export function ticketEmailHtml({
   totalAmount,
   qrDataUrl,
   ticketUrl,
+  operatorName = "VenueCore",
   seatAssignments,
 }: {
   customerName: string;
@@ -20,6 +21,7 @@ export function ticketEmailHtml({
   totalAmount: number;
   qrDataUrl: string;
   ticketUrl: string;
+  operatorName?: string;
   seatAssignments?: { section: string; row: string; seat: string }[];
 }) {
   const formattedDate = new Date(eventDate).toLocaleDateString("en-US", {
@@ -42,7 +44,7 @@ export function ticketEmailHtml({
           <!-- Header -->
           <tr>
             <td style="background:#d0c290;padding:20px 28px;">
-              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">VenueCore</p>
+              <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">${operatorName}</p>
               <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your ${ticketCount > 1 ? 'Tickets are' : 'Ticket is'} Ready</h1>
             </td>
           </tr>
@@ -146,6 +148,7 @@ export async function sendTicketEmail({
   qrDataUrl,
   ticketId,
   venueSlug,
+  operatorSlug = "venuecore",
   seatAssignments,
 }: {
   to: string;
@@ -158,6 +161,7 @@ export async function sendTicketEmail({
   qrDataUrl: string;
   ticketId: string;
   venueSlug: string;
+  operatorSlug?: string;
   seatAssignments?: { section: string; row: string; seat: string }[];
 }): Promise<{ success: boolean; error?: string }> {
   const resendKey = process.env.RESEND_API_KEY;
@@ -166,7 +170,9 @@ export async function sendTicketEmail({
     return { success: false, error: "RESEND_API_KEY not configured" };
   }
 
-  const ticketUrl = `https://venuecore.live/tickets/${ticketId}`;
+  const { getOperator } = await import("@/lib/operators");
+  const operator = getOperator(operatorSlug);
+  const ticketUrl = `https://${operator.domain}/tickets/${ticketId}`;
 
   // Try loading a custom template from DB; fall back to hardcoded HTML
   let html: string;
@@ -178,10 +184,15 @@ export async function sendTicketEmail({
     const admin = createAdminClient();
     const doc = await loadTransactionalTemplate(admin, "ticket_delivery");
     const rawHtml = await renderDocument(doc);
+    const formattedDate = eventDate
+      ? new Date(eventDate).toLocaleDateString("en-US", {
+          weekday: "long", month: "long", day: "numeric", year: "numeric",
+        })
+      : eventDate;
     html = replaceVars(rawHtml, {
       first_name: customerName.split(" ")[0] || customerName,
       event_title: eventTitle,
-      event_date: eventDate,
+      event_date: formattedDate,
       event_venue: eventVenue,
       ticket_count: String(ticketCount),
       total_amount: `$${totalAmount.toFixed(2)}`,
@@ -199,6 +210,7 @@ export async function sendTicketEmail({
       totalAmount,
       qrDataUrl,
       ticketUrl,
+      operatorName: operator.name,
       seatAssignments,
     });
   }
