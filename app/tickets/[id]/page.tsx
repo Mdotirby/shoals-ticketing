@@ -29,7 +29,7 @@ type TicketData = {
   is_scanned: boolean;
   event_id: string;
   created_at: string;
-  events?: { title: string; venue: string; date: string };
+  events?: { title: string; venue: string; date: string; image_url?: string };
   siblings: SiblingTicket[];
   seatAssignments?: SeatAssignment[];
   operatorSlug?: string;
@@ -139,8 +139,18 @@ export default function TicketViewPage() {
             {/* Glass ticket card */}
             <div className="digital-ticket-card">
 
-              {/* QR zone */}
-              <div className="digital-ticket-qr-zone">
+              {/* QR zone — event image fills the background */}
+              <div
+                className="digital-ticket-qr-zone"
+                style={event?.image_url ? {
+                  backgroundImage: `url(${event.image_url})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center top",
+                } : undefined}
+              >
+                {/* Dark + blur overlay so QR stays scannable */}
+                {event?.image_url && <div className="digital-ticket-qr-overlay" />}
+
                 {current.is_scanned && (
                   <div className="digital-ticket-scanned-badge">Already Scanned</div>
                 )}
