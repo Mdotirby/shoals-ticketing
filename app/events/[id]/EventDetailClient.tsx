@@ -54,6 +54,7 @@ type EventData = {
   is_free?: boolean;
   on_sale_at?: string;
   closed_out_at?: string | null;
+  start_time?: string | null;
   external_ticket_url?: string | null;
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
@@ -890,7 +891,7 @@ export default function EventDetailClient() {
                     {event.external_ticket_label || "Get Tickets"} →
                   </a>
                 </div>
-              ) : pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null }) ? (
+              ) : pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) ? (
                 /* ── Past / Closed-Out Show — purchases locked ── */
                 <div style={{
                   background: "rgba(255,255,255,0.03)",
@@ -917,7 +918,7 @@ export default function EventDetailClient() {
                     Tickets are no longer on sale.
                   </p>
                   <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
-                    {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null })}
+                    {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null })}
                   </p>
                 </div>
               ) : checkoutStep === "checkout" ? (

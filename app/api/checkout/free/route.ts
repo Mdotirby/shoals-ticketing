@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   // Fetch event (with closeout column when available)
   let { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, title, venue, date, venue_id, on_sale_at, closed_out_at")
+    .select("id, title, venue, date, venue_id, on_sale_at, closed_out_at, start_time")
     .eq("id", event_id)
     .single();
   if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       .select("id, title, venue, date, venue_id, on_sale_at")
       .eq("id", event_id)
       .single();
-    event = retry.data ? { ...retry.data, closed_out_at: null } : null;
+    event = retry.data ? { ...retry.data, closed_out_at: null, start_time: null } : null;
   }
   if (!event)
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
   const closeoutReason = pastEventReason({
     date: event.date,
     closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
+    start_time: (event as { start_time?: string | null }).start_time ?? null,
   });
   if (closeoutReason) {
     return NextResponse.json({ error: closeoutReason }, { status: 410 });
