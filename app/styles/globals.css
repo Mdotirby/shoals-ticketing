@@ -6503,6 +6503,216 @@ select.admin-form-input {
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 
+/* ── Scanner page header + event selector ── */
+.scan-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.scan-event-select {
+  flex: 1;
+  min-width: 180px;
+  max-width: 340px;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+/* ── File / photo fallback button ── */
+.scan-file-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.75);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms;
+  min-width: 160px;
+  justify-content: center;
+}
+.scan-file-btn:hover { background: rgba(255,255,255,0.10); }
+
+/* ── Last name search section ── */
+.scan-search-section {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.scan-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 10px;
+  display: block;
+}
+.scan-search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.scan-search-icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.scan-search-input {
+  flex: 1;
+  font-size: 18px;
+  padding: 12px 16px;
+  border-radius: 10px;
+}
+.scan-search-clear {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.scan-search-clear:hover { color: rgba(255,255,255,0.8); }
+.scan-search-hint {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+/* ── Person result card ── */
+.scan-person-card {
+  margin-top: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.03);
+  overflow: hidden;
+}
+.scan-person-card.scan-person-done {
+  border-color: rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.04);
+}
+.scan-person-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+.scan-person-info { flex: 1; min-width: 0; }
+.scan-person-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-person-meta {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  margin-top: 2px;
+}
+.scan-person-email { color: rgba(255,255,255,0.3); }
+
+/* ── Check In All button ── */
+.scan-checkin-all-btn {
+  background: #d0c290;
+  color: #0b0d1d;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: opacity 150ms;
+}
+.scan-checkin-all-btn:hover { opacity: 0.88; }
+.scan-checkin-all-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── All checked in badge ── */
+.scan-all-done-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: #22c55e;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Individual ticket rows ── */
+.scan-ticket-list {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.scan-ticket-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+}
+.scan-ticket-row:last-child { border-bottom: none; }
+.scan-ticket-status {
+  width: 18px;
+  text-align: center;
+  color: rgba(255,255,255,0.25);
+  flex-shrink: 0;
+  font-size: 14px;
+}
+.scan-ticket-scanned .scan-ticket-status { color: #22c55e; }
+.scan-ticket-tier {
+  flex: 1;
+  color: rgba(255,255,255,0.7);
+}
+.scan-ticket-scanned .scan-ticket-tier { color: rgba(255,255,255,0.35); }
+.scan-ticket-time {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+.scan-single-checkin-btn {
+  background: rgba(208,194,144,0.12);
+  color: #d0c290;
+  border: 1px solid rgba(208,194,144,0.25);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 150ms;
+}
+.scan-single-checkin-btn:hover { background: rgba(208,194,144,0.2); }
+.scan-single-checkin-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Manual entry toggle ── */
+.scan-manual-toggle {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.scan-manual-toggle:hover { color: rgba(255,255,255,0.6); }
+
 /* ============================================================
    VENUE THEMING — CSS Variable Overrides
    Applied when venue-slug cookie is set via VenueThemeProvider
