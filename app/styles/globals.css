@@ -12358,8 +12358,33 @@ body:has(.lp-main) .site-footer {
   font-size: 12px;
   font-weight: 600;
   color: #1ed760;
-  margin: 4px 0 8px;
+  margin: 4px 0 4px;
   letter-spacing: 0.02em;
+}
+
+.ticket-spotify-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0 0 10px;
+  color: #1ed760;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ticket-spotify-preview:hover:not(:disabled) {
+  opacity: 0.75;
+}
+.ticket-spotify-preview:disabled {
+  cursor: default;
+  text-decoration: none;
 }
 
 .event-spotify-section {
@@ -12385,6 +12410,49 @@ body:has(.lp-main) .site-footer {
   border: none;
   display: block;
   width: 100%;
+}
+
+@keyframes spotify-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(30, 215, 96, 0); }
+  50%       { box-shadow: 0 0 28px 8px rgba(30, 215, 96, 0.12); }
+}
+
+.event-spotify-section--idle {
+  animation: spotify-pulse 2.8s ease-in-out infinite;
+  border-radius: 16px;
+}
+
+.event-spotify-section--playing .event-spotify-label {
+  color: #1ed760;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.spotify-eq-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+
+.spotify-eq-bars span {
+  display: block;
+  width: 3px;
+  height: 12px;
+  background: #1ed760;
+  border-radius: 2px;
+  transform-origin: bottom;
+  animation: eq-bounce 0.65s ease-in-out infinite alternate;
+}
+
+.spotify-eq-bars span:nth-child(1) { animation-delay: 0s; }
+.spotify-eq-bars span:nth-child(2) { animation-delay: 0.22s; }
+.spotify-eq-bars span:nth-child(3) { animation-delay: 0.11s; }
+
+@keyframes eq-bounce {
+  from { transform: scaleY(0.2); }
+  to   { transform: scaleY(1); }
 }
 
 @media (max-width: 640px) {

@@ -112,6 +112,8 @@ export default function EventDetailClient() {
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [previewActive, setPreviewActive] = useState(false);
+  const spotifyRef = useRef<HTMLElement>(null);
   const [seatingRoomW, setSeatingRoomW] = useState(100);
   const [seatingRoomH, setSeatingRoomH] = useState(60);
   const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; sectionName: string; rowLabel: string; seatNumber: number; priceCents: number; color: string }[]>([]);
@@ -713,6 +715,21 @@ export default function EventDetailClient() {
                       {event.spotify_monthly_listeners} monthly listeners
                     </p>
                   )}
+                  {(event.spotify_featured_track || event.spotify_url) && (
+                    <button
+                      className="ticket-spotify-preview"
+                      disabled={previewActive}
+                      onClick={() => {
+                        setPreviewActive(true);
+                        spotifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }}
+                    >
+                      <svg width="9" height="10" viewBox="0 0 9 10" fill="#1ed760" style={{ flexShrink: 0 }}>
+                        <polygon points="0,0 9,5 0,10" />
+                      </svg>
+                      {previewActive ? "Now Playing" : "Preview Artist"}
+                    </button>
+                  )}
                   <p className="ticket-event-meta">
                     <span className="ticket-event-date">{formatEventDateFull(event.date)}</span>
                     {showTime && (
@@ -1139,12 +1156,24 @@ export default function EventDetailClient() {
           const artistUrl = event.spotify_url ? getSpotifyEmbedUrl(event.spotify_url) : null;
           if (!featuredUrl && !artistUrl) return null;
           return (
-            <section className="event-spotify-section">
-              <p className="event-spotify-label">Listen Before You Go</p>
+            <section
+              ref={spotifyRef}
+              className={`event-spotify-section${previewActive ? " event-spotify-section--playing" : " event-spotify-section--idle"}`}
+            >
+              <p className="event-spotify-label">
+                {previewActive ? (
+                  <>
+                    <span className="spotify-eq-bars" aria-hidden="true">
+                      <span /><span /><span />
+                    </span>
+                    Now Playing
+                  </>
+                ) : "Listen Before You Go"}
+              </p>
               {featuredUrl && (
                 <iframe
                   title="Featured track"
-                  src={featuredUrl}
+                  src={previewActive ? `${featuredUrl}&autoplay=1` : featuredUrl}
                   width="100%"
                   height="152"
                   frameBorder="0"
@@ -1157,7 +1186,7 @@ export default function EventDetailClient() {
               {artistUrl && (
                 <iframe
                   title="Artist on Spotify"
-                  src={artistUrl}
+                  src={previewActive && !featuredUrl ? `${artistUrl}&autoplay=1` : artistUrl}
                   width="100%"
                   height="352"
                   frameBorder="0"
