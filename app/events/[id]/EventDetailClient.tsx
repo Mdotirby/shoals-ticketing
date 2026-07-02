@@ -1180,7 +1180,7 @@ export default function EventDetailClient() {
                   frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                   loading={previewActive ? "eager" : "lazy"}
-                  className="event-spotify-embed"
+                  className="event-spotify-embed event-spotify-embed--track"
                   style={{ marginBottom: artistUrl ? 10 : 0 }}
                 />
               )}
@@ -1194,7 +1194,7 @@ export default function EventDetailClient() {
                   frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
                   loading={previewActive && !featuredUrl ? "eager" : "lazy"}
-                  className="event-spotify-embed"
+                  className="event-spotify-embed event-spotify-embed--artist"
                 />
               )}
             </section>
