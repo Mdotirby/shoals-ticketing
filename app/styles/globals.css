@@ -12352,7 +12352,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .ticket-spotify-listeners {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -12417,9 +12417,8 @@ body:has(.lp-main) .site-footer {
   50%       { box-shadow: 0 0 28px 8px rgba(30, 215, 96, 0.12); }
 }
 
-.event-spotify-section--idle {
+.event-spotify-section--idle .event-spotify-embed {
   animation: spotify-pulse 2.8s ease-in-out infinite;
-  border-radius: 16px;
 }
 
 .event-spotify-section--playing .event-spotify-label {

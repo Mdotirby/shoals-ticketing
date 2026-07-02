@@ -1172,26 +1172,28 @@ export default function EventDetailClient() {
               </p>
               {featuredUrl && (
                 <iframe
+                  key={previewActive ? "featured-playing" : "featured-idle"}
                   title="Featured track"
                   src={previewActive ? `${featuredUrl}&autoplay=1` : featuredUrl}
                   width="100%"
                   height="152"
                   frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
+                  loading={previewActive ? "eager" : "lazy"}
                   className="event-spotify-embed"
                   style={{ marginBottom: artistUrl ? 10 : 0 }}
                 />
               )}
               {artistUrl && (
                 <iframe
+                  key={previewActive && !featuredUrl ? "artist-playing" : "artist-idle"}
                   title="Artist on Spotify"
                   src={previewActive && !featuredUrl ? `${artistUrl}&autoplay=1` : artistUrl}
                   width="100%"
                   height="352"
                   frameBorder="0"
                   allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
+                  loading={previewActive && !featuredUrl ? "eager" : "lazy"}
                   className="event-spotify-embed"
                 />
               )}
