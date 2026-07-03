@@ -12417,12 +12417,11 @@ body:has(.lp-main) .site-footer {
   50%       { box-shadow: 0 0 28px 8px rgba(30, 215, 96, 0.12); }
 }
 
-.event-spotify-section--idle .event-spotify-embed--track {
-  animation: spotify-pulse 2.8s ease-in-out infinite;
-}
-
+.event-spotify-section--idle .event-spotify-embed--track,
 .event-spotify-section--idle:not(:has(.event-spotify-embed--track)) .event-spotify-embed--artist {
   animation: spotify-pulse 2.8s ease-in-out infinite;
+  will-change: box-shadow;
+  border-radius: 12px;
 }
 
 .event-spotify-section--playing .event-spotify-label {
