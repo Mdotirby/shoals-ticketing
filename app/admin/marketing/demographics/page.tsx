@@ -19,51 +19,31 @@ type DemoData = {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function DemographicsPage() {
+  // ── State ──────────────────────────────────────────────────────────────────
+  // roleReady/isOwner are checked in a useEffect so the cookie is never read
+  // during SSR (document is undefined server-side), which was causing mobile
+  // users to see "Access Denied" on every page load.
+  const [roleReady, setRoleReady] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [events, setEvents] = useState<EventOption[]>([]);
   const [selectedEvent, setSelectedEvent] = useState("");
   const [data, setData] = useState<DemoData | null>(null);
   const [loading, setLoading] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [mapsLoaded, setMapsLoaded] = useState(false);
+
+  // ── Refs ───────────────────────────────────────────────────────────────────
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const heatmapLayerRef = useRef<any>(null);
 
-  const role = getCookie("user-role");
-  if (role !== "owner") {
-    return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
-  }
-
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    fetch("/api/events?all=1")
-      .then((r) => r.json())
-      .then((d) => { if (Array.isArray(d)) setEvents(d); })
-      .finally(() => setEventsLoading(false));
-  }, []);
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (!selectedEvent) { setData(null); return; }
-    setLoading(true);
-    fetch(`/api/marketing/demographics?event_id=${selectedEvent}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  }, [selectedEvent]);
-
-  // Initialize or update heatmap when data or maps SDK loads
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // ── Heatmap renderer ───────────────────────────────────────────────────────
   const renderHeatmap = useCallback(() => {
     const win = window as any;
     if (!mapsLoaded || !mapRef.current || !win.google) return;
 
     const hasPoints = data?.heatmapPoints?.length && data.heatmapPoints.length > 0;
 
-    // Dark mode map styles (matches VenueCore admin theme)
     const darkStyles: any[] = [
       { elementType: "geometry", stylers: [{ color: "#0b0d1d" }] },
       { elementType: "labels.text.stroke", stylers: [{ color: "#0b0d1d" }] },
@@ -76,7 +56,6 @@ export default function DemographicsPage() {
       { featureType: "transit", stylers: [{ visibility: "off" }] },
     ];
 
-    // Compute center from data points, default to Florence/Shoals AL
     const points = hasPoints ? data!.heatmapPoints : [];
     const avgLat = points.length > 0 ? points.reduce((s, p) => s + p.lat, 0) / points.length : 34.7998;
     const avgLng = points.length > 0 ? points.reduce((s, p) => s + p.lng, 0) / points.length : -87.6773;
@@ -96,20 +75,16 @@ export default function DemographicsPage() {
       mapInstanceRef.current.setCenter({ lat: avgLat, lng: avgLng });
     }
 
-    // Build weighted heatmap data
     const heatmapData = points.map((p) =>
       ({ location: new win.google.maps.LatLng(p.lat, p.lng), weight: p.weight })
     );
 
-    // Remove old layer
     if (heatmapLayerRef.current) {
       heatmapLayerRef.current.setMap(null);
     }
 
-    // Only create heatmap layer if there are data points
     if (heatmapData.length === 0) return;
 
-    // Create heatmap with Snapchat-style gradient (red/orange glow)
     heatmapLayerRef.current = new win.google.maps.visualization.HeatmapLayer({
       data: heatmapData,
       map: mapInstanceRef.current,
@@ -131,22 +106,59 @@ export default function DemographicsPage() {
     });
   }, [mapsLoaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // ── Effects ────────────────────────────────────────────────────────────────
+
+  // Read role cookie client-side only — never during SSR
+  useEffect(() => {
+    setIsOwner(getCookie("user-role") === "owner");
+    setRoleReady(true);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/events?all=1")
+      .then((r) => r.json())
+      .then((d) => { if (Array.isArray(d)) setEvents(d); })
+      .finally(() => setEventsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedEvent) { setData(null); return; }
+    setLoading(true);
+    (async () => {
+      const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+      const { data: sessionData } = await getSupabaseBrowser().auth.getSession();
+      const headers: HeadersInit = sessionData.session?.access_token
+        ? { Authorization: `Bearer ${sessionData.session.access_token}` }
+        : {};
+      try {
+        const r = await fetch(`/api/marketing/demographics?event_id=${selectedEvent}`, { headers });
+        const d = await r.json();
+        setData(d);
+      } catch {
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedEvent]);
+
   useEffect(() => { renderHeatmap(); }, [renderHeatmap]);
 
-  // Google Maps callback
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     (window as any).initDemoMap = () => setMapsLoaded(true);
-    // If already loaded from a previous page visit
     if ((window as any).google?.maps?.visualization) setMapsLoaded(true);
   }, []);
 
+  // ── Derived values (non-hook, safe after all hooks) ───────────────────────
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || "";
   const maxZipCount = data?.zips?.length ? Math.max(...data.zips.map((z) => z.count)) : 0;
+
+  // ── Access guard (all hooks already called above — no rules violation) ─────
+  if (!roleReady) return null;
+  if (!isOwner) return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
 
   return (
     <div className="admin-form-page">
-      {/* Load Google Maps JS API with Visualization library */}
       {apiKey && !mapsLoaded && (
         <Script
           src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=visualization&callback=initDemoMap`}
@@ -166,7 +178,6 @@ export default function DemographicsPage() {
         </div>
       )}
 
-      {/* Event selector */}
       <label className="admin-form-label" style={{ maxWidth: 400, marginBottom: 24 }}>
         Select an Event
         <select className="admin-form-input" value={selectedEvent} onChange={(e) => setSelectedEvent(e.target.value)}>
@@ -194,7 +205,6 @@ export default function DemographicsPage() {
             {data.surveys.avg_rating > 0 && <StatCard label="Avg Rating" value={`${data.surveys.avg_rating.toFixed(1)} / 5`} />}
           </div>
 
-          {/* Google Maps Heatmap — always shown, defaults to Shoals area */}
           {apiKey && (
             <div style={{
               background: "rgba(255,255,255,0.03)",
@@ -215,16 +225,11 @@ export default function DemographicsPage() {
               </div>
               <div
                 ref={mapRef}
-                style={{
-                  width: "100%",
-                  height: 480,
-                  background: "#0b0d1d",
-                }}
+                style={{ width: "100%", height: 480, background: "#0b0d1d" }}
               />
             </div>
           )}
 
-          {/* Zip Code Bar Chart (always shown as reference / fallback) */}
           {data.zips.length > 0 && (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
               <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 4px", fontWeight: 600 }}>Ticket Buyers by Zip Code</h3>
@@ -251,10 +256,8 @@ export default function DemographicsPage() {
             </div>
           )}
 
-          {/* Survey Demographics */}
           {data.surveys.total > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-              {/* Age Range */}
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
                 <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Age Range</h3>
                 {Object.entries(data.surveys.age_range).map(([range, count]) => {
@@ -271,7 +274,6 @@ export default function DemographicsPage() {
                 })}
               </div>
 
-              {/* Gender */}
               <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20 }}>
                 <h3 style={{ color: "#60a5fa", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Gender</h3>
                 {Object.entries(data.surveys.gender).map(([g, count]) => {

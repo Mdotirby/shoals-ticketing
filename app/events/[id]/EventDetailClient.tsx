@@ -50,6 +50,8 @@ type EventData = {
   venue_directions_car?: string;
   venue_parking_info?: string;
   venue_directions_transit?: string;
+  venue_city?: string | null;
+  venue_state?: string | null;
   artists?: Artist[];
   is_free?: boolean;
   on_sale_at?: string;
@@ -406,6 +408,8 @@ export default function EventDetailClient() {
                     // Use event_venues name as the customer-facing venue name
                     venue: (ev.name as string) || prev.venue,
                     venue_address: (ev.full_address as string) || prev.venue_address,
+                    venue_city: (ev.address_city as string) || null,
+                    venue_state: (ev.address_state as string) || null,
                     venue_lat: (ev.lat as number) || prev.venue_lat,
                     venue_lng: (ev.lng as number) || prev.venue_lng,
                     venue_phone: (ev.phone as string) || prev.venue_phone,

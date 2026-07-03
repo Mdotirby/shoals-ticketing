@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
+import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 // Simple in-memory cache for zip → lat/lng (persists across requests in the same serverless invocation)
@@ -95,12 +96,38 @@ function approximateZipLocation(zip: string): { lat: number; lng: number } | nul
 
 // GET /api/marketing/demographics?event_id=xxx — Zip code + survey data for an event
 export async function GET(req: NextRequest) {
+  // Verify the caller is an authenticated owner
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const token = authHeader.slice(7);
+
+  const authClient = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const { data: { user }, error: userError } = await authClient.auth.getUser(token);
+  if (userError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: adminRecord } = await admin
+    .from("admin_users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!adminRecord || adminRecord.role !== "owner") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const eventId = req.nextUrl.searchParams.get("event_id");
   if (!eventId) {
     return NextResponse.json({ error: "event_id required" }, { status: 400 });
   }
-
-  const admin = createAdminClient();
 
   // Get orders for this event with zip codes
   const { data: orders } = await admin
