@@ -14,6 +14,7 @@ export async function GET(request) {
   const include = searchParams.get("include");
 
   const eventTypeFilter = searchParams.get("event_type"); // for admin filtering
+  const bookingStatusFilter = searchParams.get("booking_status"); // for admin filtering
 
   // Pull the closeout columns when available so the client can render badges
   // and so we can do post-fetch date filtering without a second round-trip.
@@ -49,6 +50,11 @@ export async function GET(request) {
   // Admin event_type filter
   if (eventTypeFilter && eventTypeFilter !== "all") {
     query = query.eq("event_type", eventTypeFilter);
+  }
+
+  // Admin booking_status filter
+  if (bookingStatusFilter && bookingStatusFilter !== "all") {
+    query = query.eq("booking_status", bookingStatusFilter);
   }
 
   // Filter by venue_id directly
@@ -87,6 +93,9 @@ export async function GET(request) {
     }
     if (eventTypeFilter && eventTypeFilter !== "all") {
       fallback = fallback.eq("event_type", eventTypeFilter);
+    }
+    if (bookingStatusFilter && bookingStatusFilter !== "all") {
+      fallback = fallback.eq("booking_status", bookingStatusFilter);
     }
     if (venueId) fallback = fallback.eq("venue_id", venueId);
     const retry = await fallback;

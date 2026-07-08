@@ -29,12 +29,6 @@ const REVENUE_CATEGORIES = [
   { value: "labor", label: "Labor" },
 ];
 
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: "#50c878",
-  hold: "#ffc832",
-  cancelled: "#ff6b6b",
-};
-
 function emptyTier(): TicketTierDraft {
   return { tier_name: "", price: "", capacity: "" };
 }
@@ -75,10 +69,11 @@ export default function AdminEditEventPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFlyer, setUploadingFlyer] = useState(false);
+  const flyerInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
-  const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
   const [taxMethod, setTaxMethod] = useState<"multiplier" | "divisor">("multiplier");
   // Track whether the event has its own tax_method so venue load doesn't override it
@@ -88,11 +83,13 @@ export default function AdminEditEventPage() {
 
   const [form, setForm] = useState({
     title: "",
+    subtitle: "",
     venue: "",
     date: "",
     time: "",
     description: "",
     image_url: "",
+    email_flyer_url: "",
     event_type: "hard_ticket",
     booking_status: "confirmed",
     contact_name: "",
@@ -226,11 +223,13 @@ export default function AdminEditEventPage() {
 
         setForm({
           title: event.title || "",
+          subtitle: event.subtitle || "",
           venue: event.venue || "",
           date: dateStr,
           time: timeStr,
           description: event.description || "",
           image_url: event.image_url || "",
+          email_flyer_url: event.email_flyer_url || "",
           event_type: event.event_type || "hard_ticket",
           booking_status: event.booking_status || "confirmed",
           contact_name: event.contact_name || "",
@@ -253,10 +252,6 @@ export default function AdminEditEventPage() {
 
         if (event.event_venue_id) {
           setSelectedEventVenueId(event.event_venue_id);
-        }
-
-        if (event.facility_fee_enabled === false) {
-          setFacilityFeeEnabled(false);
         }
 
         // Load free event flag
@@ -355,23 +350,31 @@ export default function AdminEditEventPage() {
         .select("id, name, full_address, contact_name, phone, facility_fee, ticketing_fee, tax_rate, tax_method")
         .order("name")
         .then(({ data }: { data: EventVenue[] | null }) => {
-          if (data) {
-            setEventVenues(data);
-            // If we already have a selected venue, populate its fees
-            if (selectedEventVenueId) {
-              const v = data.find((x) => x.id === selectedEventVenueId);
-              if (v) {
-                setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
-                // Only use venue default if the event doesn't have its own tax_method
-                if (!taxMethodFromEventRef.current) {
-                  setTaxMethod(v.tax_method === "divisor" ? "divisor" : "multiplier");
-                }
-              }
-            }
-          }
+          if (data) setEventVenues(data);
         });
     });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Populate facility-fee/tax-method display once BOTH the event's selected
+  // venue id and the venue list have loaded. Split out from the effect above
+  // on purpose: that effect fires the event fetch and the event_venues fetch
+  // in parallel without awaiting either, so a lookup inlined there closes
+  // over selectedEventVenueId from before the event fetch resolves — always
+  // null on first load — and silently never populates the real saved fee.
+  // The "Amount per ticket" field then fell back to displaying 0, and Save
+  // wrote that 0 straight back to the venue, wiping the real fee. Reacting
+  // to both values as dependencies here closes the race regardless of which
+  // fetch finishes first.
+  useEffect(() => {
+    if (!selectedEventVenueId || eventVenues.length === 0) return;
+    const v = eventVenues.find((x) => x.id === selectedEventVenueId);
+    if (!v) return;
+    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+    // Only use venue default if the event doesn't have its own tax_method
+    if (!taxMethodFromEventRef.current) {
+      setTaxMethod(v.tax_method === "divisor" ? "divisor" : "multiplier");
+    }
+  }, [selectedEventVenueId, eventVenues]);
 
   // Fetch all venues (hosts) for the host selector dropdown
   useEffect(() => {
@@ -503,6 +506,50 @@ export default function AdminEditEventPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // Email flyer — a pre-sized 1080x1350 asset (built in Photoshop for the
+  // announcement email), uploaded as-is with no crop step, unlike image_url
+  // above which is cropped for the website's wide hero background.
+  const handleFlyerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!validTypes.includes(file.type)) {
+      setError("Only .jpeg, .jpg .png, and .webp images are allowed.");
+      return;
+    }
+
+    setUploadingFlyer(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file, `event-flyer-${Date.now()}.jpg`);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
+
+      const { url } = await res.json();
+      setForm((prev) => ({ ...prev, email_flyer_url: url }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Flyer upload failed");
+    } finally {
+      setUploadingFlyer(false);
+      if (flyerInputRef.current) flyerInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFlyer = () => {
+    setForm((prev) => ({ ...prev, email_flyer_url: "" }));
+    if (flyerInputRef.current) flyerInputRef.current.value = "";
+  };
+
   // ── Trackable link helpers ──
   async function createTrackableLink() {
     if (!newLink.label || !newLink.slug) return;
@@ -613,6 +660,7 @@ export default function AdminEditEventPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
+          subtitle: form.subtitle || null,
           venue: form.venue,
           date: dateTime,
           price: isPrivate ? null : lowestPrice,
@@ -620,8 +668,13 @@ export default function AdminEditEventPage() {
           venue_rebate: isPrivate ? null : undefined,
           description: form.description || null,
           image_url: form.image_url || null,
+          email_flyer_url: form.email_flyer_url || null,
           event_venue_id: selectedEventVenueId || null,
-          facility_fee_enabled: isFree ? false : facilityFeeEnabled,
+          // Free events never charge a facility fee; otherwise omit the key
+          // entirely (JSON.stringify drops undefined) so this page never
+          // touches facility_fee_enabled for a non-free event — there's no
+          // more per-event toggle, so nothing here should ever flip it.
+          facility_fee_enabled: isFree ? false : undefined,
           is_free: isFree,
           on_sale_at: onSaleDate ? chicagoToUtcIso(onSaleDate, onSaleTime) : null,
           venue_id: resolvedVenueId || null,
@@ -657,22 +710,17 @@ export default function AdminEditEventPage() {
         throw new Error(data.error || "Failed to update event");
       }
 
-      // 1b. Persist the facility-fee amount on the linked event_venue so it
-      // flows into the landing page, order summary, and checkout intent. The
-      // "Apply Facility Fee" toggle only sets events.facility_fee_enabled;
-      // the actual dollar amount lives on event_venues.facility_fee.
+      // 1b. tax_method now lives on the event itself; also update the venue
+      // as a template default so new events at this venue pre-fill
+      // correctly. facility_fee is deliberately NOT written here — it's
+      // set once on the venue at event-creation time (app/admin/events/new)
+      // and never editable per-event again, so there's nothing on this page
+      // that should ever overwrite it.
       if (isHardTicket && !isFree && selectedEventVenueId) {
         try {
           const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
           const supabase = getSupabaseBrowser();
-          // tax_method now lives on the event itself; also update the venue as a
-          // template default so new events at this venue pre-fill correctly.
-          const venueUpdate: Record<string, unknown> = { tax_method: taxMethod };
-          if (facilityFeeEnabled) {
-            const amount = Number(selectedVenueFees.facility_fee ?? 0);
-            if (!isNaN(amount) && amount >= 0) venueUpdate.facility_fee = amount;
-          }
-          await supabase.from("event_venues").update(venueUpdate).eq("id", selectedEventVenueId);
+          await supabase.from("event_venues").update({ tax_method: taxMethod }).eq("id", selectedEventVenueId);
         } catch (feeErr) {
           console.error("Failed to persist venue settings:", feeErr);
           // Non-fatal — event itself was updated successfully.
@@ -781,7 +829,7 @@ export default function AdminEditEventPage() {
   if (loading) {
     return (
       <div className="admin-form-page">
-        <h1 className="admin-page-title">Edit Event</h1>
+        <h1 className="admin-page-title">{form.title || "Event"} - Edit Event</h1>
         <p style={{ color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
           Loading event…
         </p>
@@ -791,7 +839,7 @@ export default function AdminEditEventPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Edit Event</h1>
+      <h1 className="admin-page-title">{form.title || "Event"} - Edit Event</h1>
 
       {/* Event-scoped module shortcuts */}
       <div
@@ -822,38 +870,6 @@ export default function AdminEditEventPage() {
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
-        {/* Event Type Selector */}
-        <div className="admin-form-label admin-form-full">
-          Event Type
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[
-              { value: "hard_ticket", label: "Hard Ticket" },
-              { value: "non_ticketed", label: "Non-Ticketed" },
-              { value: "private", label: "Private Event" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, event_type: opt.value })}
-                style={{
-                  flex: 1,
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.1)"}`,
-                  background: form.event_type === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
-                  color: form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Host / Organization Selector */}
         <div className="admin-form-label admin-form-full">
           Host / Organization
@@ -873,36 +889,34 @@ export default function AdminEditEventPage() {
           </p>
         </div>
 
+        {/* Event Type Selector */}
+        <div className="admin-form-label admin-form-full">
+          Event Type
+          <select
+            className="admin-form-input"
+            value={form.event_type}
+            onChange={(e) => setForm({ ...form, event_type: e.target.value })}
+            style={{ marginTop: 6 }}
+          >
+            <option value="hard_ticket">Hard Ticket</option>
+            <option value="non_ticketed">Non-Ticketed</option>
+            <option value="private">Private Event</option>
+          </select>
+        </div>
+
         {/* Booking Status */}
         <div className="admin-form-label admin-form-full">
           Booking Status
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[
-              { value: "confirmed", label: "Confirmed" },
-              { value: "hold", label: "Hold" },
-              { value: "cancelled", label: "Cancelled" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, booking_status: opt.value })}
-                style={{
-                  flex: 1,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
-                  background: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] + "18" : "transparent",
-                  color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <select
+            className="admin-form-input"
+            value={form.booking_status}
+            onChange={(e) => setForm({ ...form, booking_status: e.target.value })}
+            style={{ marginTop: 6 }}
+          >
+            <option value="confirmed">Confirmed</option>
+            <option value="hold">Hold</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
 
         <div className="admin-form-grid">
@@ -915,6 +929,18 @@ export default function AdminEditEventPage() {
               value={form.title}
               onChange={handleChange}
               required
+            />
+          </label>
+
+          <label className="admin-form-label">
+            Subtitle / Tour Name
+            <input
+              type="text"
+              name="subtitle"
+              className="admin-form-input"
+              placeholder='e.g. "The In Defense of Drinking Tour"'
+              value={form.subtitle}
+              onChange={handleChange}
             />
           </label>
 
@@ -1072,7 +1098,6 @@ export default function AdminEditEventPage() {
                   setIsFree(checked);
                   if (checked) {
                     setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
-                    setFacilityFeeEnabled(false);
                   }
                 }}
                 style={{ width: 18, height: 18, accentColor: "#22c55e" }}
@@ -1489,51 +1514,30 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
-        {/* ── Facility Fee Toggle + Amount (only for hard ticket events with a venue selected) ── */}
+        {/* ── Facility Fee (read-only display — see selectedVenueFees load
+             effect above). No per-event toggle or amount input: the fee
+             always mirrors whatever's saved on the venue itself, set once
+             at event-creation time (app/admin/events/new/page.tsx) and
+             never editable per-event again. Removed after a bug where an
+             unloaded fee value silently defaulted to 0 and got written back
+             to the venue on save, wiping the real fee. ── */}
         {isHardTicket && selectedEventVenueId && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${facilityFeeEnabled ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: "rgba(208,194,144,0.04)",
+            border: "1px solid rgba(208,194,144,0.12)",
             marginTop: 8,
           }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: facilityFeeEnabled ? "#22c55e" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={facilityFeeEnabled}
-                onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
-              />
-              Apply Facility Fee
-            </label>
-            {facilityFeeEnabled && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>Amount per ticket</span>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>$</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="admin-form-input"
-                  style={{ width: 110, padding: "6px 10px", fontSize: 13 }}
-                  value={selectedVenueFees.facility_fee ?? 0}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    setSelectedVenueFees({ facility_fee: isNaN(v) ? 0 : v });
-                  }}
-                  placeholder="0.00"
-                />
-                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
-                  Saved to the venue; applies to this and future events here.
-                </span>
-              </div>
-            )}
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
-              When enabled, this amount is added to each ticket and shown to buyers as a line item.
+            <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 4 }}>
+              Facility Fee
+            </span>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+              {selectedVenueFees.facility_fee != null
+                ? `$${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket`
+                : "No fee set for this venue"}
+            </span>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, margin: "6px 0 0" }}>
+              Set on the venue, not per-event — applies automatically to every event here.
             </p>
           </div>
         )}
@@ -2288,6 +2292,57 @@ export default function AdminEditEventPage() {
               type="file"
               accept={ACCEPTED_IMAGE_TYPES}
               onChange={handleFileSelect}
+              className="admin-image-file-input"
+            />
+          </div>
+        </div>
+
+        {/* Email flyer upload section — separate from Event Image above.
+            This is a pre-sized 1080x1350 asset used only in the announcement
+            email, not the website's hero background. Uploaded as-is, no crop. */}
+        <div className="admin-form-label admin-form-full">
+          Email Flyer (1080x1350)
+          <div className="admin-image-upload-area">
+            {form.email_flyer_url ? (
+              <div className="admin-image-preview-wrapper">
+                <img
+                  src={form.email_flyer_url}
+                  alt="Email flyer preview"
+                  className="admin-image-preview"
+                />
+                <button
+                  type="button"
+                  className="admin-image-remove-btn"
+                  onClick={handleRemoveFlyer}
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            ) : (
+              <div
+                className="admin-image-dropzone"
+                onClick={() => flyerInputRef.current?.click()}
+              >
+                {uploadingFlyer ? (
+                  <span className="admin-image-uploading">Uploading…</span>
+                ) : (
+                  <>
+                    <span className="admin-image-dropzone-icon"></span>
+                    <span className="admin-image-dropzone-text">
+                      Click to upload the email flyer
+                    </span>
+                    <span className="admin-image-dropzone-hint">
+                      1080x1350 portrait, purpose-built for the announcement email — .jpg, .jpeg, .png, or .webp
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <input
+              ref={flyerInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES}
+              onChange={handleFlyerUpload}
               className="admin-image-file-input"
             />
           </div>

@@ -13,7 +13,7 @@ export async function GET(
   // Try with closed_out_at (closeout migration); fall back without it.
   let { data, error } = await admin
     .from("events")
-    .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,spotify_url,spotify_monthly_listeners,spotify_featured_track")
+    .select("id,title,subtitle,venue,date,price,image_url,email_flyer_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,spotify_url,spotify_monthly_listeners,spotify_featured_track")
     .eq("id", id)
     .single();
   if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|tax_method|spotify_url|spotify_monthly_listeners|spotify_featured_track|column .* does not exist/i.test(error.message)) {
@@ -22,7 +22,7 @@ export async function GET(
       .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
       .eq("id", id)
       .single();
-    data = retry.data ? { ...retry.data, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, tax_method: null, spotify_url: null, spotify_monthly_listeners: null, spotify_featured_track: null } : null;
+    data = retry.data ? { ...retry.data, subtitle: null, email_flyer_url: null, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, tax_method: null, spotify_url: null, spotify_monthly_listeners: null, spotify_featured_track: null } : null;
     error = retry.error;
   }
 
@@ -68,6 +68,7 @@ export async function PUT(
   // Only include fields that were actually sent to avoid wiping unrelated columns
   const updates: Record<string, unknown> = {};
   if (body.title !== undefined) updates.title = body.title;
+  if (body.subtitle !== undefined) updates.subtitle = body.subtitle || null;
   if (body.venue !== undefined) updates.venue = body.venue;
   if (body.date !== undefined) updates.date = body.date;
   if (body.price !== undefined) updates.price = body.price;
@@ -75,6 +76,7 @@ export async function PUT(
   if (body.venue_rebate !== undefined) updates.venue_rebate = body.venue_rebate;
   if (body.description !== undefined) updates.description = body.description;
   if (body.image_url !== undefined) updates.image_url = body.image_url;
+  if (body.email_flyer_url !== undefined) updates.email_flyer_url = body.email_flyer_url || null;
   if (body.status !== undefined) updates.status = body.status;
   if (body.event_venue_id !== undefined) updates.event_venue_id = body.event_venue_id;
   if (body.event_type !== undefined) updates.event_type = body.event_type;
