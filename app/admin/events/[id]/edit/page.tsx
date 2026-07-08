@@ -74,7 +74,6 @@ export default function AdminEditEventPage() {
   const [error, setError] = useState("");
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
-  const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
   const [taxMethod, setTaxMethod] = useState<"multiplier" | "divisor">("multiplier");
   // Track whether the event has its own tax_method so venue load doesn't override it
@@ -255,10 +254,6 @@ export default function AdminEditEventPage() {
           setSelectedEventVenueId(event.event_venue_id);
         }
 
-        if (event.facility_fee_enabled === false) {
-          setFacilityFeeEnabled(false);
-        }
-
         // Load free event flag
         if (event.is_free) {
           setIsFree(true);
@@ -355,23 +350,31 @@ export default function AdminEditEventPage() {
         .select("id, name, full_address, contact_name, phone, facility_fee, ticketing_fee, tax_rate, tax_method")
         .order("name")
         .then(({ data }: { data: EventVenue[] | null }) => {
-          if (data) {
-            setEventVenues(data);
-            // If we already have a selected venue, populate its fees
-            if (selectedEventVenueId) {
-              const v = data.find((x) => x.id === selectedEventVenueId);
-              if (v) {
-                setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
-                // Only use venue default if the event doesn't have its own tax_method
-                if (!taxMethodFromEventRef.current) {
-                  setTaxMethod(v.tax_method === "divisor" ? "divisor" : "multiplier");
-                }
-              }
-            }
-          }
+          if (data) setEventVenues(data);
         });
     });
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Populate facility-fee/tax-method display once BOTH the event's selected
+  // venue id and the venue list have loaded. Split out from the effect above
+  // on purpose: that effect fires the event fetch and the event_venues fetch
+  // in parallel without awaiting either, so a lookup inlined there closes
+  // over selectedEventVenueId from before the event fetch resolves — always
+  // null on first load — and silently never populates the real saved fee.
+  // The "Amount per ticket" field then fell back to displaying 0, and Save
+  // wrote that 0 straight back to the venue, wiping the real fee. Reacting
+  // to both values as dependencies here closes the race regardless of which
+  // fetch finishes first.
+  useEffect(() => {
+    if (!selectedEventVenueId || eventVenues.length === 0) return;
+    const v = eventVenues.find((x) => x.id === selectedEventVenueId);
+    if (!v) return;
+    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+    // Only use venue default if the event doesn't have its own tax_method
+    if (!taxMethodFromEventRef.current) {
+      setTaxMethod(v.tax_method === "divisor" ? "divisor" : "multiplier");
+    }
+  }, [selectedEventVenueId, eventVenues]);
 
   // Fetch all venues (hosts) for the host selector dropdown
   useEffect(() => {
@@ -667,7 +670,11 @@ export default function AdminEditEventPage() {
           image_url: form.image_url || null,
           email_flyer_url: form.email_flyer_url || null,
           event_venue_id: selectedEventVenueId || null,
-          facility_fee_enabled: isFree ? false : facilityFeeEnabled,
+          // Free events never charge a facility fee; otherwise omit the key
+          // entirely (JSON.stringify drops undefined) so this page never
+          // touches facility_fee_enabled for a non-free event — there's no
+          // more per-event toggle, so nothing here should ever flip it.
+          facility_fee_enabled: isFree ? false : undefined,
           is_free: isFree,
           on_sale_at: onSaleDate ? chicagoToUtcIso(onSaleDate, onSaleTime) : null,
           venue_id: resolvedVenueId || null,
@@ -703,22 +710,17 @@ export default function AdminEditEventPage() {
         throw new Error(data.error || "Failed to update event");
       }
 
-      // 1b. Persist the facility-fee amount on the linked event_venue so it
-      // flows into the landing page, order summary, and checkout intent. The
-      // "Apply Facility Fee" toggle only sets events.facility_fee_enabled;
-      // the actual dollar amount lives on event_venues.facility_fee.
+      // 1b. tax_method now lives on the event itself; also update the venue
+      // as a template default so new events at this venue pre-fill
+      // correctly. facility_fee is deliberately NOT written here — it's
+      // set once on the venue at event-creation time (app/admin/events/new)
+      // and never editable per-event again, so there's nothing on this page
+      // that should ever overwrite it.
       if (isHardTicket && !isFree && selectedEventVenueId) {
         try {
           const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
           const supabase = getSupabaseBrowser();
-          // tax_method now lives on the event itself; also update the venue as a
-          // template default so new events at this venue pre-fill correctly.
-          const venueUpdate: Record<string, unknown> = { tax_method: taxMethod };
-          if (facilityFeeEnabled) {
-            const amount = Number(selectedVenueFees.facility_fee ?? 0);
-            if (!isNaN(amount) && amount >= 0) venueUpdate.facility_fee = amount;
-          }
-          await supabase.from("event_venues").update(venueUpdate).eq("id", selectedEventVenueId);
+          await supabase.from("event_venues").update({ tax_method: taxMethod }).eq("id", selectedEventVenueId);
         } catch (feeErr) {
           console.error("Failed to persist venue settings:", feeErr);
           // Non-fatal — event itself was updated successfully.
@@ -1096,7 +1098,6 @@ export default function AdminEditEventPage() {
                   setIsFree(checked);
                   if (checked) {
                     setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
-                    setFacilityFeeEnabled(false);
                   }
                 }}
                 style={{ width: 18, height: 18, accentColor: "#22c55e" }}
@@ -1513,51 +1514,30 @@ export default function AdminEditEventPage() {
           </div>
         )}
 
-        {/* ── Facility Fee Toggle + Amount (only for hard ticket events with a venue selected) ── */}
+        {/* ── Facility Fee (read-only display — see selectedVenueFees load
+             effect above). No per-event toggle or amount input: the fee
+             always mirrors whatever's saved on the venue itself, set once
+             at event-creation time (app/admin/events/new/page.tsx) and
+             never editable per-event again. Removed after a bug where an
+             unloaded fee value silently defaulted to 0 and got written back
+             to the venue on save, wiping the real fee. ── */}
         {isHardTicket && selectedEventVenueId && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${facilityFeeEnabled ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: "rgba(208,194,144,0.04)",
+            border: "1px solid rgba(208,194,144,0.12)",
             marginTop: 8,
           }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: facilityFeeEnabled ? "#22c55e" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={facilityFeeEnabled}
-                onChange={(e) => setFacilityFeeEnabled(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
-              />
-              Apply Facility Fee
-            </label>
-            {facilityFeeEnabled && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 600 }}>Amount per ticket</span>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>$</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  className="admin-form-input"
-                  style={{ width: 110, padding: "6px 10px", fontSize: 13 }}
-                  value={selectedVenueFees.facility_fee ?? 0}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
-                    setSelectedVenueFees({ facility_fee: isNaN(v) ? 0 : v });
-                  }}
-                  placeholder="0.00"
-                />
-                <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 11 }}>
-                  Saved to the venue; applies to this and future events here.
-                </span>
-              </div>
-            )}
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
-              When enabled, this amount is added to each ticket and shown to buyers as a line item.
+            <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 4 }}>
+              Facility Fee
+            </span>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+              {selectedVenueFees.facility_fee != null
+                ? `$${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket`
+                : "No fee set for this venue"}
+            </span>
+            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, margin: "6px 0 0" }}>
+              Set on the venue, not per-event — applies automatically to every event here.
             </p>
           </div>
         )}
