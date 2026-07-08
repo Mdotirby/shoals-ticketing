@@ -35,6 +35,7 @@ const sidebarGroups: SidebarGroup[] = [
     icon: "shows",
     roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
     items: [
+      { label: "Events",        href: "/admin/events",       roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"] },
       { label: "Calendar",      href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
       { label: "Seating",       href: "/admin/seating",      roles: ["owner","venue_admin"] },
     ],

@@ -32,12 +32,20 @@ export default function AdminEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
+  const [bookingStatusFilter, setBookingStatusFilter] = useState("all");
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
-    const params = new URLSearchParams({ all: "1", exclude_holds: "1" });
+    const params = new URLSearchParams({ all: "1" });
     if (venueId) params.set("venue_id", venueId);
     if (eventTypeFilter !== "all") params.set("event_type", eventTypeFilter);
+    if (bookingStatusFilter !== "all") {
+      params.set("booking_status", bookingStatusFilter);
+    } else {
+      // Only hide holds by default when no explicit status filter is picked —
+      // an explicit "Hold" selection should actually show hold events.
+      params.set("exclude_holds", "1");
+    }
 
     setLoading(true);
     fetch(`/api/events?${params}`)
@@ -50,7 +58,7 @@ export default function AdminEventsPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [eventTypeFilter]);
+  }, [eventTypeFilter, bookingStatusFilter]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this event? This cannot be undone.")) return;
@@ -75,32 +83,30 @@ export default function AdminEventsPage() {
         </div>
       </div>
 
-      {/* Event Type Filter */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
-        {[
-          { value: "all", label: "All Events" },
-          { value: "hard_ticket", label: "Hard Ticket" },
-          { value: "private", label: "Private" },
-          { value: "non_ticketed", label: "Non-Ticketed" },
-        ].map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setEventTypeFilter(opt.value)}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 6,
-              border: `1px solid ${eventTypeFilter === opt.value ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.1)"}`,
-              background: eventTypeFilter === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
-              color: eventTypeFilter === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
+      {/* Event Type / Booking Status Filters */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+        <select
+          className="admin-form-input"
+          value={eventTypeFilter}
+          onChange={(e) => setEventTypeFilter(e.target.value)}
+          style={{ maxWidth: 200 }}
+        >
+          <option value="all">All Events</option>
+          <option value="hard_ticket">Hard Ticket</option>
+          <option value="private">Private</option>
+          <option value="non_ticketed">Non-Ticketed</option>
+        </select>
+        <select
+          className="admin-form-input"
+          value={bookingStatusFilter}
+          onChange={(e) => setBookingStatusFilter(e.target.value)}
+          style={{ maxWidth: 200 }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="hold">Hold</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
 
       {loading && (

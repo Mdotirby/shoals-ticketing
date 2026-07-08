@@ -29,12 +29,6 @@ const REVENUE_CATEGORIES = [
   { value: "labor", label: "Labor" },
 ];
 
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: "#50c878",
-  hold: "#ffc832",
-  cancelled: "#ff6b6b",
-};
-
 function emptyTier(): TicketTierDraft {
   return { tier_name: "", price: "", capacity: "" };
 }
@@ -75,6 +69,8 @@ export default function AdminEditEventPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingFlyer, setUploadingFlyer] = useState(false);
+  const flyerInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
@@ -88,11 +84,13 @@ export default function AdminEditEventPage() {
 
   const [form, setForm] = useState({
     title: "",
+    subtitle: "",
     venue: "",
     date: "",
     time: "",
     description: "",
     image_url: "",
+    email_flyer_url: "",
     event_type: "hard_ticket",
     booking_status: "confirmed",
     contact_name: "",
@@ -226,11 +224,13 @@ export default function AdminEditEventPage() {
 
         setForm({
           title: event.title || "",
+          subtitle: event.subtitle || "",
           venue: event.venue || "",
           date: dateStr,
           time: timeStr,
           description: event.description || "",
           image_url: event.image_url || "",
+          email_flyer_url: event.email_flyer_url || "",
           event_type: event.event_type || "hard_ticket",
           booking_status: event.booking_status || "confirmed",
           contact_name: event.contact_name || "",
@@ -503,6 +503,50 @@ export default function AdminEditEventPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // Email flyer — a pre-sized 1080x1350 asset (built in Photoshop for the
+  // announcement email), uploaded as-is with no crop step, unlike image_url
+  // above which is cropped for the website's wide hero background.
+  const handleFlyerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    if (!validTypes.includes(file.type)) {
+      setError("Only .jpeg, .jpg .png, and .webp images are allowed.");
+      return;
+    }
+
+    setUploadingFlyer(true);
+    setError("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file, `event-flyer-${Date.now()}.jpg`);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
+
+      const { url } = await res.json();
+      setForm((prev) => ({ ...prev, email_flyer_url: url }));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Flyer upload failed");
+    } finally {
+      setUploadingFlyer(false);
+      if (flyerInputRef.current) flyerInputRef.current.value = "";
+    }
+  };
+
+  const handleRemoveFlyer = () => {
+    setForm((prev) => ({ ...prev, email_flyer_url: "" }));
+    if (flyerInputRef.current) flyerInputRef.current.value = "";
+  };
+
   // ── Trackable link helpers ──
   async function createTrackableLink() {
     if (!newLink.label || !newLink.slug) return;
@@ -613,6 +657,7 @@ export default function AdminEditEventPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
+          subtitle: form.subtitle || null,
           venue: form.venue,
           date: dateTime,
           price: isPrivate ? null : lowestPrice,
@@ -620,6 +665,7 @@ export default function AdminEditEventPage() {
           venue_rebate: isPrivate ? null : undefined,
           description: form.description || null,
           image_url: form.image_url || null,
+          email_flyer_url: form.email_flyer_url || null,
           event_venue_id: selectedEventVenueId || null,
           facility_fee_enabled: isFree ? false : facilityFeeEnabled,
           is_free: isFree,
@@ -781,7 +827,7 @@ export default function AdminEditEventPage() {
   if (loading) {
     return (
       <div className="admin-form-page">
-        <h1 className="admin-page-title">Edit Event</h1>
+        <h1 className="admin-page-title">{form.title || "Event"} - Edit Event</h1>
         <p style={{ color: "rgba(255,255,255,0.5)", padding: "40px 0" }}>
           Loading event…
         </p>
@@ -791,7 +837,7 @@ export default function AdminEditEventPage() {
 
   return (
     <div className="admin-form-page">
-      <h1 className="admin-page-title">Edit Event</h1>
+      <h1 className="admin-page-title">{form.title || "Event"} - Edit Event</h1>
 
       {/* Event-scoped module shortcuts */}
       <div
@@ -822,38 +868,6 @@ export default function AdminEditEventPage() {
       <form className="admin-form" onSubmit={handleSubmit}>
         {error && <div className="admin-form-error">{error}</div>}
 
-        {/* Event Type Selector */}
-        <div className="admin-form-label admin-form-full">
-          Event Type
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[
-              { value: "hard_ticket", label: "Hard Ticket" },
-              { value: "non_ticketed", label: "Non-Ticketed" },
-              { value: "private", label: "Private Event" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, event_type: opt.value })}
-                style={{
-                  flex: 1,
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.1)"}`,
-                  background: form.event_type === opt.value ? "rgba(208,194,144,0.1)" : "transparent",
-                  color: form.event_type === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Host / Organization Selector */}
         <div className="admin-form-label admin-form-full">
           Host / Organization
@@ -873,36 +887,34 @@ export default function AdminEditEventPage() {
           </p>
         </div>
 
+        {/* Event Type Selector */}
+        <div className="admin-form-label admin-form-full">
+          Event Type
+          <select
+            className="admin-form-input"
+            value={form.event_type}
+            onChange={(e) => setForm({ ...form, event_type: e.target.value })}
+            style={{ marginTop: 6 }}
+          >
+            <option value="hard_ticket">Hard Ticket</option>
+            <option value="non_ticketed">Non-Ticketed</option>
+            <option value="private">Private Event</option>
+          </select>
+        </div>
+
         {/* Booking Status */}
         <div className="admin-form-label admin-form-full">
           Booking Status
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[
-              { value: "confirmed", label: "Confirmed" },
-              { value: "hold", label: "Hold" },
-              { value: "cancelled", label: "Cancelled" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, booking_status: opt.value })}
-                style={{
-                  flex: 1,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
-                  background: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] + "18" : "transparent",
-                  color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <select
+            className="admin-form-input"
+            value={form.booking_status}
+            onChange={(e) => setForm({ ...form, booking_status: e.target.value })}
+            style={{ marginTop: 6 }}
+          >
+            <option value="confirmed">Confirmed</option>
+            <option value="hold">Hold</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
         </div>
 
         <div className="admin-form-grid">
@@ -915,6 +927,18 @@ export default function AdminEditEventPage() {
               value={form.title}
               onChange={handleChange}
               required
+            />
+          </label>
+
+          <label className="admin-form-label">
+            Subtitle / Tour Name
+            <input
+              type="text"
+              name="subtitle"
+              className="admin-form-input"
+              placeholder='e.g. "The In Defense of Drinking Tour"'
+              value={form.subtitle}
+              onChange={handleChange}
             />
           </label>
 
@@ -2288,6 +2312,57 @@ export default function AdminEditEventPage() {
               type="file"
               accept={ACCEPTED_IMAGE_TYPES}
               onChange={handleFileSelect}
+              className="admin-image-file-input"
+            />
+          </div>
+        </div>
+
+        {/* Email flyer upload section — separate from Event Image above.
+            This is a pre-sized 1080x1350 asset used only in the announcement
+            email, not the website's hero background. Uploaded as-is, no crop. */}
+        <div className="admin-form-label admin-form-full">
+          Email Flyer (1080x1350)
+          <div className="admin-image-upload-area">
+            {form.email_flyer_url ? (
+              <div className="admin-image-preview-wrapper">
+                <img
+                  src={form.email_flyer_url}
+                  alt="Email flyer preview"
+                  className="admin-image-preview"
+                />
+                <button
+                  type="button"
+                  className="admin-image-remove-btn"
+                  onClick={handleRemoveFlyer}
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            ) : (
+              <div
+                className="admin-image-dropzone"
+                onClick={() => flyerInputRef.current?.click()}
+              >
+                {uploadingFlyer ? (
+                  <span className="admin-image-uploading">Uploading…</span>
+                ) : (
+                  <>
+                    <span className="admin-image-dropzone-icon"></span>
+                    <span className="admin-image-dropzone-text">
+                      Click to upload the email flyer
+                    </span>
+                    <span className="admin-image-dropzone-hint">
+                      1080x1350 portrait, purpose-built for the announcement email — .jpg, .jpeg, .png, or .webp
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <input
+              ref={flyerInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES}
+              onChange={handleFlyerUpload}
               className="admin-image-file-input"
             />
           </div>
