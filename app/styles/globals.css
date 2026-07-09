@@ -6432,6 +6432,161 @@ select.admin-form-input {
   background: var(--vc-gold);
 }
 
+/* Eyebrow relocated below the card (was above it) — reuses the same
+   .digital-ticket-eyebrow text styling, just centered with different margin */
+.digital-ticket-eyebrow-below {
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+/* ============================================================
+   GENERAL ADMISSION TICKET CARD
+   Matches TICKET DESIGN.psd's GA artboard. Scoped entirely under
+   .ga-ticket-* so it can't affect the untouched reserved-seat card
+   (.digital-ticket-card and friends, above) — reserved seating is a
+   deliberate follow-up, not built yet (see app/tickets/[id]/page.tsx).
+   ============================================================ */
+
+.ga-ticket-card {
+  width: 100%;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.ga-ticket-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 0;
+  background: #ffffff;
+}
+
+.ga-ticket-header-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.ga-ticket-header-text {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #0a0a0a;
+}
+
+.ga-ticket-qr-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 28px 24px;
+  gap: 16px;
+  overflow: hidden;
+}
+
+/* Real blur on the photo itself (not just a dark overlay) — scaled up so
+   the blur's soft edges don't show the container boundary. The opaque
+   white QR card on top (.digital-ticket-qr, reused as-is) already gives
+   the code its own scan contrast regardless of what's blurred behind it. */
+.ga-ticket-qr-bg {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  background-size: cover;
+  background-position: center top;
+  filter: blur(20px);
+  transform: scale(1.15);
+  z-index: 0;
+}
+
+.ga-ticket-qr-zone > *:not(.ga-ticket-qr-bg) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Same as .digital-ticket-qr but no padding/rounded corners — kept as its
+   own class rather than editing the shared one, since that's also used by
+   the untouched reserved-seat card. */
+.ga-ticket-qr {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  display: block;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.ga-ticket-show-at-door {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.04em;
+}
+
+.ga-ticket-info-zone {
+  padding: 20px 28px 28px;
+}
+
+.ga-ticket-type-heading {
+  margin: 0 0 2px;
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 20px;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.ga-ticket-type-subheading {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ga-ticket-divider {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  margin: 0 0 16px;
+}
+
+.ga-ticket-holder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ga-ticket-holder-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ga-ticket-holder-cell-right {
+  text-align: right;
+}
+
+.ga-ticket-cell-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.ga-ticket-cell-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.ga-ticket-cell-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 /* ============================================================
    QR SCANNER PAGE
    ============================================================ */
