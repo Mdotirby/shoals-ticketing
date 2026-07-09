@@ -43,6 +43,14 @@ export default function DemographicsPage() {
     const win = window as any;
     if (!mapsLoaded || !mapRef.current || !win.google) return;
 
+    try {
+      renderHeatmapUnsafe(win);
+    } catch (err) {
+      console.error("[demographics] failed to render map:", err);
+    }
+  }, [mapsLoaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const renderHeatmapUnsafe = (win: any) => {
     const hasPoints = data?.heatmapPoints?.length && data.heatmapPoints.length > 0;
 
     const darkStyles: any[] = [
@@ -76,36 +84,27 @@ export default function DemographicsPage() {
       mapInstanceRef.current.setCenter({ lat: avgLat, lng: avgLng });
     }
 
-    const heatmapData = points.map((p) =>
-      ({ location: new win.google.maps.LatLng(p.lat, p.lng), weight: p.weight })
-    );
+    // Clear any circles from a previous render
+    (heatmapLayerRef.current ?? []).forEach((c: any) => c.setMap(null));
+    heatmapLayerRef.current = [];
 
-    if (heatmapLayerRef.current) {
-      heatmapLayerRef.current.setMap(null);
-    }
+    if (points.length === 0) return;
 
-    if (heatmapData.length === 0) return;
-
-    heatmapLayerRef.current = new win.google.maps.visualization.HeatmapLayer({
-      data: heatmapData,
-      map: mapInstanceRef.current,
-      radius: 40,
-      opacity: 0.8,
-      gradient: [
-        "rgba(0, 0, 0, 0)",
-        "rgba(30, 60, 180, 0.4)",
-        "rgba(50, 100, 220, 0.5)",
-        "rgba(80, 160, 250, 0.6)",
-        "rgba(100, 200, 255, 0.7)",
-        "rgba(180, 220, 100, 0.7)",
-        "rgba(255, 220, 50, 0.8)",
-        "rgba(255, 160, 30, 0.85)",
-        "rgba(255, 80, 20, 0.9)",
-        "rgba(255, 30, 10, 0.95)",
-        "rgba(220, 0, 0, 1)",
-      ],
+    // Note: google.maps.visualization.HeatmapLayer was removed by Google as of
+    // Maps JS API v3.65, so buyer density is rendered as weighted circles instead.
+    const maxWeight = Math.max(...points.map((p) => p.weight), 1);
+    heatmapLayerRef.current = points.map((p) => {
+      const intensity = p.weight / maxWeight;
+      return new win.google.maps.Circle({
+        map: mapInstanceRef.current,
+        center: { lat: p.lat, lng: p.lng },
+        radius: 8000 + intensity * 20000,
+        strokeWeight: 0,
+        fillColor: intensity > 0.66 ? "#ff5014" : intensity > 0.33 ? "#ffb432" : "#3c78ff",
+        fillOpacity: 0.3 + intensity * 0.35,
+      });
     });
-  }, [mapsLoaded, data]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -154,7 +153,7 @@ export default function DemographicsPage() {
 
   useEffect(() => {
     (window as any).initDemoMap = () => setMapsLoaded(true);
-    if ((window as any).google?.maps?.visualization) setMapsLoaded(true);
+    if ((window as any).google?.maps?.Map) setMapsLoaded(true);
   }, []);
 
   // ── Derived values (non-hook, safe after all hooks) ───────────────────────
@@ -169,7 +168,7 @@ export default function DemographicsPage() {
     <div className="admin-form-page">
       {apiKey && !mapsLoaded && (
         <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=visualization&callback=initDemoMap`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initDemoMap`}
           strategy="lazyOnload"
         />
       )}
