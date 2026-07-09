@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import {
   resolveVenueFees,
   validatePromoCode,
+  validatePresaleCode,
   validateAndHoldSeats,
   calculateFees,
 } from "@/lib/checkout-helpers";
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
       buyerZip,
       fwbOptIn,
       promoCode,
+      presaleCode,
       selectedSeats,
       sessionId,
       trackingRef,
@@ -89,12 +91,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Guard: reject if tickets are not yet on sale
+    // Guard: reject if tickets are not yet on sale, unless a valid presale code was supplied
     if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
-      return NextResponse.json(
-        { error: "Tickets are not yet on sale" },
-        { status: 403 }
-      );
+      const presaleOk = presaleCode ? await validatePresaleCode(admin, eventId, presaleCode) : false;
+      if (!presaleOk) {
+        return NextResponse.json(
+          { error: "Tickets are not yet on sale" },
+          { status: 403 }
+        );
+      }
     }
 
     // Guard: reject if the show has already happened or has been closed out.

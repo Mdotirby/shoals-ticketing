@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
+import { validatePresaleCode } from "@/lib/checkout-helpers";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     buyer_phone,
     quantity = 1,
     promo_code,
+    presale_code,
     seat_ids,
     tracking_ref,
     utm_source,
@@ -55,12 +57,15 @@ export async function POST(request: Request) {
   if (!event)
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-  // Guard: reject if tickets are not yet on sale
+  // Guard: reject if tickets are not yet on sale, unless a valid presale code was supplied
   if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
-    return NextResponse.json(
-      { error: "Tickets are not yet on sale" },
-      { status: 403 }
-    );
+    const presaleOk = presale_code ? await validatePresaleCode(admin, event_id, presale_code) : false;
+    if (!presaleOk) {
+      return NextResponse.json(
+        { error: "Tickets are not yet on sale" },
+        { status: 403 }
+      );
+    }
   }
 
   // Guard: reject if the show has already happened or has been closed out.

@@ -169,6 +169,7 @@ function CheckoutForm({
   onBack,
   fees,
   otherEvents = [],
+  presaleCode,
 }: {
   event: EventData;
   selectedTier: TicketType;
@@ -178,6 +179,7 @@ function CheckoutForm({
   onBack: () => void;
   fees?: Fees;
   otherEvents?: OtherEvent[];
+  presaleCode?: string | null;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -311,6 +313,7 @@ function CheckoutForm({
             buyer_phone: buyerPhone.trim() || undefined,
             quantity,
             promo_code: promoApplied ? promoCode.trim() : undefined,
+            presale_code: presaleCode || undefined,
             tracking_ref: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
             ...getStoredUtmParams(),
           }),
@@ -356,6 +359,7 @@ function CheckoutForm({
           buyerPhone: buyerPhone.trim(),
           buyerZip: buyerZip.trim() || undefined,
           promoCode: promoApplied ? promoCode.trim() : undefined,
+          presaleCode: presaleCode || undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
           ...getStoredUtmParams(),
         }),
@@ -783,6 +787,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const [presaleLoading, setPresaleLoading] = useState(false);
   const [presaleShake, setPresaleShake] = useState(false);
   const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
+  const [presaleCode, setPresaleCode] = useState<string | null>(null);
 
   const selectedTier = ticketTypes.find((t) => t.id === selectedTierId) ?? ticketTypes[0];
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
@@ -812,6 +817,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         if (parsed.unlocked) {
           setPresaleUnlocked(true);
           setPresaleType(parsed.type ?? null);
+          setPresaleCode(parsed.code ?? null);
         }
       }
     } catch { /* ignore */ }
@@ -990,10 +996,11 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         try {
           sessionStorage.setItem(
             `vc_presale_${event.id}`,
-            JSON.stringify({ unlocked: true, type: data.type })
+            JSON.stringify({ unlocked: true, type: data.type, code })
           );
         } catch { /* ignore */ }
         setPresaleType(data.type);
+        setPresaleCode(code);
         setPresaleUnlocked(true);
       } else {
         setPresaleError(data.message || "That code isn't valid or the presale window isn't open yet");
@@ -1444,6 +1451,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 onBack={handleBackFromCheckout}
                 fees={resolvedFees}
                 otherEvents={otherEvents}
+                presaleCode={presaleUnlocked ? presaleCode : undefined}
               />
             </Elements>
           </div>

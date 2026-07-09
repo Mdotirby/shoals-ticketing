@@ -148,6 +148,38 @@ export async function validatePromoCode(
   };
 }
 
+// ── Presale Code Validation ──────────────────────────────────────────────────
+
+/**
+ * Check whether a presale code unlocks early checkout for an event.
+ * Mirrors the validation logic in /api/events/[id]/presale/validate — must be
+ * re-checked server-side here since the client's "unlocked" state can't be trusted.
+ */
+export async function validatePresaleCode(
+  admin: SupabaseClient,
+  eventId: string,
+  presaleCode: string
+): Promise<boolean> {
+  const code = presaleCode.trim().toUpperCase();
+  if (!code) return false;
+
+  const { data } = await admin
+    .from("event_presales")
+    .select("code, enabled, starts_at, ends_at")
+    .eq("event_id", eventId)
+    .eq("enabled", true);
+
+  if (!data) return false;
+
+  const now = new Date();
+  return data.some((row) => {
+    if (!row.code || row.code.toUpperCase() !== code) return false;
+    if (row.starts_at && new Date(row.starts_at) > now) return false;
+    if (row.ends_at && new Date(row.ends_at) < now) return false;
+    return true;
+  });
+}
+
 /**
  * Increment the `current_uses` counter on a promo code after successful validation.
  */

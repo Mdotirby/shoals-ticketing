@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { pastEventReason } from "@/lib/events/closeout";
-import { resolveVenueFees } from "@/lib/checkout-helpers";
+import { resolveVenueFees, validatePresaleCode } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 // Stripe charges 2.7% + $0.30 per transaction
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const purchaseOperatorSlug = OPERATOR_DOMAIN_MAP[purchaseOriginHost] ?? "venuecore";
 
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref, utm_source, utm_medium, utm_campaign } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, presale_code, seat_ids, session_id: buyerSessionId, tracking_ref, utm_source, utm_medium, utm_campaign } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -50,12 +50,15 @@ export async function POST(request: Request) {
       );
     }
 
-    // Guard: reject if tickets are not yet on sale
+    // Guard: reject if tickets are not yet on sale, unless a valid presale code was supplied
     if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {
-      return NextResponse.json(
-        { error: "Tickets are not yet on sale" },
-        { status: 403 }
-      );
+      const presaleOk = presale_code ? await validatePresaleCode(admin, event_id, presale_code) : false;
+      if (!presaleOk) {
+        return NextResponse.json(
+          { error: "Tickets are not yet on sale" },
+          { status: 403 }
+        );
+      }
     }
 
     // Guard: reject if the show has already happened or has been closed out.

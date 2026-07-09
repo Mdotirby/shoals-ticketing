@@ -111,6 +111,7 @@ export default function EventDetailClient() {
   const [presaleLoading, setPresaleLoading] = useState(false);
   const [presaleShake, setPresaleShake] = useState(false);
   const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
+  const [presaleCode, setPresaleCode] = useState<string | null>(null);
   const [allEvents, setAllEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null; venue_id?: string }[]>([]);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
@@ -139,6 +140,7 @@ export default function EventDetailClient() {
         if (parsed.unlocked) {
           setPresaleUnlocked(true);
           setPresaleType(parsed.type ?? null);
+          setPresaleCode(parsed.code ?? null);
         }
       }
     } catch { /* ignore */ }
@@ -289,10 +291,11 @@ export default function EventDetailClient() {
         try {
           sessionStorage.setItem(
             `vc_presale_${eventId}`,
-            JSON.stringify({ unlocked: true, type: data.type })
+            JSON.stringify({ unlocked: true, type: data.type, code })
           );
         } catch { /* ignore */ }
         setPresaleType(data.type);
+        setPresaleCode(code);
         setPresaleUnlocked(true);
       } else {
         setPresaleError(data.message || "That code isn't valid or the presale window isn't open yet");
@@ -587,6 +590,7 @@ export default function EventDetailClient() {
           buyer_email: email,
           quantity,
           promo_code: appliedPromoRef.current,
+          presale_code: presaleUnlocked ? presaleCode : undefined,
           seat_ids: hasSeatingSelection
             ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)]
             : undefined,
@@ -971,6 +975,7 @@ export default function EventDetailClient() {
                     ticketPrice={selectedTicket?.price || event.price || 0}
                     quantity={quantity}
                     promoCode={appliedPromoRef.current}
+                    presaleCode={presaleUnlocked ? presaleCode : undefined}
                     selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
                     isFreeEvent={isFreeEvent}
                     onBack={() => setCheckoutStep("browse")}
@@ -1109,6 +1114,7 @@ export default function EventDetailClient() {
                       tierName="Free Admission"
                       ticketPrice={0}
                       quantity={quantity}
+                      presaleCode={presaleCode}
                       isFreeEvent={true}
                       onBack={() => {}}
                     />

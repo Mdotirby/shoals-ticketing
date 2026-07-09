@@ -39,6 +39,7 @@ type InlineCheckoutProps = {
   ticketPrice: number;
   quantity: number;
   promoCode?: string | null;
+  presaleCode?: string | null;
   selectedSeatIds?: string[];
   isFreeEvent?: boolean;
   onBack: () => void;
@@ -155,6 +156,7 @@ function CheckoutForm({
   ticketPrice,
   quantity,
   promoCode,
+  presaleCode,
   selectedSeatIds,
   isFreeEvent,
   onBack,
@@ -243,6 +245,7 @@ function CheckoutForm({
             buyerPhone: ev.payerPhone || "",
             fwbOptIn: false,
             promoCode: promoCode || undefined,
+            presaleCode: presaleCode || undefined,
             selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
             sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
             trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
@@ -314,6 +317,7 @@ function CheckoutForm({
             buyer_phone: buyerPhone.trim() || undefined,
             quantity,
             promo_code: promoCode || undefined,
+            presale_code: presaleCode || undefined,
             seat_ids: selectedSeatIds?.length ? selectedSeatIds : undefined,
             tracking_ref: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
             ...getStoredUtmParams(),
@@ -361,6 +365,7 @@ function CheckoutForm({
           buyerZip: buyerZip.trim() || undefined,
           fwbOptIn,
           promoCode: promoCode || undefined,
+          presaleCode: presaleCode || undefined,
           selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
           sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
