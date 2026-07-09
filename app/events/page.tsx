@@ -31,6 +31,8 @@ export default function EventsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterType>("all");
+  const [hosts, setHosts] = useState<{ id: string; name: string }[]>([]);
+  const [hostFilter, setHostFilter] = useState("");
 
   useEffect(() => {
     const params = isVenueSubdomain ? `?venue_slug=${venueSlug}` : "";
@@ -42,11 +44,28 @@ export default function EventsPage() {
       })
       .catch((err) => console.error("Events fetch error:", err))
       .finally(() => setIsLoading(false));
+
+    fetch("/api/venues")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setHosts(data.map((v) => ({ id: v.id, name: v.name })));
+      })
+      .catch((err) => console.error("Venues fetch error:", err));
   }, [venueSlug, isVenueSubdomain]);
 
+  // Only list hosts that actually have an upcoming event, so the dropdown
+  // never offers a choice that would empty the results.
+  const hostsWithEvents = useMemo(
+    () => hosts.filter((h) => events.some((e) => e.venue_id === h.id)),
+    [hosts, events]
+  );
+
   const filtered = useMemo(
-    () => events.filter((e) => matchesFilter(e, query, filter)),
-    [events, query, filter]
+    () =>
+      events.filter(
+        (e) => matchesFilter(e, query, filter) && (!hostFilter || e.venue_id === hostFilter)
+      ),
+    [events, query, filter, hostFilter]
   );
 
   return (
@@ -76,6 +95,19 @@ export default function EventsPage() {
             <option value="venue">by Venue</option>
             <option value="city">by City</option>
           </select>
+          {hostsWithEvents.length > 0 && (
+            <select
+              className="events-filter-select"
+              style={{ marginLeft: 6 }}
+              value={hostFilter}
+              onChange={(e) => setHostFilter(e.target.value)}
+            >
+              <option value="">All Hosts</option>
+              {hostsWithEvents.map((h) => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
+          )}
           {query && (
             <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px 12px" }}>✕</button>
           )}
