@@ -103,7 +103,7 @@ async function processTicketOrder({
     // Fetch event details + venue slug for email
     const { data: eventData } = await admin
       .from("events")
-      .select("title, date, venue, venue_id")
+      .select("title, date, venue, venue_id, image_url")
       .eq("id", eventId)
       .single();
 
@@ -482,6 +482,7 @@ async function processTicketOrder({
         eventTitle: eventData.title,
         eventDate: eventData.date,
         eventVenue: eventData.venue,
+        eventImage: eventData.image_url,
         ticketCount: quantity,
         totalAmount,
         qrDataUrl: createdTickets[0].qr_data_url,

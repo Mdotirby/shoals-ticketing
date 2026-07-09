@@ -108,6 +108,8 @@ export type EmailDocument = {
   version: "block-v1";
   bg_color: string;
   blocks: Block[];
+  /** Inbox preview/preheader snippet. May contain {{variable}} placeholders, substituted the same way block props are. Optional — omitting it renders no <Preview>. */
+  preview_text?: string;
 };
 
 // ── Prop field schema (drives PropEditor UI) ───────────────────────

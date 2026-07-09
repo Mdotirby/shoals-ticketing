@@ -1,4 +1,4 @@
-import { render, Html, Head, Body } from "@react-email/components";
+import { render, Html, Head, Body, Preview } from "@react-email/components";
 import { createElement } from "react";
 import type { EmailDocument, Block } from "./email-document";
 import { ImageBlock } from "./blocks/image-block";
@@ -39,6 +39,7 @@ export async function renderDocument(doc: EmailDocument): Promise<string> {
       createElement("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
       createElement("meta", { name: "x-apple-disable-message-reformatting" }),
     ),
+    doc.preview_text ? createElement(Preview, null, doc.preview_text) : null,
     createElement(
       Body,
       {
