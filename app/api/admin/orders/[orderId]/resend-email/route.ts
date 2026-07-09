@@ -19,7 +19,7 @@ export async function POST(
   // Fetch order + event
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select(`*, events!inner(id, title, date, venue, venue_id)`)
+    .select(`*, events!inner(id, title, date, venue, venue_id, image_url)`)
     .eq("id", orderId)
     .single();
 
@@ -82,6 +82,7 @@ export async function POST(
     eventTitle: order.events.title,
     eventDate: order.events.date,
     eventVenue: order.events.venue,
+    eventImage: order.events.image_url,
     ticketCount: tickets.length,
     totalAmount: order.total_amount,
     qrDataUrl: firstTicket.qr_data_url,

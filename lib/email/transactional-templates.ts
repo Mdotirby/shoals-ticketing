@@ -78,6 +78,7 @@ export const SAMPLE_DATA: Record<TransactionalTemplateKey, Record<string, string
 const TICKET_DELIVERY_DEFAULT: EmailDocument = {
   version: "block-v1",
   bg_color: "#000000",
+  preview_text: "Hey {{first_name}}, Thank you for coming to the show!",
   blocks: [
     // ── Logo bar ───────────────────────────────────────────────────
     {
@@ -116,7 +117,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
       id: "td-heading",
       type: "heading",
       props: {
-        text: "Your Ticket Is Ready.",
+        text: "Your Ticket Is Waiting For You",
         level: "h1",
         color: "#ffffff",
         align: "center",
@@ -128,7 +129,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
       id: "td-greeting",
       type: "text",
       props: {
-        content: "Hey {{first_name}},\n\nYou're all set! Here's everything you need for the show.",
+        content: "Hey {{first_name}}, Thank you for coming to the show!\n\nYou're all set! Here is everything you will need for the show:",
       },
     },
     // ── Event details card ─────────────────────────────────────────
@@ -148,7 +149,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
       id: "td-qr-notice",
       type: "info_card",
       props: {
-        heading: "Your QR Code Is Your Ticket",
+        heading: "Your QR Code is your ticket",
         accent_color: "#d0c290",
         lines: "Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy — just have it ready when you arrive.",
       },
@@ -158,7 +159,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
       id: "td-cta",
       type: "button",
       props: {
-        label: "View My Ticket & QR Code",
+        label: "View My Ticket",
         url: "{{ticket_url}}",
         bg_color: "#d0c290",
         text_color: "#000000",
@@ -184,7 +185,7 @@ const TICKET_DELIVERY_DEFAULT: EmailDocument = {
       type: "footer",
       props: {
         venue_name: "West 72 Entertainment",
-        reason: "because you purchased tickets through VenueCore.",
+        reason: "because, well, you bought a ticket.",
         unsubscribe_url: "",
       },
     },
