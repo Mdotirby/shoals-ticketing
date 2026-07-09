@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     const purchaseOperatorSlug = OPERATOR_DOMAIN_MAP[purchaseOriginHost] ?? "venuecore";
 
     const body = await request.json();
-    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref } = body;
+    const { event_id, quantity = 1, buyer_name, buyer_email, buyer_phone, buyer_zip, fwb_opt_in, promo_code, seat_ids, session_id: buyerSessionId, tracking_ref, utm_source, utm_medium, utm_campaign } = body;
 
     if (!event_id) {
       return NextResponse.json(
@@ -373,6 +373,9 @@ export async function POST(request: Request) {
         seat_hold_session: (isAssignedSeating && buyerSessionId) ? buyerSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: tracking_ref || "",
+        utm_source: utm_source || "",
+        utm_medium: utm_medium || "",
+        utm_campaign: utm_campaign || "",
         operator_slug: purchaseOperatorSlug,
       },
     };

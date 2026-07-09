@@ -53,6 +53,9 @@ async function processTicketOrder({
   seatHoldSession,
   fwbOptIn,
   trackingRef,
+  utmSource,
+  utmMedium,
+  utmCampaign,
   stripeReferenceId,
   stripePaymentIntentId,
   ticketingFee,
@@ -78,6 +81,9 @@ async function processTicketOrder({
   seatHoldSession: string | null; // new: browser session used to hold the seats
   fwbOptIn: boolean;
   trackingRef: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
   stripeReferenceId: string;
   stripePaymentIntentId?: string | null;
   ticketingFee: number;
@@ -134,6 +140,9 @@ async function processTicketOrder({
         source,
         promo_code_id: promoCodeId || null,
         tracking_link_slug: trackingRef || null,
+        utm_source: utmSource || null,
+        utm_medium: utmMedium || null,
+        utm_campaign: utmCampaign || null,
         customer_zip: customerZip,
         operator_slug: operatorSlug || "venuecore",
       })
@@ -673,6 +682,9 @@ export async function POST(request: Request) {
       seatHoldSession: session.metadata?.seat_hold_session || null,
       fwbOptIn,
       trackingRef: session.metadata?.tracking_ref || null,
+      utmSource: session.metadata?.utm_source || null,
+      utmMedium: session.metadata?.utm_medium || null,
+      utmCampaign: session.metadata?.utm_campaign || null,
       stripeReferenceId: session.id,
       stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
       ticketingFee: parseFloat(session.metadata?.ticketing_fee || "3"),
@@ -717,6 +729,9 @@ export async function POST(request: Request) {
         fwbOptIn: meta.fwb_opt_in === "true",
         taxMethod: meta.tax_method || "additive",
         trackingRef: meta.tracking_ref || null,
+        utmSource: meta.utm_source || null,
+        utmMedium: meta.utm_medium || null,
+        utmCampaign: meta.utm_campaign || null,
         stripeReferenceId: paymentIntent.id,
         stripePaymentIntentId: paymentIntent.id,
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),

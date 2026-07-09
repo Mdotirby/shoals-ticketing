@@ -43,6 +43,7 @@ function formatEventDate(d: Date): string {
  */
 export async function mapUpcomingEventsToEmailProps(
   limit: number,
+  opts?: { utmCampaign?: string },
 ): Promise<UpcomingEventsEmailProps> {
   const client = createAdminClient();
   const now = new Date().toISOString();
@@ -81,7 +82,10 @@ export async function mapUpcomingEventsToEmailProps(
     venueName: (event.event_venue_id && venuesById.get(event.event_venue_id)) || event.venue,
     ticketPrice: event.is_free ? "Free" : event.price ? `$${event.price}` : undefined,
     heroImageUrl: event.email_flyer_url ?? "",
-    ticketUrl: buildEventUrl(event.id),
+    ticketUrl: buildEventUrl(
+      event.id,
+      opts?.utmCampaign ? { source: "broadcast", campaign: opts.utmCampaign } : undefined,
+    ),
   }));
 
   const names = summaries.map((s) => s.eventName).join(", ");

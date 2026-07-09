@@ -140,132 +140,27 @@ export async function POST(request: Request) {
     };
     const roleLabel = ROLE_LABELS[role] || role;
     const displayName = first_name || "there";
-    const loginUrl = role === "agent"
-      ? "https://venuecore.live/login?redirect=/agent"
-      : "https://venuecore.live/login";
+    // Deep-links the email/temp password into the login form so there's
+    // nothing to copy/retype — the login page reads these params, prefills,
+    // then immediately scrubs them from the URL/history (see app/login/page.tsx).
+    const loginParams = new URLSearchParams({
+      email,
+      temp_password: authPassword,
+    });
+    if (role === "agent") loginParams.set("redirect", "/agent");
+    const loginUrl = `https://venuecore.live/login?${loginParams.toString()}`;
     const ctaLabel = role === "agent" ? "Sign In to Agent Portal →" : "Sign In to VenueCore →";
     const CC_EMAIL = "matt.irby@west72ent.com";
 
-    // Build HTML — try custom template first, fall back to legacy inline HTML
-    let welcomeHtml: string;
-    try {
-      const { loadTransactionalTemplate, replaceVars } = await import("@/lib/email/transactional-templates");
-      const { renderDocument } = await import("@/emails/render");
-      const doc = await loadTransactionalTemplate(admin, "user_onboarding");
-      const rawHtml = await renderDocument(doc);
-      welcomeHtml = replaceVars(rawHtml, {
-        display_name: displayName,
-        email: email,
-        role_label: roleLabel,
-        temp_password: authPassword,
-        login_url: loginUrl,
-        cta_label: ctaLabel,
-      });
-    } catch {
-      // Outlook/Apple Mail-safe fallback — mirrors the block-based design
-      welcomeHtml = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>Welcome to VenueCore</title></head>
-<body style="margin:0;padding:0;background-color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#000000;">
-<tr><td align="center" style="padding:0;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#000000;">
-
-  <!-- Logo bar -->
-  <tr><td align="center" style="padding:24px 28px 0;background-color:#000000;">
-    <a href="https://venuecore.live" style="display:block;text-decoration:none;">
-      <img src="https://venuecore.live/West72_Logos/W72_tech_lockup_white.png" alt="West 72 Entertainment" width="260" style="display:block;width:260px;max-width:260px;height:auto;border:0;outline:none;">
-    </a>
-  </td></tr>
-
-  <!-- Gold accent rule -->
-  <tr><td style="padding:16px 0 0;background-color:#000000;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:1px;background-color:#d0c290;font-size:0;line-height:0;">&nbsp;</td></tr></table>
-  </td></tr>
-
-  <!-- Hero image -->
-  <tr><td style="padding:0;background-color:#000000;">
-    <img src="https://venuecore.live/hero-images/west72/hero.jpg" alt="West 72 Entertainment" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
-  </td></tr>
-
-  <!-- Heading -->
-  <tr><td align="center" style="padding:28px 28px 8px;background-color:#000000;">
-    <h1 style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:36px;font-weight:800;line-height:1.1;letter-spacing:-0.02em;color:#ffffff;text-align:center;">Welcome to VenueCore</h1>
-  </td></tr>
-
-  <!-- Sub-heading -->
-  <tr><td align="center" style="padding:8px 28px 4px;background-color:#000000;">
-    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.75);text-align:center;">
-      Hey ${displayName}, you&rsquo;ve been added as a <span style="color:#d0c290;font-weight:700;">${roleLabel}</span>.
-    </p>
-  </td></tr>
-
-  <!-- Instructions -->
-  <tr><td align="center" style="padding:8px 28px 20px;background-color:#000000;">
-    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:rgba(255,255,255,0.75);text-align:center;">
-      Use the credentials below to sign in and get started. We recommend changing your password after your first login.
-    </p>
-  </td></tr>
-
-  <!-- Credentials card -->
-  <tr><td style="padding:0 28px 16px;background-color:#000000;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-           style="background-color:rgba(255,255,255,0.04);border:1px solid rgba(208,194,144,0.2);border-radius:12px;">
-      <tr><td style="padding:18px 20px;">
-        <p style="margin:0 0 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#d0c290;">Your Login Credentials</p>
-        <p style="margin:0 0 6px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.8);">Email: ${email}</p>
-        <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.5;color:rgba(255,255,255,0.8);">Temporary Password: <strong style="color:#d0c290;">${authPassword}</strong></p>
-      </td></tr>
-    </table>
-  </td></tr>
-
-  <!-- CTA button — bg on <td> for Outlook -->
-  <tr><td align="center" style="padding:8px 24px 24px;background-color:#000000;">
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
-      <tr>
-        <td align="center" style="background-color:#d0c290;border-radius:10px;">
-          <a href="${loginUrl}" style="display:inline-block;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;font-weight:700;color:#000000;text-decoration:none;padding-top:14px;padding-bottom:14px;padding-left:36px;padding-right:36px;letter-spacing:0.2px;">
-            ${ctaLabel}
-          </a>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
-
-  <!-- Fine print -->
-  <tr><td align="center" style="padding:4px 28px 20px;background-color:#000000;">
-    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:rgba(255,255,255,0.4);text-align:center;">
-      If you didn&rsquo;t expect this invitation, you can safely ignore this email.<br>
-      Questions? Contact <a href="mailto:support@venuecore.live" style="color:rgba(208,194,144,0.6);text-decoration:none;">support@venuecore.live</a>
-    </p>
-  </td></tr>
-
-  <!-- Gold divider + footer -->
-  <tr><td style="padding:0;background-color:#000000;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="height:1px;background-color:rgba(208,194,144,0.25);font-size:0;line-height:0;">&nbsp;</td></tr></table>
-  </td></tr>
-  <tr><td align="center" style="padding:18px 28px 26px;background-color:#000000;">
-    <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:rgba(255,255,255,0.3);text-align:center;">
-      Sent by <strong style="color:rgba(255,255,255,0.6);">West 72 Entertainment</strong> because you were invited to join the platform.
-    </p>
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body></html>`;
-    }
-
-    fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: "VenueCore <onboarding@west72ent.com>",
-        to: [email],
-        cc: email !== CC_EMAIL ? [CC_EMAIL] : [],
-        subject: `Welcome to VenueCore — You're a ${roleLabel}`,
-        html: welcomeHtml,
-      }),
+    const { sendOnboardingEmail } = await import("@/lib/email/onboarding-email");
+    sendOnboardingEmail({
+      to: email,
+      ccEmail: CC_EMAIL,
+      displayName,
+      roleLabel,
+      tempPassword: authPassword,
+      loginUrl,
+      ctaLabel,
     }).catch(() => {});
   }
 

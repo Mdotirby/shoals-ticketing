@@ -15,6 +15,7 @@ import {
 } from "@stripe/react-stripe-js";
 import type { PaymentRequest } from "@stripe/stripe-js";
 import { trackFbEvent } from "@/lib/fbq";
+import { getStoredUtmParams } from "@/lib/clientAttribution";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -245,6 +246,7 @@ function CheckoutForm({
             selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
             sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
             trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+            ...getStoredUtmParams(),
           }),
         });
         const data = await res.json();
@@ -314,6 +316,7 @@ function CheckoutForm({
             promo_code: promoCode || undefined,
             seat_ids: selectedSeatIds?.length ? selectedSeatIds : undefined,
             tracking_ref: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+            ...getStoredUtmParams(),
           }),
         });
 
@@ -361,6 +364,7 @@ function CheckoutForm({
           selectedSeats: selectedSeatIds?.length ? selectedSeatIds : undefined,
           sessionId: typeof sessionStorage !== "undefined" ? (sessionStorage.getItem("vc_session") || undefined) : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+          ...getStoredUtmParams(),
         }),
       });
 

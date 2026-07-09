@@ -7,6 +7,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import TrackingPixels from "@/app/components/TrackingPixels";
+import { persistUtmParams, getStoredUtmParams } from "@/lib/clientAttribution";
 import {
   Elements,
   CardNumberElement,
@@ -311,6 +312,7 @@ function CheckoutForm({
             quantity,
             promo_code: promoApplied ? promoCode.trim() : undefined,
             tracking_ref: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+            ...getStoredUtmParams(),
           }),
         });
 
@@ -355,6 +357,7 @@ function CheckoutForm({
           buyerZip: buyerZip.trim() || undefined,
           promoCode: promoApplied ? promoCode.trim() : undefined,
           trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+          ...getStoredUtmParams(),
         }),
       });
 
@@ -820,6 +823,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
     if (ref) {
       sessionStorage.setItem("vc_tracking_ref", ref);
     }
+    persistUtmParams(searchParams);
   }, [searchParams]);
 
   // ── Track page view ───────────────────────────────────────────────────────

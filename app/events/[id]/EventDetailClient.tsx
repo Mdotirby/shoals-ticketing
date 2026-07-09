@@ -17,6 +17,7 @@ import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { trackFbEvent } from "@/lib/fbq";
 import { pastEventReason } from "@/lib/events/closeout";
 import TrackingPixels from "@/app/components/TrackingPixels";
+import { persistUtmParams } from "@/lib/clientAttribution";
 
 type FeaturedArtist = {
   id: string;
@@ -189,6 +190,7 @@ export default function EventDetailClient() {
     if (refSlug) {
       sessionStorage.setItem("vc_tracking_ref", refSlug);
     }
+    persistUtmParams(urlParams);
 
     fetch(`/api/events/${eventId}/views`, {
       method: "POST",
@@ -266,9 +268,11 @@ export default function EventDetailClient() {
     });
   }, [seatingSections]);
 
-  // Presale code validation
-  const handlePresaleUnlock = useCallback(async () => {
-    const code = presaleCodeInput.trim().toUpperCase();
+  // Presale code validation. Accepts an explicit code override so an
+  // emailed deep link (?presale=CODE) can trigger this before React state
+  // has caught up, rather than relying on presaleCodeInput's stale closure.
+  const handlePresaleUnlock = useCallback(async (codeOverride?: string) => {
+    const code = (codeOverride ?? presaleCodeInput).trim().toUpperCase();
     if (!code) return;
     setPresaleLoading(true);
     setPresaleError(null);
@@ -303,6 +307,18 @@ export default function EventDetailClient() {
       setPresaleLoading(false);
     }
   }, [eventId, presaleCodeInput]);
+
+  // Auto-unlock from an emailed presale link (?presale=CODE) — same deep-link
+  // pattern as the onboarding email's login prefill, nothing to copy/retype.
+  useEffect(() => {
+    if (!eventId) return;
+    const code = new URLSearchParams(window.location.search).get("presale");
+    if (!code) return;
+    setPresaleCodeInput(code);
+    setPresalePanelVisible(true);
+    handlePresaleUnlock(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   // Fetch featured artists assigned to this event
   useEffect(() => {
@@ -1034,7 +1050,7 @@ export default function EventDetailClient() {
                             />
                             <button
                               type="button"
-                              onClick={handlePresaleUnlock}
+                              onClick={() => handlePresaleUnlock()}
                               disabled={presaleLoading || !presaleCodeInput.trim()}
                               style={{
                                 padding: "11px 20px",

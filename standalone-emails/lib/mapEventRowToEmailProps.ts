@@ -198,6 +198,7 @@ function resolveOnSaleState(
  */
 export async function mapEventIdToEmailProps(
   eventId: string,
+  opts?: { utmCampaign?: string },
 ): Promise<EventAnnouncementEmailProps> {
   const client = createAdminClient();
 
@@ -257,11 +258,17 @@ export async function mapEventIdToEmailProps(
     null;
 
   const dateObj = parseNaiveLocalDate(event.date);
-  // Always the main event page (/events/[id]), never the landing page
-  // (/e/[slug]) even when one exists — standing rule, see urls.ts.
-  const ticketUrl = buildEventUrl(event.id);
   const eventDayOfWeek = dateObj.toLocaleDateString("en-US", { weekday: "long", timeZone: NAIVE_TZ });
   const onSale = resolveOnSaleState(event.on_sale_at, presaleRow ?? null);
+  // Always the main event page (/events/[id]), never the landing page
+  // (/e/[slug]) even when one exists — standing rule, see urls.ts. Deep-links
+  // the presale code (if in an active presale window) so tapping the CTA
+  // auto-unlocks it — nothing to copy/retype.
+  const ticketUrl = buildEventUrl(
+    event.id,
+    opts?.utmCampaign ? { source: "broadcast", campaign: opts.utmCampaign } : undefined,
+    onSale.onSaleState === "presale" ? onSale.presaleCode : undefined,
+  );
 
   return {
     eventName: event.title,

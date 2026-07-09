@@ -52,13 +52,22 @@ export function UpcomingEventsEmail({
   return (
     <Html>
       <Head>
+        {/* All-dark design, no light variant — see lib/email/OnboardingEmail.tsx
+            for why these are needed (prevents clients from partially auto-
+            remapping colors in their own dark mode). */}
+        <meta name="color-scheme" content="dark" />
+        <meta name="supported-color-schemes" content="dark" />
+        <style>{`
+          :root { color-scheme: dark; supported-color-schemes: dark; }
+          [data-ogsc] .email-bg, [data-ogsb] .email-bg { background-color: #000000 !important; }
+        `}</style>
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=Archivo+Condensed:wght@600;700&family=Archivo+Expanded:wght@700;800&display=swap"
         />
       </Head>
       <Preview>{previewText}</Preview>
-      <Body style={{ backgroundColor: "#000000", margin: 0, padding: 0 }}>
+      <Body className="email-bg" style={{ backgroundColor: "#000000", margin: 0, padding: 0 }}>
         <Container style={{ width: 640, maxWidth: 640, margin: "0 auto" }}>
           {/* Header */}
           <Section style={{ padding: "32px 0", textAlign: "center" }}>
