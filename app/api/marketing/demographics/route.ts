@@ -114,13 +114,13 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: adminRecord } = await admin
+  const { data: adminRecord, error: adminError } = await admin
     .from("admin_users")
     .select("role")
     .eq("id", user.id)
     .single();
 
-  if (!adminRecord || adminRecord.role !== "owner") {
+  if (adminError || !adminRecord || adminRecord.role !== "owner") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

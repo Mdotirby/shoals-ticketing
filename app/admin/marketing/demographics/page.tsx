@@ -29,6 +29,7 @@ export default function DemographicsPage() {
   const [selectedEvent, setSelectedEvent] = useState("");
   const [data, setData] = useState<DemoData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [mapsLoaded, setMapsLoaded] = useState(false);
 
@@ -122,8 +123,9 @@ export default function DemographicsPage() {
   }, []);
 
   useEffect(() => {
-    if (!selectedEvent) { setData(null); return; }
+    if (!selectedEvent) { setData(null); setError(null); return; }
     setLoading(true);
+    setError(null);
     (async () => {
       const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
       const { data: sessionData } = await getSupabaseBrowser().auth.getSession();
@@ -133,9 +135,15 @@ export default function DemographicsPage() {
       try {
         const r = await fetch(`/api/marketing/demographics?event_id=${selectedEvent}`, { headers });
         const d = await r.json();
+        if (!r.ok || d?.error) {
+          setData(null);
+          setError(d?.error || `Failed to load demographics (${r.status})`);
+          return;
+        }
         setData(d);
       } catch {
         setData(null);
+        setError("Failed to load demographics — check your connection and try again.");
       } finally {
         setLoading(false);
       }
@@ -195,6 +203,12 @@ export default function DemographicsPage() {
       )}
 
       {loading && <p style={{ color: "rgba(255,255,255,0.4)" }}>Loading demographics...</p>}
+
+      {error && !loading && (
+        <div style={{ background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.25)", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <p style={{ color: "#ff6b6b", fontSize: 13, margin: 0 }}>{error}</p>
+        </div>
+      )}
 
       {data && !loading && (
         <>
