@@ -10,8 +10,11 @@ import { render } from "@react-email/components";
 import { getResendClient } from "./resendClient";
 import { TRIGGERS, TRIGGER_TEMPLATE_ALIAS } from "./triggers";
 import { EventAnnouncementEmail } from "../templates/EventAnnouncementEmail";
+import { UpcomingEventsEmail } from "../templates/UpcomingEventsEmail";
 
-const PREVIEW_PROPS = {
+const FROM = "West 72 Entertainment <events@west72ent.com>";
+
+const ANNOUNCEMENT_PREVIEW_PROPS = {
   eventName: "Sample Show",
   eventDate: "Saturday, October 24",
   eventTime: "9:00 PM",
@@ -25,34 +28,75 @@ const PREVIEW_PROPS = {
   previewText: "Sample Show — Saturday, October 24 at Sample Venue",
 };
 
-export async function publishEventAnnouncementTemplate() {
-  const resend = getResendClient();
-  const alias = TRIGGER_TEMPLATE_ALIAS[TRIGGERS.NEW_EVENT_ANNOUNCEMENT];
+const UPCOMING_EVENTS_PREVIEW_PROPS = {
+  events: [
+    {
+      id: "1",
+      eventName: "Sample Show One",
+      eventDate: "July 10",
+      venueName: "Sample Venue",
+      ticketPrice: "$10",
+      heroImageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&h=1500&fit=crop",
+      ticketUrl: "https://west72ent.com/events/1",
+    },
+    {
+      id: "2",
+      eventName: "Sample Show Two",
+      eventDate: "August 4",
+      venueName: "Sample Venue",
+      ticketPrice: "$15",
+      heroImageUrl: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1200&h=1500&fit=crop",
+      ticketUrl: "https://west72ent.com/events/2",
+    },
+  ],
+  previewText: "Coming up: Sample Show One, Sample Show Two",
+};
 
-  // Pre-rendered to html ourselves rather than passing `react` to Resend —
-  // the installed resend SDK (6.9.2) internally destructures `renderAsync`
-  // from @react-email/render, but that package renamed it to `render` in
-  // v2.x, so the SDK's own react->html path throws. html-only sidesteps it.
-  const html = await render(EventAnnouncementEmail(PREVIEW_PROPS));
-  const existing = await resend.templates.get(alias);
+// Pre-rendered to html ourselves rather than passing `react` to Resend — the
+// installed resend SDK (6.9.2) internally destructures `renderAsync` from
+// @react-email/render, but that package renamed it to `render` in v2.x, so
+// the SDK's own react->html path throws. html-only sidesteps it.
+async function upsertTemplate(opts: { alias: string; name: string; html: string; subject: string }) {
+  const resend = getResendClient();
+  const existing = await resend.templates.get(opts.alias);
 
   if (existing.error) {
     const chainable = resend.templates.create({
-      name: "New Event Announcement",
-      alias,
-      html,
-      subject: "{{eventName}} — {{eventDate}}",
-      from: "West 72 Entertainment <events@west72ent.com>",
+      name: opts.name,
+      alias: opts.alias,
+      html: opts.html,
+      subject: opts.subject,
+      from: FROM,
     });
     await chainable.publish();
     return chainable;
   }
 
-  const updated = await resend.templates.update(alias, {
+  const updated = await resend.templates.update(opts.alias, {
+    html: opts.html,
+    subject: opts.subject,
+    from: FROM,
+  });
+  await resend.templates.publish(opts.alias);
+  return updated;
+}
+
+export async function publishEventAnnouncementTemplate() {
+  const html = await render(EventAnnouncementEmail(ANNOUNCEMENT_PREVIEW_PROPS));
+  return upsertTemplate({
+    alias: TRIGGER_TEMPLATE_ALIAS[TRIGGERS.NEW_EVENT_ANNOUNCEMENT],
+    name: "New Event Announcement",
     html,
     subject: "{{eventName}} — {{eventDate}}",
-    from: "West 72 Entertainment <events@west72ent.com>",
   });
-  await resend.templates.publish(alias);
-  return updated;
+}
+
+export async function publishUpcomingEventsTemplate() {
+  const html = await render(UpcomingEventsEmail(UPCOMING_EVENTS_PREVIEW_PROPS));
+  return upsertTemplate({
+    alias: TRIGGER_TEMPLATE_ALIAS[TRIGGERS.UPCOMING_EVENTS_DIGEST],
+    name: "Upcoming Events Digest",
+    html,
+    subject: "Check Out What's On at West 72",
+  });
 }

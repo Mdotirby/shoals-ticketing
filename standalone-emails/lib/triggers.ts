@@ -5,6 +5,7 @@
 
 export const TRIGGERS = {
   NEW_EVENT_ANNOUNCEMENT: "new_event_announcement",
+  UPCOMING_EVENTS_DIGEST: "upcoming_events_digest",
   SPONSOR_HIGHLIGHT: "sponsor_highlight", // reserved — dedicated design, not built yet
   KNOW_BEFORE_YOU_GO: "know_before_you_go", // reserved — lineup-forward design, not built yet
   TICKET_DELIVERY: "ticket_delivery", // reserved — not wired yet
@@ -21,6 +22,7 @@ export type TriggerType = (typeof TRIGGERS)[keyof typeof TRIGGERS];
  */
 export const TRIGGER_SEND_MODE: Record<TriggerType, "broadcast" | "transactional"> = {
   [TRIGGERS.NEW_EVENT_ANNOUNCEMENT]: "broadcast",
+  [TRIGGERS.UPCOMING_EVENTS_DIGEST]: "broadcast",
   [TRIGGERS.SPONSOR_HIGHLIGHT]: "broadcast",
   [TRIGGERS.KNOW_BEFORE_YOU_GO]: "broadcast",
   [TRIGGERS.TICKET_DELIVERY]: "transactional",
@@ -30,6 +32,7 @@ export const TRIGGER_SEND_MODE: Record<TriggerType, "broadcast" | "transactional
 /** Resend template `alias` used to look the template up — one per trigger. */
 export const TRIGGER_TEMPLATE_ALIAS: Record<TriggerType, string> = {
   [TRIGGERS.NEW_EVENT_ANNOUNCEMENT]: "new-event-announcement",
+  [TRIGGERS.UPCOMING_EVENTS_DIGEST]: "upcoming-events-digest",
   [TRIGGERS.SPONSOR_HIGHLIGHT]: "sponsor-highlight",
   [TRIGGERS.KNOW_BEFORE_YOU_GO]: "know-before-you-go",
   [TRIGGERS.TICKET_DELIVERY]: "ticket-delivery",
