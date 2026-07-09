@@ -56,7 +56,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    type ResendEvent = { type?: string; data?: { email_id?: string; id?: string; [k: string]: unknown } };
+    type ResendEvent = {
+      type?: string;
+      data?: {
+        email_id?: string;
+        id?: string;
+        broadcast_id?: string;
+        to?: string[];
+        [k: string]: unknown;
+      };
+    };
     const body = JSON.parse(rawBody) as ResendEvent;
     const { type, data } = body;
 
@@ -156,6 +165,62 @@ export async function POST(request: Request) {
           { email: eeSend.recipient_email, reason: newStatus === "bounced" ? "bounce" : "complaint" },
           { onConflict: "email" },
         );
+      }
+    }
+
+    // ── 3) Standalone broadcasts — recipient-level, resolved via broadcast_id ──
+    // email_sends.resend_message_id holds the *broadcast* id for these rows
+    // (see standalone-emails/lib/sendEventAnnouncement.ts), not a message id,
+    // so it can't be matched directly against this event's messageId. Resolve
+    // via data.broadcast_id instead, then upsert a per-recipient detail row.
+    const broadcastId = data.broadcast_id;
+    const recipientEmail = data.to?.[0];
+
+    if (broadcastId && recipientEmail) {
+      const { data: parentSend } = await admin
+        .from("email_sends")
+        .select("id")
+        .eq("resend_message_id", broadcastId)
+        .not("trigger_type", "is", null)
+        .maybeSingle();
+
+      if (parentSend) {
+        const { data: existing } = await admin
+          .from("broadcast_recipients")
+          .select("id, status")
+          .eq("email_send_id", parentSend.id)
+          .eq("recipient_email", recipientEmail)
+          .maybeSingle();
+
+        const recipientUpdates: Record<string, unknown> = { resend_message_id: messageId };
+        if (newStatus === "delivered") recipientUpdates.status = "delivered";
+        if (newStatus === "opened") {
+          recipientUpdates.status = "opened";
+          recipientUpdates.opened_at = new Date().toISOString();
+        }
+        if (newStatus === "clicked") {
+          recipientUpdates.status = "clicked";
+          recipientUpdates.clicked_at = new Date().toISOString();
+        }
+        if (newStatus === "bounced") {
+          recipientUpdates.status = "bounced";
+          recipientUpdates.bounced_at = new Date().toISOString();
+        }
+        if (newStatus === "complained") recipientUpdates.status = "complained";
+
+        if (existing) {
+          const curPriority = statusPriority[existing.status] ?? 0;
+          const nxtPriority = statusPriority[newStatus] ?? 0;
+          if (nxtPriority >= curPriority) {
+            await admin.from("broadcast_recipients").update(recipientUpdates).eq("id", existing.id);
+          }
+        } else {
+          await admin.from("broadcast_recipients").insert({
+            email_send_id: parentSend.id,
+            recipient_email: recipientEmail,
+            ...recipientUpdates,
+          });
+        }
       }
     }
 

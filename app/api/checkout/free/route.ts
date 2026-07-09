@@ -24,6 +24,9 @@ export async function POST(request: Request) {
     promo_code,
     seat_ids,
     tracking_ref,
+    utm_source,
+    utm_medium,
+    utm_campaign,
   } = body;
 
   if (!event_id || !buyer_name || !buyer_email) {
@@ -126,6 +129,9 @@ export async function POST(request: Request) {
       source: "online",
       promo_code_id: promoCodeId || null,
       tracking_link_slug: tracking_ref || null,
+      utm_source: utm_source || null,
+      utm_medium: utm_medium || null,
+      utm_campaign: utm_campaign || null,
     })
     .select()
     .single();

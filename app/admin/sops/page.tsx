@@ -530,60 +530,45 @@ const SOP_TEMPLATES: SOPTemplate[] = [
   /* ================================================================== */
 
   {
-    id: "email-engine",
-    title: "Email Engine — Campaigns, Segments & Automations",
+    id: "broadcasts",
+    title: "Broadcasts — Event Announcements & Newsletter",
     category: "Growth",
-    description: "End-to-end workflow for the Mailchimp-style email module: build dynamic segments, compose campaigns from templates, run event-triggered drip flows, and track revenue per email.",
+    description: "Sending pixel-matched marketing emails (event announcements, upcoming-events digest) to the newsletter list, with real open/click/revenue tracking. Replaces the old block-builder Email Engine — templates here are bespoke React Email components built from real designs, not a drag-and-drop composer.",
     icon: "",
     sections: [
       {
         heading: "1. Getting Started",
         steps: [
-          { title: "Access the Email Engine", details: ["Navigate to Admin → Growth → Email Engine", "The dashboard shows counts for campaigns, sending-now, segments, and active automation flows", "Five sub-pages: Campaigns, Segments, Automations, Performance, Cohort Exports"] },
-          { title: "One-time setup", details: ["Run /plans/email-engine-migration.sql in the Supabase SQL editor (idempotent)", "Confirm env vars are set in Vercel: RESEND_API_KEY, RESEND_FROM_EMAIL, NEXT_PUBLIC_SITE_URL, CRON_SECRET", "In GitHub → Settings → Secrets → Actions, add VC_APP_URL (your Vercel URL) and CRON_SECRET (same value)", "The GitHub Actions workflow at .github/workflows/email-engine-cron.yml drives all periodic jobs — no Vercel cron needed"] },
+          { title: "Access Broadcasts", details: ["Navigate to Admin → Marketing → Broadcasts", "Home page shows recent sends, monthly summary tiles (sends, avg open rate, revenue attributed), and quick links to a new broadcast, send history, and audience sync"] },
+          { title: "Live send types today", details: ["New Event Announcement — presale/on-sale-aware, links straight to the event page", "Upcoming Events Digest — a short newsletter of what's coming up next", "More trigger types (sponsor highlights, know-before-you-go, portal welcome) are reserved in standalone-emails/lib/triggers.ts but not built yet — they won't appear as options until they are"] },
         ],
       },
       {
-        heading: "2. Build a Segment (Audience)",
+        heading: "2. Audience",
         steps: [
-          { title: "Create a rule-based segment", details: ["Go to Email Engine → Segments → + New Segment", "Name the segment (e.g. 'VIPs — $500+ lifetime') and pick ALL or ANY match logic", "Add one or more conditions: field + operator + value (all fields are whitelisted for safety)", "Common fields: total_events_attended, total_spent, last_event_date, favorite_event_type, is_fwb_subscriber, lfv_segment, emails_opened, emails_clicked, zip_code", "Click 'Preview count' to see how many contacts match plus a 20-row sample", "Save — the segment is dynamic and re-evaluates at every campaign send"] },
-          { title: "Preset patterns the system supports", details: ["Attended an event in the last 30 days", "Total spent over $X", "Clicked an email but never purchased", "Dormant buyers (bought before, no order in 60+ days)", "FWB subscribers who attended 3+ events", "Whales (lfv_segment = whale OR total_spent >= 500)"] },
+          { title: "Sync newsletter subscribers", details: ["Go to Broadcasts → Audience", "Click 'Sync Now' to push every subscribed newsletter_subscribers row into a Resend Segment (created automatically the first time, named 'Newsletter')", "This only ever adds/updates contacts — unsubscribes are managed by Resend from there on, never by removing local rows"] },
+          { title: "Scope", details: ["Newsletter-only audience for now — no dynamic segmentation (no 'VIPs', 'dormant buyers', etc. like the old system had)", "Every broadcast goes to the same Newsletter segment; there is no per-send audience picker"] },
         ],
       },
       {
-        heading: "3. Design & Send a Campaign",
+        heading: "3. Send a Broadcast",
         steps: [
-          { title: "Start a new campaign", details: ["Go to Email Engine → Campaigns → + New Campaign", "Fill the basics: campaign name, subject, preview text, segment, optional event (auto-populates {{event_name}}, {{event_date}}, {{event_image}}, {{venue_name}})", "Optionally pick a schedule datetime to queue for later send"] },
-          { title: "Design the email — two modes", details: ["Template gallery (recommended): Pick one of the six starter templates — New Event Announcement, Cart Recovery, Post-Event Thanks, VIP Presale, Welcome, Re-engagement", "Sections mode (no HTML required): Fill Hero image URL, Headline, Sub-heading, Body (blank lines = paragraphs), CTA label + URL — the system generates mobile-safe inline-styled HTML for you", "HTML mode: Full control over the markup + an optional plain-text fallback. Toggle between modes at any time", "Right-hand pane shows a live iframe preview with every {{variable}} already substituted against sample data"] },
-          { title: "Variables you can use", details: ["{{first_name}}, {{last_name}}, {{email}}", "{{event_name}}, {{event_title}}, {{event_date}}, {{event_image}}, {{event_id}}", "{{venue_name}}", "{{unsubscribe_url}} — auto-injected in the footer and as a List-Unsubscribe header if not placed manually", "Unknown tokens render as empty strings — safe to leave unresolved"] },
-          { title: "Send or schedule", details: ["'Save draft' to park it", "'Save & send now' to enqueue — emails are dispatched via Resend by the GitHub Actions cron within ~5 minutes", "'Schedule' + datetime to queue for future send", "All links are automatically stamped with utm_source=email-engine&utm_campaign=ee:<campaign_id> for conversion attribution"] },
+          { title: "Compose", details: ["Broadcasts → + New Broadcast", "Pick a trigger, fill in its details (event picker for announcements, count for the digest)", "Click 'Generate Preview' to render the real email with live data — this is the exact HTML that gets sent, not a mockup"] },
+          { title: "Test before sending", details: ["Always send a test to yourself first — the test address defaults to your logged-in email", "Test sends are NOT recorded in send history and are not tracked for opens/clicks/revenue"] },
+          { title: "Send for real", details: ["'Send Broadcast' shows a confirmation with the live subscriber count before sending — this cannot be undone", "On success you're redirected to Send History where the new row appears"] },
         ],
       },
       {
-        heading: "4. Automations (Drip Flows)",
+        heading: "4. Tracking & Revenue",
         steps: [
-          { title: "Create an automation", details: ["Go to Email Engine → Automations → + New Automation", "Pick a trigger: new_event_announcement, cart_abandonment, post_event_followup, repeat_buyer_nurture, welcome_series, reengagement", "Optionally attach a segment (required for new_event_announcement)", "Define steps[] as a JSON array of { delay_minutes, subject, content_html, content_text } objects", "Define config{} for trigger-specific settings (e.g. { \"grace_minutes\": 45 } for cart abandonment, { \"days_after\": 2 } for post-event)", "Toggle Active/Paused with the status button on the card"] },
-          { title: "What each trigger does", details: ["new_event_announcement — fires when an event is published, sends to the attached segment", "cart_abandonment — fires when a cart_abandonment row is older than grace_minutes", "post_event_followup — fires N days after event.date to distinct paid buyers", "repeat_buyer_nurture — fires when total_orders crosses min_orders in the last 24 h", "welcome_series — fires on new newsletter_subscribers row", "reengagement — fires on dormant buyers (no email opens in N days)", "Dedup is enforced — a contact will never receive the same flow twice for the same trigger reference"] },
+          { title: "How it works", details: ["Every broadcast link is stamped with utm_source=broadcast&utm_campaign=broadcast:<send_id>", "Opens/clicks come back via the Resend webhook and populate broadcast_recipients per-recipient", "Revenue is attributed by matching orders.utm_campaign to the send id within a 7-day window after sending — same conversion-window logic the old Email Engine used"] },
+          { title: "Where to look", details: ["Broadcasts → Send History shows every past send with recipients, open rate, click rate, and revenue attributed", "This is all computed live on page load — there's no cron/rollup job to wait on"] },
         ],
       },
       {
-        heading: "5. Performance Tracking & Optimization",
+        heading: "5. Transactional Emails",
         steps: [
-          { title: "Review metrics", details: ["Email Engine → Performance shows aggregate open / click / conversion rates across sent campaigns + attributed revenue", "Click into any campaign for per-campaign metrics, a rendered preview, and optimization flags", "Revenue is attributed via the UTM stamp — SUM(orders.total_amount) WHERE utm_campaign = 'ee:<campaign_id>'"] },
-          { title: "Optimization flags (rule-based, no AI)", details: ["low_open_rate → suggests subject-line tweaks from a static pool", "low_click_rate → suggests content / CTA changes", "low_conversion with healthy click rate → suggests scarcity / promo / landing-page changes", "high_performer → appears when conversion_rate clears the threshold; prompts you to clone the campaign and export the cohort as a custom audience", "high_bounce / suppression_spike → critical; pause and run list hygiene"] },
-        ],
-      },
-      {
-        heading: "6. Cohort Exports (handoff to Ad Engine)",
-        steps: [
-          { title: "Build and download a cohort", details: ["Email Engine → Cohort Exports shows five canonical cohorts: engaged_last_30d, clicked_but_not_bought, high_value_buyers, dormant_loyalists, fwb_attended_3plus", "Click 'Build all cohorts' for a summary, then 'Download SHA-256' on any cohort to get a .txt of hashed emails", "Emails are SHA-256 lowercased — the exact format required by Meta and Snapchat custom-audience uploads", "No raw email addresses ever leave the database"] },
-        ],
-      },
-      {
-        heading: "7. Deliverability & Compliance",
-        steps: [
-          { title: "Suppression list", details: ["Every bounce, complaint, and unsubscribe is written to ee_suppressions automatically", "The recipient-list builder consults this table before every send — suppressed addresses are silently skipped"] },
-          { title: "Unsubscribe handling", details: ["Every email includes an unsubscribe footer + a List-Unsubscribe header (RFC 8058, one-click)", "Links go to /u/[token] — signed token, single-use, marks both ee_suppressions and newsletter_subscribers.unsubscribed_at", "Users can't accidentally be re-subscribed; they have to opt in again via the normal signup surfaces"] },
+          { title: "What lives here vs. Broadcasts", details: ["Broadcasts → Transactional Emails is the block-based editor for system-triggered emails — currently just 'User Onboarding' (staff/artist/venue-admin welcome email)", "Ticket delivery is NOT edited here — it's a bespoke React Email component (lib/email/TicketDeliveryEmail.tsx) wired directly into the checkout flow for exact design control"] },
         ],
       },
     ],
@@ -669,7 +654,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
         heading: "4. Using Deal Lab in the Booking Workflow",
         steps: [
           { title: "Standard flow", details: ["Agent sends inquiry → create offer → set terms → open Deal Lab → review scenarios + risk score", "If risk score is high, iterate on terms (lower guarantee, add walk clause, increase deposit) and re-simulate", "Once risk is acceptable, generate the PDF deal memo and send to agent", "Deal Lab does not write to the offer record — only the terms you explicitly save are persisted. Simulations are disposable and re-runnable."] },
-          { title: "Integration with Email Engine & Ad Engine", details: ["Email Engine feeds Deal Lab segment-level conversion + RPE via modules/email-engine/services/integrations.buildSegmentPerformanceFeed()", "Ad Engine feeds Deal Lab segment↔event overlap counts via modules/email-engine/services/integrations.getSegmentEventOverlap()", "Both are read-only — Deal Lab uses them as demand signals when scoring risk, but never writes back"] },
+          { title: "Integration with Ad Engine", details: ["Deal Lab pulls in Ad Engine performance data as a demand signal when scoring risk", "The old Email Engine's segment-performance feed into Deal Lab was removed along with that system — no replacement exists yet"] },
         ],
       },
     ],

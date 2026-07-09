@@ -12,6 +12,7 @@ import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { safeDate, formatEventDateFull } from "@/lib/dates";
+import { getStoredUtmParams } from "@/lib/clientAttribution";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -189,6 +190,7 @@ function CheckoutContent() {
         seat_ids: seatIds.length > 0 ? seatIds : undefined,
         session_id: typeof window !== "undefined" ? sessionStorage.getItem("vc_session") : undefined,
         tracking_ref: trackingRef || undefined,
+        ...getStoredUtmParams(),
       }),
     });
 

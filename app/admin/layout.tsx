@@ -68,7 +68,7 @@ const sidebarGroups: SidebarGroup[] = [
     roles: ["owner","venue_admin","full_admin"],
     items: [
       { label: "Campaigns",     href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
-      { label: "Email",         href: "/admin/email",        roles: ["owner","super_admin","venue_admin","full_admin"] },
+      { label: "Broadcasts",    href: "/admin/broadcasts",   roles: ["owner","super_admin","venue_admin","full_admin"] },
       { label: "Market Radar",  href: "/admin/market-radar", roles: ["owner","venue_admin"] },
       { label: "Auctions",      href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
       { label: "Sponsors",      href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
@@ -141,7 +141,7 @@ const TAB_KEY_MAP: Record<string, string> = {
   "Guest Lists": "guest_lists",
   "Live Pulse": "live_pulse",
   "Campaigns": "marketing",    // was "Marketing"
-  "Email": "email_engine",     // was "Email Engine"
+  "Broadcasts": "email_engine", // was "Email" — same permission slot, new dashboard
   "Market Radar": "market_radar",
   "Auctions": "auctions",
   "Sponsors": "partners",      // was "Partners"

@@ -137,13 +137,22 @@ export function EventAnnouncementEmail({
   return (
     <Html>
       <Head>
+        {/* All-dark design, no light variant — see lib/email/OnboardingEmail.tsx
+            for why these are needed (prevents clients from partially auto-
+            remapping colors in their own dark mode). */}
+        <meta name="color-scheme" content="dark" />
+        <meta name="supported-color-schemes" content="dark" />
+        <style>{`
+          :root { color-scheme: dark; supported-color-schemes: dark; }
+          [data-ogsc] .email-bg, [data-ogsb] .email-bg { background-color: #000000 !important; }
+        `}</style>
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;900&family=Archivo+Condensed:wght@600;700&family=Archivo+Expanded:wght@700;800&display=swap"
         />
       </Head>
       <Preview>{previewText}</Preview>
-      <Body style={{ backgroundColor: "#000000", margin: 0, padding: 0 }}>
+      <Body className="email-bg" style={{ backgroundColor: "#000000", margin: 0, padding: 0 }}>
         <Container style={{ width: 640, maxWidth: 640, margin: "0 auto" }}>
           {/* Header */}
           <Section style={{ padding: "32px 0", textAlign: "center" }}>
@@ -319,9 +328,40 @@ export function EventAnnouncementEmail({
                 {resolvedCtaLabel}
               </Button>
               {isPresale && presaleCode && (
-                <Text style={{ margin: "12px 0 0", fontFamily: ARCHIVO, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>
-                  Presale code: <strong style={{ color: "#ffffff" }}>{presaleCode}</strong>
-                </Text>
+                <>
+                  <Text style={{ margin: "14px 0 6px", fontFamily: ARCHIVO, fontSize: 12, letterSpacing: 1, textTransform: "uppercase", color: "rgba(255,255,255,0.5)" }}>
+                    Presale code
+                  </Text>
+                  {/* The button above already auto-fills this code — this
+                      chip is the fallback for anyone who copies it by hand.
+                      Real clipboard-copy can't run in email (no JS), so an
+                      isolated, letter-spaced monospace block is what makes a
+                      clean double-tap/double-click select the whole code. */}
+                  <table width="100%" cellPadding={0} cellSpacing={0} role="presentation">
+                    <tbody>
+                      <tr>
+                        <td align="center">
+                          <span
+                            style={{
+                              display: "inline-block",
+                              fontFamily: "monospace",
+                              fontSize: 16,
+                              letterSpacing: 2,
+                              color: "#ffffff",
+                              background: "rgba(255,255,255,0.08)",
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              borderRadius: 8,
+                              padding: "8px 16px",
+                              userSelect: "all",
+                            }}
+                          >
+                            {presaleCode}
+                          </span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </>
               )}
             </Section>
           </Section>

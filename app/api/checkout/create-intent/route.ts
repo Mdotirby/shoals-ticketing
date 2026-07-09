@@ -45,6 +45,9 @@ export async function POST(request: Request) {
       selectedSeats,
       sessionId,
       trackingRef,
+      utm_source,
+      utm_medium,
+      utm_campaign,
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────
@@ -249,6 +252,9 @@ export async function POST(request: Request) {
         seat_hold_session: (isAssignedSeating && sessionId) ? sessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: trackingRef || "",
+        utm_source: utm_source || "",
+        utm_medium: utm_medium || "",
+        utm_campaign: utm_campaign || "",
         // Fee breakdown (cents) for webhook/reconciliation
         subtotal_cents: String(breakdown.discountedTicketPriceCents * effectiveQuantity),
         ticketing_fee_cents: String(breakdown.ticketingFeeCents * effectiveQuantity),
