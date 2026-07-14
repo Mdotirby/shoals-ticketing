@@ -68,7 +68,7 @@ const stripeAppearance = {
     colorTextPlaceholder: "rgba(255, 255, 255, 0.3)",
     colorDanger: "#ef4444",
     fontFamily: "var(--font-urbanist), system-ui, sans-serif",
-    fontSizeBase: "15px",
+    fontSizeBase: "16px",
     spacingUnit: "4px",
     borderRadius: "12px",
     colorIconCardError: "#ef4444",
@@ -79,7 +79,7 @@ const stripeAppearance = {
       border: "1px solid rgba(255, 255, 255, 0.1)",
       color: "#ffffff",
       padding: "14px 16px",
-      fontSize: "15px",
+      fontSize: "16px",
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     },
     ".Input:focus": {
