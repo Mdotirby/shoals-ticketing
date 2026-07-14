@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await admin
     .from("tickets")
-    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, ticket_tiers(name)")
+    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, ticket_tiers(tier_name)")
     .eq("event_id", eventId)
     // Match last name: the last word in customer_name, case-insensitive
     .ilike("customer_name", `% ${lastName}`)
@@ -50,13 +50,13 @@ export async function GET(request: Request) {
   const grouped = new Map<string, PersonResult>();
   for (const row of data ?? []) {
     const key = `${row.customer_name}||${row.customer_email}`;
-    const tier = row.ticket_tiers as unknown as { name: string } | null;
+    const tier = row.ticket_tiers as unknown as { tier_name: string } | null;
     const ticket: TicketSearchRow = {
       id: row.id,
       qr_code: row.qr_code,
       is_scanned: row.is_scanned ?? false,
       scanned_at: row.scanned_at ?? null,
-      tier_name: tier?.name ?? "General Admission",
+      tier_name: tier?.tier_name ?? "General Admission",
     };
     if (!grouped.has(key)) {
       grouped.set(key, {
