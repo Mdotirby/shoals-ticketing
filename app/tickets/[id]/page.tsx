@@ -133,75 +133,93 @@ export default function TicketViewPage() {
               </button>
             )}
 
-            {/* Ticket card — reserved-seat tickets (seats.length > 0) keep the
-                existing "glass" card unchanged; only general admission gets
-                the new design for now. See plan: table-based seat
-                assignments (~17% of real sold seats) don't map cleanly onto
-                the new design's Section/Row/Seat layout, so that variant is
-                deliberately deferred rather than shipped half-right. */}
+            {/* Ticket card — reserved-seat tickets (seats.length > 0) use the
+                bespoke "Ticket for reserved seat.psd" design: the same shell
+                as the GA card (header, blurred-event-image QR zone, holder/ID
+                footer) plus a Section / Row / Seat block. Table bookings
+                (row === "") render as Section / Table N instead. */}
             {seats.length > 0 ? (
-              <div className="digital-ticket-card">
+              <div className="ga-ticket-card">
 
-                {/* QR zone — event image fills the background */}
-                <div
-                  className="digital-ticket-qr-zone"
-                  style={event?.image_url ? {
-                    backgroundImage: `url(${event.image_url})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center top",
-                  } : undefined}
-                >
-                  {/* Dark + blur overlay so QR stays scannable */}
-                  {event?.image_url && <div className="digital-ticket-qr-overlay" />}
+                {/* Header bar */}
+                <div className="ga-ticket-header">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/West72_Logos/W72_tech_icon_black.png" alt="" className="ga-ticket-header-icon" />
+                  <span className="ga-ticket-header-text">
+                    <strong>WEST 72</strong>&nbsp;ENTERTAINMENT
+                  </span>
+                </div>
 
-                  {current.is_scanned && (
-                    <div className="digital-ticket-scanned-badge">Already Scanned</div>
+                {/* QR zone — blurred event image behind an opaque QR card */}
+                <div className="ga-ticket-qr-zone">
+                  {event?.image_url && (
+                    <div
+                      className="ga-ticket-qr-bg"
+                      style={{ backgroundImage: `url(${event.image_url})` }}
+                    />
                   )}
+
                   {current.qr_data_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={current.qr_data_url} alt="QR Code" className="digital-ticket-qr" />
+                    <img src={current.qr_data_url} alt="QR Code" className="ga-ticket-qr" />
                   ) : (
                     <div className="digital-ticket-qr-placeholder">
                       <p>{current.qr_code}</p>
                     </div>
                   )}
-                  <p className="digital-ticket-show-at-door">Scan at the door for entry</p>
+                  <p className="ga-ticket-show-at-door">Scan at the door for entry</p>
                 </div>
 
-                {/* Perforated tear line */}
-                <div className="digital-ticket-tear">
-                  <span className="digital-ticket-notch digital-ticket-notch-left" />
-                  <div className="digital-ticket-tear-line" />
-                  <span className="digital-ticket-notch digital-ticket-notch-right" />
-                </div>
+                {/* Info panel */}
+                <div className="ga-ticket-info-zone">
+                  <p className="ga-ticket-type-heading">Reserved Seat Ticket</p>
+                  <p className="ga-ticket-type-subheading">Ticket for Admission</p>
+                  <div className="ga-ticket-divider" />
 
-                {/* Info zone */}
-                <div className="digital-ticket-info-zone">
-
-                  {/* Seat assignments */}
-                  <div className="digital-ticket-seats">
-                    <span className="digital-ticket-seats-label">Assigned Seats</span>
-                    <div className="digital-ticket-seats-list">
-                      {seats.map((s, i) => (
-                        <span key={i} className="digital-ticket-seat-chip">
-                          {s.row
-                            ? `${s.section} · Row ${s.row} · Seat ${s.seat}`
-                            : s.seat}
-                        </span>
-                      ))}
-                    </div>
+                  {/* Section / Row / Seat — one line per assigned seat
+                      (normally one; the order-level fallback can list several) */}
+                  <div className="rs-ticket-seat-grid">
+                    {seats.map((s, i) => (
+                      s.row ? (
+                        <div key={i} className="rs-ticket-seat-row">
+                          <div className="rs-ticket-seat-cell">
+                            <span className="ga-ticket-cell-label">Section</span>
+                            <span className="rs-ticket-seat-value">{s.section.replace(/^section\s+/i, "")}</span>
+                          </div>
+                          <div className="rs-ticket-seat-cell rs-ticket-seat-cell-center">
+                            <span className="ga-ticket-cell-label">Row</span>
+                            <span className="rs-ticket-seat-value">{s.row}</span>
+                          </div>
+                          <div className="rs-ticket-seat-cell rs-ticket-seat-cell-right">
+                            <span className="ga-ticket-cell-label">Seat</span>
+                            <span className="rs-ticket-seat-value">{s.seat}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div key={i} className="rs-ticket-seat-row">
+                          <div className="rs-ticket-seat-cell">
+                            <span className="ga-ticket-cell-label">Section</span>
+                            <span className="rs-ticket-seat-value">{s.section.replace(/^section\s+/i, "")}</span>
+                          </div>
+                          <div className="rs-ticket-seat-cell rs-ticket-seat-cell-right">
+                            <span className="ga-ticket-cell-label">Seating</span>
+                            <span className="rs-ticket-seat-value">{s.seat}</span>
+                          </div>
+                        </div>
+                      )
+                    ))}
                   </div>
 
                   {/* Holder */}
-                  <div className="digital-ticket-holder-row">
-                    <div className="digital-ticket-holder-cell">
-                      <span className="digital-ticket-cell-label">Ticket Holder</span>
-                      <span className="digital-ticket-cell-value">{current.customer_name || "Guest"}</span>
-                      <span className="digital-ticket-cell-sub">{current.customer_email}</span>
+                  <div className="ga-ticket-holder-row">
+                    <div className="ga-ticket-holder-cell">
+                      <span className="ga-ticket-cell-label">Ticket Holder</span>
+                      <span className="ga-ticket-cell-value">{current.customer_name || "Guest"}</span>
+                      <span className="ga-ticket-cell-sub">{current.customer_email}</span>
                     </div>
-                    <div className="digital-ticket-holder-cell digital-ticket-holder-cell-right">
-                      <span className="digital-ticket-cell-label">Ticket #</span>
-                      <span className="digital-ticket-cell-value" style={{ fontSize: 13 }}>{current.qr_code?.slice(0, 8).toUpperCase()}</span>
+                    <div className="ga-ticket-holder-cell ga-ticket-holder-cell-right">
+                      <span className="ga-ticket-cell-label">Ticket ID</span>
+                      <span className="ga-ticket-cell-value" style={{ fontSize: 13 }}>{current.qr_code?.slice(0, 8).toUpperCase()}</span>
                     </div>
                   </div>
                 </div>
