@@ -7,6 +7,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import TrackingPixels from "@/app/components/TrackingPixels";
+import CheckoutSuccessModal from "@/app/components/CheckoutSuccessModal";
 import { persistUtmParams, getStoredUtmParams } from "@/lib/clientAttribution";
 import {
   Elements,
@@ -204,7 +205,11 @@ function CheckoutForm({
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
-  const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
+
+  // Ticket link for the success modal — known immediately for free checkout,
+  // resolved via polling for paid (ticket is created async by the Stripe webhook).
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
 
   // Correct total: flat CC fee applied once per transaction, not once per ticket.
   // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
@@ -336,6 +341,7 @@ function CheckoutForm({
         });
 
         setOrderDetails({ subtotal: 0, ticketingFee: 0, facilityFee: 0, tax: 0, processingFee: 0, discount: estimatedTotal, total: 0 });
+        setTicketUrl(data.ticket_url ?? null);
         setPaymentSuccess(true);
         return;
       }
@@ -374,6 +380,7 @@ function CheckoutForm({
       }
 
       setOrderDetails(data.orderDetails);
+      setPaymentIntentId(data.paymentIntentId ?? null);
 
       // 2. Confirm card payment
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
@@ -422,87 +429,21 @@ function CheckoutForm({
     const finalTotal = orderDetails?.total ?? estimatedTotal;
 
     return (
-      <div className="lp-checkout-success">
-        <div className="lp-checkout-success-icon">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="24" r="24" fill="rgba(16, 185, 129, 0.15)" />
-            <path
-              d="M14 24L21 31L34 18"
-              stroke="#10b981"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className="lp-checkout-success-heading">You&apos;re In!</h2>
-        <p className="lp-checkout-success-event">{event.title}</p>
-        <p className="lp-checkout-success-date">{eventDate} &middot; {event.venue}</p>
-        <p className="lp-checkout-success-detail">
-          {quantity} ticket{quantity > 1 ? "s" : ""} &middot; ${finalTotal.toFixed(2)} paid
-        </p>
-        <p className="lp-checkout-success-email">
-          Check your email for your ticket{quantity > 1 ? "s" : ""} and confirmation details.
-        </p>
+      <>
+        <CheckoutSuccessModal
+          eventTitle={event.title}
+          eventDate={eventDate}
+          eventVenue={event.venue}
+          quantity={quantity}
+          totalAmount={finalTotal}
+          buyerName={buyerName}
+          buyerEmail={buyerEmail}
+          buyerPhone={buyerPhone}
+          ticketUrl={ticketUrl}
+          paymentIntentId={paymentIntentId}
+        />
 
-        {/* FWB Opt-in */}
-        <div className="lp-checkout-fwb">
-          {fwbStatus === "done" ? (
-            <div className="ic-fwb-done">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="10" fill="rgba(16, 185, 129, 0.15)" />
-                <path d="M6 10L9 13L14 7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>You&apos;re a Friend with Benefits now!</span>
-            </div>
-          ) : (
-            <>
-              <div className="lp-checkout-fwb-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <h3 className="lp-checkout-fwb-heading">Don&apos;t Miss a Thing</h3>
-              <p className="lp-checkout-fwb-desc">
-                Get presale access, exclusive offers, and be first to know about new shows.
-              </p>
-              <button
-                type="button"
-                className="ic-fwb-join-btn"
-                disabled={fwbStatus === "loading"}
-                onClick={async () => {
-                  setFwbStatus("loading");
-                  const nameParts = buyerName.trim().split(/\s+/);
-                  const firstName = nameParts[0] || "";
-                  const lastName = nameParts.slice(1).join(" ") || firstName;
-                  try {
-                    const res = await fetch("/api/newsletter", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        firstName,
-                        lastName,
-                        email: buyerEmail.trim(),
-                        phone: buyerPhone.trim() || undefined,
-                        source: "checkout",
-                      }),
-                    });
-                    if (res.ok || res.status === 409) setFwbStatus("done");
-                    else setFwbStatus("done");
-                  } catch { setFwbStatus("done"); }
-                }}
-              >
-                {fwbStatus === "loading" ? "Joining..." : "Count Me In"}
-              </button>
-              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", margin: "4px 0 0" }}>No spam. Unsubscribe anytime.</p>
-            </>
-          )}
-        </div>
-
-        {/* You May Also Like */}
+        {/* You May Also Like — normal page content behind the modal overlay */}
         {otherEvents.length > 0 && (
           <div style={{ marginTop: 36, width: "100%", textAlign: "center" }}>
             <style>{`
@@ -566,7 +507,7 @@ function CheckoutForm({
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 
