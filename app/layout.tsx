@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bayon, Cairo, Urbanist } from "next/font/google";
+import { Archivo, Bayon, Cairo, Urbanist } from "next/font/google";
 import { cookies } from "next/headers";
 import "./styles/globals.css";
 import Header from "./components/Header";
@@ -27,6 +27,14 @@ const bayon = Bayon({
   variable: "--font-bayon",
   subsets: ["latin"],
   weight: "400",
+});
+
+// Scoped to the checkout-success modal for now (West72 variant) — not yet
+// applied site-wide. A future global font switch will apply this to <body>.
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
 });
 
 
@@ -98,7 +106,7 @@ export default async function RootLayout({
     <html lang="en">
       <body
         data-operator={operatorSlug}
-        className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
+        className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} ${archivo.variable} antialiased`}
       >
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
         <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />

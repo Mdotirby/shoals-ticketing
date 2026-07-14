@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import {
@@ -16,6 +15,7 @@ import {
 import type { PaymentRequest } from "@stripe/stripe-js";
 import { trackFbEvent } from "@/lib/fbq";
 import { getStoredUtmParams } from "@/lib/clientAttribution";
+import CheckoutSuccessModal from "@/app/components/CheckoutSuccessModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,40 +102,6 @@ const stripeAppearance = {
   },
 };
 
-// ── FWB copy variants — randomized per session ───────────────────────────────
-const FWB_VARIANTS = [
-  {
-    headline: "The list everyone asks about.",
-    body: "One text when the next show goes on sale. Before it's posted anywhere else. That's the whole deal.",
-    cta: "Yes, text me first",
-    decline: "Skip it",
-  },
-  {
-    headline: "Fans who know, know.",
-    body: "Get the link before it goes public. One text. We have boundaries.",
-    cta: "I'm in",
-    decline: "Pass",
-  },
-  {
-    headline: "Next time, be first.",
-    body: "FWB members get the text before a show is announced anywhere else.",
-    cta: "Text me first",
-    decline: "Skip",
-  },
-  {
-    headline: "First in line.",
-    body: "We text FWB members when a new show drops. One text. That's it.",
-    cta: "Count me in",
-    decline: "No thanks",
-  },
-  {
-    headline: "The people who know, get the link first.",
-    body: "Be on the list. One text per show. We're not going to text you good morning.",
-    cta: "Add me to the list",
-    decline: "Skip",
-  },
-] as const;
-
 // ── Checkout Form (inside Elements provider) ─────────────────────────────────
 
 // Fee constants — same as OrderSummary and create-intent API
@@ -184,9 +150,10 @@ function CheckoutForm({
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
   const [fwbOptIn, setFwbOptIn] = useState(false);
 
-  // FWB signup state (post-payment one-click)
-  const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done" | "dismissed">("idle");
-  const fwbVariant = useMemo(() => FWB_VARIANTS[Math.floor(Math.random() * FWB_VARIANTS.length)], []);
+  // Ticket link for the success modal — known immediately for free checkout,
+  // resolved via polling for paid (ticket is created async by the Stripe webhook).
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
 
   // Apple Pay / Google Pay via Stripe PaymentRequest
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
@@ -260,6 +227,7 @@ function CheckoutForm({
           return;
         }
         setOrderDetails(data.orderDetails);
+        setPaymentIntentId(data.paymentIntentId ?? null);
         const { error: confirmError } = await stripe.confirmCardPayment(
           data.clientSecret,
           { payment_method: ev.paymentMethod.id },
@@ -341,6 +309,7 @@ function CheckoutForm({
         });
 
         setOrderDetails({ subtotal: 0, ticketingFee: 0, facilityFee: 0, tax: 0, processingFee: 0, discount: estimatedTotal, total: 0 });
+        setTicketUrl(data.ticket_url ?? null);
         setPaymentSuccess(true);
         return;
       }
@@ -382,6 +351,7 @@ function CheckoutForm({
       }
 
       setOrderDetails(data.orderDetails);
+      setPaymentIntentId(data.paymentIntentId ?? null);
 
       // 2. Confirm card payment
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
@@ -423,171 +393,23 @@ function CheckoutForm({
     }
   };
 
-  // ── FWB one-click signup ──
-  const handleFWBSignup = async () => {
-    if (fwbStatus !== "idle") return;
-    setFwbStatus("loading");
-
-    const nameParts = buyerName.trim().split(/\s+/);
-    const firstName = nameParts[0] || "";
-    const lastName = nameParts.slice(1).join(" ") || firstName;
-
-    try {
-      const res = await fetch("/api/newsletter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email: buyerEmail.trim(),
-          phone: buyerPhone.trim() || undefined,
-          source: "checkout",
-        }),
-      });
-
-      // 409 = already subscribed, treat as success
-      if (res.ok || res.status === 409) {
-        setFwbStatus("done");
-      } else {
-        setFwbStatus("done"); // still show done, don't block
-      }
-    } catch {
-      setFwbStatus("done");
-    }
-  };
-
   // ── Success State ──────────────────────────────────────────────────────────
   if (paymentSuccess) {
     const finalTotal = orderDetails?.total ?? estimatedTotal;
 
     return (
-      <motion.div
-        className="ic-success"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-      >
-        {/* Animated checkmark */}
-        <motion.div
-          className="ic-success-icon"
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.1 }}
-        >
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-            <circle cx="32" cy="32" r="32" fill="rgba(16, 185, 129, 0.12)" />
-            <motion.path
-              d="M18 32L28 44L46 20"
-              stroke="#10b981"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              fill="none"
-              initial={{ pathLength: 0, opacity: 0 }}
-              animate={{ pathLength: 1, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
-            />
-          </svg>
-        </motion.div>
-
-        <motion.h2
-          className="ic-success-heading"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.4 }}
-        >
-          You&apos;re In!
-        </motion.h2>
-
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.35 }}
-        >
-          <p className="ic-success-event">{eventTitle}</p>
-          <p className="ic-success-meta">{eventDate} &middot; {eventVenue}</p>
-          <p className="ic-success-detail">
-            {quantity} ticket{quantity > 1 ? "s" : ""} &middot; ${finalTotal.toFixed(2)} paid
-          </p>
-          <p className="ic-success-email">
-            Check your email at <strong>{buyerEmail}</strong> for your ticket{quantity > 1 ? "s" : ""} and confirmation.
-          </p>
-        </motion.div>
-
-        {/* ── FWB Signup Prompt ── */}
-        <motion.div
-          className="ic-fwb-prompt"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.45, ease: "easeOut" }}
-        >
-          <AnimatePresence mode="wait">
-            {fwbStatus === "done" ? (
-              <motion.div
-                key="done"
-                className="ic-fwb-done"
-                initial={{ opacity: 0, scale: 0.88 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ type: "spring", damping: 14, stiffness: 220 }}
-              >
-                <motion.svg
-                  width="28" height="28" viewBox="0 0 28 28" fill="none"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.05, type: "spring", damping: 10, stiffness: 250 }}
-                >
-                  <circle cx="14" cy="14" r="14" fill="rgba(16, 185, 129, 0.15)" />
-                  <path d="M8 14L12 18L20 10" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                </motion.svg>
-                <span>You&apos;re on the list. We&apos;ll text you first.</span>
-              </motion.div>
-            ) : fwbStatus === "dismissed" ? null : (
-              <motion.div
-                key="idle"
-                className="ic-fwb-idle"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="ic-fwb-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.65 3.35 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.91 6.91l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                  </svg>
-                </div>
-                <h3 className="ic-fwb-heading">{fwbVariant.headline}</h3>
-                <p className="ic-fwb-desc">{fwbVariant.body}</p>
-                <motion.button
-                  type="button"
-                  className="ic-fwb-join-btn"
-                  onClick={handleFWBSignup}
-                  disabled={fwbStatus === "loading"}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  {fwbStatus === "loading" ? (
-                    <motion.span
-                      animate={{ opacity: [1, 0.45, 1] }}
-                      transition={{ repeat: Infinity, duration: 0.9 }}
-                    >
-                      Just a sec...
-                    </motion.span>
-                  ) : fwbVariant.cta}
-                </motion.button>
-                <button
-                  type="button"
-                  className="ic-fwb-decline"
-                  onClick={() => setFwbStatus("dismissed")}
-                >
-                  {fwbVariant.decline}
-                </button>
-                <p className="ic-fwb-fine-print">One text per show. Unsubscribe anytime.</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </motion.div>
+      <CheckoutSuccessModal
+        eventTitle={eventTitle}
+        eventDate={eventDate}
+        eventVenue={eventVenue}
+        quantity={quantity}
+        totalAmount={finalTotal}
+        buyerName={buyerName}
+        buyerEmail={buyerEmail}
+        buyerPhone={buyerPhone}
+        ticketUrl={ticketUrl}
+        paymentIntentId={paymentIntentId}
+      />
     );
   }
 

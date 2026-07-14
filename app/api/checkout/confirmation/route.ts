@@ -1,14 +1,19 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 
-// GET /api/checkout/confirmation?session_id=...
-// Returns order + first ticket QR for the success page
+// GET /api/checkout/confirmation?session_id=... OR ?payment_intent_id=...
+// Returns order + first ticket QR. Used by the /checkout/success page (Checkout
+// Session flow) and polled by CheckoutSuccessModal for inline/PaymentIntent
+// checkouts (InlineCheckout, EventLandingPage) — the ticket doesn't exist yet
+// at the moment the client sees "payment succeeded", since the Stripe webhook
+// creates it asynchronously, so callers retry this until it 200s.
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sessionId = searchParams.get("session_id");
+  const paymentIntentId = searchParams.get("payment_intent_id");
 
-  if (!sessionId) {
-    return NextResponse.json({ error: "session_id required" }, { status: 400 });
+  if (!sessionId && !paymentIntentId) {
+    return NextResponse.json({ error: "session_id or payment_intent_id required" }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -16,7 +21,7 @@ export async function GET(request: Request) {
   const { data: order, error } = await admin
     .from("orders")
     .select("id, customer_name, customer_email, customer_phone, quantity, total_amount, event_id, status")
-    .eq("stripe_checkout_session_id", sessionId)
+    .eq(sessionId ? "stripe_checkout_session_id" : "stripe_payment_intent_id", sessionId || paymentIntentId)
     .single();
 
   if (error || !order) {
