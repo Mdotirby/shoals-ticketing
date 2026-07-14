@@ -205,6 +205,27 @@ export async function incrementPromoCodeUses(
   }
 }
 
+// ── Seating requirement ──────────────────────────────────────────────────────
+
+/**
+ * True when the event has an enabled seating layout — i.e. a seat MUST be
+ * selected to buy. Used as an authoritative server-side guard so a checkout
+ * can never create a seatless order for a reserved event (the failure mode
+ * that stranded 14 orders when the seat map didn't load client-side).
+ */
+export async function eventRequiresSeating(
+  admin: SupabaseClient,
+  eventId: string
+): Promise<boolean> {
+  const { data } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+  return !!data?.layout_id;
+}
+
 // ── Seat Validation ──────────────────────────────────────────────────────────
 
 export interface SeatValidationResult {
@@ -227,6 +248,20 @@ export async function validateAndHoldSeats(
   eventPrice: number,
   sessionId?: string
 ): Promise<{ error?: string; unavailable?: string[]; result?: SeatValidationResult }> {
+  // Release any stale holds from this same session's earlier / abandoned
+  // attempts before re-holding. Without this, a buyer who re-picked seats in
+  // the same browser session leaves multiple sets of seats held under one
+  // session, and the webhook's session-based finalization sweeps them ALL in
+  // — the pay-for-2-get-4 over-allocation bug. Clearing first also lets a
+  // retry re-select the same seats it was already holding.
+  if (sessionId) {
+    await admin
+      .from("seats")
+      .update({ status: "available", held_until: null, held_session: null })
+      .eq("held_session", sessionId)
+      .eq("status", "held");
+  }
+
   // Verify seats are still available
   const { data: seatCheck } = await admin
     .from("seats")

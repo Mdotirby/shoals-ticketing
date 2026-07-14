@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
-import { validatePresaleCode } from "@/lib/checkout-helpers";
+import { validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -76,6 +76,16 @@ export async function POST(request: Request) {
   });
   if (closeoutReason) {
     return NextResponse.json({ error: closeoutReason }, { status: 410 });
+  }
+
+  // Guard: reserved-seating events require a seat selection (authoritative backstop).
+  if (!(Array.isArray(seat_ids) && seat_ids.length > 0)) {
+    if (await eventRequiresSeating(admin, event_id)) {
+      return NextResponse.json(
+        { error: "Please select your seat(s) from the map before checking out." },
+        { status: 400 }
+      );
+    }
   }
 
   // Resolve venue slug for email sender

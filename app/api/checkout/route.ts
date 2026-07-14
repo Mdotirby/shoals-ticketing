@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { pastEventReason } from "@/lib/events/closeout";
-import { resolveVenueFees, validatePresaleCode } from "@/lib/checkout-helpers";
+import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 // Stripe charges 2.7% + $0.30 per transaction
@@ -71,6 +71,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
+    // Guard: reserved-seating events require a seat selection (authoritative
+    // server-side backstop — see create-intent for rationale).
+    if (!(Array.isArray(seat_ids) && seat_ids.length > 0)) {
+      if (await eventRequiresSeating(admin, event_id)) {
+        return NextResponse.json(
+          { error: "Please select your seat(s) from the map before checking out." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Fetch venue-specific fees via shared helper (event_venues → venues → defaults)
     const fees = await resolveVenueFees(admin, event);
     const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod } = fees;
@@ -129,7 +140,16 @@ export async function POST(request: Request) {
         );
       }
 
-      // Temporarily hold seats (10 min) so no one else grabs them during checkout
+      // Release stale holds from this session's earlier attempts before
+      // re-holding, so the webhook can't sweep in extra seats (over-allocation).
+      if (buyerSessionId) {
+        await admin.from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .eq("held_session", buyerSessionId)
+          .eq("status", "held");
+      }
+
+      // Temporarily hold seats (4 min) so no one else grabs them during checkout
       const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
       await admin.from("seats").update({
         status: "held",

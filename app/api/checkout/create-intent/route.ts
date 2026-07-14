@@ -7,6 +7,7 @@ import {
   validatePresaleCode,
   validateAndHoldSeats,
   calculateFees,
+  eventRequiresSeating,
 } from "@/lib/checkout-helpers";
 import { pastEventReason } from "@/lib/events/closeout";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
@@ -110,6 +111,18 @@ export async function POST(request: Request) {
     });
     if (closeoutReason) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
+    }
+
+    // Guard: reserved-seating events require a seat selection. Authoritative
+    // server-side backstop — blocks a seatless order when the seat map fails
+    // to load or hasn't engaged client-side (the failure that stranded orders).
+    if (!(Array.isArray(selectedSeats) && selectedSeats.length > 0)) {
+      if (await eventRequiresSeating(admin, eventId)) {
+        return NextResponse.json(
+          { error: "Please select your seat(s) from the map before checking out." },
+          { status: 400 }
+        );
+      }
     }
 
     // ── Resolve ticket price (tier or event-level) ────────────────────────
