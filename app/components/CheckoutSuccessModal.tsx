@@ -193,7 +193,7 @@ export default function CheckoutSuccessModal({
                 >
                   No thanks
                 </button>
-                <p className="checkout-success-fwb-fine-print">One text per show. Unsubscribe anytime.</p>
+                <p className="checkout-success-fwb-fine-print">Unsubscribe anytime.</p>
               </>
             )}
           </div>
