@@ -142,7 +142,7 @@ const btnDanger: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: "100%", padding: "10px 12px", borderRadius: 8,
   border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)",
-  color: "#fff", fontSize: 14,
+  color: "#fff", fontSize: 16,
 };
 
 function statusBadge(status: string) {
@@ -1590,25 +1590,25 @@ function QuoteTab({ event, quotes, onUpdate, venueSlug }: {
             <select
               value={item.category}
               onChange={(e) => updateLineItem(idx, "category", e.target.value)}
-              style={{ ...inputStyle, padding: "7px 10px", fontSize: 12 }}
+              style={{ ...inputStyle, padding: "7px 10px", fontSize: 16 }}
             >
               {QUOTE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <input
-              style={{ ...inputStyle, fontSize: 13 }}
+              style={{ ...inputStyle, fontSize: 16 }}
               value={item.description}
               onChange={(e) => updateLineItem(idx, "description", e.target.value)}
               placeholder="Description"
             />
             <input
               type="number" min="1"
-              style={{ ...inputStyle, fontSize: 13, textAlign: "right" }}
+              style={{ ...inputStyle, fontSize: 16, textAlign: "right" }}
               value={item.quantity}
               onChange={(e) => updateLineItem(idx, "quantity", parseFloat(e.target.value) || 1)}
             />
             <input
               type="number" min="0" step="0.01"
-              style={{ ...inputStyle, fontSize: 13, textAlign: "right" }}
+              style={{ ...inputStyle, fontSize: 16, textAlign: "right" }}
               value={item.unit_price}
               onChange={(e) => updateLineItem(idx, "unit_price", parseFloat(e.target.value) || 0)}
             />

@@ -839,7 +839,7 @@ export default function PortalPage() {
                               id={`artist-name-${artist.id}`}
                               defaultValue={[artist.first_name, artist.last_name].filter(Boolean).join(" ") || ""}
                               placeholder="Artist Name"
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 16, width: "100%" }}
                             />
                           </div>
                           <div style={{ flex: 1, minWidth: 180 }}>
@@ -849,7 +849,7 @@ export default function PortalPage() {
                               id={`artist-url-${artist.id}`}
                               defaultValue={artist.website_url || ""}
                               placeholder="https://artistname.com"
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#d0c290", padding: "4px 8px", fontSize: 12, width: "100%" }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#d0c290", padding: "4px 8px", fontSize: 16, width: "100%" }}
                             />
                           </div>
                           <button
@@ -886,7 +886,7 @@ export default function PortalPage() {
                               id={`artist-email-${artist.id}`}
                               defaultValue={artist.email || ""}
                               placeholder="artist@email.com"
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 16, width: "100%" }}
                             />
                           </div>
                           <div style={{ minWidth: 140 }}>
@@ -899,7 +899,7 @@ export default function PortalPage() {
                               defaultValue=""
                               placeholder={artist.email ? "Leave blank to keep" : "Set password"}
                               minLength={6}
-                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 13, width: "100%" }}
+                              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "#fff", padding: "4px 8px", fontSize: 16, width: "100%" }}
                             />
                           </div>
                           <button
@@ -977,7 +977,7 @@ export default function PortalPage() {
                         <div style={{ marginTop: 8, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                           <select
                             className="portal-form-input"
-                            style={{ width: "auto", minWidth: 180, fontSize: 12, padding: "4px 8px" }}
+                            style={{ width: "auto", minWidth: 180, fontSize: 16, padding: "4px 8px" }}
                             defaultValue=""
                             onChange={(e) => {
                               if (e.target.value) {

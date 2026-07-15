@@ -1232,7 +1232,7 @@ export default function AdminOfferDetailPage() {
                       <input
                         type="number"
                         className="admin-form-input"
-                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 13 }}
+                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 16 }}
                         value={item.income || ""}
                         onChange={(e) => {
                           const updated = [...ancillaryItems];
@@ -1247,7 +1247,7 @@ export default function AdminOfferDetailPage() {
                       <input
                         type="number"
                         className="admin-form-input"
-                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 13 }}
+                        style={{ width: 100, textAlign: "right", padding: "4px 8px", fontSize: 16 }}
                         value={item.expenses || ""}
                         onChange={(e) => {
                           const updated = [...ancillaryItems];
