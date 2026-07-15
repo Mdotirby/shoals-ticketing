@@ -47,7 +47,7 @@ const card: React.CSSProperties = {
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", borderRadius: 8,
   border: "1px solid rgba(255,255,255,0.12)",
-  background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 13,
+  background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 16,
 };
 const lbl: React.CSSProperties = {
   display: "block", fontSize: 10, fontWeight: 700,
@@ -942,12 +942,12 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
         </div>
         {qForm.line_items.map((item, idx) => (
           <div key={idx} style={{ display: "grid", gridTemplateColumns: "120px 1fr 50px 80px 70px 24px", gap: 6, marginBottom: 6, alignItems: "center" }}>
-            <select value={item.category} onChange={e => updateItem(idx, "category", e.target.value)} style={{ ...inp, padding: "6px 8px", fontSize: 11 }}>
+            <select value={item.category} onChange={e => updateItem(idx, "category", e.target.value)} style={{ ...inp, padding: "6px 8px", fontSize: 16 }}>
               {Q_CATS.map(c => <option key={c}>{c}</option>)}
             </select>
-            <input style={{ ...inp, fontSize: 12 }} value={item.description} onChange={e => updateItem(idx, "description", e.target.value)} placeholder="Description" />
-            <input style={{ ...inp, fontSize: 12, textAlign: "right" }} type="number" min="1" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 1)} />
-            <input style={{ ...inp, fontSize: 12, textAlign: "right" }} type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
+            <input style={{ ...inp, fontSize: 16 }} value={item.description} onChange={e => updateItem(idx, "description", e.target.value)} placeholder="Description" />
+            <input style={{ ...inp, fontSize: 16, textAlign: "right" }} type="number" min="1" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseFloat(e.target.value) || 1)} />
+            <input style={{ ...inp, fontSize: 16, textAlign: "right" }} type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
             <span style={{ color: "#fff", fontSize: 12, fontWeight: 600, textAlign: "right" }}>${item.amount.toFixed(2)}</span>
             <button onClick={() => setQForm(p => ({ ...p, line_items: p.line_items.filter((_, i) => i !== idx) }))}
               style={{ background: "none", border: "none", color: "rgba(255,80,80,0.6)", cursor: "pointer", fontSize: 16 }}>×</button>

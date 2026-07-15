@@ -260,6 +260,38 @@ body {
 .hamburger-bar.open:nth-child(2) { opacity: 0; }
 .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+/* ── Header "Get Tickets" CTA ── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.header-cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 22px;
+  background: var(--vc-gold);
+  color: #0a0a0a;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  animation: header-cta-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes header-cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(208, 194, 144, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(208, 194, 144, 0); }
+}
+
+/* ── Mobile nav drawer + backdrop (rendered outside .site-header) ── */
+.mobile-nav-backdrop,
+.mobile-nav-drawer {
+  display: none;
+}
 
 .home-events-page {
   box-sizing: border-box;
@@ -547,19 +579,21 @@ body {
     position: relative;
   }
 
-  /* 3-zone layout: [empty] [logo centered] [hamburger right] */
+  /* 3-zone layout: [hamburger left] [logo centered] [Get Tickets right] */
   .header-inner {
     width: 100%;
     padding: 0 16px;
     min-height: 60px;
     display: grid;
-    grid-template-columns: 40px 1fr 40px;
+    grid-template-columns: 40px 1fr auto;
+    grid-template-rows: 1fr;
     align-items: center;
   }
 
   /* Logo sits in the center column */
   .header-logo {
     grid-column: 2;
+    grid-row: 1;
     justify-self: center;
   }
 
@@ -569,38 +603,75 @@ body {
     height: auto !important;
   }
 
-  /* Hamburger sits in the third column */
+  /* Hamburger sits in the first column */
   .hamburger {
-    grid-column: 3;
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
-    justify-self: end;
+    justify-self: start;
     margin-left: 0;
   }
 
-  /* Mobile nav dropdown */
-  .header-nav {
-    display: none;
-    flex-direction: column;
-    gap: 0;
-    width: 100%;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--vc-bg-deep, #0a0a0a);
-    border-top: 1px solid rgba(208,194,144,0.12);
-    border-bottom: 1px solid rgba(208,194,144,0.12);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
-    z-index: 1000;
-    overflow: hidden;
+  /* header-right (desktop nav + CTA) sits in the third column — the desktop
+     nav row is hidden below, leaving just the CTA button visible here */
+  .header-right {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
   }
 
-  .header-nav.open {
+  .header-cta {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  /* Desktop inline nav row is fully replaced by the slide-in drawer on mobile */
+  .header-nav {
+    display: none;
+  }
+
+  /* Dimmed scrim behind the mobile drawer */
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 280ms ease;
+    z-index: 1000;
+  }
+
+  .mobile-nav-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Left-anchored slide-in drawer */
+  .mobile-nav-drawer {
     display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(78vw, 320px);
+    padding-top: 76px;
+    background: var(--vc-bg-deep, #0a0a0a);
+    border-right: 1px solid rgba(208,194,144,0.12);
+    box-shadow: 8px 0 40px rgba(0,0,0,0.7);
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .mobile-nav-drawer.open {
+    transform: translateX(0);
   }
 
   /* Mobile nav links — large, tappable, full-width */
-  .header-nav .header-nav-link {
+  .mobile-nav-link {
     display: block;
     width: 100%;
     padding: 18px 24px;
@@ -614,19 +685,14 @@ body {
     transition: background 150ms ease, color 150ms ease;
   }
 
-  .header-nav .header-nav-link:last-child {
+  .mobile-nav-link:last-child {
     border-bottom: none;
   }
 
-  .header-nav .header-nav-link:active,
-  .header-nav .header-nav-link:hover {
+  .mobile-nav-link:active,
+  .mobile-nav-link:hover {
     background: rgba(208,194,144,0.08);
     color: var(--vc-gold);
-  }
-
-  /* Hide the desktop underline animation on mobile */
-  .header-nav .header-nav-link::after {
-    display: none;
   }
 
   .home-events-page {
@@ -791,7 +857,7 @@ body {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   padding: 12px 16px;
   outline: none;
   cursor: pointer;
@@ -855,7 +921,7 @@ body {
   .ticket-type-select {
     min-width: 0;
     width: 100%;
-    font-size: 13px;
+    font-size: 16px;
     padding: 10px 10px;
   }
   .ticket-qty-control {
@@ -1642,7 +1708,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   transition: border-color 200ms ease, background 200ms ease;
 }
@@ -2590,7 +2656,7 @@ body {
   border: none;
   outline: none;
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   padding: 10px 12px;
   font-family: inherit;
 }
@@ -2604,7 +2670,7 @@ body {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 999px;
   color: rgba(255,255,255,0.7);
-  font-size: 13px;
+  font-size: 16px;
   padding: 8px 16px;
   cursor: pointer;
   outline: none;
@@ -3210,7 +3276,7 @@ body {
   border-radius: var(--vc-radius-sm);
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   transition: border-color 180ms ease;
 }
 
@@ -3524,7 +3590,7 @@ select.admin-form-input {
   background: rgba(255, 255, 255, 0.04);
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 180ms ease;
   box-sizing: border-box;
@@ -5192,7 +5258,7 @@ select.admin-form-input {
 
 .report-card-filter-label .admin-form-input {
   min-width: 0;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 /* ── Card Actions ──────────────────────────────────────────────── */
@@ -5556,7 +5622,7 @@ select.admin-form-input {
   border-radius: 8px;
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   min-width: 140px;
   flex: 1;
 }
@@ -5629,6 +5695,10 @@ select.admin-form-input {
 
   .portal-table td select {
     max-width: 120px;
+  }
+
+  .portal-inline-select {
+    font-size: 16px;
   }
 }
 
@@ -6717,7 +6787,7 @@ select.admin-form-input {
   flex: 1;
   min-width: 180px;
   max-width: 340px;
-  font-size: 13px;
+  font-size: 16px;
   padding: 8px 12px;
 }
 
@@ -7476,7 +7546,7 @@ select.admin-form-input {
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
@@ -9145,7 +9215,7 @@ select.admin-form-input {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   transition: border-color 0.2s ease;
   outline: none;
@@ -9863,6 +9933,7 @@ body:has(.lp-main) .site-footer {
   .lp-hero-content .lp-past-banner,
   .lp-hero-content > a.lp-cta-btn { animation: none; }
   .lp-reveal { opacity: 1; transform: none; transition: none; }
+  .header-cta { animation: none; }
 }
 
 /* ══════════════════════════════════════════════════════ */
@@ -11650,7 +11721,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--vc-radius-md);
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -11911,7 +11982,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   font-family: var(--font-urbanist), sans-serif;
   outline: none;
   transition: border-color 180ms ease;
@@ -12219,7 +12290,7 @@ body:has(.lp-main) .site-footer {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .admin-form-label {
@@ -12571,6 +12642,7 @@ body:has(.lp-main) .site-footer {
   .offer-scaling-row .admin-form-input,
   .offer-expense-row .admin-form-input {
     width: 100% !important;
+    font-size: 16px;
   }
 
   /* ── General Typography Scaling ── */

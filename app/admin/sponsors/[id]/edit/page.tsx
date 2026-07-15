@@ -19,7 +19,7 @@ const card: React.CSSProperties = {
 const inp: React.CSSProperties = {
   width: "100%", padding: "10px 12px", borderRadius: 8,
   border: "1px solid rgba(255,255,255,0.12)",
-  background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 14,
+  background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 16,
 };
 const lbl: React.CSSProperties = {
   display: "block", fontSize: 11, fontWeight: 600,
