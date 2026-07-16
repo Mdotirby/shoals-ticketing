@@ -503,6 +503,23 @@ function CheckoutForm({
       </div>
 
       <form className="ic-form" onSubmit={handleSubmit} noValidate>
+        {/* Apple Pay / Google Pay — up top so it's seen before people manually
+            type their info; only appears when the browser supports it and
+            Stripe is configured for the domain */}
+        {paymentRequest && !isFullyFree && (
+          <div className="ic-wallet-section">
+            <PaymentRequestButtonElement
+              options={{
+                paymentRequest,
+                style: {
+                  paymentRequestButton: { theme: "dark", height: "48px", type: "buy" },
+                },
+              }}
+            />
+            <div className="ic-wallet-divider"><span>or pay by card</span></div>
+          </div>
+        )}
+
         <div className="ic-field">
           <label className="ic-label" htmlFor="ic-name">Full Name</label>
           <input
@@ -574,21 +591,6 @@ function CheckoutForm({
             Sign me up for exclusive offers &amp; rewards
           </span>
         </label>
-
-        {/* Apple Pay / Google Pay — only appears when browser supports it and Stripe domain is configured */}
-        {paymentRequest && !isFullyFree && (
-          <div className="ic-wallet-section">
-            <PaymentRequestButtonElement
-              options={{
-                paymentRequest,
-                style: {
-                  paymentRequestButton: { theme: "dark", height: "48px", type: "buy" },
-                },
-              }}
-            />
-            <div className="ic-wallet-divider"><span>or pay by card</span></div>
-          </div>
-        )}
 
         {/* Stripe Card Fields (only for paid checkout) */}
         {!isFullyFree && (
