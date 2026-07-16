@@ -70,7 +70,11 @@ export async function POST(request: Request) {
     const stripeFeeCents = Math.round(
       subtotalBeforeStripe * TERMINAL_PERCENT_FEE + TERMINAL_FLAT_FEE_CENTS
     );
-    const totalCents = subtotalBeforeStripe + stripeFeeCents;
+    // When fees are baked into the ticket price, the venue absorbs the card
+    // processing fee too — charge exactly the sticker price, no surcharge.
+    const totalCents = fees.feesIncludedInPrice
+      ? subtotalBeforeStripe
+      : subtotalBeforeStripe + stripeFeeCents;
 
     const stripe = getStripe();
 

@@ -377,12 +377,17 @@ export function calculateFees(opts: {
     ? (discountedTicketPriceCents + taxCents) * quantity
     : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
 
-  // Stripe processing fee on the total
+  // Stripe processing fee — informational even when absorbed (see below).
   const stripeFeeCents = Math.round(
     subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
   );
 
-  const totalCents = subtotalBeforeStripeFee + stripeFeeCents;
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly the sticker
+  // price (+ tax, if additive), full stop, never subtotal + surcharge.
+  const totalCents = feesIncludedInPrice
+    ? subtotalBeforeStripeFee
+    : subtotalBeforeStripeFee + stripeFeeCents;
 
   return {
     ticketPriceCents,

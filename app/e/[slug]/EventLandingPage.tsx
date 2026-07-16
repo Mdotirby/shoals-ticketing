@@ -227,9 +227,13 @@ function CheckoutForm({
           Math.round(selectedTier.basePrice * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : displayPrice * quantity;
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly the pre-Stripe amount.
   const estimatedTotal =
     basePreStripe > 0
-      ? Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      ? feesIncludedInPrice
+        ? Math.round(basePreStripe * 100) / 100
+        : Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
       : 0;
 
   // Discounted total — apply promo to base price, then recalculate fees + CC fee once
@@ -250,7 +254,9 @@ function CheckoutForm({
       : 0;
   const discountedTotal =
     discountedPreStripe > 0
-      ? Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      ? feesIncludedInPrice
+        ? Math.round(discountedPreStripe * 100) / 100
+        : Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
       : 0;
   const isFullyFree = isFree || (promoApplied && discountedBasePerTicket <= 0);
 
@@ -750,7 +756,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
         Math.round(selectedTier.basePrice * ctaEffectiveTaxRate * 100) / 100) * quantity
     : 0;
   const ctaTotal = ctaPreStripe > 0
-    ? Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    ? resolvedFees.feesIncludedInPrice
+      ? Math.round(ctaPreStripe * 100) / 100
+      : Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0;
 
   // ── Restore presale session ───────────────────────────────────────────────
@@ -1334,7 +1342,11 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               const preStripe = resolvedFees.feesIncludedInPrice
                 ? subtotal + totalTax
                 : subtotal + totalTicketingFee + totalFacilityFee + totalTax;
-              const processingFee = Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+              // When fees are baked into the price, the venue absorbs the card
+              // processing fee too — don't add it to the customer's total.
+              const processingFee = resolvedFees.feesIncludedInPrice
+                ? 0
+                : Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
               const total = preStripe + processingFee;
               const row = (label: string, value: number, accent = false): React.ReactNode => (
                 <div

@@ -360,7 +360,9 @@ export async function POST(request: Request) {
       });
     }
 
-    if (stripeFeeCents > 0) {
+    // When fees are baked into the ticket price, the venue absorbs the card
+    // processing fee too — don't charge it as a separate line item.
+    if (!feesIncludedInPrice && stripeFeeCents > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",

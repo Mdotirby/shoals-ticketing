@@ -186,6 +186,11 @@ export default async function LandingPage({ params }: Props) {
     const subtotalBeforeStripe = feesIncludedInPrice
       ? base + tax
       : base + fees.ticketing_fee + fees.facility_fee + tax;
+    // When fees are baked into the price, the venue absorbs the card
+    // processing fee too — the all-in price IS the charge, full stop.
+    if (feesIncludedInPrice) {
+      return Math.round(subtotalBeforeStripe * 100) / 100;
+    }
     const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
     return Math.round((subtotalBeforeStripe + processingFee) * 100) / 100;
   }

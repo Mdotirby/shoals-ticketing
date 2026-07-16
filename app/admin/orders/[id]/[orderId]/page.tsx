@@ -670,7 +670,7 @@ export default function OrderDetailPage() {
                   ...(!f.feesIncludedInPrice && b.ticketingFeeCents > 0 ? [[`Ticketing fee × ${qty}`, b.ticketingFeeCents * qty] as [string, number]] : []),
                   ...(!f.feesIncludedInPrice && b.facilityFeeCents > 0 ? [[`Facility fee × ${qty}`, b.facilityFeeCents * qty] as [string, number]] : []),
                   ...(b.taxCents > 0 ? [[`Sales tax (${(f.taxRate * 100).toFixed(1)}%) × ${qty}`, b.taxCents * qty] as [string, number]] : []),
-                  [`Processing fee`, b.stripeFeeCents],
+                  ...(!f.feesIncludedInPrice ? [[`Processing fee`, b.stripeFeeCents] as [string, number]] : []),
                 ];
                 return (
                   <>

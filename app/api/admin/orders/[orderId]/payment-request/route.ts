@@ -131,8 +131,8 @@ export async function POST(
     });
   }
 
-  // Processing fee (flat per transaction)
-  if (breakdown.stripeFeeCents > 0) {
+  // Processing fee (flat per transaction) — absorbed when fees are baked into price
+  if (!fees.feesIncludedInPrice && breakdown.stripeFeeCents > 0) {
     lineItems.push({
       price_data: {
         currency: "usd",
@@ -201,7 +201,7 @@ export async function POST(
                 ...(!fees.feesIncludedInPrice && breakdown.ticketingFeeCents > 0 ? [[`Ticketing fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.ticketingFeeCents * quantity]] : []),
                 ...(!fees.feesIncludedInPrice && breakdown.facilityFeeCents > 0 ? [[`Facility fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.facilityFeeCents * quantity]] : []),
                 ...(breakdown.taxCents > 0 ? [[`Sales tax (${(fees.taxRate * 100).toFixed(1)}%)${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.taxCents * quantity]] : []),
-                ...(breakdown.stripeFeeCents > 0 ? [["Processing fee", breakdown.stripeFeeCents]] : []),
+                ...(!fees.feesIncludedInPrice && breakdown.stripeFeeCents > 0 ? [["Processing fee", breakdown.stripeFeeCents]] : []),
               ].map(([label, cents]) => `
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;">
                   <tr>

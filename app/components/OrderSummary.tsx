@@ -131,7 +131,9 @@ export default function OrderSummary({
   const subtotalBeforeStripe = feesIncludedInPrice
     ? discountedSubtotal + tax
     : discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
-  const processingFee = isFreeOrder ? 0 : (hasSelection
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly subtotalBeforeStripe.
+  const processingFee = isFreeOrder || feesIncludedInPrice ? 0 : (hasSelection
     ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0);
   const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;

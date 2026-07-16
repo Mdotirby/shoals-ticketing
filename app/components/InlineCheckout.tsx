@@ -171,7 +171,11 @@ function CheckoutForm({
   const subtotalBeforeStripe = feesIncludedInPrice
     ? subtotal + tax
     : subtotal + totalTicketingFee + totalFacilityFee + tax;
-  const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly subtotalBeforeStripe.
+  const processingFee = feesIncludedInPrice
+    ? 0
+    : Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
   const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
   const isFullyFree = isFreeEvent || ticketPrice === 0;
 
