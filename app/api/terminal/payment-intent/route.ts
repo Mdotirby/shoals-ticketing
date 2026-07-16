@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     // Fetch event
     const { data: event } = await admin
       .from("events")
-      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, tax_method")
+      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price")
       .eq("id", event_id)
       .single();
 
@@ -64,8 +64,9 @@ export async function POST(request: Request) {
     const facilityFeeCents = Math.round(fees.facilityFee * 100);
     const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
     const taxCents = Math.round(ticketPriceCents * effectiveTaxRate);
-    const subtotalBeforeStripe =
-      (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
+    const subtotalBeforeStripe = fees.feesIncludedInPrice
+      ? (ticketPriceCents + taxCents) * quantity
+      : (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
     const stripeFeeCents = Math.round(
       subtotalBeforeStripe * TERMINAL_PERCENT_FEE + TERMINAL_FLAT_FEE_CENTS
     );
@@ -94,6 +95,7 @@ export async function POST(request: Request) {
         venue_rebate: String(fees.venueRebate),
         tax_rate: String(fees.taxRate),
         tax_method: fees.taxMethod,
+        fees_included_in_price: fees.feesIncludedInPrice ? "true" : "false",
         source: "terminal",
       },
     });

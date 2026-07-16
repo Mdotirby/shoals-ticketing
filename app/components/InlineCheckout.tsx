@@ -48,6 +48,8 @@ type InlineCheckoutProps = {
   facilityFee?: number;
   taxRate?: number;
   taxMethod?: "multiplier" | "divisor";
+  /** Ticketing fee + facility fee are already baked into ticketPrice — don't add them again. */
+  feesIncludedInPrice?: boolean;
 };
 
 // ── Stripe loader (singleton) ────────────────────────────────────────────────
@@ -130,6 +132,7 @@ function CheckoutForm({
   facilityFee = 0,
   taxRate = 0,
   taxMethod = "multiplier",
+  feesIncludedInPrice = false,
 }: InlineCheckoutProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -165,7 +168,9 @@ function CheckoutForm({
   const totalTicketingFee = ticketingFee * quantity;
   const totalFacilityFee = facilityFee * quantity;
   const tax = Math.round(subtotal * rate * 100) / 100;
-  const subtotalBeforeStripe = subtotal + totalTicketingFee + totalFacilityFee + tax;
+  const subtotalBeforeStripe = feesIncludedInPrice
+    ? subtotal + tax
+    : subtotal + totalTicketingFee + totalFacilityFee + tax;
   const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
   const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
   const isFullyFree = isFreeEvent || ticketPrice === 0;
@@ -453,13 +458,21 @@ function CheckoutForm({
         {totalTicketingFee > 0 && (
           <div className="ic-order-line ic-order-line-fee">
             <span>Ticketing fee</span>
-            <span>${totalTicketingFee.toFixed(2)}</span>
+            {feesIncludedInPrice ? (
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+            ) : (
+              <span>${totalTicketingFee.toFixed(2)}</span>
+            )}
           </div>
         )}
         {totalFacilityFee > 0 && (
           <div className="ic-order-line ic-order-line-fee">
             <span>Facility fee</span>
-            <span>${totalFacilityFee.toFixed(2)}</span>
+            {feesIncludedInPrice ? (
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+            ) : (
+              <span>${totalFacilityFee.toFixed(2)}</span>
+            )}
           </div>
         )}
         {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (

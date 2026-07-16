@@ -62,6 +62,7 @@ async function processTicketOrder({
   venueRebate,
   taxRate,
   taxMethod,
+  feesIncludedInPrice,
   tierId,
   operatorSlug,
 }: {
@@ -90,6 +91,7 @@ async function processTicketOrder({
   venueRebate: number;
   taxRate: number;
   taxMethod: string;
+  feesIncludedInPrice?: boolean;
   tierId: string | null;
   operatorSlug: string;
 }): Promise<void> {
@@ -299,13 +301,17 @@ async function processTicketOrder({
 
     // 4. Write settlement ledger entry
     // ticket_revenue = face value only (ticket price × qty, before fees/tax/stripe)
+    // When feesIncludedInPrice, the ticketing fee was never charged as an
+    // additive amount on top of totalAmount — it's already inside the ticket
+    // price — so don't subtract it again when backing out face value.
     const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
+    const ticketingFeeToSubtract = feesIncludedInPrice ? 0 : totalTicketingFee;
     const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
     const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
     // Solve for face value: gross = face*(1+taxRate) + ticketingFee + stripeFee
     const ticketRevenue = effectiveTaxRate > 0
-      ? Math.round(((totalAmount - totalTicketingFee - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
-      : Math.round((totalAmount - totalTicketingFee - stripeFee) * 100) / 100;
+      ? Math.round(((totalAmount - ticketingFeeToSubtract - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round((totalAmount - ticketingFeeToSubtract - stripeFee) * 100) / 100;
     const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
 
     await admin.from("settlement_ledger").insert({
@@ -320,7 +326,7 @@ async function processTicketOrder({
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
       stripe_fee: stripeFee,
-      net_to_venue: totalAmount - totalTicketingFee - stripeFee + venueRebate,
+      net_to_venue: totalAmount - ticketingFeeToSubtract - stripeFee + venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     });
@@ -691,6 +697,7 @@ export async function POST(request: Request) {
       venueRebate: parseFloat(session.metadata?.venue_rebate || "0"),
       taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
       taxMethod: session.metadata?.tax_method || "additive",
+      feesIncludedInPrice: session.metadata?.fees_included_in_price === "true",
       tierId: null,
       operatorSlug: session.metadata?.operator_slug || "venuecore",
     });
@@ -737,6 +744,7 @@ export async function POST(request: Request) {
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),
         venueRebate: parseFloat(meta.venue_rebate || "0"),
         taxRate: parseFloat(meta.tax_rate || "0.09"),
+        feesIncludedInPrice: meta.fees_included_in_price === "true",
         tierId: meta.tier_id || null,
         operatorSlug: meta.operator_slug || "venuecore",
       });

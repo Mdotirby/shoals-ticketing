@@ -67,6 +67,8 @@ type Fees = {
   facilityFee: number;    // flat dollars per ticket
   taxRate: number;        // decimal (e.g. 0.095)
   taxMethod: "multiplier" | "divisor";
+  /** Ticketing fee + facility fee are already baked into the ticket price. */
+  feesIncludedInPrice?: boolean;
 };
 
 type OtherEvent = {
@@ -215,12 +217,13 @@ function CheckoutForm({
   // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
   // Divisor: tax baked in — don't add it again to the estimated total.
   const effectiveTaxRateForTotal = fees?.taxMethod === "divisor" ? 0 : (fees?.taxRate ?? 0);
+  const feesIncludedInPrice = fees?.feesIncludedInPrice === true;
   const basePreStripe =
     selectedTier.basePrice > 0
       ? (
           selectedTier.basePrice +
-          (fees?.ticketingFee ?? 0) +
-          (fees?.facilityFee ?? 0) +
+          (feesIncludedInPrice ? 0 : (fees?.ticketingFee ?? 0)) +
+          (feesIncludedInPrice ? 0 : (fees?.facilityFee ?? 0)) +
           Math.round(selectedTier.basePrice * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : displayPrice * quantity;
@@ -240,8 +243,8 @@ function CheckoutForm({
     discountedBasePerTicket > 0
       ? (
           discountedBasePerTicket +
-          (fees?.ticketingFee ?? 0) +
-          (fees?.facilityFee ?? 0) +
+          (feesIncludedInPrice ? 0 : (fees?.ticketingFee ?? 0)) +
+          (feesIncludedInPrice ? 0 : (fees?.facilityFee ?? 0)) +
           Math.round(discountedBasePerTicket * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : 0;
@@ -742,7 +745,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   // over-charges on the flat portion. Compute from basePrice instead.
   const ctaEffectiveTaxRate = resolvedFees.taxMethod === "divisor" ? 0 : resolvedFees.taxRate;
   const ctaPreStripe = selectedTier
-    ? (selectedTier.basePrice + resolvedFees.ticketingFee + resolvedFees.facilityFee +
+    ? (selectedTier.basePrice +
+        (resolvedFees.feesIncludedInPrice ? 0 : resolvedFees.ticketingFee + resolvedFees.facilityFee) +
         Math.round(selectedTier.basePrice * ctaEffectiveTaxRate * 100) / 100) * quantity
     : 0;
   const ctaTotal = ctaPreStripe > 0
@@ -1327,7 +1331,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               const totalFacilityFee = resolvedFees.facilityFee * quantity;
               const taxPerTicket = Math.round(basePrice * effectiveTaxRate * 100) / 100;
               const totalTax = taxPerTicket * quantity;
-              const preStripe = subtotal + totalTicketingFee + totalFacilityFee + totalTax;
+              const preStripe = resolvedFees.feesIncludedInPrice
+                ? subtotal + totalTax
+                : subtotal + totalTicketingFee + totalFacilityFee + totalTax;
               const processingFee = Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
               const total = preStripe + processingFee;
               const row = (label: string, value: number, accent = false): React.ReactNode => (
@@ -1356,8 +1362,22 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                   }}
                 >
                   {row(`${selectedTier.name ?? "Ticket"}${quantity > 1 ? ` \u00d7 ${quantity}` : ""}`, subtotal)}
-                  {totalTicketingFee > 0 && row("Ticketing service fee", totalTicketingFee)}
-                  {totalFacilityFee > 0 && row("Facility fee", totalFacilityFee)}
+                  {totalTicketingFee > 0 && (
+                    resolvedFees.feesIncludedInPrice ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
+                        <span style={{ color: "rgba(255,255,255,0.72)" }}>Ticketing service fee</span>
+                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+                      </div>
+                    ) : row("Ticketing service fee", totalTicketingFee)
+                  )}
+                  {totalFacilityFee > 0 && (
+                    resolvedFees.feesIncludedInPrice ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
+                        <span style={{ color: "rgba(255,255,255,0.72)" }}>Facility fee</span>
+                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+                      </div>
+                    ) : row("Facility fee", totalFacilityFee)
+                  )}
                   {isDivisor && resolvedFees.taxRate > 0 ? (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
                       <span style={{ color: "rgba(255,255,255,0.72)" }}>Sales tax</span>

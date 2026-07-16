@@ -34,7 +34,7 @@ export async function GET(
   // Fetch event + all tiers
   const { data: event } = await admin
     .from("events")
-    .select("id, title, price, venue_id, event_venue_id, facility_fee_enabled, tax_method")
+    .select("id, title, price, venue_id, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price")
     .eq("id", order.event_id)
     .single();
 
@@ -71,6 +71,7 @@ export async function GET(
     facilityFee: fees.facilityFee,
     taxRate: effectiveTaxRate,
     quantity,
+    feesIncludedInPrice: fees.feesIncludedInPrice,
   });
 
   return NextResponse.json({

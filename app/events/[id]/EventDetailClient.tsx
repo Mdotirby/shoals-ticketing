@@ -62,6 +62,7 @@ type EventData = {
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
   tax_method?: "multiplier" | "divisor" | null;
+  fees_included_in_price?: boolean | null;
   spotify_url?: string | null;
   spotify_monthly_listeners?: string | null;
   spotify_featured_track?: string | null;
@@ -989,6 +990,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     facilityFee={venueFees.facility_fee}
                     taxRate={venueFees.tax_rate}
                     taxMethod={venueFees.tax_method}
+                    feesIncludedInPrice={event.fees_included_in_price === true}
                   />
                 </div>
               ) : !ticketsOnSale && !presaleUnlocked ? (
@@ -1132,6 +1134,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       facilityFee={venueFees.facility_fee}
                       taxRate={venueFees.tax_rate}
                       taxMethod={venueFees.tax_method}
+                      feesIncludedInPrice={event.fees_included_in_price === true}
                       onCheckout={handleCheckout}
                       onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                       onFreeCheckout={handleFreeCheckout}
@@ -1166,6 +1169,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                   facilityFee={venueFees.facility_fee}
                   taxRate={venueFees.tax_rate}
                   taxMethod={venueFees.tax_method}
+                  feesIncludedInPrice={event.fees_included_in_price === true}
                   onCheckout={handleCheckout}
                   onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                   onFreeCheckout={handleFreeCheckout}

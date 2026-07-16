@@ -12,6 +12,9 @@ export interface VenueFees {
   venueRebate: number;    // dollars
   taxRate: number;         // decimal (e.g. 0.095)
   taxMethod: "multiplier" | "divisor"; // multiplier = tax added on top; divisor = baked into face price
+  /** True when the ticket price already has ticketing fee + facility fee baked in —
+   *  checkout must not add them again on top. Independent of taxMethod. */
+  feesIncludedInPrice: boolean;
 }
 
 export interface PromoResult {
@@ -41,6 +44,11 @@ export interface FeeBreakdown {
   totalCents: number;
   /** Discount per ticket in cents */
   discountCentsPerTicket: number;
+  /** True when ticketingFeeCents/facilityFeeCents are already baked into
+   *  ticketPriceCents and were NOT added again into totalCents. Callers building
+   *  line-item UIs (Stripe line items, order summaries) should label these as
+   *  "included" rather than adding them as separate charges. */
+  feesIncludedInPrice: boolean;
 }
 
 // ── Fee Resolution ───────────────────────────────────────────────────────────
@@ -51,7 +59,7 @@ export interface FeeBreakdown {
  */
 export async function resolveVenueFees(
   admin: SupabaseClient,
-  event: { venue_id?: string | null; event_venue_id?: string | null; facility_fee_enabled?: boolean | null; tax_method?: string | null }
+  event: { venue_id?: string | null; event_venue_id?: string | null; facility_fee_enabled?: boolean | null; tax_method?: string | null; fees_included_in_price?: boolean | null }
 ): Promise<VenueFees> {
   let ticketingFee = 3.0;
   let facilityFee = 0;
@@ -59,6 +67,8 @@ export async function resolveVenueFees(
   let taxRate = 0.095;
   let taxMethod: "multiplier" | "divisor" = "multiplier";
   let feesResolved = false;
+  // Deal-specific, event-only setting — no venue-level inheritance.
+  const feesIncludedInPrice = event.fees_included_in_price === true;
 
   // 1. Try event_venues first (per physical venue)
   if (event.event_venue_id) {
@@ -102,7 +112,7 @@ export async function resolveVenueFees(
     taxMethod = event.tax_method;
   }
 
-  return { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod };
+  return { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod, feesIncludedInPrice };
 }
 
 // ── Promo Code Validation ────────────────────────────────────────────────────
@@ -347,18 +357,25 @@ export function calculateFees(opts: {
   facilityFee: number;
   taxRate: number;
   quantity: number;
+  /** True when ticketPriceCents already has ticketingFee + facilityFee baked
+   *  in — don't add them again on top of the charge. */
+  feesIncludedInPrice?: boolean;
 }): FeeBreakdown {
-  const { ticketPriceCents, discountCentsPerTicket, ticketingFee, facilityFee, taxRate, quantity } = opts;
+  const { ticketPriceCents, discountCentsPerTicket, ticketingFee, facilityFee, taxRate, quantity, feesIncludedInPrice = false } = opts;
 
   const discountedTicketPriceCents = Math.max(0, ticketPriceCents - discountCentsPerTicket);
+  // Nominal per-ticket amounts — always returned for display/reporting, even
+  // when baked into the price and not separately charged.
   const ticketingFeeCents = Math.round(ticketingFee * 100);
   const facilityFeeCents = Math.round(facilityFee * 100);
 
   // Tax on discounted ticket price
   const taxCents = Math.round(discountedTicketPriceCents * taxRate);
 
-  // Subtotal before Stripe fee
-  const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
+  // Subtotal before Stripe fee — skip re-adding fees already baked into the price.
+  const subtotalBeforeStripeFee = feesIncludedInPrice
+    ? (discountedTicketPriceCents + taxCents) * quantity
+    : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
 
   // Stripe processing fee on the total
   const stripeFeeCents = Math.round(
@@ -378,5 +395,6 @@ export function calculateFees(opts: {
     stripeFeeCents,
     totalCents,
     discountCentsPerTicket,
+    feesIncludedInPrice,
   };
 }
