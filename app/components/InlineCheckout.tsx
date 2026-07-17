@@ -92,6 +92,14 @@ const stripeAppearance = {
       borderColor: "#ef4444",
       boxShadow: "0 0 0 2px rgba(239, 68, 68, 0.15)",
     },
+    // Chrome/Safari autofill forces its own black text color on the input
+    // (via -webkit-text-fill-color), overriding the color set above — this
+    // pins it back to white when a saved card gets autofilled.
+    ".Input:-webkit-autofill": {
+      "-webkit-text-fill-color": "#ffffff",
+      "-webkit-box-shadow": "0 0 0 1000px rgba(255, 255, 255, 0.04) inset",
+      caretColor: "#ffffff",
+    } as Record<string, string>,
     ".Label": {
       color: "rgba(255, 255, 255, 0.7)",
       fontSize: "13px",
