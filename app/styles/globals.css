@@ -2606,6 +2606,7 @@ body {
   font-weight: 900;
   font-size: clamp(1.8rem, 8vw, 31px);
   letter-spacing: 0.075em;
+  text-transform: uppercase;
   text-shadow: 0 2px 40px rgba(0, 0, 0, 0.4);
 }
 
