@@ -2,7 +2,8 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
-import { validatePresaleCode } from "@/lib/checkout-helpers";
+import { validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
+import { sendTicketEmail } from "@/lib/email/ticket-email";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -43,13 +44,13 @@ export async function POST(request: Request) {
   // Fetch event (with closeout column when available)
   let { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, title, venue, date, venue_id, on_sale_at, closed_out_at, start_time")
+    .select("id, title, venue, date, venue_id, image_url, on_sale_at, closed_out_at, start_time")
     .eq("id", event_id)
     .single();
   if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
     const retry = await admin
       .from("events")
-      .select("id, title, venue, date, venue_id, on_sale_at")
+      .select("id, title, venue, date, venue_id, image_url, on_sale_at")
       .eq("id", event_id)
       .single();
     event = retry.data ? { ...retry.data, closed_out_at: null, start_time: null } : null;
@@ -76,6 +77,16 @@ export async function POST(request: Request) {
   });
   if (closeoutReason) {
     return NextResponse.json({ error: closeoutReason }, { status: 410 });
+  }
+
+  // Guard: reserved-seating events require a seat selection (authoritative backstop).
+  if (!(Array.isArray(seat_ids) && seat_ids.length > 0)) {
+    if (await eventRequiresSeating(admin, event_id)) {
+      return NextResponse.json(
+        { error: "Please select your seat(s) from the map before checking out." },
+        { status: 400 }
+      );
+    }
   }
 
   // Resolve venue slug for email sender
@@ -334,88 +345,23 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Send confirmation email via Resend ────────────────────────────────────
+  // ── Send confirmation email — same bespoke design as a paid GA purchase ──
+  // (sendTicketEmail renders lib/email/TicketDeliveryEmail.tsx; totalAmount 0
+  // renders "$0.00 / Free"). Guards on RESEND_API_KEY internally.
   if (buyer_email && createdTickets && createdTickets.length > 0) {
     try {
-      const resendKey = process.env.RESEND_API_KEY;
-      if (resendKey) {
-        const ticketUrl = `https://venuecore.live/tickets/${createdTickets[0].qr_code}`;
-        const formattedDate = new Date(event.date).toLocaleDateString("en-US", {
-          weekday: "long",
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        });
-
-        const html = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Your ${quantity > 1 ? "Tickets" : "Ticket"} — ${event.title}</title></head>
-<body style="margin:0;padding:0;background:#0b0d1d;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0b0d1d;padding:32px 0;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#131629;border-radius:12px;overflow:hidden;border:1px solid rgba(208,194,144,0.15);">
-        <tr><td style="background:#d0c290;padding:20px 28px;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#0b0d1d;text-transform:uppercase;">VenueCore</p>
-          <h1 style="margin:6px 0 0;font-size:22px;font-weight:800;color:#0b0d1d;">Your ${quantity > 1 ? "Tickets are" : "Ticket is"} Ready</h1>
-        </td></tr>
-        <tr><td style="padding:28px 28px 20px;">
-          <p style="margin:0 0 20px;color:rgba(255,255,255,0.7);font-size:15px;line-height:1.6;">
-            Hey ${buyer_name ? buyer_name.split(" ")[0] : "there"},<br/>You're all set! Here's everything you need for the show.
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.08);border:1px solid rgba(208,194,144,0.2);border-radius:10px;margin-bottom:24px;">
-            <tr><td style="padding:18px 20px;">
-              <p style="margin:0;font-size:18px;font-weight:700;color:#d0c290;">${event.title}</p>
-              <p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,0.6);">${formattedDate}</p>
-              <p style="margin:4px 0 0;font-size:14px;color:rgba(255,255,255,0.6);">${event.venue}</p>
-              <p style="margin:10px 0 0;font-size:13px;color:rgba(255,255,255,0.4);">${quantity} ticket${quantity !== 1 ? "s" : ""} · Free</p>
-            </td></tr>
-          </table>
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:rgba(208,194,144,0.06);border:1px solid rgba(208,194,144,0.15);border-radius:10px;margin-bottom:20px;">
-            <tr><td style="padding:16px 20px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#d0c290;">Your QR Code Is Your Ticket</p>
-              <p style="margin:0;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5;">Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy &mdash; just have it ready when you arrive.</p>
-            </td></tr>
-          </table>
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-            <tr><td align="center">
-              <a href="${ticketUrl}" style="display:inline-block;background:#d0c290;color:#0b0d1d;font-weight:700;font-size:14px;padding:12px 32px;border-radius:8px;text-decoration:none;">
-                View My ${quantity > 1 ? "Tickets" : "Ticket"} &amp; QR Code
-              </a>
-            </td></tr>
-          </table>
-          <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.3);line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);padding-top:20px;">
-            All sales are final. Questions? Reply to this email or contact <a href="mailto:support@west72ent.com" style="color:rgba(208,194,144,0.6);">support@west72ent.com</a>.
-          </p>
-        </td></tr>
-        <tr><td style="padding:14px 28px;background:rgba(0,0,0,0.2);text-align:center;">
-          <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);">Powered by VenueCore · <a href="https://venuecore.live" style="color:rgba(208,194,144,0.4);text-decoration:none;">venuecore.live</a></p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
-
-        const res = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "West 72 Entertainment <ticketing@west72ent.com>",
-            to: [buyer_email],
-            subject: `Your ${quantity > 1 ? "tickets" : "ticket"} for ${event.title}`,
-            html,
-          }),
-        });
-
-        if (!res.ok) {
-          const err = await res.text();
-          console.error("Resend email failed (free checkout):", err);
-        } else {
-          console.log(`Free ticket email sent to ${buyer_email}`);
-        }
-      }
+      await sendTicketEmail({
+        to: buyer_email,
+        customerName: buyer_name,
+        eventTitle: event.title,
+        eventDate: event.date,
+        eventVenue: event.venue,
+        eventImage: event.image_url,
+        ticketCount: quantity,
+        totalAmount: 0,
+        ticketId: createdTickets[0].qr_code,
+        venueSlug,
+      });
     } catch (e) {
       console.error("Failed to send free ticket email:", e);
     }

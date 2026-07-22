@@ -31,7 +31,7 @@ export async function POST(
   // Load order + event
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select(`*, events!inner(id, title, date, venue, venue_id, price, event_venue_id, facility_fee_enabled, tax_method)`)
+    .select(`*, events!inner(id, title, date, venue, venue_id, price, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price)`)
     .eq("id", orderId)
     .single();
 
@@ -63,6 +63,7 @@ export async function POST(
     facilityFee: fees.facilityFee,
     taxRate: effectiveTaxRate,
     quantity,
+    feesIncludedInPrice: fees.feesIncludedInPrice,
   });
 
   const totalCents = breakdown.totalCents;
@@ -94,8 +95,8 @@ export async function POST(
     quantity,
   });
 
-  // Ticketing fee
-  if (breakdown.ticketingFeeCents > 0) {
+  // Ticketing fee — omitted when already baked into the ticket price above.
+  if (!fees.feesIncludedInPrice && breakdown.ticketingFeeCents > 0) {
     lineItems.push({
       price_data: {
         currency: "usd",
@@ -106,8 +107,8 @@ export async function POST(
     });
   }
 
-  // Facility fee
-  if (breakdown.facilityFeeCents > 0) {
+  // Facility fee — omitted when already baked into the ticket price above.
+  if (!fees.feesIncludedInPrice && breakdown.facilityFeeCents > 0) {
     lineItems.push({
       price_data: {
         currency: "usd",
@@ -130,8 +131,8 @@ export async function POST(
     });
   }
 
-  // Processing fee (flat per transaction)
-  if (breakdown.stripeFeeCents > 0) {
+  // Processing fee (flat per transaction) — absorbed when fees are baked into price
+  if (!fees.feesIncludedInPrice && breakdown.stripeFeeCents > 0) {
     lineItems.push({
       price_data: {
         currency: "usd",
@@ -197,10 +198,10 @@ export async function POST(
             <tr><td style="padding:0 4px;">
               ${[
                 [`${tier.tier_name}${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.discountedTicketPriceCents * quantity],
-                ...(breakdown.ticketingFeeCents > 0 ? [[`Ticketing fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.ticketingFeeCents * quantity]] : []),
-                ...(breakdown.facilityFeeCents > 0 ? [[`Facility fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.facilityFeeCents * quantity]] : []),
+                ...(!fees.feesIncludedInPrice && breakdown.ticketingFeeCents > 0 ? [[`Ticketing fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.ticketingFeeCents * quantity]] : []),
+                ...(!fees.feesIncludedInPrice && breakdown.facilityFeeCents > 0 ? [[`Facility fee${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.facilityFeeCents * quantity]] : []),
                 ...(breakdown.taxCents > 0 ? [[`Sales tax (${(fees.taxRate * 100).toFixed(1)}%)${quantity > 1 ? ` × ${quantity}` : ""}`, breakdown.taxCents * quantity]] : []),
-                ...(breakdown.stripeFeeCents > 0 ? [["Processing fee", breakdown.stripeFeeCents]] : []),
+                ...(!fees.feesIncludedInPrice && breakdown.stripeFeeCents > 0 ? [["Processing fee", breakdown.stripeFeeCents]] : []),
               ].map(([label, cents]) => `
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:4px;">
                   <tr>

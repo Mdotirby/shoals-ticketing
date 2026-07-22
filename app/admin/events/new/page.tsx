@@ -942,7 +942,7 @@ export default function AdminCreateEventPage() {
                   step="0.01"
                   min="0"
                   className="admin-form-input"
-                  style={{ width: 110, padding: "6px 10px", fontSize: 13 }}
+                  style={{ width: 110, padding: "6px 10px", fontSize: 16 }}
                   value={selectedVenueFees.facility_fee ?? 0}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);

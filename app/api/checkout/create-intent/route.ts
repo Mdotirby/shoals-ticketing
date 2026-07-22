@@ -7,6 +7,7 @@ import {
   validatePresaleCode,
   validateAndHoldSeats,
   calculateFees,
+  eventRequiresSeating,
 } from "@/lib/checkout-helpers";
 import { pastEventReason } from "@/lib/events/closeout";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
@@ -74,16 +75,16 @@ export async function POST(request: Request) {
     // Try with closed_out_at (closeout migration); fall back without it.
     let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at, closed_out_at, tax_method, start_time")
+      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at, closed_out_at, tax_method, start_time, fees_included_in_price")
       .eq("id", eventId)
       .single();
-    if (eventError && /closed_out_at|tax_method|column .* does not exist/i.test(eventError.message)) {
+    if (eventError && /closed_out_at|tax_method|fees_included_in_price|column .* does not exist/i.test(eventError.message)) {
       const retry = await admin
         .from("events")
         .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, on_sale_at")
         .eq("id", eventId)
         .single();
-      event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null, start_time: null } : null;
+      event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null, start_time: null, fees_included_in_price: false } : null;
       eventError = retry.error;
     }
 
@@ -110,6 +111,18 @@ export async function POST(request: Request) {
     });
     if (closeoutReason) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
+    }
+
+    // Guard: reserved-seating events require a seat selection. Authoritative
+    // server-side backstop — blocks a seatless order when the seat map fails
+    // to load or hasn't engaged client-side (the failure that stranded orders).
+    if (!(Array.isArray(selectedSeats) && selectedSeats.length > 0)) {
+      if (await eventRequiresSeating(admin, eventId)) {
+        return NextResponse.json(
+          { error: "Please select your seat(s) from the map before checking out." },
+          { status: 400 }
+        );
+      }
     }
 
     // ── Resolve ticket price (tier or event-level) ────────────────────────
@@ -210,6 +223,7 @@ export async function POST(request: Request) {
       facilityFee: fees.facilityFee,
       taxRate: effectiveTaxRate,
       quantity: effectiveQuantity,
+      feesIncludedInPrice: fees.feesIncludedInPrice,
     });
 
     // NOTE: Promo code usage is incremented in the Stripe webhook (processTicketOrder)
@@ -244,6 +258,7 @@ export async function POST(request: Request) {
         venue_rebate: String(fees.venueRebate),
         tax_rate: String(fees.taxRate),
         tax_method: fees.taxMethod,
+        fees_included_in_price: fees.feesIncludedInPrice ? "true" : "false",
         buyer_name: buyerName || "",
         buyer_email: buyerEmail || "",
         buyer_phone: buyerPhone || "",

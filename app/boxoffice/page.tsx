@@ -55,7 +55,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (name: string) => void }) {
   const field: React.CSSProperties = {
     width: "100%", padding: "12px 14px", borderRadius: 8,
     border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)",
-    color: "#fff", fontSize: 15, boxSizing: "border-box",
+    color: "#fff", fontSize: 16, boxSizing: "border-box",
   };
 
   return (
@@ -277,7 +277,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   };
 
   // ── Styles ────────────────────────────────────────────────────────────────
-  const fieldStyle: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 15, boxSizing: "border-box" };
+  const fieldStyle: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 16, boxSizing: "border-box" };
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.45)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" };
 
   // ── Reader status indicator ───────────────────────────────────────────────

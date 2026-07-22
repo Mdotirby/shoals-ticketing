@@ -67,6 +67,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function EventDetailPage() {
-  return <EventDetailClient />;
+export default async function EventDetailPage({ params }: Props) {
+  const { id } = await params;
+  const admin = createAdminClient();
+
+  // Authoritative, server-side signal for whether this event requires a seat
+  // selection. Passed to the client so the "must pick a seat" guard no longer
+  // depends solely on a client-side fetch that can fail/race (the failure that
+  // let seatless orders through).
+  const { data: layout } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", id)
+    .eq("enabled", true)
+    .maybeSingle();
+
+  return <EventDetailClient requiresSeating={!!layout?.layout_id} />;
 }

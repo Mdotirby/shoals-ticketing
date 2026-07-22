@@ -78,6 +78,8 @@ export default function AdminEditEventPage() {
   const [taxMethod, setTaxMethod] = useState<"multiplier" | "divisor">("multiplier");
   // Track whether the event has its own tax_method so venue load doesn't override it
   const taxMethodFromEventRef = useRef(false);
+  // Independent of tax_method — bakes ticketing fee + facility fee into the sticker price.
+  const [feesIncludedInPrice, setFeesIncludedInPrice] = useState(false);
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
   const [availableHosts, setAvailableHosts] = useState<{ id: string; name: string }[]>([]);
 
@@ -276,6 +278,9 @@ export default function AdminEditEventPage() {
           setTaxMethod(event.tax_method);
           taxMethodFromEventRef.current = true;
         }
+
+        // Load event-level "fees included in price" toggle — independent of tax_method
+        setFeesIncludedInPrice(event.fees_included_in_price === true);
 
         // Load external ticketing fields
         setExternalTicketUrl(event.external_ticket_url || "");
@@ -697,6 +702,7 @@ export default function AdminEditEventPage() {
           external_ticket_label: externalTicketLabel.trim() || null,
           meta_pixel_id: metaPixelId.trim() || null,
           tax_method: taxMethod,
+          fees_included_in_price: isPrivate ? false : feesIncludedInPrice,
           spotify_url: spotifyUrl.trim() || null,
           spotify_monthly_listeners: spotifyMonthlyListeners.trim() || null,
           spotify_featured_track: spotifyFeaturedTrack.trim()
@@ -1566,6 +1572,39 @@ export default function AdminEditEventPage() {
               {taxMethod === "multiplier"
                 ? "Tax is added on top at checkout. Use this for most shows."
                 : "Tax is embedded in the face price — checkout will not add it again. Match this to your offer's tax method."}
+            </p>
+          </div>
+        )}
+
+        {/* ── Fees Included In Price (only for hard ticket events) ──
+             Independent of Tax Method — bakes the ticketing fee + facility
+             fee into the sticker price instead of adding them at checkout.
+             Settlement still backs the real face value out of that price,
+             so the venue/platform still collects the same fee per ticket. ── */}
+        {isHardTicket && !isFree && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: feesIncludedInPrice ? "rgba(99,102,241,0.06)" : "rgba(208,194,144,0.04)",
+            border: `1px solid ${feesIncludedInPrice ? "rgba(99,102,241,0.2)" : "rgba(208,194,144,0.12)"}`,
+            marginTop: 8,
+          }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+              color: feesIncludedInPrice ? "#818cf8" : "rgba(255,255,255,0.6)",
+              fontWeight: 700, fontSize: 13,
+            }}>
+              <input
+                type="checkbox"
+                checked={feesIncludedInPrice}
+                onChange={(e) => setFeesIncludedInPrice(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
+              />
+              Ticketing/Facility Fees Included in Price
+            </label>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+              {feesIncludedInPrice
+                ? "The ticket price above is all-in — checkout will not add the ticketing fee or facility fee on top. For example, a $15 ticket with a $3 ticketing fee settles as ~$12 face value, so the venue/platform still collects its $3 per ticket."
+                : "The ticketing fee and facility fee are added on top of the ticket price at checkout, as usual."}
             </p>
           </div>
         )}

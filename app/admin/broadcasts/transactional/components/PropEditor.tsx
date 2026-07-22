@@ -95,7 +95,7 @@ export function PropEditor({ block, onChange }: Props) {
                   type="text"
                   value={String(value ?? "")}
                   onChange={(e) => updateProp(field.key, e.target.value)}
-                  style={{ ...inputStyle, flex: 1, fontFamily: "monospace", fontSize: 11 }}
+                  style={{ ...inputStyle, flex: 1, fontFamily: "monospace", fontSize: 16 }}
                 />
               </label>
             );
@@ -173,7 +173,7 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 6,
   color: "#fff",
-  fontSize: 13,
+  fontSize: 16,
   padding: "7px 10px",
   outline: "none",
   width: "100%",

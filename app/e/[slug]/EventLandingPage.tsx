@@ -7,6 +7,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import TrackingPixels from "@/app/components/TrackingPixels";
+import CheckoutSuccessModal from "@/app/components/CheckoutSuccessModal";
 import { persistUtmParams, getStoredUtmParams } from "@/lib/clientAttribution";
 import {
   Elements,
@@ -66,6 +67,8 @@ type Fees = {
   facilityFee: number;    // flat dollars per ticket
   taxRate: number;        // decimal (e.g. 0.095)
   taxMethod: "multiplier" | "divisor";
+  /** Ticketing fee + facility fee are already baked into the ticket price. */
+  feesIncludedInPrice?: boolean;
 };
 
 type OtherEvent = {
@@ -124,7 +127,7 @@ const stripeAppearance = {
     colorTextPlaceholder: "rgba(255, 255, 255, 0.3)",
     colorDanger: "#ef4444",
     fontFamily: "var(--font-urbanist), system-ui, sans-serif",
-    fontSizeBase: "15px",
+    fontSizeBase: "16px",
     spacingUnit: "4px",
     borderRadius: "12px",
     colorIconCardError: "#ef4444",
@@ -135,7 +138,7 @@ const stripeAppearance = {
       border: "1px solid rgba(255, 255, 255, 0.1)",
       color: "#ffffff",
       padding: "14px 16px",
-      fontSize: "15px",
+      fontSize: "16px",
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     },
     ".Input:focus": {
@@ -146,6 +149,14 @@ const stripeAppearance = {
       borderColor: "#ef4444",
       boxShadow: "0 0 0 2px rgba(239, 68, 68, 0.15)",
     },
+    // Chrome/Safari autofill forces its own black text color on the input
+    // (via -webkit-text-fill-color), overriding the color set above — this
+    // pins it back to white when a saved card gets autofilled.
+    ".Input:-webkit-autofill": {
+      "-webkit-text-fill-color": "#ffffff",
+      "-webkit-box-shadow": "0 0 0 1000px rgba(255, 255, 255, 0.04) inset",
+      caretColor: "#ffffff",
+    } as Record<string, string>,
     ".Label": {
       color: "rgba(255, 255, 255, 0.7)",
       fontSize: "13px",
@@ -204,24 +215,33 @@ function CheckoutForm({
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
-  const [fwbStatus, setFwbStatus] = useState<"idle" | "loading" | "done">("idle");
+
+  // Ticket link for the success modal — known immediately for free checkout,
+  // resolved via polling for paid (ticket is created async by the Stripe webhook).
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
 
   // Correct total: flat CC fee applied once per transaction, not once per ticket.
   // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
   // Divisor: tax baked in — don't add it again to the estimated total.
   const effectiveTaxRateForTotal = fees?.taxMethod === "divisor" ? 0 : (fees?.taxRate ?? 0);
+  const feesIncludedInPrice = fees?.feesIncludedInPrice === true;
   const basePreStripe =
     selectedTier.basePrice > 0
       ? (
           selectedTier.basePrice +
-          (fees?.ticketingFee ?? 0) +
-          (fees?.facilityFee ?? 0) +
+          (feesIncludedInPrice ? 0 : (fees?.ticketingFee ?? 0)) +
+          (feesIncludedInPrice ? 0 : (fees?.facilityFee ?? 0)) +
           Math.round(selectedTier.basePrice * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : displayPrice * quantity;
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly the pre-Stripe amount.
   const estimatedTotal =
     basePreStripe > 0
-      ? Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      ? feesIncludedInPrice
+        ? Math.round(basePreStripe * 100) / 100
+        : Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
       : 0;
 
   // Discounted total — apply promo to base price, then recalculate fees + CC fee once
@@ -235,14 +255,16 @@ function CheckoutForm({
     discountedBasePerTicket > 0
       ? (
           discountedBasePerTicket +
-          (fees?.ticketingFee ?? 0) +
-          (fees?.facilityFee ?? 0) +
+          (feesIncludedInPrice ? 0 : (fees?.ticketingFee ?? 0)) +
+          (feesIncludedInPrice ? 0 : (fees?.facilityFee ?? 0)) +
           Math.round(discountedBasePerTicket * effectiveTaxRateForTotal * 100) / 100
         ) * quantity
       : 0;
   const discountedTotal =
     discountedPreStripe > 0
-      ? Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      ? feesIncludedInPrice
+        ? Math.round(discountedPreStripe * 100) / 100
+        : Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
       : 0;
   const isFullyFree = isFree || (promoApplied && discountedBasePerTicket <= 0);
 
@@ -336,6 +358,7 @@ function CheckoutForm({
         });
 
         setOrderDetails({ subtotal: 0, ticketingFee: 0, facilityFee: 0, tax: 0, processingFee: 0, discount: estimatedTotal, total: 0 });
+        setTicketUrl(data.ticket_url ?? null);
         setPaymentSuccess(true);
         return;
       }
@@ -374,6 +397,7 @@ function CheckoutForm({
       }
 
       setOrderDetails(data.orderDetails);
+      setPaymentIntentId(data.paymentIntentId ?? null);
 
       // 2. Confirm card payment
       const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
@@ -422,87 +446,21 @@ function CheckoutForm({
     const finalTotal = orderDetails?.total ?? estimatedTotal;
 
     return (
-      <div className="lp-checkout-success">
-        <div className="lp-checkout-success-icon">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="24" r="24" fill="rgba(16, 185, 129, 0.15)" />
-            <path
-              d="M14 24L21 31L34 18"
-              stroke="#10b981"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <h2 className="lp-checkout-success-heading">You&apos;re In!</h2>
-        <p className="lp-checkout-success-event">{event.title}</p>
-        <p className="lp-checkout-success-date">{eventDate} &middot; {event.venue}</p>
-        <p className="lp-checkout-success-detail">
-          {quantity} ticket{quantity > 1 ? "s" : ""} &middot; ${finalTotal.toFixed(2)} paid
-        </p>
-        <p className="lp-checkout-success-email">
-          Check your email for your ticket{quantity > 1 ? "s" : ""} and confirmation details.
-        </p>
+      <>
+        <CheckoutSuccessModal
+          eventTitle={event.title}
+          eventDate={eventDate}
+          eventVenue={event.venue}
+          quantity={quantity}
+          totalAmount={finalTotal}
+          buyerName={buyerName}
+          buyerEmail={buyerEmail}
+          buyerPhone={buyerPhone}
+          ticketUrl={ticketUrl}
+          paymentIntentId={paymentIntentId}
+        />
 
-        {/* FWB Opt-in */}
-        <div className="lp-checkout-fwb">
-          {fwbStatus === "done" ? (
-            <div className="ic-fwb-done">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <circle cx="10" cy="10" r="10" fill="rgba(16, 185, 129, 0.15)" />
-                <path d="M6 10L9 13L14 7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>You&apos;re a Friend with Benefits now!</span>
-            </div>
-          ) : (
-            <>
-              <div className="lp-checkout-fwb-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </div>
-              <h3 className="lp-checkout-fwb-heading">Don&apos;t Miss a Thing</h3>
-              <p className="lp-checkout-fwb-desc">
-                Get presale access, exclusive offers, and be first to know about new shows.
-              </p>
-              <button
-                type="button"
-                className="ic-fwb-join-btn"
-                disabled={fwbStatus === "loading"}
-                onClick={async () => {
-                  setFwbStatus("loading");
-                  const nameParts = buyerName.trim().split(/\s+/);
-                  const firstName = nameParts[0] || "";
-                  const lastName = nameParts.slice(1).join(" ") || firstName;
-                  try {
-                    const res = await fetch("/api/newsletter", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        firstName,
-                        lastName,
-                        email: buyerEmail.trim(),
-                        phone: buyerPhone.trim() || undefined,
-                        source: "checkout",
-                      }),
-                    });
-                    if (res.ok || res.status === 409) setFwbStatus("done");
-                    else setFwbStatus("done");
-                  } catch { setFwbStatus("done"); }
-                }}
-              >
-                {fwbStatus === "loading" ? "Joining..." : "Count Me In"}
-              </button>
-              <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", margin: "4px 0 0" }}>No spam. Unsubscribe anytime.</p>
-            </>
-          )}
-        </div>
-
-        {/* You May Also Like */}
+        {/* You May Also Like — normal page content behind the modal overlay */}
         {otherEvents.length > 0 && (
           <div style={{ marginTop: 36, width: "100%", textAlign: "center" }}>
             <style>{`
@@ -566,7 +524,7 @@ function CheckoutForm({
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 
@@ -801,11 +759,14 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   // over-charges on the flat portion. Compute from basePrice instead.
   const ctaEffectiveTaxRate = resolvedFees.taxMethod === "divisor" ? 0 : resolvedFees.taxRate;
   const ctaPreStripe = selectedTier
-    ? (selectedTier.basePrice + resolvedFees.ticketingFee + resolvedFees.facilityFee +
+    ? (selectedTier.basePrice +
+        (resolvedFees.feesIncludedInPrice ? 0 : resolvedFees.ticketingFee + resolvedFees.facilityFee) +
         Math.round(selectedTier.basePrice * ctaEffectiveTaxRate * 100) / 100) * quantity
     : 0;
   const ctaTotal = ctaPreStripe > 0
-    ? Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    ? resolvedFees.feesIncludedInPrice
+      ? Math.round(ctaPreStripe * 100) / 100
+      : Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0;
 
   // ── Restore presale session ───────────────────────────────────────────────
@@ -1221,7 +1182,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                             borderRadius: 8,
                             padding: "11px 14px",
                             color: "#fff",
-                            fontSize: 15,
+                            fontSize: 16,
                             fontFamily: "monospace",
                             letterSpacing: "0.1em",
                             textTransform: "uppercase",
@@ -1386,8 +1347,14 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               const totalFacilityFee = resolvedFees.facilityFee * quantity;
               const taxPerTicket = Math.round(basePrice * effectiveTaxRate * 100) / 100;
               const totalTax = taxPerTicket * quantity;
-              const preStripe = subtotal + totalTicketingFee + totalFacilityFee + totalTax;
-              const processingFee = Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+              const preStripe = resolvedFees.feesIncludedInPrice
+                ? subtotal + totalTax
+                : subtotal + totalTicketingFee + totalFacilityFee + totalTax;
+              // When fees are baked into the price, the venue absorbs the card
+              // processing fee too — don't add it to the customer's total.
+              const processingFee = resolvedFees.feesIncludedInPrice
+                ? 0
+                : Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
               const total = preStripe + processingFee;
               const row = (label: string, value: number, accent = false): React.ReactNode => (
                 <div
@@ -1415,8 +1382,22 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                   }}
                 >
                   {row(`${selectedTier.name ?? "Ticket"}${quantity > 1 ? ` \u00d7 ${quantity}` : ""}`, subtotal)}
-                  {totalTicketingFee > 0 && row("Ticketing service fee", totalTicketingFee)}
-                  {totalFacilityFee > 0 && row("Facility fee", totalFacilityFee)}
+                  {totalTicketingFee > 0 && (
+                    resolvedFees.feesIncludedInPrice ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
+                        <span style={{ color: "rgba(255,255,255,0.72)" }}>Ticketing service fee</span>
+                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+                      </div>
+                    ) : row("Ticketing service fee", totalTicketingFee)
+                  )}
+                  {totalFacilityFee > 0 && (
+                    resolvedFees.feesIncludedInPrice ? (
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
+                        <span style={{ color: "rgba(255,255,255,0.72)" }}>Facility fee</span>
+                        <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>Included in ticket price</span>
+                      </div>
+                    ) : row("Facility fee", totalFacilityFee)
+                  )}
                   {isDivisor && resolvedFees.taxRate > 0 ? (
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 500, padding: "4px 0" }}>
                       <span style={{ color: "rgba(255,255,255,0.72)" }}>Sales tax</span>

@@ -62,6 +62,7 @@ type EventData = {
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
   tax_method?: "multiplier" | "divisor" | null;
+  fees_included_in_price?: boolean | null;
   spotify_url?: string | null;
   spotify_monthly_listeners?: string | null;
   spotify_featured_track?: string | null;
@@ -84,7 +85,7 @@ function getSpotifyEmbedUrl(url: string): string | null {
 
 // Date helpers imported from @/lib/dates
 
-export default function EventDetailClient() {
+export default function EventDetailClient({ requiresSeating = false }: { requiresSeating?: boolean }) {
   const params = useParams();
   const eventId = params.id as string;
 
@@ -561,11 +562,17 @@ export default function EventDetailClient() {
 
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
+  // A reserved-seating event ALWAYS requires a seat selection — use the
+  // authoritative server prop (requiresSeating), not just the client fetch
+  // result (reservedSeatingEnabled), so a failed/slow seat-map load can never
+  // let a seatless purchase through.
+  const seatingRequired = requiresSeating || reservedSeatingEnabled;
+
   const handleCheckout = () => {
     if (!event) return;
     // Reserved seating: seats must be selected from the map before proceeding
-    if (reservedSeatingEnabled && !hasSeatingSelection) return;
-    if (!selectedTicket && !reservedSeatingEnabled) return;
+    if (seatingRequired && !hasSeatingSelection) return;
+    if (!selectedTicket && !seatingRequired) return;
     trackFbEvent("InitiateCheckout", {
       content_name: event.title,
       content_ids: [event.id],
@@ -983,6 +990,7 @@ export default function EventDetailClient() {
                     facilityFee={venueFees.facility_fee}
                     taxRate={venueFees.tax_rate}
                     taxMethod={venueFees.tax_method}
+                    feesIncludedInPrice={event.fees_included_in_price === true}
                   />
                 </div>
               ) : !ticketsOnSale && !presaleUnlocked ? (
@@ -1126,6 +1134,7 @@ export default function EventDetailClient() {
                       facilityFee={venueFees.facility_fee}
                       taxRate={venueFees.tax_rate}
                       taxMethod={venueFees.tax_method}
+                      feesIncludedInPrice={event.fees_included_in_price === true}
                       onCheckout={handleCheckout}
                       onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                       onFreeCheckout={handleFreeCheckout}
@@ -1160,14 +1169,17 @@ export default function EventDetailClient() {
                   facilityFee={venueFees.facility_fee}
                   taxRate={venueFees.tax_rate}
                   taxMethod={venueFees.tax_method}
+                  feesIncludedInPrice={event.fees_included_in_price === true}
                   onCheckout={handleCheckout}
                   onPromoApplied={(code) => { appliedPromoRef.current = code; }}
                   onFreeCheckout={handleFreeCheckout}
-                  checkoutDisabled={selectedTicketSoldOut || (reservedSeatingEnabled && !hasSeatingSelection)}
+                  checkoutDisabled={selectedTicketSoldOut || (seatingRequired && !hasSeatingSelection)}
                   checkoutDisabledMessage={
                     selectedTicketSoldOut
                       ? "This ticket type is sold out."
-                      : "Select seats from the map to continue."
+                      : seatingRequired && !reservedSeatingEnabled
+                        ? "Seating is still loading — please refresh if the seat map doesn't appear."
+                        : "Select seats from the map to continue."
                   }
                 />
               )}

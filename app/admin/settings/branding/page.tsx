@@ -294,7 +294,7 @@ function TextInput({
     borderRadius: "var(--vc-radius-sm)" as const,
     color: "var(--vc-text)" as const,
     fontFamily: "var(--font-urbanist), sans-serif" as const,
-    fontSize: 14,
+    fontSize: 16,
     padding: "10px 14px",
     outline: "none" as const,
     boxSizing: "border-box" as const,

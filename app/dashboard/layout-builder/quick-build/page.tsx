@@ -8,7 +8,7 @@ import type { SectionFull } from "@/lib/seating/types";
 
 const fieldStyle: React.CSSProperties = {
   width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#e5e7eb", fontSize: 13, outline: "none",
+  border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, color: "#e5e7eb", fontSize: 16, outline: "none",
 };
 const labelStyle: React.CSSProperties = {
   fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.5)", marginBottom: 4, display: "block",

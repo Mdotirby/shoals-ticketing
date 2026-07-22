@@ -19,6 +19,8 @@ type OrderSummaryProps = {
   facilityFee: number;    // flat dollar per ticket (venue facility_fee)
   taxRate: number;        // venue_tax_rate — accepts 9.5 or 0.095
   taxMethod?: "multiplier" | "divisor"; // divisor = tax baked into face price, don't add at checkout
+  /** Ticketing fee + facility fee are already baked into the ticket price — don't add them again. */
+  feesIncludedInPrice?: boolean;
   onCheckout: () => void;
   /** Called when a promo code is applied or removed. Passes the code string or null. */
   onPromoApplied?: (promoCode: string | null) => void;
@@ -37,6 +39,7 @@ export default function OrderSummary({
   facilityFee,
   taxRate,
   taxMethod = "multiplier",
+  feesIncludedInPrice = false,
   onCheckout,
   onPromoApplied,
   onFreeCheckout,
@@ -125,8 +128,12 @@ export default function OrderSummary({
   const tax = isFreeOrder ? 0 : (hasSelection
     ? Math.round(discountedSubtotal * rate * 100) / 100
     : 0);
-  const subtotalBeforeStripe = discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
-  const processingFee = isFreeOrder ? 0 : (hasSelection
+  const subtotalBeforeStripe = feesIncludedInPrice
+    ? discountedSubtotal + tax
+    : discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
+  // When fees are baked into the price, the venue absorbs the card
+  // processing fee too — the customer is charged exactly subtotalBeforeStripe.
+  const processingFee = isFreeOrder || feesIncludedInPrice ? 0 : (hasSelection
     ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
     : 0);
   const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;
@@ -277,13 +284,25 @@ export default function OrderSummary({
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Ticketing Service Fee</span>
-              <span className="order-summary-line-value">${totalTicketingFee.toFixed(2)}</span>
+              {feesIncludedInPrice ? (
+                <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+                  Included in ticket price
+                </span>
+              ) : (
+                <span className="order-summary-line-value">${totalTicketingFee.toFixed(2)}</span>
+              )}
             </div>
           )}
           {totalFacilityFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Facility fee</span>
-              <span className="order-summary-line-value">${totalFacilityFee.toFixed(2)}</span>
+              {feesIncludedInPrice ? (
+                <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
+                  Included in ticket price
+                </span>
+              ) : (
+                <span className="order-summary-line-value">${totalFacilityFee.toFixed(2)}</span>
+              )}
             </div>
           )}
           {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (

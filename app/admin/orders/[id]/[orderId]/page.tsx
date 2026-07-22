@@ -173,7 +173,7 @@ export default function OrderDetailPage() {
   const [feePreview, setFeePreview] = useState<{
     tier: { tier_name: string; price: number };
     breakdown: { ticketPriceCents: number; ticketingFeeCents: number; facilityFeeCents: number; taxCents: number; stripeFeeCents: number; totalCents: number; effectiveQuantity: number };
-    fees: { taxRate: number; ticketingFee: number; facilityFee: number };
+    fees: { taxRate: number; ticketingFee: number; facilityFee: number; feesIncludedInPrice?: boolean };
   } | null>(null);
   const [loadingFees, setLoadingFees] = useState(false);
 
@@ -666,11 +666,11 @@ export default function OrderDetailPage() {
                 const f = feePreview.fees;
                 const qty = b.effectiveQuantity;
                 const rows: [string, number][] = [
-                  [`${feePreview.tier.tier_name} × ${qty}`, b.ticketPriceCents * qty],
-                  ...(b.ticketingFeeCents > 0 ? [[`Ticketing fee × ${qty}`, b.ticketingFeeCents * qty] as [string, number]] : []),
-                  ...(b.facilityFeeCents > 0 ? [[`Facility fee × ${qty}`, b.facilityFeeCents * qty] as [string, number]] : []),
+                  [`${feePreview.tier.tier_name} × ${qty}${f.feesIncludedInPrice ? " (fees included)" : ""}`, b.ticketPriceCents * qty],
+                  ...(!f.feesIncludedInPrice && b.ticketingFeeCents > 0 ? [[`Ticketing fee × ${qty}`, b.ticketingFeeCents * qty] as [string, number]] : []),
+                  ...(!f.feesIncludedInPrice && b.facilityFeeCents > 0 ? [[`Facility fee × ${qty}`, b.facilityFeeCents * qty] as [string, number]] : []),
                   ...(b.taxCents > 0 ? [[`Sales tax (${(f.taxRate * 100).toFixed(1)}%) × ${qty}`, b.taxCents * qty] as [string, number]] : []),
-                  [`Processing fee`, b.stripeFeeCents],
+                  ...(!f.feesIncludedInPrice ? [[`Processing fee`, b.stripeFeeCents] as [string, number]] : []),
                 ];
                 return (
                   <>

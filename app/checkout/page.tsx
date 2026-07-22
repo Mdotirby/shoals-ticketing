@@ -387,7 +387,7 @@ function CheckoutContent() {
                         flex: 1, padding: "8px 12px", borderRadius: 8,
                         border: "1px solid rgba(208,194,144,0.2)",
                         background: "rgba(255,255,255,0.05)",
-                        color: "#fff", fontSize: 14, textTransform: "uppercase",
+                        color: "#fff", fontSize: 16, textTransform: "uppercase",
                       }}
                     />
                     <button

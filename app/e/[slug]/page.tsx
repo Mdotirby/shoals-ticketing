@@ -81,7 +81,7 @@ export default async function LandingPage({ params }: Props) {
   const { data: event, error: eventError } = await admin
     .from("events")
     .select(
-      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id, tax_method"
+      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id, tax_method, fees_included_in_price"
     )
     .eq("landing_page_slug", slug)
     .eq("status", "published")
@@ -177,11 +177,20 @@ export default async function LandingPage({ params }: Props) {
   const STRIPE_PERCENT_FEE = 0.027;
   const STRIPE_FLAT_FEE = 0.3;
 
+  const feesIncludedInPrice = event.fees_included_in_price === true;
+
   function calcAllIn(base: number): number {
     // Divisor: tax is baked into face price — don't add it again for the all-in display
     const effectiveTaxRate = fees.tax_method === "divisor" ? 0 : fees.tax_rate;
     const tax = Math.round(base * effectiveTaxRate * 100) / 100;
-    const subtotalBeforeStripe = base + fees.ticketing_fee + fees.facility_fee + tax;
+    const subtotalBeforeStripe = feesIncludedInPrice
+      ? base + tax
+      : base + fees.ticketing_fee + fees.facility_fee + tax;
+    // When fees are baked into the price, the venue absorbs the card
+    // processing fee too — the all-in price IS the charge, full stop.
+    if (feesIncludedInPrice) {
+      return Math.round(subtotalBeforeStripe * 100) / 100;
+    }
     const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
     return Math.round((subtotalBeforeStripe + processingFee) * 100) / 100;
   }
@@ -360,6 +369,7 @@ export default async function LandingPage({ params }: Props) {
         facilityFee: fees.facility_fee,
         taxRate: fees.tax_rate,
         taxMethod: fees.tax_method,
+        feesIncludedInPrice,
       }}
       otherEvents={otherEvents}
       metaPixelId={event.meta_pixel_id || null}

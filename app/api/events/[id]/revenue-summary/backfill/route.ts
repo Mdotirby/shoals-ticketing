@@ -21,7 +21,7 @@ export async function POST(
   // Load event + venue info needed for fee resolution
   const { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, price, venue_id, event_venue_id, facility_fee_enabled, tax_method")
+    .select("id, price, venue_id, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price")
     .eq("id", eventId)
     .single();
 
@@ -62,11 +62,12 @@ export async function POST(
     const totalAmount = Number(order.total_amount) || 0;
     const quantity = Number(order.quantity) || 1;
     const totalTicketingFee = Math.round(fees.ticketingFee * quantity * 100) / 100;
+    const ticketingFeeToSubtract = fees.feesIncludedInPrice ? 0 : totalTicketingFee;
     const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
     // Solve: gross = face*(1+taxRate) + ticketingFee + stripeFee  →  face = (gross - fees) / (1+taxRate)
     const ticketRevenue = effectiveTaxRate > 0
-      ? Math.round(((totalAmount - totalTicketingFee - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
-      : Math.round((totalAmount - totalTicketingFee - stripeFee) * 100) / 100;
+      ? Math.round(((totalAmount - ticketingFeeToSubtract - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round((totalAmount - ticketingFeeToSubtract - stripeFee) * 100) / 100;
     const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
     const venueRebate = Math.round(fees.venueRebate * quantity * 100) / 100;
 
@@ -81,7 +82,7 @@ export async function POST(
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
       stripe_fee: stripeFee,
-      net_to_venue: totalAmount - totalTicketingFee - stripeFee + venueRebate,
+      net_to_venue: totalAmount - ticketingFeeToSubtract - stripeFee + venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     };

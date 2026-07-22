@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { pastEventReason } from "@/lib/events/closeout";
-import { resolveVenueFees, validatePresaleCode } from "@/lib/checkout-helpers";
+import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 
 // Stripe charges 2.7% + $0.30 per transaction
@@ -30,16 +30,16 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at,closed_out_at,tax_method,start_time")
+      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at,closed_out_at,tax_method,start_time,fees_included_in_price")
       .eq("id", event_id)
       .single();
-    if (eventError && /closed_out_at|tax_method|column .* does not exist/i.test(eventError.message)) {
+    if (eventError && /closed_out_at|tax_method|fees_included_in_price|column .* does not exist/i.test(eventError.message)) {
       const retry = await admin
         .from("events")
         .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
         .eq("id", event_id)
         .single();
-      event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null, start_time: null } : null;
+      event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null, start_time: null, fees_included_in_price: false } : null;
       eventError = retry.error;
     }
 
@@ -71,9 +71,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
+    // Guard: reserved-seating events require a seat selection (authoritative
+    // server-side backstop — see create-intent for rationale).
+    if (!(Array.isArray(seat_ids) && seat_ids.length > 0)) {
+      if (await eventRequiresSeating(admin, event_id)) {
+        return NextResponse.json(
+          { error: "Please select your seat(s) from the map before checking out." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Fetch venue-specific fees via shared helper (event_venues → venues → defaults)
     const fees = await resolveVenueFees(admin, event);
-    const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod } = fees;
+    const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod, feesIncludedInPrice } = fees;
 
     // ── Promo code validation ──
     let promoCodeId = "";
@@ -129,7 +140,16 @@ export async function POST(request: Request) {
         );
       }
 
-      // Temporarily hold seats (10 min) so no one else grabs them during checkout
+      // Release stale holds from this session's earlier attempts before
+      // re-holding, so the webhook can't sweep in extra seats (over-allocation).
+      if (buyerSessionId) {
+        await admin.from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .eq("held_session", buyerSessionId)
+          .eq("status", "held");
+      }
+
+      // Temporarily hold seats (4 min) so no one else grabs them during checkout
       const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
       await admin.from("seats").update({
         status: "held",
@@ -219,8 +239,11 @@ export async function POST(request: Request) {
     const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
     const taxCents = Math.round(discountedTicketPriceCents * effectiveTaxRate);
 
-    // Calculate Stripe processing fee on the total
-    const subtotalBeforeStripeFee = (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * effectiveQuantity;
+    // Calculate Stripe processing fee on the total. Skip re-adding fees
+    // already baked into the ticket price.
+    const subtotalBeforeStripeFee = feesIncludedInPrice
+      ? (discountedTicketPriceCents + taxCents) * effectiveQuantity
+      : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * effectiveQuantity;
     const stripeFeeCents = Math.round(
       subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
     );
@@ -300,7 +323,9 @@ export async function POST(request: Request) {
       });
     }
 
-    if (ticketingFeeCents > 0) {
+    // When fees are baked into the ticket price, don't charge them again as
+    // separate line items — they're already inside the ticket's unit_amount above.
+    if (!feesIncludedInPrice && ticketingFeeCents > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
@@ -311,7 +336,7 @@ export async function POST(request: Request) {
       });
     }
 
-    if (facilityFeeCents > 0) {
+    if (!feesIncludedInPrice && facilityFeeCents > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
@@ -335,7 +360,9 @@ export async function POST(request: Request) {
       });
     }
 
-    if (stripeFeeCents > 0) {
+    // When fees are baked into the ticket price, the venue absorbs the card
+    // processing fee too — don't charge it as a separate line item.
+    if (!feesIncludedInPrice && stripeFeeCents > 0) {
       lineItems.push({
         price_data: {
           currency: "usd",
@@ -363,6 +390,7 @@ export async function POST(request: Request) {
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
         tax_method: taxMethod,
+        fees_included_in_price: feesIncludedInPrice ? "true" : "false",
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
         buyer_zip: buyer_zip || "",
