@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bayon, Cairo, Urbanist } from "next/font/google";
+import { Archivo, Archivo_Narrow, Bayon, Cairo, Urbanist } from "next/font/google";
 import { cookies } from "next/headers";
 import "./styles/globals.css";
 import Header from "./components/Header";
@@ -27,6 +27,22 @@ const bayon = Bayon({
   variable: "--font-bayon",
   subsets: ["latin"],
   weight: "400",
+});
+
+// West72's brand typeface — applied site-wide on west72ent.com via the
+// body[data-operator="west72"] CSS scope in globals.css.
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+  weight: ["100", "400", "500", "600", "700", "800", "900"],
+});
+
+// Google Fonts has no family literally named "Archivo Condensed" — the PSD's
+// ArchivoCondensed-* layers use the closest real match, Archivo Narrow.
+const archivoNarrow = Archivo_Narrow({
+  variable: "--font-archivo-condensed",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 
@@ -98,7 +114,7 @@ export default async function RootLayout({
     <html lang="en">
       <body
         data-operator={operatorSlug}
-        className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} antialiased`}
+        className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} ${archivo.variable} ${archivoNarrow.variable} antialiased`}
       >
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
         <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />

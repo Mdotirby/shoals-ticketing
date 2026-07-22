@@ -23,6 +23,7 @@ export default function Header() {
   const venueTheme = useVenueTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [featuredEvent, setFeaturedEvent] = useState<{ id: string; title: string } | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
@@ -33,6 +34,13 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/events/featured")
+      .then((res) => res.json())
+      .then((data) => setFeaturedEvent(data?.event ?? null))
+      .catch(() => {});
   }, []);
 
   const handleOutsideClick = useCallback((e: MouseEvent) => {
@@ -62,47 +70,87 @@ export default function Header() {
     ? venueTheme.name
     : operator.logoAlt;
 
+  // West72's mobile header swaps the wordmark for the square icon mark,
+  // centered on the full header width — see .header-logo-img--icon below.
+  const showMobileIcon = operator.slug === "west72" && !venueTheme.isVenueSubdomain;
+
   return (
-    <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
-      <div className="header-inner">
-        <Link href="/" className="header-logo" aria-label="Go to homepage">
-          <Image
-            src={logoSrc}
-            alt={logoAlt}
-            width={320}
-            height={56}
-            priority
-            unoptimized
-            className="header-logo-img"
-          />
-        </Link>
+    <>
+      <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
+        <div className="header-inner">
+          <Link href="/" className="header-logo" aria-label="Go to homepage">
+            <Image
+              src={logoSrc}
+              alt={logoAlt}
+              width={320}
+              height={56}
+              priority
+              unoptimized
+              className="header-logo-img header-logo-img--wordmark"
+            />
+            {showMobileIcon && (
+              <Image
+                src={operator.logoIcon}
+                alt={logoAlt}
+                width={65}
+                height={64}
+                priority
+                unoptimized
+                className="header-logo-img header-logo-img--icon"
+              />
+            )}
+          </Link>
 
-        <button
-          ref={hamburgerRef}
-          type="button"
-          className="hamburger"
-          aria-label="Toggle navigation menu"
-          aria-expanded={isMenuOpen}
-          onClick={() => setIsMenuOpen((prev) => !prev)}
-        >
-          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
-          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
-          <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
-        </button>
+          <button
+            ref={hamburgerRef}
+            type="button"
+            className="hamburger"
+            aria-label="Toggle navigation menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+          >
+            <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+            <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+            <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
+          </button>
 
-        <nav ref={navRef} className={`header-nav ${isMenuOpen ? "open" : ""}`}>
-          {navItems.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className="header-nav-link"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </header>
+          <div className="header-right">
+            <nav className="header-nav">
+              {navItems.map((item) => (
+                <Link key={item.label} href={item.href} className="header-nav-link">
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            {featuredEvent && (
+              <Link href={`/events/${featuredEvent.id}`} className="header-cta">
+                Get Tickets
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile slide-in drawer — rendered outside <header> so its fixed
+          positioning isn't clipped by the header's backdrop-filter, which
+          creates a containing block for position:fixed descendants. */}
+      <div
+        className={`mobile-nav-backdrop ${isMenuOpen ? "open" : ""}`}
+        onClick={() => setIsMenuOpen(false)}
+      />
+      <nav ref={navRef} className={`mobile-nav-drawer ${isMenuOpen ? "open" : ""}`}>
+        {navItems.map((item) => (
+          <Link
+            key={item.label}
+            href={item.href}
+            className="mobile-nav-link"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }

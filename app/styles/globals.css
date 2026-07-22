@@ -151,6 +151,121 @@ body[data-operator="west72"] .event-card-placeholder {
   background: #141414;
 }
 
+/* ============================================================
+   WEST72 — white/black buttons + white text + Archivo
+   Per Mobile UI Web Design.psd: gold buttons -> white fill, black
+   text, square corners (0 radius), Archivo family. Gold text -> white.
+   Sizes/padding measured from the PSD at 2x, halved to CSS px.
+   ============================================================ */
+body[data-operator="west72"] {
+  font-family: var(--font-archivo), sans-serif;
+}
+
+/* Header "Get Tickets" CTA — Archivo Regular */
+body[data-operator="west72"] .header-cta {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  padding: 15px 14px;
+  border-radius: 0;
+  animation: none;
+  box-shadow: none;
+}
+
+/* Hero "Get Tickets" CTA (also used by the featured-events carousel) — Archivo Black */
+body[data-operator="west72"] .home-hero-cta {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  padding: 19px 34px;
+  border-radius: 0;
+  box-shadow: none;
+}
+body[data-operator="west72"] .home-hero-cta:hover {
+  box-shadow: none;
+  background: #f2f2f2;
+}
+
+/* Mid-page "See What's Coming" CTA (PSD: "SEE THE FULL CALENDAR") — Archivo Condensed Bold */
+body[data-operator="west72"] .home-cta-button {
+  background: #fff;
+  color: #000;
+  border: none;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.025em;
+  padding: 20px 39px;
+  border-radius: 0;
+}
+body[data-operator="west72"] .home-cta-button:hover {
+  background: #f2f2f2;
+  border: none;
+  transform: none;
+}
+
+/* "Get Rowdy With Us!" heading (PSD: "GET ROWDY") — Archivo Condensed Black.
+   Google's hosted Archivo Condensed has no static 900 cut, so this renders
+   at the heaviest available weight (700/Bold). */
+body[data-operator="west72"] .home-cta-title {
+  color: #fff;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* "UPCOMING SHOWS" eyebrow — Archivo Condensed Bold, white */
+body[data-operator="west72"] .events-eyebrow-text {
+  color: #fff;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* FWB "Text Me First" submit button — Archivo Bold. PSD shows this button
+   spanning ~90% of the canvas width; since it lives in a flex-column form
+   alongside input fields (not a standalone full-bleed element like the PSD),
+   we stretch it to match rather than hardcoding the PSD's raw padding,
+   which would overflow narrow phones. */
+body[data-operator="west72"] .newsletter-submit {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.025em;
+  padding: 19px 24px;
+  border-radius: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* Event card "Get Tickets" button + price badge */
+body[data-operator="west72"] .event-card-btn {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-operator="west72"] .event-card-price {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Minor gold-text accents around the FWB/footer area */
+body[data-operator="west72"] .newsletter-eyebrow,
+body[data-operator="west72"] .newsletter-link,
+body[data-operator="west72"] .newsletter-success-icon,
+body[data-operator="west72"] .footer-column-heading,
+body[data-operator="west72"] .event-sponsors-heading {
+  color: #fff;
+}
+
 body {
   font-family: var(--font-urbanist), sans-serif;
   background: var(--vc-bg);
@@ -193,6 +308,12 @@ body {
   width: clamp(140px, 14vw, 200px) !important;
   height: auto !important;
   object-fit: contain;
+}
+
+/* West72's mobile-only icon mark is hidden everywhere by default; the
+   west72 mobile breakpoint below swaps it in for the wordmark. */
+.header-logo-img--icon {
+  display: none;
 }
 
 
@@ -260,6 +381,38 @@ body {
 .hamburger-bar.open:nth-child(2) { opacity: 0; }
 .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
+/* ── Header "Get Tickets" CTA ── */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.header-cta {
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 22px;
+  background: var(--vc-gold);
+  color: #0a0a0a;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  animation: header-cta-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes header-cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(208, 194, 144, 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(208, 194, 144, 0); }
+}
+
+/* ── Mobile nav drawer + backdrop (rendered outside .site-header) ── */
+.mobile-nav-backdrop,
+.mobile-nav-drawer {
+  display: none;
+}
 
 .home-events-page {
   box-sizing: border-box;
@@ -547,19 +700,21 @@ body {
     position: relative;
   }
 
-  /* 3-zone layout: [empty] [logo centered] [hamburger right] */
+  /* 3-zone layout: [hamburger left] [logo centered] [Get Tickets right] */
   .header-inner {
     width: 100%;
     padding: 0 16px;
     min-height: 60px;
     display: grid;
-    grid-template-columns: 40px 1fr 40px;
+    grid-template-columns: 40px 1fr auto;
+    grid-template-rows: 1fr;
     align-items: center;
   }
 
   /* Logo sits in the center column */
   .header-logo {
     grid-column: 2;
+    grid-row: 1;
     justify-self: center;
   }
 
@@ -569,38 +724,75 @@ body {
     height: auto !important;
   }
 
-  /* Hamburger sits in the third column */
+  /* Hamburger sits in the first column */
   .hamburger {
-    grid-column: 3;
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
-    justify-self: end;
+    justify-self: start;
     margin-left: 0;
   }
 
-  /* Mobile nav dropdown */
-  .header-nav {
-    display: none;
-    flex-direction: column;
-    gap: 0;
-    width: 100%;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--vc-bg-deep, #0a0a0a);
-    border-top: 1px solid rgba(208,194,144,0.12);
-    border-bottom: 1px solid rgba(208,194,144,0.12);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
-    z-index: 1000;
-    overflow: hidden;
+  /* header-right (desktop nav + CTA) sits in the third column — the desktop
+     nav row is hidden below, leaving just the CTA button visible here */
+  .header-right {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
   }
 
-  .header-nav.open {
+  .header-cta {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  /* Desktop inline nav row is fully replaced by the slide-in drawer on mobile */
+  .header-nav {
+    display: none;
+  }
+
+  /* Dimmed scrim behind the mobile drawer */
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 280ms ease;
+    z-index: 1000;
+  }
+
+  .mobile-nav-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Left-anchored slide-in drawer */
+  .mobile-nav-drawer {
     display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(78vw, 320px);
+    padding-top: 76px;
+    background: var(--vc-bg-deep, #0a0a0a);
+    border-right: 1px solid rgba(208,194,144,0.12);
+    box-shadow: 8px 0 40px rgba(0,0,0,0.7);
+    z-index: 1001;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .mobile-nav-drawer.open {
+    transform: translateX(0);
   }
 
   /* Mobile nav links — large, tappable, full-width */
-  .header-nav .header-nav-link {
+  .mobile-nav-link {
     display: block;
     width: 100%;
     padding: 18px 24px;
@@ -614,19 +806,14 @@ body {
     transition: background 150ms ease, color 150ms ease;
   }
 
-  .header-nav .header-nav-link:last-child {
+  .mobile-nav-link:last-child {
     border-bottom: none;
   }
 
-  .header-nav .header-nav-link:active,
-  .header-nav .header-nav-link:hover {
+  .mobile-nav-link:active,
+  .mobile-nav-link:hover {
     background: rgba(208,194,144,0.08);
     color: var(--vc-gold);
-  }
-
-  /* Hide the desktop underline animation on mobile */
-  .header-nav .header-nav-link::after {
-    display: none;
   }
 
   .home-events-page {
@@ -668,6 +855,34 @@ body {
     width: 100%;
     height: 178px;
     border-radius: 15px;
+  }
+}
+
+/* ============================================================
+   WEST72 MOBILE HEADER — icon logo, true screen-centered
+   (per Mobile UI Web Design.psd — logo center = viewport center,
+   independent of hamburger/CTA widths, not centered between them)
+   ============================================================ */
+@media (max-width: 768px) {
+  body[data-operator="west72"] .header-inner {
+    position: relative;
+  }
+
+  body[data-operator="west72"] .header-logo {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  body[data-operator="west72"] .header-logo-img--wordmark {
+    display: none;
+  }
+
+  body[data-operator="west72"] .header-logo-img--icon {
+    display: block;
+    width: 33px !important;
+    height: auto !important;
   }
 }
 
@@ -791,7 +1006,7 @@ body {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 10px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   padding: 12px 16px;
   outline: none;
   cursor: pointer;
@@ -855,7 +1070,7 @@ body {
   .ticket-type-select {
     min-width: 0;
     width: 100%;
-    font-size: 13px;
+    font-size: 16px;
     padding: 10px 10px;
   }
   .ticket-qty-control {
@@ -1642,7 +1857,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   transition: border-color 200ms ease, background 200ms ease;
 }
@@ -2333,6 +2548,51 @@ body {
   animation: arrowNudge 3.2s ease-in-out 2s infinite;
 }
 
+/* ============================================================
+   FEATURED EVENTS CAROUSEL (west72 homepage hero replacement)
+   Reuses .home-hero / .home-hero-overlay / .home-hero-content for
+   layout — only the crossfading background and event text are new.
+   ============================================================ */
+.featured-carousel-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  background-color: #0a0a0a;
+}
+
+.featured-carousel-title {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  line-height: 1.05;
+  color: #fff;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  font-size: clamp(1.8rem, 8vw, 31px);
+  letter-spacing: 0.075em;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.4);
+}
+
+.featured-carousel-subtitle {
+  margin: 6px 0 0;
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 100;
+  font-size: 11px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.featured-carousel-date {
+  margin: 2px 0 16px;
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: 11px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
 .home-hero-partners {
   margin-top: 40px;
   display: flex;
@@ -2590,7 +2850,7 @@ body {
   border: none;
   outline: none;
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   padding: 10px 12px;
   font-family: inherit;
 }
@@ -2604,7 +2864,7 @@ body {
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 999px;
   color: rgba(255,255,255,0.7);
-  font-size: 13px;
+  font-size: 16px;
   padding: 8px 16px;
   cursor: pointer;
   outline: none;
@@ -3210,7 +3470,7 @@ body {
   border-radius: var(--vc-radius-sm);
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 14px;
+  font-size: 16px;
   transition: border-color 180ms ease;
 }
 
@@ -3524,7 +3784,7 @@ select.admin-form-input {
   background: rgba(255, 255, 255, 0.04);
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 180ms ease;
   box-sizing: border-box;
@@ -5192,7 +5452,7 @@ select.admin-form-input {
 
 .report-card-filter-label .admin-form-input {
   min-width: 0;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 /* ── Card Actions ──────────────────────────────────────────────── */
@@ -5556,7 +5816,7 @@ select.admin-form-input {
   border-radius: 8px;
   color: var(--vc-text);
   font-family: var(--font-urbanist), sans-serif;
-  font-size: 13px;
+  font-size: 16px;
   min-width: 140px;
   flex: 1;
 }
@@ -5629,6 +5889,10 @@ select.admin-form-input {
 
   .portal-table td select {
     max-width: 120px;
+  }
+
+  .portal-inline-select {
+    font-size: 16px;
   }
 }
 
@@ -6440,11 +6704,11 @@ select.admin-form-input {
 }
 
 /* ============================================================
-   GENERAL ADMISSION TICKET CARD
-   Matches TICKET DESIGN.psd's GA artboard. Scoped entirely under
-   .ga-ticket-* so it can't affect the untouched reserved-seat card
-   (.digital-ticket-card and friends, above) — reserved seating is a
-   deliberate follow-up, not built yet (see app/tickets/[id]/page.tsx).
+   GENERAL ADMISSION + RESERVED SEAT TICKET CARDS
+   Matches TICKET DESIGN.psd (GA) and "Ticket for reserved seat.psd".
+   Both cards share the .ga-ticket-* shell (header, blurred-QR zone,
+   holder footer); the reserved card adds the .rs-ticket-* seat grid
+   below. See app/tickets/[id]/page.tsx.
    ============================================================ */
 
 .ga-ticket-card {
@@ -6587,6 +6851,52 @@ select.admin-form-input {
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* ------------------------------------------------------------
+   RESERVED-SEAT block — matches "Ticket for reserved seat.psd".
+   Sits inside the shared .ga-ticket-* shell (header, QR zone,
+   holder footer); only the Section / Row / Seat grid is new.
+   ------------------------------------------------------------ */
+.rs-ticket-seat-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.rs-ticket-seat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.rs-ticket-seat-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rs-ticket-seat-cell-center {
+  align-items: center;
+  text-align: center;
+}
+
+.rs-ticket-seat-cell-right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.rs-ticket-seat-value {
+  font-family: var(--font-bayon), sans-serif;
+  font-size: 26px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
 /* ============================================================
    QR SCANNER PAGE
    ============================================================ */
@@ -6671,7 +6981,7 @@ select.admin-form-input {
   flex: 1;
   min-width: 180px;
   max-width: 340px;
-  font-size: 13px;
+  font-size: 16px;
   padding: 8px 12px;
 }
 
@@ -7430,7 +7740,7 @@ select.admin-form-input {
   border: 1px solid rgba(255,255,255,0.12);
   background: rgba(255,255,255,0.06);
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
@@ -9099,7 +9409,7 @@ select.admin-form-input {
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   transition: border-color 0.2s ease;
   outline: none;
@@ -9817,6 +10127,7 @@ body:has(.lp-main) .site-footer {
   .lp-hero-content .lp-past-banner,
   .lp-hero-content > a.lp-cta-btn { animation: none; }
   .lp-reveal { opacity: 1; transform: none; transition: none; }
+  .header-cta { animation: none; }
 }
 
 /* ══════════════════════════════════════════════════════ */
@@ -10129,7 +10440,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--vc-radius-md);
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -10772,7 +11083,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--vc-radius-md);
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -11026,6 +11337,273 @@ body:has(.lp-main) .site-footer {
   font-size: 14px;
   font-weight: 700;
   padding: 10px 0;
+}
+
+/* ============================================================
+   CHECKOUT SUCCESS MODAL
+   Fixed, centered overlay — replaces the old in-place success
+   state so it's never dependent on scroll position. Curtain-panel
+   reveal: two solid panels slide apart from center on mount.
+   West72 gets a distinct black/white/gold/Archivo skin; other
+   operators keep the existing dark-card/gold-accent look.
+   ============================================================ */
+
+.checkout-success-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.checkout-success-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.checkout-success-overlay.is-revealed .checkout-success-backdrop {
+  opacity: 1;
+}
+
+.checkout-success-curtain {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #050608;
+  z-index: 1;
+  transition: transform 0.65s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.checkout-success-curtain-top {
+  top: 0;
+  height: 50%;
+  transform: translateY(0);
+}
+
+.checkout-success-curtain-bottom {
+  bottom: 0;
+  height: 50%;
+  transform: translateY(0);
+}
+
+.checkout-success-overlay.is-revealed .checkout-success-curtain-top {
+  transform: translateY(-100%);
+}
+
+.checkout-success-overlay.is-revealed .checkout-success-curtain-bottom {
+  transform: translateY(100%);
+}
+
+.checkout-success-card {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  max-width: 400px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  background: var(--vc-bg-mid, #1a1d35);
+  border: 1px solid rgba(208, 194, 144, 0.2);
+  border-radius: var(--vc-radius-lg, 16px);
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.checkout-success-card-west72 {
+  background: #000;
+  border: 1px solid #fff;
+  font-family: var(--font-archivo), sans-serif;
+}
+
+.checkout-success-icon {
+  margin-bottom: 8px;
+}
+
+.checkout-success-heading {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--vc-gold);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.checkout-success-card-west72 .checkout-success-heading {
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.checkout-success-event {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  margin: 4px 0 0;
+}
+
+.checkout-success-meta,
+.checkout-success-detail {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.checkout-success-card-west72 .checkout-success-meta,
+.checkout-success-card-west72 .checkout-success-detail {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.checkout-success-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 18px;
+  padding: 14px 24px;
+  background: #fff;
+  color: #0a0a0a;
+  font-weight: 700;
+  font-size: 15px;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: filter 0.15s;
+}
+
+.checkout-success-cta:hover {
+  filter: brightness(0.94);
+}
+
+.checkout-success-cta-pending {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: default;
+}
+
+/* ── FWB / Laylo opt-in ── */
+.checkout-success-fwb {
+  margin-top: 20px;
+  padding: 24px 20px;
+  background: rgba(208, 194, 144, 0.06);
+  border: 1px solid rgba(208, 194, 144, 0.18);
+  border-radius: var(--vc-radius-lg, 16px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.checkout-success-card-west72 .checkout-success-fwb {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.checkout-success-fwb-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(208, 194, 144, 0.12);
+  color: var(--vc-gold);
+}
+
+.checkout-success-card-west72 .checkout-success-fwb-icon {
+  background: rgba(208, 194, 144, 0.15);
+  color: #d0c290;
+}
+
+.checkout-success-fwb-heading {
+  font-size: 17px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.checkout-success-fwb-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.checkout-success-fwb-btn {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 32px;
+  background: var(--vc-gold, #d0c290);
+  color: #111;
+  font-weight: 800;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--vc-radius-md, 10px);
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  margin-top: 4px;
+  transition: filter 0.15s;
+}
+
+.checkout-success-fwb-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.checkout-success-fwb-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.checkout-success-fwb-decline {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  padding: 4px 8px;
+  letter-spacing: 0.04em;
+}
+
+.checkout-success-fwb-decline:hover {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.checkout-success-fwb-fine-print {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.18);
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+.checkout-success-fwb-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #10b981;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 0;
+}
+
+@media (max-width: 480px) {
+  .checkout-success-card {
+    padding: 28px 18px;
+  }
 }
 
 /* ── Inline Checkout Mobile ── */
@@ -11337,7 +11915,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--vc-radius-md);
   color: #fff;
-  font-size: 14px;
+  font-size: 16px;
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -11598,7 +12176,7 @@ body:has(.lp-main) .site-footer {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   color: var(--vc-text);
-  font-size: 15px;
+  font-size: 16px;
   font-family: var(--font-urbanist), sans-serif;
   outline: none;
   transition: border-color 180ms ease;
@@ -11906,7 +12484,7 @@ body:has(.lp-main) .site-footer {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    font-size: 14px;
+    font-size: 16px;
   }
 
   .admin-form-label {
@@ -12258,6 +12836,7 @@ body:has(.lp-main) .site-footer {
   .offer-scaling-row .admin-form-input,
   .offer-expense-row .admin-form-input {
     width: 100% !important;
+    font-size: 16px;
   }
 
   /* ── General Typography Scaling ── */

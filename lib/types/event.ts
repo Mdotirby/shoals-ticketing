@@ -1,6 +1,7 @@
 export type Event = {
   id: string;
   title: string;
+  subtitle?: string;
   venue: string;
   date: string;
   end_time?: string;
@@ -10,6 +11,7 @@ export type Event = {
   image_crop_data?: ImageCropData;
   status: "draft" | "published";
   venue_id?: string;
+  event_venue_id?: string;
   event_type?: "hard_ticket" | "ticketed" | "non_ticketed" | "private";
   booking_status?: "confirmed" | "hold" | "cancelled";
   hold_level?: "H1" | "H2" | "H3";

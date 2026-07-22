@@ -6,6 +6,7 @@ import { motion, useInView, useReducedMotion } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import NewsletterSignup from "./components/NewsletterSignup";
+import FeaturedEventsCarousel from "./components/FeaturedEventsCarousel";
 import { Event } from "@/lib/types/event";
 import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
@@ -139,44 +140,48 @@ export default function HomePage() {
     <>
       <main className="home-page">
         {/* ── HERO SECTION ── */}
-        <section className="home-hero">
-          {/* Ken Burns background — animates on a separate layer so content stays crisp */}
-          <div
-            className="home-hero-bg-ken"
-            style={{
-              backgroundImage: HERO_IMAGE_1
-                ? `url(${HERO_IMAGE_1})`
-                : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
-            }}
-          />
-          <div className="home-hero-overlay" />
-          <motion.div
-            className="home-hero-content"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.2, delayChildren: prefersReduced ? 0 : 0.35 } },
-            }}
-          >
-            <motion.h1 className="home-hero-title" variants={heroItem}>
-              {venueTheme.homepage_headline || (
-                <>Feel the Music.<br />Live the Moment.</>
+        {operator.slug === "west72" ? (
+          <FeaturedEventsCarousel />
+        ) : (
+          <section className="home-hero">
+            {/* Ken Burns background — animates on a separate layer so content stays crisp */}
+            <div
+              className="home-hero-bg-ken"
+              style={{
+                backgroundImage: HERO_IMAGE_1
+                  ? `url(${HERO_IMAGE_1})`
+                  : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
+              }}
+            />
+            <div className="home-hero-overlay" />
+            <motion.div
+              className="home-hero-content"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.2, delayChildren: prefersReduced ? 0 : 0.35 } },
+              }}
+            >
+              <motion.h1 className="home-hero-title" variants={heroItem}>
+                {venueTheme.homepage_headline || (
+                  <>Feel the Music.<br />Live the Moment.</>
+                )}
+              </motion.h1>
+              {venueTheme.homepage_subheadline && (
+                <motion.p className="home-hero-subtitle" variants={heroItem}>
+                  {venueTheme.homepage_subheadline}
+                </motion.p>
               )}
-            </motion.h1>
-            {venueTheme.homepage_subheadline && (
-              <motion.p className="home-hero-subtitle" variants={heroItem}>
-                {venueTheme.homepage_subheadline}
-              </motion.p>
-            )}
 
-            <motion.div variants={heroItem}>
-              <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
-                {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
-              </Link>
+              <motion.div variants={heroItem}>
+                <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
+                  {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
+                </Link>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        </section>
+          </section>
+        )}
 
         {/* ── GOLD SEPARATOR ── */}
         <div className="home-gold-separator" />
