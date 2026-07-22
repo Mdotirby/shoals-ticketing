@@ -5,11 +5,8 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Event } from "@/lib/types/event";
 import { formatEventDateLong } from "@/lib/dates";
+import { WEST72_HOST_VENUE_ID, WEST72_EVENT_VENUE_ID } from "@/lib/west72-featured";
 
-// West 72 Entertainment LLC (host) + Singin' River Brewing Co. (venue) —
-// per Mobile UI Web Design.psd, only events matching both show here.
-const HOST_VENUE_ID = "341ddebe-2666-4d1d-a279-4bc44b7f2700";
-const EVENT_VENUE_ID = "a0ab8c69-06b7-4242-89d6-2d85ad3c17a3";
 const ROTATE_MS = 4000;
 
 /** Returns null while loading or if no events match, so the caller can fall back to the default hero. */
@@ -19,7 +16,7 @@ export default function FeaturedEventsCarousel() {
   const prefersReduced = useReducedMotion();
 
   useEffect(() => {
-    fetch(`/api/events?venue_id=${HOST_VENUE_ID}&event_venue_id=${EVENT_VENUE_ID}`)
+    fetch(`/api/events?venue_id=${WEST72_HOST_VENUE_ID}&event_venue_id=${WEST72_EVENT_VENUE_ID}`)
       .then((res) => res.json())
       .then((data) => setEvents(Array.isArray(data) ? data : []))
       .catch(() => setEvents([]));

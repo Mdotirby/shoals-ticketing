@@ -12,6 +12,7 @@ import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
 import { useOperator } from "./components/OperatorContext";
+import { WEST72_HOST_VENUE_ID, WEST72_EVENT_VENUE_ID } from "@/lib/west72-featured";
 function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -107,14 +108,25 @@ export default function HomePage() {
     : operator.heroImage2;
 
   const filtered = useMemo(() => {
-    if (!query) return events;
-    const q = query.toLowerCase();
-    return events.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.venue.toLowerCase().includes(q)
-    );
-  }, [events, query]);
+    if (query) {
+      const q = query.toLowerCase();
+      return events.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.venue.toLowerCase().includes(q)
+      );
+    }
+    if (operator.slug === "west72") {
+      // Featured (Singin' River Brewing Co., hosted by West 72) events sort
+      // first; Array.sort is stable so date order is preserved within each group.
+      const isFeatured = (e: Event) =>
+        e.venue_id === WEST72_HOST_VENUE_ID && e.event_venue_id === WEST72_EVENT_VENUE_ID;
+      return [...events]
+        .sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)))
+        .slice(0, 7);
+    }
+    return events;
+  }, [events, query, operator.slug]);
 
   useEffect(() => {
     fetch("/api/sponsors?homepage=1")
@@ -135,6 +147,38 @@ export default function HomePage() {
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
+
+  const ctaSection = (
+    <section className="home-cta-section" ref={ctaRef}>
+      <div className="home-cta-glow" />
+      <motion.h2
+        className="home-cta-title"
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant()}
+      >
+        {operator.slug === "west72" ? "Get Rowdy" : "Get Rowdy With Us!"}
+      </motion.h2>
+      <motion.p
+        className="home-cta-subtitle"
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant(prefersReduced ? 0 : 0.12)}
+      >
+        Join thousands of live music fans for unforgettable nights, real-world energy,
+        and meaningful connections.
+      </motion.p>
+      <motion.div
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant(prefersReduced ? 0 : 0.24)}
+      >
+        <Link href="/events" className="home-cta-button">
+          {operator.slug === "west72" ? "See the Full Calendar" : <>🎫 See What&apos;s Coming</>}
+        </Link>
+      </motion.div>
+    </section>
+  );
 
   return (
     <>
@@ -235,7 +279,7 @@ export default function HomePage() {
               <span className="events-eyebrow-accent-right" />
             </motion.div>
             <motion.h2 className="home-upcoming-heading" variants={revealVariant()}>
-              What&apos;s Coming . . ?
+              {operator.slug === "west72" ? "See What's Next" : <>What&apos;s Coming . . ?</>}
             </motion.h2>
             <div className="home-events-search">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{color: "rgba(255,255,255,0.35)", flexShrink: 0}}>
@@ -271,6 +315,9 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* For west72, the CTA reads as the end of the card list, not below the FWB section */}
+        {operator.slug === "west72" && ctaSection}
+
         {/* ── NEWSLETTER / FWB SECTION ── */}
         {operator.slug === "west72" ? (
           /* West72: FWB form floats over the rock band hero image */
@@ -301,36 +348,7 @@ export default function HomePage() {
           </>
         )}
 
-        {/* ── CTA SECTION ── */}
-        <section className="home-cta-section" ref={ctaRef}>
-          <div className="home-cta-glow" />
-          <motion.h2
-            className="home-cta-title"
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant()}
-          >
-            Get Rowdy With Us!
-          </motion.h2>
-          <motion.p
-            className="home-cta-subtitle"
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant(prefersReduced ? 0 : 0.12)}
-          >
-            Join thousands of live music fans for unforgettable nights, real-world energy,
-            and meaningful connections.
-          </motion.p>
-          <motion.div
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant(prefersReduced ? 0 : 0.24)}
-          >
-            <Link href="/events" className="home-cta-button">
-              🎫 See What&apos;s Coming
-            </Link>
-          </motion.div>
-        </section>
+        {operator.slug !== "west72" && ctaSection}
       </main>
 
       <Footer />

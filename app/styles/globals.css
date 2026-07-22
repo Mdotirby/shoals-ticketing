@@ -263,7 +263,7 @@ body[data-operator="west72"] .newsletter-submit {
   text-align: center;
 }
 
-/* Event card "Get Tickets" button + price badge */
+/* Event card "Get Tickets" button + price badge (/events page cards) */
 body[data-operator="west72"] .event-card-btn {
   background: #fff;
   color: #000;
@@ -273,6 +273,16 @@ body[data-operator="west72"] .event-card-price {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Homepage event cards (EventCard.tsx) — title Archivo Black, badge labels Archivo Bold */
+body[data-operator="west72"] .event-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+}
+body[data-operator="west72"] .badge-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
 }
 
 /* Minor gold-text accents around the FWB/footer area */
