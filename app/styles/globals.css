@@ -208,14 +208,32 @@ body[data-operator="west72"] .home-cta-button:hover {
   transform: none;
 }
 
-/* "Get Rowdy With Us!" heading (PSD: "GET ROWDY") — Archivo Condensed Black.
-   Google's hosted Archivo Condensed has no static 900 cut, so this renders
-   at the heaviest available weight (700/Bold). */
+/* "Get Rowdy With Us!" heading (PSD: "GET ROWDY") — true Archivo Black (900).
+   Uses the base Archivo family (not the Condensed/Narrow one) since it's the
+   real weight-900 cut, sacrificing condensed width for correct heaviness. */
 body[data-operator="west72"] .home-cta-title {
   color: #fff;
-  font-family: var(--font-archivo-condensed), sans-serif;
-  font-weight: 700;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
   letter-spacing: -0.025em;
+}
+
+/* "What's Coming . . ?" heading (PSD: "SEE WHATS NEXT") — Archivo Black */
+body[data-operator="west72"] .home-upcoming-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+}
+
+/* Gold separator bar between hero and Upcoming Shows — white on west72 */
+body[data-operator="west72"] .home-gold-separator {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 20%,
+    #fff 50%,
+    rgba(255, 255, 255, 0.4) 80%,
+    transparent 100%
+  );
 }
 
 /* "UPCOMING SHOWS" eyebrow — Archivo Condensed Bold, white */
@@ -869,6 +887,12 @@ body {
   }
 
   body[data-operator="west72"] .header-logo {
+    /* Reset the grid placement so this absolutely-positioned item's
+       containing block is the full .header-inner box, not just its
+       grid-column-2 area — otherwise left:50% centers within that
+       narrower track instead of the viewport. */
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
     position: absolute;
     left: 50%;
     top: 50%;
@@ -2568,8 +2592,8 @@ body {
   margin: 0;
   line-height: 1.05;
   color: #fff;
-  font-family: var(--font-archivo-condensed), sans-serif;
-  font-weight: 700;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
   font-size: clamp(1.8rem, 8vw, 31px);
   letter-spacing: 0.075em;
   text-shadow: 0 2px 40px rgba(0, 0, 0, 0.4);
