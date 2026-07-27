@@ -3583,6 +3583,17 @@ html, body { overflow-x: hidden; }
 .home-event-card-wrapper { width: 280px; flex-shrink: 0; }
 .home-events-carousel { justify-content: center; }
 
+/* Price/date/time pills at the fixed 280px card width can overflow on longer
+   dates/prices (e.g. "From $20.00" + "September 10, 2026" + "8:00 PM") —
+   tighten sizing to fit. Scoped to >768px only: below that the card is
+   width:100% (plenty of room) and should keep its original, larger badges. */
+@media (min-width: 769px) {
+  .home-events-carousel .event-meta-badges { gap: 3px; }
+  .home-events-carousel .event-badge { padding: 4px 8px; font-size: 10px; gap: 4px; }
+  .home-events-carousel .event-badge svg { width: 10px; height: 10px; }
+  .home-events-carousel .event-badge .badge-text { font-size: 10px; }
+}
+
 /* Select dropdown dark theme */
 select.admin-form-input {
   appearance: none; -webkit-appearance: none; color-scheme: dark;
