@@ -1,6 +1,7 @@
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 import {
   resolveVenueFees,
   validatePromoCode,
@@ -183,12 +184,19 @@ export async function POST(request: Request) {
     let effectiveQuantity = quantity;
     let ticketPriceCents = Math.round(ticketPriceDollars * 100);
 
+    // Resolve a hold-session id that's guaranteed non-empty even if the client
+    // didn't send one (e.g. sessionStorage cleared, a resumed checkout tab, a
+    // cart-recovery link opened fresh) — the seats table and Stripe metadata
+    // must always agree on the same id, or the webhook can never find the
+    // seats it just held and the order ships with none assigned.
+    const holdSessionId = sessionId || uuidv4();
+
     if (Array.isArray(selectedSeats) && selectedSeats.length > 0) {
       const seatResult = await validateAndHoldSeats(
         admin,
         selectedSeats,
         ticketPriceDollars,
-        sessionId
+        holdSessionId
       );
 
       if (seatResult.error) {
@@ -268,8 +276,10 @@ export async function POST(request: Request) {
         promo_code: promoResult?.promoCodeStr || "",
         promo_code_id: promoResult?.promoCodeId || "",
         discount_per_ticket_cents: String(promoResult?.discountCentsPerTicket || 0),
-        // seat_hold_session replaces seat_ids — avoids Stripe's 500-char metadata limit
-        seat_hold_session: (isAssignedSeating && sessionId) ? sessionId : "",
+        // seat_hold_session replaces seat_ids — avoids Stripe's 500-char metadata limit.
+        // Always the resolved holdSessionId (never the raw, possibly-missing
+        // client sessionId) so this can never go blank while seats are held.
+        seat_hold_session: isAssignedSeating ? holdSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: trackingRef || "",
         utm_source: utm_source || "",

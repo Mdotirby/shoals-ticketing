@@ -2,6 +2,7 @@ import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
 import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
@@ -122,6 +123,13 @@ export async function POST(request: Request) {
     // ── Reserved seating: pass seat_ids through to Stripe metadata ──
     // Seats are NOT pre-reserved here — they get marked sold by the webhook on payment success.
     // This avoids the double-reserve error.
+    // Resolve a hold-session id that's guaranteed non-empty even if the client
+    // didn't send one (e.g. sessionStorage cleared, a resumed checkout tab, a
+    // cart-recovery link opened fresh) — the seats table and Stripe metadata
+    // must always agree on the same id, or the webhook can never find the
+    // seats it just held and the order ships with none assigned.
+    const holdSessionId = buyerSessionId || uuidv4();
+
     let reservedSeatIds: string[] = [];
     if (Array.isArray(seat_ids) && seat_ids.length > 0) {
       // Verify seats are still available or held by this same session (already reserved on the seating page)
@@ -131,7 +139,7 @@ export async function POST(request: Request) {
         .in("id", seat_ids);
 
       const unavailable = (seatCheck || []).filter((s: { status: string; held_session?: string | null }) =>
-        s.status !== "available" && s.held_session !== (buyerSessionId || null)
+        s.status !== "available" && s.held_session !== holdSessionId
       );
       if (unavailable.length > 0) {
         return NextResponse.json(
@@ -140,13 +148,27 @@ export async function POST(request: Request) {
         );
       }
 
-      // Release stale holds from this session's earlier attempts before
-      // re-holding, so the webhook can't sweep in extra seats (over-allocation).
-      if (buyerSessionId) {
+      // Release stale holds from this session's earlier attempts — but only
+      // ones NOT part of the current request — before re-holding, so the
+      // webhook can't sweep in extra seats (over-allocation). Scoping this to
+      // seats outside the current seat_ids (rather than wiping everything
+      // under the session unconditionally) means a retry or duplicate
+      // submission for the SAME seats can never release seats that a
+      // still-in-flight Stripe charge for those same seats depends on right
+      // before its webhook finalizes them.
+      const { data: sessionHeld } = await admin
+        .from("seats")
+        .select("id")
+        .eq("held_session", holdSessionId)
+        .eq("status", "held");
+      const requested = new Set(seat_ids);
+      const staleIds = (sessionHeld || [])
+        .map((s: { id: string }) => s.id)
+        .filter((id: string) => !requested.has(id));
+      if (staleIds.length > 0) {
         await admin.from("seats")
           .update({ status: "available", held_until: null, held_session: null })
-          .eq("held_session", buyerSessionId)
-          .eq("status", "held");
+          .in("id", staleIds);
       }
 
       // Temporarily hold seats (4 min) so no one else grabs them during checkout
@@ -154,7 +176,7 @@ export async function POST(request: Request) {
       await admin.from("seats").update({
         status: "held",
         held_until: heldUntil,
-        held_session: buyerSessionId || null,
+        held_session: holdSessionId,
       }).in("id", seat_ids);
 
       reservedSeatIds = seat_ids;
@@ -400,8 +422,10 @@ export async function POST(request: Request) {
         promo_code_id: promoCodeId,
         // seat_hold_session replaces seat_ids in metadata — avoids Stripe's 500-char
         // per-value limit which breaks when purchasing 2+ tables (16+ seat UUIDs).
-        // The webhook looks up held seats by this session ID instead.
-        seat_hold_session: (isAssignedSeating && buyerSessionId) ? buyerSessionId : "",
+        // The webhook looks up held seats by this session ID instead. Always the
+        // resolved holdSessionId (never the raw, possibly-missing client
+        // buyerSessionId) so this can never go blank while seats are held.
+        seat_hold_session: isAssignedSeating ? holdSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: tracking_ref || "",
         utm_source: utm_source || "",

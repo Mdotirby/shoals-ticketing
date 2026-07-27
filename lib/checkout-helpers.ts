@@ -258,27 +258,47 @@ export async function validateAndHoldSeats(
   eventPrice: number,
   sessionId?: string
 ): Promise<{ error?: string; unavailable?: string[]; result?: SeatValidationResult }> {
-  // Release any stale holds from this same session's earlier / abandoned
-  // attempts before re-holding. Without this, a buyer who re-picked seats in
-  // the same browser session leaves multiple sets of seats held under one
-  // session, and the webhook's session-based finalization sweeps them ALL in
-  // — the pay-for-2-get-4 over-allocation bug. Clearing first also lets a
-  // retry re-select the same seats it was already holding.
+  // Release stale holds from this same session's earlier / abandoned attempts
+  // — but only ones NOT part of the current request. Without this, a buyer
+  // who re-picked seats in the same browser session leaves multiple sets of
+  // seats held under one session, and the webhook's session-based
+  // finalization sweeps them ALL in — the pay-for-2-get-4 over-allocation bug.
+  // Scoping the release to seats outside the current seatIds (rather than
+  // wiping everything under the session unconditionally) means a retry or
+  // duplicate submission for the SAME seats — e.g. a Payment Element remount,
+  // a double-tapped Pay button, a resumed checkout tab — can never release
+  // seats that a still-in-flight Stripe charge for those same seats depends
+  // on right before its webhook finalizes them (the cause of orders shipping
+  // with zero seats assigned).
   if (sessionId) {
-    await admin
+    const { data: sessionHeld } = await admin
       .from("seats")
-      .update({ status: "available", held_until: null, held_session: null })
+      .select("id")
       .eq("held_session", sessionId)
       .eq("status", "held");
+    const requested = new Set(seatIds);
+    const staleIds = (sessionHeld || [])
+      .map((s: { id: string }) => s.id)
+      .filter((id: string) => !requested.has(id));
+    if (staleIds.length > 0) {
+      await admin
+        .from("seats")
+        .update({ status: "available", held_until: null, held_session: null })
+        .in("id", staleIds);
+    }
   }
 
-  // Verify seats are still available
+  // Verify seats are still available (or already held by this same session —
+  // a retry/refresh re-confirming its own in-progress hold).
   const { data: seatCheck } = await admin
     .from("seats")
-    .select("id, status")
+    .select("id, status, held_session")
     .in("id", seatIds);
 
-  const unavailable = (seatCheck || []).filter((s: { status: string }) => s.status !== "available");
+  const unavailable = (seatCheck || []).filter(
+    (s: { status: string; held_session: string | null }) =>
+      s.status !== "available" && !(s.status === "held" && s.held_session === sessionId)
+  );
   if (unavailable.length > 0) {
     return {
       error: "Some seats are no longer available. Please re-select.",
