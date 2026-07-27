@@ -70,6 +70,10 @@ export default function Header() {
     ? venueTheme.name
     : operator.logoAlt;
 
+  // West72's mobile header swaps the wordmark for the square icon mark,
+  // centered on the full header width — see .header-logo-img--icon below.
+  const showMobileIcon = operator.slug === "west72" && !venueTheme.isVenueSubdomain;
+
   return (
     <>
       <header className={`site-header ${scrolled ? "header-scrolled" : ""}`}>
@@ -82,8 +86,19 @@ export default function Header() {
               height={56}
               priority
               unoptimized
-              className="header-logo-img"
+              className="header-logo-img header-logo-img--wordmark"
             />
+            {showMobileIcon && (
+              <Image
+                src={operator.logoIcon}
+                alt={logoAlt}
+                width={65}
+                height={64}
+                priority
+                unoptimized
+                className="header-logo-img header-logo-img--icon"
+              />
+            )}
           </Link>
 
           <button

@@ -6,11 +6,13 @@ import { motion, useInView, useReducedMotion } from "framer-motion";
 import EventCard from "./components/EventCard";
 import Footer from "./components/Footer";
 import NewsletterSignup from "./components/NewsletterSignup";
+import FeaturedEventsCarousel from "./components/FeaturedEventsCarousel";
 import { Event } from "@/lib/types/event";
 import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
 import { useOperator } from "./components/OperatorContext";
+import { WEST72_HOST_VENUE_ID, WEST72_EVENT_VENUE_ID } from "@/lib/west72-featured";
 function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
   const [imgFailed, setImgFailed] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -106,14 +108,25 @@ export default function HomePage() {
     : operator.heroImage2;
 
   const filtered = useMemo(() => {
-    if (!query) return events;
-    const q = query.toLowerCase();
-    return events.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.venue.toLowerCase().includes(q)
-    );
-  }, [events, query]);
+    if (query) {
+      const q = query.toLowerCase();
+      return events.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.venue.toLowerCase().includes(q)
+      );
+    }
+    if (operator.slug === "west72") {
+      // Featured (Singin' River Brewing Co., hosted by West 72) events sort
+      // first; Array.sort is stable so date order is preserved within each group.
+      const isFeatured = (e: Event) =>
+        e.venue_id === WEST72_HOST_VENUE_ID && e.event_venue_id === WEST72_EVENT_VENUE_ID;
+      return [...events]
+        .sort((a, b) => Number(isFeatured(b)) - Number(isFeatured(a)))
+        .slice(0, 7);
+    }
+    return events;
+  }, [events, query, operator.slug]);
 
   useEffect(() => {
     fetch("/api/sponsors?homepage=1")
@@ -135,48 +148,84 @@ export default function HomePage() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  const ctaSection = (
+    <section className="home-cta-section" ref={ctaRef}>
+      <div className="home-cta-glow" />
+      <motion.h2
+        className="home-cta-title"
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant()}
+      >
+        {operator.slug === "west72" ? "Get Rowdy" : "Get Rowdy With Us!"}
+      </motion.h2>
+      <motion.p
+        className="home-cta-subtitle"
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant(prefersReduced ? 0 : 0.12)}
+      >
+        Join thousands of live music fans for unforgettable nights, real-world energy,
+        and meaningful connections.
+      </motion.p>
+      <motion.div
+        initial="hidden"
+        animate={ctaInView ? "visible" : "hidden"}
+        variants={revealVariant(prefersReduced ? 0 : 0.24)}
+      >
+        <Link href="/events" className="home-cta-button">
+          {operator.slug === "west72" ? "See the Full Calendar" : <>🎫 See What&apos;s Coming</>}
+        </Link>
+      </motion.div>
+    </section>
+  );
+
   return (
     <>
       <main className="home-page">
         {/* ── HERO SECTION ── */}
-        <section className="home-hero">
-          {/* Ken Burns background — animates on a separate layer so content stays crisp */}
-          <div
-            className="home-hero-bg-ken"
-            style={{
-              backgroundImage: HERO_IMAGE_1
-                ? `url(${HERO_IMAGE_1})`
-                : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
-            }}
-          />
-          <div className="home-hero-overlay" />
-          <motion.div
-            className="home-hero-content"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.2, delayChildren: prefersReduced ? 0 : 0.35 } },
-            }}
-          >
-            <motion.h1 className="home-hero-title" variants={heroItem}>
-              {venueTheme.homepage_headline || (
-                <>Feel the Music.<br />Live the Moment.</>
+        {operator.slug === "west72" ? (
+          <FeaturedEventsCarousel />
+        ) : (
+          <section className="home-hero">
+            {/* Ken Burns background — animates on a separate layer so content stays crisp */}
+            <div
+              className="home-hero-bg-ken"
+              style={{
+                backgroundImage: HERO_IMAGE_1
+                  ? `url(${HERO_IMAGE_1})`
+                  : "linear-gradient(180deg, #0b0d1d 0%, #202045 100%)",
+              }}
+            />
+            <div className="home-hero-overlay" />
+            <motion.div
+              className="home-hero-content"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                hidden: {},
+                visible: { transition: { staggerChildren: prefersReduced ? 0 : 0.2, delayChildren: prefersReduced ? 0 : 0.35 } },
+              }}
+            >
+              <motion.h1 className="home-hero-title" variants={heroItem}>
+                {venueTheme.homepage_headline || (
+                  <>Feel the Music.<br />Live the Moment.</>
+                )}
+              </motion.h1>
+              {venueTheme.homepage_subheadline && (
+                <motion.p className="home-hero-subtitle" variants={heroItem}>
+                  {venueTheme.homepage_subheadline}
+                </motion.p>
               )}
-            </motion.h1>
-            {venueTheme.homepage_subheadline && (
-              <motion.p className="home-hero-subtitle" variants={heroItem}>
-                {venueTheme.homepage_subheadline}
-              </motion.p>
-            )}
 
-            <motion.div variants={heroItem}>
-              <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
-                {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
-              </Link>
+              <motion.div variants={heroItem}>
+                <Link href={venueTheme.homepage_cta_url || "/events"} className="home-hero-cta">
+                  {venueTheme.homepage_cta_text || "See What's Coming"} <span className="cta-arrow">→</span>
+                </Link>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        </section>
+          </section>
+        )}
 
         {/* ── GOLD SEPARATOR ── */}
         <div className="home-gold-separator" />
@@ -230,7 +279,7 @@ export default function HomePage() {
               <span className="events-eyebrow-accent-right" />
             </motion.div>
             <motion.h2 className="home-upcoming-heading" variants={revealVariant()}>
-              What&apos;s Coming . . ?
+              {operator.slug === "west72" ? "See What's Next" : <>What&apos;s Coming . . ?</>}
             </motion.h2>
             <div className="home-events-search">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{color: "rgba(255,255,255,0.35)", flexShrink: 0}}>
@@ -266,6 +315,9 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* For west72, the CTA reads as the end of the card list, not below the FWB section */}
+        {operator.slug === "west72" && ctaSection}
+
         {/* ── NEWSLETTER / FWB SECTION ── */}
         {operator.slug === "west72" ? (
           /* West72: FWB form floats over the rock band hero image */
@@ -296,36 +348,7 @@ export default function HomePage() {
           </>
         )}
 
-        {/* ── CTA SECTION ── */}
-        <section className="home-cta-section" ref={ctaRef}>
-          <div className="home-cta-glow" />
-          <motion.h2
-            className="home-cta-title"
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant()}
-          >
-            Get Rowdy With Us!
-          </motion.h2>
-          <motion.p
-            className="home-cta-subtitle"
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant(prefersReduced ? 0 : 0.12)}
-          >
-            Join thousands of live music fans for unforgettable nights, real-world energy,
-            and meaningful connections.
-          </motion.p>
-          <motion.div
-            initial="hidden"
-            animate={ctaInView ? "visible" : "hidden"}
-            variants={revealVariant(prefersReduced ? 0 : 0.24)}
-          >
-            <Link href="/events" className="home-cta-button">
-              🎫 See What&apos;s Coming
-            </Link>
-          </motion.div>
-        </section>
+        {operator.slug !== "west72" && ctaSection}
       </main>
 
       <Footer />

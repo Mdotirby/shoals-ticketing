@@ -151,6 +151,149 @@ body[data-operator="west72"] .event-card-placeholder {
   background: #141414;
 }
 
+/* ============================================================
+   WEST72 — white/black buttons + white text + Archivo
+   Per Mobile UI Web Design.psd: gold buttons -> white fill, black
+   text, square corners (0 radius), Archivo family. Gold text -> white.
+   Sizes/padding measured from the PSD at 2x, halved to CSS px.
+   ============================================================ */
+body[data-operator="west72"] {
+  font-family: var(--font-archivo), sans-serif;
+}
+
+/* Header "Get Tickets" CTA — Archivo Regular */
+body[data-operator="west72"] .header-cta {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 400;
+  font-size: 11px;
+  padding: 15px 14px;
+  border-radius: 0;
+  animation: none;
+  box-shadow: none;
+}
+
+/* Hero "Get Tickets" CTA (also used by the featured-events carousel) — Archivo Black */
+body[data-operator="west72"] .home-hero-cta {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  padding: 19px 34px;
+  border-radius: 0;
+  box-shadow: none;
+}
+body[data-operator="west72"] .home-hero-cta:hover {
+  box-shadow: none;
+  background: #f2f2f2;
+}
+
+/* Mid-page "See What's Coming" CTA (PSD: "SEE THE FULL CALENDAR") — Archivo Condensed Bold */
+body[data-operator="west72"] .home-cta-button {
+  background: #fff;
+  color: #000;
+  border: none;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.025em;
+  padding: 20px 39px;
+  border-radius: 0;
+}
+body[data-operator="west72"] .home-cta-button:hover {
+  background: #f2f2f2;
+  border: none;
+  transform: none;
+}
+
+/* "Get Rowdy With Us!" heading (PSD: "GET ROWDY") — true Archivo Black (900).
+   Uses the base Archivo family (not the Condensed/Narrow one) since it's the
+   real weight-900 cut, sacrificing condensed width for correct heaviness. */
+body[data-operator="west72"] .home-cta-title {
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+/* "What's Coming . . ?" heading (PSD: "SEE WHATS NEXT") — Archivo Black */
+body[data-operator="west72"] .home-upcoming-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+}
+
+/* Gold separator bar between hero and Upcoming Shows — white on west72 */
+body[data-operator="west72"] .home-gold-separator {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 20%,
+    #fff 50%,
+    rgba(255, 255, 255, 0.4) 80%,
+    transparent 100%
+  );
+}
+
+/* "UPCOMING SHOWS" eyebrow — Archivo Condensed Bold, white */
+body[data-operator="west72"] .events-eyebrow-text {
+  color: #fff;
+  font-family: var(--font-archivo-condensed), sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* FWB "Text Me First" submit button — Archivo Bold. PSD shows this button
+   spanning ~90% of the canvas width; since it lives in a flex-column form
+   alongside input fields (not a standalone full-bleed element like the PSD),
+   we stretch it to match rather than hardcoding the PSD's raw padding,
+   which would overflow narrow phones. */
+body[data-operator="west72"] .newsletter-submit {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.025em;
+  padding: 19px 24px;
+  border-radius: 0;
+  align-self: stretch;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+/* Event card "Get Tickets" button + price badge (/events page cards) */
+body[data-operator="west72"] .event-card-btn {
+  background: #fff;
+  color: #000;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-operator="west72"] .event-card-price {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Homepage event cards (EventCard.tsx) — title Archivo Black, badge labels Archivo Bold */
+body[data-operator="west72"] .event-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+}
+body[data-operator="west72"] .badge-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+}
+
+/* Minor gold-text accents around the FWB/footer area */
+body[data-operator="west72"] .newsletter-eyebrow,
+body[data-operator="west72"] .newsletter-link,
+body[data-operator="west72"] .newsletter-success-icon,
+body[data-operator="west72"] .footer-column-heading,
+body[data-operator="west72"] .event-sponsors-heading {
+  color: #fff;
+}
+
 body {
   font-family: var(--font-urbanist), sans-serif;
   background: var(--vc-bg);
@@ -193,6 +336,12 @@ body {
   width: clamp(140px, 14vw, 200px) !important;
   height: auto !important;
   object-fit: contain;
+}
+
+/* West72's mobile-only icon mark is hidden everywhere by default; the
+   west72 mobile breakpoint below swaps it in for the wordmark. */
+.header-logo-img--icon {
+  display: none;
 }
 
 
@@ -734,6 +883,40 @@ body {
     width: 100%;
     height: 178px;
     border-radius: 15px;
+  }
+}
+
+/* ============================================================
+   WEST72 MOBILE HEADER — icon logo, true screen-centered
+   (per Mobile UI Web Design.psd — logo center = viewport center,
+   independent of hamburger/CTA widths, not centered between them)
+   ============================================================ */
+@media (max-width: 768px) {
+  body[data-operator="west72"] .header-inner {
+    position: relative;
+  }
+
+  body[data-operator="west72"] .header-logo {
+    /* Reset the grid placement so this absolutely-positioned item's
+       containing block is the full .header-inner box, not just its
+       grid-column-2 area — otherwise left:50% centers within that
+       narrower track instead of the viewport. */
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  body[data-operator="west72"] .header-logo-img--wordmark {
+    display: none;
+  }
+
+  body[data-operator="west72"] .header-logo-img--icon {
+    display: block;
+    width: 33px !important;
+    height: auto !important;
   }
 }
 
@@ -2397,6 +2580,52 @@ body {
   font-size: 16px;
   -webkit-animation: arrowNudge 3.2s ease-in-out 2s infinite;
   animation: arrowNudge 3.2s ease-in-out 2s infinite;
+}
+
+/* ============================================================
+   FEATURED EVENTS CAROUSEL (west72 homepage hero replacement)
+   Reuses .home-hero / .home-hero-overlay / .home-hero-content for
+   layout — only the crossfading background and event text are new.
+   ============================================================ */
+.featured-carousel-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 30%;
+  background-repeat: no-repeat;
+  background-color: #0a0a0a;
+}
+
+.featured-carousel-title {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  line-height: 1.05;
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: clamp(1.8rem, 8vw, 31px);
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.4);
+}
+
+.featured-carousel-subtitle {
+  margin: 6px 0 0;
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 100;
+  font-size: 11px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.featured-carousel-date {
+  margin: 2px 0 16px;
+  color: #fff;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: 11px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
 }
 
 .home-hero-partners {

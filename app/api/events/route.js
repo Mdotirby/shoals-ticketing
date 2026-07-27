@@ -5,6 +5,7 @@ export async function GET(request) {
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
+  const eventVenueId = searchParams.get("event_venue_id");
   const venueSlug = searchParams.get("venue_slug");
   const showAll = searchParams.get("all"); // for admin: show all statuses
   const excludeHolds = searchParams.get("exclude_holds"); // for Shows page: omit hold-status events
@@ -21,9 +22,9 @@ export async function GET(request) {
   // The `closed_out_at` column is added by plans/event-closeout-migration.sql
   // — fall back to the legacy column list if the migration hasn't been run.
   const fullColumns =
-    "id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at,closed_out_at";
+    "id,title,subtitle,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_venue_id,event_type,booking_status,is_free,on_sale_at,closed_out_at";
   const legacyColumns =
-    "id,title,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_type,booking_status,is_free,on_sale_at";
+    "id,title,subtitle,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_venue_id,event_type,booking_status,is_free,on_sale_at";
 
   let query = admin
     .from("events")
@@ -62,6 +63,11 @@ export async function GET(request) {
     query = query.eq("venue_id", venueId);
   }
 
+  // Filter by physical event_venue_id (e.g. "featured events at this room")
+  if (eventVenueId) {
+    query = query.eq("event_venue_id", eventVenueId);
+  }
+
   // Filter by venue slug (resolve slug → id first)
   if (venueSlug && !venueId) {
     const { data: venue } = await admin
@@ -98,6 +104,7 @@ export async function GET(request) {
       fallback = fallback.eq("booking_status", bookingStatusFilter);
     }
     if (venueId) fallback = fallback.eq("venue_id", venueId);
+    if (eventVenueId) fallback = fallback.eq("event_venue_id", eventVenueId);
     const retry = await fallback;
     data = retry.data;
     error = retry.error;
