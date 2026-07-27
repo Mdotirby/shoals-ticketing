@@ -76,29 +76,30 @@ export default function AdminSalesPage() {
           .filter((ev: Record<string, unknown>) => ev.event_type !== "private")
           .filter((ev: Record<string, unknown>) => artistEventIds ? artistEventIds!.includes(ev.id as string) : true);
 
-        // Fetch ticket tiers for each event to get capacity + sold count
-        const supabase = getSupabaseBrowser();
-        const enriched: EventSales[] = await Promise.all(
-          filteredEventsData.map(async (ev: Record<string, unknown>) => {
-            const [tiersRes, scanRes, ticketCountRes] = await Promise.all([
-              fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json()),
-              fetch(`/api/events/${ev.id}/drop-count`).then((r) => r.json()).catch(() => ({ scanned: 0 })),
-              supabase.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", ev.id as string),
-            ]);
-            const tiers = Array.isArray(tiersRes) ? tiersRes : [];
-            const totalCapacity = tiers.reduce((s: number, t: { capacity: number }) => s + (t.capacity || 0), 0);
-            return {
-              id: ev.id as string,
-              title: ev.title as string,
-              venue: ev.venue as string,
-              date: ev.date as string,
-              venue_id: ev.venue_id as string | null,
-              total_capacity: totalCapacity || 500,
-              tickets_sold: ticketCountRes.count || 0,
-              tickets_scanned: scanRes?.scanned || 0,
-            };
-          })
-        );
+        // Pull real sold/capacity/scanned numbers from the shared performance
+        // endpoint — for reserved-seating events this counts the seats table
+        // directly rather than ticket_tiers.capacity (a static number that
+        // drifts from the real per-section seat count) or orders.quantity
+        // (which drifts on refunded-but-reserved or mixed-section orders).
+        type PerfEntry = { id: string; total_capacity: number; total_sold: number; drop_count: number };
+        const performanceRes: { events?: PerfEntry[] } = await fetch("/api/marketing/event-performance")
+          .then((r) => r.json())
+          .catch(() => ({ events: [] }));
+        const perfById = new Map((performanceRes.events || []).map((p) => [p.id, p]));
+
+        const enriched: EventSales[] = filteredEventsData.map((ev: Record<string, unknown>) => {
+          const perf = perfById.get(ev.id as string);
+          return {
+            id: ev.id as string,
+            title: ev.title as string,
+            venue: ev.venue as string,
+            date: ev.date as string,
+            venue_id: ev.venue_id as string | null,
+            total_capacity: perf?.total_capacity || 500,
+            tickets_sold: perf?.total_sold || 0,
+            tickets_scanned: perf?.drop_count || 0,
+          };
+        });
 
         setEvents(enriched);
       } catch {

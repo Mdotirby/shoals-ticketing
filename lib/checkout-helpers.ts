@@ -236,6 +236,51 @@ export async function eventRequiresSeating(
   return !!data?.layout_id;
 }
 
+export interface EventSeatInventory {
+  capacity: number;
+  sold: number;
+  available: number;
+}
+
+/**
+ * Real sold/available/capacity for a reserved-seating event, counted directly
+ * from the seats table — not from ticket_tiers.capacity (a static number an
+ * admin typed once, e.g. "10 tables" instead of the 80 real seats those
+ * tables contain) or from orders.quantity/tickets.ticket_type_id (which
+ * drift once an order spans multiple sections, or a refunded order keeps its
+ * seats intentionally reserved). Returns null for events with no enabled
+ * seating layout — callers should fall back to tier-based capacity for
+ * those (there's no seat-level ground truth to check instead).
+ */
+export async function getEventSeatInventory(
+  admin: SupabaseClient,
+  eventId: string
+): Promise<EventSeatInventory | null> {
+  const { data: map } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+  if (!map?.layout_id) return null;
+
+  const { data: sections } = await admin
+    .from("sections")
+    .select("id")
+    .eq("layout_id", map.layout_id);
+  const sectionIds = (sections || []).map((s: { id: string }) => s.id);
+  if (sectionIds.length === 0) return { capacity: 0, sold: 0, available: 0 };
+
+  const { data: seats } = await admin
+    .from("seats")
+    .select("status")
+    .in("section_id", sectionIds);
+
+  const capacity = (seats || []).length;
+  const sold = (seats || []).filter((s: { status: string }) => s.status === "sold").length;
+  return { capacity, sold, available: Math.max(0, capacity - sold) };
+}
+
 // ── Seat Validation ──────────────────────────────────────────────────────────
 
 export interface SeatValidationResult {

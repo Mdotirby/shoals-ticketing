@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { getEventSeatInventory } from "@/lib/checkout-helpers";
 
 export async function GET() {
   const supabase = createAdminClient();
@@ -57,6 +58,17 @@ export async function GET() {
         );
       }
 
+      // Reserved-seating events: trust the seats table over ticket_tiers.capacity
+      // (a static number that drifts, e.g. "10 tables" instead of the 80 real
+      // seats those tables hold) and over orders.quantity (which undercounts a
+      // refunded-but-still-reserved order and drifts on mixed-section orders).
+      let seatSold: number | null = null;
+      const seatInventory = await getEventSeatInventory(supabase, event.id as string);
+      if (seatInventory) {
+        totalCapacity = seatInventory.capacity;
+        seatSold = seatInventory.sold;
+      }
+
       // Get drop count (scanned tickets)
       let dropCount = 0;
       try {
@@ -82,9 +94,10 @@ export async function GET() {
         // event_views table may not exist — graceful fallback
       }
 
+      const effectiveSold = seatSold ?? totalSold;
       const percentSold =
         totalCapacity > 0
-          ? Math.round((totalSold / totalCapacity) * 100)
+          ? Math.round((effectiveSold / totalCapacity) * 100)
           : 0;
 
       const eventDate = event.date as string;
@@ -98,9 +111,9 @@ export async function GET() {
         image_url: event.image_url,
         status: (event.status as string) || (isPast ? "past" : "upcoming"),
         event_type: event.event_type,
-        total_sold: totalSold,
+        total_sold: effectiveSold,
         total_capacity: totalCapacity,
-        total_available: Math.max(0, totalCapacity - totalSold),
+        total_available: Math.max(0, totalCapacity - effectiveSold),
         percent_sold: percentSold,
         drop_count: dropCount,
         page_views: pageViews,
