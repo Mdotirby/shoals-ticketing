@@ -556,9 +556,14 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     );
   }, [reservedSeatingEnabled, seatingSections, ticketTypes]);
 
+  // For reserved-seating events, trust only real seat status — tickets.ticket_type_id
+  // is assigned once per order, not per seat, so a mixed-section purchase (e.g. seats
+  // from two different sections in one order) miscounts whichever tier the order
+  // happened to sync to. The quantity_sold/quantity_available count is only reliable
+  // for non-seated (GA) events, where there's no seat-level truth to check instead.
   const selectedTicketSoldOut =
     seatedSoldOutTierIds.has(selectedTicketId ?? "") ||
-    (selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
+    (!reservedSeatingEnabled && selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
 
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -792,7 +797,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       onChange={(e) => setSelectedTicketId(e.target.value)}
                     >
                       {ticketTypes.map((tt) => {
-                        const soldOut = seatedSoldOutTierIds.has(tt.id) || tt.quantity_sold >= tt.quantity_available;
+                        const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
                         return (
                           <option key={tt.id} value={tt.id} disabled={soldOut}>
                             {tt.name} — ${tt.price.toFixed(2)}{soldOut ? " (Sold Out)" : ""}
