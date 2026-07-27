@@ -542,6 +542,22 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   // Determine if this is a free event
   const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
 
+  // All-in per-ticket price for the tier selector — same fee math as OrderSummary/
+  // InlineCheckout (Stripe fee constants matched to those components), computed
+  // for a single ticket (no quantity, no promo) so the dropdown shows what one
+  // ticket in that tier actually costs, not just its pre-fee face value.
+  const computeAllInPrice = (ticketPrice: number): number => {
+    const rawRate = venueFees.tax_rate;
+    const rate = venueFees.tax_method === "divisor" ? 0 : (rawRate > 1 ? rawRate / 100 : rawRate);
+    const tax = Math.round(ticketPrice * rate * 100) / 100;
+    if (event?.fees_included_in_price === true) {
+      return ticketPrice + tax;
+    }
+    const beforeStripe = ticketPrice + venueFees.ticketing_fee + venueFees.facility_fee + tax;
+    const processingFee = Math.round((beforeStripe * 0.027 + 0.3) * 100) / 100;
+    return beforeStripe + processingFee;
+  };
+
   // For reserved seating: derive sold-out tiers from seat-level status, not order counts.
   // A section is sold out when every seat it contains is marked "sold".
   const seatedSoldOutTierIds = useMemo(() => {
@@ -798,9 +814,10 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     >
                       {ticketTypes.map((tt) => {
                         const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
+                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
                         return (
                           <option key={tt.id} value={tt.id} disabled={soldOut}>
-                            {tt.name} — ${tt.price.toFixed(2)}{soldOut ? " (Sold Out)" : ""}
+                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
                           </option>
                         );
                       })}

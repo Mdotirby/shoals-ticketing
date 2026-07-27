@@ -40,7 +40,7 @@ export default function EventCard({ event, soldOut = false }: EventCardProps) {
         <div className="event-meta-badges">
           <span className="event-badge event-price-badge">
             <span className="badge-text">
-              {Number(event.price) === 0 ? "Free" : `$${Number(event.price).toFixed(2)}`}
+              {Number(event.price) === 0 ? "Free" : `From $${Number(event.price).toFixed(2)}`}
             </span>
           </span>
           <span className="event-badge event-date-badge">

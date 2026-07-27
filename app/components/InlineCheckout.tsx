@@ -158,6 +158,9 @@ function CheckoutForm({
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  // Price details disclosure — collapsed by default, matches the all-inclusive
+  // price shown above it; expanding reveals the itemized fee/tax breakdown.
+  const [showDetails, setShowDetails] = useState(false);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
   const [fwbOptIn, setFwbOptIn] = useState(false);
 
@@ -461,9 +464,38 @@ function CheckoutForm({
         <h3 className="ic-form-title">Checkout</h3>
       </div>
 
-      {/* Order summary with full fee breakdown */}
+      {/* Order summary — all-inclusive price by default, itemized breakdown behind a toggle */}
       <div className="ic-order-breakdown">
         <div className="ic-order-line">
+          <span>{tierName} &times; {quantity}</span>
+          <span>{isFullyFree ? <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span> : `$${estimatedTotal.toFixed(2)}`}</span>
+        </div>
+        {!isFullyFree && (
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+            (Incl. Taxes &amp; Fees)
+          </p>
+        )}
+
+        {!isFullyFree && (totalTicketingFee > 0 || totalFacilityFee > 0 || tax > 0 || processingFee > 0) && (
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            style={{
+              background: "none", border: "none", color: "#d0c290", cursor: "pointer",
+              fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {showDetails ? "Hide" : "Show"} price details
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+
+        {showDetails && (
+        <>
+        <div className="ic-order-line ic-order-line-fee">
           <span>{tierName} &times; {quantity}</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
@@ -508,6 +540,8 @@ function CheckoutForm({
           <span>Total</span>
           <span>{isFullyFree ? <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span> : `$${estimatedTotal.toFixed(2)}`}</span>
         </div>
+        </>
+        )}
       </div>
 
       <form className="ic-form" onSubmit={handleSubmit} noValidate>
