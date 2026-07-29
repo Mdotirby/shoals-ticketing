@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""One-off: surgical HTML edits for the settlement-report template --
+removes the baked-in example expense rows (now driven by repeating_sections
+instead), adds the new UNSOLD ticket-audit column, blanks the totals-row
+price cell, and substitutes {{field_name}} placeholders for every variable
+field except row-0 repeat stencils (those are filled by generate.js's
+reflow engine at render time, not by static substitution)."""
+import html
+import json
+import re
+from pathlib import Path
+
+TEMPLATE_DIR = Path("/Users/mattirby/shoals-ticketing/.claude/worktrees/wonderful-noyce-2f95b9/doc-templates/templates/settlement-report")
+manifest = json.loads((TEMPLATE_DIR / "manifest.json").read_text())
+html_text = (TEMPLATE_DIR / "template.html").read_text()
+fields_by_id = {f["run_id"]: f for f in manifest["fields"]}
+
+FIXED_EXTRA = {
+    "p1_r020", "p1_r021", "p1_r022", "p1_r023", "p1_r024", "p1_r025",
+    "p1_r026", "p1_r027", "p1_r028", "p1_r029", "p1_r030", "p1_r031",
+    "p1_r032", "p1_r033", "p1_r034", "p1_r035", "p1_r036", "p1_r037",
+    "p1_r038", "p1_r039", "p1_r040", "p1_r041",
+}
+VARIABLE_EXTRA = {"p1_r044", "p1_r045", "p1_r046", "p1_r047", "p1_r048", "p1_r049"}
+
+# 1. Remove baked-in extra example rows (they're not in manifest anymore, but
+#    their <text> elements are still sitting in the raw template.html).
+for run_id in FIXED_EXTRA | VARIABLE_EXTRA:
+    pattern = re.compile(r'<text data-run-id="' + re.escape(run_id) + r'"[^>]*>.*?</text>\n?\s*', re.DOTALL)
+    html_text, n = pattern.subn("", html_text)
+    assert n == 1, f"expected exactly one match removing {run_id}, got {n}"
+
+# 2. Blank the totals-row Price cell (real app leaves it empty).
+def blank_run(m):
+    return m.group(1) + m.group(3)
+
+pattern = re.compile(r'(<text data-run-id="p1_r078"[^>]*>)(.*?)(</text>)', re.DOTALL)
+html_text, n = pattern.subn(blank_run, html_text)
+assert n == 1
+
+# 3. Add the new UNSOLD column (header + row0 stencil + totals), styled to
+#    match its neighboring columns exactly, right-aligned at x=420 (the gap
+#    between COMP/GUEST and PRICE).
+UNSOLD_X = "420"
+new_elements = [
+    # header label, matches style of neighboring "COMP/GUEST" header (p1_r097)
+    '<text data-run-id="p1_new_unsold_header" x="{x}" y="226.56" font-family="\'Archivo-Regular\'" '
+    'font-size="10.67" fill="#000000" font-weight="normal" font-style="normal" text-anchor="end" '
+    'xml:space="preserve">UNSOLD</text>'.format(x=UNSOLD_X),
+    # row-0 stencil, matches style of neighboring "comps" data cell (p1_r087)
+    '<text data-run-id="p1_new_unsold_row0" x="{x}" y="240.64" font-family="\'Archivo-Regular\'" '
+    'font-size="10.67" fill="#000000" font-weight="normal" font-style="normal" text-anchor="end" '
+    'xml:space="preserve">{{{{__row0_ticket_audit_unsold}}}}</text>'.format(x=UNSOLD_X),
+    # totals cell, matches style of neighboring "comps" totals cell (p1_r077)
+    '<text data-run-id="p1_new_unsold_totals" x="{x}" y="256.0" font-family="\'Archivo-Bold\'" '
+    'font-size="10.67" fill="#000000" font-weight="bold" font-style="normal" text-anchor="end" '
+    'xml:space="preserve">{{{{ticket_totals_unsold}}}}</text>'.format(x=UNSOLD_X),
+]
+insertion_point = html_text.index('<text data-run-id="p1_r088"')  # right before "price" row cell
+html_text = html_text[:insertion_point] + "\n      ".join(new_elements) + "\n      " + html_text[insertion_point:]
+
+# Position values here MUST match the actual x/y attributes on the elements
+# above (226.56/240.64/256.0, x=420) -- this manifest position is what the
+# reflow engine in generate.js uses as ground truth, not a re-derivable value.
+manifest["fields"].append({
+    "run_id": "p1_new_unsold_header", "field_name": None, "type": "text",
+    "source_text": "UNSOLD", "variable": False, "confidence": "confirmed",
+    "note": "New column, not present in PSD -- added per Matt's request to replace the current app's %H (sell-through) column with an unsold count instead.",
+    "position": {"page": 1, "x_px": 420, "y_px": 226.56, "width_px": 80, "height_px": 13.12},
+})
+manifest["fields"].append({
+    "run_id": "p1_new_unsold_row0", "field_name": "__row0_ticket_audit_unsold", "type": "number",
+    "source_text": "0", "variable": True, "confidence": "confirmed",
+    "repeat_row0_of": "ticket_audit", "repeat_row0_key": "unsold",
+    "position": {"page": 1, "x_px": 420, "y_px": 240.64, "width_px": 80, "height_px": 8.0},
+})
+manifest["fields"].append({
+    "run_id": "p1_new_unsold_totals", "field_name": "ticket_totals_unsold", "type": "number",
+    "source_text": "0", "variable": True, "confidence": "confirmed",
+    "note": "= ticket_totals_capacity - ticket_totals_sold - ticket_totals_comps",
+    "position": {"page": 1, "x_px": 420, "y_px": 256.0, "width_px": 80, "height_px": 8.0},
+})
+
+# 3b. Add the Deposits Paid / Cash Advance conditional deduction section (not
+#     in the PSD at all -- Matt asked for these to match
+#     settlement-pdf.ts:415-418). One stencil row, reused via the repeating-
+#     section engine for 0-2 actual lines.
+#
+#     Geometry note: "Artist Guarantee" sits at y=880.32, "Venue Merch Take"
+#     at y=897.6 -- only 17.28px apart, not enough room to insert a 15px-
+#     pitch line AND still leave clearance below it for Venue Merch Take
+#     without Venue Merch Take also shifting. So the anchor goes at
+#     y=895.32 (880.32 + one row_height, i.e. right after Guarantee with
+#     proper clearance) -- below that threshhold, Venue Merch Take,
+#     Backend Overage, Total Due to Artist, and the footer all correctly
+#     cascade down when 1-2 deduction lines are actually present, and
+#     nothing moves at all in the (typical) case where neither applies.
+DEDUCTION_Y = "895.32"
+deduction_elements = [
+    '<text data-run-id="p1_new_deduction_label" x="103.68" y="{y}" font-family="\'Archivo-Regular\'" '
+    'font-size="10.51" fill="#000000" font-weight="normal" font-style="normal" '
+    'xml:space="preserve">0</text>'.format(y=DEDUCTION_Y),
+    '<text data-run-id="p1_new_deduction_value" x="721.28" y="{y}" font-family="\'Archivo-Regular\'" '
+    'font-size="10.51" fill="#000000" font-weight="normal" font-style="normal" '
+    'xml:space="preserve">0</text>'.format(y=DEDUCTION_Y),
+]
+insertion_point = html_text.index('<text data-run-id="p1_r066"')  # right before "Venue Merch Take" label
+html_text = html_text[:insertion_point] + "\n      ".join(deduction_elements) + "\n      " + html_text[insertion_point:]
+
+manifest["fields"].append({
+    "run_id": "p1_new_deduction_label", "field_name": "__row0_artist_deduction_lines_label", "type": "text",
+    "source_text": "0", "variable": True, "confidence": "confirmed",
+    "repeat_row0_of": "artist_deduction_lines", "repeat_row0_key": "label",
+    "position": {"page": 1, "x_px": 103.68, "y_px": 895.32, "width_px": 100, "height_px": 8.0},
+})
+manifest["fields"].append({
+    "run_id": "p1_new_deduction_value", "field_name": "__row0_artist_deduction_lines_value", "type": "currency_paren",
+    "source_text": "0", "variable": True, "confidence": "confirmed",
+    "repeat_row0_of": "artist_deduction_lines", "repeat_row0_key": "value",
+    "position": {"page": 1, "x_px": 721.28, "y_px": 895.32, "width_px": 100, "height_px": 8.0},
+})
+
+# 4. Substitute {{field_name}} placeholders for every variable field EXCEPT
+#    row-0 repeat stencils (those get their text set live by generate.js).
+fields_by_id = {f["run_id"]: f for f in manifest["fields"]}
+placeholder_count = 0
+for f in manifest["fields"]:
+    if not f["variable"]:
+        continue
+    if f.get("repeat_row0_of") and f["run_id"] != "p1_new_unsold_row0":
+        continue  # row-0 stencils (existing PSD ones) keep literal example text
+    if f["run_id"] == "p1_new_unsold_row0":
+        continue  # already inserted as a placeholder literal above
+    placeholder = f"{{{{{f['field_name']}}}}}"
+    pattern = re.compile(r'(<text data-run-id="' + re.escape(f["run_id"]) + r'"[^>]*>)(.*?)(</text>)', re.DOTALL)
+    new_html, n = pattern.subn(lambda m: m.group(1) + html.escape(placeholder) + m.group(3), html_text)
+    if n != 1:
+        print(f"WARNING: {f['run_id']} ({f['field_name']}) matched {n} times")
+    else:
+        placeholder_count += 1
+    html_text = new_html
+
+manifest["finalized"] = True
+(TEMPLATE_DIR / "template.html").write_text(html_text)
+(TEMPLATE_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2))
+print(f"Removed {len(FIXED_EXTRA | VARIABLE_EXTRA)} baked-in rows, added 3 UNSOLD column elements, "
+      f"substituted {placeholder_count} placeholders. Template finalized.")

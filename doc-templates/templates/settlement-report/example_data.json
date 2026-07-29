@@ -1,0 +1,67 @@
+{
+  "artist_name": "The Ransom Brothers",
+  "event_date_label": "Fri, July 10, 2026",
+  "created_on_label": "Created on: July 24, 2026",
+  "deal_type": "VS",
+  "guarantee": 491.77,
+  "backend_percentage_label": "65.00%",
+
+  "ticket_audit": [
+    {"tier": "GENERAL ADMISSION", "capacity": 550, "sold": 28, "comps": 28, "unsold": 494, "price": 10.00, "svc": 84.00, "fac": 84.00, "tax": 24.29, "cc": 19.48, "gross": 491.77}
+  ],
+  "ticket_totals_capacity": 550,
+  "ticket_totals_sold": 28,
+  "ticket_totals_comps": 28,
+  "ticket_totals_unsold": 494,
+  "ticket_totals_svc": 84.00,
+  "ticket_totals_fac": 84.00,
+  "ticket_totals_tax": 24.29,
+  "ticket_totals_cc": 19.48,
+  "ticket_totals_gross": 491.77,
+
+  "gross_receipts": 491.77,
+  "ticketing_fees": 84.00,
+  "facility_fees": 84.00,
+  "tax_label": "Taxes (9.50%, Divisor)",
+  "taxes": 24.29,
+  "cc_fees": 19.48,
+  "net_receipts": 280.00,
+
+  "expenses_fixed": [
+    {"name": "Catering", "amount": 0},
+    {"name": "Hospitality", "amount": 0},
+    {"name": "Support", "amount": 150.00},
+    {"name": "Talent", "amount": 0},
+    {"name": "Marketing", "amount": 135.62},
+    {"name": "Labor", "amount": 0},
+    {"name": "Insurance", "amount": 150.00},
+    {"name": "Security", "amount": 200},
+    {"name": "Ushers", "amount": 0},
+    {"name": "Police", "amount": 0},
+    {"name": "Cleaning", "amount": 150.00},
+    {"name": "Medical", "amount": 0}
+  ],
+  "expenses_fixed_total": 785.62,
+  "expenses_variable": [
+    {"name": "ASCAP", "amount": 0},
+    {"name": "BMI", "amount": 0},
+    {"name": "SESAC", "amount": 0},
+    {"name": "GMR", "amount": 0}
+  ],
+  "expenses_variable_total": 0,
+  "total_expenses": 785.62,
+
+  "merch_total_gross": 270.00,
+  "merch_tax_label": "Sales Tax (9.50%, Multiplier)",
+  "merch_total_tax": 0,
+  "merch_total_net": 270.00,
+  "merch_venue_take_label": "Venue Take (10.0% of Net)",
+  "merch_venue_share": 27.00,
+  "merch_venue_take_deduction": 27.00,
+  "merch_artist_share": 243.00,
+
+  "artist_deduction_lines": [],
+
+  "artist_backend": 0,
+  "balance_due": 723.00
+}
