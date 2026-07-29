@@ -1,0 +1,60 @@
+{
+  "artist_name": "The Wild Hearts",
+  "event_date_label": "Sat, Sep 12, 2026",
+  "created_on_label": "Created on: September 1, 2026",
+  "deal_type": "VS",
+  "guarantee": 1000.00,
+  "backend_percentage_label": "70.00%",
+
+  "ticket_audit": [
+    {"tier": "General Admission", "capacity": 400, "sold": 300, "comps": 10, "unsold": 90, "price": 25.00, "svc": 900.00, "fac": 600.00, "tax": 650.68, "cc": 375.00, "gross": 10025.68},
+    {"tier": "VIP", "capacity": 100, "sold": 80, "comps": 5, "unsold": 15, "price": 75.00, "svc": 240.00, "fac": 160.00, "tax": 520.55, "cc": 100.00, "gross": 7020.55}
+  ],
+  "ticket_totals_capacity": 500,
+  "ticket_totals_sold": 380,
+  "ticket_totals_comps": 15,
+  "ticket_totals_unsold": 105,
+  "ticket_totals_svc": 1140.00,
+  "ticket_totals_fac": 760.00,
+  "ticket_totals_tax": 1171.23,
+  "ticket_totals_cc": 475.00,
+  "ticket_totals_gross": 17046.23,
+
+  "gross_receipts": 17046.23,
+  "ticketing_fees": 1140.00,
+  "facility_fees": 760.00,
+  "tax_label": "Taxes (9.50%, Divisor)",
+  "taxes": 1171.23,
+  "cc_fees": 475.00,
+  "net_receipts": 10428.77,
+
+  "expenses_fixed": [
+    {"name": "Sound & Lighting", "amount": 800.00},
+    {"name": "Hospitality", "amount": 200.00},
+    {"name": "Security", "amount": 450.00}
+  ],
+  "expenses_fixed_total": 1450.00,
+  "expenses_variable": [
+    {"name": "ASCAP", "amount": 45.00},
+    {"name": "BMI", "amount": 32.00}
+  ],
+  "expenses_variable_total": 77.00,
+  "total_expenses": 1527.00,
+
+  "merch_total_gross": 500.00,
+  "merch_tax_label": "Sales Tax (9.50%, Multiplier)",
+  "merch_total_tax": 47.50,
+  "merch_total_net": 452.50,
+  "merch_venue_take_label": "Venue Take (20.0% of Net)",
+  "merch_venue_share": 90.50,
+  "merch_venue_take_deduction": 90.50,
+  "merch_artist_share": 362.00,
+
+  "artist_deduction_lines": [
+    {"label": "Deposits Paid", "value": 500.00},
+    {"label": "Cash Advances", "value": 250.00}
+  ],
+
+  "artist_backend": 5531.24,
+  "balance_due": 5690.74
+}
