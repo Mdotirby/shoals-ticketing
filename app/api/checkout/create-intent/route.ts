@@ -114,11 +114,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
+    // Resolved once — also decides whether the tier ticket-count guard below
+    // applies (it is meaningless for seated events; the seats table is the
+    // authority there).
+    const isSeatedEvent = await eventRequiresSeating(admin, eventId);
+
     // Guard: reserved-seating events require a seat selection. Authoritative
     // server-side backstop — blocks a seatless order when the seat map fails
     // to load or hasn't engaged client-side (the failure that stranded orders).
     if (!(Array.isArray(selectedSeats) && selectedSeats.length > 0)) {
-      if (await eventRequiresSeating(admin, eventId)) {
+      if (isSeatedEvent) {
         return NextResponse.json(
           { error: "Please select your seat(s) from the map before checking out." },
           { status: 400 }
@@ -148,7 +153,14 @@ export async function POST(request: Request) {
       // Guard: reject if tier is sold out.
       // Count rows in tickets (one row per physical ticket) rather than orders,
       // because orders.tier_id is not persisted — ticket_type_id is the authoritative field.
-      if (tier.capacity > 0) {
+      //
+      // SKIPPED for reserved-seating events. tickets.ticket_type_id is stamped
+      // once per ORDER, not per seat, so a mixed-section purchase inflates a
+      // tier's count and this guard then rejects buyers while real seats are
+      // still open — it blocked paying customers on a section that had seats
+      // free. For seated events the seats table is the only authority, and
+      // validateAndHoldSeats already enforces it atomically below.
+      if (!isSeatedEvent && tier.capacity > 0) {
         const { count: soldCount } = await admin
           .from("tickets")
           .select("id", { count: "exact", head: true })
