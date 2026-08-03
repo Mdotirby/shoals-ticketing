@@ -69,12 +69,34 @@ export default function SeatMap({
   // ─── sync vbRef whenever vb changes ──────────────────────────────────────
   useEffect(() => { vbRef.current = vb; }, [vb]);
 
+  // Objects flagged `metadata.hidden` exist as real, sellable inventory but are
+  // deliberately kept off the customer-facing chart (e.g. a table added on the
+  // night that isn't part of the printed floor plan). They must be excluded
+  // from the bounds calculation as well as the render — this viewBox auto-fits
+  // to content, so an off-plan object would stretch the frame and shrink the
+  // whole visible map.
+  const hiddenObjectIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const sec of sections) {
+      for (const obj of sec.objects) {
+        if ((obj.metadata as { hidden?: boolean } | null | undefined)?.hidden) ids.add(obj.id);
+      }
+    }
+    return ids;
+  }, [sections]);
+
+  const isHiddenSeat = useCallback(
+    (objectId: string | null | undefined) => !!objectId && hiddenObjectIds.has(objectId),
+    [hiddenObjectIds]
+  );
+
   // ─── fit viewBox to content ───────────────────────────────────────────────
   useEffect(() => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     for (const sec of sections) {
       for (const obj of sec.objects) {
+        if (hiddenObjectIds.has(obj.id)) continue;
         // Account for rotation by computing all 4 corners
         const cx = (obj.x_ft + obj.width_ft / 2) * ppf;
         const cy = (obj.y_ft + obj.height_ft / 2) * ppf;
@@ -91,6 +113,7 @@ export default function SeatMap({
         maxY = Math.max(maxY, cy + ry);
       }
       for (const seat of sec.seats) {
+        if (isHiddenSeat(seat.object_id)) continue;
         const px = seat.x_ft * ppf;
         const py = seat.y_ft * ppf;
         minX = Math.min(minX, px - seatR * 2);
@@ -113,7 +136,7 @@ export default function SeatMap({
     baseVb.current = newVb;
     vbRef.current = newVb;
     setVb(newVb);
-  }, [sections, roomWidthFt, roomHeightFt, ppf, seatR]);
+  }, [sections, roomWidthFt, roomHeightFt, ppf, seatR, hiddenObjectIds, isHiddenSeat]);
 
   // ─── native wheel + touch listeners (passive: false to enable preventDefault) ──
   useEffect(() => {
@@ -357,6 +380,7 @@ export default function SeatMap({
         {sections.map((sec) => (
           <g key={sec.id}>
             {sec.objects.map((obj) => {
+              if (hiddenObjectIds.has(obj.id)) return null;
               const pos = getObjPos(obj);
               const px = ft(pos.x), py = ft(pos.y), pw = ft(obj.width_ft), ph = ft(obj.height_ft);
               const pcx = px + pw / 2, pcy = py + ph / 2;
@@ -505,6 +529,7 @@ export default function SeatMap({
             {/* Seats — skip sells_as_table sections in interactive mode; those seats are
                 already rendered inside their table group above for correct z-order / click handling */}
             {sec.seats.map((seat) => {
+              if (isHiddenSeat(seat.object_id)) return null;
               if (sec.sells_as_table && interactive) return null;
 
               // Apply drag offset to seats belonging to dragged object

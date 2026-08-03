@@ -50,6 +50,14 @@ type InlineCheckoutProps = {
   taxMethod?: "multiplier" | "divisor";
   /** Ticketing fee + facility fee are already baked into ticketPrice — don't add them again. */
   feesIncludedInPrice?: boolean;
+  /**
+   * Called when the server rejects the selected seats as no longer available
+   * (someone else bought them while this buyer was filling in the form).
+   * Receives the seat ids the server flagged so the parent can drop them from
+   * the selection and re-pull the map — otherwise a retry re-sends the same
+   * dead seats and fails identically every time.
+   */
+  onSeatsUnavailable?: (unavailableSeatIds: string[]) => void;
 };
 
 // ── Stripe loader (singleton) ────────────────────────────────────────────────
@@ -141,6 +149,7 @@ function CheckoutForm({
   taxRate = 0,
   taxMethod = "multiplier",
   feesIncludedInPrice = false,
+  onSeatsUnavailable,
 }: InlineCheckoutProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -242,6 +251,12 @@ function CheckoutForm({
         const data = await res.json();
         if (!res.ok) {
           ev.complete("fail");
+          if (res.status === 409 && Array.isArray(data.unavailable)) {
+            setPaymentError("Those seats were just taken by another buyer. We've cleared them — please pick again from the map.");
+            setIsProcessing(false);
+            onSeatsUnavailable?.(data.unavailable as string[]);
+            return;
+          }
           setPaymentError(data.error || "Payment failed. Please try again.");
           setIsProcessing(false);
           return;
@@ -365,6 +380,15 @@ function CheckoutForm({
       const data = await res.json();
 
       if (!res.ok) {
+        // Seats were taken while this buyer was filling in the form — hand the
+        // ids back so the map refreshes and the dead seats leave the selection,
+        // instead of leaving them to retry the same doomed purchase.
+        if (res.status === 409 && Array.isArray(data.unavailable)) {
+          setPaymentError("Those seats were just taken by another buyer. We've cleared them — please pick again from the map.");
+          setIsProcessing(false);
+          onSeatsUnavailable?.(data.unavailable as string[]);
+          return;
+        }
         setPaymentError(data.error || "Failed to create payment. Please try again.");
         setIsProcessing(false);
         return;

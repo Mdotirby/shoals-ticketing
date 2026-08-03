@@ -171,13 +171,52 @@ export async function POST(request: Request) {
           .in("id", staleIds);
       }
 
-      // Temporarily hold seats (4 min) so no one else grabs them during checkout
+      // Temporarily hold seats (4 min) so no one else grabs them during checkout.
+      // Atomic conditional update — see validateAndHoldSeats for the full
+      // rationale. The availability check above is only a read, so without the
+      // `status = available` guard two simultaneous buyers can both pass it and
+      // the second silently steals the first's hold, leaving whoever loses at
+      // webhook time holding paid tickets with no seat.
       const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
-      await admin.from("seats").update({
-        status: "held",
-        held_until: heldUntil,
-        held_session: holdSessionId,
-      }).in("id", seat_ids);
+
+      const alreadyMineIds = (seatCheck || [])
+        .filter((s: { id: string; status: string; held_session?: string | null }) =>
+          s.status === "held" && s.held_session === holdSessionId)
+        .map((s: { id: string }) => s.id);
+      const needToGrabIds = (seat_ids as string[]).filter((id) => !alreadyMineIds.includes(id));
+
+      if (needToGrabIds.length > 0) {
+        const { data: grabbed } = await admin
+          .from("seats")
+          .update({ status: "held", held_until: heldUntil, held_session: holdSessionId })
+          .in("id", needToGrabIds)
+          .eq("status", "available")
+          .select("id");
+
+        const grabbedIds = (grabbed || []).map((s: { id: string }) => s.id);
+        if (grabbedIds.length < needToGrabIds.length) {
+          if (grabbedIds.length > 0) {
+            await admin.from("seats")
+              .update({ status: "available", held_until: null, held_session: null })
+              .in("id", grabbedIds)
+              .eq("held_session", holdSessionId);
+          }
+          return NextResponse.json(
+            {
+              error: "Some seats are no longer available. Please re-select.",
+              unavailable: needToGrabIds.filter((id) => !grabbedIds.includes(id)),
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      if (alreadyMineIds.length > 0) {
+        await admin.from("seats")
+          .update({ held_until: heldUntil })
+          .in("id", alreadyMineIds)
+          .eq("held_session", holdSessionId);
+      }
 
       reservedSeatIds = seat_ids;
     }

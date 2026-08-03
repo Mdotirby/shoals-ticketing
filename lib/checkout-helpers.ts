@@ -243,6 +243,29 @@ export interface EventSeatInventory {
 }
 
 /**
+ * Ids of objects flagged `metadata.hidden` — real, sellable inventory that is
+ * deliberately kept off the customer-facing chart AND out of capacity
+ * reporting (e.g. a table added on the night that isn't part of the printed
+ * floor plan). Seats belonging to these objects still function normally on the
+ * ticket and at the door; they simply don't move the venue's published totals.
+ */
+async function getHiddenObjectIds(
+  admin: SupabaseClient,
+  sectionIds: string[]
+): Promise<Set<string>> {
+  if (sectionIds.length === 0) return new Set();
+  const { data } = await admin
+    .from("objects")
+    .select("id, metadata")
+    .in("section_id", sectionIds);
+  const hidden = new Set<string>();
+  for (const o of data || []) {
+    if ((o.metadata as { hidden?: boolean } | null)?.hidden) hidden.add(o.id);
+  }
+  return hidden;
+}
+
+/**
  * Real sold/available/capacity for a reserved-seating event, counted directly
  * from the seats table — not from ticket_tiers.capacity (a static number an
  * admin typed once, e.g. "10 tables" instead of the 80 real seats those
@@ -271,14 +294,81 @@ export async function getEventSeatInventory(
   const sectionIds = (sections || []).map((s: { id: string }) => s.id);
   if (sectionIds.length === 0) return { capacity: 0, sold: 0, available: 0 };
 
-  const { data: seats } = await admin
+  const hidden = await getHiddenObjectIds(admin, sectionIds);
+  const { data: seatRows } = await admin
     .from("seats")
-    .select("status")
+    .select("status, object_id")
     .in("section_id", sectionIds);
 
-  const capacity = (seats || []).length;
-  const sold = (seats || []).filter((s: { status: string }) => s.status === "sold").length;
+  const seats = (seatRows || []).filter(
+    (s: { object_id: string | null }) => !(s.object_id && hidden.has(s.object_id))
+  );
+  const capacity = seats.length;
+  const sold = seats.filter((s: { status: string }) => s.status === "sold").length;
   return { capacity, sold, available: Math.max(0, capacity - sold) };
+}
+
+export interface SectionSeatInventory extends EventSeatInventory {
+  sectionId: string;
+  name: string;
+  priceCents: number;
+  sellsAsTable: boolean;
+}
+
+/**
+ * Same seat-level truth as getEventSeatInventory, but broken out per section —
+ * so a caller can answer "is THIS tier sold out" instead of only "is the event
+ * sold out". Sections with no seats (e.g. the STAGE marker) are omitted.
+ * Returns null when the event has no enabled seating layout.
+ */
+export async function getEventSeatInventoryBySection(
+  admin: SupabaseClient,
+  eventId: string
+): Promise<SectionSeatInventory[] | null> {
+  const { data: map } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+  if (!map?.layout_id) return null;
+
+  const { data: sections } = await admin
+    .from("sections")
+    .select("id, name, price_cents, sells_as_table, type")
+    .eq("layout_id", map.layout_id);
+  const sectionRows = sections || [];
+  if (sectionRows.length === 0) return [];
+
+  const sectionIds = sectionRows.map((s: { id: string }) => s.id);
+  const hidden = await getHiddenObjectIds(admin, sectionIds);
+  const { data: seatRows } = await admin
+    .from("seats")
+    .select("section_id, status, object_id")
+    .in("section_id", sectionIds);
+  const seats = (seatRows || []).filter(
+    (s: { object_id: string | null }) => !(s.object_id && hidden.has(s.object_id))
+  );
+
+  const out: SectionSeatInventory[] = [];
+  for (const sec of sectionRows) {
+    const secSeats = seats.filter(
+      (s: { section_id: string }) => s.section_id === sec.id
+    );
+    if (secSeats.length === 0) continue;
+    const capacity = secSeats.length;
+    const sold = secSeats.filter((s: { status: string }) => s.status === "sold").length;
+    out.push({
+      sectionId: sec.id,
+      name: sec.name,
+      priceCents: sec.price_cents ?? 0,
+      sellsAsTable: !!sec.sells_as_table || sec.type === "table",
+      capacity,
+      sold,
+      available: Math.max(0, capacity - sold),
+    });
+  }
+  return out;
 }
 
 // ── Seat Validation ──────────────────────────────────────────────────────────
@@ -351,13 +441,61 @@ export async function validateAndHoldSeats(
     };
   }
 
-  // Temporarily hold seats (4 min) so no one else grabs them during checkout
+  // Temporarily hold seats (4 min) so no one else grabs them during checkout.
+  //
+  // This MUST be an atomic conditional update, not a blind write. The
+  // availability check above is a read, so two buyers hitting the last seat at
+  // the same moment can both pass it; a blind update would then let the second
+  // silently overwrite the first's hold. Both would go on to pay, and at
+  // webhook time only one of them matches `held_session` — the other is issued
+  // tickets with no seat at all. That is exactly how seatless paid orders have
+  // been produced before.
+  //
+  // Updating only rows still `available` and comparing the affected-row count
+  // to what we asked for makes the database the arbiter: the loser of the race
+  // gets a clean 409 and can re-pick, instead of paying for nothing.
   const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
-  await admin.from("seats").update({
-    status: "held",
-    held_until: heldUntil,
-    held_session: sessionId || null,
-  }).in("id", seatIds);
+
+  const alreadyMineIds = (seatCheck || [])
+    .filter((s: { status: string; held_session: string | null }) =>
+      s.status === "held" && s.held_session === sessionId)
+    .map((s: { id: string }) => s.id);
+  const needToGrabIds = seatIds.filter((id) => !alreadyMineIds.includes(id));
+
+  if (needToGrabIds.length > 0) {
+    const { data: grabbed } = await admin
+      .from("seats")
+      .update({ status: "held", held_until: heldUntil, held_session: sessionId || null })
+      .in("id", needToGrabIds)
+      .eq("status", "available")
+      .select("id");
+
+    const grabbedIds = (grabbed || []).map((s: { id: string }) => s.id);
+    if (grabbedIds.length < needToGrabIds.length) {
+      // Lost the race on at least one seat — release whatever we did grab so we
+      // don't strand seats that nobody is buying, then reject the whole request.
+      if (grabbedIds.length > 0 && sessionId) {
+        await admin
+          .from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .in("id", grabbedIds)
+          .eq("held_session", sessionId);
+      }
+      return {
+        error: "Some seats are no longer available. Please re-select.",
+        unavailable: needToGrabIds.filter((id) => !grabbedIds.includes(id)),
+      };
+    }
+  }
+
+  // Seats this session already holds: just extend the window.
+  if (alreadyMineIds.length > 0 && sessionId) {
+    await admin
+      .from("seats")
+      .update({ held_until: heldUntil })
+      .in("id", alreadyMineIds)
+      .eq("held_session", sessionId);
+  }
 
   // Look up seat details + section prices (including sells_as_table and object_id)
   const { data: seatDetails } = await admin

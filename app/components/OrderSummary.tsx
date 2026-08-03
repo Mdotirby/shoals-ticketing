@@ -48,10 +48,12 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   // Divisor = tax baked into face price; don't charge it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
-  const selectedTierSoldOut = selectedTicket
-    ? selectedTicket.quantity_sold >= selectedTicket.quantity_available
-    : false;
-  const hasSelection = selectedTicket !== null && quantity > 0 && !selectedTierSoldOut;
+  // Sold-out is decided by the parent (EventDetailClient) and arrives via
+  // checkoutDisabled/checkoutDisabledMessage. This component used to recompute
+  // it from quantity_sold >= quantity_available, which double-counted
+  // mixed-section orders and falsely blocked sections that still had seats —
+  // one source of truth avoids the two drifting apart again.
+  const hasSelection = selectedTicket !== null && quantity > 0;
 
   // ── Free checkout state ──
   const [freeName, setFreeName] = useState("");
@@ -146,10 +148,10 @@ export default function OrderSummary({
     <div className="order-summary">
       <h2 className="order-summary-title">Order Summary</h2>
 
-      {selectedTierSoldOut || (checkoutDisabled && checkoutDisabledMessage) ? (
+      {checkoutDisabled && checkoutDisabledMessage ? (
         <div className="order-summary-empty">
           <p className="order-summary-empty-text" style={{ color: "#f87171" }}>
-            {selectedTierSoldOut ? "This ticket type is sold out." : checkoutDisabledMessage}
+            {checkoutDisabledMessage}
           </p>
         </div>
       ) : !hasSelection ? (

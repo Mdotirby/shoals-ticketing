@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
+import { getEventSeatInventoryBySection } from "@/lib/checkout-helpers";
 import { NextResponse } from "next/server";
 
 // GET: fetch ticket tiers for an event (public)
@@ -34,10 +35,60 @@ export async function GET(
     }
   }
 
-  const tiersWithSold = (data ?? []).map((t) => ({
-    ...t,
-    quantity_sold: soldByTier[t.id] ?? 0,
-  }));
+  // ── Seat-level truth for reserved-seating events ───────────────────────────
+  // tickets.ticket_type_id is stamped once per ORDER, not per seat, so a single
+  // mixed-section purchase inflates a tier's count and can push it to
+  // "sold out" while real seats sit open (this blocked Section 1 and Section 3
+  // on the Muscle Shoals event with 5 sellable seats between them). Likewise
+  // ticket_tiers.capacity is an admin-typed number in the tier's own unit —
+  // "10 tables" for a section that actually holds 80 seats — so comparing a
+  // seat count against it is meaningless.
+  //
+  // For seated events, resolve both numbers from the seats table and expose
+  // them as the authoritative fields, so every consumer of this endpoint gets
+  // correct availability instead of re-deriving it (and re-breaking it).
+  // `capacity` is deliberately left as the stored value: the admin tier editor
+  // reads it as its form input and writes it straight back on save.
+  const sectionInventory = await getEventSeatInventoryBySection(admin, id);
+
+  const tiersWithSold = (data ?? []).map((t) => {
+    const ticketCount = soldByTier[t.id] ?? 0;
+
+    if (sectionInventory && sectionInventory.length > 0) {
+      // Match tier → section by price first (exact, unit-independent), then by
+      // name. Both are how the seat map and tier list are kept in sync today.
+      const tierName = String(t.tier_name ?? "").trim().toLowerCase();
+      const tierCents = Math.round(Number(t.price ?? 0) * 100);
+      const match =
+        sectionInventory.find((s) => s.priceCents === tierCents) ??
+        sectionInventory.find((s) => {
+          const secName = s.name.trim().toLowerCase();
+          return secName === tierName || secName.startsWith(tierName) || tierName.startsWith(secName);
+        });
+
+      if (match) {
+        return {
+          ...t,
+          // Seat-derived. quantity_sold is a computed read field (never written
+          // back by the PUT handler), so correcting it here is safe.
+          quantity_sold: match.sold,
+          quantity_available: match.capacity,
+          is_seated: true,
+          seat_capacity: match.capacity,
+          seats_sold: match.sold,
+          seats_available: match.available,
+          ticket_count: ticketCount,
+        };
+      }
+    }
+
+    return {
+      ...t,
+      quantity_sold: ticketCount,
+      quantity_available: t.capacity,
+      is_seated: false,
+    };
+  });
 
   return NextResponse.json(tiersWithSold, { status: 200 });
 }
