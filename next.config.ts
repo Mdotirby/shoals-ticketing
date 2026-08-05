@@ -17,8 +17,20 @@ const nextConfig: NextConfig = {
   // Puppeteer's export-pdf route reads the settlement-report template's
   // HTML/fonts/images from disk at runtime -- without this, Vercel's file
   // tracing won't know to bundle non-code assets into the function.
+  //
+  // @sparticuz/chromium's actual Chromium binary (bin/chromium.br, ~65MB)
+  // is read via a dynamically-constructed fs path inside the package, not
+  // a static require()/import -- Vercel's automatic file tracer can't see
+  // that reference at all, so serverExternalPackages alone (which only
+  // stops *bundling*, i.e. inlining JS) isn't sufficient; the binary
+  // still silently gets left out of the deployed function's filesystem
+  // unless explicitly force-included here. Confirmed by the runtime error
+  // this fixes: "input directory .../@sparticuz/chromium/bin does not exist".
   outputFileTracingIncludes: {
-    "/api/settlements/[id]/export-pdf": ["./lib/pdf-templates/settlement-report/**"],
+    "/api/settlements/[id]/export-pdf": [
+      "./lib/pdf-templates/settlement-report/**",
+      "./node_modules/@sparticuz/chromium/bin/**",
+    ],
   },
   async rewrites() {
     return [
