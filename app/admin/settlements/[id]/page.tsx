@@ -13,7 +13,7 @@ import type {
   MerchSellerFeePayer,
   MerchTaxPayer,
 } from "@/lib/types/settlement";
-import { exportArtistSettlementPDF, exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
+import { exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -50,6 +50,7 @@ export default function SettlementDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
 
   // Core settlement
   const [settlement, setSettlement] = useState<Settlement | null>(null);
@@ -686,21 +687,42 @@ export default function SettlementDetailPage() {
   };
 
   const exportArtistPDF = async () => {
-    if (!settlement) return;
-    const pdfSettlement = buildPdfSettlement();
-    const venueInfo = {
-      name: settlement.event_title || settlement.artist_name || "Venue",
-      address_street: undefined as string | undefined,
-      address_city: undefined as string | undefined,
-      address_state: undefined as string | undefined,
-      address_zip: undefined as string | undefined,
-    };
-    await exportArtistSettlementPDF(
-      pdfSettlement,
-      venueInfo,
-      expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
-      deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes }))
-    );
+    if (!settlement || exportingArtistPdf) return;
+    setExportingArtistPdf(true);
+    setError("");
+    try {
+      const pdfSettlement = buildPdfSettlement();
+      const res = await fetch(`/api/settlements/${settlement.id}/export-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settlement: pdfSettlement,
+          expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
+          deposits: deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes })),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Artist_Settlement.pdf";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PDF export failed");
+    } finally {
+      setExportingArtistPdf(false);
+    }
   };
 
   const exportVenuePDF = async () => {
@@ -1884,8 +1906,13 @@ export default function SettlementDetailPage() {
             </button>
           </>
         )}
-        <button className="admin-header-btn" onClick={exportArtistPDF} style={{ padding: "10px 20px" }}>
-          Export Artist Settlement PDF
+        <button
+          className="admin-header-btn"
+          onClick={exportArtistPDF}
+          disabled={exportingArtistPdf}
+          style={{ padding: "10px 20px" }}
+        >
+          {exportingArtistPdf ? "Exporting…" : "Export Artist Settlement PDF"}
         </button>
         <button className="admin-header-btn" onClick={exportVenuePDF} style={{ padding: "10px 20px" }}>
           Export Venue Settlement PDF
