@@ -39,9 +39,14 @@ html_text, n = pattern.subn(blank_run, html_text)
 assert n == 1
 
 # 3. Add the new UNSOLD column (header + row0 stencil + totals), styled to
-#    match its neighboring columns exactly, right-aligned at x=420 (the gap
-#    between COMP/GUEST and PRICE).
-UNSOLD_X = "420"
+#    match its neighboring columns exactly, right-aligned in the gap between
+#    COMP/GUEST and PRICE. x=420 originally collided with "COMP/GUEST"
+#    (measured via getComputedTextLength() in a real render: COMP/GUEST
+#    ends at x=376.34, "UNSOLD" at x=420 end-anchored starts at x=375.55 --
+#    a ~1px overlap, invisible in a synthetic test but visible with real
+#    data in production). x=427 leaves ~6px clearance on both sides
+#    (COMP/GUEST ends 376.34, PRICE starts 435.2, UNSOLD is 44.45px wide).
+UNSOLD_X = "427"
 new_elements = [
     # header label, matches style of neighboring "COMP/GUEST" header (p1_r097)
     '<text data-run-id="p1_new_unsold_header" x="{x}" y="226.56" font-family="\'Archivo-Regular\'" '
@@ -119,6 +124,25 @@ manifest["fields"].append({
     "repeat_row0_of": "artist_deduction_lines", "repeat_row0_key": "value",
     "position": {"page": 1, "x_px": 721.28, "y_px": 895.32, "width_px": 100, "height_px": 8.0},
 })
+
+# 3c. Right-align the header block (artist name + "Event Settlement" +
+#     "Created on:" date) at a shared right edge instead of each line being
+#     independently left-anchored at a fixed x. The original PSD's example
+#     ("THE RANSOM BROTHERS", a long name) happened to reach close to the
+#     page's right margin when left-anchored, LOOKING right-aligned by
+#     coincidence -- but a short name ("Twin Fin") left-anchored at that
+#     same x stops far short of the margin, visibly unaligned with the
+#     subtext below it. text-anchor="end" at the header block's right edge
+#     (764.8, from the PSD's own header group bbox) makes any name length
+#     terminate flush, matching what's actually being asked for.
+HEADER_RIGHT_X = "764.8"
+for run_id in ("p1_r116", "p1_r117", "p1_r118"):
+    pattern = re.compile(r'(<text data-run-id="' + re.escape(run_id) + r'" x=")[^"]*(")')
+    html_text, n = pattern.subn(r'\g<1>' + HEADER_RIGHT_X + r'\g<2>', html_text)
+    assert n == 1, f"expected to update x= on {run_id}, matched {n}"
+    pattern2 = re.compile(r'(<text data-run-id="' + re.escape(run_id) + r'"[^>]*?)(xml:space=)')
+    html_text, n2 = pattern2.subn(r'\g<1>text-anchor="end" \g<2>', html_text)
+    assert n2 == 1, f"expected to add text-anchor on {run_id}, matched {n2}"
 
 # 4. Substitute {{field_name}} placeholders for every variable field EXCEPT
 #    row-0 repeat stencils (those get their text set live by generate.js).

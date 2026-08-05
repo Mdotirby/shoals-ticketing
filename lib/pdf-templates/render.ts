@@ -287,9 +287,60 @@ export async function renderTemplateToPdf(templateDir: string, data: TemplateDat
       await page.evaluate(applyReflowInBrowser, plan);
     }
 
+    // The reflow pass repositions content but the page's own height is
+    // still whatever the template started with -- if enough repeating
+    // rows got added that content now runs past the original bottom edge,
+    // `.doc-page`'s `overflow: hidden` clips it (confirmed in production:
+    // a real settlement with 14 expense lines + a deduction line vs. the
+    // template's baked-in 12/0 clipped the footer logo in half). Measure
+    // actual rendered content extent and grow the page to fit.
+    const pageDims = await page.evaluate(() => {
+      const docPage = document.querySelector(".doc-page") as HTMLElement;
+      const rect = docPage.getBoundingClientRect();
+      let maxBottom = 0;
+      // Only actual content -- text/img/shape leaves. The svg.text-layer
+      // container carries explicit width/height attributes matching the
+      // full ORIGINAL page size regardless of its content, so including
+      // it (or any other container) here makes maxBottom always read as
+      // at least the original page height, triggering "growth" on every
+      // render even when nothing actually overflows.
+      docPage.querySelectorAll("text, img, .shape").forEach((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.bottom > maxBottom) maxBottom = r.bottom;
+      });
+      return { width: rect.width, originalHeight: rect.height, contentBottom: maxBottom };
+    });
+    const BOTTOM_PADDING_PX = 25; // matches the original design's whitespace below the footer logo
+    const finalHeight = Math.max(pageDims.originalHeight, pageDims.contentBottom + BOTTOM_PADDING_PX);
+    if (finalHeight > pageDims.originalHeight) {
+      await page.evaluate(
+        (w: number, h: number) => {
+          (document.querySelector(".doc-page") as HTMLElement).style.height = h + "px";
+          // The @page rule's own size still governs Chrome's print
+          // pagination independently of page.pdf()'s width/height params
+          // below -- content taller than @page's declared height gets
+          // split onto a real second PDF page regardless of what's
+          // requested there, so this has to be updated too.
+          for (const sheet of Array.from(document.styleSheets)) {
+            for (const rule of Array.from(sheet.cssRules)) {
+              if (rule.type === CSSRule.PAGE_RULE) {
+                (rule as CSSPageRule).style.setProperty("size", `${w}px ${h}px`);
+              }
+            }
+          }
+        },
+        pageDims.width,
+        finalHeight
+      );
+    }
+
+    // width/height as CSS px strings ("816px") alone were silently
+    // ignored by Puppeteer -- inches (the unit all of Puppeteer's own
+    // custom-page-size examples use) work reliably.
     const pdf = await page.pdf({
       printBackground: true,
-      preferCSSPageSize: true,
+      width: `${pageDims.width / 96}in`,
+      height: `${finalHeight / 96}in`,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     });
     return Buffer.from(pdf);

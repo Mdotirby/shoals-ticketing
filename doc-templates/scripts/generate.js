@@ -240,10 +240,64 @@ async function generate(typeSlug, data, outPath) {
         await page.evaluate(applyReflowInBrowser, plan);
       }
 
+      // The reflow pass repositions content but the page's own height is
+      // still whatever the template started with -- if enough repeating
+      // rows got added that content now runs past the original bottom
+      // edge, `.doc-page`'s `overflow: hidden` clips it (the footer logo
+      // going half-invisible was exactly this, caught with real data that
+      // had 14 expense lines + a deduction line vs. the template's
+      // baked-in 12/0). Measure actual rendered content extent and grow
+      // the page (both the DOM container and the PDF itself) to fit,
+      // rather than trusting the static @page size.
+      const pageDims = await page.evaluate(() => {
+        const docPage = document.querySelector('.doc-page');
+        const rect = docPage.getBoundingClientRect();
+        let maxBottom = 0;
+        // Only actual content -- text/img/shape leaves. The svg.text-layer
+        // container carries explicit width/height attributes matching the
+        // full ORIGINAL page size regardless of its content, so including
+        // it (or any other container) in this scan makes maxBottom always
+        // read as at least the original page height, triggering "growth"
+        // on every render even when nothing actually overflows.
+        docPage.querySelectorAll('text, img, .shape').forEach((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.bottom > maxBottom) maxBottom = r.bottom;
+        });
+        return { width: rect.width, originalHeight: rect.height, contentBottom: maxBottom };
+      });
+      const BOTTOM_PADDING_PX = 25; // matches the original design's whitespace below the footer logo
+      const finalHeight = Math.max(pageDims.originalHeight, pageDims.contentBottom + BOTTOM_PADDING_PX);
+      if (finalHeight > pageDims.originalHeight) {
+        console.log(`  page grew from ${pageDims.originalHeight}px to ${finalHeight}px to fit overflowing content`);
+        await page.evaluate(
+          (w, h) => {
+            document.querySelector('.doc-page').style.height = h + 'px';
+            // The @page rule's own size still governs Chrome's print
+            // pagination independently of page.pdf()'s width/height params
+            // -- content taller than @page's height gets split onto a
+            // real second PDF page regardless of what's passed below, so
+            // this has to be updated too, not just the DOM element.
+            for (const sheet of document.styleSheets) {
+              for (const rule of sheet.cssRules) {
+                if (rule.type === CSSRule.PAGE_RULE) rule.style.setProperty('size', `${w}px ${h}px`);
+              }
+            }
+          },
+          pageDims.width,
+          finalHeight
+        );
+      }
+
+      // width/height as CSS px strings ("816px") alone were silently
+      // ignored by Puppeteer -- inches (the unit all of Puppeteer's own
+      // custom-page-size examples use) work reliably.
+      const widthIn = pageDims.width / 96;
+      const heightIn = finalHeight / 96;
       await page.pdf({
         path: outPath,
         printBackground: true,
-        preferCSSPageSize: true,
+        width: `${widthIn}in`,
+        height: `${heightIn}in`,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
       });
     } finally {
