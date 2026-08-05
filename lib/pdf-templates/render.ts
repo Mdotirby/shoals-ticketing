@@ -222,13 +222,26 @@ function applyReflowInBrowser(plan: ReflowPlan) {
   }
 }
 
+// @sparticuz/chromium (the full package) ships its Chromium binary as a
+// ~65MB file read via a dynamically-built fs path inside the package --
+// Vercel's automatic file tracer can't see that reference (it's not a
+// static require()/import), so the binary silently gets left out of the
+// deployed function's filesystem no matter how @sparticuz/chromium itself
+// is externalized/bundled. @sparticuz/chromium-min sidesteps this
+// entirely: it ships no binary at all, and downloads the Chromium pack
+// from this URL to /tmp on cold start (cached across warm invocations).
+// Must match the installed @sparticuz/chromium-min version -- if you bump
+// that package, update this URL to the matching GitHub release asset.
+const CHROMIUM_PACK_URL =
+  "https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar";
+
 async function launchBrowser() {
   if (process.env.VERCEL) {
-    const chromium = (await import("@sparticuz/chromium")).default;
+    const chromium = (await import("@sparticuz/chromium-min")).default;
     const { launch } = await import("puppeteer-core");
     return launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: true,
     });
   }
