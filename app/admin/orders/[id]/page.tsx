@@ -39,6 +39,33 @@ type EventInfo = {
   closed_out_note?: string | null;
 };
 
+type OrderSortKey = "customer_name" | "quantity" | "total_amount" | "created_at";
+
+/** Clickable column header for the orders table. */
+function SortHeader({
+  label, sortKey, activeKey, dir, onSort,
+}: {
+  label: string;
+  sortKey: OrderSortKey;
+  activeKey: OrderSortKey;
+  dir: "asc" | "desc";
+  onSort: (key: OrderSortKey) => void;
+}) {
+  const active = activeKey === sortKey;
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+      title={`Sort by ${label.toLowerCase()}`}
+    >
+      {label}
+      <span style={{ opacity: active ? 0.9 : 0.25, marginLeft: 4, fontSize: 10 }}>
+        {active ? (dir === "asc" ? "▲" : "▼") : "↕"}
+      </span>
+    </th>
+  );
+}
+
 function SourceBadge({ source }: { source: string | null }) {
   const src = (source || "online").toLowerCase();
   const palette: Record<string, { bg: string; color: string; border: string; label: string }> = {
@@ -161,6 +188,48 @@ export default function EventSalesDetailPage() {
   const [compSaving, setCompSaving] = useState(false);
   const [compError, setCompError] = useState<string | null>(null);
   const [compSuccess, setCompSuccess] = useState<string | null>(null);
+
+  // ── Orders table: name lookup + sorting ────────────────────────────────────
+  // Will-call needs the same interaction as the door scanner: type a name, see
+  // the ticket. The table was purchase-ordered with no search at all.
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderSort, setOrderSort] = useState<OrderSortKey>("created_at");
+  const [orderSortDir, setOrderSortDir] = useState<"asc" | "desc">("desc");
+
+  const toggleOrderSort = (key: OrderSortKey) => {
+    if (orderSort === key) {
+      setOrderSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setOrderSort(key);
+      // Names read naturally A→Z; money and dates read biggest/newest first.
+      setOrderSortDir(key === "customer_name" ? "asc" : "desc");
+    }
+  };
+
+  const term = orderSearch.trim().toLowerCase();
+  const visibleOrders = orders
+    .filter((o) => {
+      if (!term) return true;
+      return (
+        (o.customer_name || "").toLowerCase().includes(term) ||
+        (o.customer_email || "").toLowerCase().includes(term) ||
+        (o.customer_phone || "").toLowerCase().includes(term)
+      );
+    })
+    .slice()
+    .sort((a, b) => {
+      const dir = orderSortDir === "asc" ? 1 : -1;
+      switch (orderSort) {
+        case "customer_name":
+          return dir * (a.customer_name || "").localeCompare(b.customer_name || "", "en", { sensitivity: "base" });
+        case "quantity":
+          return dir * ((a.quantity || 1) - (b.quantity || 1));
+        case "total_amount":
+          return dir * ((a.total_amount || 0) - (b.total_amount || 0));
+        default:
+          return dir * ((new Date(a.created_at).getTime() || 0) - (new Date(b.created_at).getTime() || 0));
+      }
+    });
 
   const resetCompForm = () => {
     setCompName(""); setCompEmail(""); setCompPhone(""); setCompQty("1");
@@ -698,27 +767,62 @@ export default function EventSalesDetailPage() {
 
       {/* ── Orders Table ── */}
       <div style={{ marginTop: 20 }}>
-        <h2 className="portal-card-title">Orders ({orders.length})</h2>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <h2 className="portal-card-title">
+            Orders ({term ? `${visibleOrders.length} of ${orders.length}` : orders.length})
+          </h2>
+          {orders.length > 0 && (
+            <div style={{ position: "relative", minWidth: 220 }}>
+              <input
+                type="text"
+                className="admin-form-input"
+                placeholder="Search name, email, or phone…"
+                value={orderSearch}
+                onChange={(e) => setOrderSearch(e.target.value)}
+                autoComplete="off"
+                style={{ paddingRight: 30 }}
+              />
+              {orderSearch && (
+                <button
+                  type="button"
+                  onClick={() => setOrderSearch("")}
+                  aria-label="Clear search"
+                  style={{
+                    position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                    background: "none", border: "none", color: "rgba(255,255,255,0.5)",
+                    cursor: "pointer", fontSize: 14, lineHeight: 1, padding: 2,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         {orders.length === 0 ? (
           <p style={{ color: "rgba(255,255,255,0.4)" }}>No orders yet for this event.</p>
+        ) : visibleOrders.length === 0 ? (
+          <p style={{ color: "rgba(255,255,255,0.4)" }}>
+            No orders matching &ldquo;{orderSearch.trim()}&rdquo;.
+          </p>
         ) : (
           <div className="report-table-wrapper">
             <table className="dash-table report-table">
               <thead>
                 <tr>
-                  <th>Buyer</th>
+                  <SortHeader label="Buyer" sortKey="customer_name" activeKey={orderSort} dir={orderSortDir} onSort={toggleOrderSort} />
                   <th>Email</th>
                   <th>Phone</th>
-                  <th>Qty</th>
-                  <th>Total</th>
+                  <SortHeader label="Qty" sortKey="quantity" activeKey={orderSort} dir={orderSortDir} onSort={toggleOrderSort} />
+                  <SortHeader label="Total" sortKey="total_amount" activeKey={orderSort} dir={orderSortDir} onSort={toggleOrderSort} />
                   <th>Promo</th>
                   <th>Source</th>
-                  <th>Date</th>
+                  <SortHeader label="Date" sortKey="created_at" activeKey={orderSort} dir={orderSortDir} onSort={toggleOrderSort} />
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((o) => (
+                {visibleOrders.map((o) => (
                   <tr key={o.id}>
                     <td>{o.customer_name || "—"}</td>
                     <td>{o.customer_email || "—"}</td>

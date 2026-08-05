@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { isEventToday } from "@/lib/dates";
 
 type ScanResult = {
   valid: boolean;
@@ -68,8 +69,9 @@ export default function AdminScanPage() {
       .then((r) => r.json())
       .then((data: EventOption[]) => {
         setEvents(data ?? []);
-        const today = new Date().toISOString().slice(0, 10);
-        const todayEvent = data.find((e) => e.date === today);
+        // Venue-local today — a UTC date string stopped matching tonight's show
+        // at 7 PM CDT, exactly when door staff need it selected.
+        const todayEvent = (data ?? []).find((e) => isEventToday(e.date));
         if (todayEvent) setSelectedEventId(todayEvent.id);
         else if (data.length > 0) setSelectedEventId(data[0].id);
       })
@@ -87,7 +89,7 @@ export default function AdminScanPage() {
       setSearching(true);
       try {
         const res = await fetch(
-          `/api/admin/scan/search?event_id=${selectedEventId}&last_name=${encodeURIComponent(lastName.trim())}`
+          `/api/admin/scan/search?event_id=${selectedEventId}&q=${encodeURIComponent(lastName.trim())}`
         );
         const data = await res.json();
         setSearchResults(Array.isArray(data) ? data : []);
@@ -463,15 +465,15 @@ export default function AdminScanPage() {
         </div>
       </div>
 
-      {/* ── LAST NAME SEARCH ── */}
+      {/* ── GUEST NAME / EMAIL SEARCH ── */}
       <div className="scan-search-section">
-        <div className="scan-section-label">Search by Last Name</div>
+        <div className="scan-section-label">Search by Name or Email</div>
         <div className="scan-search-input-row">
           <span className="scan-search-icon">🔍</span>
           <input
             type="text"
             className="admin-form-input scan-search-input"
-            placeholder="Last name…"
+            placeholder="Name or email…"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
             autoComplete="off"

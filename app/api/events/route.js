@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { slugify } from "@/lib/slugify";
+import { isEventPast, eventDayISO } from "@/lib/dates";
 
 export async function GET(request) {
   const admin = createAdminClient();
@@ -120,29 +121,23 @@ export async function GET(request) {
   const rows = Array.isArray(data) ? data : [];
   if (!showAll && include !== "all") {
     // "Past" means the show happened OR was manually closed out.
-    // We treat anything with date < today (in the server's local TZ) as past
-    // when not explicitly closed out, and respect closed_out_at as a hard flag.
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-
+    //
+    // The date test runs in venue-local time, NOT the server's local TZ. On a
+    // UTC server the old comparison retired a date-only show at 7 PM CDT — so
+    // the show in progress vanished from the box office dropdown mid-doors.
+    // A show now stays live through the whole of its own day, to local midnight.
     const isPast = (e) => {
       if (e.closed_out_at) return true;
       if (!e.date) return false;
-      const d = (e.date && e.date.length === 10 && e.date[4] === "-")
-        ? new Date(`${e.date}T23:59:59`)
-        : new Date(e.date);
-      if (Number.isNaN(d.getTime())) return false;
-      return d < startOfToday;
+      return isEventPast(e.date);
     };
 
     const filtered =
       include === "past"
-        ? rows.filter(isPast).sort((a, b) => {
+        ? rows.filter(isPast).sort((a, b) =>
             // Past archive: most recent first
-            const da = new Date(a.date).getTime();
-            const db = new Date(b.date).getTime();
-            return db - da;
-          })
+            eventDayISO(b.date).localeCompare(eventDayISO(a.date))
+          )
         : rows.filter((e) => !isPast(e));
 
     return new Response(JSON.stringify(filtered), { status: 200 });

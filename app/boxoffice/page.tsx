@@ -11,6 +11,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { compareEventsForDisplay, isEventLive, isEventToday, safeDate } from "@/lib/dates";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 const ALLOWED_ROLES = ["owner", "venue_admin", "box_office"];
@@ -173,12 +174,20 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   };
 
   // ── Load events ───────────────────────────────────────────────────────────
+  // Tonight's show has to stay in this dropdown all night — it's what the door
+  // reader sells against. `isEventLive` keeps it through Central midnight
+  // instead of dropping it at UTC rollover (7 PM CDT the evening *before*).
   useEffect(() => {
     fetch("/api/events")
       .then((r) => r.json())
       .then((data: EventOption[]) => {
-        const now = new Date();
-        setEvents((data || []).filter((e) => (e.event_type === "hard_ticket" || e.event_type === "ticketed") && new Date(e.date) >= now));
+        const live = (data || [])
+          .filter((e) => (e.event_type === "hard_ticket" || e.event_type === "ticketed") && isEventLive(e.date))
+          .sort(compareEventsForDisplay);
+        setEvents(live);
+        // Arm the reader on tonight's show without staff touching the dropdown.
+        const tonight = live.find((e) => isEventToday(e.date));
+        if (tonight) setSelectedEventId(tonight.id);
       })
       .catch(() => setFormError("Failed to load events"))
       .finally(() => setLoadingEvents(false));
@@ -364,7 +373,11 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           {loadingEvents ? <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>Loading…</div> : (
             <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} style={{ ...fieldStyle, appearance: "none", WebkitAppearance: "none" }}>
               <option value="">— Select event —</option>
-              {events.map((e) => <option key={e.id} value={e.id}>{e.title} — {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</option>)}
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.title} — {isEventToday(e.date) ? "Tonight" : safeDate(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </option>
+              ))}
             </select>
           )}
         </div>

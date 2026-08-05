@@ -19,27 +19,36 @@ export type PersonResult = {
   scanned: number;
 };
 
-// GET /api/admin/scan/search?event_id=X&last_name=Smith
+// GET /api/admin/scan/search?event_id=X&q=Smith  (alias: last_name=Smith)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
-  const lastName = searchParams.get("last_name")?.trim();
+  const term = (searchParams.get("q") ?? searchParams.get("last_name"))?.trim();
 
   if (!eventId) {
     return NextResponse.json({ error: "event_id required" }, { status: 400 });
   }
-  if (!lastName || lastName.length < 1) {
+  if (!term || term.length < 1) {
     return NextResponse.json([], { status: 200 });
   }
 
   const admin = createAdminClient();
 
+  // Match anywhere in the name or email. The previous `ilike "% <term>"`
+  // required a leading space, so it silently missed single-word names and any
+  // partial typing — at the door that reads as "this person has no ticket".
+  // PostgREST `.or()` takes a comma-separated filter list; escape the commas
+  // and parens a guest name could legitimately contain.
+  const safeTerm = term.replace(/[,()\\]/g, " ").trim();
+  if (!safeTerm) {
+    return NextResponse.json([], { status: 200 });
+  }
+
   const { data, error } = await admin
     .from("tickets")
     .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, ticket_tiers(tier_name)")
     .eq("event_id", eventId)
-    // Match last name: the last word in customer_name, case-insensitive
-    .ilike("customer_name", `% ${lastName}`)
+    .or(`customer_name.ilike.%${safeTerm}%,customer_email.ilike.%${safeTerm}%`)
     .order("customer_name", { ascending: true });
 
   if (error) {
