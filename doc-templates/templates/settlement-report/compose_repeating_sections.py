@@ -144,6 +144,47 @@ for run_id in ("p1_r116", "p1_r117", "p1_r118"):
     html_text, n2 = pattern2.subn(r'\g<1>text-anchor="end" \g<2>', html_text)
     assert n2 == 1, f"expected to add text-anchor on {run_id}, matched {n2}"
 
+# 3d. Every bold subtotal row in this template ("Gross Box Office
+#     Receipts", "Fixed", "Net Merch Sales", "Total Due to Artist", etc.)
+#     is followed by a thin horizontal-rule PNG that acts as its closing
+#     underline -- confirmed from extraction.json ordering, every one of
+#     these dividers sits ~13-14px below its own bold row's text-top, not
+#     between two unrelated rows. extract_psd.py's NATIVE_BASELINE_OVERSHOOT_PX
+#     (calibrated for section-header vertical-centering) pushes ALL text
+#     baselines down by 10 native px (~3.2 CSS px), including these bold
+#     row labels -- but the divider PNGs are static assets, unaffected by
+#     that formula, so they didn't move with the text. That 3.2px of body
+#     text sinking into an already-tight ~2px original clearance is what
+#     turns the underline into a literal strikethrough through the row's
+#     own text (measured directly: "Fixed"'s ink bottom sits at raster
+#     y=710 in a 150dpi render, its divider at y=708 -- 2px *inside* the
+#     glyphs, not below them). Fix: shift every one of these dividers back
+#     down by a uniform compensating amount so each regains the clearance
+#     it had before the overshoot went in.
+DIVIDER_SHIFT_DOWN_PX = 4.5
+BOLD_ROW_DIVIDERS = [
+    "p1_img016",  # under the ticket-audit column-header row
+    "p1_img004",  # under "Gross Box Office Receipts"
+    "p1_img005",  # under "Net Box Office Receipts"
+    "p1_img009",  # under "Fixed" (expenses)
+    "p1_img010",  # under "Variable" (expenses)
+    "p1_img011",  # under "Total Expenses"
+    "p1_img012",  # under "Gross Merch Sales"
+    "p1_img013",  # under "Net Merch Sales"
+    "p1_img014",  # under "Artist Gurantee"
+    "p1_img015",  # under "Total Due to Artist"
+]
+for run_id in BOLD_ROW_DIVIDERS:
+    shift_up_px = -DIVIDER_SHIFT_DOWN_PX
+    m = re.search(r'top:([\d.]+)px', html_text[html_text.index(f'data-run-id="{run_id}"'):])
+    assert m, f"could not find top: for {run_id}"
+    old_top = float(m.group(1))
+    new_top = old_top - shift_up_px
+    pattern = re.compile(r'(<img[^>]*data-run-id="' + re.escape(run_id) + r'"[^>]*top:)' + re.escape(m.group(1)) + r'(px)')
+    html_text, n = pattern.subn(r'\g<1>' + str(new_top) + r'\g<2>', html_text)
+    assert n == 1, f"expected to update top: on {run_id}, matched {n}"
+    fields_by_id[run_id]["position"]["y_px"] = new_top
+
 # 4. Substitute {{field_name}} placeholders for every variable field EXCEPT
 #    row-0 repeat stencils (those get their text set live by generate.js).
 fields_by_id = {f["run_id"]: f for f in manifest["fields"]}
