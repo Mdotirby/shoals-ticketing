@@ -185,6 +185,32 @@ for run_id in BOLD_ROW_DIVIDERS:
     assert n == 1, f"expected to update top: on {run_id}, matched {n}"
     fields_by_id[run_id]["position"]["y_px"] = new_top
 
+# 3e. Vertically re-center the 6 white-on-black section-header labels
+#     ("DEAL TERMS", "TICKET AUDIT", "FINANCIAL SUMMARY", "EXPENSES",
+#     "MERCH SETTLEMENT", "ARTIST SETTLEMENT") within their black boxes.
+#     A prior attempt claimed these were already well-centered from
+#     extract_psd.py's NATIVE_BASELINE_OVERSHOOT_PX alone, but that was
+#     measured wrong -- direct pixel measurement of the real rendered page
+#     shows each one sitting far below center: e.g. "DEAL TERMS" has an
+#     18px gap of black above the text vs 0px below it (in a 33px-tall
+#     box), consistently ~16-19px top / 0-2px bottom across all 6 boxes.
+#     These 6 text runs aren't touched by the BOLD_ROW_DIVIDERS fix above
+#     (no divider sits below them -- the box itself is the visual
+#     reference), so they get their own direct compensating shift here:
+#     roughly half the measured top/bottom gap difference (~8.4 raster px
+#     at 150dpi = ~5.4 CSS px), shifting them up to split the box's
+#     leftover space evenly above and below the text.
+SECTION_HEADER_SHIFT_UP_PX = 5.4
+for run_id in ("p1_r107", "p1_r104", "p1_r002", "p1_r015", "p1_r016", "p1_r017"):
+    pattern = re.compile(r'(<text data-run-id="' + re.escape(run_id) + r'" x="[^"]*" y=")([\d.]+)(")')
+    m = pattern.search(html_text)
+    assert m, f"could not find y= for {run_id}"
+    new_y = round(float(m.group(2)) - SECTION_HEADER_SHIFT_UP_PX, 2)
+    html_text, n = pattern.subn(r'\g<1>' + str(new_y) + r'\g<3>', html_text)
+    assert n == 1, f"expected to update y= on {run_id}, matched {n}"
+    if run_id in fields_by_id:
+        fields_by_id[run_id]["position"]["y_px"] = new_y
+
 # 4. Substitute {{field_name}} placeholders for every variable field EXCEPT
 #    row-0 repeat stencils (those get their text set live by generate.js).
 fields_by_id = {f["run_id"]: f for f in manifest["fields"]}
