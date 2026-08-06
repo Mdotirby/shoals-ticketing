@@ -244,7 +244,26 @@ def extract_text_layer(layer, scale, resolver, fonts_out, assets_fonts_dir):
                 run_y0 = y0 + line_h * li
                 run_y1 = run_y0 + line_h
 
-            baseline_y_native = run_y1 - (effective_em_native * metrics["descent_ratio"] if has_descender(line_text) else 0)
+            # Empirically calibrated: measured actual rendered pixel content
+            # (not layout bounding boxes, which include invisible font
+            # descent-reserve space) against the real PSD's own ground-truth
+            # pixel content for several text runs -- psd-tools' composited
+            # tight bbox bottom sits consistently ~10 native px (~3.2 CSS px
+            # at 300dpi) ABOVE where the glyphs actually need their baseline
+            # to land for visually correct centering/spacing. Small and
+            # constant across the sampled font sizes (10.5-13px), so applied
+            # as a flat offset rather than a proportional one. NOTE: this
+            # shifts every text run's baseline down by the same amount,
+            # including body-row labels -- any static divider/underline PNG
+            # positioned relative to a row's text needs a matching
+            # compensating shift (see compose_repeating_sections.py's
+            # BOLD_ROW_DIVIDERS) since image layers don't move with this.
+            NATIVE_BASELINE_OVERSHOOT_PX = 10.0
+            baseline_y_native = (
+                run_y1
+                - (effective_em_native * metrics["descent_ratio"] if has_descender(line_text) else 0)
+                + NATIVE_BASELINE_OVERSHOOT_PX
+            )
 
             runs_out.append({
                 "text": line_text,
