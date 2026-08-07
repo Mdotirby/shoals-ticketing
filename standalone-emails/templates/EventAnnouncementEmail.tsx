@@ -220,6 +220,12 @@ export function EventAnnouncementEmail({
                     className="email-status-banner"
                     style={{
                       backgroundColor: SAGE,
+                      // Gmail's dark mode (Android/iOS apps) auto-inverts
+                      // background-color with no CSS opt-out — it does NOT
+                      // touch background-image though, so a same-color
+                      // gradient here paints over the inverted color and
+                      // keeps the banner sage instead of going murky/olive.
+                      backgroundImage: `linear-gradient(${SAGE}, ${SAGE})`,
                       textAlign: "center",
                       padding: "10px 0",
                     }}
@@ -396,6 +402,14 @@ export function EventAnnouncementEmail({
                 className="email-cta-btn"
                 style={{
                   backgroundColor: "#ffffff",
+                  // Gmail's dark mode (Android/iOS apps) auto-inverts
+                  // background-color with no CSS opt-out (confirmed: the
+                  // [data-ogsc]/[data-ogsb] rule above only works for
+                  // Outlook, not Gmail) — it does NOT touch background-image
+                  // though, so a same-color gradient here paints over the
+                  // inverted color and keeps the button white instead of
+                  // going black-on-black.
+                  backgroundImage: "linear-gradient(#ffffff, #ffffff)",
                   color: "#0a0a0a",
                   fontFamily: ARCHIVO_CONDENSED,
                   fontWeight: 900,
