@@ -3,6 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { suggestReminderStage, parseNaiveLocalDate } from "@/standalone-emails/lib/reminderStage";
+import type { ReminderStage } from "@/standalone-emails/templates/EventAnnouncementEmail";
+
+const REMINDER_STAGE_OPTIONS: { value: ReminderStage | ""; label: string }[] = [
+  { value: "", label: "Normal announcement" },
+  { value: "week", label: "One Week Away" },
+  { value: "tomorrow", label: "Tomorrow" },
+  { value: "tonight", label: "Tonight's the Night" },
+];
 
 // Only the 2 triggers with a real template/mapper/send-fn today. Reading from
 // standalone-emails/lib/triggers.ts's TRIGGERS is deliberately NOT done here —
@@ -22,6 +31,7 @@ export default function NewBroadcastPage() {
   const [events, setEvents] = useState<EventOption[]>([]);
   const [eventId, setEventId] = useState("");
   const [limit, setLimit] = useState(3);
+  const [reminderStage, setReminderStage] = useState<ReminderStage | "">("");
 
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewSubject, setPreviewSubject] = useState("");
@@ -62,7 +72,7 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit }),
+        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, reminderStage: reminderStage || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -87,7 +97,7 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, to: testTo }),
+        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, to: testTo, reminderStage: reminderStage || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -115,7 +125,7 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, confirm: true }),
+        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, confirm: true, reminderStage: reminderStage || undefined }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -142,7 +152,7 @@ export default function NewBroadcastPage() {
           {LIVE_TRIGGERS.map((t) => (
             <button
               key={t.value}
-              onClick={() => { setTrigger(t.value); setPreviewHtml(""); setTestResult(""); }}
+              onClick={() => { setTrigger(t.value); setPreviewHtml(""); setTestResult(""); setReminderStage(""); }}
               style={{
                 textAlign: "left", padding: "14px 16px", borderRadius: 10, cursor: "pointer",
                 minWidth: 220, background: trigger === t.value ? "rgba(208,194,144,0.12)" : "rgba(255,255,255,0.03)",
@@ -162,7 +172,19 @@ export default function NewBroadcastPage() {
           {trigger === "new_event_announcement" && (
             <div>
               <label className="admin-form-label">Event</label>
-              <select className="admin-form-input" value={eventId} onChange={(e) => setEventId(e.target.value)} style={{ maxWidth: 420 }}>
+              <select
+                className="admin-form-input"
+                value={eventId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setEventId(id);
+                  setPreviewHtml("");
+                  setTestResult("");
+                  const picked = events.find((ev) => ev.id === id);
+                  setReminderStage(picked ? suggestReminderStage(parseNaiveLocalDate(picked.date)) ?? "" : "");
+                }}
+                style={{ maxWidth: 420 }}
+              >
                 <option value="">Select an event…</option>
                 {events.map((e) => (
                   <option key={e.id} value={e.id}>
@@ -170,6 +192,32 @@ export default function NewBroadcastPage() {
                   </option>
                 ))}
               </select>
+
+              {eventId && (
+                <div style={{ marginTop: 16 }}>
+                  <label className="admin-form-label">Reminder Stage</label>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    {REMINDER_STAGE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value || "normal"}
+                        type="button"
+                        onClick={() => { setReminderStage(opt.value); setPreviewHtml(""); setTestResult(""); }}
+                        style={{
+                          padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+                          background: reminderStage === opt.value ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${reminderStage === opt.value ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.08)"}`,
+                          color: reminderStage === opt.value ? "#d0c290" : "rgba(255,255,255,0.75)",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p style={{ margin: "8px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                    Auto-suggested from the event date — override anytime before sending. &quot;Normal announcement&quot; keeps the existing Just Announced/On Sale Now banner.
+                  </p>
+                </div>
+              )}
             </div>
           )}
           {trigger === "upcoming_events_digest" && (

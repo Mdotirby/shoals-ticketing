@@ -81,6 +81,14 @@ export function OnboardingEmail({
         <style>{`
           :root { color-scheme: dark; supported-color-schemes: dark; }
           [data-ogsc] .email-bg, [data-ogsb] .email-bg { background-color: #000000 !important; }
+          /* The CTA button is light-on-dark by design — without this lock,
+             Gmail/other clients' auto-dark-mode sees a light element inside
+             an all-dark email and auto-inverts it, turning a white button
+             with dark text into a near-invisible black-on-black box. */
+          [data-ogsc] .email-cta-btn, [data-ogsb] .email-cta-btn {
+            background-color: #ffffff !important;
+            color: #0a0a0a !important;
+          }
         `}</style>
         <link
           rel="stylesheet"
@@ -197,6 +205,7 @@ export function OnboardingEmail({
           <Section style={{ padding: "28px 28px 0", textAlign: "center" }}>
             <Button
               href={loginUrl}
+              className="email-cta-btn"
               style={{
                 backgroundColor: "#ffffff",
                 color: "#0a0a0a",

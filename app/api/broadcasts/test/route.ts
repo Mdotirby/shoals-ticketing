@@ -9,14 +9,14 @@ import { TRIGGERS } from "@/standalone-emails/lib/triggers";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { trigger, eventId, limit, to } = body;
+    const { trigger, eventId, limit, to, reminderStage } = body;
 
     if (!to) return NextResponse.json({ error: "to is required" }, { status: 400 });
 
     let result;
     if (trigger === TRIGGERS.NEW_EVENT_ANNOUNCEMENT) {
       if (!eventId) return NextResponse.json({ error: "eventId is required" }, { status: 400 });
-      result = await sendEventAnnouncementTest(eventId, to);
+      result = await sendEventAnnouncementTest(eventId, to, reminderStage || undefined);
     } else if (trigger === TRIGGERS.UPCOMING_EVENTS_DIGEST) {
       result = await sendUpcomingEventsTest(limit && limit > 0 ? limit : 3, to);
     } else {
