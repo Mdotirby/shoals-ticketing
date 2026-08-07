@@ -176,6 +176,11 @@ export function TicketDeliveryEmail({
               className="email-cta-btn"
               style={{
                 backgroundColor: "#ffffff",
+                // Gmail's dark mode auto-inverts background-color with no
+                // CSS opt-out — it does NOT touch background-image, so a
+                // same-color gradient here keeps the button white instead
+                // of going black-on-black.
+                backgroundImage: "linear-gradient(#ffffff, #ffffff)",
                 color: "#0a0a0a",
                 fontFamily: ARCHIVO_CONDENSED,
                 fontWeight: 900,
