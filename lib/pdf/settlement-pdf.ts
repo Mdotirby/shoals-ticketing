@@ -4,6 +4,7 @@
  */
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
+import { settlementWaterfall } from "@/lib/settlement/model";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize,
@@ -115,12 +116,15 @@ function lv(
 }
 
 /** Tight money row — label left, $ right, full width */
-function moneyRow(doc: Doc, label: string, amount: string, y: number, opts?: { bold?: boolean; indent?: number; highlight?: boolean }): number {
+function moneyRow(doc: Doc, label: string, amount: string, y: number, opts?: { bold?: boolean; indent?: number; highlight?: boolean; muted?: boolean }): number {
   y = ensureSpace(doc, RH + 1, y);
   if (opts?.highlight) {
     doc.setFillColor(...GOLD);
     doc.rect(MARGIN, y - 2.5, CONTENT_WIDTH, RH + 1.5, "F");
     doc.setTextColor(...DARK);
+  } else if (opts?.muted) {
+    // Memo line — not part of the subtraction walk above it.
+    doc.setTextColor(110, 110, 110);
   } else {
     doc.setTextColor(0, 0, 0);
   }
@@ -266,20 +270,39 @@ function drawDealTerms(doc: Doc, s: Settlement, eventDateLabel: string, y: numbe
 //  FINANCIAL SUMMARY (full width, single walk)
 // ─────────────────────────────────────────────────────────────────────
 function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
-  const grossReceipts =
-    (s.total_gross || 0) + (s.ticketing_fees || 0) + (s.facility_fees || 0) +
-    (s.cc_fees || 0) + (s.taxes || 0);
+  // Recompute the walk instead of printing stored fields, so the arithmetic
+  // shown to the artist actually produces the total shown to the artist. This
+  // block used to subtract four lines off a Gross it had synthesised, then
+  // print a stored Net Receipts that was really just total_gross — the column
+  // never added up on a document that goes to agents.
+  const isDivisor = s.tax_method === "divisor";
+  const { grossReceipts, adjGross, taxes, netReceipts } = settlementWaterfall({
+    totalGross: s.total_gross || 0,
+    ticketingFees: s.ticketing_fees || 0,
+    facilityFees: s.facility_fees || 0,
+    taxRate: s.tax_rate || 0,
+    taxMethod: isDivisor ? "divisor" : "multiplier",
+  });
   const taxPct = ((s.tax_rate || 0) * 100).toFixed(2);
-  const taxLabel = s.tax_method === "divisor" ? "divided out" : "added on top";
 
   y = secH(doc, "Financial Summary", y);
   y = moneyRow(doc, `Tickets Sold (paying): ${s.tickets_sold_count || 0}`, "", y);
   y = moneyRow(doc, "Gross Receipts", fmt(grossReceipts), y, { bold: true });
   y = moneyRow(doc, "Service Fees", `(${fmt(s.ticketing_fees || 0)})`, y, { indent: 4 });
   y = moneyRow(doc, "Facility Fees", `(${fmt(s.facility_fees || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, `Tax (${taxPct}%, ${taxLabel})`, `(${fmt(s.taxes || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, "CC / Processing Fees", `(${fmt(s.cc_fees || 0)})`, y, { indent: 4 });
-  y = moneyRow(doc, "Net Receipts", fmt(s.net_receipts || 0), y, { highlight: true });
+  y = moneyRow(doc, "Adjusted Gross", fmt(adjGross), y, { bold: true });
+  if (isDivisor) {
+    y = moneyRow(doc, `Tax (${taxPct}%, divided out)`, `(${fmt(taxes)})`, y, { indent: 4 });
+  } else {
+    // Additive tax is collected from the buyer on top of the ticket price and
+    // remitted to the state. It was never part of the artist's split base, so
+    // it's shown as a memo line rather than a deduction.
+    y = moneyRow(doc, `Tax (${taxPct}%, collected & remitted)`, fmt(taxes), y, { indent: 4, muted: true });
+  }
+  // Likewise the card surcharge: buyer-funded, paid to Stripe, never in the
+  // ticket gross being split. Memo only.
+  y = moneyRow(doc, "CC / Processing (buyer-funded)", fmt(s.cc_fees || 0), y, { indent: 4, muted: true });
+  y = moneyRow(doc, "Net Receipts", fmt(netReceipts), y, { highlight: true });
   return y + 1;
 }
 

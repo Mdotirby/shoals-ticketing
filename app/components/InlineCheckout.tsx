@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 import {
   Elements,
   CardNumberElement,
@@ -122,9 +123,6 @@ const stripeAppearance = {
 
 // ── Checkout Form (inside Elements provider) ─────────────────────────────────
 
-// Fee constants — same as OrderSummary and create-intent API
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE = 0.30;
 
 function normalizeTaxRate(rate: number): number {
   return rate > 1 ? rate / 100 : rate;
@@ -195,7 +193,7 @@ function CheckoutForm({
   // processing fee too — the customer is charged exactly subtotalBeforeStripe.
   const processingFee = feesIncludedInPrice
     ? 0
-    : Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+    : onlineSurchargeDollars(subtotalBeforeStripe);
   const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
   const isFullyFree = isFreeEvent || ticketPrice === 0;
 

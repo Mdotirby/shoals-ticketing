@@ -1,11 +1,8 @@
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { resolveVenueFees, calculateFees } from "@/lib/checkout-helpers";
 import Stripe from "stripe";
-
-// Stripe charges 2.7% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE_CENTS = 30;
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +21,7 @@ export async function POST(request: Request) {
     // Look up event + venue fees
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_type")
+      .select("id,title,venue,date,price,venue_id,event_venue_id,event_type,facility_fee_enabled,tax_method,fees_included_in_price")
       .eq("id", event_id)
       .single();
 
@@ -50,38 +47,32 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fetch venue-specific fees
-    let ticketingFee = 3.0;
-    let facilityFee = 0;
-    let venueRebate = 0;
-    let taxRate = 0.095;
-
-    if (event.venue_id) {
-      const { data: venueData } = await admin
-        .from("venues")
-        .select("ticketing_fee, facility_fee, venue_rebate, tax_rate")
-        .eq("id", event.venue_id)
-        .single();
-
-      if (venueData) {
-        ticketingFee = venueData.ticketing_fee ?? 3.0;
-        facilityFee = venueData.facility_fee ?? 0;
-        venueRebate = venueData.venue_rebate ?? 0;
-        taxRate = venueData.tax_rate ?? 0.095;
-      }
-    }
+    // Resolve fees through the SAME helper every other checkout path uses.
+    // This route used to read only the `venues` table, so it ignored
+    // event_venues overrides, tax_method, and fees_included_in_price entirely
+    // — a box-office sale on a divisor-tax event charged the tax twice, and any
+    // event configured through event_venues got the wrong service/facility fee.
+    const fees = await resolveVenueFees(admin, event);
+    const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod, feesIncludedInPrice } = fees;
 
     const stripe = getStripe();
 
     const ticketPriceCents = Math.round(ticketPrice * 100);
-    const ticketingFeeCents = Math.round(ticketingFee * 100);
-    const facilityFeeCents = Math.round(facilityFee * 100);
-    const taxCents = Math.round(ticketPriceCents * taxRate);
+    const breakdown = calculateFees({
+      ticketPriceCents,
+      discountCentsPerTicket: 0,
+      ticketingFee,
+      facilityFee,
+      // Divisor = tax already baked into the face price; don't add it again.
+      taxRate: taxMethod === "divisor" ? 0 : taxRate,
+      quantity,
+      feesIncludedInPrice,
+    });
 
-    const subtotalBeforeStripeFee = (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
-    const stripeFeeCents = Math.round(
-      subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
-    );
+    const ticketingFeeCents = feesIncludedInPrice ? 0 : breakdown.ticketingFeeCents;
+    const facilityFeeCents = feesIncludedInPrice ? 0 : breakdown.facilityFeeCents;
+    const taxCents = breakdown.taxCents;
+    const stripeFeeCents = feesIncludedInPrice ? 0 : breakdown.stripeFeeCents;
 
     const origin = request.headers.get("origin") || "https://shoals-ticketing.vercel.app";
 
@@ -168,6 +159,8 @@ export async function POST(request: Request) {
         facility_fee: String(facilityFee),
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
+        tax_method: taxMethod,
+        fees_included_in_price: String(feesIncludedInPrice),
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
         source: "box_office",

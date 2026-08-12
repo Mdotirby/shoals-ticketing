@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 
-// Stripe charges 2.7% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE = 0.3;
 
 /** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */
 function normalizeTaxRate(rate: number): number {
@@ -140,7 +138,7 @@ export default function OrderSummary({
   // When fees are baked into the price, the venue absorbs the card
   // processing fee too — the customer is charged exactly subtotalBeforeStripe.
   const processingFee = isFreeOrder || feesIncludedInPrice ? 0 : (hasSelection
-    ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    ? onlineSurchargeDollars(subtotalBeforeStripe)
     : 0);
   const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;
 

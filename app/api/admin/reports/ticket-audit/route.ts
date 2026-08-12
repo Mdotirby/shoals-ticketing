@@ -88,19 +88,28 @@ export async function GET(request: Request) {
         capacity: audit.audit.reduce((s, r) => s + r.capacity, 0),
         qty_sold: audit.tickets_sold_count,
         comps: audit.comp_count,
+        free: audit.free_count,
         pct_house: 0,
-        gross_sales: audit.total_gross,
+        // Face value the artist splits on — NOT the all-in gross.
+        gross_sales: audit.face_gross,
         ticketing_fees: audit.ticketing_fees,
         facility_fees: audit.facility_fees,
         tax_collected: audit.taxes,
         cc_fees: audit.cc_fees,
+        // Everything the buyer paid. This used to omit cc_fees while carrying
+        // it in the same object, so the report's bottom line could never be
+        // compared against a Stripe payout.
         total_revenue: round(
-          audit.total_gross +
+          audit.face_gross +
             audit.ticketing_fees +
             audit.facility_fees +
-            audit.taxes,
+            audit.taxes +
+            audit.cc_fees,
           2
         ),
+        // What Stripe actually collected, and anything that doesn't reconcile.
+        stripe_gross: audit.stripe_gross,
+        variance: audit.reconciliation_variance,
       };
       subtotal.pct_house =
         subtotal.capacity > 0
@@ -110,12 +119,15 @@ export async function GET(request: Request) {
       grandTotal.capacity += subtotal.capacity;
       grandTotal.qty_sold += subtotal.qty_sold;
       grandTotal.comps += subtotal.comps;
+      grandTotal.free += subtotal.free;
       grandTotal.gross_sales += subtotal.gross_sales;
       grandTotal.ticketing_fees += subtotal.ticketing_fees;
       grandTotal.facility_fees += subtotal.facility_fees;
       grandTotal.tax_collected += subtotal.tax_collected;
       grandTotal.cc_fees += subtotal.cc_fees;
       grandTotal.total_revenue += subtotal.total_revenue;
+      grandTotal.stripe_gross += subtotal.stripe_gross;
+      grandTotal.variance += subtotal.variance;
 
       eventResults.push(
         buildEventResult({
@@ -179,6 +191,7 @@ function emptyTotals() {
     capacity: 0,
     qty_sold: 0,
     comps: 0,
+    free: 0,
     pct_house: 0,
     gross_sales: 0,
     ticketing_fees: 0,
@@ -186,6 +199,8 @@ function emptyTotals() {
     tax_collected: 0,
     cc_fees: 0,
     total_revenue: 0,
+    stripe_gross: 0,
+    variance: 0,
   };
 }
 
@@ -201,6 +216,8 @@ function roundTotals(t: ReturnType<typeof emptyTotals>) {
   t.tax_collected = round(t.tax_collected, 2);
   t.cc_fees = round(t.cc_fees, 2);
   t.total_revenue = round(t.total_revenue, 2);
+  t.stripe_gross = round(t.stripe_gross, 2);
+  t.variance = round(t.variance, 2);
 }
 
 function csvResponse(data: {
@@ -219,7 +236,10 @@ function csvResponse(data: {
     "Ticketing Fees",
     "Facility Fees",
     "Tax Collected",
+    "CC Fees",
     "Total Revenue",
+    "Stripe Gross",
+    "Variance",
   ];
   const lines = [headers.join(",")];
 
@@ -238,7 +258,10 @@ function csvResponse(data: {
           `$${tier.ticketing_fees.toFixed(2)}`,
           `$${tier.facility_fees.toFixed(2)}`,
           `$${tier.tax_collected.toFixed(2)}`,
+          "",
           `$${tier.total_revenue.toFixed(2)}`,
+          "",
+          "",
         ].join(",")
       );
     }
@@ -256,7 +279,10 @@ function csvResponse(data: {
         `$${s.ticketing_fees.toFixed(2)}`,
         `$${s.facility_fees.toFixed(2)}`,
         `$${s.tax_collected.toFixed(2)}`,
+        `$${s.cc_fees.toFixed(2)}`,
         `$${s.total_revenue.toFixed(2)}`,
+        `$${s.stripe_gross.toFixed(2)}`,
+        `$${s.variance.toFixed(2)}`,
       ].join(",")
     );
   }
@@ -275,7 +301,10 @@ function csvResponse(data: {
       `$${g.ticketing_fees.toFixed(2)}`,
       `$${g.facility_fees.toFixed(2)}`,
       `$${g.tax_collected.toFixed(2)}`,
+      `$${g.cc_fees.toFixed(2)}`,
       `$${g.total_revenue.toFixed(2)}`,
+      `$${g.stripe_gross.toFixed(2)}`,
+      `$${g.variance.toFixed(2)}`,
     ].join(",")
   );
 

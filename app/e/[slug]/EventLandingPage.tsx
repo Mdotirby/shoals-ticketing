@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { trackFbEvent } from "@/lib/fbq";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import TrackingPixels from "@/app/components/TrackingPixels";
@@ -94,10 +95,6 @@ type Props = {
   metaPixelId?: string | null;
 };
 
-// Stripe charges 2.7% + $0.30 per transaction — keep aligned with
-// app/e/[slug]/page.tsx and OrderSummary.tsx.
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE = 0.3;
 
 type OrderDetails = {
   subtotal: number;
@@ -241,7 +238,7 @@ function CheckoutForm({
     basePreStripe > 0
       ? feesIncludedInPrice
         ? Math.round(basePreStripe * 100) / 100
-        : Math.round((basePreStripe + basePreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+        : Math.round((basePreStripe + onlineSurchargeDollars(basePreStripe)) * 100) / 100
       : 0;
 
   // Discounted total — apply promo to base price, then recalculate fees + CC fee once
@@ -264,7 +261,7 @@ function CheckoutForm({
     discountedPreStripe > 0
       ? feesIncludedInPrice
         ? Math.round(discountedPreStripe * 100) / 100
-        : Math.round((discountedPreStripe + discountedPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+        : Math.round((discountedPreStripe + onlineSurchargeDollars(discountedPreStripe)) * 100) / 100
       : 0;
   const isFullyFree = isFree || (promoApplied && discountedBasePerTicket <= 0);
 
@@ -766,7 +763,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   const ctaTotal = ctaPreStripe > 0
     ? resolvedFees.feesIncludedInPrice
       ? Math.round(ctaPreStripe * 100) / 100
-      : Math.round((ctaPreStripe + ctaPreStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+      : Math.round((ctaPreStripe + onlineSurchargeDollars(ctaPreStripe)) * 100) / 100
     : 0;
 
   // ── Restore presale session ───────────────────────────────────────────────
@@ -1354,7 +1351,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
               // processing fee too — don't add it to the customer's total.
               const processingFee = resolvedFees.feesIncludedInPrice
                 ? 0
-                : Math.round((preStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+                : onlineSurchargeDollars(preStripe);
               const total = preStripe + processingFee;
               const row = (label: string, value: number, accent = false): React.ReactNode => (
                 <div

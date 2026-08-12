@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
 import { NextResponse } from "next/server";
+import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 
 /**
  * POST /api/events/[id]/revenue-summary/backfill
@@ -62,12 +63,29 @@ export async function POST(
     const totalAmount = Number(order.total_amount) || 0;
     const quantity = Number(order.quantity) || 1;
     const totalTicketingFee = Math.round(fees.ticketingFee * quantity * 100) / 100;
+    const totalFacilityFee = Math.round(fees.facilityFee * quantity * 100) / 100;
     const ticketingFeeToSubtract = fees.feesIncludedInPrice ? 0 : totalTicketingFee;
-    const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
-    // Solve: gross = face*(1+taxRate) + ticketingFee + stripeFee  →  face = (gross - fees) / (1+taxRate)
+    const facilityFeeToSubtract = fees.feesIncludedInPrice ? 0 : totalFacilityFee;
+
+    // The surcharge was charged on the subtotal, so recover it by inverting
+    // the checkout formula rather than applying the rate to the grossed-up
+    // total (which over-states the fee and under-states face value).
+    const surchargeCollected = fees.feesIncludedInPrice
+      ? 0
+      : Math.round(
+          (totalAmount -
+            (totalAmount * 100 - STRIPE_ONLINE_FLAT_CENTS) /
+              (1 + STRIPE_ONLINE_PCT) /
+              100) *
+            100
+        ) / 100;
+
+    // Solve: gross = face×(1+taxRate) + svc + fac + surcharge
+    const preTax =
+      totalAmount - ticketingFeeToSubtract - facilityFeeToSubtract - surchargeCollected;
     const ticketRevenue = effectiveTaxRate > 0
-      ? Math.round(((totalAmount - ticketingFeeToSubtract - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
-      : Math.round((totalAmount - ticketingFeeToSubtract - stripeFee) * 100) / 100;
+      ? Math.round((preTax / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round(preTax * 100) / 100;
     const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
     const venueRebate = Math.round(fees.venueRebate * quantity * 100) / 100;
 
@@ -79,10 +97,16 @@ export async function POST(
       gross_amount: totalAmount,
       ticket_revenue: ticketRevenue,
       ticketing_fee: totalTicketingFee,
+      facility_fee: totalFacilityFee,
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
-      stripe_fee: stripeFee,
-      net_to_venue: totalAmount - ticketingFeeToSubtract - stripeFee + venueRebate,
+      stripe_fee: surchargeCollected,
+      net_to_venue:
+        totalAmount -
+        ticketingFeeToSubtract -
+        facilityFeeToSubtract -
+        surchargeCollected +
+        venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     };

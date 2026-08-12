@@ -1,8 +1,16 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  STRIPE_ONLINE_PCT,
+  STRIPE_ONLINE_FLAT_CENTS,
+  surchargeCents,
+} from "@/lib/fees/rates";
 
-// Stripe charges 2.7% + $0.30 per transaction
-export const STRIPE_PERCENT_FEE = 0.027;
-export const STRIPE_FLAT_FEE_CENTS = 30;
+/**
+ * Re-exported for the many call sites that already reference these names.
+ * The values live in lib/fees/rates.ts — do not redeclare them locally.
+ */
+export const STRIPE_PERCENT_FEE = STRIPE_ONLINE_PCT;
+export const STRIPE_FLAT_FEE_CENTS = STRIPE_ONLINE_FLAT_CENTS;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -580,10 +588,10 @@ export function calculateFees(opts: {
     ? (discountedTicketPriceCents + taxCents) * quantity
     : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
 
-  // Stripe processing fee — informational even when absorbed (see below).
-  const stripeFeeCents = Math.round(
-    subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
-  );
+  // Card processing surcharge — informational even when absorbed (see below).
+  // Routed through the rate card so the percentage, the flat fee, and the
+  // gross-up policy all live in one place.
+  const stripeFeeCents = surchargeCents(subtotalBeforeStripeFee);
 
   // When fees are baked into the price, the venue absorbs the card
   // processing fee too — the customer is charged exactly the sticker

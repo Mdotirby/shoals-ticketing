@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TicketType } from "@/lib/types/ticket";
+import { surchargeCents } from "@/lib/fees/rates";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
 import InlineCheckout from "@/app/components/InlineCheckout";
@@ -643,7 +644,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
       return ticketPrice + tax;
     }
     const beforeStripe = ticketPrice + venueFees.ticketing_fee + venueFees.facility_fee + tax;
-    const processingFee = Math.round((beforeStripe * 0.027 + 0.3) * 100) / 100;
+    const processingFee = surchargeCents(Math.round(beforeStripe * 100)) / 100;
     return beforeStripe + processingFee;
   };
 

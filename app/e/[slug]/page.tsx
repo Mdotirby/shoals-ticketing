@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getOperator } from "@/lib/operators";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 import EventLandingPage from "./EventLandingPage";
 
 export const dynamic = "force-dynamic";
@@ -173,9 +174,6 @@ export default async function LandingPage({ params }: Props) {
     .eq("status", "paid");
 
   // 5. Build ticket type data with all-in prices
-  // Stripe charges 2.7% + $0.30 per transaction (same as OrderSummary)
-  const STRIPE_PERCENT_FEE = 0.027;
-  const STRIPE_FLAT_FEE = 0.3;
 
   const feesIncludedInPrice = event.fees_included_in_price === true;
 
@@ -191,7 +189,7 @@ export default async function LandingPage({ params }: Props) {
     if (feesIncludedInPrice) {
       return Math.round(subtotalBeforeStripe * 100) / 100;
     }
-    const processingFee = Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+    const processingFee = onlineSurchargeDollars(subtotalBeforeStripe);
     return Math.round((subtotalBeforeStripe + processingFee) * 100) / 100;
   }
 

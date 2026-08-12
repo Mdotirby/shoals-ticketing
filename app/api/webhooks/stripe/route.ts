@@ -9,10 +9,42 @@ import { v4 as uuidv4 } from "uuid";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { earnBenefits } from "@/lib/fwb/earn";
+import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+/**
+ * The processing fee Stripe actually deducted, from the charge's balance
+ * transaction — the only independent record of what the payment cost.
+ *
+ * This is deliberately separate from the surcharge we bill the buyer. Those
+ * two numbers were previously conflated into one `stripe_fee` column, which
+ * made it impossible to tell an under-recovery from a pricing change. Measured
+ * against live balance transactions the real blended rate is 2.903% + $0.30.
+ *
+ * Best-effort: a failure here must never block order creation, so it returns
+ * null and the caller falls back to the surcharge figure.
+ */
+async function fetchActualStripeCost(
+  paymentIntentId: string | null | undefined
+): Promise<{ fee: number; net: number; id: string } | null> {
+  if (!paymentIntentId) return null;
+  try {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ["latest_charge.balance_transaction"],
+    });
+    const charge = pi.latest_charge;
+    if (!charge || typeof charge === "string") return null;
+    const bt = charge.balance_transaction;
+    if (!bt || typeof bt === "string") return null;
+    return { fee: bt.fee / 100, net: bt.net / 100, id: bt.id };
+  } catch (err) {
+    console.error("Could not read Stripe balance transaction:", err);
+    return null;
+  }
+}
 
 // ── GoTrue admin lookup by email (service-role REST endpoint) ────────────────
 async function lookupUserIdByEmail(email: string): Promise<string | null> {
@@ -59,6 +91,7 @@ async function processTicketOrder({
   stripeReferenceId,
   stripePaymentIntentId,
   ticketingFee,
+  facilityFee,
   venueRebate,
   taxRate,
   taxMethod,
@@ -88,6 +121,7 @@ async function processTicketOrder({
   stripeReferenceId: string;
   stripePaymentIntentId?: string | null;
   ticketingFee: number;
+  facilityFee: number;
   venueRebate: number;
   taxRate: number;
   taxMethod: string;
@@ -300,21 +334,57 @@ async function processTicketOrder({
     }
 
     // 4. Write settlement ledger entry
-    // ticket_revenue = face value only (ticket price × qty, before fees/tax/stripe)
-    // When feesIncludedInPrice, the ticketing fee was never charged as an
-    // additive amount on top of totalAmount — it's already inside the ticket
-    // price — so don't subtract it again when backing out face value.
+    //
+    // ticket_revenue = face value only — the ticket price, with every other
+    // component of the charge backed out. The facility fee used to be missing
+    // from this subtraction entirely, so every facility fee ever collected was
+    // buried inside ticket_revenue and reported to artists as face value while
+    // settlement_ledger.facility_fee stayed $0.00 on all 757 rows.
+    //
+    // When feesIncludedInPrice, service + facility were never charged on top
+    // of totalAmount — they're already inside the ticket price — so they must
+    // not be subtracted again when backing out face value.
     const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
+    const totalFacilityFee = Math.round(facilityFee * quantity * 100) / 100;
     const ticketingFeeToSubtract = feesIncludedInPrice ? 0 : totalTicketingFee;
-    const stripeFee = Math.round((totalAmount * 0.027 + 0.30) * 100) / 100;
+    const facilityFeeToSubtract = feesIncludedInPrice ? 0 : totalFacilityFee;
+
+    // The surcharge we actually collected was computed on the SUBTOTAL, not on
+    // the grossed-up total. Deriving it from totalAmount (which already
+    // contains the surcharge) over-stated the fee on every order and left face
+    // value correspondingly short. Invert the checkout formula instead:
+    //   total = subtotal + (subtotal × pct + flat)
+    //   → subtotal = (total − flat) / (1 + pct)
+    const surchargeCollected = feesIncludedInPrice
+      ? 0 // venue absorbed it — the buyer paid exactly the sticker price
+      : Math.round(
+          (totalAmount -
+            (totalAmount * 100 - STRIPE_ONLINE_FLAT_CENTS) /
+              (1 + STRIPE_ONLINE_PCT) /
+              100) *
+            100
+        ) / 100;
+
+    // What Stripe ACTUALLY deducted, straight from the balance transaction.
+    // This is the only independent source of truth for processing cost — the
+    // surcharge above is merely what we billed the customer, and the two are
+    // not the same number. Non-fatal if unavailable.
+    const actual = await fetchActualStripeCost(stripePaymentIntentId);
+
     const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
-    // Solve for face value: gross = face*(1+taxRate) + ticketingFee + stripeFee
-    const ticketRevenue = effectiveTaxRate > 0
-      ? Math.round(((totalAmount - ticketingFeeToSubtract - stripeFee) / (1 + effectiveTaxRate)) * 100) / 100
-      : Math.round((totalAmount - ticketingFeeToSubtract - stripeFee) * 100) / 100;
+    // Solve for face: gross = face×(1+taxRate) + svc + fac + surcharge
+    const preTax =
+      totalAmount -
+      ticketingFeeToSubtract -
+      facilityFeeToSubtract -
+      surchargeCollected;
+    const ticketRevenue =
+      effectiveTaxRate > 0
+        ? Math.round((preTax / (1 + effectiveTaxRate)) * 100) / 100
+        : Math.round(preTax * 100) / 100;
     const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
 
-    await admin.from("settlement_ledger").insert({
+    const { error: ledgerError } = await admin.from("settlement_ledger").insert({
       order_id: order.id,
       event_id: eventId,
       venue_id: eventData?.venue_id || null,
@@ -323,13 +393,38 @@ async function processTicketOrder({
       gross_amount: totalAmount,
       ticket_revenue: ticketRevenue,
       ticketing_fee: totalTicketingFee,
+      facility_fee: totalFacilityFee,
       venue_rebate: venueRebate,
       tax_collected: taxCollected,
-      stripe_fee: stripeFee,
-      net_to_venue: totalAmount - ticketingFeeToSubtract - stripeFee + venueRebate,
+      // What we surcharged the buyer.
+      stripe_fee: surchargeCollected,
+      // What Stripe actually took, and what landed in the bank.
+      stripe_fee_actual: actual?.fee ?? null,
+      stripe_net: actual?.net ?? null,
+      stripe_balance_transaction_id: actual?.id ?? null,
+      net_to_venue:
+        totalAmount -
+        ticketingFeeToSubtract -
+        facilityFeeToSubtract -
+        (actual?.fee ?? surchargeCollected) +
+        venueRebate,
       net_to_platform: totalTicketingFee - venueRebate,
       type: "sale",
     });
+
+    // A failed ledger write used to pass unnoticed: the result was never
+    // checked, so a missing column (or any other schema drift) meant the order
+    // and ticket went out fine while the settlement row silently vanished.
+    // The sale is already complete at this point, so this must not throw — but
+    // it must be loud, because the money record is what settlement runs on.
+    if (ledgerError) {
+      console.error(
+        `SETTLEMENT LEDGER WRITE FAILED for order ${order.id} (event ${eventId}). ` +
+          `The ticket sold correctly but has no ledger row — settlement will ` +
+          `fall back to estimated card fees until it is backfilled via ` +
+          `POST /api/events/${eventId}/revenue-summary/backfill. Cause: ${ledgerError.message}`
+      );
+    }
 
     // Increment promo code usage if applicable
     if (promoCodeId && promoCode) {
@@ -694,8 +789,9 @@ export async function POST(request: Request) {
       stripeReferenceId: session.id,
       stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : null,
       ticketingFee: parseFloat(session.metadata?.ticketing_fee || "3"),
+      facilityFee: parseFloat(session.metadata?.facility_fee || "0"),
       venueRebate: parseFloat(session.metadata?.venue_rebate || "0"),
-      taxRate: parseFloat(session.metadata?.tax_rate || "0.09"),
+      taxRate: parseFloat(session.metadata?.tax_rate || "0.095"),
       taxMethod: session.metadata?.tax_method || "additive",
       feesIncludedInPrice: session.metadata?.fees_included_in_price === "true",
       tierId: null,
@@ -742,8 +838,9 @@ export async function POST(request: Request) {
         stripeReferenceId: paymentIntent.id,
         stripePaymentIntentId: paymentIntent.id,
         ticketingFee: parseFloat(meta.ticketing_fee || "3"),
+        facilityFee: parseFloat(meta.facility_fee || "0"),
         venueRebate: parseFloat(meta.venue_rebate || "0"),
-        taxRate: parseFloat(meta.tax_rate || "0.09"),
+        taxRate: parseFloat(meta.tax_rate || "0.095"),
         feesIncludedInPrice: meta.fees_included_in_price === "true",
         tierId: meta.tier_id || null,
         operatorSlug: meta.operator_slug || "venuecore",
@@ -788,18 +885,54 @@ export async function POST(request: Request) {
               .eq("id", order.id);
           }
 
+          // Reverse the original ledger row PROPORTIONALLY. Writing the whole
+          // refund against ticket_revenue over-reversed face value by the fee
+          // and tax portions of the charge — a $30 refund on a $30 order whose
+          // face was only $20 pulled $30 of face value back out.
+          //
+          // Stripe does NOT return the percentage fee on a refund, so
+          // stripe_fee is deliberately not reversed: that cost is sunk and the
+          // venue eats it.
+          const { data: originalRow } = await admin
+            .from("settlement_ledger")
+            .select(
+              "gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, venue_rebate"
+            )
+            .eq("order_id", order.id)
+            .eq("type", "sale")
+            .maybeSingle();
+
+          const originalGross = Number(originalRow?.gross_amount) || 0;
+          // Partial refunds reverse only their share of the original charge.
+          const ratio =
+            originalGross > 0
+              ? Math.min(1, refundAmount / originalGross)
+              : 1;
+          const rev = (v: unknown) =>
+            -Math.round((Number(v ?? 0) || 0) * ratio * 100) / 100;
+
+          const refundedTicketRevenue = originalRow
+            ? rev(originalRow.ticket_revenue)
+            : -refundAmount;
+          const refundedTicketing = originalRow ? rev(originalRow.ticketing_fee) : 0;
+          const refundedFacility = originalRow ? rev(originalRow.facility_fee) : 0;
+          const refundedTax = originalRow ? rev(originalRow.tax_collected) : 0;
+          const refundedRebate = originalRow ? rev(originalRow.venue_rebate) : 0;
+
           await admin.from("settlement_ledger").insert({
             order_id: order.id,
             event_id: order.event_id,
             stripe_event_id: event.id,
             gross_amount: -refundAmount,
-            ticket_revenue: -refundAmount,
-            ticketing_fee: 0,
-            venue_rebate: 0,
-            tax_collected: 0,
+            ticket_revenue: refundedTicketRevenue,
+            ticketing_fee: refundedTicketing,
+            facility_fee: refundedFacility,
+            venue_rebate: refundedRebate,
+            tax_collected: refundedTax,
+            // Not reversed — Stripe keeps the processing fee on refunds.
             stripe_fee: 0,
             net_to_venue: -refundAmount,
-            net_to_platform: 0,
+            net_to_platform: refundedTicketing - refundedRebate,
             type: "refund",
           });
           console.log(`Refund $${refundAmount} recorded for order ${order.id}${isFullRefund ? " — marked refunded" : ""}`);

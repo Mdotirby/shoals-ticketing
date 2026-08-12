@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import Link from "next/link";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
+import { rateLabel } from "@/lib/fees/rates";
 
 type Order = {
   id: string;
@@ -700,7 +701,7 @@ export default function EventSalesDetailPage() {
               <span className="dash-kpi-value" style={{ color: "#f87171" }}>
                 −${revSummary.processingFees.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>Stripe 2.7% + $0.30</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4, display: "block" }}>Stripe {rateLabel()}</span>
             </div>
           </div>
 

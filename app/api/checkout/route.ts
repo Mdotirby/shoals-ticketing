@@ -6,10 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
 import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
-
-// Stripe charges 2.7% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE_CENTS = 30;
+import { surchargeCents } from "@/lib/fees/rates";
 
 export async function POST(request: Request) {
   try {
@@ -305,9 +302,7 @@ export async function POST(request: Request) {
     const subtotalBeforeStripeFee = feesIncludedInPrice
       ? (discountedTicketPriceCents + taxCents) * effectiveQuantity
       : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * effectiveQuantity;
-    const stripeFeeCents = Math.round(
-      subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
-    );
+    const stripeFeeCents = surchargeCents(subtotalBeforeStripeFee);
 
     const origin =
       request.headers.get("origin") || "https://shoals-ticketing.vercel.app";

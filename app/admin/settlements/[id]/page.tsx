@@ -14,6 +14,7 @@ import type {
   MerchTaxPayer,
 } from "@/lib/types/settlement";
 import { exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
+import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -228,7 +229,17 @@ export default function SettlementDetailPage() {
   // For external settlements all financial figures come from manual state.
   // For VenueCore settlements they come from the ticket audit + stored fee state.
   const manualTaxRateDecimal = manualTaxRate / 100;
-  const totalGross = isExternal ? manualGross : auditTotals.gross;
+  // ALL-IN ticket gross (face + service + facility), which is what
+  // `adj gross = gross − service − facility` is meant to be applied to.
+  //
+  // `auditTotals.gross` is only the per-tier FACE column, so falling back to it
+  // alone would make the subtraction below remove fees that were never in the
+  // number. computeEventAudit stores the all-in figure on the settlement; the
+  // fallback reconstructs it the same way for rows saved before that existed.
+  const totalGross = isExternal
+    ? manualGross + manualTicketingFee * manualTicketsSold + manualFacilityFee * manualTicketsSold
+    : Number(settlement?.total_gross) ||
+      auditTotals.gross + ticketingFees + facilityFees;
   const effectiveTicketingFees = isExternal
     ? manualTicketingFee * manualTicketsSold
     : ticketingFees;
@@ -240,46 +251,42 @@ export default function SettlementDetailPage() {
   const effectiveTaxMethod: TaxMethod = isExternal ? manualTaxMethod : taxMethod;
 
   // ── Math model ────────────────────────────────────────────────────
-  const taxes =
-    effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
-      ? totalGross - totalGross / (1 + effectiveTaxRate)
-      : totalGross * effectiveTaxRate;
-  const grossReceipts =
-    totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
-  const netReceipts =
-    grossReceipts - effectiveTicketingFees - effectiveFacilityFees - taxes - effectiveCcFees;
-  const adjGross = netReceipts;
+  //
+  //   gross receipts  = ALL-IN ticket gross (face + service + facility)
+  //   adjusted gross  = gross − service − facility        ← the artist's face
+  //   net receipts    = adjusted gross − sales tax
+  //   net after exp.  = net receipts − expenses           ← the pool
+  //   overage         = net after expenses − guarantee
+  //   artist          = guarantee + (overage × backend%)
+  //
+  // This used to add every fee and then subtract the identical set, so
+  // netReceipts was algebraically just totalGross and sales tax never came
+  // out of the artist's split base at all. Every settlement in the database
+  // still shows adj_gross == net_receipts == total_gross because of it.
+  //
+  // The card surcharge is deliberately absent: the buyer funds it and it goes
+  // to Stripe, so it was never part of the ticket gross the artist splits.
+  // The one exception is a fees-included event, where the venue absorbs it —
+  // the audit already carves it out of face value before it reaches here.
+  const { grossReceipts, adjGross, taxes, netReceipts } = settlementWaterfall({
+    totalGross,
+    ticketingFees: effectiveTicketingFees,
+    facilityFees: effectiveFacilityFees,
+    taxRate: effectiveTaxRate,
+    taxMethod: effectiveTaxMethod,
+  });
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
-  // Splitpoint = the dollar threshold the show must clear before the artist
-  // earns backend. By rule, the threshold is always the guarantee — promoter
-  // recoups expenses + guarantee, then the overage splits per the contract.
-  // For DOOR / FLAT / CO_PROMOTE deals the splitpoint concept doesn't apply.
-  const splitpoint =
-    dealType === "VS" || dealType === "PLUS" ? guaranteeInput : 0;
-  // Net after expenses — the pool that the splitpoint is measured against.
-  const netAfterExpenses = netReceipts - totalExpenses;
 
-  // Artist payment math, deal-type aware. backendPctInput is a true
-  // percentage (e.g. 85 for 85%), so divide by 100 in the math.
+  // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
   const backendPctDecimal = backendPctInput / 100;
-  const artistBackend = (() => {
-    if (dealType === "VS" || dealType === "PLUS") {
-      // Promoter recoups expenses + guarantee, then artist gets backend % of
-      // anything above that.
-      const overage = netAfterExpenses - guaranteeInput;
-      return overage > 0 ? overage * backendPctDecimal : 0;
-    }
-    if (dealType === "DOOR") {
-      // Pure door deal = % of net (no guarantee floor)
-      return netReceipts > 0 ? netReceipts * backendPctDecimal : 0;
-    }
-    return 0;
-  })();
-  const artistTotal =
-    dealType === "DOOR"
-      ? artistBackend // pure door — no guarantee
-      : guaranteeInput + artistBackend;
+  const { netAfterExpenses, splitpoint, artistBackend, artistTotal } = artistPayout({
+    netReceipts,
+    totalExpenses,
+    guarantee: guaranteeInput,
+    backendPct: backendPctDecimal,
+    dealType,
+  });
 
   const totalDeposits = deposits
     .filter((d) => d.type === "deposit")
@@ -356,22 +363,29 @@ export default function SettlementDetailPage() {
     barRevenue + concessionsRevenue + legacyMerchCommission + ticketingRebate +
     parkingRevenue + sponsorshipRevenue + totalOtherAncillary +
     merchVenueShare; // merch venue share is venue revenue
+  // Venue profit = what the venue keeps on the ticket side, plus ancillary
+  // revenue (which already includes the merch venue share), less show expenses,
+  // less the artist's contracted total.
+  //
+  // The merch seller fee is only a venue cost when the VENUE pays it. When the
+  // artist pays it, it never hit the venue's books — it just reduces the
+  // artist's balance due. Adding it back here invented margin the venue never
+  // earned, so it's gone.
   const venueNetProfit =
     netReceipts +
     totalAncillary -
     totalExpenses -
-    venuePaidMerchSellerFee - // merch seller fee (if venue eats it) is a venue cost
-    artistTotal +
-    // Add back the merch venue share + artist-paid seller fee that already
-    // reduced balanceDue above — those are not artist-side costs to the venue.
-    artistPaidMerchSellerFee;
+    venuePaidMerchSellerFee -
+    artistTotal;
 
   // Per-ticket all-in (for display)
   const ticketsSold = isExternal ? manualTicketsSold : (settlement?.tickets_sold_count ?? auditTotals.sold);
   const compCount = settlement?.comp_count ?? auditTotals.comps;
   const grossPerTicket = ticketsSold > 0 ? totalGross / ticketsSold : 0;
   const ccFeePerTicket = ticketsSold > 0 ? effectiveCcFees / ticketsSold : 0;
-  const totalCustomerPaid = totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
+  // totalGross is already all-in on the ticket side (face + service + facility),
+  // so only tax and the card surcharge get added to reach what the buyer paid.
+  const totalCustomerPaid = totalGross + taxes + effectiveCcFees;
 
   /* ─── Recalculate variable expenses when totalGross changes ─── */
   const recalcVariableExpenses = useCallback(
