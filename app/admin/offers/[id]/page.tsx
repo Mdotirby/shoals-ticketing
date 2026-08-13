@@ -708,9 +708,8 @@ export default function AdminOfferDetailPage() {
             <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax (${live.taxRatePct.toFixed(2)}% Multiplier):` : `Tax (${live.taxRatePct.toFixed(2)}% Divisor):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Net After Expenses:</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint (guarantee):</span><strong>${live.splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
           <div className="offer-potential-col">

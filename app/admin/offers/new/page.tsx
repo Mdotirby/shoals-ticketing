@@ -745,9 +745,8 @@ export default function AdminCreateOfferPage() {
             <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Less: Tax (${taxRate}% — remitted to govt):` : `Less: Tax (${taxRate}% — extracted from price):`}</span><strong>(${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Net After Expenses:</span><strong>${netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint (guarantee):</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
           </div>
           <div className="offer-potential-col">
@@ -786,17 +785,17 @@ export default function AdminCreateOfferPage() {
         const pnlGuarantee = guaranteeNum;
         const pnlDealType = dealType;
 
-        // Artist backend calculation (mirrors details tab logic)
-        let backendAmount = 0;
-        let pnlArtistTotal = pnlGuarantee;
-        if (pnlDealType === "VS") {
-          pnlArtistTotal = splitpoint * (backendNum);
-          backendAmount = Math.max(pnlArtistTotal - pnlGuarantee, 0);
-        } else if (pnlDealType === "PLUS" || pnlDealType === "BONUS") {
-          backendAmount = splitpoint * (backendNum);
-          pnlArtistTotal = pnlGuarantee + backendAmount;
-        }
-        // FLAT: backendAmount = 0, pnlArtistTotal = guarantee
+        // Artist backend: reuse the already-correct details-tab values
+        // directly instead of re-deriving them. The re-derivation this
+        // replaced used `splitpoint * backendNum` -- but splitpoint means
+        // the guarantee in this codebase, so that computed Guarantee x
+        // Backend% instead of NetAfterExpenses x Backend%, the same wrong
+        // formula shape Matt corrected earlier this session, just
+        // reintroduced here in a second, disconnected copy of the math.
+        // artistBackend/artistPAS above are already right for every deal
+        // type (FLAT included, where artistBackend stays 0).
+        const backendAmount = artistBackend;
+        const pnlArtistTotal = artistPAS;
 
         // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in
         // fixed_expenses. It's already baked into totalExpenses — do NOT subtract it again
