@@ -2641,6 +2641,11 @@ body {
   margin: 0 auto 32px;
   transition: border-color 0.2s, background 0.2s;
 }
+/* Without this the pill is shrink-to-fit and the filter selects stretch it
+   past the viewport on narrow screens. */
+.events-search-bar {
+  width: 100%;
+}
 .events-search-bar:focus-within,
 .home-events-search:focus-within {
   border-color: rgba(208, 194, 144, 0.3);
@@ -2659,6 +2664,7 @@ body {
   font-size: 16px;
   padding: 10px 12px;
   font-family: inherit;
+  min-width: 0;
 }
 .events-search-input::placeholder,
 .home-events-search-input::placeholder {
@@ -2677,9 +2683,26 @@ body {
   appearance: none;
   -webkit-appearance: none;
   font-family: inherit;
+  /* Long host names used to stretch the pill past the viewport — cap and clip. */
+  min-width: 0;
+  max-width: 150px;
+  text-overflow: ellipsis;
+}
+.events-filter-select + .events-filter-select {
+  margin-left: 6px;
 }
 .events-filter-select:focus {
   border-color: rgba(208,194,144,0.3);
+}
+
+.events-search-clear {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 8px 12px;
+  line-height: 1;
 }
 
 .events-list-card {
@@ -2983,6 +3006,46 @@ body {
   .elc-photo {
     width: 60px;
     height: 60px;
+  }
+}
+
+/* Search pill on phones: icon + input on the first row, filters on the second,
+   so the bar stays inside the viewport instead of running off the right edge.
+   Font sizes stay at 16px to avoid iOS focus zoom. */
+@media (max-width: 560px) {
+  .events-search-bar {
+    flex-wrap: wrap;
+    border-radius: 18px;
+    padding: 5px 6px 5px 10px;
+    row-gap: 5px;
+    margin-bottom: 20px;
+  }
+
+  .events-search-icon { order: 0; }
+
+  .events-search-input {
+    order: 1;
+    padding: 6px 10px;
+    /* Reserve room for the icon (and the clear button when visible) so the
+       filter selects are pushed onto their own row. */
+    min-width: calc(100% - 30px);
+  }
+
+  .events-search-clear {
+    order: 2;
+    padding: 4px 6px;
+  }
+
+  .events-search-bar:has(.events-search-clear) .events-search-input {
+    min-width: calc(100% - 66px);
+  }
+
+  .events-filter-select {
+    order: 3;
+    flex: 1 1 0;
+    max-width: none;
+    padding: 6px 12px;
+    text-align: center;
   }
 }
 

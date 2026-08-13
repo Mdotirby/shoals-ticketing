@@ -98,7 +98,6 @@ export default function EventsPage() {
           {hostsWithEvents.length > 0 && (
             <select
               className="events-filter-select"
-              style={{ marginLeft: 6 }}
               value={hostFilter}
               onChange={(e) => setHostFilter(e.target.value)}
             >
@@ -109,7 +108,14 @@ export default function EventsPage() {
             </select>
           )}
           {query && (
-            <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px 12px" }}>✕</button>
+            <button
+              type="button"
+              className="events-search-clear"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+            >
+              ✕
+            </button>
           )}
         </div>
 
