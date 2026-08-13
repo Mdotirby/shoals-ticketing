@@ -399,14 +399,11 @@ export default function SettlementDetailPage() {
     venuePaidMerchSellerFee -
     artistTotal;
 
-  // Per-ticket all-in (for display)
   const ticketsSold = isExternal ? manualTicketsSold : (settlement?.tickets_sold_count ?? auditTotals.sold);
   const compCount = settlement?.comp_count ?? auditTotals.comps;
-  const grossPerTicket = ticketsSold > 0 ? totalGross / ticketsSold : 0;
-  const ccFeePerTicket = ticketsSold > 0 ? effectiveCcFees / ticketsSold : 0;
-  // totalGross is already all-in on the ticket side (face + service + facility),
-  // so only tax and the card surcharge get added to reach what the buyer paid.
-  const totalCustomerPaid = totalGross + taxes + effectiveCcFees;
+  // Per-ticket averages used to live here. They're gone: the audit table now
+  // carries real per-row figures, and GBOR is the all-in total, so an average
+  // spread across mixed-price tiers only invited misreading.
 
   /* ─── Recalculate variable expenses when totalGross changes ─── */
   const recalcVariableExpenses = useCallback(
@@ -1774,18 +1771,17 @@ export default function SettlementDetailPage() {
           <span style={valStyle}>{fmt(totalExpenses)}</span>
         </div>
         {(dealType === "VS" || dealType === "PLUS") && (
-          <>
-            <div style={rowStyle}>
-              <span style={labelStyle}>Backend Threshold</span>
-              <span style={valStyle}>{fmt(splitpoint)}</span>
-            </div>
-            <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-              <span style={{ ...labelStyle, fontWeight: 700 }}>Backend</span>
-              <span style={{ ...valStyle, color: netAfterExpenses - guaranteeInput >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
-                {fmt(netAfterExpenses - guaranteeInput)}
-              </span>
-            </div>
-          </>
+          /* Was two lines here — "Backend Threshold" and a "Backend" figure
+             computed inline as netAfterExpenses − guarantee. That was the old
+             (wrong) formula, hardcoded rather than read from the payout model,
+             so it kept reporting a number the settlement never paid. The pool
+             is what the overage below is actually computed from. */
+          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+            <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
+            <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+              {fmt(netAfterExpenses)}
+            </span>
+          </div>
         )}
         {dealType === "DOOR" && (
           <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
