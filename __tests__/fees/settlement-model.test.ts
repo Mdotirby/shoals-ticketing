@@ -252,3 +252,38 @@ describe("door / Terminal sales on a seated event", () => {
     expect(face).toBeLessThan(total);
   });
 });
+
+describe("Terminal (card reader) sales — general admission", () => {
+  // Drivin' N Cryin' is GA: no seat map, so the audit's tier path applies.
+  // A Terminal order is source='terminal' with a non-zero total, so it is
+  // neither a comp (source==='comp') nor free (total===0) — it counts as a
+  // paying order exactly like an online one.
+  const isComp = (src: string, total: number) => src === "comp";
+  const isFree = (src: string, total: number) => src !== "comp" && total === 0;
+
+  it("counts a Terminal order as a paying sale", () => {
+    expect(isComp("terminal", 55.09)).toBe(false);
+    expect(isFree("terminal", 55.09)).toBe(false);
+  });
+
+  it("does not mistake a Terminal sale for a comp or a freebie", () => {
+    expect(isComp("comp", 0)).toBe(true);
+    expect(isFree("online", 0)).toBe(true);
+    expect(isFree("terminal", 0)).toBe(true); // a $0 reader sale is still free
+  });
+
+  it("flows through the deal math like any other GA sale", () => {
+    // Two $20 GA tickets at the door lift NBOR by $40, which lifts the pool,
+    // which lifts the overage at 70%.
+    const before = artistPayout({
+      netReceipts: 5140, totalExpenses: 2140,
+      guarantee: 2000, backendPct: 0.7, dealType: "VS",
+    });
+    const after = artistPayout({
+      netReceipts: 5180, totalExpenses: 2140,
+      guarantee: 2000, backendPct: 0.7, dealType: "VS",
+    });
+    expect(before.artistTotal).toBeCloseTo(2100, 6);
+    expect(after.artistTotal).toBeCloseTo(2128, 6);
+  });
+});

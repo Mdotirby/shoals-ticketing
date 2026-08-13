@@ -73,9 +73,18 @@ function SourceBadge({ source }: { source: string | null }) {
     online:        { bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
     box_office:    { bg: "rgba(251,191,36,0.1)",  color: "#fbbf24", border: "rgba(251,191,36,0.3)", label: "Box Office" },
     inline_checkout:{bg: "rgba(59,130,246,0.1)",  color: "#60a5fa", border: "rgba(59,130,246,0.3)", label: "Online" },
+    // Card-present sale taken on a Stripe Terminal reader at the door. Given
+    // its own colour rather than sharing Box Office's: both are door sales,
+    // but only this one is card-present, which is a different Stripe rate
+    // (2.7% + $0.05) and a different reconciliation path.
+    terminal:      { bg: "rgba(168,85,247,0.12)", color: "#c084fc", border: "rgba(168,85,247,0.35)", label: "Terminal" },
     comp:          { bg: "rgba(34,197,94,0.12)",  color: "#22c55e", border: "rgba(34,197,94,0.35)", label: "Comp" },
   };
-  const p = palette[src] ?? palette.online;
+  // Unknown sources fall back to a neutral label rather than silently reading
+  // as "Online" — a Terminal sale used to be mislabelled that way.
+  const p =
+    palette[src] ??
+    { bg: "rgba(148,163,184,0.12)", color: "#94a3b8", border: "rgba(148,163,184,0.35)", label: src || "Unknown" };
   return (
     <span style={{
       display: "inline-block", padding: "2px 8px", borderRadius: 6,
