@@ -272,6 +272,7 @@ export async function POST(request: Request) {
       ticketing_fees: auditTotals.ticketing_fees,
       facility_fees: auditTotals.facility_fees,
       cc_fees: auditTotals.cc_fees,
+      cc_fees_actual: auditTotals.cc_fees_actual,
       ticketing_fee_per_ticket: auditTotals.ticketing_fee_per_ticket,
       facility_fee_per_ticket: auditTotals.facility_fee_per_ticket,
       adj_gross: adjGross,

@@ -177,3 +177,20 @@ WHERE sl.type = 'sale'
   AND COALESCE(e.facility_fee_enabled, true) = true
 GROUP BY e.title
 ORDER BY facility_fee_buried_inside DESC;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 6. Store what Stripe actually kept, per settlement
+--
+-- Platform-internal. The artist/promoter copy of the settlement never shows
+-- this or the shortfall derived from it — see drawFinancialSummary(internal)
+-- in lib/pdf/settlement-pdf.ts, and the isPlatformOwner gate on the settlement
+-- page. What the processor charges the platform is not the client's business.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE settlements
+  ADD COLUMN IF NOT EXISTS cc_fees_actual NUMERIC(10,2);
+
+COMMENT ON COLUMN settlements.cc_fees IS
+  'Card surcharge collected FROM BUYERS. Shown on every copy.';
+COMMENT ON COLUMN settlements.cc_fees_actual IS
+  'What Stripe actually kept. PLATFORM ONLY — never on the artist copy.';

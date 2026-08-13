@@ -269,7 +269,20 @@ function drawDealTerms(doc: Doc, s: Settlement, eventDateLabel: string, y: numbe
 // ─────────────────────────────────────────────────────────────────────
 //  FINANCIAL SUMMARY (full width, single walk)
 // ─────────────────────────────────────────────────────────────────────
-function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
+/**
+ * @param internal  Platform-only view. When false (the artist/promoter copy)
+ *   the Stripe-cost and shortfall lines are omitted entirely: what the payment
+ *   processor charges the platform, and what the platform absorbs, are not the
+ *   client's business and inviting questions about them on a settlement the
+ *   client signs is worse than useless. The client sees what they paid; the
+ *   venue copy sees the economics.
+ */
+function drawFinancialSummary(
+  doc: Doc,
+  s: Settlement,
+  y: number,
+  internal = false
+): number {
   // Recompute the walk instead of printing stored fields, so the arithmetic
   // shown to the artist actually produces the total shown to the artist. This
   // block used to subtract four lines off a Gross it had synthesised, then
@@ -303,6 +316,19 @@ function drawFinancialSummary(doc: Doc, s: Settlement, y: number): number {
   // ticket gross being split. Memo only.
   y = moneyRow(doc, "CC / Processing (buyer-funded)", fmt(s.cc_fees || 0), y, { indent: 4, muted: true });
   y = moneyRow(doc, "Net Receipts", fmt(netReceipts), y, { highlight: true });
+
+  // Platform economics — venue copy only. See the note on `internal` above.
+  if (internal) {
+    const ccActual = Number(s.cc_fees_actual) || 0;
+    if (ccActual > 0) {
+      const shortfall = (s.cc_fees || 0) - ccActual;
+      y += 2;
+      y = moneyRow(doc, "Platform Only — not shown on the artist copy", "", y, { bold: true });
+      y = moneyRow(doc, "CC collected from buyers", fmt(s.cc_fees || 0), y, { indent: 4, muted: true });
+      y = moneyRow(doc, "CC Stripe actually kept", fmt(ccActual), y, { indent: 4, muted: true });
+      y = moneyRow(doc, "Card-fee shortfall absorbed", fmt(shortfall), y, { indent: 4, bold: true });
+    }
+  }
   return y + 1;
 }
 
@@ -532,7 +558,8 @@ export async function exportArtistSettlementPDF(
     settlement.cc_fees ?? 0,
     y
   );
-  y = drawFinancialSummary(doc, settlement, y);
+  // Artist / promoter copy — client-facing, no platform economics.
+  y = drawFinancialSummary(doc, settlement, y, false);
   y = drawExpenses(doc, expenses, y);
 
   const merchResult = drawMerchSection(doc, settlement, y);
@@ -608,7 +635,8 @@ export async function exportVenueSettlementPDF(
     settlement.cc_fees ?? 0,
     y
   );
-  y = drawFinancialSummary(doc, settlement, y);
+  // Venue copy — internal, includes what Stripe kept and what we absorbed.
+  y = drawFinancialSummary(doc, settlement, y, true);
   y = drawExpenses(doc, expenses, y);
 
   const merchResult = drawMerchSection(doc, settlement, y);

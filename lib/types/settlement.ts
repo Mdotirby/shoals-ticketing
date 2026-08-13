@@ -107,7 +107,9 @@ export type Settlement = {
   total_gross: number;          // Σ subtotal collected (face value, paying only)
   ticketing_fees: number;       // Σ ticketing service fees collected
   facility_fees: number;        // Σ facility fees collected
-  cc_fees: number;              // Σ Stripe / processing fees collected
+  cc_fees: number;              // card surcharge collected FROM BUYERS
+  /** What Stripe actually kept. Platform-internal — never on the artist copy. */
+  cc_fees_actual?: number;
   ticketing_fee_per_ticket: number; // snapshot of per-ticket rate
   facility_fee_per_ticket: number;  // snapshot of per-ticket rate
   adj_gross: number;            // total_gross − ticketing_fees − facility_fees

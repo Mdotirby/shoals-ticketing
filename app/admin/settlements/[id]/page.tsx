@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types/settlement";
 import { exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
 import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
+import { getCookie } from "@/lib/cookies";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -54,6 +55,14 @@ export default function SettlementDetailPage() {
   const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
 
   // Core settlement
+  // Platform-only view. /admin/settlements is open to owner AND venue_admin,
+  // and venue_admin IS the client in this white-label setup — so what Stripe
+  // charges us and what we absorb must be gated to the platform owner.
+  const [isPlatformOwner, setIsPlatformOwner] = useState(false);
+  useEffect(() => {
+    setIsPlatformOwner(getCookie("user-role") === "owner");
+  }, []);
+
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [expenses, setExpenses] = useState<SettlementExpense[]>([]);
   const [deposits, setDeposits] = useState<SettlementDeposit[]>([]);
@@ -1053,12 +1062,14 @@ export default function SettlementDetailPage() {
               >
                 CC Paid
               </th>
-              <th
-                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
-                title="What Stripe actually kept on this row's share of those orders (2.9% + $0.30 per charge)."
-              >
-                CC Stripe
-              </th>
+              {isPlatformOwner && (
+                <th
+                  style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
+                  title="Platform only — what Stripe actually kept on this row's share of those orders."
+                >
+                  CC Stripe
+                </th>
+              )}
               <th
                 style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
                 title="Price × sold + service + facility + tax + CC = everything the buyer paid. This is a larger number than Gross Receipts in the Financial Summary below, which is the ticket side only (face + service + facility)."
@@ -1107,12 +1118,14 @@ export default function SettlementDetailPage() {
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{row.orders ?? 0}</td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierCcShare)}</td>
-                  <td
-                    style={{ padding: "6px", textAlign: "right", opacity: 0.7 }}
-                    title={`Platform absorbed ${fmt(tierCcShare - tierCcActual)} on this row`}
-                  >
-                    {fmt(tierCcActual)}
-                  </td>
+                  {isPlatformOwner && (
+                    <td
+                      style={{ padding: "6px", textAlign: "right", opacity: 0.7 }}
+                      title={`Platform absorbed ${fmt(tierCcShare - tierCcActual)} on this row`}
+                    >
+                      {fmt(tierCcActual)}
+                    </td>
+                  )}
                   <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
                     {fmt(tierGrossReceipts)}
                   </td>
@@ -1121,7 +1134,7 @@ export default function SettlementDetailPage() {
             })}
             {ticketAudit.length === 0 && (
               <tr>
-                <td colSpan={13} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={isPlatformOwner ? 13 : 12} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -1147,9 +1160,11 @@ export default function SettlementDetailPage() {
                   {ticketAudit.reduce((s, r) => s + (r.orders ?? 0), 0)}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, opacity: 0.7 }}>
-                  {fmt(ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0))}
-                </td>
+                {isPlatformOwner && (
+                  <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, opacity: 0.7 }}>
+                    {fmt(ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0))}
+                  </td>
+                )}
                 {/* Must be totalCustomerPaid, not grossReceipts: the per-tier
                     column above includes tax and the card fee, so totalling
                     with the ticket-side-only figure left the rows not summing
@@ -1277,7 +1292,7 @@ export default function SettlementDetailPage() {
             <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(effectiveCcFees)}</span>
           </div>
         )}
-        {ccActual > 0 && (
+        {isPlatformOwner && ccActual > 0 && (
           <div style={rowStyle}>
             <span style={{ ...labelStyle, paddingLeft: 12, opacity: 0.6 }}>
               CC Stripe actually kept
@@ -1285,7 +1300,7 @@ export default function SettlementDetailPage() {
             <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(ccActual)}</span>
           </div>
         )}
-        {ccActual > 0 && Math.abs(effectiveCcFees - ccActual) >= 0.01 && (
+        {isPlatformOwner && ccActual > 0 && Math.abs(effectiveCcFees - ccActual) >= 0.01 && (
           /* The gap the platform absorbs. Charging a percentage of the SUBTOTAL
              can never recover Stripe's cut of the grossed-up TOTAL — switching
              surcharge_mode to "gross_up" in the rate card drives this to ~$0. */

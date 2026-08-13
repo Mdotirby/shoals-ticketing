@@ -89,6 +89,7 @@ export async function POST(
       ticketing_fees: audit.ticketing_fees,
       facility_fees: audit.facility_fees,
       cc_fees: audit.cc_fees,
+      cc_fees_actual: audit.cc_fees_actual,
       taxes,
       tax_rate: taxRate,
       tax_method: taxMethod,
