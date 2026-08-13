@@ -7,7 +7,6 @@ import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, Variab
 import type { Venue } from "@/lib/types/venue";
 import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
-import { exportOfferPDF } from "@/lib/pdf/offer-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 
@@ -301,17 +300,20 @@ export default function AdminOfferDetailPage() {
     finally { setSaving(false); }
   };
 
-  // ── PDF Export (uses shared offer-pdf module with pagination) ──
+  // ── Excel Export ── builds a full ArtistOffer-shaped object from the
+  // loaded record + any live/unsaved form edits (same assembly pattern as
+  // buildPdfSettlement() in the settlements admin page), so the export
+  // always matches what's on screen, not just what's last been saved.
   const exportPDF = async () => {
     if (!offer) return;
     setExporting(true);
     try {
-      await exportOfferPDF({
+      const xlsxOffer: ArtistOffer = {
+        ...offer,
         venue: form.venue as string,
         venue_address: form.venue_address as string,
         venue_contact: form.venue_contact as string,
         venue_phone: form.venue_phone as string,
-        venue_capacity: venue?.capacity ?? undefined,
         agency: form.agency as string,
         agent_name: form.agent_name as string,
         agent_phone: form.agent_phone as string,
@@ -324,8 +326,8 @@ export default function AdminOfferDetailPage() {
         billing: form.billing as string,
         show_lineup: (form.show_lineup as { time: string; artist: string; set_length: string }[]) || [],
         guarantee: form.guarantee as number,
-        deal_type: form.deal_type as string,
-        backend_percentage: form.backend_percentage as number,
+        deal_type: form.deal_type as ArtistOffer["deal_type"],
+        backend_percentage: form.backend_percentage as string,
         other_terms: form.other_terms as string,
         radius_distance: form.radius_distance as string,
         radius_days_prior: form.radius_days_prior as number,
@@ -354,8 +356,31 @@ export default function AdminOfferDetailPage() {
         splitpoint: live.splitpoint,
         artist_backend: form.artist_backend as number,
         offer_valid_days: form.offer_valid_days as number,
-      }, venue);
-    } catch (err) { console.error("PDF failed:", err); }
+      };
+
+      const res = await fetch(`/api/offers/${offer.id}/export-xlsx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offer: xlsxOffer }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Offer.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) { console.error("Excel export failed:", err); }
     finally { setExporting(false); }
   };
 
@@ -367,7 +392,7 @@ export default function AdminOfferDetailPage() {
       <div className="admin-page-header">
         <h1 className="admin-page-title">{String(form.artist_name || "Offer")}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="report-export-btn report-export-pdf" onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export PDF"}</button>
+          <button className="report-export-btn report-export-pdf" onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</button>
           <button className="admin-form-submit" onClick={handleSave} disabled={saving} style={{ padding: "8px 16px" }}>{saving ? "Saving…" : "Save"}</button>
           <button className="admin-sponsor-edit-btn" onClick={() => router.push("/admin/offers")}>← Back</button>
         </div>

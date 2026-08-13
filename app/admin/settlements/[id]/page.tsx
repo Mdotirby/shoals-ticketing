@@ -13,7 +13,6 @@ import type {
   MerchSellerFeePayer,
   MerchTaxPayer,
 } from "@/lib/types/settlement";
-import { exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -51,6 +50,7 @@ export default function SettlementDetailPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
+  const [exportingVenueXlsx, setExportingVenueXlsx] = useState(false);
 
   // Core settlement
   const [settlement, setSettlement] = useState<Settlement | null>(null);
@@ -265,10 +265,16 @@ export default function SettlementDetailPage() {
   const backendPctDecimal = backendPctInput / 100;
   const artistBackend = (() => {
     if (dealType === "VS" || dealType === "PLUS") {
-      // Promoter recoups expenses + guarantee, then artist gets backend % of
-      // anything above that.
-      const overage = netAfterExpenses - guaranteeInput;
-      return overage > 0 ? overage * backendPctDecimal : 0;
+      // Confirmed formula (Matt, corrected from an earlier version of this
+      // calc): Backend Overage = (Splitpoint × Backend%) − Guarantee, where
+      // "Splitpoint" here is netAfterExpenses (NBOR − Total Expenses) --
+      // NOT this file's own `splitpoint` variable below, which is really
+      // just the guarantee restated under a legacy name, a separate thing
+      // despite the name collision. Floored at 0 so the guarantee always
+      // acts as a floor -- the artist never nets less than the flat
+      // guarantee even when the percentage comes in under it.
+      const overage = netAfterExpenses * backendPctDecimal - guaranteeInput;
+      return overage > 0 ? overage : 0;
     }
     if (dealType === "DOOR") {
       // Pure door deal = % of net (no guarantee floor)
@@ -338,13 +344,20 @@ export default function SettlementDetailPage() {
   //   − Venue Merch Share
   //   − Artist-paid Merch Seller Fee
   //   − Tax (if venue is paying the tax for the artist)
+  // Ticketing rebate: for ticketing-only deals (West 72 operates ticketing
+  // but isn't the promoter), a portion of the service-fee revenue is
+  // sometimes handed back to the artist as a bonus (e.g. Muscle Shoals
+  // Meets — 50% of service fees rebated). It's entered manually per
+  // settlement and defaults to 0, so this has no effect on any settlement
+  // that doesn't use it.
   const balanceDue =
     artistTotal -
     totalDeposits -
     totalCashAdvances -
     merchVenueShare -
     artistPaidMerchSellerFee -
-    venuePaidMerchTax;
+    venuePaidMerchTax +
+    ticketingRebate;
 
   // Ancillary
   // NOTE: `merchCommission` is the legacy single-number merch field. Once a
@@ -364,7 +377,12 @@ export default function SettlementDetailPage() {
     artistTotal +
     // Add back the merch venue share + artist-paid seller fee that already
     // reduced balanceDue above — those are not artist-side costs to the venue.
-    artistPaidMerchSellerFee;
+    artistPaidMerchSellerFee -
+    // ticketingRebate is counted as venue revenue in totalAncillary above,
+    // but balanceDue now pays that same amount out to the artist as a
+    // bonus -- offset it here so the venue's bottom line doesn't double
+    // count money that's actually passing through to the artist.
+    ticketingRebate;
 
   // Per-ticket all-in (for display)
   const ticketsSold = isExternal ? manualTicketsSold : (settlement?.tickets_sold_count ?? auditTotals.sold);
@@ -692,13 +710,12 @@ export default function SettlementDetailPage() {
     setError("");
     try {
       const pdfSettlement = buildPdfSettlement();
-      const res = await fetch(`/api/settlements/${settlement.id}/export-pdf`, {
+      const res = await fetch(`/api/settlements/${settlement.id}/export-xlsx`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           settlement: pdfSettlement,
           expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
-          deposits: deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes })),
         }),
       });
       if (!res.ok) {
@@ -708,7 +725,7 @@ export default function SettlementDetailPage() {
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const filenameMatch = /filename="([^"]+)"/.exec(disposition);
-      const filename = filenameMatch?.[1] || "Artist_Settlement.pdf";
+      const filename = filenameMatch?.[1] || "Artist_Settlement.xlsx";
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -726,21 +743,41 @@ export default function SettlementDetailPage() {
   };
 
   const exportVenuePDF = async () => {
-    if (!settlement) return;
-    const pdfSettlement = buildPdfSettlement();
-    const venueInfo = {
-      name: settlement.event_title || settlement.artist_name || "Venue",
-      address_street: undefined as string | undefined,
-      address_city: undefined as string | undefined,
-      address_state: undefined as string | undefined,
-      address_zip: undefined as string | undefined,
-    };
-    await exportVenueSettlementPDF(
-      pdfSettlement,
-      venueInfo,
-      expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
-      deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes }))
-    );
+    if (!settlement || exportingVenueXlsx) return;
+    setExportingVenueXlsx(true);
+    setError("");
+    try {
+      const pdfSettlement = buildPdfSettlement();
+      const res = await fetch(`/api/settlements/${settlement.id}/export-venue-xlsx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settlement: pdfSettlement,
+          expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Venue_Settlement.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Venue Excel export failed");
+    } finally {
+      setExportingVenueXlsx(false);
+    }
   };
 
   /* ─── Other Ancillary CRUD ─── */
@@ -1912,10 +1949,10 @@ export default function SettlementDetailPage() {
           disabled={exportingArtistPdf}
           style={{ padding: "10px 20px" }}
         >
-          {exportingArtistPdf ? "Exporting…" : "Export Artist Settlement PDF"}
+          {exportingArtistPdf ? "Exporting…" : "Export Artist Settlement Excel"}
         </button>
-        <button className="admin-header-btn" onClick={exportVenuePDF} style={{ padding: "10px 20px" }}>
-          Export Venue Settlement PDF
+        <button className="admin-header-btn" onClick={exportVenuePDF} disabled={exportingVenueXlsx} style={{ padding: "10px 20px" }}>
+          {exportingVenueXlsx ? "Exporting…" : "Export Venue Settlement Excel"}
         </button>
       </div>
     </div>
