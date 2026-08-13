@@ -146,7 +146,15 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const discoverReaders = async (t: Terminal) => {
     setTerminalStatus("discovering");
     setTerminalError("");
-    const result = await t.discoverReaders({ method: "internet", simulated: false });
+    // Smart Readers (Stripe Reader S700) only appear when discovery is scoped
+    // to the Location they're registered under. Unset env var = unscoped
+    // discovery, which is the old behaviour.
+    const locationId = process.env.NEXT_PUBLIC_STRIPE_TERMINAL_LOCATION_ID;
+    const result = await t.discoverReaders({
+      method: "internet",
+      simulated: false,
+      ...(locationId ? { location: locationId } : {}),
+    });
     if ("error" in result) {
       setTerminalStatus("no_readers");
       setTerminalError(result.error.message);

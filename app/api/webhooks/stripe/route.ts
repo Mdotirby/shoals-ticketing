@@ -806,14 +806,23 @@ export async function POST(request: Request) {
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-    // Only process PaymentIntents from inline checkout to avoid
-    // interfering with Checkout Session–based flows or other PI sources
-    if (paymentIntent.metadata?.source === "inline_checkout") {
+    // Only process PaymentIntents from inline checkout or a Terminal card
+    // reader, to avoid interfering with Checkout Session–based flows or other
+    // PI sources.
+    //
+    // Terminal was missing here: /api/terminal/payment-intent stamps
+    // source='terminal', which this gate rejected, so a card-present sale at
+    // the door charged the customer and then created no order, no ticket and
+    // no ledger row — the money arrived at Stripe and vanished from the books.
+    if (
+      paymentIntent.metadata?.source === "inline_checkout" ||
+      paymentIntent.metadata?.source === "terminal"
+    ) {
       const meta = paymentIntent.metadata;
       const eventId = meta.event_id;
 
       if (!eventId) {
-        console.error("No event_id in PaymentIntent metadata (inline_checkout)");
+        console.error(`No event_id in PaymentIntent metadata (${meta.source})`);
         return NextResponse.json({ received: true });
       }
 
