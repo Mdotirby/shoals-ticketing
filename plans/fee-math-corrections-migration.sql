@@ -194,3 +194,22 @@ COMMENT ON COLUMN settlements.cc_fees IS
   'Card surcharge collected FROM BUYERS. Shown on every copy.';
 COMMENT ON COLUMN settlements.cc_fees_actual IS
   'What Stripe actually kept. PLATFORM ONLY — never on the artist copy.';
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 7. Service fee rebate, stored as a percentage
+--
+-- Stored as a DECIMAL share of the service fee (0.5 = 50%) rather than a flat
+-- per-ticket amount, so the rebate follows the service fee if that ever
+-- changes instead of silently going stale. Sits OUTSIDE the deal split — it is
+-- added on top of whatever the guarantee and backend produce.
+--
+-- Shown on BOTH the artist and venue copies: it is money the promoter is owed,
+-- so it belongs on the document they sign.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE settlements
+  ADD COLUMN IF NOT EXISTS service_fee_rebate_pct NUMERIC(5,4) NOT NULL DEFAULT 0
+  CHECK (service_fee_rebate_pct >= 0 AND service_fee_rebate_pct <= 1);
+
+COMMENT ON COLUMN settlements.service_fee_rebate_pct IS
+  'Share of the service fee returned to the promoter, 0-1. Outside the deal split.';

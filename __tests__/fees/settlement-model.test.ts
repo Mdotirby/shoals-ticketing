@@ -126,3 +126,48 @@ describe("artistPayout", () => {
     expect(lower.artistTotal).toBe(upper.artistTotal);
   });
 });
+
+describe("service fee rebate", () => {
+  // Muscle Shoals Meets: The 90's — platform keeps half the service fee and
+  // rebates the rest to the promoter, who takes 100% of net on top.
+  const msm = {
+    netReceipts: 40300,
+    totalExpenses: 0,
+    guarantee: 0,
+    backendPct: 1.0,
+    dealType: "DOOR",
+    ticketingFees: 1965,
+    serviceFeeRebatePct: 0.5,
+  };
+
+  it("pays the deal plus the rebate", () => {
+    const p = artistPayout(msm);
+    expect(p.dealTotal).toBe(40300);
+    expect(p.serviceFeeRebate).toBe(982.5);
+    expect(p.artistTotal).toBe(41282.5);
+  });
+
+  it("keeps the rebate outside the deal split, not inside it", () => {
+    // The rebate must not be run through the backend percentage — it is a
+    // separate obligation, not part of what the deal produces.
+    const withRebate = artistPayout(msm);
+    const without = artistPayout({ ...msm, serviceFeeRebatePct: 0 });
+    expect(withRebate.dealTotal).toBe(without.dealTotal);
+    expect(withRebate.artistTotal - without.artistTotal).toBe(982.5);
+  });
+
+  it("follows the service fee when it changes", () => {
+    // The reason this is a percentage and not a flat per-ticket amount.
+    const p = artistPayout({ ...msm, ticketingFees: 2620 }); // $4/unit
+    expect(p.serviceFeeRebate).toBe(1310);
+  });
+
+  it("is zero when unset, leaving existing settlements untouched", () => {
+    const p = artistPayout({
+      netReceipts: 10000, totalExpenses: 0, guarantee: 5000,
+      backendPct: 0.85, dealType: "VS",
+    });
+    expect(p.serviceFeeRebate).toBe(0);
+    expect(p.artistTotal).toBe(p.dealTotal);
+  });
+});

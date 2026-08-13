@@ -83,6 +83,18 @@ export type ArtistPayoutInput = {
   /** Backend share as a DECIMAL (0.85), not a percent. */
   backendPct: number;
   dealType: string | null | undefined;
+  /** Total service fees collected — the base the rebate is taken from. */
+  ticketingFees?: number;
+  /**
+   * Share of the service fee handed back to the promoter, as a DECIMAL
+   * (0.5 = 50%). Stored as a percentage rather than a flat per-ticket amount
+   * so it follows the service fee if that ever changes, instead of silently
+   * going stale.
+   *
+   * This is NOT part of the deal split — it sits outside the guarantee and
+   * backend, on top of whatever the deal produces.
+   */
+  serviceFeeRebatePct?: number;
 };
 
 export type ArtistPayout = {
@@ -91,6 +103,11 @@ export type ArtistPayout = {
   splitpoint: number;
   overage: number;
   artistBackend: number;
+  /** What the deal itself produces, before any service-fee rebate. */
+  dealTotal: number;
+  /** Service fee handed back, outside the deal. */
+  serviceFeeRebate: number;
+  /** dealTotal + serviceFeeRebate — the figure to write the cheque for. */
   artistTotal: number;
 };
 
@@ -99,6 +116,8 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   const dealType = String(input.dealType ?? "FLAT").toUpperCase();
 
   const netAfterExpenses = netReceipts - totalExpenses;
+  const serviceFeeRebate =
+    (input.ticketingFees ?? 0) * (input.serviceFeeRebatePct ?? 0);
 
   // Pure door deal: a straight percentage of net, with no guarantee floor and
   // no expense recoupment.
@@ -109,7 +128,9 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
       splitpoint: 0,
       overage: netReceipts,
       artistBackend,
-      artistTotal: artistBackend,
+      dealTotal: artistBackend,
+      serviceFeeRebate,
+      artistTotal: artistBackend + serviceFeeRebate,
     };
   }
 
@@ -120,7 +141,9 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
       splitpoint: 0,
       overage: 0,
       artistBackend: 0,
-      artistTotal: guarantee,
+      dealTotal: guarantee,
+      serviceFeeRebate,
+      artistTotal: guarantee + serviceFeeRebate,
     };
   }
 
@@ -133,6 +156,8 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
     splitpoint: guarantee,
     overage,
     artistBackend,
-    artistTotal: guarantee + artistBackend,
+    dealTotal: guarantee + artistBackend,
+    serviceFeeRebate,
+    artistTotal: guarantee + artistBackend + serviceFeeRebate,
   };
 }

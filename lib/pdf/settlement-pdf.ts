@@ -458,6 +458,20 @@ function drawSettlementCalc(
     // FLAT / CO_PROMOTE
     y = moneyRow(doc, "Artist Guarantee", fmt(s.guarantee), y, { indent: 4 });
   }
+  // Service fee rebate — shown on BOTH copies. It is money the promoter is
+  // owed, so it belongs on the document they sign, not just the venue's.
+  const rebatePct = Number(s.service_fee_rebate_pct) || 0;
+  const rebate = (s.ticketing_fees || 0) * rebatePct;
+  if (rebate > 0) {
+    y = moneyRow(doc, "Deal Total", fmt((s.artist_total || 0) - rebate), y, { indent: 4 });
+    y = moneyRow(
+      doc,
+      `Service Fee Rebate (${(rebatePct * 100).toFixed(0)}% of ${fmt(s.ticketing_fees || 0)})`,
+      fmt(rebate),
+      y,
+      { indent: 4 }
+    );
+  }
   y = moneyRow(doc, "ARTIST WALKOUT", fmt(s.artist_total), y, { bold: true });
 
   // Deductions to balance due

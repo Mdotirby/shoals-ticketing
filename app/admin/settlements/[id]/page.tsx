@@ -72,6 +72,9 @@ export default function SettlementDetailPage() {
   const [dealType, setDealType] = useState("FLAT");
   const [guaranteeInput, setGuaranteeInput] = useState(0);
   const [backendPctInput, setBackendPctInput] = useState(0);
+  // Share of the service fee handed back to the promoter, as a true percentage
+  // (50 = 50%). Stored as a decimal in the DB, like backend_percentage.
+  const [serviceFeeRebatePct, setServiceFeeRebatePct] = useState(0);
   const [radiusClause, setRadiusClause] = useState("");
   const [bonusStructureRaw, setBonusStructureRaw] = useState("");
 
@@ -132,6 +135,7 @@ export default function SettlementDetailPage() {
     setGuaranteeInput(Number(data.guarantee) || 0);
     // DB stores backend % as a decimal (0.85). UI uses true percentage (85).
     setBackendPctInput((Number(data.backend_percentage) || 0) * 100);
+    setServiceFeeRebatePct((Number(data.service_fee_rebate_pct) || 0) * 100);
     setRadiusClause(data.radius_clause ?? "");
     setBonusStructureRaw(
       data.bonus_structure ? JSON.stringify(data.bonus_structure, null, 0) : ""
@@ -293,13 +297,16 @@ export default function SettlementDetailPage() {
 
   // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
   const backendPctDecimal = backendPctInput / 100;
-  const { netAfterExpenses, splitpoint, artistBackend, artistTotal } = artistPayout({
-    netReceipts,
-    totalExpenses,
-    guarantee: guaranteeInput,
-    backendPct: backendPctDecimal,
-    dealType,
-  });
+  const { netAfterExpenses, splitpoint, artistBackend, dealTotal, serviceFeeRebate, artistTotal } =
+    artistPayout({
+      netReceipts,
+      totalExpenses,
+      guarantee: guaranteeInput,
+      backendPct: backendPctDecimal,
+      dealType,
+      ticketingFees: effectiveTicketingFees,
+      serviceFeeRebatePct: serviceFeeRebatePct / 100,
+    });
 
   const totalDeposits = deposits
     .filter((d) => d.type === "deposit")
@@ -462,6 +469,7 @@ export default function SettlementDetailPage() {
       deal_type: dealType,
       guarantee: guaranteeInput,
       backend_percentage: backendPctInput / 100, // store as decimal in DB
+      service_fee_rebate_pct: serviceFeeRebatePct / 100,
       bonus_structure: bonusStructureParsed,
       radius_clause: radiusClause || null,
 
@@ -664,6 +672,7 @@ export default function SettlementDetailPage() {
       deal_type: dealType,
       guarantee: guaranteeInput,
       backend_percentage: backendPctInput / 100, // PDF expects decimal
+      service_fee_rebate_pct: serviceFeeRebatePct / 100,
       radius_clause: radiusClause,
       total_gross: totalGross,
       ticketing_fees: effectiveTicketingFees,
@@ -908,6 +917,25 @@ export default function SettlementDetailPage() {
             onChange={(e) => setBackendPctInput(Number(e.target.value))}
             disabled={isFinalized}
             placeholder="85"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">
+            Service Fee Rebate %{" "}
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>
+              (share of the service fee returned — e.g. 50 for 50%)
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            className="admin-form-input"
+            value={serviceFeeRebatePct}
+            onChange={(e) => setServiceFeeRebatePct(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="0"
           />
         </div>
         <div>
@@ -1854,6 +1882,22 @@ export default function SettlementDetailPage() {
             <span style={labelStyle}>Guarantee</span>
             <span style={valStyle}>{fmt(guaranteeInput)}</span>
           </div>
+        )}
+        {serviceFeeRebate > 0 && (
+          <>
+            <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
+              <span style={{ ...labelStyle, fontWeight: 600 }}>Deal Total</span>
+              <span style={valStyle}>{fmt(dealTotal)}</span>
+            </div>
+            {/* Sits outside the deal split — a share of the service fee handed
+                back, on top of whatever the guarantee and backend produce. */}
+            <div style={rowStyle}>
+              <span style={labelStyle}>
+                Service Fee Rebate ({serviceFeeRebatePct.toFixed(0)}% of {fmt(effectiveTicketingFees)})
+              </span>
+              <span style={{ ...valStyle, color: "#7ddb7d" }}>{fmt(serviceFeeRebate)}</span>
+            </div>
+          </>
         )}
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700 }}>Artist Total</span>

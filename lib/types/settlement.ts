@@ -91,6 +91,13 @@ export type Settlement = {
   guarantee: number;
   deal_type?: string;
   backend_percentage: number;
+  /**
+   * Share of the service fee handed back to the promoter, as a DECIMAL
+   * (0.5 = 50%). Sits outside the deal split — added on top of whatever the
+   * guarantee and backend produce. Stored as a percentage rather than a flat
+   * per-ticket amount so it follows the service fee if that ever changes.
+   */
+  service_fee_rebate_pct?: number;
   bonus_structure?: Record<string, unknown>;
   radius_clause?: string;
 
