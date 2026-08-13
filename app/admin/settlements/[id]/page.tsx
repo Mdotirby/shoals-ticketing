@@ -1040,9 +1040,9 @@ export default function SettlementDetailPage() {
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>CC Fee</th>
               <th
                 style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
-                title="Price × sold + service fees + facility fees + tax + CC fee = total receipts collected from customers"
+                title="Price × sold + service + facility + tax + CC = everything the buyer paid. This is a larger number than Gross Receipts in the Financial Summary below, which is the ticket side only (face + service + facility)."
               >
-                Gross Receipts
+                Total Collected
               </th>
             </tr>
           </thead>
@@ -1118,8 +1118,12 @@ export default function SettlementDetailPage() {
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveFacilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
+                {/* Must be totalCustomerPaid, not grossReceipts: the per-tier
+                    column above includes tax and the card fee, so totalling
+                    with the ticket-side-only figure left the rows not summing
+                    to their own total. */}
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
-                  {fmt(grossReceipts)}
+                  {fmt(totalCustomerPaid)}
                 </td>
               </tr>
             </tfoot>
@@ -1200,18 +1204,48 @@ export default function SettlementDetailPage() {
             <span style={valStyle}>({fmt(effectiveFacilityFees)})</span>
           </div>
         )}
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>Tax Collected ({(effectiveTaxRate * 100).toFixed(2)}%
-            {effectiveTaxMethod === "divisor" ? ", divisor" : ", multiplier"})
-          </span>
-          <span style={valStyle}>({fmt(taxes)})</span>
+        {/* Adjusted Gross — gross less the fees that actually come out of it.
+            Without this line the column jumps from Gross to Net past rows that
+            are memos, and the subtraction is impossible to follow. */}
+        <div style={{ ...rowStyle, borderBottom: "1px solid rgba(208,194,144,0.2)" }}>
+          <span style={{ ...labelStyle, fontWeight: 700 }}>Adjusted Gross</span>
+          <span style={{ ...valStyle, fontWeight: 700 }}>{fmt(adjGross)}</span>
         </div>
-        {effectiveCcFees > 0 && (
+
+        {effectiveTaxMethod === "divisor" ? (
+          /* Divisor: the face price is tax-inclusive, so the tax is sitting
+             inside Adjusted Gross and genuinely comes out. */
           <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>CC / Processing Fees</span>
-            <span style={valStyle}>({fmt(effectiveCcFees)})</span>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>
+              Tax ({(effectiveTaxRate * 100).toFixed(2)}%, divided out of face price)
+            </span>
+            <span style={valStyle}>({fmt(taxes)})</span>
+          </div>
+        ) : (
+          /* Multiplier: the tax was charged ON TOP of the face price and is
+             remitted to the state. It was never inside Adjusted Gross, so it
+             is reported here, not subtracted. */
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12, opacity: 0.6 }}>
+              Tax ({(effectiveTaxRate * 100).toFixed(2)}%, charged on top &amp; remitted)
+            </span>
+            <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(taxes)}</span>
           </div>
         )}
+
+        {effectiveCcFees > 0 && (
+          /* The buyer funds the card surcharge and it goes straight to Stripe,
+             so it is never part of the ticket gross the artist splits. Memo
+             only — except on a fees-included event, where the venue absorbs it
+             and computeEventAudit has already carved it out of face value. */
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12, opacity: 0.6 }}>
+              CC / Processing (buyer-funded, paid to Stripe)
+            </span>
+            <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(effectiveCcFees)}</span>
+          </div>
+        )}
+
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Net Receipts</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
@@ -1219,9 +1253,16 @@ export default function SettlementDetailPage() {
           </span>
         </div>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>
-          Service / Facility / Tax / CC fees are pass-throughs — collected from the ticket buyer
-          and distributed out (to platform, facility, State & Local governments, and the payment processor respectively).
-          The artist payouts is calculated on what&rsquo;s left.
+          Gross Receipts is the all-in ticket price — face plus service and facility fee.
+          Those two fees come out to reach Adjusted Gross, the artist&rsquo;s face value.
+          {effectiveTaxMethod === "divisor" ? (
+            <> Tax is baked into the face price on this event, so it is backed out to reach Net Receipts.</>
+          ) : (
+            <> Tax on this event is charged on top of the face price and remitted to the state —
+              it was never inside Gross Receipts, so it is shown for reference rather than deducted.</>
+          )}{" "}
+          The card fee is funded by the buyer and paid to Stripe, so it is also reference only.
+          Greyed rows are not part of the subtraction.
         </p>
       </div>
 
