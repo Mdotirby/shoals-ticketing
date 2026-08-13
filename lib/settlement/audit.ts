@@ -225,7 +225,12 @@ type SeatBasis = {
  */
 async function seatBasisForEvent(
   admin: SupabaseClient,
-  eventId: string
+  eventId: string,
+  /** Orders that actually paid. A seat marked `sold` whose order is a comp — or
+   *  which has no order at all — is a house seat: it occupies inventory but no
+   *  money changed hands, so it must not contribute face value. A single
+   *  comped $800 VIP table was adding $800 of revenue nobody paid. */
+  payingOrderIds: Set<string>
 ): Promise<SeatBasis | null> {
   const { data: map } = await admin
     .from("event_layout_maps")
@@ -245,17 +250,31 @@ async function seatBasisForEvent(
   const sectionIds = sectionRows.map((s: { id: string }) => s.id);
   const { data: seatRows } = await admin
     .from("seats")
-    .select("id, section_id, status, object_id")
+    .select("id, section_id, status, object_id, order_id")
     .in("section_id", sectionIds);
-  const seats = seatRows ?? [];
+  type SeatRow = {
+    id: string;
+    section_id: string;
+    status: string;
+    object_id: string | null;
+    order_id: string | null;
+  };
+  // A seat only counts as sold if a PAYING order stands behind it. Re-label
+  // anything else as "house" so it still occupies capacity — the room really
+  // is full — without contributing face value nobody paid.
+  const seats: SeatRow[] = ((seatRows ?? []) as SeatRow[]).map((s) => ({
+    ...s,
+    status:
+      s.status === "sold" && !(s.order_id && payingOrderIds.has(s.order_id))
+        ? "house"
+        : s.status,
+  }));
 
   const out: SeatBasis = { rows: [], billingUnits: 0, faceGross: 0 };
 
   for (const sec of sectionRows) {
     const isTable = !!sec.sells_as_table || sec.type === "table";
-    const secSeats = seats.filter(
-      (s: { section_id: string }) => s.section_id === sec.id
-    );
+    const secSeats = seats.filter((s) => s.section_id === sec.id);
     if (secSeats.length === 0) continue;
 
     const unitPrice = num(sec.price_cents) / 100;
@@ -265,23 +284,19 @@ async function seatBasisForEvent(
     if (isTable) {
       // One billing unit per table object.
       const allObjects = new Set(
-        secSeats
-          .map((s: { object_id: string | null }) => s.object_id)
-          .filter(Boolean) as string[]
+        secSeats.map((s) => s.object_id).filter(Boolean) as string[]
       );
       const soldObjects = new Set(
         secSeats
-          .filter((s: { status: string }) => s.status === "sold")
-          .map((s: { object_id: string | null }) => s.object_id)
+          .filter((s) => s.status === "sold")
+          .map((s) => s.object_id)
           .filter(Boolean) as string[]
       );
       capacityUnits = allObjects.size;
       soldUnits = soldObjects.size;
     } else {
       capacityUnits = secSeats.length;
-      soldUnits = secSeats.filter(
-        (s: { status: string }) => s.status === "sold"
-      ).length;
+      soldUnits = secSeats.filter((s) => s.status === "sold").length;
     }
 
     if (capacityUnits === 0) continue;
@@ -373,7 +388,7 @@ export async function computeEventAudit(
   // ── 4. Face value + billing units ────────────────────────────────────────
   // Seats/sections win when the event has an enabled layout: that IS what
   // checkout charged. Tiers are the general-admission fallback.
-  const seatBasis = await seatBasisForEvent(admin, eventId);
+  const seatBasis = await seatBasisForEvent(admin, eventId, new Set(payingOrderIds));
   const pricing_basis: "seats" | "tiers" = seatBasis ? "seats" : "tiers";
 
   type TierAgg = {
