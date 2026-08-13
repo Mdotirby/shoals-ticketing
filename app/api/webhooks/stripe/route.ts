@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { earnBenefits } from "@/lib/fwb/earn";
-import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
+import { ratesFor } from "@/lib/fees/rates";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -355,13 +355,16 @@ async function processTicketOrder({
     // value correspondingly short. Invert the checkout formula instead:
     //   total = subtotal + (subtotal × pct + flat)
     //   → subtotal = (total − flat) / (1 + pct)
+    // Card-present sales are surcharged at the Terminal rate (2.7% + $0.05),
+    // not the online one. Backing out the online rate on a reader sale would
+    // understate the artist's face value on every door transaction.
+    const captureMethod = source === "terminal" ? "terminal" : "online";
+    const { pct: surchargePct, flatCents: surchargeFlat } = ratesFor(captureMethod);
     const surchargeCollected = feesIncludedInPrice
       ? 0 // venue absorbed it — the buyer paid exactly the sticker price
       : Math.round(
           (totalAmount -
-            (totalAmount * 100 - STRIPE_ONLINE_FLAT_CENTS) /
-              (1 + STRIPE_ONLINE_PCT) /
-              100) *
+            (totalAmount * 100 - surchargeFlat) / (1 + surchargePct) / 100) *
             100
         ) / 100;
 
