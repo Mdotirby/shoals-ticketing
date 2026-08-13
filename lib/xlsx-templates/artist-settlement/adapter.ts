@@ -166,6 +166,14 @@ export function buildArtistSettlementData(
     .map((e) => ({ name: e.name, amount: e.actual_amount || 0 }));
   const total_fixed = expenses_fixed.reduce((s, e) => s + e.amount, 0);
   const total_variable = expenses_variable.reduce((s, e) => s + e.amount, 0);
+  // "Splitpoint" on this document means the pool the backend % applies to
+  // (net receipts minus expenses) -- NOT settlement.splitpoint, which in
+  // lib/settlement/model.ts is deliberately defined as just the guarantee
+  // (the threshold the show must clear), a different, real concept that
+  // happens to share the same field name. Both net_receipts and the
+  // expense totals here are already real, correct, stored/computed
+  // values -- this is just their difference, not new business logic.
+  const netAfterExpenses = (settlement.net_receipts || 0) - (total_fixed + total_variable);
 
   // ---- Header / deal-terms context (from the linked Offer -- confirmed
   // with Matt to look this up live via offer_id rather than snapshotting
@@ -262,7 +270,7 @@ export function buildArtistSettlementData(
     merch_artist_share: settlement.merch_artist_share || 0,
 
     artist_guarantee: settlement.guarantee || 0,
-    splitpoint: settlement.splitpoint || 0,
+    splitpoint: netAfterExpenses,
     merch_venue_take_deduction: settlement.merch_venue_share || 0,
     seller_fee:
       settlement.merch_seller_fee_payer === "artist" ? settlement.merch_seller_fee || 0 : 0,

@@ -169,12 +169,20 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
 
   const guarantee = offer.guarantee || 0;
   const backendPct = (Number(offer.backend_percentage) || 0) / 100;
-  const splitpoint = offer.splitpoint ?? Math.max(net_potential - total_expenses, 0);
-  // Matches app/admin/offers/new/page.tsx exactly: Backend = Splitpoint x
+  // "Splitpoint" on this document means the pool the backend % applies to
+  // (net potential minus expenses) -- NOT offer.splitpoint, which
+  // app/admin/offers/new/page.tsx deliberately defines as just the
+  // guarantee (the threshold the show must clear, unified with the
+  // settlement page's terminology), a different, real concept that
+  // happens to share the same field name. net_potential and total_expenses
+  // are both already real, correct values -- this is just their
+  // difference, not new business logic.
+  const netAfterExpenses = net_potential - total_expenses;
+  // Matches app/admin/offers/new/page.tsx exactly: Backend = (pool) x
   // Backend% (no guarantee subtracted here -- that happens in the next
   // line, "Overage"). Same formula shape as the Settlement fix Matt
   // confirmed, just split across two display rows instead of one.
-  const backend = offer.artist_backend ?? (splitpoint > 0 ? splitpoint * backendPct : 0);
+  const backend = offer.artist_backend ?? (netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0);
   const overage = backend - guarantee;
   const artist_total_potential =
     offer.deal_type === "VS"
@@ -182,10 +190,10 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
       : guarantee + backend; // PLUS / BONUS
 
   const expenses_incl_artist = total_expenses + artist_total_potential;
-  // offer.pot_walkout is the VENUE's potential (splitpoint - artistPAS),
-  // matching REVENUE TO VENUE / VENUE TOTAL in the source design -- not
-  // anything artist-facing despite the field name.
-  const revenue_to_venue = offer.pot_walkout ?? splitpoint - artist_total_potential;
+  // offer.pot_walkout is the VENUE's potential (pool - artistPAS), matching
+  // REVENUE TO VENUE / VENUE TOTAL in the source design -- not anything
+  // artist-facing despite the field name.
+  const revenue_to_venue = offer.pot_walkout ?? netAfterExpenses - artist_total_potential;
 
   const totalCapacity = tCap || 1;
   const breakeven_tickets = avgPrice > 0 ? expenses_incl_artist / avgPrice : 0;
@@ -273,7 +281,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     total_expenses,
 
     artist_guarantee: guarantee,
-    splitpoint,
+    splitpoint: netAfterExpenses,
     backend,
     overage,
     artist_total_potential,
