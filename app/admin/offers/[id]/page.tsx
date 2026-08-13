@@ -178,14 +178,16 @@ export default function AdminOfferDetailPage() {
     const totalExpenses = totalFixed + totalVariable;
 
     // Artist payment model — identical to the create page and to the
-    // settlement page. Splitpoint is the THRESHOLD (the guarantee); the pool
-    // is netAfterExpenses; backend is earned on the overage above the
-    // threshold and is added to the guarantee, never compared against it.
+    // settlement page. "Splitpoint" is the pool the backend percentage is
+    // measured against — net receipts/potential minus expenses. Always
+    // netAfterExpenses, regardless of deal type; it's a factual "what's left
+    // after expenses" figure, not the guarantee. The guarantee is the
+    // threshold the pool gets measured against to compute overage below.
     const netAfterExpenses = netPotential - totalExpenses;
     const guaranteeNum = Number(form.guarantee || 0);
     const backendPctDecimal = Number(form.backend_percentage || 0) / 100;
     const dealTypeNow = String(form.deal_type || "");
-    const splitpoint = dealTypeNow === "FLAT" ? 0 : guaranteeNum;
+    const splitpoint = netAfterExpenses;
     // (pool × backend%) − guarantee, i.e. max(guarantee, pool × backend%).
     const overage = netAfterExpenses * backendPctDecimal - guaranteeNum;
     const artistBackend =
@@ -708,9 +710,7 @@ export default function AdminOfferDetailPage() {
             <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax (${live.taxRatePct.toFixed(2)}% Multiplier):` : `Tax (${live.taxRatePct.toFixed(2)}% Divisor):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            )}
+            <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
@@ -1140,11 +1140,7 @@ export default function AdminOfferDetailPage() {
         const guarantee = Number(form.guarantee) || 0;
         const backendPct = Number(form.backend_percentage) || 0;
         const dealType = String(form.deal_type || "FLAT");
-        // Splitpoint = the THRESHOLD the show must clear (the guarantee), and
-        // the pool it's measured against is netAfterExpenses. Same model as the
-        // Details tab and the settlement page.
         const netAfterExpenses = netPotential - totalExpenses;
-        const splitpoint = dealType === "FLAT" ? 0 : guarantee;
 
         // Backend is earned on the overage above the guarantee and added to it.
         // (pool × backend%) − guarantee, matching the Details tab.

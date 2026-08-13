@@ -125,7 +125,21 @@ export type ArtistPayoutInput = {
 
 export type ArtistPayout = {
   netAfterExpenses: number;
-  /** The threshold the show clears before backend is earned — the guarantee. */
+  /**
+   * The pool the backend percentage is measured against — net receipts
+   * minus expenses. Always equal to netAfterExpenses; kept as its own
+   * field because "Splitpoint" is the label used on the settlement/offer
+   * documents and UI.
+   *
+   * A prior version of this function returned the guarantee here instead
+   * (rationale: "the threshold the show clears before backend is earned").
+   * That reading doesn't match what the field has always meant on the
+   * actual documents and to Matt -- older stored offers/settlements
+   * already hold pool values under this field name, not guarantee values,
+   * so redefining it to mean guarantee silently made every existing
+   * record's stored `splitpoint` mean something different from what it
+   * meant when it was saved.
+   */
   splitpoint: number;
   overage: number;
   artistBackend: number;
@@ -151,7 +165,7 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
     const artistBackend = netReceipts > 0 ? netReceipts * backendPct : 0;
     return {
       netAfterExpenses,
-      splitpoint: 0,
+      splitpoint: netAfterExpenses,
       overage: netReceipts,
       artistBackend,
       dealTotal: artistBackend,
@@ -164,7 +178,7 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   if (dealType === "FLAT" || dealType === "CO_PROMOTE") {
     return {
       netAfterExpenses,
-      splitpoint: 0,
+      splitpoint: netAfterExpenses,
       overage: 0,
       artistBackend: 0,
       dealTotal: guarantee,
@@ -190,7 +204,7 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   const artistBackend = overage > 0 ? overage : 0;
   return {
     netAfterExpenses,
-    splitpoint: guarantee,
+    splitpoint: netAfterExpenses,
     overage,
     artistBackend,
     dealTotal: guarantee + artistBackend,

@@ -337,11 +337,12 @@ export default function AdminCreateOfferPage() {
   //   overage            = (net after expenses × backend%) − guarantee
   //   artist             = guarantee + overage, when positive
   //
-  // "Splitpoint" is the THRESHOLD the show must clear before backend is earned
-  // — i.e. the guarantee — matching settlement terminology. The pool itself is
-  // shown separately as Net After Expenses.
+  // "Splitpoint" is the pool the backend percentage is measured against --
+  // net receipts/potential minus expenses. Always netAfterExpenses,
+  // regardless of deal type; it's a factual "what's left after expenses"
+  // figure, not something that depends on how the backend split works.
   const netAfterExpenses = netPotential - totalExpenses;
-  let splitpoint = 0;
+  const splitpoint = netAfterExpenses;
   let artistBackend = 0;
   let artistPAS = guaranteeNum;
   let potWalkout = 0;
@@ -352,7 +353,6 @@ export default function AdminCreateOfferPage() {
     potWalkout = netAfterExpenses;
     artistPAS = guaranteeNum;
   } else {
-    splitpoint = guaranteeNum;
     // Percentage runs on the whole pool; the guarantee is recouped out of the
     // artist's own share. Equivalent to max(guarantee, pool × backend%).
     const overage = netAfterExpenses * backendNum - guaranteeNum;
@@ -745,9 +745,7 @@ export default function AdminCreateOfferPage() {
             <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Less: Tax (${taxRate}% — remitted to govt):` : `Less: Tax (${taxRate}% — extracted from price):`}</span><strong>(${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {dealType !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            )}
+            <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
@@ -787,13 +785,13 @@ export default function AdminCreateOfferPage() {
 
         // Artist backend: reuse the already-correct details-tab values
         // directly instead of re-deriving them. The re-derivation this
-        // replaced used `splitpoint * backendNum` -- but splitpoint means
-        // the guarantee in this codebase, so that computed Guarantee x
+        // replaced used `splitpoint * backendNum`, where splitpoint was
+        // (wrongly, at the time) the guarantee -- so it computed Guarantee x
         // Backend% instead of NetAfterExpenses x Backend%, the same wrong
-        // formula shape Matt corrected earlier this session, just
-        // reintroduced here in a second, disconnected copy of the math.
-        // artistBackend/artistPAS above are already right for every deal
-        // type (FLAT included, where artistBackend stays 0).
+        // formula shape Matt corrected elsewhere, just reintroduced here in
+        // a second, disconnected copy of the math. artistBackend/artistPAS
+        // above are already right for every deal type (FLAT included, where
+        // artistBackend stays 0).
         const backendAmount = artistBackend;
         const pnlArtistTotal = artistPAS;
 

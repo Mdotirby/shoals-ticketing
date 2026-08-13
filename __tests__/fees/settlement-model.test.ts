@@ -110,10 +110,15 @@ describe("artistPayout", () => {
     expect(p.artistTotal).toBe(5000);
   });
 
-  it("uses the guarantee as the splitpoint threshold, not the pool", () => {
+  it("splitpoint is the pool (net after expenses), not the guarantee", () => {
+    // splitpoint is what gets labeled "Splitpoint" on the actual settlement/
+    // offer documents -- the pool the backend percentage runs against, same
+    // value as netAfterExpenses. It is NOT the guarantee, even though the
+    // guarantee is the threshold the pool gets measured against internally
+    // to compute overage.
     const p = artistPayout({ ...base, guarantee: 5000, dealType: "VS" });
-    expect(p.splitpoint).toBe(5000);
-    expect(p.splitpoint).not.toBe(p.netAfterExpenses);
+    expect(p.splitpoint).toBe(p.netAfterExpenses);
+    expect(p.splitpoint).not.toBe(5000); // not the guarantee
   });
 
   it("FLAT pays the guarantee with no backend", () => {
