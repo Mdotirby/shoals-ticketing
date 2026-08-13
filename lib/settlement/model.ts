@@ -41,18 +41,32 @@
 import type { TaxMethod } from "@/lib/types/settlement";
 
 export type SettlementWaterfallInput = {
-  /** ALL-IN ticket gross: face + service + facility. */
+  /** Ticket gross: face + service + facility, before tax and card surcharge. */
   totalGross: number;
   ticketingFees: number;
   facilityFees: number;
   taxRate: number;
   taxMethod: TaxMethod;
+  /** Card surcharge collected from buyers — part of GBOR, deducted to reach NBOR. */
+  ccFees?: number;
 };
 
 export type SettlementWaterfall = {
+  /**
+   * GROSS BOX OFFICE RECEIPTS — everything the buyer paid, card surcharge and
+   * sales tax included. This is the figure that ties to the Stripe deposit,
+   * which is what makes a settlement checkable against a bank statement.
+   *
+   * Distinct from `grossReceipts` below, which is the ticket side only. An
+   * earlier version of this page used the narrower figure and called it
+   * "Gross Receipts", so the settlement reconciled to nothing.
+   */
+  gbor: number;
+  /** Ticket-side gross: face + service + facility. Not the all-in. */
   grossReceipts: number;
   adjGross: number;
   taxes: number;
+  /** NET BOX OFFICE RECEIPTS: GBOR − service − facility − card − tax. */
   netReceipts: number;
 };
 
@@ -60,6 +74,7 @@ export function settlementWaterfall(
   input: SettlementWaterfallInput
 ): SettlementWaterfall {
   const { totalGross, ticketingFees, facilityFees, taxRate, taxMethod } = input;
+  const ccFees = input.ccFees ?? 0;
 
   const grossReceipts = totalGross;
   const adjGross = grossReceipts - ticketingFees - facilityFees;
@@ -69,11 +84,20 @@ export function settlementWaterfall(
       ? adjGross - adjGross / (1 + taxRate)
       : adjGross * taxRate;
 
-  // Only the divisor case removes tax — under multiplier it was additive and
-  // was never inside adjGross. See the header note.
-  const netReceipts = taxMethod === "divisor" ? adjGross - taxes : adjGross;
+  // GBOR adds back what the buyer paid on top of the ticket: the card
+  // surcharge always, and sales tax only when it was charged additively. On a
+  // divisor event the tax is already inside the face price, so adding it here
+  // would count it twice.
+  const taxChargedOnTop = taxMethod === "divisor" ? 0 : taxes;
+  const gbor = grossReceipts + taxChargedOnTop + ccFees;
 
-  return { grossReceipts, adjGross, taxes, netReceipts };
+  // NBOR = GBOR − service − facility − card − tax. Algebraically this lands on
+  // face value under multiplier, and face-less-embedded-tax under divisor —
+  // which is the same answer the ticket-side walk gives, arrived at from the
+  // number that actually hit the bank.
+  const netReceipts = gbor - ticketingFees - facilityFees - ccFees - taxes;
+
+  return { gbor, grossReceipts, adjGross, taxes, netReceipts };
 }
 
 export type ArtistPayoutInput = {

@@ -171,3 +171,49 @@ describe("service fee rebate", () => {
     expect(p.artistTotal).toBe(p.dealTotal);
   });
 });
+
+describe("GBOR / NBOR walk", () => {
+  // Matches the settlement workbook: GBOR is everything the buyer paid, so it
+  // ties to the Stripe deposit; four pass-throughs come out to reach NBOR.
+  it("reproduces the MSM 90's workbook figures", () => {
+    const w = settlementWaterfall({
+      totalGross: 39500 + 1962,   // face + service
+      ticketingFees: 1962,
+      facilityFees: 0,
+      taxRate: 0.095,
+      taxMethod: "multiplier",
+      ccFees: 1291.59,
+    });
+    expect(w.gbor).toBeCloseTo(46506.09, 2);
+    expect(w.netReceipts).toBeCloseTo(39500, 2);
+  });
+
+  it("GBOR less the four pass-throughs equals NBOR", () => {
+    const w = settlementWaterfall({
+      totalGross: 41462, ticketingFees: 1962, facilityFees: 0,
+      taxRate: 0.095, taxMethod: "multiplier", ccFees: 1291.59,
+    });
+    expect(w.gbor - 1962 - 0 - 1291.59 - w.taxes).toBeCloseTo(w.netReceipts, 6);
+  });
+
+  it("does not double-count tax on a divisor event", () => {
+    // Tax is already inside the face price there, so GBOR must not add it.
+    const w = settlementWaterfall({
+      totalGross: 884, ticketingFees: 102, facilityFees: 102,
+      taxRate: 0.095, taxMethod: "divisor", ccFees: 32.25,
+    });
+    expect(w.gbor).toBeCloseTo(884 + 32.25, 2);
+    expect(w.netReceipts).toBeCloseTo(621.0046, 3);
+  });
+
+  it("lands on the same NBOR the ticket-side walk gives", () => {
+    const input = {
+      totalGross: 41462, ticketingFees: 1962, facilityFees: 0,
+      taxRate: 0.095, taxMethod: "multiplier" as const,
+    };
+    // Whether or not a card surcharge is passed, NBOR is unchanged — the
+    // surcharge enters GBOR and leaves again as a deduction.
+    expect(settlementWaterfall({ ...input, ccFees: 1291.59 }).netReceipts)
+      .toBeCloseTo(settlementWaterfall(input).netReceipts, 6);
+  });
+});

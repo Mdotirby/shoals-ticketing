@@ -66,6 +66,8 @@ export type AuditTotals = {
   audit: TicketAuditRow[];
   /** ALL-IN ticket gross: face + service + facility, pre-tax, pre-surcharge. */
   total_gross: number;
+  /** GROSS BOX OFFICE RECEIPTS — everything the buyer paid. Ties to Stripe. */
+  gbor: number;
   /** The artist's face value: total_gross − ticketing_fees − facility_fees. */
   face_gross: number;
   ticketing_fees: number;       // ticketing_fee × billing units
@@ -462,6 +464,11 @@ export async function computeEventAudit(
     cc_fees: number;
     cc_fees_actual: number;
   };
+  const perRowTax = (gross: number) =>
+    tax_method_early === "divisor" && fees.tax_rate > 0
+      ? gross - gross / (1 + fees.tax_rate)
+      : gross * fees.tax_rate;
+  const tax_method_early: TaxMethod = fees.tax_method;
   const rows: TierAgg[] = [];
   let face_gross = 0;
   let billing_unit_count = 0;
@@ -740,11 +747,32 @@ export async function computeEventAudit(
       orders: t.orders,
       cc_fees: r2(t.cc_fees),
       cc_fees_actual: r2(t.cc_fees_actual),
+      unsold: Math.max(0, t.capacity - t.sold - t.comps),
+      tax: r2(perRowTax(t.gross)),
+      gross_receipts: r2(
+        t.gross +
+          t.ticketing_fee * t.sold +
+          t.facility_fee * t.sold +
+          (tax_method_early === "divisor" ? 0 : perRowTax(t.gross)) +
+          t.cc_fees
+      ),
+      total_price: t.sold > 0
+        ? r2(
+            (t.gross +
+              t.ticketing_fee * t.sold +
+              t.facility_fee * t.sold +
+              (tax_method_early === "divisor" ? 0 : perRowTax(t.gross)) +
+              t.cc_fees) / t.sold
+          )
+        : 0,
     }));
 
   return {
     audit,
     total_gross: r2(total_gross),
+    gbor: r2(
+      total_gross + (tax_method === "divisor" ? 0 : taxes) + cc_fees
+    ),
     face_gross: r2(artist_face),
     ticketing_fees: r2(ticketing_fees),
     facility_fees: r2(facility_fees),

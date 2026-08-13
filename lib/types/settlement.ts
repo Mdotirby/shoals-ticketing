@@ -35,6 +35,14 @@ export type TicketAuditRow = {
   cc_fees: number;
   /** What Stripe actually kept on this row's share of those orders. */
   cc_fees_actual: number;
+  /** Billing units that never sold — capacity − sold − comps. */
+  unsold: number;
+  /** Tax attributable to this row. */
+  tax: number;
+  /** GBOR for this row: face + service + facility + tax + card surcharge. */
+  gross_receipts: number;
+  /** All-in price of ONE unit in this row — what a single buyer paid. */
+  total_price: number;
 };
 
 export type OtherAncillaryItem = {
