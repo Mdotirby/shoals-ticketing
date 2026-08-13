@@ -11,6 +11,22 @@ body {
   overflow-x: hidden;
 }
 
+/* iOS Safari zooms the page in whenever a focused field renders under 16px,
+   and it never zooms back out — every page you visit afterwards is left
+   magnified and clipped on the right (html/body are overflow-x: hidden, so
+   there's nothing to scroll back to). 8d51e2e fixed the fields that existed
+   then one by one; this is the backstop so a new sub-16px field can't
+   reintroduce it. !important is required because most of these fields carry
+   inline styles. Checkbox/radio/range/color are excluded — some UAs derive
+   their box size from font-size. */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 :root {
   --background: var(--vc-bg);
   --foreground: #ffffff;
