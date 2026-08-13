@@ -479,14 +479,13 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setTextColor(0, 0, 0);
 
   // Same model as the offer builder and the settlement:
-  //   overage = net after expenses − guarantee
-  //   artist  = guarantee + (overage × backend%)
-  const overagePDF = netAfterExpensesPDF - guarantee;
-  const backendAmt =
-    dealType === "FLAT" || overagePDF <= 0 ? 0 : overagePDF * backendPct;
+  //   overage = (net after expenses × backend%) − guarantee
+  //   artist  = guarantee + overage, when positive
+  const overagePDF = netAfterExpensesPDF * backendPct - guarantee;
+  const backendAmt = dealType === "FLAT" || overagePDF <= 0 ? 0 : overagePDF;
   const artistTotal = guarantee + backendAmt;
   const backendLabel =
-    dealType === "FLAT" ? "" : `Backend (${dealType} — ${(backendPct * 100).toFixed(0)}% of overage)`;
+    dealType === "FLAT" ? "" : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
 
   y = lv("Guarantee", f2(guarantee), y);
   if (backendLabel) {

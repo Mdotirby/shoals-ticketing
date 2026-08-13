@@ -187,9 +187,10 @@ export default function AdminOfferDetailPage() {
     const backendPctDecimal = Number(form.backend_percentage || 0) / 100;
     const dealTypeNow = String(form.deal_type || "");
     const splitpoint = dealTypeNow === "FLAT" ? 0 : guaranteeNum;
-    const overage = netAfterExpenses - guaranteeNum;
+    // (pool × backend%) − guarantee, i.e. max(guarantee, pool × backend%).
+    const overage = netAfterExpenses * backendPctDecimal - guaranteeNum;
     const artistBackend =
-      dealTypeNow === "FLAT" || overage <= 0 ? 0 : overage * backendPctDecimal;
+      dealTypeNow === "FLAT" || overage <= 0 ? 0 : overage;
     const artistTotal = guaranteeNum + artistBackend;
     const potWalkout = netAfterExpenses - artistTotal;
 
@@ -692,8 +693,8 @@ export default function AdminOfferDetailPage() {
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {form.deal_type !== "FLAT" && (
               <>
-                <div className="offer-potential-row"><span>Overage (net after exp. − guarantee):</span><strong>${Math.max(live.overage, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row"><span>Backend ({String(form.deal_type)} — {Number(form.backend_percentage || 0)}% of overage):</span><strong>${live.artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row"><span>Overage ({Number(form.backend_percentage || 0)}% of net, less guarantee):</span><strong>${Math.max(live.overage, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row"><span>Artist Backend ({String(form.deal_type)}):</span><strong>${live.artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               </>
             )}
             <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${live.artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
@@ -1122,9 +1123,9 @@ export default function AdminOfferDetailPage() {
         const splitpoint = dealType === "FLAT" ? 0 : guarantee;
 
         // Backend is earned on the overage above the guarantee and added to it.
-        const overage = netAfterExpenses - guarantee;
-        const backendAmount =
-          dealType === "FLAT" || overage <= 0 ? 0 : overage * (backendPct / 100);
+        // (pool × backend%) − guarantee, matching the Details tab.
+        const overage = netAfterExpenses * (backendPct / 100) - guarantee;
+        const backendAmount = dealType === "FLAT" || overage <= 0 ? 0 : overage;
         const artistTotal = guarantee + backendAmount;
 
         // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in

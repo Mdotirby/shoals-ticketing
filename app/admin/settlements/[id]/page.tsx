@@ -1798,7 +1798,7 @@ export default function SettlementDetailPage() {
         {(dealType === "VS" || dealType === "PLUS") && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Artist Backend ({backendPctInput.toFixed(2)}% of overage)
+              Overage ({backendPctInput.toFixed(2)}% of net after expenses, less guarantee)
             </span>
             <span style={valStyle}>{fmt(artistBackend)}</span>
           </div>

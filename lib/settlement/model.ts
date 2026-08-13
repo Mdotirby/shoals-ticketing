@@ -17,9 +17,11 @@
  *
  *   net after exp.   net receipts − expenses. The pool.
  *
- *   overage          net after expenses − guarantee.
+ *   overage          (net after expenses × backend%) − guarantee.
  *
- *   artist total     guarantee + (overage × backend%), when overage > 0.
+ *   artist total     guarantee + overage, when the overage is positive —
+ *                    i.e. the better of the guarantee or the percentage,
+ *                    never both.
  *
  * ── Why tax only subtracts on divisor events ─────────────────────────────
  * Sales tax never belongs to the artist under either method — the difference
@@ -171,10 +173,21 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
     };
   }
 
-  // VS / PLUS / BONUS: promoter recoups expenses and the guarantee, then the
-  // artist earns their share of whatever is left.
-  const overage = netAfterExpenses - guarantee;
-  const artistBackend = overage > 0 ? overage * backendPct : 0;
+  // VS / PLUS / BONUS — a true "versus" deal:
+  //
+  //   overage = (net after expenses × backend%) − guarantee
+  //   artist  = guarantee + overage, when the overage is positive
+  //
+  // The percentage runs on the WHOLE pool, and the guarantee is then recouped
+  // out of the artist's own share. Equivalent to max(guarantee, pool × pct):
+  // the artist takes the better of the two, never both.
+  //
+  // Not (pool − guarantee) × pct, which applies the percentage only to what is
+  // left after the guarantee. That reads plausibly and is a different deal —
+  // on Drivin' N Cryin' (pool $3,000, guarantee $2,000, 70%) it pays $2,700
+  // instead of $2,100, handing the artist $600 that isn't theirs.
+  const overage = netAfterExpenses * backendPct - guarantee;
+  const artistBackend = overage > 0 ? overage : 0;
   return {
     netAfterExpenses,
     splitpoint: guarantee,

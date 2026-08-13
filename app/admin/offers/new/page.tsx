@@ -334,8 +334,8 @@ export default function AdminCreateOfferPage() {
   // guarantee + % of overage — two different amounts of money for one contract.
   //
   //   net after expenses = net potential − total expenses
-  //   overage            = net after expenses − guarantee
-  //   artist             = guarantee + (overage × backend%)
+  //   overage            = (net after expenses × backend%) − guarantee
+  //   artist             = guarantee + overage, when positive
   //
   // "Splitpoint" is the THRESHOLD the show must clear before backend is earned
   // — i.e. the guarantee — matching settlement terminology. The pool itself is
@@ -353,8 +353,10 @@ export default function AdminCreateOfferPage() {
     artistPAS = guaranteeNum;
   } else {
     splitpoint = guaranteeNum;
-    const overage = netAfterExpenses - guaranteeNum;
-    artistBackend = overage > 0 ? overage * backendNum : 0;
+    // Percentage runs on the whole pool; the guarantee is recouped out of the
+    // artist's own share. Equivalent to max(guarantee, pool × backend%).
+    const overage = netAfterExpenses * backendNum - guaranteeNum;
+    artistBackend = overage > 0 ? overage : 0;
     artistPAS = guaranteeNum + artistBackend;
     potWalkout = netAfterExpenses - artistPAS;
   }
@@ -752,7 +754,7 @@ export default function AdminCreateOfferPage() {
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (
-              <div className="offer-potential-row"><span>Backend ({dealType} — {backendPct || 0}% of overage):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Overage ({dealType} — {backendPct || 0}% of net, less guarantee):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
             <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>

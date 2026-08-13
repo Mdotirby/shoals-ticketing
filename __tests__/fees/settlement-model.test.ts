@@ -61,21 +61,33 @@ describe("settlementWaterfall", () => {
 describe("artistPayout", () => {
   const base = { netReceipts: 20000, totalExpenses: 12000, backendPct: 0.85 };
 
-  it("VS pays guarantee plus a share of the overage", () => {
-    // net after expenses 8000, guarantee 5000 → overage 3000 → 85% = 2550
+  it("VS runs the percentage on the whole pool, then recoups the guarantee", () => {
+    // pool 8000 × 85% = 6800, less the 5000 guarantee → overage 1800
     const p = artistPayout({ ...base, guarantee: 5000, dealType: "VS" });
     expect(p.netAfterExpenses).toBe(8000);
-    expect(p.overage).toBe(3000);
-    expect(p.artistBackend).toBe(2550);
-    expect(p.artistTotal).toBe(7550);
+    expect(p.overage).toBeCloseTo(1800, 6);
+    expect(p.artistBackend).toBeCloseTo(1800, 6);
+    expect(p.artistTotal).toBeCloseTo(6800, 6);
   });
 
-  it("VS is NOT the greater of guarantee or a percentage of net", () => {
-    // The offer builder used max(guarantee, pool × backend%), which on these
-    // numbers pays 6800 — a different deal for the same contract.
+  it("VS is the greater of the guarantee or the percentage, never both", () => {
     const p = artistPayout({ ...base, guarantee: 5000, dealType: "VS" });
-    const oldOfferModel = Math.max(5000, 8000 * 0.85);
-    expect(p.artistTotal).not.toBeCloseTo(oldOfferModel, 2);
+    expect(p.artistTotal).toBeCloseTo(Math.max(5000, 8000 * 0.85), 6);
+  });
+
+  it("does NOT apply the percentage to the pool net of the guarantee", () => {
+    // (pool − guarantee) × pct reads plausibly and is a different deal. On the
+    // real Drivin' N Cryin' settlement it pays 2700 instead of 2100.
+    const dnc = {
+      netReceipts: 5140, totalExpenses: 2140,
+      guarantee: 2000, backendPct: 0.7, dealType: "VS",
+    };
+    const p = artistPayout(dnc);
+    expect(p.netAfterExpenses).toBe(3000);
+    expect(p.overage).toBeCloseTo(100, 6);
+    expect(p.artistTotal).toBeCloseTo(2100, 6);
+    // the wrong model:
+    expect(2000 + (3000 - 2000) * 0.7).toBe(2700);
   });
 
   it("PLUS computes identically to VS", () => {
@@ -84,7 +96,8 @@ describe("artistPayout", () => {
     expect(plus.artistTotal).toBe(vs.artistTotal);
   });
 
-  it("pays no backend when the show doesn't clear the guarantee", () => {
+  it("pays the guarantee when the percentage doesn't beat it", () => {
+    // pool 2000 × 85% = 1700, below the 5000 guarantee → no overage
     const p = artistPayout({
       netReceipts: 10000,
       totalExpenses: 8000,
