@@ -502,6 +502,80 @@ export async function computeEventAudit(
     tickets_sold_count = ticketList.filter(
       (t) => !isCompOrder(t.order_id ? orderById[t.order_id] : undefined)
     ).length;
+
+    // ── Paid orders with no seats attached ──────────────────────────────
+    // A seated event prices from the seat map, so an order that never got
+    // seats assigned contributes nothing to face value — while still sitting
+    // in stripe_gross. It would read as pure variance and short the artist.
+    //
+    // The box office / Terminal flow is exactly this case: it sells by tier and
+    // quantity with no seat picker, so a sale taken on the card reader at the
+    // door has no seats to price from. Rather than lose it, fall back to tier
+    // pricing for those orders only, and fold them into the matching tier row.
+    const seatedOrderIds = new Set(seatBasis.unitsByOrderSection.keys());
+    const orphanOrderIds = payingOrderIds.filter((id) => !seatedOrderIds.has(id));
+
+    for (const orderId of orphanOrderIds) {
+      const order = orderById[orderId];
+      const orderTickets = ticketList.filter((t) => t.order_id === orderId);
+      const units = orderTickets.length || num(order?.quantity) || 1;
+
+      // Price from the ticket's tier where we can.
+      const tier = orderTickets[0]?.ticket_type_id
+        ? tierById[orderTickets[0].ticket_type_id!]
+        : undefined;
+
+      let unitPrice: number;
+      if (tier) {
+        unitPrice = num(tier.price);
+      } else {
+        // No tier to price from — back face out of what was charged rather
+        // than using the total as-is. The total carries the service fee,
+        // facility fee, sales tax and the card surcharge on top of face, so
+        // treating it as face would inflate the artist's split base by all of
+        // them at once.
+        const total = Math.max(0, num(order?.total_amount));
+        const method = order?.source === "terminal" ? "terminal" : "online";
+        const surcharge = fees.fees_included_in_price
+          ? 0
+          : surchargeCents(Math.round(total * 100), undefined, method) / 100;
+        const afterCard = total - surcharge;
+        const afterFees =
+          afterCard - (fees.ticketing_fee + fees.facility_fee) * units;
+        // Additive tax sits on top of face; divisor tax is already inside it.
+        const face =
+          fees.tax_method === "divisor"
+            ? afterFees
+            : afterFees / (1 + fees.tax_rate);
+        unitPrice = Math.max(0, face) / Math.max(1, units);
+      }
+
+      const rowName = tier?.tier_name ?? "Door / Box Office";
+      let row = rows.find((r) => r.tier === rowName);
+      if (!row) {
+        row = {
+          tier: rowName,
+          capacity: 0,
+          sold: 0,
+          comps: 0,
+          kills: 0,
+          price: unitPrice,
+          ticketing_fee: fees.ticketing_fee,
+          facility_fee: fees.facility_fee,
+          gross: 0,
+          sort_order: 9998,
+          orders: 0,
+          cc_fees: 0,
+          cc_fees_actual: 0,
+        };
+        rows.push(row);
+      }
+      row.sold += units;
+      row.orders += 1;
+      row.gross += units * unitPrice;
+      face_gross += units * unitPrice;
+      billing_unit_count += units;
+    }
   } else {
     const tierMap: Record<string, TierAgg> = {};
     for (const t of tierList) {
@@ -667,7 +741,26 @@ export async function computeEventAudit(
 
   const rowByName = new Map(rows.map((r) => [r.tier, r]));
   if (seatBasis && stripe_gross > 0) {
-    for (const [orderId, perSection] of seatBasis.unitsByOrderSection) {
+    // Orders that never got seats (door / Terminal sales) aren't in
+    // unitsByOrderSection, so synthesise a single-section entry for each from
+    // the row they were folded into above. Without this their card fees would
+    // go unallocated and the row would under-report what buyers paid.
+    const allocation = new Map(seatBasis.unitsByOrderSection);
+    const seatedIds = new Set(seatBasis.unitsByOrderSection.keys());
+    for (const orderId of payingOrderIds) {
+      if (seatedIds.has(orderId)) continue;
+      const orderTickets = ticketList.filter((t) => t.order_id === orderId);
+      const units = orderTickets.length || num(orderById[orderId]?.quantity) || 1;
+      const tier = orderTickets[0]?.ticket_type_id
+        ? tierById[orderTickets[0].ticket_type_id!]
+        : undefined;
+      const rowName = tier?.tier_name ?? "Door / Box Office";
+      if (rowByName.has(rowName)) {
+        allocation.set(orderId, new Map([[rowName, units]]));
+      }
+    }
+
+    for (const [orderId, perSection] of allocation) {
       if (!orderById[orderId]) continue;
       const orderTotal = num(orderById[orderId]?.total_amount);
       const orderActual = actualByOrder.get(orderId) ?? 0;

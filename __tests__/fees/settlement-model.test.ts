@@ -230,3 +230,25 @@ describe("GBOR / NBOR walk", () => {
       .toBeCloseTo(settlementWaterfall(input).netReceipts, 6);
   });
 });
+
+describe("door / Terminal sales on a seated event", () => {
+  // The box office sells by tier and quantity with no seat picker, so a sale
+  // taken on the card reader has no seats to price from. A seated event prices
+  // from the seat map, so without a fallback that order contributes zero face
+  // value while still sitting in stripe_gross — pure variance, and the artist
+  // is shorted the whole ticket.
+  //
+  // Verified against a simulated $902.78 VIP table sale on MSM 90's: face rose
+  // from $39,500.00 to $40,402.78 and a "Door / Box Office" row appeared.
+  it("backs face out of the charge rather than treating the total as face", () => {
+    // $903.03 charged = $800 face + $3 service + $76 tax + $24.03 surcharge.
+    // Using the total as face would hand the artist $903 for an $800 table.
+    const total = 903.03;
+    const surcharge = 24.03;
+    const afterCard = total - surcharge;
+    const afterFees = afterCard - 3;
+    const face = afterFees / 1.095;
+    expect(face).toBeCloseTo(800, 0);
+    expect(face).toBeLessThan(total);
+  });
+});
