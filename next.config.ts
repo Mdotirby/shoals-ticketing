@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
   // tracing won't know to bundle non-code assets into the function.
   outputFileTracingIncludes: {
     "/api/settlements/[id]/export-pdf": ["./lib/pdf-templates/settlement-report/**"],
+    // export-xlsx reads template.xlsx + manifest.json from disk at runtime,
+    // same reason as export-pdf above.
+    "/api/settlements/[id]/export-xlsx": ["./lib/xlsx-templates/artist-settlement/**"],
+    "/api/settlements/[id]/export-venue-xlsx": ["./lib/xlsx-templates/venue-settlement/**"],
+    "/api/offers/[id]/export-xlsx": ["./lib/xlsx-templates/offer/**"],
   },
   async rewrites() {
     return [
