@@ -155,20 +155,20 @@ export function estimatedStripeCostCents(
 }
 
 /**
- * Average tickets per order, used ONLY to amortise the flat per-transaction fee
- * across tickets when projecting a sellout in the offer builder. A projection
- * has no orders yet, so the $0.30 has to be spread over an assumed basket size.
+ * Per-ticket card surcharge for offer projections: the full flat fee applied
+ * PER TICKET, not amortised across an assumed order size.
  *
- * Derived from order history on 2026-08-12: 1,675 tickets across 752 paid
- * orders ≈ 2.2. Rounded down to 2 so the offer errs toward over-stating cost
- * rather than promising an artist money that processing will eat.
- */
-export const OFFER_AVG_TICKETS_PER_ORDER = 2;
-
-/**
- * Per-ticket card surcharge for offer projections, with the flat fee amortised
- * over OFFER_AVG_TICKETS_PER_ORDER. Returns dollars, not cents — the offer
- * builder works in dollars throughout.
+ * The offer builder is the only place in the app that prices the card fee
+ * per ticket at all — settlements and checkout always allocate it per real
+ * order, because by settlement time the actual order composition is known.
+ * An earlier version of this function tried to approximate that per-order
+ * behavior for offers too, by dividing the flat fee across an assumed
+ * average basket size (OFFER_AVG_TICKETS_PER_ORDER = 2). That doesn't match
+ * how Matt's own offer-template spreadsheet prices it (full $0.30 per
+ * ticket, same as every other per-ticket line item — Matt confirmed this
+ * directly against the source design, see doc-templates-xlsx/), and it
+ * quietly split every generated document's numbers from that spreadsheet's
+ * math. Simple and matches the source of truth: full flat fee, per ticket.
  */
 export function offerSurchargePerTicket(preCcDollars: number): number {
   if (preCcDollars <= 0) return 0;
@@ -177,8 +177,7 @@ export function offerSurchargePerTicket(preCcDollars: number): number {
   // quoting an agent the legacy rate would understate processing cost on a
   // show that will certainly be sold at the new one.
   const pct = STRIPE_ONLINE_PCT;
-  const cents =
-    preCcDollars * 100 * pct + STRIPE_ONLINE_FLAT_CENTS / OFFER_AVG_TICKETS_PER_ORDER;
+  const cents = preCcDollars * 100 * pct + STRIPE_ONLINE_FLAT_CENTS;
   return Math.round(cents) / 100;
 }
 

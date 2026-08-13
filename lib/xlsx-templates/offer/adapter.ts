@@ -1,4 +1,5 @@
 import type { ArtistOffer } from "@/lib/types/offer";
+import { offerSurchargePerTicket } from "@/lib/fees/rates";
 
 /**
  * ArtistOffer -> the flat field map offer/manifest.json's cells expect.
@@ -20,9 +21,13 @@ import type { ArtistOffer } from "@/lib/types/offer";
  *     -- not a raw sum (which the sheet used inconsistently across its own
  *     copies of this template).
  *
- * CC fee model (2.9% + $0.30/tier, no per-order component since there's no
- * real order data pre-sale) matches the source sheet's own assumption --
- * ArtistOffer has no per-offer field to bind a different rate to instead.
+ * CC fee: computed via lib/fees/rates.ts's offerSurchargePerTicket() -- the
+ * SAME function the live offer builder pages call, so this can never drift
+ * out of sync with what Matt sees while creating the offer again. That
+ * function prices the full flat fee per ticket (matches the source
+ * spreadsheet's own assumption -- confirmed with Matt after an earlier
+ * version amortised the flat fee across an assumed order size, which
+ * understated it here to match a since-corrected bug in the live page).
  */
 export type OfferData = {
   artist_name: string;
@@ -113,9 +118,6 @@ export type OfferData = {
   cover_band_expenses_tickets: number;
 };
 
-const CC_RATE = 0.029;
-const CC_FLAT = 0.3;
-
 export function buildOfferData(offer: ArtistOffer): OfferData {
   const rows = offer.ticket_scaling || [];
   const taxRate = offer.tax_rate || 0;
@@ -127,12 +129,19 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     const comps = r.comps || 0;
     const kills = r.kills || 0;
     const sellable = r.sellable_cap ?? Math.max(0, capacity - comps - kills);
-    const price = r.price || 0;
+    // r.price is a DERIVED field the offer builder computes as net_price +
+    // facility_fee + ticketing_fee (its "Sub." column) -- using it here as
+    // the base "price" double-counts facility/ticketing fees (once inside
+    // r.price, once again added separately below) and cascades into
+    // inflated tax and CC too, since both are computed off this base.
+    // r.net_price is the true base -- what the source spreadsheet's own
+    // PRICE column means, and what fees/tax/cc get added ON TOP of.
+    const price = r.net_price || 0;
     const svc = r.ticketing_fee || 0;
     const fac = r.facility_fee || 0;
     const tax =
       taxMethod === "divisor" && taxRate > 0 ? price - price / (1 + taxRate) : price * taxRate;
-    const cc = (price + svc + fac + tax) * CC_RATE + CC_FLAT;
+    const cc = offerSurchargePerTicket(price + svc + fac + tax);
     const allin_price = price + svc + fac + tax + cc;
     const gross = allin_price * sellable;
 
@@ -149,7 +158,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
 
     return { tier: r.name, capacity, comps, kills, sellable, price, svc, fac, tax, cc, allin_price, gross };
   });
-  const avgPrice = rows.length > 0 ? rows.reduce((s, r) => s + (r.price || 0), 0) / rows.length : 0;
+  const avgPrice = rows.length > 0 ? rows.reduce((s, r) => s + (r.net_price || 0), 0) / rows.length : 0;
 
   // Multi-tier-correct fee aggregation (confirmed fix -- source sheet only
   // used tier 1 for these).

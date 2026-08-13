@@ -82,15 +82,19 @@ describe("surchargeCents", () => {
 
 describe("offerSurchargePerTicket", () => {
   it("always quotes the corrected rate, since offers are for future shows", () => {
-    // 2.9% of $100 plus half the $0.30 flat fee = $3.05
-    expect(offerSurchargePerTicket(100)).toBeCloseTo(3.05, 2);
+    // 2.9% of $100 plus the full $0.30 flat fee = $3.20
+    expect(offerSurchargePerTicket(100)).toBeCloseTo(3.2, 2);
   });
 
-  it("includes the flat fee, amortised — not just the percentage", () => {
+  it("includes the full flat fee per ticket, not just the percentage", () => {
     // The offer builder used to model a bare 2.7% with no flat fee at all,
-    // which understates processing cost badly on cheap inventory.
+    // which understates processing cost badly on cheap inventory. It later
+    // amortised the flat fee across an assumed 2-ticket order, which
+    // understated it again relative to Matt's source spreadsheet -- the
+    // offer builder prices per ticket throughout, full flat fee included.
     const perTicket = offerSurchargePerTicket(25);
     expect(perTicket).toBeGreaterThan(25 * STRIPE_ONLINE_PCT);
+    expect(perTicket).toBeCloseTo(25 * STRIPE_ONLINE_PCT + 0.3, 2);
   });
 
   it("costs proportionally more on a cheap ticket than an expensive one", () => {
