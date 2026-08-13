@@ -276,6 +276,10 @@ export default function SettlementDetailPage() {
     taxMethod: effectiveTaxMethod,
   });
 
+  // What Stripe actually kept, summed from the per-row audit figures. Distinct
+  // from effectiveCcFees, which is what buyers were surcharged.
+  const ccActual = ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0);
+
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
 
   // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
@@ -1037,7 +1041,24 @@ export default function SettlementDetailPage() {
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Svc Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Fac Fee</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Tax</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>CC Fee</th>
+              <th
+                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
+                title="Distinct paying orders that bought into this row. Card fees are charged per ORDER, not per ticket — a buyer taking two seats pays one $0.30, not two."
+              >
+                Orders
+              </th>
+              <th
+                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
+                title="Card surcharge these buyers actually paid, allocated from each real order by this row's share of that order's subtotal."
+              >
+                CC Paid
+              </th>
+              <th
+                style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}
+                title="What Stripe actually kept on this row's share of those orders (2.9% + $0.30 per charge)."
+              >
+                CC Stripe
+              </th>
               <th
                 style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
                 title="Price × sold + service + facility + tax + CC = everything the buyer paid. This is a larger number than Gross Receipts in the Financial Summary below, which is the ticket side only (face + service + facility)."
@@ -1055,9 +1076,12 @@ export default function SettlementDetailPage() {
                 effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
                   ? row.gross - row.gross / (1 + effectiveTaxRate)
                   : row.gross * effectiveTaxRate;
-              const totalSold = auditTotals.sold || 1;
-              const tierCcShare = effectiveCcFees * (row.sold / totalSold);
-              // Gross Receipts for this tier = price × sold + fees + tax + cc share
+              // Card fees are charged per ORDER, so they are allocated from
+              // real orders by subtotal share — not split by ticket count,
+              // which over-charged rows of single-seat buyers and
+              // under-charged rows of multi-seat buyers.
+              const tierCcShare = row.cc_fees ?? 0;
+              const tierCcActual = row.cc_fees_actual ?? 0;
               const tierGrossReceipts =
                 row.gross + svcFeeTotal + facFeeTotal + tierTax + tierCcShare;
               return (
@@ -1081,11 +1105,13 @@ export default function SettlementDetailPage() {
                     {fmt(facFeeTotal)}
                   </td>
                   <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{row.orders ?? 0}</td>
+                  <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierCcShare)}</td>
                   <td
-                    style={{ padding: "6px", textAlign: "right" }}
-                    title="Processing fees apportioned by tier sold count"
+                    style={{ padding: "6px", textAlign: "right", opacity: 0.7 }}
+                    title={`Platform absorbed ${fmt(tierCcShare - tierCcActual)} on this row`}
                   >
-                    {fmt(tierCcShare)}
+                    {fmt(tierCcActual)}
                   </td>
                   <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
                     {fmt(tierGrossReceipts)}
@@ -1095,7 +1121,7 @@ export default function SettlementDetailPage() {
             })}
             {ticketAudit.length === 0 && (
               <tr>
-                <td colSpan={11} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={13} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -1117,7 +1143,13 @@ export default function SettlementDetailPage() {
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveTicketingFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveFacilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>
+                  {ticketAudit.reduce((s, r) => s + (r.orders ?? 0), 0)}
+                </td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, opacity: 0.7 }}>
+                  {fmt(ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0))}
+                </td>
                 {/* Must be totalCustomerPaid, not grossReceipts: the per-tier
                     column above includes tax and the card fee, so totalling
                     with the ticket-side-only figure left the rows not summing
@@ -1240,9 +1272,30 @@ export default function SettlementDetailPage() {
              and computeEventAudit has already carved it out of face value. */
           <div style={rowStyle}>
             <span style={{ ...labelStyle, paddingLeft: 12, opacity: 0.6 }}>
-              CC / Processing (buyer-funded, paid to Stripe)
+              CC collected from buyers
             </span>
             <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(effectiveCcFees)}</span>
+          </div>
+        )}
+        {ccActual > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12, opacity: 0.6 }}>
+              CC Stripe actually kept
+            </span>
+            <span style={{ ...valStyle, opacity: 0.6 }}>{fmt(ccActual)}</span>
+          </div>
+        )}
+        {ccActual > 0 && Math.abs(effectiveCcFees - ccActual) >= 0.01 && (
+          /* The gap the platform absorbs. Charging a percentage of the SUBTOTAL
+             can never recover Stripe's cut of the grossed-up TOTAL — switching
+             surcharge_mode to "gross_up" in the rate card drives this to ~$0. */
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12, color: "#ff9a9a", fontWeight: 700 }}>
+              Card-fee shortfall absorbed by platform
+            </span>
+            <span style={{ ...valStyle, color: "#ff9a9a", fontWeight: 700 }}>
+              {fmt(effectiveCcFees - ccActual)}
+            </span>
           </div>
         )}
 

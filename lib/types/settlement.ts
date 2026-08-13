@@ -18,6 +18,23 @@ export type TicketAuditRow = {
   facility_fee: number;  // facility fee per ticket on this tier
   /** Sum of subtotal (face value) collected from paying tickets in this tier. */
   gross: number;
+  /**
+   * Distinct paying orders that bought into this row. Card fees are charged
+   * per ORDER, not per ticket — a buyer taking two seats pays one $0.30, not
+   * two — so this is what makes the cc_fees figure below legible.
+   */
+  orders: number;
+  /**
+   * Card surcharge actually paid by buyers in this row, allocated from each
+   * real order by that row's share of the order's subtotal.
+   *
+   * This used to be the event total split by ticket count, which systematically
+   * over-charged rows of single-seat buyers and under-charged rows of
+   * multi-seat buyers — the flat per-transaction fee doesn't scale with seats.
+   */
+  cc_fees: number;
+  /** What Stripe actually kept on this row's share of those orders. */
+  cc_fees_actual: number;
 };
 
 export type OtherAncillaryItem = {

@@ -141,11 +141,16 @@ export function surchargeCents(
  */
 export function estimatedStripeCostCents(
   totalCents: number,
-  method: CaptureMethod = "online",
-  at: Date = new Date()
+  method: CaptureMethod = "online"
 ): number {
   if (totalCents <= 0) return 0;
-  const { pct, flatCents } = ratesFor(method, at);
+  // Deliberately NOT cutover-aware. The cutover governs what WE bill the
+  // buyer; Stripe charges its published rate regardless. Gating this on the
+  // cutover made the settlement estimate Stripe's cost at 2.7% while Stripe
+  // was really taking 2.9%, understating the shortfall the platform absorbs.
+  const pct = method === "terminal" ? STRIPE_TERMINAL_PCT : STRIPE_ONLINE_PCT;
+  const flatCents =
+    method === "terminal" ? STRIPE_TERMINAL_FLAT_CENTS : STRIPE_ONLINE_FLAT_CENTS;
   return Math.round(totalCents * pct + flatCents);
 }
 

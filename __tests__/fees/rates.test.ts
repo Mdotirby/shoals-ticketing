@@ -44,11 +44,17 @@ describe("surchargeCents", () => {
     expect(surchargeCents(10000, "on_subtotal", "online", AFTER)).toBe(320);
   });
 
+  it("models Stripe's real cost regardless of our own cutover", () => {
+    // The cutover governs what WE bill the buyer. Stripe charges its published
+    // rate either way, so the cost estimate must not be gated on it.
+    expect(estimatedStripeCostCents(10000)).toBe(Math.round(10000 * 0.029 + 30));
+  });
+
   it("gross_up recovers the fee Stripe actually takes", () => {
     const subtotal = 10000;
     const surcharge = surchargeCents(subtotal, "gross_up", "online", AFTER);
     const total = subtotal + surcharge;
-    const stripeTakes = estimatedStripeCostCents(total, "online", AFTER);
+    const stripeTakes = estimatedStripeCostCents(total, "online");
     // The venue should be left whole (within a cent of rounding).
     expect(Math.abs(total - stripeTakes - subtotal)).toBeLessThanOrEqual(1);
   });
@@ -56,7 +62,7 @@ describe("surchargeCents", () => {
   it("on_subtotal always under-recovers — this is why gross_up exists", () => {
     const subtotal = 10000;
     const total = subtotal + surchargeCents(subtotal, "on_subtotal");
-    const shortfall = estimatedStripeCostCents(total, "online", AFTER) - (total - subtotal);
+    const shortfall = estimatedStripeCostCents(total, "online") - (total - subtotal);
     expect(shortfall).toBeGreaterThan(0);
   });
 

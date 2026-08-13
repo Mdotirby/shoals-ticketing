@@ -32,9 +32,17 @@
  * − tax`, explicitly so the page always tied to Stripe. In practice that
  * guaranteed the opposite: every upstream error silently landed in the card
  * fee line, and when the residual went negative the code fell through to a
- * formula and stopped tying to Stripe at all. Now cc_fees is summed from real
- * per-order `settlement_ledger.stripe_fee`, and anything that still doesn't
- * reconcile is reported as `reconciliation_variance` where it can be seen.
+ * formula and stopped tying to Stripe at all.
+ *
+ * Now three separate numbers are reported instead of one:
+ *   cc_fees        — the surcharge BUYERS paid (gross less the rebuilt subtotal)
+ *   cc_fees_actual — what STRIPE kept (balance transaction, or published rate)
+ *   cc_variance    — the difference, i.e. what the platform absorbed
+ *
+ * And `reconciliation_variance` compares Stripe's gross against what our own
+ * pricing model says it should have been — an independent check, rather than
+ * gross-minus-everything-else, which reconciles to zero however wrong the
+ * inputs are.
  *
  * Data sources:
  *   • orders            — paid / comp / free purchases
@@ -52,7 +60,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TicketAuditRow, TaxMethod } from "@/lib/types/settlement";
-import { estimatedStripeCostCents } from "@/lib/fees/rates";
+import { estimatedStripeCostCents, surchargeCents } from "@/lib/fees/rates";
 
 export type AuditTotals = {
   audit: TicketAuditRow[];
@@ -63,16 +71,25 @@ export type AuditTotals = {
   ticketing_fees: number;       // ticketing_fee × billing units
   facility_fees: number;        // facility_fee × billing units
   taxes: number;                // multiplier: face × rate. divisor: backed out of face.
-  /** Real card fees, summed from settlement_ledger (not a residual plug). */
+  /** Card surcharge the BUYERS paid — derived as gross minus the subtotal. */
   cc_fees: number;
+  /** What Stripe actually kept, from balance transactions where recorded. */
+  cc_fees_actual: number;
+  /**
+   * cc_fees − cc_fees_actual. Negative means the platform absorbed the
+   * difference: charging a percentage of the SUBTOTAL can never recover
+   * Stripe's cut of the grossed-up TOTAL. Flip surcharge_mode to "gross_up"
+   * in the rate card to drive this to ~zero.
+   */
+  cc_variance: number;
   /** Where cc_fees came from, so the UI can flag incomplete ledger coverage. */
   cc_fees_source: "ledger" | "estimated" | "mixed";
   /** Σ orders.total_amount for paying orders — what Stripe actually collected. */
   stripe_gross: number;
   /**
-   * stripe_gross − (face + svc + fac + tax + cc). Should be ~$0. Anything else
-   * is a real discrepancy (promo discounts, mis-tagged seats, missing ledger
-   * rows) and is surfaced rather than absorbed into the card-fee line.
+   * stripe_gross − (rebuilt subtotal + the surcharge our rate card says we
+   * should have charged). Should be ~$0. Anything else is a real discrepancy
+   * — promo discounts, mis-priced seats, orders that bypassed the fee math.
    */
   reconciliation_variance: number;
   tickets_sold_count: number;   // paying admissions
@@ -116,9 +133,11 @@ type TierRow = {
 
 type LedgerRow = {
   order_id: string | null;
-  ticketing_fee: number | string | null;
-  tax_collected: number | string | null;
+  ticketing_fee?: number | string | null;
+  tax_collected?: number | string | null;
   stripe_fee: number | string | null;
+  /** What Stripe actually deducted, from the charge's balance transaction. */
+  stripe_fee_actual?: number | string | null;
   type: string | null;
 };
 
@@ -208,9 +227,17 @@ type SeatBasis = {
     capacityUnits: number;   // sellable billing units in this section
     soldUnits: number;       // billing units actually sold
     unitPrice: number;       // dollars per billing unit
+    /** Distinct paying orders that bought into this section. */
+    orders: number;
   }>;
   billingUnits: number;
   faceGross: number;
+  /**
+   * Billing units per (order, section), so the caller can split each order's
+   * REAL card surcharge across the sections it touched. Card fees are charged
+   * per order, so they can't be apportioned by ticket count.
+   */
+  unitsByOrderSection: Map<string, Map<string, number>>;
 };
 
 /**
@@ -270,7 +297,19 @@ async function seatBasisForEvent(
         : s.status,
   }));
 
-  const out: SeatBasis = { rows: [], billingUnits: 0, faceGross: 0 };
+  const out: SeatBasis = {
+    rows: [],
+    billingUnits: 0,
+    faceGross: 0,
+    unitsByOrderSection: new Map(),
+  };
+
+  const bump = (orderId: string, secName: string) => {
+    const perSection =
+      out.unitsByOrderSection.get(orderId) ?? new Map<string, number>();
+    perSection.set(secName, (perSection.get(secName) ?? 0) + 1);
+    out.unitsByOrderSection.set(orderId, perSection);
+  };
 
   for (const sec of sectionRows) {
     const isTable = !!sec.sells_as_table || sec.type === "table";
@@ -278,6 +317,7 @@ async function seatBasisForEvent(
     if (secSeats.length === 0) continue;
 
     const unitPrice = num(sec.price_cents) / 100;
+    const ordersHere = new Set<string>();
     let capacityUnits: number;
     let soldUnits: number;
 
@@ -286,21 +326,37 @@ async function seatBasisForEvent(
       const allObjects = new Set(
         secSeats.map((s) => s.object_id).filter(Boolean) as string[]
       );
-      const soldObjects = new Set(
-        secSeats
-          .filter((s) => s.status === "sold")
-          .map((s) => s.object_id)
-          .filter(Boolean) as string[]
-      );
+      const soldObjects = new Map<string, string | null>(); // objectId → orderId
+      for (const s of secSeats) {
+        if (s.status !== "sold" || !s.object_id) continue;
+        if (!soldObjects.has(s.object_id)) soldObjects.set(s.object_id, s.order_id);
+      }
       capacityUnits = allObjects.size;
       soldUnits = soldObjects.size;
+      for (const orderId of soldObjects.values()) {
+        if (!orderId) continue;
+        ordersHere.add(orderId);
+        bump(orderId, sec.name);
+      }
     } else {
       capacityUnits = secSeats.length;
-      soldUnits = secSeats.filter((s) => s.status === "sold").length;
+      const sold = secSeats.filter((s) => s.status === "sold");
+      soldUnits = sold.length;
+      for (const s of sold) {
+        if (!s.order_id) continue;
+        ordersHere.add(s.order_id);
+        bump(s.order_id, sec.name);
+      }
     }
 
     if (capacityUnits === 0) continue;
-    out.rows.push({ name: sec.name, capacityUnits, soldUnits, unitPrice });
+    out.rows.push({
+      name: sec.name,
+      capacityUnits,
+      soldUnits,
+      unitPrice,
+      orders: ordersHere.size,
+    });
     out.billingUnits += soldUnits;
     out.faceGross += soldUnits * unitPrice;
   }
@@ -402,6 +458,9 @@ export async function computeEventAudit(
     facility_fee: number;
     gross: number;
     sort_order: number;
+    orders: number;
+    cc_fees: number;
+    cc_fees_actual: number;
   };
   const rows: TierAgg[] = [];
   let face_gross = 0;
@@ -425,6 +484,9 @@ export async function computeEventAudit(
         facility_fee: fees.facility_fee,
         gross: s.soldUnits * s.unitPrice,
         sort_order: i,
+        orders: s.orders,
+        cc_fees: 0,        // filled in per-order below
+        cc_fees_actual: 0,
       });
     }
     face_gross = seatBasis.faceGross;
@@ -447,6 +509,9 @@ export async function computeEventAudit(
         facility_fee: fees.facility_fee,
         gross: 0,
         sort_order: num(t.sort_order),
+        orders: 0,
+        cc_fees: 0,
+        cc_fees_actual: 0,
       };
     }
     const fallbackTierId = tierList[0]?.id ?? "__unassigned__";
@@ -462,6 +527,9 @@ export async function computeEventAudit(
         facility_fee: fees.facility_fee,
         gross: 0,
         sort_order: 9999,
+        orders: 0,
+        cc_fees: 0,
+        cc_fees_actual: 0,
       };
     }
 
@@ -490,39 +558,45 @@ export async function computeEventAudit(
     tickets_sold_count = rows.reduce((s, r) => s + r.sold, 0);
   }
 
-  // ── 5. Card fees — measured, not plugged ─────────────────────────────────
-  let cc_fees = 0;
-  let ledgerCovered = 0;
+  // ── 5. What Stripe actually kept ─────────────────────────────────────────
+  // Independent of anything we charged: prefer the recorded balance-transaction
+  // fee, fall back to the published rate for the capture method.
+  const ledgerByOrder = new Map<string, LedgerRow>();
   if (payingOrderIds.length > 0) {
     const { data: ledger } = await admin
       .from("settlement_ledger")
-      .select("order_id, stripe_fee, type")
+      .select("order_id, stripe_fee, stripe_fee_actual, type")
       .eq("event_id", eventId)
       .eq("type", "sale");
-    const feeByOrder = new Map<string, number>();
     for (const l of (ledger ?? []) as LedgerRow[]) {
-      if (l.order_id) feeByOrder.set(l.order_id, num(l.stripe_fee));
-    }
-    for (const id of payingOrderIds) {
-      const recorded = feeByOrder.get(id);
-      if (recorded != null) {
-        cc_fees += recorded;
-        ledgerCovered += 1;
-      } else {
-        // No ledger row (5 such orders exist in production). Estimate so the
-        // total isn't silently short, and mark the source as degraded.
-        cc_fees +=
-          estimatedStripeCostCents(Math.round(num(orderById[id]?.total_amount) * 100)) / 100;
-      }
+      if (l.order_id) ledgerByOrder.set(l.order_id, l);
     }
   }
+
+  const actualByOrder = new Map<string, number>();
+  let ledgerCovered = 0;
+  for (const id of payingOrderIds) {
+    const row = ledgerByOrder.get(id);
+    const recorded = row?.stripe_fee_actual;
+    if (recorded != null && num(recorded) > 0) {
+      actualByOrder.set(id, num(recorded));
+      ledgerCovered += 1;
+    } else {
+      const total = num(orderById[id]?.total_amount);
+      const method = orderById[id]?.source === "terminal" ? "terminal" : "online";
+      actualByOrder.set(
+        id,
+        estimatedStripeCostCents(Math.round(total * 100), method) / 100
+      );
+    }
+  }
+  const cc_fees_actual = [...actualByOrder.values()].reduce((s, v) => s + v, 0);
   const cc_fees_source: AuditTotals["cc_fees_source"] =
     payingOrderIds.length === 0 || ledgerCovered === payingOrderIds.length
       ? "ledger"
       : ledgerCovered === 0
         ? "estimated"
         : "mixed";
-
 
   // ── 6. Fees + tax ────────────────────────────────────────────────────────
   // Both fees are charged per BILLING UNIT (calculateFees multiplies by
@@ -543,7 +617,8 @@ export async function computeEventAudit(
     // out with the divisor method no matter how the venue is configured,
     // because it is by definition already inside the number.
     total_gross = face_gross;
-    const afterFees = face_gross - ticketing_fees - facility_fees - cc_fees;
+    const afterFees =
+      face_gross - ticketing_fees - facility_fees - cc_fees_actual;
     taxes =
       fees.tax_rate > 0 ? afterFees - afterFees / (1 + fees.tax_rate) : 0;
     artist_face = afterFees - taxes;
@@ -561,12 +636,93 @@ export async function computeEventAudit(
         : artist_face * fees.tax_rate;
   }
 
-  // ── 7. Reconciliation ────────────────────────────────────────────────────
+  // ── 7. Card surcharge the BUYER paid ─────────────────────────────────────
+  // Everything Stripe collected, less everything that isn't the surcharge.
+  // Deliberately derived rather than summed from the ledger: the ledger's
+  // stripe_fee was written by older code against the wrong base and is stale
+  // until backfilled, whereas the subtotal above is reconstructed from the
+  // seat map and the fee config in force.
+  const subtotalCollected =
+    artist_face + ticketing_fees + facility_fees + taxes;
+  const cc_fees = fees.fees_included_in_price
+    ? 0 // venue absorbed it; the buyer paid exactly the sticker price
+    : Math.max(0, stripe_gross - subtotalCollected);
+
+  // Allocate both card figures across rows by each row's share of the subtotal
+  // of the orders it appears in. Card fees are charged per ORDER, so a row of
+  // two-seat buyers pays one $0.30, not two — apportioning by ticket count
+  // over-charged single-seat rows and under-charged multi-seat ones.
+  // What our own pricing model says the surcharge SHOULD have been, order by
+  // order. Compared against what was really collected, this is an independent
+  // check — unlike the collected figure itself, which is derived from gross
+  // and would therefore always reconcile to gross by construction.
+  let expectedSurcharge = 0;
+
+  const rowByName = new Map(rows.map((r) => [r.tier, r]));
+  if (seatBasis && stripe_gross > 0) {
+    for (const [orderId, perSection] of seatBasis.unitsByOrderSection) {
+      if (!orderById[orderId]) continue;
+      const orderTotal = num(orderById[orderId]?.total_amount);
+      const orderActual = actualByOrder.get(orderId) ?? 0;
+
+      // This order's subtotal, rebuilt the same way as the event's.
+      let orderSubtotal = 0;
+      const sectionSubtotals = new Map<string, number>();
+      for (const [secName, units] of perSection) {
+        const row = rowByName.get(secName);
+        if (!row) continue;
+        const secFace = row.price * units;
+        const secSub =
+          secFace +
+          fees.ticketing_fee * units +
+          fees.facility_fee * units +
+          (tax_method === "divisor" ? 0 : secFace * fees.tax_rate);
+        sectionSubtotals.set(secName, secSub);
+        orderSubtotal += secSub;
+      }
+      if (orderSubtotal <= 0) continue;
+
+      const orderSurcharge = fees.fees_included_in_price
+        ? 0
+        : Math.max(0, orderTotal - orderSubtotal);
+      expectedSurcharge += fees.fees_included_in_price
+        ? 0
+        : surchargeCents(
+            Math.round(orderSubtotal * 100),
+            undefined,
+            orderById[orderId]?.source === "terminal" ? "terminal" : "online"
+          ) / 100;
+
+      for (const [secName, secSub] of sectionSubtotals) {
+        const row = rowByName.get(secName);
+        if (!row) continue;
+        const share = secSub / orderSubtotal;
+        row.cc_fees += orderSurcharge * share;
+        row.cc_fees_actual += orderActual * share;
+      }
+    }
+  } else {
+    // General admission: no per-seat mapping, so fall back to each row's share
+    // of face value — still better than ticket count, since the percentage
+    // component scales with price.
+    const totalFace = rows.reduce((s, r) => s + r.gross, 0) || 1;
+    for (const r of rows) {
+      const share = r.gross / totalFace;
+      r.cc_fees += cc_fees * share;
+      r.cc_fees_actual += cc_fees_actual * share;
+      r.orders = Math.round(payingOrderIds.length * share);
+    }
+  }
+
+  // ── 8. Reconciliation ────────────────────────────────────────────────────
   // What we can account for vs. what Stripe actually collected. Any gap is
   // reported, never buried in the card-fee line.
-  const accountedFor =
-    artist_face + ticketing_fees + facility_fees + taxes + cc_fees;
-  const reconciliation_variance = stripe_gross - accountedFor;
+  // Independent check: what Stripe collected against what our own pricing
+  // model says it should have been. Deliberately NOT gross minus everything
+  // else — that is the residual plug this audit exists to eliminate, and it
+  // would report $0.00 no matter how wrong the inputs were.
+  const expectedTotal = subtotalCollected + expectedSurcharge;
+  const reconciliation_variance = stripe_gross - expectedTotal;
 
   const audit: TicketAuditRow[] = rows
     .filter((t) => t.capacity > 0 || t.sold > 0 || t.comps > 0)
@@ -581,6 +737,9 @@ export async function computeEventAudit(
       ticketing_fee: r2(t.ticketing_fee),
       facility_fee: r2(t.facility_fee),
       gross: r2(t.gross),
+      orders: t.orders,
+      cc_fees: r2(t.cc_fees),
+      cc_fees_actual: r2(t.cc_fees_actual),
     }));
 
   return {
@@ -591,6 +750,8 @@ export async function computeEventAudit(
     facility_fees: r2(facility_fees),
     taxes: r2(taxes),
     cc_fees: r2(cc_fees),
+    cc_fees_actual: r2(cc_fees_actual),
+    cc_variance: r2(cc_fees - cc_fees_actual),
     cc_fees_source,
     stripe_gross: r2(stripe_gross),
     reconciliation_variance: r2(reconciliation_variance),
