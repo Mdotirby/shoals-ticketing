@@ -389,7 +389,7 @@ async function seatBasisForEvent(
 }
 
 type Agg = {
-  source: "online" | "terminal";
+  source: "online" | "terminal" | "cash";
   tier: string;
   /** Grouping key for capacity attribution — tier id (GA) or section name
    *  (seated). NOT displayed; two tiers can share a display name (as
@@ -400,8 +400,14 @@ type Agg = {
   comps: number;
   kills: number;
   price: number;         // unit face value for THIS row (this source+price bucket)
-  ticketing_fee: number; // per-unit, this row
-  facility_fee: number;  // per-unit, this row
+  /** Σ real ticketing-fee dollars actually charged, this row — accumulated
+   *  from each order's own ledger record, NOT current-rate × sold. A rate
+   *  changing (like DNC's facility fee toggling on mid-run) doesn't move
+   *  the face price, so it wouldn't split into its own price-bucket row —
+   *  accumulating the real total is what keeps it correct regardless. */
+  ticketing_fee: number;
+  /** Σ real facility-fee dollars actually charged, this row. Same reasoning. */
+  facility_fee: number;
   gross: number;         // Σ face value, this row
   tax: number;            // Σ tax actually collected, this row
   sort_order: number;
@@ -436,20 +442,30 @@ export async function computeEventAudit(
   for (const o of orderList) orderById[o.id] = o;
 
   const isCompOrder = (o: OrderRow | undefined) => o?.source === "comp";
+  const isCashOrder = (o: OrderRow | undefined) => o?.source === "cash";
   const isFreeOrder = (o: OrderRow | undefined) =>
-    !!o && o.source !== "comp" && num(o.total_amount) === 0;
-  const rowSource = (o: OrderRow | undefined): "online" | "terminal" =>
-    o?.source === "terminal" ? "terminal" : "online";
+    !!o && o.source !== "comp" && o.source !== "cash" && num(o.total_amount) === 0;
+  const rowSource = (o: OrderRow | undefined): "online" | "terminal" | "cash" =>
+    o?.source === "terminal" ? "terminal" : o?.source === "cash" ? "cash" : "online";
 
   let stripe_gross = 0;
   let comp_count = 0;
   let free_count = 0;
+  // Real money, ties to the Stripe deposit — cash is deliberately excluded:
+  // it never touches Stripe, so it has nothing to reconcile against and
+  // would otherwise corrupt reconciliation_variance's whole premise.
   const payingOrderIds: string[] = [];
+  // Cash orders still get real tier/money rows (see step 5) — they just skip
+  // the Stripe-gross/reconciliation and Stripe-cost estimate machinery below,
+  // since neither applies to money that never went through a card.
+  const cashOrderIds: string[] = [];
 
   for (const o of orderList) {
     const qty = num(o.quantity);
     if (isCompOrder(o)) {
       comp_count += qty;
+    } else if (isCashOrder(o)) {
+      cashOrderIds.push(o.id);
     } else if (isFreeOrder(o)) {
       free_count += qty;
     } else {
@@ -493,7 +509,12 @@ export async function computeEventAudit(
   // so face value, fees, and tax can be sourced from it below instead of
   // reconstructed from today's live price. ─────────────────────────────────
   const ledgerByOrder = new Map<string, LedgerRow>();
-  if (payingOrderIds.length > 0) {
+  // Cash orders live in cashOrderIds, not payingOrderIds (step 1) — an event
+  // with cash sales but no online/terminal ones would otherwise skip this
+  // fetch entirely and every cash order would fall through to the
+  // fee-reconstruction fallback below, exactly the wrong thing for money
+  // that was already written to the ledger as real zeros.
+  if (payingOrderIds.length > 0 || cashOrderIds.length > 0) {
     const { data: ledger } = await admin
       .from("settlement_ledger")
       .select(
@@ -518,7 +539,9 @@ export async function computeEventAudit(
       ledgerCovered += 1;
     } else {
       const total = num(orderById[id]?.total_amount);
-      const method = rowSource(orderById[id]);
+      // payingOrderIds never contains a cash order (step 1 routes those into
+      // cashOrderIds instead), so this is always "online" or "terminal".
+      const method = rowSource(orderById[id]) as "online" | "terminal";
       actualByOrder.set(
         id,
         estimatedStripeCostCents(Math.round(total * 100), method) / 100
@@ -553,7 +576,6 @@ export async function computeEventAudit(
       };
     }
     const total = Math.max(0, num(order?.total_amount));
-    const method = rowSource(order);
     const surcharge = fees.fees_included_in_price
       ? 0
       : actualByOrder.get(orderId) ?? 0; // best available estimate, no ledger to read the real surcharge from
@@ -586,15 +608,33 @@ export async function computeEventAudit(
   const pricing_basis: "seats" | "tiers" = seatBasis ? "seats" : "tiers";
 
   const aggs = new Map<string, Agg>();
-  const priceKey = (n: number) => Math.round(n * 100);
+  // Grouping tolerance for "same price point" — deliberately coarse (nearest
+  // dollar), not exact-cent. Per-order face value is backed out of a real
+  // charge whose surcharge and tax each round to the cent at the ORDER
+  // level, then gets divided by quantity — so two orders selling the exact
+  // same $20 ticket can legitimately back out to $19.95 and $20.02 a few
+  // cents apart depending on order size. Grouping on the exact cent turns
+  // one real price into eight near-duplicate rows. A real price change
+  // (like DNC's $20->$25) is always dollars apart, never cents, so nearest-
+  // dollar tolerance still splits it into its own row while absorbing the
+  // rounding noise. The displayed price for a bucket is its true blended
+  // average (gross/sold), not this rounded key, so display stays precise.
+  const priceKey = (n: number) => Math.round(n);
 
   function addRow(
     key: string,
-    init: Omit<Agg, "sold" | "comps" | "gross" | "tax" | "orders" | "cc_fees" | "cc_fees_actual">
+    init: Omit<
+      Agg,
+      "sold" | "comps" | "gross" | "tax" | "orders" | "cc_fees" | "cc_fees_actual" | "ticketing_fee" | "facility_fee"
+    >
   ): Agg {
     let row = aggs.get(key);
     if (!row) {
-      row = { ...init, sold: 0, comps: 0, gross: 0, tax: 0, orders: 0, cc_fees: 0, cc_fees_actual: 0 };
+      row = {
+        ...init,
+        sold: 0, comps: 0, gross: 0, tax: 0, orders: 0, cc_fees: 0, cc_fees_actual: 0,
+        ticketing_fee: 0, facility_fee: 0,
+      };
       aggs.set(key, row);
     }
     return row;
@@ -626,14 +666,14 @@ export async function computeEventAudit(
           capacity: secRow?.capacityUnits ?? 0,
           kills: 0,
           price: unitPrice,
-          ticketing_fee: fees.ticketing_fee,
-          facility_fee: fees.facility_fee,
           sort_order: 0,
         });
         row.sold += units;
         row.orders += 1;
         row.gross += money.ticketRevenue * share;
         row.tax += money.taxCollected * share;
+        row.ticketing_fee += money.ticketingFee * share;
+        row.facility_fee += money.facilityFee * share;
         row.cc_fees += money.ccCollected * share;
         row.cc_fees_actual += money.ccActual * share;
       }
@@ -647,8 +687,11 @@ export async function computeEventAudit(
     // The box office / Terminal / cash flow sells by tier and quantity with
     // no seat picker, so a sale taken at the door on a seated event has no
     // seats to price from — fall back to tier attribution, same as GA.
-    const orphanOrderIds = [...payingOrderIds, ...orderList.filter(isFreeOrder).map((o) => o.id)]
-      .filter((id) => !seatedOrderIds.has(id));
+    const orphanOrderIds = [
+      ...payingOrderIds,
+      ...cashOrderIds,
+      ...orderList.filter(isFreeOrder).map((o) => o.id),
+    ].filter((id) => !seatedOrderIds.has(id));
 
     for (const orderId of orphanOrderIds) {
       const order = orderById[orderId];
@@ -669,14 +712,14 @@ export async function computeEventAudit(
         capacity: 0, // attributed once at final assembly, see below
         kills: 0,
         price: unitPrice,
-        ticketing_fee: units > 0 ? money.ticketingFee / units : fees.ticketing_fee,
-        facility_fee: units > 0 ? money.facilityFee / units : fees.facility_fee,
         sort_order: 9998,
       });
       row.sold += units;
       row.orders += 1;
       row.gross += money.ticketRevenue;
       row.tax += money.taxCollected;
+      row.ticketing_fee += money.ticketingFee;
+      row.facility_fee += money.facilityFee;
       row.cc_fees += money.ccCollected;
       row.cc_fees_actual += money.ccActual;
       billing_unit_count += units;
@@ -711,14 +754,14 @@ export async function computeEventAudit(
         capacity: 0, // attributed once at final assembly, see below
         kills: 0,
         price: unitPrice,
-        ticketing_fee: fees.ticketing_fee,
-        facility_fee: fees.facility_fee,
         sort_order: num(tier?.sort_order ?? 9999),
       });
       row.sold += units;
       row.orders += 1;
       row.gross += money.ticketRevenue;
       row.tax += money.taxCollected;
+      row.ticketing_fee += money.ticketingFee;
+      row.facility_fee += money.facilityFee;
       row.cc_fees += money.ccCollected;
       row.cc_fees_actual += money.ccActual;
       billing_unit_count += units;
@@ -778,8 +821,8 @@ export async function computeEventAudit(
         comps,
         kills: 0,
         price: num(t.price),
-        ticketing_fee: fees.ticketing_fee,
-        facility_fee: fees.facility_fee,
+        ticketing_fee: 0,
+        facility_fee: 0,
         gross: 0,
         tax: 0,
         sort_order: num(t.sort_order),
@@ -793,10 +836,14 @@ export async function computeEventAudit(
   }
 
   // ── 7. Event-level totals — summed straight from the rows, which are
-  // themselves summed straight from real per-order ledger figures. ─────────
+  // themselves summed straight from real per-order ledger figures. Note
+  // ticketing_fee/facility_fee on each row are already real dollar totals
+  // (accumulated per order above), not a rate — no `* r.sold` here, that
+  // would be the same "rate × count instead of the real total" mistake this
+  // whole rewrite exists to eliminate, just for fees instead of price. ────
   const face_gross = rows.reduce((s, r) => s + r.gross, 0);
-  const ticketing_fees = rows.reduce((s, r) => s + r.ticketing_fee * r.sold, 0);
-  const facility_fees = rows.reduce((s, r) => s + r.facility_fee * r.sold, 0);
+  const ticketing_fees = rows.reduce((s, r) => s + r.ticketing_fee, 0);
+  const facility_fees = rows.reduce((s, r) => s + r.facility_fee, 0);
   const taxes = rows.reduce((s, r) => s + r.tax, 0);
   const cc_fees = fees.fees_included_in_price ? 0 : rows.reduce((s, r) => s + r.cc_fees, 0);
   const cc_fees_actual = rows.reduce((s, r) => s + r.cc_fees_actual, 0);
@@ -817,7 +864,19 @@ export async function computeEventAudit(
   // What the ledger-sourced figures say Stripe should have collected, against
   // what Stripe actually collected. Should read ~$0 now that every figure is
   // sourced per-order instead of reconstructed from today's live price.
-  const subtotalCollected = artist_face + ticketing_fees + facility_fees + taxes + cc_fees;
+  //
+  // Cash rows are deliberately excluded here (stripe_gross already excludes
+  // them too, see step 1) — they never touched Stripe, so comparing them
+  // against a Stripe deposit isn't a reconciliation, it's a guaranteed false
+  // mismatch equal to whatever cash came in. face_gross/artist_face above
+  // still include cash, correctly, for the actual settlement math (NBOR etc.)
+  // that consumes AuditTotals.face_gross — only this specific comparison
+  // needs to carve it back out.
+  const cashFaceGross = rows
+    .filter((r) => r.source === "cash")
+    .reduce((s, r) => s + r.gross, 0);
+  const subtotalCollected =
+    artist_face - cashFaceGross + ticketing_fees + facility_fees + taxes + cc_fees;
   const reconciliation_variance = stripe_gross - subtotalCollected;
 
   const audit: TicketAuditRow[] = rows
@@ -829,18 +888,28 @@ export async function computeEventAudit(
       sold: t.sold,
       comps: t.comps,
       kills: t.kills,
-      price: r2(t.price),
-      ticketing_fee: r2(t.ticketing_fee),
-      facility_fee: r2(t.facility_fee),
+      // The true blended average for whatever landed in this bucket, not
+      // t.price (which is only ever the first order's noisy per-unit value
+      // — later orders merging into the same nearest-dollar bucket don't
+      // update it). Averaging across every real order in the bucket is what
+      // actually cancels the per-order rounding noise out.
+      price: r2(t.sold > 0 ? t.gross / t.sold : t.price),
+      // Display as a per-unit rate — t.ticketing_fee/facility_fee are real
+      // accumulated dollar totals, not a rate; divide back down for the
+      // column. Empty rows (sold=0, capacity-only) have no real dollars to
+      // derive a rate from, so they fall back to today's current rate as an
+      // informational placeholder.
+      ticketing_fee: r2(t.sold > 0 ? t.ticketing_fee / t.sold : fees.ticketing_fee),
+      facility_fee: r2(t.sold > 0 ? t.facility_fee / t.sold : fees.facility_fee),
       gross: r2(t.gross),
       orders: t.orders,
       cc_fees: r2(t.cc_fees),
       cc_fees_actual: r2(t.cc_fees_actual),
       unsold: Math.max(0, t.capacity - t.sold - t.comps),
       tax: r2(t.tax),
-      gross_receipts: r2(t.gross + t.ticketing_fee * t.sold + t.facility_fee * t.sold + t.tax + t.cc_fees),
+      gross_receipts: r2(t.gross + t.ticketing_fee + t.facility_fee + t.tax + t.cc_fees),
       total_price: t.sold > 0
-        ? r2((t.gross + t.ticketing_fee * t.sold + t.facility_fee * t.sold + t.tax + t.cc_fees) / t.sold)
+        ? r2((t.gross + t.ticketing_fee + t.facility_fee + t.tax + t.cc_fees) / t.sold)
         : 0,
     }));
 

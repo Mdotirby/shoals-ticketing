@@ -245,6 +245,15 @@ export default function SettlementDetailPage() {
     comps: ticketAudit.reduce((s, r) => s + r.comps, 0),
     gross: ticketAudit.reduce((s, r) => s + (r.gross || 0), 0),
   };
+  // Once the box office Cash Sale button has been used for this event,
+  // computeEventAudit sources real cash orders the same way it sources
+  // online/terminal ones (ledger-backed, no fee/tax to strip) and they
+  // already show up as source==="cash" rows here. When that's true, the
+  // manual cash_gross/cash_tickets_sold fields would double-count on top of
+  // money that's already inside total_gross/net_receipts — so they're only
+  // used as a fallback for events with no real cash orders (historical
+  // shows, or a night where staff logged cash a different way).
+  const hasRealCashRows = ticketAudit.some((r) => r.source === "cash");
 
   // For external settlements all financial figures come from manual state.
   // For VenueCore settlements they come from the ticket audit + stored fee state.
@@ -305,7 +314,11 @@ export default function SettlementDetailPage() {
 
   // Cash sales carry no fees, no tax, no card surcharge — the whole figure
   // feeds straight into NBOR, on top of the Stripe-sourced netReceipts above.
-  const cashGrossNum = isExternal ? 0 : cashGross;
+  // Skipped when real cash orders exist (hasRealCashRows) — those are
+  // already inside netReceipts via total_gross, so adding this too would
+  // double-count them.
+  const cashGrossNum = isExternal || hasRealCashRows ? 0 : cashGross;
+  const cashTicketsSoldNum = isExternal || hasRealCashRows ? 0 : cashTicketsSold;
   const netReceiptsWithCash = netReceipts + cashGrossNum;
 
   // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
@@ -488,7 +501,7 @@ export default function SettlementDetailPage() {
       facility_fees: effectiveFacilityFees,
       cc_fees: effectiveCcFees,
       cash_gross: cashGrossNum,
-      cash_tickets_sold: isExternal ? 0 : cashTicketsSold,
+      cash_tickets_sold: cashTicketsSoldNum,
       taxes,
       tax_rate: effectiveTaxRate,
       tax_method: effectiveTaxMethod,
@@ -693,7 +706,7 @@ export default function SettlementDetailPage() {
       facility_fees: effectiveFacilityFees,
       cc_fees: effectiveCcFees,
       cash_gross: cashGrossNum,
-      cash_tickets_sold: isExternal ? 0 : cashTicketsSold,
+      cash_tickets_sold: cashTicketsSoldNum,
       ticketing_fee_per_ticket: isExternal ? manualTicketingFee : ticketingFeePerTicket,
       facility_fee_per_ticket: isExternal ? manualFacilityFee : facilityFeePerTicket,
       adj_gross: adjGross,
@@ -1156,10 +1169,10 @@ export default function SettlementDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {(["online", "terminal"] as const).map((src) => {
+            {(["online", "terminal", "cash"] as const).map((src) => {
               const srcRows = ticketAudit.filter((r) => r.source === src);
               if (srcRows.length === 0) return null;
-              const label = src === "online" ? "Online" : "Terminal";
+              const label = src === "online" ? "Online" : src === "terminal" ? "Terminal" : "Cash (Box Office)";
               const sub = {
                 capacity: srcRows.reduce((s, r) => s + r.capacity, 0),
                 sold: srcRows.reduce((s, r) => s + r.sold, 0),
@@ -1241,9 +1254,13 @@ export default function SettlementDetailPage() {
               );
             })}
 
-            {/* Cash — manual entry, since cash never touches Stripe and has no
-                order/ledger row to source from. No fees, no tax, no card
-                surcharge; the gross figure feeds straight into NBOR. */}
+            {/* Cash — manual entry fallback, only shown when no real cash
+                orders exist for this event (the box office Cash Sale button
+                hasn't been used, or this is a historical show from before it
+                existed). Once real cash orders exist they render above in
+                the grouped-source loop like Online/Terminal, sourced from
+                their own ledger rows — showing this too would double-count. */}
+            {!hasRealCashRows && (
             <Fragment>
               <tr>
                 <td
@@ -1254,7 +1271,7 @@ export default function SettlementDetailPage() {
                     color: "rgba(208,194,144,0.85)",
                   }}
                 >
-                  Cash
+                  Cash (Manual)
                 </td>
               </tr>
               <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
@@ -1273,7 +1290,7 @@ export default function SettlementDetailPage() {
                 <td style={{ padding: "6px", textAlign: "right" }}>—</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>—</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>
-                  {cashTicketsSold > 0 ? fmt(cashGrossNum / cashTicketsSold) : "—"}
+                  {cashTicketsSold > 0 ? fmt(cashGross / cashTicketsSold) : "—"}
                 </td>
                 <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
@@ -1291,11 +1308,12 @@ export default function SettlementDetailPage() {
                   />
                 </td>
                 <td style={{ padding: "6px", textAlign: "right" }}>
-                  {cashTicketsSold > 0 ? fmt(cashGrossNum / cashTicketsSold) : "—"}
+                  {cashTicketsSold > 0 ? fmt(cashGross / cashTicketsSold) : "—"}
                 </td>
                 {isPlatformOwner && <td style={{ padding: "6px", textAlign: "right", opacity: 0.6 }}>{fmt(0)}</td>}
               </tr>
             </Fragment>
+            )}
 
             {ticketAudit.length === 0 && cashGrossNum === 0 && (
               <tr>
@@ -1310,7 +1328,7 @@ export default function SettlementDetailPage() {
               <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.capacity}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold + cashTicketsSold}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold + cashTicketsSoldNum}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.comps}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>
                   {ticketAudit.reduce((a, r) => a + (r.unsold ?? 0), 0)}
