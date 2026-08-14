@@ -1411,15 +1411,24 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>Tickets Sold (Excl. Comps)</span>
           <span style={valStyle}>{ticketsSold}</span>
         </div>
-        {/* GBOR → less pass-throughs → NBOR. GBOR is everything the buyer
-            paid, so it ties to the Stripe deposit; every line below it is
-            money collected on someone else's behalf and handed on. */}
+        {/* GBOR → less pass-throughs → NBOR. GBOR is everything that came in
+            the door — Stripe deposit plus door cash, matching the same
+            all-in total the Ticket Audit table's Total > Gross column
+            already shows. Every line below it is either money collected on
+            someone else's behalf and handed on, or (cash) has none to hand
+            on at all. */}
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>GBOR</span>
           <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #d0c290)" }}>
-            {fmt(gbor)}
+            {fmt(gbor + cashGrossNum)}
           </span>
         </div>
+        {!isExternal && cashGrossNum > 0 && (
+          <div style={rowStyle}>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>incl. Cash Sales</span>
+            <span style={valStyle}>{fmt(cashGrossNum)}</span>
+          </div>
+        )}
         <div style={rowStyle}>
           <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees</span>
           <span style={valStyle}>({fmt(effectiveTicketingFees)})</span>
@@ -1439,20 +1448,8 @@ export default function SettlementDetailPage() {
           </span>
           <span style={valStyle}>({fmt(taxes)})</span>
         </div>
-        <div style={rowStyle}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>NBOR (Ticketing)</span>
-          <span style={{ ...valStyle, fontSize: 16 }}>{fmt(netReceipts)}</span>
-        </div>
-        {!isExternal && (
-          /* Door cash — no fees, no tax, no card surcharge. Goes straight
-             into NBOR rather than through the pass-through walk above. */
-          <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>+ Cash Sales</span>
-            <span style={valStyle}>{fmt(cashGrossNum)}</span>
-          </div>
-        )}
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>NBOR (Total)</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>NBOR</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
             {fmt(netReceiptsWithCash)}
           </span>
