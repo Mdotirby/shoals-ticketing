@@ -703,7 +703,13 @@ export async function computeEventAudit(
       const money = orderMoney(orderId, units);
       const unitPrice = units > 0 ? money.ticketRevenue / units : 0;
       const label = tier?.tier_name ?? "Door / Box Office";
-      const capacityKey = tier?.id ?? "__door__";
+      // Keyed by NAME, not tier id — two ticket_tiers rows can share a
+      // display name (an admin accidentally creating "General Admission"
+      // twice, which happened on DNC), and a reader has no way to tell them
+      // apart on the page. Merging by name is what actually matches "one
+      // real tier, two DB rows"; capacity below sums across every id that
+      // shares the name, so the pooled inventory is still correct.
+      const capacityKey = label;
       const key = `${rowSource(order)}::${capacityKey}::${priceKey(unitPrice)}`;
       const row = addRow(key, {
         source: rowSource(order),
@@ -739,6 +745,10 @@ export async function computeEventAudit(
           : fallbackTierId;
       const tier = tierById[tierId];
       const label = tier?.tier_name ?? "Unassigned";
+      // Keyed by NAME, not tier id — see the seated-path orphan loop above
+      // for why: two ticket_tiers rows sharing a display name need to merge
+      // into one row, not sit side by side as if they were different tiers.
+      const capacityKey = label;
 
       const isFree = isFreeOrder(order);
       const money = isFree
@@ -746,11 +756,11 @@ export async function computeEventAudit(
         : orderMoney(order.id, units);
       const unitPrice = isFree || units === 0 ? 0 : money.ticketRevenue / units;
 
-      const key = `${rowSource(order)}::${tierId}::${priceKey(unitPrice)}`;
+      const key = `${rowSource(order)}::${capacityKey}::${priceKey(unitPrice)}`;
       const row = addRow(key, {
         source: rowSource(order),
         tier: label,
-        capacityKey: tierId,
+        capacityKey,
         capacity: 0, // attributed once at final assembly, see below
         kills: 0,
         price: unitPrice,
@@ -782,7 +792,12 @@ export async function computeEventAudit(
   if (seatBasis) {
     for (const r of seatBasis.rows) capacityByKey.set(r.name, r.capacityUnits);
   } else {
-    for (const t of tierList) capacityByKey.set(t.id, num(t.capacity));
+    // Summed by NAME, not id — two ticket_tiers rows sharing a display name
+    // (the DNC "General Admission" duplicate) pool their capacity into one
+    // number rather than each showing only their own slice.
+    for (const t of tierList) {
+      capacityByKey.set(t.tier_name, (capacityByKey.get(t.tier_name) ?? 0) + num(t.capacity));
+    }
   }
   const compsByKey = new Map<string, number>();
   for (const t of ticketList) {
@@ -790,7 +805,9 @@ export async function computeEventAudit(
     if (!isCompOrder(order)) continue;
     const key = seatBasis
       ? undefined // seated comps have no seat, so no section to attribute to
-      : (t.ticket_type_id && tierById[t.ticket_type_id] ? t.ticket_type_id : tierList[0]?.id);
+      : (t.ticket_type_id && tierById[t.ticket_type_id]
+          ? tierById[t.ticket_type_id].tier_name
+          : tierList[0]?.tier_name);
     if (!key) continue;
     compsByKey.set(key, (compsByKey.get(key) ?? 0) + 1);
     comp_count += 0; // comp_count already tallied from orders above; this map is per-row attribution only
@@ -809,14 +826,18 @@ export async function computeEventAudit(
   // still shows.
   if (!seatBasis) {
     for (const t of tierList) {
-      if (seenCapacityKey.has(t.id)) continue;
-      const comps = compsByKey.get(t.id) ?? 0;
-      if (num(t.capacity) === 0 && comps === 0) continue;
+      // Keyed by name — capacityByKey is already pre-summed across every
+      // tier id sharing this name, so the first tier record with this name
+      // to reach here adds a row carrying the FULL pooled capacity; a
+      // second record with the same name is correctly skipped as a dup.
+      if (seenCapacityKey.has(t.tier_name)) continue;
+      const comps = compsByKey.get(t.tier_name) ?? 0;
+      if ((capacityByKey.get(t.tier_name) ?? 0) === 0 && comps === 0) continue;
       rows.push({
         source: "online",
         tier: t.tier_name,
-        capacityKey: t.id,
-        capacity: num(t.capacity),
+        capacityKey: t.tier_name,
+        capacity: capacityByKey.get(t.tier_name) ?? 0,
         sold: 0,
         comps,
         kills: 0,
@@ -830,7 +851,7 @@ export async function computeEventAudit(
         cc_fees: 0,
         cc_fees_actual: 0,
       });
-      seenCapacityKey.add(t.id);
+      seenCapacityKey.add(t.tier_name);
     }
     rows.sort((a, b) => a.sort_order - b.sort_order || a.price - b.price || a.source.localeCompare(b.source));
   }
@@ -888,12 +909,16 @@ export async function computeEventAudit(
       sold: t.sold,
       comps: t.comps,
       kills: t.kills,
-      // The true blended average for whatever landed in this bucket, not
-      // t.price (which is only ever the first order's noisy per-unit value
-      // — later orders merging into the same nearest-dollar bucket don't
-      // update it). Averaging across every real order in the bucket is what
-      // actually cancels the per-order rounding noise out.
-      price: r2(t.sold > 0 ? t.gross / t.sold : t.price),
+      // Displayed as the bucket's rounded target (nearest dollar — same
+      // tolerance priceKey groups on), not the raw blended average. The
+      // average (t.gross / t.sold) still carries real per-order rounding
+      // noise (a $20 ticket can legitimately back out to $19.95 on one
+      // order and $20.02 on another), which read as a wrong, oddly-specific
+      // price on screen even after grouping fixed the row-fragmentation.
+      // Rounding display to match the grouping boundary is what actually
+      // shows the clean $20.00/$25.00 a reader expects. Money math (gross,
+      // tax, fees, cc) is untouched by this — only this display value.
+      price: r2(t.sold > 0 ? Math.round(t.price) : t.price),
       // Display as a per-unit rate — t.ticketing_fee/facility_fee are real
       // accumulated dollar totals, not a rate; divide back down for the
       // column. Empty rows (sold=0, capacity-only) have no real dollars to
