@@ -22,17 +22,17 @@ const settlement: Settlement = {
   radius_clause: "150mi | 90d prior | 90 days after",
   ticket_audit: [
     {
-      tier: "VIP Table", capacity: 11, sold: 10, comps: 0, kills: 1, price: 800,
+      tier: "VIP Table", source: "online", capacity: 11, sold: 10, comps: 0, kills: 1, price: 800,
       ticketing_fee: 3, facility_fee: 0, gross: 8000, orders: 9, cc_fees: 304.8,
       cc_fees_actual: 304.8, unsold: 1, tax: 760, gross_receipts: 9094.8, total_price: 909.48,
     },
     {
-      tier: "GA Section 1", capacity: 196, sold: 196, comps: 0, kills: 0, price: 75,
+      tier: "GA Section 1", source: "online", capacity: 196, sold: 196, comps: 0, kills: 0, price: 75,
       ticketing_fee: 3, facility_fee: 0, gross: 14700, orders: 180, cc_fees: 560.1,
       cc_fees_actual: 560.1, unsold: 0, tax: 1396.5, gross_receipts: 17244.6, total_price: 87.99,
     },
     {
-      tier: "GA Section 2", capacity: 224, sold: 224, comps: 0, kills: 0, price: 50,
+      tier: "GA Section 2", source: "online", capacity: 224, sold: 224, comps: 0, kills: 0, price: 50,
       ticketing_fee: 3, facility_fee: 0, gross: 11200, orders: 210, cc_fees: 426.7,
       cc_fees_actual: 426.7, unsold: 0, tax: 1064, gross_receipts: 13362.7, total_price: 59.65,
     },

@@ -100,6 +100,7 @@ export async function POST(
       comp_face_value: audit.comp_face_value,
       adj_gross: adjGross,
       net_receipts: netReceipts,
+      reconciliation_variance: audit.reconciliation_variance,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

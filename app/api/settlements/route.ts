@@ -280,6 +280,7 @@ export async function POST(request: Request) {
       tax_rate: taxRate,
       tax_method: taxMethod,
       net_receipts: netReceipts,
+      reconciliation_variance: auditTotals.reconciliation_variance,
 
       // Pre-filled financials
       total_expenses:

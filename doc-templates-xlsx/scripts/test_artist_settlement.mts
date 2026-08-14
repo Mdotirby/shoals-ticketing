@@ -21,7 +21,7 @@ const settlement: Settlement = {
   radius_clause: "150mi | 90d prior | 90 days after",
   ticket_audit: [
     {
-      tier: "General Admission", capacity: 525, sold: 82, comps: 4, kills: 0, price: 15.0,
+      tier: "General Admission", source: "online", capacity: 525, sold: 82, comps: 4, kills: 0, price: 15.0,
       ticketing_fee: 3.0, facility_fee: 0.0, gross: 1230.0, orders: 80, cc_fees: 46.28,
       cc_fees_actual: 46.28, unsold: 439, tax: 116.85, gross_receipts: 1639.13, total_price: 19.99,
     },

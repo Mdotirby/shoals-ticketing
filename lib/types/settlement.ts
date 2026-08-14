@@ -8,6 +8,10 @@ export type SettlementStatus = "draft" | "finalized";
 export type TaxMethod = "multiplier" | "divisor";
 
 export type TicketAuditRow = {
+  /** Where this row's tickets were sold. Cash rows are synthesized client-side
+   *  from the settlement's manual cash_gross/cash_tickets_sold fields, not
+   *  computed by computeEventAudit. */
+  source: "online" | "terminal" | "cash";
   tier: string;
   capacity: number;
   sold: number;          // paying tickets only (status='paid', source != 'comp')
@@ -117,6 +121,21 @@ export type Settlement = {
   comp_count: number;
   /** Face-value of comps (informational — what the comps would have cost). */
   comp_face_value: number;
+
+  /**
+   * Door cash sales — manual entry, since cash never touches Stripe and has
+   * no order/ledger row to source from. No fees, no tax: the whole figure
+   * feeds straight into net receipts (NBOR).
+   */
+  cash_gross?: number;
+  cash_tickets_sold?: number;
+  /**
+   * Real Stripe gross minus what the pricing model says it should have been.
+   * computeEventAudit always computed this; persisting it here so a mid-run
+   * price change surfaces as a visible warning instead of silently zeroing
+   * out the CC-fee column (the DNC $20->$25 bug).
+   */
+  reconciliation_variance?: number;
 
   // Calculated financials — all from actual order data when refreshed
   total_gross: number;          // Σ subtotal collected (face value, paying only)
