@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
 import { NextResponse } from "next/server";
-import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
+import { ratesFor } from "@/lib/fees/rates";
 
 /**
  * POST /api/events/[id]/revenue-summary/backfill
@@ -33,12 +33,15 @@ export async function POST(
   // Resolve venue fee rates (ticketing fee, facility fee, tax rate, rebate)
   const fees = await resolveVenueFees(admin, event);
 
-  // Load all paid orders for this event
+  // Load all paid orders for this event. Comps are excluded — they get their
+  // own type: "comp" ledger row (written at comp-creation time, $0 all the
+  // way through) and must never be treated as a Stripe sale here.
   const { data: orders, error: ordersError } = await admin
     .from("orders")
-    .select("id, total_amount, quantity, stripe_checkout_session_id, status, source")
+    .select("id, total_amount, quantity, stripe_checkout_session_id, status, source, created_at")
     .eq("event_id", eventId)
-    .eq("status", "paid");
+    .eq("status", "paid")
+    .neq("source", "comp");
 
   if (ordersError) {
     return NextResponse.json({ error: ordersError.message }, { status: 500 });
@@ -59,7 +62,7 @@ export async function POST(
   // Build ledger rows: ticket_revenue = face value (before fees/tax/stripe)
   const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
 
-  const rows = orders.map((order: { id: string; total_amount: number; quantity: number; stripe_checkout_session_id: string | null }) => {
+  const rows = orders.map((order: { id: string; total_amount: number; quantity: number; stripe_checkout_session_id: string | null; source: string; created_at: string }) => {
     const totalAmount = Number(order.total_amount) || 0;
     const quantity = Number(order.quantity) || 1;
     const totalTicketingFee = Math.round(fees.ticketingFee * quantity * 100) / 100;
@@ -69,13 +72,24 @@ export async function POST(
 
     // The surcharge was charged on the subtotal, so recover it by inverting
     // the checkout formula rather than applying the rate to the grossed-up
-    // total (which over-states the fee and under-states face value).
+    // total (which over-states the fee and under-states face value). Rate
+    // depends on HOW the order was captured (terminal sales are surcharged
+    // at the Terminal rate, never the online one) and WHEN it was placed
+    // (orders placed before STRIPE_RATE_CUTOVER_AT were charged the legacy
+    // rate — re-deriving them at today's rate corrupts face value on every
+    // past order once the cutover passes). Mirrors the webhook's own math
+    // in app/api/webhooks/stripe/route.ts exactly.
+    const captureMethod = order.source === "terminal" ? "terminal" : "online";
+    const { pct: surchargePct, flatCents: surchargeFlat } = ratesFor(
+      captureMethod,
+      new Date(order.created_at)
+    );
     const surchargeCollected = fees.feesIncludedInPrice
       ? 0
       : Math.round(
           (totalAmount -
-            (totalAmount * 100 - STRIPE_ONLINE_FLAT_CENTS) /
-              (1 + STRIPE_ONLINE_PCT) /
+            (totalAmount * 100 - surchargeFlat) /
+              (1 + surchargePct) /
               100) *
             100
         ) / 100;
