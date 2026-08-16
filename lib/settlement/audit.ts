@@ -652,12 +652,27 @@ export async function computeEventAudit(
       if (!order) continue;
       const money = orderMoney(orderId, [...perSection.values()].reduce((s, u) => s + u, 0));
       const totalUnits = [...perSection.values()].reduce((s, u) => s + u, 0) || 1;
-      // A single order can span multiple sections (rare, but possible) —
-      // split its ledger totals across sections by unit share.
+      // A single order can span multiple sections at genuinely different
+      // prices (rare, but real — an order with 2 seats @ $75 and 3 @ $50).
+      // Splitting by unit count alone gives EVERY section in the order the
+      // same blended per-unit price (ticketRevenue / totalUnits, identical
+      // regardless of which section), which is only right when every
+      // section in the order happens to cost the same. Face value / tax /
+      // card fee scale with DOLLARS, so they're split by each section's
+      // share of the order's real list-price value; ticketing/facility fee
+      // are a flat rate per billing unit, unrelated to price, so those stay
+      // split by raw unit count.
+      let valueWeightTotal = 0;
       for (const [secName, units] of perSection) {
-        const share = units / totalUnits;
         const secRow = seatBasis.rows.find((r) => r.name === secName);
-        const unitPrice = units > 0 ? (money.ticketRevenue * share) / units : 0;
+        valueWeightTotal += units * (secRow?.unitPrice ?? 0);
+      }
+      for (const [secName, units] of perSection) {
+        const unitShare = units / totalUnits;
+        const secRow = seatBasis.rows.find((r) => r.name === secName);
+        const valueWeight = units * (secRow?.unitPrice ?? 0);
+        const valueShare = valueWeightTotal > 0 ? valueWeight / valueWeightTotal : unitShare;
+        const unitPrice = units > 0 ? (money.ticketRevenue * valueShare) / units : 0;
         const key = `online::${secName}::${priceKey(unitPrice)}`;
         const row = addRow(key, {
           source: "online",
@@ -670,12 +685,12 @@ export async function computeEventAudit(
         });
         row.sold += units;
         row.orders += 1;
-        row.gross += money.ticketRevenue * share;
-        row.tax += money.taxCollected * share;
-        row.ticketing_fee += money.ticketingFee * share;
-        row.facility_fee += money.facilityFee * share;
-        row.cc_fees += money.ccCollected * share;
-        row.cc_fees_actual += money.ccActual * share;
+        row.gross += money.ticketRevenue * valueShare;
+        row.tax += money.taxCollected * valueShare;
+        row.ticketing_fee += money.ticketingFee * unitShare;
+        row.facility_fee += money.facilityFee * unitShare;
+        row.cc_fees += money.ccCollected * valueShare;
+        row.cc_fees_actual += money.ccActual * valueShare;
       }
     }
     // Admissions ≠ billing units on a table event: 11 tables seat 88 people.
