@@ -663,12 +663,15 @@ body {
 .event-card-title {
   width: 100%;
   white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
   line-height: 1.2;
   font-family: var(--font-bayon), sans-serif;
-  font-size: 32px;
+  font-size: 22px;
   margin: 0;
   color: var(--vc-text);
   word-break: break-word;
