@@ -32,6 +32,9 @@ export default function NewBroadcastPage() {
   const [eventId, setEventId] = useState("");
   const [limit, setLimit] = useState(3);
   const [reminderStage, setReminderStage] = useState<ReminderStage | "">("");
+  const [customMessage, setCustomMessage] = useState("");
+  const [digestMode, setDigestMode] = useState<"auto" | "choose">("auto");
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
 
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewSubject, setPreviewSubject] = useState("");
@@ -62,7 +65,12 @@ export default function NewBroadcastPage() {
     }).catch(() => {});
   }, []);
 
-  const paramsReady = trigger === "new_event_announcement" ? !!eventId : trigger === "upcoming_events_digest";
+  const paramsReady =
+    trigger === "new_event_announcement"
+      ? !!eventId
+      : trigger === "upcoming_events_digest"
+        ? digestMode === "auto" || selectedEventIds.length > 0
+        : false;
 
   async function handlePreview() {
     setPreviewLoading(true);
@@ -72,7 +80,14 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, reminderStage: reminderStage || undefined }),
+        body: JSON.stringify({
+          trigger,
+          eventId: eventId || undefined,
+          limit,
+          reminderStage: reminderStage || undefined,
+          customMessage: customMessage.trim() || undefined,
+          eventIds: digestMode === "choose" ? selectedEventIds : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -97,7 +112,15 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, to: testTo, reminderStage: reminderStage || undefined }),
+        body: JSON.stringify({
+          trigger,
+          eventId: eventId || undefined,
+          limit,
+          to: testTo,
+          reminderStage: reminderStage || undefined,
+          customMessage: customMessage.trim() || undefined,
+          eventIds: digestMode === "choose" ? selectedEventIds : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -125,7 +148,15 @@ export default function NewBroadcastPage() {
       const res = await fetch("/api/broadcasts/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trigger, eventId: eventId || undefined, limit, confirm: true, reminderStage: reminderStage || undefined }),
+        body: JSON.stringify({
+          trigger,
+          eventId: eventId || undefined,
+          limit,
+          confirm: true,
+          reminderStage: reminderStage || undefined,
+          customMessage: customMessage.trim() || undefined,
+          eventIds: digestMode === "choose" ? selectedEventIds : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -152,7 +183,7 @@ export default function NewBroadcastPage() {
           {LIVE_TRIGGERS.map((t) => (
             <button
               key={t.value}
-              onClick={() => { setTrigger(t.value); setPreviewHtml(""); setTestResult(""); setReminderStage(""); }}
+              onClick={() => { setTrigger(t.value); setPreviewHtml(""); setTestResult(""); setReminderStage(""); setCustomMessage(""); setDigestMode("auto"); setSelectedEventIds([]); }}
               style={{
                 textAlign: "left", padding: "14px 16px", borderRadius: 10, cursor: "pointer",
                 minWidth: 220, background: trigger === t.value ? "rgba(208,194,144,0.12)" : "rgba(255,255,255,0.03)",
@@ -216,18 +247,84 @@ export default function NewBroadcastPage() {
                   <p style={{ margin: "8px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
                     Auto-suggested from the event date — override anytime before sending. &quot;Normal announcement&quot; keeps the existing Just Announced/On Sale Now banner.
                   </p>
+
+                  <div style={{ marginTop: 20 }}>
+                    <label className="admin-form-label">Custom Message (optional)</label>
+                    <textarea
+                      className="admin-form-input"
+                      rows={3}
+                      value={customMessage}
+                      onChange={(e) => { setCustomMessage(e.target.value); setPreviewHtml(""); setTestResult(""); }}
+                      placeholder="Leave blank to use the automatic on-sale/reminder message"
+                      style={{ maxWidth: 480, resize: "vertical" }}
+                    />
+                    <p style={{ margin: "8px 0 0", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                      Plain text only — replaces the paragraph above the ticket button for this send. Leave blank to use the automatic on-sale/reminder message above.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           )}
           {trigger === "upcoming_events_digest" && (
             <div>
-              <label className="admin-form-label"># of events to include</label>
-              <input
-                type="number" min={1} max={10} className="admin-form-input"
-                value={limit} onChange={(e) => setLimit(parseInt(e.target.value, 10) || 3)}
-                style={{ maxWidth: 120 }}
-              />
+              <label className="admin-form-label">Which events?</label>
+              <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+                {([["auto", "Auto (next N events)"], ["choose", "Choose events"]] as const).map(([val, label]) => (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => { setDigestMode(val); setPreviewHtml(""); setTestResult(""); }}
+                    style={{
+                      padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
+                      background: digestMode === val ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${digestMode === val ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.08)"}`,
+                      color: digestMode === val ? "#d0c290" : "rgba(255,255,255,0.75)",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {digestMode === "auto" ? (
+                <div>
+                  <label className="admin-form-label"># of events to include</label>
+                  <input
+                    type="number" min={1} max={10} className="admin-form-input"
+                    value={limit} onChange={(e) => { setLimit(parseInt(e.target.value, 10) || 3); setPreviewHtml(""); setTestResult(""); }}
+                    style={{ maxWidth: 120 }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: "0 0 10px", fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
+                    {selectedEventIds.length} selected. Listed in the email sorted by date, regardless of check order.
+                  </p>
+                  <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 12px" }}>
+                    {events.map((e) => {
+                      const checked = selectedEventIds.includes(e.id);
+                      return (
+                        <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", fontSize: 13, cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setSelectedEventIds((prev) => checked ? prev.filter((id) => id !== e.id) : [...prev, e.id]);
+                              setPreviewHtml("");
+                              setTestResult("");
+                            }}
+                          />
+                          {e.title} — {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </label>
+                      );
+                    })}
+                    {events.length === 0 && (
+                      <p style={{ margin: "10px 0", fontSize: 12, color: "rgba(255,255,255,0.35)" }}>No upcoming events found.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </Section>

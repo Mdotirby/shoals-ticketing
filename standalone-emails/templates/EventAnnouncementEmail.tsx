@@ -72,7 +72,11 @@ export function getAnnouncementBodyText(props: {
   publicOnSaleLabel?: string;
   eventDayOfWeek?: string;
   reminderStage?: ReminderStage;
+  customMessage?: string;
 }): string {
+  if (props.customMessage) {
+    return props.customMessage;
+  }
   if (props.reminderStage === "week") {
     return "One week out. Lock in your plans — tickets are moving.";
   }
@@ -135,6 +139,14 @@ export interface EventAnnouncementEmailProps {
    * announcement behavior, unchanged.
    */
   reminderStage?: ReminderStage;
+  /**
+   * Free-text override for the paragraph above the CTA (broadcast
+   * dashboard) — replaces whatever the on-sale-state/reminderStage copy
+   * would otherwise say, plain text only (no bold/line-break markup) so
+   * this stays a send-time variable, not a design surface. Undefined =
+   * today's automatic copy, unchanged.
+   */
+  customMessage?: string;
 }
 
 export function EventAnnouncementEmail({
@@ -160,6 +172,7 @@ export function EventAnnouncementEmail({
   presaleOpensLabel,
   publicOnSaleLabel,
   reminderStage,
+  customMessage,
 }: EventAnnouncementEmailProps) {
   const isPresale = onSaleState === "presale";
   const isCountdown = onSaleState === "countdown";
@@ -345,8 +358,17 @@ export function EventAnnouncementEmail({
               </tbody>
             </table>
 
+            {/* Send-time free-text override (broadcast dashboard "Custom
+                Message" field) — takes priority over every state/reminder
+                variant below. Plain text only, no bold/line-break markup,
+                so this stays a variable rather than a design surface. */}
+            {customMessage && (
+              <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
+                {customMessage}
+              </Text>
+            )}
             {/* State-dependent copy */}
-            {isPresale && (
+            {!customMessage && isPresale && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>Presale opens {presaleOpensLabel}.</strong>
                 <br />
@@ -355,14 +377,14 @@ export function EventAnnouncementEmail({
                 Presale code lives at the bottom of this email, the rest of the internet finds out later.
               </Text>
             )}
-            {isCountdown && (
+            {!customMessage && isCountdown && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, color: "#ffffff", textAlign: "center" }}>
                 Tickets on sale {onSaleDateLabel}
                 {typeof daysUntilOnSale === "number" &&
                   ` · ${daysUntilOnSale}d ${hoursUntilOnSale ?? 0}h away`}
               </Text>
             )}
-            {isAvailableNow && !reminderStage && (
+            {!customMessage && isAvailableNow && !reminderStage && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>Tickets are ON SALE now.</strong>
                 <br />
@@ -374,21 +396,21 @@ export function EventAnnouncementEmail({
             {/* Reminder copy overrides the on-sale-state copy above once a
                 reminderStage is set — by this point tickets are always on
                 sale, the only thing that changes is how close the show is. */}
-            {reminderStage === "week" && (
+            {!customMessage && reminderStage === "week" && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>One week out.</strong>
                 <br />
                 Lock in your plans — tickets are moving.
               </Text>
             )}
-            {reminderStage === "tomorrow" && (
+            {!customMessage && reminderStage === "tomorrow" && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>Doors open tomorrow.</strong>
                 <br />
                 This is your last full day to grab tickets before the show.
               </Text>
             )}
-            {reminderStage === "tonight" && (
+            {!customMessage && reminderStage === "tonight" && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>Tonight&apos;s the night.</strong>
                 <br />

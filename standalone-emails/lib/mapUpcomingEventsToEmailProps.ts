@@ -35,29 +35,39 @@ function formatEventDate(d: Date): string {
 }
 
 /**
- * Pulls the N soonest upcoming, public-eligible events and maps them to the
- * UpcomingEventsEmail prop shape. Same public-visibility filter as the
- * non-admin branch of /api/events (published, non-private, non-hold) — not
- * imported from there since that's app-internal, just the same well-known
- * schema semantics replicated here.
+ * Pulls the events for the digest and maps them to the UpcomingEventsEmail
+ * prop shape. Same public-visibility filter as the non-admin branch of
+ * /api/events (published, non-private, non-hold) — not imported from there
+ * since that's app-internal, just the same well-known schema semantics
+ * replicated here.
+ *
+ * Default (opts.eventIds absent): the N soonest upcoming, public-eligible
+ * events, `limit` = N — today's behavior, unchanged.
+ * Curated (opts.eventIds set, non-empty): exactly those events, still
+ * restricted to the same public-eligibility/upcoming filters (so a stale
+ * or since-privated event can't accidentally get sent) and still sorted by
+ * date ascending for display — `limit` is ignored in this mode.
  */
 export async function mapUpcomingEventsToEmailProps(
   limit: number,
-  opts?: { utmCampaign?: string },
+  opts?: { utmCampaign?: string; eventIds?: string[] },
 ): Promise<UpcomingEventsEmailProps> {
   const client = createAdminClient();
   const now = new Date().toISOString();
+  const curated = !!opts?.eventIds && opts.eventIds.length > 0;
 
-  const { data: events, error } = await client
+  let query = client
     .from("events")
     .select("id, title, event_venue_id, venue, date, email_flyer_url, price, is_free")
     .gte("date", now)
     .or("status.eq.published,status.is.null")
     .or("event_type.is.null,event_type.neq.private")
     .or("booking_status.eq.confirmed,booking_status.is.null")
-    .order("date", { ascending: true })
-    .limit(limit)
-    .returns<EventRow[]>();
+    .order("date", { ascending: true });
+
+  query = curated ? query.in("id", opts!.eventIds!) : query.limit(limit);
+
+  const { data: events, error } = await query.returns<EventRow[]>();
 
   if (error) throw new Error(`mapUpcomingEventsToEmailProps: ${error.message}`);
   if (!events || events.length === 0) {

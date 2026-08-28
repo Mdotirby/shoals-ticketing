@@ -10,7 +10,7 @@ import { TRIGGERS } from "@/standalone-emails/lib/triggers";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { trigger, eventId, limit, confirm, reminderStage } = body;
+    const { trigger, eventId, limit, confirm, reminderStage, customMessage, eventIds } = body;
 
     if (!confirm) {
       return NextResponse.json({ error: "confirm must be true to send a broadcast" }, { status: 400 });
@@ -21,9 +21,9 @@ export async function POST(request: Request) {
     let result;
     if (trigger === TRIGGERS.NEW_EVENT_ANNOUNCEMENT) {
       if (!eventId) return NextResponse.json({ error: "eventId is required" }, { status: 400 });
-      result = await sendEventAnnouncementBroadcast(eventId, segmentId, reminderStage || undefined);
+      result = await sendEventAnnouncementBroadcast(eventId, segmentId, reminderStage || undefined, customMessage || undefined);
     } else if (trigger === TRIGGERS.UPCOMING_EVENTS_DIGEST) {
-      result = await sendUpcomingEventsBroadcast(limit && limit > 0 ? limit : 3, segmentId);
+      result = await sendUpcomingEventsBroadcast(limit && limit > 0 ? limit : 3, segmentId, Array.isArray(eventIds) && eventIds.length > 0 ? eventIds : undefined);
     } else {
       return NextResponse.json({ error: `Unknown or unbuilt trigger: ${trigger}` }, { status: 400 });
     }

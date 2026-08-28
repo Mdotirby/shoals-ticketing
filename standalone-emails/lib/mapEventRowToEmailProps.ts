@@ -195,7 +195,7 @@ function resolveOnSaleState(
  */
 export async function mapEventIdToEmailProps(
   eventId: string,
-  opts?: { utmCampaign?: string; reminderStage?: ReminderStage },
+  opts?: { utmCampaign?: string; reminderStage?: ReminderStage; customMessage?: string },
 ): Promise<EventAnnouncementEmailProps> {
   const client = createAdminClient();
 
@@ -287,7 +287,7 @@ export async function mapEventIdToEmailProps(
     sponsorLogos,
     // Mirrors the copy shown just above the CTA (see getAnnouncementBodyText)
     // rather than a generic "event — date at venue" string.
-    previewText: getAnnouncementBodyText({ ...onSale, eventDayOfWeek, reminderStage: opts?.reminderStage }),
+    previewText: getAnnouncementBodyText({ ...onSale, eventDayOfWeek, reminderStage: opts?.reminderStage, customMessage: opts?.customMessage }),
     ...onSale,
     // Deliberately a plain passthrough, NOT auto-suggested here — this
     // function backs the regular announcement send too, and auto-applying a
@@ -296,5 +296,8 @@ export async function mapEventIdToEmailProps(
     // in the admin broadcast UI (suggestReminderStage), which always sends
     // an explicit choice.
     reminderStage: opts?.reminderStage,
+    // Same plain-passthrough rule as reminderStage — only ever what the
+    // caller explicitly sends, never inferred.
+    customMessage: opts?.customMessage,
   };
 }
