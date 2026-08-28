@@ -20,9 +20,9 @@ export function buildEventAnnouncementSubject(props: Awaited<ReturnType<typeof m
 }
 
 /** Single-recipient preview send — always do this before blasting a segment. */
-export async function sendEventAnnouncementTest(eventId: string, to: string, reminderStage?: ReminderStage) {
+export async function sendEventAnnouncementTest(eventId: string, to: string, reminderStage?: ReminderStage, customMessage?: string) {
   const resend = getResendClient();
-  const props = await mapEventIdToEmailProps(eventId, { reminderStage });
+  const props = await mapEventIdToEmailProps(eventId, { reminderStage, customMessage });
   const html = await render(EventAnnouncementEmail(props));
 
   return resend.emails.send({
@@ -34,7 +34,7 @@ export async function sendEventAnnouncementTest(eventId: string, to: string, rem
 }
 
 /** Sends to every contact in the given Resend segment. */
-export async function sendEventAnnouncementBroadcast(eventId: string, segmentId: string, reminderStage?: ReminderStage) {
+export async function sendEventAnnouncementBroadcast(eventId: string, segmentId: string, reminderStage?: ReminderStage, customMessage?: string) {
   const resend = getResendClient();
   const supabase = createAdminClient();
 
@@ -42,7 +42,7 @@ export async function sendEventAnnouncementBroadcast(eventId: string, segmentId:
   // value on every link, before the email_sends row that carries the same
   // id even exists — see attributeRevenue.ts for how this gets read back.
   const sendId = randomUUID();
-  const props = await mapEventIdToEmailProps(eventId, { utmCampaign: `broadcast:${sendId}`, reminderStage });
+  const props = await mapEventIdToEmailProps(eventId, { utmCampaign: `broadcast:${sendId}`, reminderStage, customMessage });
   const html = await render(EventAnnouncementEmail(props));
 
   const result = await resend.broadcasts.create({

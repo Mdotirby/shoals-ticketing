@@ -14,17 +14,17 @@ import { TRIGGERS } from "@/standalone-emails/lib/triggers";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { trigger, eventId, limit, reminderStage } = body;
+    const { trigger, eventId, limit, reminderStage, customMessage, eventIds } = body;
 
     if (trigger === TRIGGERS.NEW_EVENT_ANNOUNCEMENT) {
       if (!eventId) return NextResponse.json({ error: "eventId is required" }, { status: 400 });
-      const props = await mapEventIdToEmailProps(eventId, { reminderStage: reminderStage || undefined });
+      const props = await mapEventIdToEmailProps(eventId, { reminderStage: reminderStage || undefined, customMessage: customMessage || undefined });
       const html = await render(EventAnnouncementEmail(props));
       return NextResponse.json({ html, subject: buildEventAnnouncementSubject(props) });
     }
 
     if (trigger === TRIGGERS.UPCOMING_EVENTS_DIGEST) {
-      const props = await mapUpcomingEventsToEmailProps(limit && limit > 0 ? limit : 3);
+      const props = await mapUpcomingEventsToEmailProps(limit && limit > 0 ? limit : 3, { eventIds: Array.isArray(eventIds) && eventIds.length > 0 ? eventIds : undefined });
       const html = await render(UpcomingEventsEmail(props));
       return NextResponse.json({ html, subject: UPCOMING_EVENTS_SUBJECT });
     }
