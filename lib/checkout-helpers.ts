@@ -1,8 +1,16 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  STRIPE_ONLINE_PCT,
+  STRIPE_ONLINE_FLAT_CENTS,
+  surchargeCents,
+} from "@/lib/fees/rates";
 
-// Stripe charges 2.7% + $0.30 per transaction
-export const STRIPE_PERCENT_FEE = 0.027;
-export const STRIPE_FLAT_FEE_CENTS = 30;
+/**
+ * Re-exported for the many call sites that already reference these names.
+ * The values live in lib/fees/rates.ts — do not redeclare them locally.
+ */
+export const STRIPE_PERCENT_FEE = STRIPE_ONLINE_PCT;
+export const STRIPE_FLAT_FEE_CENTS = STRIPE_ONLINE_FLAT_CENTS;
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -236,6 +244,141 @@ export async function eventRequiresSeating(
   return !!data?.layout_id;
 }
 
+export interface EventSeatInventory {
+  capacity: number;
+  sold: number;
+  available: number;
+}
+
+/**
+ * Ids of objects flagged `metadata.hidden` — real, sellable inventory that is
+ * deliberately kept off the customer-facing chart AND out of capacity
+ * reporting (e.g. a table added on the night that isn't part of the printed
+ * floor plan). Seats belonging to these objects still function normally on the
+ * ticket and at the door; they simply don't move the venue's published totals.
+ */
+async function getHiddenObjectIds(
+  admin: SupabaseClient,
+  sectionIds: string[]
+): Promise<Set<string>> {
+  if (sectionIds.length === 0) return new Set();
+  const { data } = await admin
+    .from("objects")
+    .select("id, metadata")
+    .in("section_id", sectionIds);
+  const hidden = new Set<string>();
+  for (const o of data || []) {
+    if ((o.metadata as { hidden?: boolean } | null)?.hidden) hidden.add(o.id);
+  }
+  return hidden;
+}
+
+/**
+ * Real sold/available/capacity for a reserved-seating event, counted directly
+ * from the seats table — not from ticket_tiers.capacity (a static number an
+ * admin typed once, e.g. "10 tables" instead of the 80 real seats those
+ * tables contain) or from orders.quantity/tickets.ticket_type_id (which
+ * drift once an order spans multiple sections, or a refunded order keeps its
+ * seats intentionally reserved). Returns null for events with no enabled
+ * seating layout — callers should fall back to tier-based capacity for
+ * those (there's no seat-level ground truth to check instead).
+ */
+export async function getEventSeatInventory(
+  admin: SupabaseClient,
+  eventId: string
+): Promise<EventSeatInventory | null> {
+  const { data: map } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+  if (!map?.layout_id) return null;
+
+  const { data: sections } = await admin
+    .from("sections")
+    .select("id")
+    .eq("layout_id", map.layout_id);
+  const sectionIds = (sections || []).map((s: { id: string }) => s.id);
+  if (sectionIds.length === 0) return { capacity: 0, sold: 0, available: 0 };
+
+  const hidden = await getHiddenObjectIds(admin, sectionIds);
+  const { data: seatRows } = await admin
+    .from("seats")
+    .select("status, object_id")
+    .in("section_id", sectionIds);
+
+  const seats = (seatRows || []).filter(
+    (s: { object_id: string | null }) => !(s.object_id && hidden.has(s.object_id))
+  );
+  const capacity = seats.length;
+  const sold = seats.filter((s: { status: string }) => s.status === "sold").length;
+  return { capacity, sold, available: Math.max(0, capacity - sold) };
+}
+
+export interface SectionSeatInventory extends EventSeatInventory {
+  sectionId: string;
+  name: string;
+  priceCents: number;
+  sellsAsTable: boolean;
+}
+
+/**
+ * Same seat-level truth as getEventSeatInventory, but broken out per section —
+ * so a caller can answer "is THIS tier sold out" instead of only "is the event
+ * sold out". Sections with no seats (e.g. the STAGE marker) are omitted.
+ * Returns null when the event has no enabled seating layout.
+ */
+export async function getEventSeatInventoryBySection(
+  admin: SupabaseClient,
+  eventId: string
+): Promise<SectionSeatInventory[] | null> {
+  const { data: map } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+  if (!map?.layout_id) return null;
+
+  const { data: sections } = await admin
+    .from("sections")
+    .select("id, name, price_cents, sells_as_table, type")
+    .eq("layout_id", map.layout_id);
+  const sectionRows = sections || [];
+  if (sectionRows.length === 0) return [];
+
+  const sectionIds = sectionRows.map((s: { id: string }) => s.id);
+  const hidden = await getHiddenObjectIds(admin, sectionIds);
+  const { data: seatRows } = await admin
+    .from("seats")
+    .select("section_id, status, object_id")
+    .in("section_id", sectionIds);
+  const seats = (seatRows || []).filter(
+    (s: { object_id: string | null }) => !(s.object_id && hidden.has(s.object_id))
+  );
+
+  const out: SectionSeatInventory[] = [];
+  for (const sec of sectionRows) {
+    const secSeats = seats.filter(
+      (s: { section_id: string }) => s.section_id === sec.id
+    );
+    if (secSeats.length === 0) continue;
+    const capacity = secSeats.length;
+    const sold = secSeats.filter((s: { status: string }) => s.status === "sold").length;
+    out.push({
+      sectionId: sec.id,
+      name: sec.name,
+      priceCents: sec.price_cents ?? 0,
+      sellsAsTable: !!sec.sells_as_table || sec.type === "table",
+      capacity,
+      sold,
+      available: Math.max(0, capacity - sold),
+    });
+  }
+  return out;
+}
+
 // ── Seat Validation ──────────────────────────────────────────────────────────
 
 export interface SeatValidationResult {
@@ -258,27 +401,47 @@ export async function validateAndHoldSeats(
   eventPrice: number,
   sessionId?: string
 ): Promise<{ error?: string; unavailable?: string[]; result?: SeatValidationResult }> {
-  // Release any stale holds from this same session's earlier / abandoned
-  // attempts before re-holding. Without this, a buyer who re-picked seats in
-  // the same browser session leaves multiple sets of seats held under one
-  // session, and the webhook's session-based finalization sweeps them ALL in
-  // — the pay-for-2-get-4 over-allocation bug. Clearing first also lets a
-  // retry re-select the same seats it was already holding.
+  // Release stale holds from this same session's earlier / abandoned attempts
+  // — but only ones NOT part of the current request. Without this, a buyer
+  // who re-picked seats in the same browser session leaves multiple sets of
+  // seats held under one session, and the webhook's session-based
+  // finalization sweeps them ALL in — the pay-for-2-get-4 over-allocation bug.
+  // Scoping the release to seats outside the current seatIds (rather than
+  // wiping everything under the session unconditionally) means a retry or
+  // duplicate submission for the SAME seats — e.g. a Payment Element remount,
+  // a double-tapped Pay button, a resumed checkout tab — can never release
+  // seats that a still-in-flight Stripe charge for those same seats depends
+  // on right before its webhook finalizes them (the cause of orders shipping
+  // with zero seats assigned).
   if (sessionId) {
-    await admin
+    const { data: sessionHeld } = await admin
       .from("seats")
-      .update({ status: "available", held_until: null, held_session: null })
+      .select("id")
       .eq("held_session", sessionId)
       .eq("status", "held");
+    const requested = new Set(seatIds);
+    const staleIds = (sessionHeld || [])
+      .map((s: { id: string }) => s.id)
+      .filter((id: string) => !requested.has(id));
+    if (staleIds.length > 0) {
+      await admin
+        .from("seats")
+        .update({ status: "available", held_until: null, held_session: null })
+        .in("id", staleIds);
+    }
   }
 
-  // Verify seats are still available
+  // Verify seats are still available (or already held by this same session —
+  // a retry/refresh re-confirming its own in-progress hold).
   const { data: seatCheck } = await admin
     .from("seats")
-    .select("id, status")
+    .select("id, status, held_session")
     .in("id", seatIds);
 
-  const unavailable = (seatCheck || []).filter((s: { status: string }) => s.status !== "available");
+  const unavailable = (seatCheck || []).filter(
+    (s: { status: string; held_session: string | null }) =>
+      s.status !== "available" && !(s.status === "held" && s.held_session === sessionId)
+  );
   if (unavailable.length > 0) {
     return {
       error: "Some seats are no longer available. Please re-select.",
@@ -286,13 +449,61 @@ export async function validateAndHoldSeats(
     };
   }
 
-  // Temporarily hold seats (4 min) so no one else grabs them during checkout
+  // Temporarily hold seats (4 min) so no one else grabs them during checkout.
+  //
+  // This MUST be an atomic conditional update, not a blind write. The
+  // availability check above is a read, so two buyers hitting the last seat at
+  // the same moment can both pass it; a blind update would then let the second
+  // silently overwrite the first's hold. Both would go on to pay, and at
+  // webhook time only one of them matches `held_session` — the other is issued
+  // tickets with no seat at all. That is exactly how seatless paid orders have
+  // been produced before.
+  //
+  // Updating only rows still `available` and comparing the affected-row count
+  // to what we asked for makes the database the arbiter: the loser of the race
+  // gets a clean 409 and can re-pick, instead of paying for nothing.
   const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
-  await admin.from("seats").update({
-    status: "held",
-    held_until: heldUntil,
-    held_session: sessionId || null,
-  }).in("id", seatIds);
+
+  const alreadyMineIds = (seatCheck || [])
+    .filter((s: { status: string; held_session: string | null }) =>
+      s.status === "held" && s.held_session === sessionId)
+    .map((s: { id: string }) => s.id);
+  const needToGrabIds = seatIds.filter((id) => !alreadyMineIds.includes(id));
+
+  if (needToGrabIds.length > 0) {
+    const { data: grabbed } = await admin
+      .from("seats")
+      .update({ status: "held", held_until: heldUntil, held_session: sessionId || null })
+      .in("id", needToGrabIds)
+      .eq("status", "available")
+      .select("id");
+
+    const grabbedIds = (grabbed || []).map((s: { id: string }) => s.id);
+    if (grabbedIds.length < needToGrabIds.length) {
+      // Lost the race on at least one seat — release whatever we did grab so we
+      // don't strand seats that nobody is buying, then reject the whole request.
+      if (grabbedIds.length > 0 && sessionId) {
+        await admin
+          .from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .in("id", grabbedIds)
+          .eq("held_session", sessionId);
+      }
+      return {
+        error: "Some seats are no longer available. Please re-select.",
+        unavailable: needToGrabIds.filter((id) => !grabbedIds.includes(id)),
+      };
+    }
+  }
+
+  // Seats this session already holds: just extend the window.
+  if (alreadyMineIds.length > 0 && sessionId) {
+    await admin
+      .from("seats")
+      .update({ held_until: heldUntil })
+      .in("id", alreadyMineIds)
+      .eq("held_session", sessionId);
+  }
 
   // Look up seat details + section prices (including sells_as_table and object_id)
   const { data: seatDetails } = await admin
@@ -377,10 +588,10 @@ export function calculateFees(opts: {
     ? (discountedTicketPriceCents + taxCents) * quantity
     : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
 
-  // Stripe processing fee — informational even when absorbed (see below).
-  const stripeFeeCents = Math.round(
-    subtotalBeforeStripeFee * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE_CENTS
-  );
+  // Card processing surcharge — informational even when absorbed (see below).
+  // Routed through the rate card so the percentage, the flat fee, and the
+  // gross-up policy all live in one place.
+  const stripeFeeCents = surchargeCents(subtotalBeforeStripeFee);
 
   // When fees are baked into the price, the venue absorbs the card
   // processing fee too — the customer is charged exactly the sticker

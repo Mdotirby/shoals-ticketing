@@ -2,10 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
-
-// Card-present rate: 2.7% + $0.05 (vs online 2.7% + $0.30)
-const TERMINAL_PERCENT_FEE = 0.027;
-const TERMINAL_FLAT_FEE_CENTS = 5;
+import { surchargeCents } from "@/lib/fees/rates";
 
 export async function POST(request: Request) {
   try {
@@ -67,8 +64,12 @@ export async function POST(request: Request) {
     const subtotalBeforeStripe = fees.feesIncludedInPrice
       ? (ticketPriceCents + taxCents) * quantity
       : (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
-    const stripeFeeCents = Math.round(
-      subtotalBeforeStripe * TERMINAL_PERCENT_FEE + TERMINAL_FLAT_FEE_CENTS
+    // Card-present is a genuinely different rate (2.7% + $0.05), not a stale
+    // copy of the online one — the rate card keeps the two apart.
+    const stripeFeeCents = surchargeCents(
+      subtotalBeforeStripe,
+      undefined,
+      "terminal"
     );
     // When fees are baked into the ticket price, the venue absorbs the card
     // processing fee too — charge exactly the sticker price, no surcharge.

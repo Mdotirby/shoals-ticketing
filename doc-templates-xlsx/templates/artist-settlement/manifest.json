@@ -1,0 +1,127 @@
+{
+  "type_slug": "artist-settlement",
+  "source_sheet": "ARTIST_SETTLEMENT",
+  "notes": [
+    "Rows 5-6 are static West 72 letterhead (Buyer/Signator/address boilerplate) -- left untouched, no field binding.",
+    "Header context (venue address/capacity, agency, agent, phone, email, billing, lineup) comes from the linked Offer via settlement.offer_id, looked up live at export time. Blank when no offer is linked.",
+    "I8 ('Date:') binds to event_date_label -- 'MA' in the source example was confirmed a stray data-entry mistake, not a real field.",
+    "The sheet's ORDERS column (J) has no backing field on the real Settlement type -- cc_fees is already a single real aggregate, pro-rated across tiers by sold count (same as the existing PDF adapter). ORDERS column is dropped from the generated layout.",
+    "fixed_expenses / variable_expenses / ticket_audit are true repeating sections -- both label and value are data-driven per row, not fixed category names. Template's current rows serve as the style stencil + example row count.",
+    "show_lineup is capped at 3 fixed lines (B12/B13/B14) rather than a true repeating section -- row 12 shares physical space with the unrelated Email: field, so structural row-insertion there would corrupt the header layout. Entries beyond 3 are dropped for now."
+  ],
+  "scalar_fields": [
+    { "cell": "J7", "field": "artist_name", "type": "text" },
+    { "cell": "B8", "field": "venue_name", "type": "text" },
+    { "cell": "F8", "field": "artist_name", "type": "text" },
+    { "cell": "I8", "field": "event_date_label", "type": "text" },
+    { "cell": "B9", "field": "venue_address", "type": "text" },
+    { "cell": "F9", "field": "agency", "type": "text" },
+    { "cell": "I9", "field": "shows_label", "type": "text" },
+    { "cell": "B10", "field": "venue_capacity", "type": "number" },
+    { "cell": "F10", "field": "agent_name", "type": "text" },
+    { "cell": "I10", "field": "show_time_label", "type": "text" },
+    { "cell": "B11", "field": "radius_clause", "type": "text" },
+    { "cell": "F11", "field": "agent_phone", "type": "text" },
+    { "cell": "I11", "field": "billing", "type": "text" },
+    { "cell": "F12", "field": "agent_email", "type": "text" },
+    { "cell": "B12", "field": "show_lineup_line_1", "type": "text" },
+    { "cell": "B13", "field": "show_lineup_line_2", "type": "text" },
+    { "cell": "B14", "field": "show_lineup_line_3", "type": "text" },
+
+    { "cell": "B16", "field": "guarantee", "type": "currency" },
+    { "cell": "F16", "field": "deposit_pct", "type": "percent" },
+    { "cell": "G16", "field": "deposit_amount", "type": "currency" },
+    { "cell": "B17", "field": "deal_type", "type": "text" },
+    { "cell": "F17", "field": "deposit_due", "type": "text" },
+    { "cell": "B18", "field": "backend_percentage", "type": "percent" },
+    { "cell": "F18", "field": "balance_due_terms", "type": "text", "note": "text description e.g. 'Day of Show', distinct from the balance_due dollar figure" },
+    { "cell": "B19", "field": "radius_clause", "type": "text" },
+    { "cell": "F19", "field": "merch_split", "type": "text" },
+    { "cell": "B20", "field": "production_by", "type": "text" },
+    { "cell": "F20", "field": "merch_seller", "type": "text" },
+    { "cell": "B21", "field": "other_terms", "type": "text" },
+    { "cell": "F21", "field": "comps_label", "type": "text" },
+
+    { "cell": "B26", "field": "ticket_totals_capacity", "type": "number" },
+    { "cell": "C26", "field": "ticket_totals_sold", "type": "number" },
+    { "cell": "D26", "field": "ticket_totals_comps", "type": "number" },
+    { "cell": "E26", "field": "ticket_totals_unsold", "type": "number" },
+    { "cell": "F26", "field": "ticket_totals_avg_price", "type": "currency", "note": "sum of tier prices / tier count, per Matt -- NOT a raw sum" },
+    { "cell": "G26", "field": "ticket_totals_svc", "type": "currency" },
+    { "cell": "H26", "field": "ticket_totals_fac", "type": "currency" },
+    { "cell": "I26", "field": "ticket_totals_tax", "type": "currency" },
+    { "cell": "K26", "field": "ticket_totals_cc", "type": "currency" },
+    { "cell": "L26", "field": "ticket_totals_gross", "type": "currency" },
+
+    { "cell": "L28", "field": "gbor", "type": "currency" },
+    { "cell": "L29", "field": "service_fees", "type": "currency" },
+    { "cell": "L30", "field": "facility_fees", "type": "currency" },
+    { "cell": "L31", "field": "cc_fees", "type": "currency" },
+    { "cell": "B32", "field": "tax_rate", "type": "percent" },
+    { "cell": "L32", "field": "taxes", "type": "currency" },
+    { "cell": "L33", "field": "nbor", "type": "currency" },
+
+    { "cell": "L36", "field": "total_fixed", "type": "currency" },
+    { "cell": "L51", "field": "total_variable", "type": "currency" },
+    { "cell": "L56", "field": "total_expenses", "type": "currency" },
+
+    { "cell": "L59", "field": "merch_total_gross", "type": "currency" },
+    { "cell": "A60", "field": "merch_tax_label", "type": "text" },
+    { "cell": "L60", "field": "merch_total_tax", "type": "currency" },
+    { "cell": "L61", "field": "merch_total_net", "type": "currency" },
+    { "cell": "A62", "field": "merch_venue_take_label", "type": "text" },
+    { "cell": "L62", "field": "merch_venue_share", "type": "currency" },
+    { "cell": "L63", "field": "merch_artist_share", "type": "currency" },
+
+    { "cell": "L65", "field": "artist_guarantee", "type": "currency" },
+    { "cell": "L66", "field": "splitpoint", "type": "currency" },
+    { "cell": "L67", "field": "merch_venue_take_deduction", "type": "currency" },
+    { "cell": "L68", "field": "seller_fee", "type": "currency" },
+    { "cell": "L69", "field": "cash_advance", "type": "currency" },
+    { "cell": "L70", "field": "deposits_paid", "type": "currency" },
+    { "cell": "L71", "field": "backend_overage", "type": "currency" },
+    { "cell": "L72", "field": "balance_due", "type": "currency" }
+  ],
+  "repeating_sections": [
+    {
+      "id": "ticket_audit",
+      "data_path": "ticket_audit",
+      "anchor_rows": [25],
+      "row_fields": [
+        { "col": "A", "field": "tier", "type": "text" },
+        { "col": "B", "field": "capacity", "type": "number" },
+        { "col": "C", "field": "sold", "type": "number" },
+        { "col": "D", "field": "comps", "type": "number" },
+        { "col": "E", "field": "unsold", "type": "number" },
+        { "col": "F", "field": "price", "type": "currency" },
+        { "col": "G", "field": "svc", "type": "currency" },
+        { "col": "H", "field": "fac", "type": "currency" },
+        { "col": "I", "field": "tax", "type": "currency" },
+        { "col": "K", "field": "cc", "type": "currency" },
+        { "col": "L", "field": "gross", "type": "currency" }
+      ],
+      "example_row_count": 1,
+      "note": "ORDERS column (J) intentionally left blank -- see top-level notes"
+    },
+    {
+      "id": "fixed_expenses",
+      "data_path": "expenses_fixed",
+      "anchor_rows": [37],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 14
+    },
+    {
+      "id": "variable_expenses",
+      "data_path": "expenses_variable",
+      "anchor_rows": [52],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 4
+    }
+  ]
+}

@@ -4,6 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import {
+  compareEventsForDisplay,
+  formatEventDateShort,
+  isEventPast,
+  isEventToday,
+} from "@/lib/dates";
 
 type EventSales = {
   id: string;
@@ -22,6 +28,7 @@ export default function AdminSalesPage() {
   const [events, setEvents] = useState<EventSales[]>([]);
   const [venues, setVenues] = useState<VenueOption[]>([]);
   const [venueFilter, setVenueFilter] = useState("");
+  const [showPast, setShowPast] = useState(false);
   const [loading, setLoading] = useState(true);
   const userRole = getCookie("user-role") || "";
   const isOwner = userRole === "owner";
@@ -76,29 +83,30 @@ export default function AdminSalesPage() {
           .filter((ev: Record<string, unknown>) => ev.event_type !== "private")
           .filter((ev: Record<string, unknown>) => artistEventIds ? artistEventIds!.includes(ev.id as string) : true);
 
-        // Fetch ticket tiers for each event to get capacity + sold count
-        const supabase = getSupabaseBrowser();
-        const enriched: EventSales[] = await Promise.all(
-          filteredEventsData.map(async (ev: Record<string, unknown>) => {
-            const [tiersRes, scanRes, ticketCountRes] = await Promise.all([
-              fetch(`/api/events/${ev.id}/ticket-types`).then((r) => r.json()),
-              fetch(`/api/events/${ev.id}/drop-count`).then((r) => r.json()).catch(() => ({ scanned: 0 })),
-              supabase.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", ev.id as string),
-            ]);
-            const tiers = Array.isArray(tiersRes) ? tiersRes : [];
-            const totalCapacity = tiers.reduce((s: number, t: { capacity: number }) => s + (t.capacity || 0), 0);
-            return {
-              id: ev.id as string,
-              title: ev.title as string,
-              venue: ev.venue as string,
-              date: ev.date as string,
-              venue_id: ev.venue_id as string | null,
-              total_capacity: totalCapacity || 500,
-              tickets_sold: ticketCountRes.count || 0,
-              tickets_scanned: scanRes?.scanned || 0,
-            };
-          })
-        );
+        // Pull real sold/capacity/scanned numbers from the shared performance
+        // endpoint — for reserved-seating events this counts the seats table
+        // directly rather than ticket_tiers.capacity (a static number that
+        // drifts from the real per-section seat count) or orders.quantity
+        // (which drifts on refunded-but-reserved or mixed-section orders).
+        type PerfEntry = { id: string; total_capacity: number; total_sold: number; drop_count: number };
+        const performanceRes: { events?: PerfEntry[] } = await fetch("/api/marketing/event-performance")
+          .then((r) => r.json())
+          .catch(() => ({ events: [] }));
+        const perfById = new Map((performanceRes.events || []).map((p) => [p.id, p]));
+
+        const enriched: EventSales[] = filteredEventsData.map((ev: Record<string, unknown>) => {
+          const perf = perfById.get(ev.id as string);
+          return {
+            id: ev.id as string,
+            title: ev.title as string,
+            venue: ev.venue as string,
+            date: ev.date as string,
+            venue_id: ev.venue_id as string | null,
+            total_capacity: perf?.total_capacity || 500,
+            tickets_sold: perf?.total_sold || 0,
+            tickets_scanned: perf?.drop_count || 0,
+          };
+        });
 
         setEvents(enriched);
       } catch {
@@ -111,32 +119,55 @@ export default function AdminSalesPage() {
     loadSales();
   }, [isOwner, isArtist]);
 
-  const filteredEvents = venueFilter
+  const venueScoped = venueFilter
     ? events.filter((e) => e.venue_id === venueFilter)
     : events;
+
+  // Same story as the Events page: `all=1` pulls past shows back in, ascending,
+  // so the oldest dead show sat at the top. Today's show leads now.
+  const pastCount = venueScoped.filter((e) => isEventPast(e.date)).length;
+  const filteredEvents = (showPast ? venueScoped : venueScoped.filter((e) => !isEventPast(e.date)))
+    .slice()
+    .sort(compareEventsForDisplay);
 
   return (
     <div className="admin-form-page">
       <div className="admin-page-header">
         <h1 className="admin-page-title">Sales</h1>
-        {isOwner && venues.length > 1 && (
-          <select
-            className="admin-form-input admin-venue-filter-select"
-            value={venueFilter}
-            onChange={(e) => setVenueFilter(e.target.value)}
-          >
-            <option value="">All Venues</option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
-            ))}
-          </select>
-        )}
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          {isOwner && venues.length > 1 && (
+            <select
+              className="admin-form-input admin-venue-filter-select"
+              value={venueFilter}
+              onChange={(e) => setVenueFilter(e.target.value)}
+            >
+              <option value="">All Venues</option>
+              {venues.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+          )}
+          {pastCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowPast((v) => !v)}
+              className="admin-header-btn admin-header-btn-outline"
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {showPast ? "Hide past shows" : `Show past shows (${pastCount})`}
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>}
 
       {!loading && filteredEvents.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)" }}>No events found.</p>
+        <p style={{ color: "rgba(255,255,255,0.4)" }}>
+          {pastCount > 0 && !showPast
+            ? "No active or upcoming shows. Use “Show past shows” to see the archive."
+            : "No events found."}
+        </p>
       )}
 
       {!loading && filteredEvents.map((ev) => {
@@ -152,9 +183,21 @@ export default function AdminSalesPage() {
             className="sales-event-card"
           >
             <div className="sales-event-info">
-              <h3 className="sales-event-name">{ev.title}</h3>
+              <h3 className="sales-event-name">
+                {ev.title}
+                {isEventToday(ev.date) && (
+                  <span style={{
+                    marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                    background: "rgba(208,194,144,0.18)", color: "#d0c290",
+                    fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
+                    verticalAlign: "middle",
+                  }}>
+                    Tonight
+                  </span>
+                )}
+              </h3>
               <span className="sales-event-meta">
-                {ev.venue} · {((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(ev.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {ev.venue} · {formatEventDateShort(ev.date)}
               </span>
             </div>
             <div className="sales-event-stats">

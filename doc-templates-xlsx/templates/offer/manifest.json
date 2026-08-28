@@ -1,0 +1,129 @@
+{
+  "type_slug": "offer",
+  "source_sheet": "OFFER",
+  "notes": [
+    "Unlike the settlement docs, this one IS the ArtistOffer record -- no linked-record lookup needed, every field reads straight off `offer`.",
+    "Multi-tier fix (confirmed with Matt): Service/Facility/CC Fees and Taxes in FINANCIAL SUMMARY now sum across ALL ticket_scaling tiers, not just tier 1 like the source sheet's own formulas did.",
+    "Average ticket price (confirmed with Matt): TOTALS row PRICE = sum of tier prices / tier count, not a raw sum -- BREAKEVEN/BARE MINIMUM formulas below it read as 'tickets needed to sell', which only works with a true average price.",
+    "No ORDERS column exists here at all (pre-sale projection, no real order data yet) -- the CC fee model matches the source sheet's own flat per-tier assumption (2.9% + $0.30), since ArtistOffer has no per-offer CC-rate field to bind to instead.",
+    "Backend chain matches app/admin/offers/new/page.tsx exactly: Backend = Splitpoint x Backend%; Overage = Backend - Guarantee; Artist Total Potential = max(Guarantee, Backend) for VS, Guarantee+Backend for PLUS/BONUS. This is the SAME formula shape as the Settlement fix Matt confirmed, just expressed via max() instead of floor-then-add -- mathematically identical.",
+    "pot_walkout (real ArtistOffer field) is the VENUE's potential, not the artist's -- binds to REVENUE TO VENUE / VENUE TOTAL, not anything artist-facing."
+  ],
+  "scalar_fields": [
+    { "cell": "J7", "field": "artist_name", "type": "text" },
+    { "cell": "B8", "field": "venue_name", "type": "text" },
+    { "cell": "F8", "field": "artist_name", "type": "text" },
+    { "cell": "I8", "field": "event_date_label", "type": "text" },
+    { "cell": "B9", "field": "venue_address", "type": "text" },
+    { "cell": "F9", "field": "agency", "type": "text" },
+    { "cell": "I9", "field": "shows_label", "type": "text" },
+    { "cell": "B10", "field": "venue_capacity", "type": "number" },
+    { "cell": "F10", "field": "agent_name", "type": "text" },
+    { "cell": "I10", "field": "show_time_label", "type": "text" },
+    { "cell": "B11", "field": "radius_clause", "type": "text" },
+    { "cell": "F11", "field": "agent_phone", "type": "text" },
+    { "cell": "I11", "field": "billing", "type": "text" },
+    { "cell": "F12", "field": "agent_email", "type": "text" },
+    { "cell": "B12", "field": "show_lineup_line_1", "type": "text" },
+    { "cell": "B13", "field": "show_lineup_line_2", "type": "text" },
+    { "cell": "B14", "field": "show_lineup_line_3", "type": "text" },
+
+    { "cell": "B17", "field": "guarantee", "type": "currency" },
+    { "cell": "F17", "field": "deposit_pct", "type": "percent" },
+    { "cell": "G17", "field": "deposit_amount", "type": "currency" },
+    { "cell": "B18", "field": "deal_type", "type": "text" },
+    { "cell": "F18", "field": "deposit_due", "type": "text" },
+    { "cell": "B19", "field": "backend_percentage", "type": "percent" },
+    { "cell": "F19", "field": "balance_due_terms", "type": "text" },
+    { "cell": "B20", "field": "radius_clause", "type": "text" },
+    { "cell": "F20", "field": "merch_split", "type": "text" },
+    { "cell": "B21", "field": "production_by", "type": "text" },
+    { "cell": "F21", "field": "merch_seller", "type": "text" },
+    { "cell": "B22", "field": "other_terms", "type": "text" },
+    { "cell": "F22", "field": "comps_label", "type": "text" },
+
+    { "cell": "B28", "field": "ticket_totals_capacity", "type": "number" },
+    { "cell": "C28", "field": "ticket_totals_comps", "type": "number" },
+    { "cell": "D28", "field": "ticket_totals_kills", "type": "number" },
+    { "cell": "E28", "field": "ticket_totals_sellable", "type": "number" },
+    { "cell": "F28", "field": "ticket_totals_avg_price", "type": "currency" },
+    { "cell": "G28", "field": "ticket_totals_svc", "type": "currency" },
+    { "cell": "H28", "field": "ticket_totals_fac", "type": "currency" },
+    { "cell": "I28", "field": "ticket_totals_tax", "type": "currency" },
+    { "cell": "J28", "field": "ticket_totals_cc", "type": "currency" },
+    { "cell": "K28", "field": "ticket_totals_allin_price", "type": "currency" },
+    { "cell": "L28", "field": "ticket_totals_gross", "type": "currency" },
+
+    { "cell": "L31", "field": "gross_potential", "type": "currency" },
+    { "cell": "L32", "field": "service_fees", "type": "currency" },
+    { "cell": "L33", "field": "facility_fees", "type": "currency" },
+    { "cell": "L34", "field": "cc_fees", "type": "currency" },
+    { "cell": "L35", "field": "adj_gross_potential", "type": "currency" },
+    { "cell": "B36", "field": "tax_rate", "type": "percent" },
+    { "cell": "L36", "field": "taxes", "type": "currency" },
+    { "cell": "L37", "field": "net_potential", "type": "currency" },
+
+    { "cell": "L40", "field": "total_fixed", "type": "currency" },
+    { "cell": "L55", "field": "total_variable", "type": "currency" },
+    { "cell": "L60", "field": "total_expenses", "type": "currency" },
+
+    { "cell": "L63", "field": "artist_guarantee", "type": "currency" },
+    { "cell": "L64", "field": "splitpoint", "type": "currency" },
+    { "cell": "L65", "field": "backend", "type": "currency" },
+    { "cell": "L66", "field": "overage", "type": "currency" },
+    { "cell": "L67", "field": "artist_total_potential", "type": "currency" },
+
+    { "cell": "L70", "field": "net_potential", "type": "currency" },
+    { "cell": "L71", "field": "expenses_incl_artist", "type": "currency" },
+    { "cell": "L72", "field": "revenue_to_venue", "type": "currency" },
+    { "cell": "J73", "field": "breakeven_pct", "type": "percent" },
+    { "cell": "L73", "field": "breakeven_tickets", "type": "number" },
+    { "cell": "L74", "field": "venue_total", "type": "currency" },
+    { "cell": "J77", "field": "bare_minimum_pct", "type": "percent" },
+    { "cell": "L77", "field": "bare_minimum_tickets", "type": "number" },
+    { "cell": "J78", "field": "cover_band_expenses_pct", "type": "percent" },
+    { "cell": "L78", "field": "cover_band_expenses_tickets", "type": "number" }
+  ],
+  "repeating_sections": [
+    {
+      "id": "ticket_scaling",
+      "data_path": "ticket_scaling",
+      "anchor_rows": [26],
+      "row_fields": [
+        { "col": "A", "field": "tier", "type": "text" },
+        { "col": "B", "field": "capacity", "type": "number" },
+        { "col": "C", "field": "comps", "type": "number" },
+        { "col": "D", "field": "kills", "type": "number" },
+        { "col": "E", "field": "sellable", "type": "number" },
+        { "col": "F", "field": "price", "type": "currency" },
+        { "col": "G", "field": "svc", "type": "currency" },
+        { "col": "H", "field": "fac", "type": "currency" },
+        { "col": "I", "field": "tax", "type": "currency" },
+        { "col": "J", "field": "cc", "type": "currency" },
+        { "col": "K", "field": "allin_price", "type": "currency" },
+        { "col": "L", "field": "gross", "type": "currency" }
+      ],
+      "example_row_count": 2
+    },
+    {
+      "id": "fixed_expenses",
+      "data_path": "expenses_fixed",
+      "anchor_rows": [41],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 14
+    },
+    {
+      "id": "variable_expenses",
+      "data_path": "expenses_variable",
+      "anchor_rows": [56],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 4
+    }
+  ]
+}

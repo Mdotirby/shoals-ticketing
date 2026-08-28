@@ -35,9 +35,24 @@ export interface SponsorLogo {
 
 export type OnSaleState = "countdown" | "presale" | "available_now";
 
+/**
+ * How close the event itself is — orthogonal to OnSaleState (which tracks
+ * proximity to the on-sale date, not the show date). Only set for
+ * manually-triggered reminder sends via the broadcast dashboard; undefined
+ * preserves today's announcement-only behavior everywhere below.
+ */
+export type ReminderStage = "week" | "tomorrow" | "tonight";
+
 /** Shared with sendEventAnnouncement.ts so the subject line matches the banner. */
 export function getAnnouncementStatusLabel(onSaleState: OnSaleState | undefined): string {
   return onSaleState === "available_now" ? "On Sale Now" : "Just Announced";
+}
+
+/** Shared with sendEventAnnouncement.ts so the subject line matches the banner. */
+export function getReminderBannerLabel(reminderStage: ReminderStage): string {
+  if (reminderStage === "week") return "One Week Away";
+  if (reminderStage === "tomorrow") return "Tomorrow";
+  return "Tonight's the Night";
 }
 
 /**
@@ -56,7 +71,17 @@ export function getAnnouncementBodyText(props: {
   presaleOpensLabel?: string;
   publicOnSaleLabel?: string;
   eventDayOfWeek?: string;
+  reminderStage?: ReminderStage;
 }): string {
+  if (props.reminderStage === "week") {
+    return "One week out. Lock in your plans — tickets are moving.";
+  }
+  if (props.reminderStage === "tomorrow") {
+    return "Doors open tomorrow. This is your last full day to grab tickets before the show.";
+  }
+  if (props.reminderStage === "tonight") {
+    return "Tonight's the night. Grab your ticket before you walk in the door.";
+  }
   if (props.onSaleState === "presale") {
     return `Presale opens ${props.presaleOpensLabel}. Public onsale ${props.publicOnSaleLabel}. Presale code lives at the bottom of this email, the rest of the internet finds out later.`;
   }
@@ -102,6 +127,14 @@ export interface EventAnnouncementEmailProps {
   presaleCode?: string;
   presaleOpensLabel?: string;
   publicOnSaleLabel?: string;
+  /**
+   * Manually-triggered reminder send (broadcast dashboard) — when set,
+   * overrides the status banner, subject line, and body copy in favor of
+   * event-proximity wording ("One Week Away"/"Tomorrow"/"Tonight's the
+   * Night") instead of the on-sale-state wording. Undefined = today's
+   * announcement behavior, unchanged.
+   */
+  reminderStage?: ReminderStage;
 }
 
 export function EventAnnouncementEmail({
@@ -126,13 +159,14 @@ export function EventAnnouncementEmail({
   presaleCode,
   presaleOpensLabel,
   publicOnSaleLabel,
+  reminderStage,
 }: EventAnnouncementEmailProps) {
   const isPresale = onSaleState === "presale";
   const isCountdown = onSaleState === "countdown";
   const isAvailableNow = onSaleState === "available_now";
   const resolvedCtaLabel =
     ctaLabel ?? (isPresale ? "Get Presale Access" : isCountdown ? "Set a Reminder" : "Get Your Tickets");
-  const bannerLabel = getAnnouncementStatusLabel(onSaleState);
+  const bannerLabel = reminderStage ? getReminderBannerLabel(reminderStage) : getAnnouncementStatusLabel(onSaleState);
 
   return (
     <Html>
@@ -145,6 +179,19 @@ export function EventAnnouncementEmail({
         <style>{`
           :root { color-scheme: dark; supported-color-schemes: dark; }
           [data-ogsc] .email-bg, [data-ogsb] .email-bg { background-color: #000000 !important; }
+          /* The CTA button and status banner are light-on-dark by design —
+             without these locks, Gmail/other clients' auto-dark-mode sees a
+             light element inside an all-dark email and auto-inverts it,
+             turning a white button with dark text into a near-invisible
+             black-on-black box (confirmed bug report). */
+          [data-ogsc] .email-cta-btn, [data-ogsb] .email-cta-btn {
+            background-color: #ffffff !important;
+            color: #0a0a0a !important;
+          }
+          [data-ogsc] .email-status-banner, [data-ogsb] .email-status-banner {
+            background-color: #B6C485 !important;
+            color: #141414 !important;
+          }
         `}</style>
         <link
           rel="stylesheet"
@@ -166,12 +213,19 @@ export function EventAnnouncementEmail({
 
           {/* Status banner — "Just Announced" or "On Sale Now" depending on state */}
           <Section style={{ padding: "0 25px" }}>
-            <table width="100%" cellPadding={0} cellSpacing={0} role="presentation">
+            <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
               <tbody>
                 <tr>
                   <td
+                    className="email-status-banner"
                     style={{
                       backgroundColor: SAGE,
+                      // Gmail's dark mode (Android/iOS apps) auto-inverts
+                      // background-color with no CSS opt-out — it does NOT
+                      // touch background-image though, so a same-color
+                      // gradient here paints over the inverted color and
+                      // keeps the banner sage instead of going murky/olive.
+                      backgroundImage: `linear-gradient(${SAGE}, ${SAGE})`,
                       textAlign: "center",
                       padding: "10px 0",
                     }}
@@ -207,15 +261,23 @@ export function EventAnnouncementEmail({
             </Section>
           )}
 
-          {/* Event card */}
-          <Section
-            style={{
-              margin: "0 25px",
-              borderLeft: "1px solid #ffffff",
-              borderRight: "1px solid #ffffff",
-              padding: "24px 20px",
-            }}
-          >
+          {/* Event card — border lives on the <td> of a raw table (not on a
+              <Section>'s own table) so Outlook's unreliable height
+              computation for the display:inline-block Button nested inside
+              can't make the side borders run past the visible content; same
+              pattern as the status banner above and the date/venue/time
+              strip below, both of which already render correctly. */}
+          <Section style={{ padding: "0 25px" }}>
+          <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+            <tbody>
+              <tr>
+                <td
+                  style={{
+                    borderLeft: "1px solid #ffffff",
+                    borderRight: "1px solid #ffffff",
+                    padding: "24px 20px",
+                  }}
+                >
             <Text
               style={{
                 margin: "0 0 2px",
@@ -261,7 +323,7 @@ export function EventAnnouncementEmail({
             )}
 
             {/* Date / Venue / Time strip */}
-            <table width="100%" cellPadding={0} cellSpacing={0} role="presentation" style={{ borderTop: "1px solid #ffffff", borderBottom: "1px solid #ffffff" }}>
+            <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ borderTop: "1px solid #ffffff", borderBottom: "1px solid #ffffff" }}>
               <tbody>
                 <tr>
                   <td style={{ width: "33%", borderRight: "1px solid #ffffff", padding: "10px 8px", textAlign: "center" }}>
@@ -300,7 +362,7 @@ export function EventAnnouncementEmail({
                   ` · ${daysUntilOnSale}d ${hoursUntilOnSale ?? 0}h away`}
               </Text>
             )}
-            {isAvailableNow && (
+            {isAvailableNow && !reminderStage && (
               <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
                 <strong>Tickets are ON SALE now.</strong>
                 <br />
@@ -309,12 +371,45 @@ export function EventAnnouncementEmail({
                 we just planned your {eventDayOfWeek ?? "upcoming"} night for you.
               </Text>
             )}
+            {/* Reminder copy overrides the on-sale-state copy above once a
+                reminderStage is set — by this point tickets are always on
+                sale, the only thing that changes is how close the show is. */}
+            {reminderStage === "week" && (
+              <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
+                <strong>One week out.</strong>
+                <br />
+                Lock in your plans — tickets are moving.
+              </Text>
+            )}
+            {reminderStage === "tomorrow" && (
+              <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
+                <strong>Doors open tomorrow.</strong>
+                <br />
+                This is your last full day to grab tickets before the show.
+              </Text>
+            )}
+            {reminderStage === "tonight" && (
+              <Text style={{ margin: "20px 0 0", fontFamily: ARCHIVO, fontSize: 14, lineHeight: "22px", color: "#ffffff", textAlign: "center" }}>
+                <strong>Tonight&apos;s the night.</strong>
+                <br />
+                Grab your ticket before you walk in the door.
+              </Text>
+            )}
 
             <Section style={{ textAlign: "center", padding: "20px 0 0" }}>
               <Button
                 href={ticketUrl}
+                className="email-cta-btn"
                 style={{
                   backgroundColor: "#ffffff",
+                  // Gmail's dark mode (Android/iOS apps) auto-inverts
+                  // background-color with no CSS opt-out (confirmed: the
+                  // [data-ogsc]/[data-ogsb] rule above only works for
+                  // Outlook, not Gmail) — it does NOT touch background-image
+                  // though, so a same-color gradient here paints over the
+                  // inverted color and keeps the button white instead of
+                  // going black-on-black.
+                  backgroundImage: "linear-gradient(#ffffff, #ffffff)",
                   color: "#0a0a0a",
                   fontFamily: ARCHIVO_CONDENSED,
                   fontWeight: 900,
@@ -337,7 +432,7 @@ export function EventAnnouncementEmail({
                       Real clipboard-copy can't run in email (no JS), so an
                       isolated, letter-spaced monospace block is what makes a
                       clean double-tap/double-click select the whole code. */}
-                  <table width="100%" cellPadding={0} cellSpacing={0} role="presentation">
+                  <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
                     <tbody>
                       <tr>
                         <td align="center">
@@ -364,6 +459,10 @@ export function EventAnnouncementEmail({
                 </>
               )}
             </Section>
+                </td>
+              </tr>
+            </tbody>
+          </table>
           </Section>
 
           {sponsorLogos.length > 0 && (

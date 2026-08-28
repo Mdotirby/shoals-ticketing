@@ -44,34 +44,76 @@ export async function POST(req: Request, { params }: { params: Promise<{ eventId
     return NextResponse.json({ error: "One or more seats do not belong to this event" }, { status: 400 });
   }
 
-  // Atomic conditional update — only updates seats that are still available.
-  // If another request grabbed any seat between our check and this update,
-  // the affected_rows count will be less than seat_ids.length and we reject.
-  const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
-  const { data: updated, error } = await admin
+  // Check current state of the requested seats first. A seat is fair game if
+  // it's available, OR if this same session already holds it — e.g. the
+  // customer bounced back from the payment page (declined card, browser back,
+  // a dropped connection) and is re-submitting the same seats they already
+  // reserved. Without this exception, the atomic "only if available" update
+  // below would see their own still-held seats as taken and reject the
+  // request every time they retry within the 4-minute hold window.
+  const { data: seatCheck } = await admin
     .from("seats")
-    .update({ status: "held", held_until: heldUntil, held_session: session_id || null })
-    .in("id", seat_ids)
-    .eq("status", "available")
-    .select("id");
+    .select("id, status, held_session")
+    .in("id", seat_ids);
 
-  if (error) return NextResponse.json({ error: "Failed to hold seats" }, { status: 500 });
-
-  const heldCount = (updated || []).length;
-  if (heldCount < seat_ids.length) {
-    // Some seats were taken between page load and checkout — release any we did hold
-    const heldIds = (updated || []).map((s: { id: string }) => s.id);
-    if (heldIds.length > 0) {
-      await admin
-        .from("seats")
-        .update({ status: "available", held_until: null, held_session: null })
-        .in("id", heldIds)
-        .eq("held_session", session_id || "");
-    }
+  const trulyUnavailable = (seatCheck || []).filter(
+    (s: { status: string; held_session: string | null }) =>
+      s.status !== "available" && !(s.status === "held" && s.held_session === (session_id || null))
+  );
+  if (trulyUnavailable.length > 0) {
     return NextResponse.json({
       error: "Some seats are no longer available",
-      unavailable_seat_ids: seat_ids.filter((id: string) => !heldIds.includes(id)),
+      unavailable_seat_ids: trulyUnavailable.map((s: { id: string }) => s.id),
     }, { status: 409 });
+  }
+
+  const alreadyMineIds = (seatCheck || [])
+    .filter((s: { status: string; held_session: string | null }) => s.status === "held" && s.held_session === (session_id || null))
+    .map((s: { id: string }) => s.id);
+  const needToGrabIds = seat_ids.filter((id: string) => !alreadyMineIds.includes(id));
+
+  const heldUntil = new Date(Date.now() + 4 * 60 * 1000).toISOString();
+
+  // Atomic conditional update for the seats we don't already hold — only
+  // updates rows still available. If another request grabbed any seat
+  // between our check and this update, the affected_rows count will be less
+  // than needToGrabIds.length and we reject the whole request.
+  let grabbedIds: string[] = [];
+  if (needToGrabIds.length > 0) {
+    const { data: updated, error } = await admin
+      .from("seats")
+      .update({ status: "held", held_until: heldUntil, held_session: session_id || null })
+      .in("id", needToGrabIds)
+      .eq("status", "available")
+      .select("id");
+
+    if (error) return NextResponse.json({ error: "Failed to hold seats" }, { status: 500 });
+    grabbedIds = (updated || []).map((s: { id: string }) => s.id);
+
+    if (grabbedIds.length < needToGrabIds.length) {
+      // Some seats were taken between our check and this update — release any we did grab
+      if (grabbedIds.length > 0) {
+        await admin
+          .from("seats")
+          .update({ status: "available", held_until: null, held_session: null })
+          .in("id", grabbedIds)
+          .eq("held_session", session_id || "");
+      }
+      return NextResponse.json({
+        error: "Some seats are no longer available",
+        unavailable_seat_ids: needToGrabIds.filter((id: string) => !grabbedIds.includes(id)),
+      }, { status: 409 });
+    }
+  }
+
+  // Refresh the hold timer on seats we already held — lets a retry extend its
+  // own window instead of racing an unrelated expiry.
+  if (alreadyMineIds.length > 0) {
+    await admin
+      .from("seats")
+      .update({ held_until: heldUntil })
+      .in("id", alreadyMineIds)
+      .eq("held_session", session_id || "");
   }
 
   return NextResponse.json({ success: true, held_until: heldUntil, seat_count: seat_ids.length });

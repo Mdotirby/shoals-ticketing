@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type {
   Settlement,
@@ -13,7 +13,8 @@ import type {
   MerchSellerFeePayer,
   MerchTaxPayer,
 } from "@/lib/types/settlement";
-import { exportArtistSettlementPDF, exportVenueSettlementPDF } from "@/lib/pdf/settlement-pdf";
+import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
+import { getCookie } from "@/lib/cookies";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -50,8 +51,18 @@ export default function SettlementDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
+  const [exportingVenueXlsx, setExportingVenueXlsx] = useState(false);
 
   // Core settlement
+  // Platform-only view. /admin/settlements is open to owner AND venue_admin,
+  // and venue_admin IS the client in this white-label setup — so what Stripe
+  // charges us and what we absorb must be gated to the platform owner.
+  const [isPlatformOwner, setIsPlatformOwner] = useState(false);
+  useEffect(() => {
+    setIsPlatformOwner(getCookie("user-role") === "owner");
+  }, []);
+
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [expenses, setExpenses] = useState<SettlementExpense[]>([]);
   const [deposits, setDeposits] = useState<SettlementDeposit[]>([]);
@@ -61,6 +72,9 @@ export default function SettlementDetailPage() {
   const [dealType, setDealType] = useState("FLAT");
   const [guaranteeInput, setGuaranteeInput] = useState(0);
   const [backendPctInput, setBackendPctInput] = useState(0);
+  // Share of the service fee handed back to the promoter, as a true percentage
+  // (50 = 50%). Stored as a decimal in the DB, like backend_percentage.
+  const [serviceFeeRebatePct, setServiceFeeRebatePct] = useState(0);
   const [radiusClause, setRadiusClause] = useState("");
   const [bonusStructureRaw, setBonusStructureRaw] = useState("");
 
@@ -71,6 +85,11 @@ export default function SettlementDetailPage() {
   const [ticketingFees, setTicketingFees] = useState(0);
   const [facilityFees, setFacilityFees] = useState(0);
   const [ccFees, setCcFees] = useState(0);
+  // Door cash sales — manual entry, since cash never touches Stripe and has
+  // no order/ledger row to source from. No fees, no tax: feeds straight into
+  // NBOR (see netReceiptsWithCash below).
+  const [cashGross, setCashGross] = useState(0);
+  const [cashTicketsSold, setCashTicketsSold] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   // Tax method is the only thing the user can flip on the settlement (some
   // venues run tax-inclusive pricing); rate itself comes from venue config.
@@ -121,6 +140,7 @@ export default function SettlementDetailPage() {
     setGuaranteeInput(Number(data.guarantee) || 0);
     // DB stores backend % as a decimal (0.85). UI uses true percentage (85).
     setBackendPctInput((Number(data.backend_percentage) || 0) * 100);
+    setServiceFeeRebatePct((Number(data.service_fee_rebate_pct) || 0) * 100);
     setRadiusClause(data.radius_clause ?? "");
     setBonusStructureRaw(
       data.bonus_structure ? JSON.stringify(data.bonus_structure, null, 0) : ""
@@ -129,6 +149,8 @@ export default function SettlementDetailPage() {
     setTicketingFees(Number(data.ticketing_fees) || 0);
     setFacilityFees(Number(data.facility_fees) || 0);
     setCcFees(Number(data.cc_fees) || 0);
+    setCashGross(Number(data.cash_gross) || 0);
+    setCashTicketsSold(Number(data.cash_tickets_sold) || 0);
     setTaxRate(Number(data.tax_rate) || 0);
     setTaxMethod((data.tax_method as TaxMethod) || "multiplier");
     setTicketingFeePerTicket(Number(data.ticketing_fee_per_ticket) || 0);
@@ -223,11 +245,30 @@ export default function SettlementDetailPage() {
     comps: ticketAudit.reduce((s, r) => s + r.comps, 0),
     gross: ticketAudit.reduce((s, r) => s + (r.gross || 0), 0),
   };
+  // Once the box office Cash Sale button has been used for this event,
+  // computeEventAudit sources real cash orders the same way it sources
+  // online/terminal ones (ledger-backed, no fee/tax to strip) and they
+  // already show up as source==="cash" rows here. When that's true, the
+  // manual cash_gross/cash_tickets_sold fields would double-count on top of
+  // money that's already inside total_gross/net_receipts — so they're only
+  // used as a fallback for events with no real cash orders (historical
+  // shows, or a night where staff logged cash a different way).
+  const hasRealCashRows = ticketAudit.some((r) => r.source === "cash");
 
   // For external settlements all financial figures come from manual state.
   // For VenueCore settlements they come from the ticket audit + stored fee state.
   const manualTaxRateDecimal = manualTaxRate / 100;
-  const totalGross = isExternal ? manualGross : auditTotals.gross;
+  // ALL-IN ticket gross (face + service + facility), which is what
+  // `adj gross = gross − service − facility` is meant to be applied to.
+  //
+  // `auditTotals.gross` is only the per-tier FACE column, so falling back to it
+  // alone would make the subtraction below remove fees that were never in the
+  // number. computeEventAudit stores the all-in figure on the settlement; the
+  // fallback reconstructs it the same way for rows saved before that existed.
+  const totalGross = isExternal
+    ? manualGross + manualTicketingFee * manualTicketsSold + manualFacilityFee * manualTicketsSold
+    : Number(settlement?.total_gross) ||
+      auditTotals.gross + ticketingFees + facilityFees;
   const effectiveTicketingFees = isExternal
     ? manualTicketingFee * manualTicketsSold
     : ticketingFees;
@@ -239,46 +280,59 @@ export default function SettlementDetailPage() {
   const effectiveTaxMethod: TaxMethod = isExternal ? manualTaxMethod : taxMethod;
 
   // ── Math model ────────────────────────────────────────────────────
-  const taxes =
-    effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
-      ? totalGross - totalGross / (1 + effectiveTaxRate)
-      : totalGross * effectiveTaxRate;
-  const grossReceipts =
-    totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
-  const netReceipts =
-    grossReceipts - effectiveTicketingFees - effectiveFacilityFees - taxes - effectiveCcFees;
-  const adjGross = netReceipts;
+  //
+  //   gross receipts  = ALL-IN ticket gross (face + service + facility)
+  //   adjusted gross  = gross − service − facility        ← the artist's face
+  //   net receipts    = adjusted gross − sales tax
+  //   net after exp.  = net receipts − expenses           ← the pool
+  //   overage         = net after expenses − guarantee
+  //   artist          = guarantee + (overage × backend%)
+  //
+  // This used to add every fee and then subtract the identical set, so
+  // netReceipts was algebraically just totalGross and sales tax never came
+  // out of the artist's split base at all. Every settlement in the database
+  // still shows adj_gross == net_receipts == total_gross because of it.
+  //
+  // The card surcharge is deliberately absent: the buyer funds it and it goes
+  // to Stripe, so it was never part of the ticket gross the artist splits.
+  // The one exception is a fees-included event, where the venue absorbs it —
+  // the audit already carves it out of face value before it reaches here.
+  const { gbor, adjGross, taxes, netReceipts } = settlementWaterfall({
+    totalGross,
+    ticketingFees: effectiveTicketingFees,
+    facilityFees: effectiveFacilityFees,
+    taxRate: effectiveTaxRate,
+    taxMethod: effectiveTaxMethod,
+    ccFees: effectiveCcFees,
+  });
+
+  // What Stripe actually kept, summed from the per-row audit figures. Distinct
+  // from effectiveCcFees, which is what buyers were surcharged.
+  const ccActual = ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0);
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
-  // Splitpoint = the dollar threshold the show must clear before the artist
-  // earns backend. By rule, the threshold is always the guarantee — promoter
-  // recoups expenses + guarantee, then the overage splits per the contract.
-  // For DOOR / FLAT / CO_PROMOTE deals the splitpoint concept doesn't apply.
-  const splitpoint =
-    dealType === "VS" || dealType === "PLUS" ? guaranteeInput : 0;
-  // Net after expenses — the pool that the splitpoint is measured against.
-  const netAfterExpenses = netReceipts - totalExpenses;
 
-  // Artist payment math, deal-type aware. backendPctInput is a true
-  // percentage (e.g. 85 for 85%), so divide by 100 in the math.
+  // Cash sales carry no fees, no tax, no card surcharge — the whole figure
+  // feeds straight into NBOR, on top of the Stripe-sourced netReceipts above.
+  // Skipped when real cash orders exist (hasRealCashRows) — those are
+  // already inside netReceipts via total_gross, so adding this too would
+  // double-count them.
+  const cashGrossNum = isExternal || hasRealCashRows ? 0 : cashGross;
+  const cashTicketsSoldNum = isExternal || hasRealCashRows ? 0 : cashTicketsSold;
+  const netReceiptsWithCash = netReceipts + cashGrossNum;
+
+  // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
   const backendPctDecimal = backendPctInput / 100;
-  const artistBackend = (() => {
-    if (dealType === "VS" || dealType === "PLUS") {
-      // Promoter recoups expenses + guarantee, then artist gets backend % of
-      // anything above that.
-      const overage = netAfterExpenses - guaranteeInput;
-      return overage > 0 ? overage * backendPctDecimal : 0;
-    }
-    if (dealType === "DOOR") {
-      // Pure door deal = % of net (no guarantee floor)
-      return netReceipts > 0 ? netReceipts * backendPctDecimal : 0;
-    }
-    return 0;
-  })();
-  const artistTotal =
-    dealType === "DOOR"
-      ? artistBackend // pure door — no guarantee
-      : guaranteeInput + artistBackend;
+  const { netAfterExpenses, splitpoint, artistBackend, dealTotal, serviceFeeRebate, artistTotal } =
+    artistPayout({
+      netReceipts: netReceiptsWithCash,
+      totalExpenses,
+      guarantee: guaranteeInput,
+      backendPct: backendPctDecimal,
+      dealType,
+      ticketingFees: effectiveTicketingFees,
+      serviceFeeRebatePct: serviceFeeRebatePct / 100,
+    });
 
   const totalDeposits = deposits
     .filter((d) => d.type === "deposit")
@@ -355,22 +409,26 @@ export default function SettlementDetailPage() {
     barRevenue + concessionsRevenue + legacyMerchCommission + ticketingRebate +
     parkingRevenue + sponsorshipRevenue + totalOtherAncillary +
     merchVenueShare; // merch venue share is venue revenue
+  // Venue profit = what the venue keeps on the ticket side, plus ancillary
+  // revenue (which already includes the merch venue share), less show expenses,
+  // less the artist's contracted total.
+  //
+  // The merch seller fee is only a venue cost when the VENUE pays it. When the
+  // artist pays it, it never hit the venue's books — it just reduces the
+  // artist's balance due. Adding it back here invented margin the venue never
+  // earned, so it's gone.
   const venueNetProfit =
-    netReceipts +
+    netReceiptsWithCash +
     totalAncillary -
     totalExpenses -
-    venuePaidMerchSellerFee - // merch seller fee (if venue eats it) is a venue cost
-    artistTotal +
-    // Add back the merch venue share + artist-paid seller fee that already
-    // reduced balanceDue above — those are not artist-side costs to the venue.
-    artistPaidMerchSellerFee;
+    venuePaidMerchSellerFee -
+    artistTotal;
 
-  // Per-ticket all-in (for display)
   const ticketsSold = isExternal ? manualTicketsSold : (settlement?.tickets_sold_count ?? auditTotals.sold);
   const compCount = settlement?.comp_count ?? auditTotals.comps;
-  const grossPerTicket = ticketsSold > 0 ? totalGross / ticketsSold : 0;
-  const ccFeePerTicket = ticketsSold > 0 ? effectiveCcFees / ticketsSold : 0;
-  const totalCustomerPaid = totalGross + effectiveTicketingFees + effectiveFacilityFees + taxes + effectiveCcFees;
+  // Per-ticket averages used to live here. They're gone: the audit table now
+  // carries real per-row figures, and GBOR is the all-in total, so an average
+  // spread across mixed-price tiers only invited misreading.
 
   /* ─── Recalculate variable expenses when totalGross changes ─── */
   const recalcVariableExpenses = useCallback(
@@ -434,6 +492,7 @@ export default function SettlementDetailPage() {
       deal_type: dealType,
       guarantee: guaranteeInput,
       backend_percentage: backendPctInput / 100, // store as decimal in DB
+      service_fee_rebate_pct: serviceFeeRebatePct / 100,
       bonus_structure: bonusStructureParsed,
       radius_clause: radiusClause || null,
 
@@ -441,6 +500,8 @@ export default function SettlementDetailPage() {
       ticketing_fees: effectiveTicketingFees,
       facility_fees: effectiveFacilityFees,
       cc_fees: effectiveCcFees,
+      cash_gross: cashGrossNum,
+      cash_tickets_sold: cashTicketsSoldNum,
       taxes,
       tax_rate: effectiveTaxRate,
       tax_method: effectiveTaxMethod,
@@ -461,7 +522,9 @@ export default function SettlementDetailPage() {
       // Calculated
       total_gross: totalGross,
       adj_gross: adjGross,
-      net_receipts: netReceipts,
+      // NBOR including cash — cash carries no fees/tax/cc, so it's added on
+      // top of the Stripe-sourced walk rather than run through it.
+      net_receipts: netReceiptsWithCash,
       total_expenses: totalExpenses,
       splitpoint,
       artist_backend: artistBackend,
@@ -478,7 +541,7 @@ export default function SettlementDetailPage() {
       parking_revenue: parkingRevenue,
       sponsorship_revenue: sponsorshipRevenue,
       other_ancillary: otherAncillary,
-      venue_total_revenue: totalAncillary + netReceipts,
+      venue_total_revenue: totalAncillary + netReceiptsWithCash,
       venue_net_profit: venueNetProfit,
 
       // Merch
@@ -636,18 +699,21 @@ export default function SettlementDetailPage() {
       deal_type: dealType,
       guarantee: guaranteeInput,
       backend_percentage: backendPctInput / 100, // PDF expects decimal
+      service_fee_rebate_pct: serviceFeeRebatePct / 100,
       radius_clause: radiusClause,
       total_gross: totalGross,
       ticketing_fees: effectiveTicketingFees,
       facility_fees: effectiveFacilityFees,
       cc_fees: effectiveCcFees,
+      cash_gross: cashGrossNum,
+      cash_tickets_sold: cashTicketsSoldNum,
       ticketing_fee_per_ticket: isExternal ? manualTicketingFee : ticketingFeePerTicket,
       facility_fee_per_ticket: isExternal ? manualFacilityFee : facilityFeePerTicket,
       adj_gross: adjGross,
       taxes,
       tax_rate: effectiveTaxRate,
       tax_method: effectiveTaxMethod,
-      net_receipts: netReceipts,
+      net_receipts: netReceiptsWithCash,
       total_expenses: totalExpenses,
       splitpoint,
       artist_backend: artistBackend,
@@ -665,7 +731,7 @@ export default function SettlementDetailPage() {
       parking_revenue: parkingRevenue,
       sponsorship_revenue: sponsorshipRevenue,
       other_ancillary: otherAncillary,
-      venue_total_revenue: totalAncillary + netReceipts,
+      venue_total_revenue: totalAncillary + netReceiptsWithCash,
       venue_net_profit: venueNetProfit,
 
       // Merch
@@ -686,39 +752,79 @@ export default function SettlementDetailPage() {
   };
 
   const exportArtistPDF = async () => {
-    if (!settlement) return;
-    const pdfSettlement = buildPdfSettlement();
-    const venueInfo = {
-      name: settlement.event_title || settlement.artist_name || "Venue",
-      address_street: undefined as string | undefined,
-      address_city: undefined as string | undefined,
-      address_state: undefined as string | undefined,
-      address_zip: undefined as string | undefined,
-    };
-    await exportArtistSettlementPDF(
-      pdfSettlement,
-      venueInfo,
-      expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
-      deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes }))
-    );
+    if (!settlement || exportingArtistPdf) return;
+    setExportingArtistPdf(true);
+    setError("");
+    try {
+      const pdfSettlement = buildPdfSettlement();
+      const res = await fetch(`/api/settlements/${settlement.id}/export-xlsx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settlement: pdfSettlement,
+          expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Artist_Settlement.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Excel export failed");
+    } finally {
+      setExportingArtistPdf(false);
+    }
   };
 
   const exportVenuePDF = async () => {
-    if (!settlement) return;
-    const pdfSettlement = buildPdfSettlement();
-    const venueInfo = {
-      name: settlement.event_title || settlement.artist_name || "Venue",
-      address_street: undefined as string | undefined,
-      address_city: undefined as string | undefined,
-      address_state: undefined as string | undefined,
-      address_zip: undefined as string | undefined,
-    };
-    await exportVenueSettlementPDF(
-      pdfSettlement,
-      venueInfo,
-      expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
-      deposits.map((d) => ({ type: d.type, amount: d.amount, date: d.date, notes: d.notes }))
-    );
+    if (!settlement || exportingVenueXlsx) return;
+    setExportingVenueXlsx(true);
+    setError("");
+    try {
+      const pdfSettlement = buildPdfSettlement();
+      const res = await fetch(`/api/settlements/${settlement.id}/export-venue-xlsx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settlement: pdfSettlement,
+          expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Venue_Settlement.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Venue Excel export failed");
+    } finally {
+      setExportingVenueXlsx(false);
+    }
   };
 
   /* ─── Other Ancillary CRUD ─── */
@@ -862,6 +968,25 @@ export default function SettlementDetailPage() {
           />
         </div>
         <div>
+          <label className="admin-form-label">
+            Service Fee Rebate %{" "}
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>
+              (share of the service fee returned — e.g. 50 for 50%)
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            className="admin-form-input"
+            value={serviceFeeRebatePct}
+            onChange={(e) => setServiceFeeRebatePct(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="0"
+          />
+        </div>
+        <div>
           <label className="admin-form-label">Radius Clause</label>
           <input
             className="admin-form-input"
@@ -986,105 +1111,245 @@ export default function SettlementDetailPage() {
           </div>
         </>
       ) : (
-        /* ── VenueCore audit table ── */
+        /* ── VenueCore audit table, grouped by source ── */
         <>
+      {Math.abs(settlement.reconciliation_variance ?? 0) > 1 && (
+        /* computeEventAudit compares what Stripe actually collected against
+           what the ledger-sourced pricing model says it should have been.
+           This is the exact check that would have caught the DNC mid-run
+           price change before it ever reached a check — surface it loudly
+           instead of letting it vanish the way it did that night. */
+        <div style={{
+          background: "rgba(255,120,120,0.1)", border: "1px solid rgba(255,120,120,0.4)",
+          borderRadius: 6, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#ff9a9a",
+        }}>
+          <strong>Reconciliation mismatch: {fmt(settlement.reconciliation_variance ?? 0)}</strong>
+          {" — "}what Stripe actually collected doesn&rsquo;t match what the ticket audit says it should
+          have been. Common causes: a price or fee changed mid-run, a refund, or an order that never
+          got a ledger row. Click Refresh, and if it persists, check for a mid-sale price change.
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
+          {/* Column order mirrors the settlement workbook so the app and the
+              spreadsheet read identically: inventory, then per-unit pricing,
+              then the pass-throughs, then GBOR for the row. Grouped by source
+              (Online / Terminal / Cash) with a subtotal per group, so gross
+              per source is visible at a glance. */}
           <thead>
             <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Tier</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Cap</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Sold</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Comps</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>% House</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Price</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Svc Fee</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Fac Fee</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>Tax</th>
-              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)", textAlign: "right" }}>CC Fee</th>
-              <th
-                style={{ padding: "8px 6px", color: "rgba(208,194,144,0.7)", textAlign: "right" }}
-                title="Price × sold + service fees + facility fees + tax + CC fee = total receipts collected from customers"
-              >
-                Gross Receipts
-              </th>
+              {["Tier Name","Capacity","Sold","Comp/Guest","Unsold","Price","SVC","FAC","Tax","Orders","CC","Gross","Tot. Price"].map((h, i) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "8px 6px",
+                    color: h === "Gross" ? "rgba(208,194,144,0.7)" : "rgba(255,255,255,0.5)",
+                    textAlign: i === 0 ? "left" : "right",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={
+                    h === "Orders" ? "Distinct paying orders. Card fees are charged per order, not per ticket."
+                    : h === "CC" ? "Card surcharge these buyers paid, from real per-order ledger figures."
+                    : h === "Gross" ? "GBOR for this row: face + service + facility + tax + card."
+                    : h === "Tot. Price" ? "All-in price of one unit — what a single buyer paid."
+                    : undefined
+                  }
+                >
+                  {h}
+                </th>
+              ))}
+              {isPlatformOwner && (
+                <th
+                  style={{ padding: "8px 6px", color: "rgba(255,255,255,0.35)", textAlign: "right", whiteSpace: "nowrap" }}
+                  title="Platform only — what Stripe actually kept on this row."
+                >
+                  CC Stripe
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {ticketAudit.map((row, i) => {
-              const pctHouse = row.capacity > 0 ? (row.sold / row.capacity) * 100 : 0;
-              const svcFeeTotal = (row.ticketing_fee || 0) * row.sold;
-              const facFeeTotal = (row.facility_fee || 0) * row.sold;
-              const tierTax =
-                effectiveTaxMethod === "divisor" && effectiveTaxRate > 0
-                  ? row.gross - row.gross / (1 + effectiveTaxRate)
-                  : row.gross * effectiveTaxRate;
-              const totalSold = auditTotals.sold || 1;
-              const tierCcShare = effectiveCcFees * (row.sold / totalSold);
-              // Gross Receipts for this tier = price × sold + fees + tax + cc share
-              const tierGrossReceipts =
-                row.gross + svcFeeTotal + facFeeTotal + tierTax + tierCcShare;
+            {(["online", "terminal", "cash"] as const).map((src) => {
+              const srcRows = ticketAudit.filter((r) => r.source === src);
+              if (srcRows.length === 0) return null;
+              const label = src === "online" ? "Online" : src === "terminal" ? "Terminal" : "Cash (Box Office)";
+              const sub = {
+                capacity: srcRows.reduce((s, r) => s + r.capacity, 0),
+                sold: srcRows.reduce((s, r) => s + r.sold, 0),
+                comps: srcRows.reduce((s, r) => s + r.comps, 0),
+                unsold: srcRows.reduce((s, r) => s + (r.unsold ?? 0), 0),
+                svc: srcRows.reduce((s, r) => s + (r.ticketing_fee || 0) * r.sold, 0),
+                fac: srcRows.reduce((s, r) => s + (r.facility_fee || 0) * r.sold, 0),
+                tax: srcRows.reduce((s, r) => s + (r.tax ?? 0), 0),
+                orders: srcRows.reduce((s, r) => s + (r.orders ?? 0), 0),
+                cc: srcRows.reduce((s, r) => s + (r.cc_fees ?? 0), 0),
+                ccActual: srcRows.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0),
+                gross: srcRows.reduce((s, r) => s + (r.gross_receipts ?? 0), 0),
+              };
+              const cell = { padding: "6px", textAlign: "right" as const };
               return (
-                <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <td style={{ padding: "6px" }}>{row.tier}</td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{row.capacity}</td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{row.sold}</td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{row.comps}</td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{pctHouse.toFixed(1)}%</td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{fmt(row.price)}</td>
-                  <td
-                    style={{ padding: "6px", textAlign: "right" }}
-                    title={`${fmt(row.ticketing_fee || 0)} × ${row.sold} tickets`}
-                  >
-                    {fmt(svcFeeTotal)}
-                  </td>
-                  <td
-                    style={{ padding: "6px", textAlign: "right" }}
-                    title={`${fmt(row.facility_fee || 0)} × ${row.sold} tickets`}
-                  >
-                    {fmt(facFeeTotal)}
-                  </td>
-                  <td style={{ padding: "6px", textAlign: "right" }}>{fmt(tierTax)}</td>
-                  <td
-                    style={{ padding: "6px", textAlign: "right" }}
-                    title="Processing fees apportioned by tier sold count"
-                  >
-                    {fmt(tierCcShare)}
-                  </td>
-                  <td style={{ padding: "6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
-                    {fmt(tierGrossReceipts)}
-                  </td>
-                </tr>
+                <Fragment key={src}>
+                  <tr>
+                    <td
+                      colSpan={isPlatformOwner ? 14 : 13}
+                      style={{
+                        padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
+                        textTransform: "uppercase", letterSpacing: 0.5,
+                        color: "rgba(208,194,144,0.85)",
+                      }}
+                    >
+                      {label}
+                    </td>
+                  </tr>
+                  {srcRows.map((row, i) => {
+                    const svcFeeTotal = (row.ticketing_fee || 0) * row.sold;
+                    const facFeeTotal = (row.facility_fee || 0) * row.sold;
+                    const tierTax = row.tax ?? 0;
+                    const tierCcShare = row.cc_fees ?? 0;
+                    const tierCcActual = row.cc_fees_actual ?? 0;
+                    const tierGross = row.gross_receipts ?? 0;
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td style={{ padding: "6px" }}>{row.tier}</td>
+                        <td style={cell}>{row.capacity}</td>
+                        <td style={cell}>{row.sold}</td>
+                        <td style={cell}>{row.comps}</td>
+                        <td style={cell}>{row.unsold ?? 0}</td>
+                        <td style={cell}>{fmt(row.price)}</td>
+                        <td style={cell} title={`${fmt(row.ticketing_fee || 0)} × ${row.sold}`}>{fmt(svcFeeTotal)}</td>
+                        <td style={cell} title={`${fmt(row.facility_fee || 0)} × ${row.sold}`}>{fmt(facFeeTotal)}</td>
+                        <td style={cell}>{fmt(tierTax)}</td>
+                        <td style={cell}>{row.orders ?? 0}</td>
+                        <td style={cell}>{fmt(tierCcShare)}</td>
+                        <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>{fmt(tierGross)}</td>
+                        <td style={cell}>{fmt(row.total_price ?? 0)}</td>
+                        {isPlatformOwner && (
+                          <td
+                            style={{ ...cell, opacity: 0.6 }}
+                            title={`Platform absorbed ${fmt(tierCcShare - tierCcActual)} on this row`}
+                          >
+                            {fmt(tierCcActual)}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ borderBottom: "1px solid rgba(208,194,144,0.2)" }}>
+                    <td style={{ padding: "6px", fontStyle: "italic", color: "rgba(255,255,255,0.5)" }}>{label} subtotal</td>
+                    <td style={cell}>{sub.capacity}</td>
+                    <td style={cell}>{sub.sold}</td>
+                    <td style={cell}>{sub.comps}</td>
+                    <td style={cell}>{sub.unsold}</td>
+                    <td style={cell}>—</td>
+                    <td style={cell}>{fmt(sub.svc)}</td>
+                    <td style={cell}>{fmt(sub.fac)}</td>
+                    <td style={cell}>{fmt(sub.tax)}</td>
+                    <td style={cell}>{sub.orders}</td>
+                    <td style={cell}>{fmt(sub.cc)}</td>
+                    <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>{fmt(sub.gross)}</td>
+                    <td style={cell}>—</td>
+                    {isPlatformOwner && <td style={{ ...cell, opacity: 0.6 }}>{fmt(sub.ccActual)}</td>}
+                  </tr>
+                </Fragment>
               );
             })}
-            {ticketAudit.length === 0 && (
+
+            {/* Cash — manual entry fallback, only shown when no real cash
+                orders exist for this event (the box office Cash Sale button
+                hasn't been used, or this is a historical show from before it
+                existed). Once real cash orders exist they render above in
+                the grouped-source loop like Online/Terminal, sourced from
+                their own ledger rows — showing this too would double-count. */}
+            {!hasRealCashRows && (
+            <Fragment>
               <tr>
-                <td colSpan={11} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td
+                  colSpan={isPlatformOwner ? 14 : 13}
+                  style={{
+                    padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
+                    textTransform: "uppercase", letterSpacing: 0.5,
+                    color: "rgba(208,194,144,0.85)",
+                  }}
+                >
+                  Cash (Manual)
+                </td>
+              </tr>
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <td style={{ padding: "6px" }}>Door Cash</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "4px 6px", textAlign: "right" }}>
+                  <input
+                    type="number" min="0" step="1"
+                    className="admin-form-input"
+                    style={{ width: 70, textAlign: "right", padding: "4px 6px" }}
+                    value={cashTicketsSold}
+                    disabled={isFinalized}
+                    onChange={(e) => setCashTicketsSold(Number(e.target.value))}
+                  />
+                </td>
+                <td style={{ padding: "6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>
+                  {cashTicketsSold > 0 ? fmt(cashGross / cashTicketsSold) : "—"}
+                </td>
+                <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>—</td>
+                <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
+                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
+                  <input
+                    type="number" min="0" step="0.01"
+                    className="admin-form-input"
+                    style={{ width: 90, textAlign: "right", padding: "4px 6px", fontWeight: 700 }}
+                    value={cashGross}
+                    disabled={isFinalized}
+                    onChange={(e) => setCashGross(Number(e.target.value))}
+                  />
+                </td>
+                <td style={{ padding: "6px", textAlign: "right" }}>
+                  {cashTicketsSold > 0 ? fmt(cashGross / cashTicketsSold) : "—"}
+                </td>
+                {isPlatformOwner && <td style={{ padding: "6px", textAlign: "right", opacity: 0.6 }}>{fmt(0)}</td>}
+              </tr>
+            </Fragment>
+            )}
+
+            {ticketAudit.length === 0 && cashGrossNum === 0 && (
+              <tr>
+                <td colSpan={isPlatformOwner ? 14 : 13} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
             )}
           </tbody>
-          {ticketAudit.length > 0 && (
+          {(ticketAudit.length > 0 || cashGrossNum > 0) && (
             <tfoot>
               <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.capacity}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold + cashTicketsSoldNum}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.comps}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>
-                  {auditTotals.capacity > 0
-                    ? ((auditTotals.sold / auditTotals.capacity) * 100).toFixed(1) + "%"
-                    : "—"}
+                  {ticketAudit.reduce((a, r) => a + (r.unsold ?? 0), 0)}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveTicketingFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveFacilityFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(taxes)}</td>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>
+                  {ticketAudit.reduce((a, r) => a + (r.orders ?? 0), 0)}
+                </td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
-                  {fmt(grossReceipts)}
+                  {fmt(gbor + cashGrossNum)}
                 </td>
+                <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
+                {isPlatformOwner && (
+                  <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, opacity: 0.6 }}>
+                    {fmt(ccActual)}
+                  </td>
+                )}
               </tr>
             </tfoot>
           )}
@@ -1146,46 +1411,74 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>Tickets Sold (Excl. Comps)</span>
           <span style={valStyle}>{ticketsSold}</span>
         </div>
+        {/* GBOR → less pass-throughs → NBOR. GBOR is everything that came in
+            the door — Stripe deposit plus door cash, matching the same
+            all-in total the Ticket Audit table's Total > Gross column
+            already shows. Every line below it is either money collected on
+            someone else's behalf and handed on, or (cash) has none to hand
+            on at all. */}
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>Gross Receipts</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>GBOR</span>
           <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #d0c290)" }}>
-            {fmt(grossReceipts)}
+            {fmt(gbor + cashGrossNum)}
           </span>
         </div>
-        {effectiveTicketingFees > 0 && (
+        {!isExternal && cashGrossNum > 0 && (
           <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees Collected</span>
-            <span style={valStyle}>({fmt(effectiveTicketingFees)})</span>
-          </div>
-        )}
-        {effectiveFacilityFees > 0 && (
-          <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>Facility Fees Collected</span>
-            <span style={valStyle}>({fmt(effectiveFacilityFees)})</span>
+            <span style={{ ...labelStyle, paddingLeft: 12 }}>incl. Cash Sales</span>
+            <span style={valStyle}>{fmt(cashGrossNum)}</span>
           </div>
         )}
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>Tax Collected ({(effectiveTaxRate * 100).toFixed(2)}%
-            {effectiveTaxMethod === "divisor" ? ", divisor" : ", multiplier"})
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Service Fees</span>
+          <span style={valStyle}>({fmt(effectiveTicketingFees)})</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>Facility Fees</span>
+          <span style={valStyle}>({fmt(effectiveFacilityFees)})</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>CC Fees</span>
+          <span style={valStyle}>({fmt(effectiveCcFees)})</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={{ ...labelStyle, paddingLeft: 12 }}>
+            Taxes ({(effectiveTaxRate * 100).toFixed(1)}%{" "}
+            {effectiveTaxMethod === "divisor" ? "Divisor" : "Multiplier"})
           </span>
           <span style={valStyle}>({fmt(taxes)})</span>
         </div>
-        {effectiveCcFees > 0 && (
-          <div style={rowStyle}>
-            <span style={{ ...labelStyle, paddingLeft: 12 }}>CC / Processing Fees</span>
-            <span style={valStyle}>({fmt(effectiveCcFees)})</span>
-          </div>
-        )}
         <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Net Receipts</span>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>NBOR</span>
           <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
-            {fmt(netReceipts)}
+            {fmt(netReceiptsWithCash)}
           </span>
         </div>
+        {isPlatformOwner && ccActual > 0 && Math.abs(effectiveCcFees - ccActual) >= 0.01 && (
+          /* Platform only. The buyer-funded surcharge above is what we
+             collected; this is the gap against what Stripe really took. */
+          <div style={{ ...rowStyle, marginTop: 6 }}>
+            <span style={{ ...labelStyle, color: "#ff9a9a", fontWeight: 700 }}>
+              Card-fee shortfall absorbed by platform
+            </span>
+            <span style={{ ...valStyle, color: "#ff9a9a", fontWeight: 700 }}>
+              {fmt(effectiveCcFees - ccActual)}
+            </span>
+          </div>
+        )}
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, margin: "10px 0 0", lineHeight: 1.5 }}>
-          Service / Facility / Tax / CC fees are pass-throughs — collected from the ticket buyer
-          and distributed out (to platform, facility, State & Local governments, and the payment processor respectively).
-          The artist payouts is calculated on what&rsquo;s left.
+          GBOR is Gross Box Office Receipts — everything the buyer paid, card fee
+          and tax included, so it ties to the Stripe deposit. Service fees, facility
+          fees and the card fee are pass-throughs collected on someone else&rsquo;s
+          behalf.
+          {effectiveTaxMethod === "divisor" ? (
+            <> Tax is baked into the face price on this event, so it is backed out to reach Net Receipts.</>
+          ) : (
+            <> Tax on this event is charged on top of the face price and remitted to the state —
+              it was never inside Gross Receipts, so it is shown for reference rather than deducted.</>
+          )}{" "}
+          The card fee is funded by the buyer and paid to Stripe, so it is also reference only.
+          Greyed rows are not part of the subtraction.
         </p>
       </div>
 
@@ -1659,26 +1952,25 @@ export default function SettlementDetailPage() {
       <h2 style={sectionTitleStyle}>Settlement</h2>
       <div style={{ maxWidth: 500 }}>
         <div style={rowStyle}>
-          <span style={labelStyle}>Net Receipts</span>
-          <span style={valStyle}>{fmt(netReceipts)}</span>
+          <span style={labelStyle}>Net Receipts (NBOR, incl. cash)</span>
+          <span style={valStyle}>{fmt(netReceiptsWithCash)}</span>
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>Total Expenses</span>
           <span style={valStyle}>{fmt(totalExpenses)}</span>
         </div>
         {(dealType === "VS" || dealType === "PLUS") && (
-          <>
-            <div style={rowStyle}>
-              <span style={labelStyle}>Backend Threshold</span>
-              <span style={valStyle}>{fmt(splitpoint)}</span>
-            </div>
-            <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
-              <span style={{ ...labelStyle, fontWeight: 700 }}>Backend</span>
-              <span style={{ ...valStyle, color: netAfterExpenses - guaranteeInput >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
-                {fmt(netAfterExpenses - guaranteeInput)}
-              </span>
-            </div>
-          </>
+          /* Was two lines here — "Backend Threshold" and a "Backend" figure
+             computed inline as netAfterExpenses − guarantee. That was the old
+             (wrong) formula, hardcoded rather than read from the payout model,
+             so it kept reporting a number the settlement never paid. The pool
+             is what the overage below is actually computed from. */
+          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+            <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
+            <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+              {fmt(netAfterExpenses)}
+            </span>
+          </div>
         )}
         {dealType === "DOOR" && (
           <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
@@ -1691,7 +1983,7 @@ export default function SettlementDetailPage() {
         {(dealType === "VS" || dealType === "PLUS") && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Artist Backend ({backendPctInput.toFixed(2)}% of overage)
+              Overage ({backendPctInput.toFixed(2)}% of net after expenses, less guarantee)
             </span>
             <span style={valStyle}>{fmt(artistBackend)}</span>
           </div>
@@ -1709,6 +2001,22 @@ export default function SettlementDetailPage() {
             <span style={labelStyle}>Guarantee</span>
             <span style={valStyle}>{fmt(guaranteeInput)}</span>
           </div>
+        )}
+        {serviceFeeRebate > 0 && (
+          <>
+            <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
+              <span style={{ ...labelStyle, fontWeight: 600 }}>Deal Total</span>
+              <span style={valStyle}>{fmt(dealTotal)}</span>
+            </div>
+            {/* Sits outside the deal split — a share of the service fee handed
+                back, on top of whatever the guarantee and backend produce. */}
+            <div style={rowStyle}>
+              <span style={labelStyle}>
+                Service Fee Rebate ({serviceFeeRebatePct.toFixed(0)}% of {fmt(effectiveTicketingFees)})
+              </span>
+              <span style={{ ...valStyle, color: "#7ddb7d" }}>{fmt(serviceFeeRebate)}</span>
+            </div>
+          </>
         )}
         <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700 }}>Artist Total</span>
@@ -1833,7 +2141,7 @@ export default function SettlementDetailPage() {
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>Net Receipts + Ancillary</span>
-          <span style={valStyle}>{fmt(netReceipts + totalAncillary)}</span>
+          <span style={valStyle}>{fmt(netReceiptsWithCash + totalAncillary)}</span>
         </div>
         <div style={rowStyle}>
           <span style={labelStyle}>Total Expenses + Artist Total</span>
@@ -1884,11 +2192,16 @@ export default function SettlementDetailPage() {
             </button>
           </>
         )}
-        <button className="admin-header-btn" onClick={exportArtistPDF} style={{ padding: "10px 20px" }}>
-          Export Artist Settlement PDF
+        <button
+          className="admin-header-btn"
+          onClick={exportArtistPDF}
+          disabled={exportingArtistPdf}
+          style={{ padding: "10px 20px" }}
+        >
+          {exportingArtistPdf ? "Exporting…" : "Export Artist Settlement Excel"}
         </button>
-        <button className="admin-header-btn" onClick={exportVenuePDF} style={{ padding: "10px 20px" }}>
-          Export Venue Settlement PDF
+        <button className="admin-header-btn" onClick={exportVenuePDF} disabled={exportingVenueXlsx} style={{ padding: "10px 20px" }}>
+          {exportingVenueXlsx ? "Exporting…" : "Export Venue Settlement Excel"}
         </button>
       </div>
     </div>

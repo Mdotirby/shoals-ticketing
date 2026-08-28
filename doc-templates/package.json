@@ -1,0 +1,16 @@
+{
+  "name": "doc-templates",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pixel-perfect document template pipeline (settlement reports, offers, agreements, contracts) for West 72 Entertainment",
+  "type": "commonjs",
+  "scripts": {
+    "generate": "node scripts/generate.js",
+    "verify": "node scripts/verify.js"
+  },
+  "dependencies": {
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^23.0.0"
+  }
+}

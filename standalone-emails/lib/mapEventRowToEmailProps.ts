@@ -3,7 +3,8 @@
 // see standalone-emails/ isolation note in project memory.
 
 import { createAdminClient } from "@/lib/supabase-server";
-import { getAnnouncementBodyText, type EventAnnouncementEmailProps } from "../templates/EventAnnouncementEmail";
+import { getAnnouncementBodyText, type EventAnnouncementEmailProps, type ReminderStage } from "../templates/EventAnnouncementEmail";
+import { parseNaiveLocalDate } from "./reminderStage";
 import { buildEventUrl } from "./urls";
 
 type EventRow = {
@@ -57,19 +58,9 @@ type EventPresaleRow = {
   ends_at: string | null;
 };
 
-// events.date/start_time are naive wall-clock values with no real timezone
-// conversion (confirmed against the admin edit page, which reads them via
-// raw string-slicing, not Date parsing) — the stored digits ARE the intended
-// Central wall-clock time, just mislabeled with a +00:00/Z suffix. Encoded
-// here as "fake UTC" (Date.UTC of the raw digits) so the resulting Date is
-// correct regardless of the server process's actual timezone — read back
-// with `timeZone: "UTC"` everywhere below, never the server default.
-function parseNaiveLocalDate(s: string): Date {
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
-  if (!m) return new Date(NaN);
-  const [, y, mo, d, h, min] = m;
-  return new Date(Date.UTC(+y, +mo - 1, +d, h ? +h : 12, min ? +min : 0));
-}
+// parseNaiveLocalDate now lives in ./reminderStage.ts (imported above) so
+// the admin broadcast wizard, a client component, can reuse the exact same
+// parser for its Reminder Stage suggestion without duplicating it.
 const NAIVE_TZ = "UTC"; // paired with parseNaiveLocalDate's fake-UTC encoding
 
 // on_sale_at IS properly converted true UTC (see the admin edit page's
@@ -124,6 +115,12 @@ function formatOnSaleDate(d: Date): string {
     hour: "numeric", minute: "2-digit", timeZoneName: "short", timeZone: VENUE_TZ,
   });
 }
+
+// suggestReminderStage lives in ./reminderStage.ts, not here — that file has
+// zero server-only imports so the admin broadcast wizard (a client
+// component) can call it directly for the "Reminder Stage" selector's
+// default, without pulling this file's Supabase service-role client into
+// the browser bundle.
 
 function formatEventTime(d: Date, startTime: string | null): string {
   const hour24 = +new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: NAIVE_TZ }).format(d) % 24;
@@ -198,7 +195,7 @@ function resolveOnSaleState(
  */
 export async function mapEventIdToEmailProps(
   eventId: string,
-  opts?: { utmCampaign?: string },
+  opts?: { utmCampaign?: string; reminderStage?: ReminderStage },
 ): Promise<EventAnnouncementEmailProps> {
   const client = createAdminClient();
 
@@ -290,7 +287,14 @@ export async function mapEventIdToEmailProps(
     sponsorLogos,
     // Mirrors the copy shown just above the CTA (see getAnnouncementBodyText)
     // rather than a generic "event — date at venue" string.
-    previewText: getAnnouncementBodyText({ ...onSale, eventDayOfWeek }),
+    previewText: getAnnouncementBodyText({ ...onSale, eventDayOfWeek, reminderStage: opts?.reminderStage }),
     ...onSale,
+    // Deliberately a plain passthrough, NOT auto-suggested here — this
+    // function backs the regular announcement send too, and auto-applying a
+    // reminder stage whenever an event happens to be N days out would
+    // silently change what that send looks like. Auto-suggestion only lives
+    // in the admin broadcast UI (suggestReminderStage), which always sends
+    // an explicit choice.
+    reminderStage: opts?.reminderStage,
   };
 }

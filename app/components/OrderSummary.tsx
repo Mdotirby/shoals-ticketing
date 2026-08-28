@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 
-// Stripe charges 2.7% + $0.30 per transaction
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE = 0.3;
 
 /** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */
 function normalizeTaxRate(rate: number): number {
@@ -48,15 +46,21 @@ export default function OrderSummary({
 }: OrderSummaryProps) {
   // Divisor = tax baked into face price; don't charge it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
-  const selectedTierSoldOut = selectedTicket
-    ? selectedTicket.quantity_sold >= selectedTicket.quantity_available
-    : false;
-  const hasSelection = selectedTicket !== null && quantity > 0 && !selectedTierSoldOut;
+  // Sold-out is decided by the parent (EventDetailClient) and arrives via
+  // checkoutDisabled/checkoutDisabledMessage. This component used to recompute
+  // it from quantity_sold >= quantity_available, which double-counted
+  // mixed-section orders and falsely blocked sections that still had seats —
+  // one source of truth avoids the two drifting apart again.
+  const hasSelection = selectedTicket !== null && quantity > 0;
 
   // ── Free checkout state ──
   const [freeName, setFreeName] = useState("");
   const [freeEmail, setFreeEmail] = useState("");
   const [freeLoading, setFreeLoading] = useState(false);
+
+  // ── Price details disclosure — collapsed by default, matches the all-inclusive
+  // price shown above it; expanding reveals the itemized fee/tax breakdown. ──
+  const [showDetails, setShowDetails] = useState(false);
 
   // ── Promo code state ──
   const [showPromoInput, setShowPromoInput] = useState(false);
@@ -134,7 +138,7 @@ export default function OrderSummary({
   // When fees are baked into the price, the venue absorbs the card
   // processing fee too — the customer is charged exactly subtotalBeforeStripe.
   const processingFee = isFreeOrder || feesIncludedInPrice ? 0 : (hasSelection
-    ? Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100
+    ? onlineSurchargeDollars(subtotalBeforeStripe)
     : 0);
   const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;
 
@@ -142,10 +146,10 @@ export default function OrderSummary({
     <div className="order-summary">
       <h2 className="order-summary-title">Order Summary</h2>
 
-      {selectedTierSoldOut || (checkoutDisabled && checkoutDisabledMessage) ? (
+      {checkoutDisabled && checkoutDisabledMessage ? (
         <div className="order-summary-empty">
           <p className="order-summary-empty-text" style={{ color: "#f87171" }}>
-            {selectedTierSoldOut ? "This ticket type is sold out." : checkoutDisabledMessage}
+            {checkoutDisabledMessage}
           </p>
         </div>
       ) : !hasSelection ? (
@@ -174,8 +178,19 @@ export default function OrderSummary({
               {selectedTicket.name}
               {quantity > 1 ? ` × ${quantity}` : ""}
             </span>
-            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
+            <span className="order-summary-line-value">
+              {isFreeOrder ? (
+                <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span>
+              ) : (
+                `$${total.toFixed(2)}`
+              )}
+            </span>
           </div>
+          {!isFreeOrder && (
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+              (Incl. Taxes &amp; Fees)
+            </p>
+          )}
 
           {/* ── Promo Code Section ── */}
           {!appliedPromo ? (
@@ -281,6 +296,32 @@ export default function OrderSummary({
             </div>
           )}
 
+          {!isFreeOrder && (totalTicketingFee > 0 || totalFacilityFee > 0 || tax > 0 || processingFee > 0) && (
+            <button
+              type="button"
+              onClick={() => setShowDetails((v) => !v)}
+              style={{
+                background: "none", border: "none", color: "#d0c290", cursor: "pointer",
+                fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              {showDetails ? "Hide" : "Show"} price details
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          )}
+
+          {showDetails && (
+          <>
+          <div className="order-summary-line order-summary-line-sub">
+            <span className="order-summary-line-label">
+              {selectedTicket.name}
+              {quantity > 1 ? ` × ${quantity}` : ""}
+            </span>
+            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
+          </div>
           {totalTicketingFee > 0 && (
             <div className="order-summary-line order-summary-line-sub">
               <span className="order-summary-line-label">Ticketing Service Fee</span>
@@ -339,6 +380,8 @@ export default function OrderSummary({
               )}
             </span>
           </div>
+          </>
+          )}
         </div>
       )}
 

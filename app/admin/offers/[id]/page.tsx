@@ -7,9 +7,9 @@ import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, Variab
 import type { Venue } from "@/lib/types/venue";
 import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
-import { exportOfferPDF } from "@/lib/pdf/offer-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
+import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -162,13 +162,13 @@ export default function AdminOfferDetailPage() {
         ? 0
         : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      const cc = Math.round(preCC * 0.027 * 100) / 100;
+      const cc = offerSurchargePerTicket(preCC);
       return s + (Number(r.sellable_cap) || 0) * (preCC + cc);
     }, 0);
     const totalCC = scaling.reduce((s, r) => {
       const taxPer = taxMethod === "divisor" ? 0 : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      return s + (Number(r.sellable_cap) || 0) * Math.round(preCC * 0.027 * 100) / 100;
+      return s + (Number(r.sellable_cap) || 0) * offerSurchargePerTicket(preCC);
     }, 0);
     const preCCGross = displayGross - totalCC;
     const displayAdjGross = preCCGross - totalFees;
@@ -177,7 +177,23 @@ export default function AdminOfferDetailPage() {
     const totalVariable = varExp.reduce((s, e) => s + ((Number(e.rate) || 0) * grossPotential), 0);
     const totalExpenses = totalFixed + totalVariable;
 
-    const splitpoint = Math.max(netPotential - totalExpenses, 0);
+    // Artist payment model — identical to the create page and to the
+    // settlement page. "Splitpoint" is the pool the backend percentage is
+    // measured against — net receipts/potential minus expenses. Always
+    // netAfterExpenses, regardless of deal type; it's a factual "what's left
+    // after expenses" figure, not the guarantee. The guarantee is the
+    // threshold the pool gets measured against to compute overage below.
+    const netAfterExpenses = netPotential - totalExpenses;
+    const guaranteeNum = Number(form.guarantee || 0);
+    const backendPctDecimal = Number(form.backend_percentage || 0) / 100;
+    const dealTypeNow = String(form.deal_type || "");
+    const splitpoint = netAfterExpenses;
+    // (pool × backend%) − guarantee, i.e. max(guarantee, pool × backend%).
+    const overage = netAfterExpenses * backendPctDecimal - guaranteeNum;
+    const artistBackend =
+      dealTypeNow === "FLAT" || overage <= 0 ? 0 : overage;
+    const artistTotal = guaranteeNum + artistBackend;
+    const potWalkout = netAfterExpenses - artistTotal;
 
     return {
       grossPotential,
@@ -193,7 +209,12 @@ export default function AdminOfferDetailPage() {
       totalFixed,
       totalVariable,
       totalExpenses,
+      netAfterExpenses,
       splitpoint,
+      overage,
+      artistBackend,
+      artistTotal,
+      potWalkout,
     };
   }, [form.ticket_scaling, form.fixed_expenses, form.variable_expenses, form.tax_rate, form.tax_method]);
 
@@ -301,17 +322,20 @@ export default function AdminOfferDetailPage() {
     finally { setSaving(false); }
   };
 
-  // ── PDF Export (uses shared offer-pdf module with pagination) ──
+  // ── Excel Export ── builds a full ArtistOffer-shaped object from the
+  // loaded record + any live/unsaved form edits (same assembly pattern as
+  // buildPdfSettlement() in the settlements admin page), so the export
+  // always matches what's on screen, not just what's last been saved.
   const exportPDF = async () => {
     if (!offer) return;
     setExporting(true);
     try {
-      await exportOfferPDF({
+      const xlsxOffer: ArtistOffer = {
+        ...offer,
         venue: form.venue as string,
         venue_address: form.venue_address as string,
         venue_contact: form.venue_contact as string,
         venue_phone: form.venue_phone as string,
-        venue_capacity: venue?.capacity ?? undefined,
         agency: form.agency as string,
         agent_name: form.agent_name as string,
         agent_phone: form.agent_phone as string,
@@ -324,8 +348,8 @@ export default function AdminOfferDetailPage() {
         billing: form.billing as string,
         show_lineup: (form.show_lineup as { time: string; artist: string; set_length: string }[]) || [],
         guarantee: form.guarantee as number,
-        deal_type: form.deal_type as string,
-        backend_percentage: form.backend_percentage as number,
+        deal_type: form.deal_type as ArtistOffer["deal_type"],
+        backend_percentage: form.backend_percentage as string,
         other_terms: form.other_terms as string,
         radius_distance: form.radius_distance as string,
         radius_days_prior: form.radius_days_prior as number,
@@ -354,8 +378,31 @@ export default function AdminOfferDetailPage() {
         splitpoint: live.splitpoint,
         artist_backend: form.artist_backend as number,
         offer_valid_days: form.offer_valid_days as number,
-      }, venue);
-    } catch (err) { console.error("PDF failed:", err); }
+      };
+
+      const res = await fetch(`/api/offers/${offer.id}/export-xlsx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offer: xlsxOffer }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Export failed (${res.status})`);
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("Content-Disposition") || "";
+      const filenameMatch = /filename="([^"]+)"/.exec(disposition);
+      const filename = filenameMatch?.[1] || "Offer.xlsx";
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) { console.error("Excel export failed:", err); }
     finally { setExporting(false); }
   };
 
@@ -367,7 +414,7 @@ export default function AdminOfferDetailPage() {
       <div className="admin-page-header">
         <h1 className="admin-page-title">{String(form.artist_name || "Offer")}</h1>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="report-export-btn report-export-pdf" onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export PDF"}</button>
+          <button className="report-export-btn report-export-pdf" onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</button>
           <button className="admin-form-submit" onClick={handleSave} disabled={saving} style={{ padding: "8px 16px" }}>{saving ? "Saving…" : "Save"}</button>
           <button className="admin-sponsor-edit-btn" onClick={() => router.push("/admin/offers")}>← Back</button>
         </div>
@@ -551,7 +598,7 @@ export default function AdminOfferDetailPage() {
                     ? Math.round(np * trd / (1 + trd) * 100) / 100
                     : Math.round(np * trd * 100) / 100;
                   const preCC = tm === "divisor" ? price : price + taxPerTicket;
-                  const ccPerTicket = Math.round(preCC * 0.027 * 100) / 100;
+                  const ccPerTicket = offerSurchargePerTicket(preCC);
                   const allIn = preCC + ccPerTicket;
                   const sellable = Number(r.sellable_cap || 0);
                   return (
@@ -657,41 +704,24 @@ export default function AdminOfferDetailPage() {
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross (Price × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Stripe Fees (~2.9%):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Stripe Fees ({rateLabel()}):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Tkt &amp; Fac. Fees:</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax (${live.taxRatePct.toFixed(2)}% Multiplier):` : `Tax (${live.taxRatePct.toFixed(2)}% Divisor):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {form.deal_type !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${live.splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            )}
+            <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {form.deal_type === "VS" && (() => {
-              const bp = Number(form.backend_percentage || 0) / 100;
-              const backendCalc = live.splitpoint * bp;
-              const artistTotal = Math.max(Number(form.guarantee || 0), backendCalc);
-              const backendVS = Math.max(backendCalc - Number(form.guarantee || 0), 0);
-              return <>
-                <div className="offer-potential-row"><span>Overage:</span><strong>${backendVS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              </>;
-            })()}
-            {(form.deal_type === "PLUS" || form.deal_type === "BONUS") && (() => {
-              const bp = Number(form.backend_percentage || 0) / 100;
-              const backendPlus = live.splitpoint * bp;
-              const artistTotal = Number(form.guarantee || 0) + backendPlus;
-              return <>
-                <div className="offer-potential-row"><span>Backend ({String(form.deal_type)}):</span><strong>${backendPlus.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              </>;
-            })()}
-            {form.deal_type === "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+            {form.deal_type !== "FLAT" && (
+              <>
+                <div className="offer-potential-row"><span>Overage ({Number(form.backend_percentage || 0)}% of net, less guarantee):</span><strong>${Math.max(live.overage, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                <div className="offer-potential-row"><span>Artist Backend ({String(form.deal_type)}):</span><strong>${live.artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              </>
             )}
+            <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${live.artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
 
@@ -1095,31 +1125,28 @@ export default function AdminOfferDetailPage() {
         let netPotential: number;
         let taxAmount: number;
         if (taxMethod === "divisor") {
+          // Tax is baked into the face price — back it out of adjusted gross.
           netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
           taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
         } else {
+          // Multiplier: tax is charged ON TOP of face, so it was never inside
+          // adjusted gross and must not be subtracted from it. It's collected
+          // from the customer and remitted. This tab used to subtract it,
+          // making the P&L tab disagree with the Details tab on the same offer.
           taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
-          netPotential = Math.round((adjGross - taxAmount) * 100) / 100;
+          netPotential = adjGross;
         }
 
         const guarantee = Number(form.guarantee) || 0;
         const backendPct = Number(form.backend_percentage) || 0;
         const dealType = String(form.deal_type || "FLAT");
-        // Splitpoint is always (netPotential − totalExpenses), computed live so it updates
-        // whenever tiers/expenses/tax change.
-        const splitpoint = Math.max(netPotential - totalExpenses, 0);
+        const netAfterExpenses = netPotential - totalExpenses;
 
-        // Artist backend calculation (mirrors details tab logic)
-        let backendAmount = 0;
-        let artistTotal = guarantee;
-        if (dealType === "VS") {
-          artistTotal = splitpoint * (backendPct / 100);
-          backendAmount = Math.max(artistTotal - guarantee, 0);
-        } else if (dealType === "PLUS" || dealType === "BONUS") {
-          backendAmount = splitpoint * (backendPct / 100);
-          artistTotal = guarantee + backendAmount;
-        }
-        // FLAT: backendAmount = 0, artistTotal = guarantee
+        // Backend is earned on the overage above the guarantee and added to it.
+        // (pool × backend%) − guarantee, matching the Details tab.
+        const overage = netAfterExpenses * (backendPct / 100) - guarantee;
+        const backendAmount = dealType === "FLAT" || overage <= 0 ? 0 : overage;
+        const artistTotal = guarantee + backendAmount;
 
         // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in
         // fixed_expenses. It's already baked into totalExpenses — do NOT subtract it again

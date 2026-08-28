@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { getEventSeatInventory } from "@/lib/checkout-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -108,7 +109,7 @@ export async function GET(
     };
   });
 
-  const totalSold = paidOrders.reduce(
+  const ordersSold = paidOrders.reduce(
     (s: number, o: Record<string, unknown>) =>
       s + (Number(o.quantity) || 1),
     0
@@ -118,7 +119,16 @@ export async function GET(
       s + (Number(o.total_amount) || 0),
     0
   );
-  const totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0);
+  let totalCapacity = tiers.reduce((s, t) => s + (t.quantity || 0), 0);
+
+  // Reserved-seating events: trust the seats table over ticket_tiers.capacity
+  // (a static number that drifts, e.g. "10 tables" instead of the 80 real
+  // seats those tables hold) and over orders.quantity (which undercounts a
+  // refunded-but-still-reserved order and drifts on mixed-section orders).
+  const seatInventory = await getEventSeatInventory(supabase, id);
+  const totalSold = seatInventory ? seatInventory.sold : ordersSold;
+  if (seatInventory) totalCapacity = seatInventory.capacity;
+
   const totalAvailable = Math.max(0, totalCapacity - totalSold);
   const percentSold =
     totalCapacity > 0 ? Math.round((totalSold / totalCapacity) * 100) : 0;

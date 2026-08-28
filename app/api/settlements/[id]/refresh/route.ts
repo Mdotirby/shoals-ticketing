@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { computeEventAudit } from "@/lib/settlement/audit";
+import { settlementWaterfall } from "@/lib/settlement/model";
 
 // Legacy auto-expense names from earlier iterations. These are now deleted on
 // refresh because CC fees flow through the Gross→Net walk, not as an expense.
@@ -15,13 +16,17 @@ const LEGACY_CC_FEE_NAMES = [
  * Re-pulls live ticket sales / fees / tax from the event config + orders for
  * the linked event and rewrites the audit + fee totals.
  *
- * Math model:
- *   Total Gross Receipts (= Σ orders.total_amount for paid non-comp orders)
- *     − Service Fees      (venue config × paying tickets)
- *     − Facility Fees     (venue config × paying tickets)
- *     − Tax Collected     (gross × tax_rate, or divisor)
- *     − CC Processing Fees (residual — guarantees the math reconciles)
- *   = Net Receipts        (artist split base)
+ * Math model — see lib/settlement/model.ts, which owns the definition:
+ *   Gross Receipts   (all-in ticket gross: face + service + facility)
+ *     − Service Fees   (venue config × billing units)
+ *     − Facility Fees  (venue config × billing units)
+ *   = Adjusted Gross   (the artist's face value)
+ *     − Sales Tax      (divisor only — multiplier tax was charged on top)
+ *   = Net Receipts     (artist split base)
+ *
+ * The card surcharge is NOT part of this walk: the buyer funds it and it goes
+ * to Stripe, so it was never in the ticket gross being split. It used to be
+ * derived as a residual here, which quietly absorbed every upstream error.
  *
  * Does NOT touch deal terms, expenses, deposits, ancillary, or merch.
  * Refuses to run on finalized settlements.
@@ -66,11 +71,14 @@ export async function POST(
       ? Number(settlement.tax_rate)
       : audit.tax_rate;
   const taxMethod = settlement.tax_method || audit.tax_method;
-  // Tax is recomputed from the live audit (which itself uses the event config).
-  const adjGross =
-    audit.total_gross - audit.ticketing_fees - audit.facility_fees;
-  const taxes = audit.taxes;
-  const netReceipts = adjGross - taxes;
+  // One shared waterfall so this can't drift from the settlement page again.
+  const { adjGross, taxes, netReceipts } = settlementWaterfall({
+    totalGross: audit.total_gross,
+    ticketingFees: audit.ticketing_fees,
+    facilityFees: audit.facility_fees,
+    taxRate,
+    taxMethod,
+  });
 
   // 4. Update the settlement row
   const { data: updated, error: updErr } = await admin
@@ -81,6 +89,7 @@ export async function POST(
       ticketing_fees: audit.ticketing_fees,
       facility_fees: audit.facility_fees,
       cc_fees: audit.cc_fees,
+      cc_fees_actual: audit.cc_fees_actual,
       taxes,
       tax_rate: taxRate,
       tax_method: taxMethod,
@@ -91,6 +100,7 @@ export async function POST(
       comp_face_value: audit.comp_face_value,
       adj_gross: adjGross,
       net_receipts: netReceipts,
+      reconciliation_variance: audit.reconciliation_variance,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

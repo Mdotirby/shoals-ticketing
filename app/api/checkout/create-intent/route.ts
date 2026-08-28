@@ -1,6 +1,7 @@
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 import {
   resolveVenueFees,
   validatePromoCode,
@@ -113,11 +114,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: closeoutReason }, { status: 410 });
     }
 
+    // Resolved once — also decides whether the tier ticket-count guard below
+    // applies (it is meaningless for seated events; the seats table is the
+    // authority there).
+    const isSeatedEvent = await eventRequiresSeating(admin, eventId);
+
     // Guard: reserved-seating events require a seat selection. Authoritative
     // server-side backstop — blocks a seatless order when the seat map fails
     // to load or hasn't engaged client-side (the failure that stranded orders).
     if (!(Array.isArray(selectedSeats) && selectedSeats.length > 0)) {
-      if (await eventRequiresSeating(admin, eventId)) {
+      if (isSeatedEvent) {
         return NextResponse.json(
           { error: "Please select your seat(s) from the map before checking out." },
           { status: 400 }
@@ -147,7 +153,14 @@ export async function POST(request: Request) {
       // Guard: reject if tier is sold out.
       // Count rows in tickets (one row per physical ticket) rather than orders,
       // because orders.tier_id is not persisted — ticket_type_id is the authoritative field.
-      if (tier.capacity > 0) {
+      //
+      // SKIPPED for reserved-seating events. tickets.ticket_type_id is stamped
+      // once per ORDER, not per seat, so a mixed-section purchase inflates a
+      // tier's count and this guard then rejects buyers while real seats are
+      // still open — it blocked paying customers on a section that had seats
+      // free. For seated events the seats table is the only authority, and
+      // validateAndHoldSeats already enforces it atomically below.
+      if (!isSeatedEvent && tier.capacity > 0) {
         const { count: soldCount } = await admin
           .from("tickets")
           .select("id", { count: "exact", head: true })
@@ -183,12 +196,19 @@ export async function POST(request: Request) {
     let effectiveQuantity = quantity;
     let ticketPriceCents = Math.round(ticketPriceDollars * 100);
 
+    // Resolve a hold-session id that's guaranteed non-empty even if the client
+    // didn't send one (e.g. sessionStorage cleared, a resumed checkout tab, a
+    // cart-recovery link opened fresh) — the seats table and Stripe metadata
+    // must always agree on the same id, or the webhook can never find the
+    // seats it just held and the order ships with none assigned.
+    const holdSessionId = sessionId || uuidv4();
+
     if (Array.isArray(selectedSeats) && selectedSeats.length > 0) {
       const seatResult = await validateAndHoldSeats(
         admin,
         selectedSeats,
         ticketPriceDollars,
-        sessionId
+        holdSessionId
       );
 
       if (seatResult.error) {
@@ -268,8 +288,10 @@ export async function POST(request: Request) {
         promo_code: promoResult?.promoCodeStr || "",
         promo_code_id: promoResult?.promoCodeId || "",
         discount_per_ticket_cents: String(promoResult?.discountCentsPerTicket || 0),
-        // seat_hold_session replaces seat_ids — avoids Stripe's 500-char metadata limit
-        seat_hold_session: (isAssignedSeating && sessionId) ? sessionId : "",
+        // seat_hold_session replaces seat_ids — avoids Stripe's 500-char metadata limit.
+        // Always the resolved holdSessionId (never the raw, possibly-missing
+        // client sessionId) so this can never go blank while seats are held.
+        seat_hold_session: isAssignedSeating ? holdSessionId : "",
         is_assigned_seating: isAssignedSeating ? "true" : "false",
         tracking_ref: trackingRef || "",
         utm_source: utm_source || "",

@@ -53,54 +53,48 @@ export async function GET(request: Request) {
     for (const event of events) {
       const audit = await computeEventAudit(supabase, event.id);
 
-      // Per-tier rows: distribute fee/tax totals proportionally to gross so we
-      // get a believable per-tier revenue line. (Fees in our system are
-      // per-ticket flat amounts, not percent of gross — so we attribute them
-      // by ticket count.)
-      const totalSold = audit.audit.reduce((s, r) => s + r.sold, 0) || 1;
-      const tierRows = audit.audit.map((row) => {
-        const soldShare = row.sold / totalSold;
-        const ticketingFees = round(audit.ticketing_fees * soldShare, 2);
-        const facilityFees = round(audit.facility_fees * soldShare, 2);
-        const taxCollected = round(audit.taxes * soldShare, 2);
-        const totalRevenue = round(
-          row.gross + ticketingFees + facilityFees + taxCollected,
-          2
-        );
-        const pctHouse =
-          row.capacity > 0 ? round((row.sold / row.capacity) * 100, 1) : 0;
-        return {
-          tier_name: row.tier,
-          capacity: row.capacity,
-          qty_sold: row.sold,
-          comps: row.comps,
-          pct_house: pctHouse,
-          price: row.price,
-          gross_sales: row.gross,
-          ticketing_fees: ticketingFees,
-          facility_fees: facilityFees,
-          tax_collected: taxCollected,
-          total_revenue: totalRevenue,
-        };
-      });
+      // Per-row figures come straight from the audit now — fees are per
+      // billing unit and card fees are allocated from real orders, so nothing
+      // here needs apportioning by ticket count.
+      const tierRows = audit.audit.map((row) => ({
+        tier_name: row.tier,
+        capacity: row.capacity,
+        qty_sold: row.sold,
+        comps: row.comps,
+        unsold: row.unsold ?? 0,
+        pct_house:
+          row.capacity > 0 ? round((row.sold / row.capacity) * 100, 1) : 0,
+        price: row.price,
+        gross_sales: row.gross,
+        ticketing_fees: round((row.ticketing_fee || 0) * row.sold, 2),
+        facility_fees: round((row.facility_fee || 0) * row.sold, 2),
+        tax_collected: round(row.tax ?? 0, 2),
+        orders: row.orders ?? 0,
+        cc_fees: round(row.cc_fees ?? 0, 2),
+        // GBOR for the row — everything the buyer paid.
+        total_revenue: round(row.gross_receipts ?? 0, 2),
+        total_price: round(row.total_price ?? 0, 2),
+      }));
 
       const subtotal = {
         capacity: audit.audit.reduce((s, r) => s + r.capacity, 0),
         qty_sold: audit.tickets_sold_count,
         comps: audit.comp_count,
+        free: audit.free_count,
         pct_house: 0,
-        gross_sales: audit.total_gross,
+        unsold: audit.audit.reduce((s, r) => s + (r.unsold ?? 0), 0),
+        orders: audit.audit.reduce((s, r) => s + (r.orders ?? 0), 0),
+        // Face value only — what the artist splits on.
+        gross_sales: audit.face_gross,
         ticketing_fees: audit.ticketing_fees,
         facility_fees: audit.facility_fees,
         tax_collected: audit.taxes,
         cc_fees: audit.cc_fees,
-        total_revenue: round(
-          audit.total_gross +
-            audit.ticketing_fees +
-            audit.facility_fees +
-            audit.taxes,
-          2
-        ),
+        // GBOR — everything the buyer paid, which is what ties to Stripe.
+        total_revenue: audit.gbor,
+        // What Stripe actually collected, and anything that doesn't reconcile.
+        stripe_gross: audit.stripe_gross,
+        variance: audit.reconciliation_variance,
       };
       subtotal.pct_house =
         subtotal.capacity > 0
@@ -110,12 +104,17 @@ export async function GET(request: Request) {
       grandTotal.capacity += subtotal.capacity;
       grandTotal.qty_sold += subtotal.qty_sold;
       grandTotal.comps += subtotal.comps;
+      grandTotal.free += subtotal.free;
+      grandTotal.unsold += subtotal.unsold;
+      grandTotal.orders += subtotal.orders;
       grandTotal.gross_sales += subtotal.gross_sales;
       grandTotal.ticketing_fees += subtotal.ticketing_fees;
       grandTotal.facility_fees += subtotal.facility_fees;
       grandTotal.tax_collected += subtotal.tax_collected;
       grandTotal.cc_fees += subtotal.cc_fees;
       grandTotal.total_revenue += subtotal.total_revenue;
+      grandTotal.stripe_gross += subtotal.stripe_gross;
+      grandTotal.variance += subtotal.variance;
 
       eventResults.push(
         buildEventResult({
@@ -152,13 +151,17 @@ type TierRow = {
   capacity: number;
   qty_sold: number;
   comps: number;
+  unsold: number;
   pct_house: number;
   price: number;
   gross_sales: number;
   ticketing_fees: number;
   facility_fees: number;
   tax_collected: number;
+  orders: number;
+  cc_fees: number;
   total_revenue: number;
+  total_price: number;
 };
 
 type EventResult = {
@@ -179,6 +182,9 @@ function emptyTotals() {
     capacity: 0,
     qty_sold: 0,
     comps: 0,
+    free: 0,
+    unsold: 0,
+    orders: 0,
     pct_house: 0,
     gross_sales: 0,
     ticketing_fees: 0,
@@ -186,6 +192,8 @@ function emptyTotals() {
     tax_collected: 0,
     cc_fees: 0,
     total_revenue: 0,
+    stripe_gross: 0,
+    variance: 0,
   };
 }
 
@@ -201,6 +209,8 @@ function roundTotals(t: ReturnType<typeof emptyTotals>) {
   t.tax_collected = round(t.tax_collected, 2);
   t.cc_fees = round(t.cc_fees, 2);
   t.total_revenue = round(t.total_revenue, 2);
+  t.stripe_gross = round(t.stripe_gross, 2);
+  t.variance = round(t.variance, 2);
 }
 
 function csvResponse(data: {
@@ -211,15 +221,20 @@ function csvResponse(data: {
     "Event",
     "Tier Name",
     "Capacity",
-    "Qty Sold",
-    "Comps",
+    "Sold",
+    "Comp/Guest",
+    "Unsold",
     "% of House",
     "Price",
-    "Gross Sales",
-    "Ticketing Fees",
-    "Facility Fees",
-    "Tax Collected",
-    "Total Revenue",
+    "SVC",
+    "FAC",
+    "Tax",
+    "Orders",
+    "CC",
+    "Gross (GBOR)",
+    "Tot. Price",
+    "Stripe Gross",
+    "Variance",
   ];
   const lines = [headers.join(",")];
 
@@ -232,13 +247,18 @@ function csvResponse(data: {
           tier.capacity,
           tier.qty_sold,
           tier.comps,
+          tier.unsold,
           `${tier.pct_house}%`,
           `$${tier.price.toFixed(2)}`,
-          `$${tier.gross_sales.toFixed(2)}`,
           `$${tier.ticketing_fees.toFixed(2)}`,
           `$${tier.facility_fees.toFixed(2)}`,
           `$${tier.tax_collected.toFixed(2)}`,
+          tier.orders,
+          `$${tier.cc_fees.toFixed(2)}`,
           `$${tier.total_revenue.toFixed(2)}`,
+          `$${tier.total_price.toFixed(2)}`,
+          "",
+          "",
         ].join(",")
       );
     }
@@ -250,13 +270,18 @@ function csvResponse(data: {
         s.capacity,
         s.qty_sold,
         s.comps,
+        s.unsold,
         `${s.pct_house}%`,
         "",
-        `$${s.gross_sales.toFixed(2)}`,
         `$${s.ticketing_fees.toFixed(2)}`,
         `$${s.facility_fees.toFixed(2)}`,
         `$${s.tax_collected.toFixed(2)}`,
+        s.orders,
+        `$${s.cc_fees.toFixed(2)}`,
         `$${s.total_revenue.toFixed(2)}`,
+        "",
+        `$${s.stripe_gross.toFixed(2)}`,
+        `$${s.variance.toFixed(2)}`,
       ].join(",")
     );
   }
@@ -269,13 +294,18 @@ function csvResponse(data: {
       g.capacity,
       g.qty_sold,
       g.comps,
+      g.unsold,
       `${g.pct_house}%`,
       "",
-      `$${g.gross_sales.toFixed(2)}`,
       `$${g.ticketing_fees.toFixed(2)}`,
       `$${g.facility_fees.toFixed(2)}`,
       `$${g.tax_collected.toFixed(2)}`,
+      g.orders,
+      `$${g.cc_fees.toFixed(2)}`,
       `$${g.total_revenue.toFixed(2)}`,
+      "",
+      `$${g.stripe_gross.toFixed(2)}`,
+      `$${g.variance.toFixed(2)}`,
     ].join(",")
   );
 

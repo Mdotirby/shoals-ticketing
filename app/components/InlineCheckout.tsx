@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { onlineSurchargeDollars } from "@/lib/fees/rates";
 import {
   Elements,
   CardNumberElement,
@@ -50,6 +51,14 @@ type InlineCheckoutProps = {
   taxMethod?: "multiplier" | "divisor";
   /** Ticketing fee + facility fee are already baked into ticketPrice — don't add them again. */
   feesIncludedInPrice?: boolean;
+  /**
+   * Called when the server rejects the selected seats as no longer available
+   * (someone else bought them while this buyer was filling in the form).
+   * Receives the seat ids the server flagged so the parent can drop them from
+   * the selection and re-pull the map — otherwise a retry re-sends the same
+   * dead seats and fails identically every time.
+   */
+  onSeatsUnavailable?: (unavailableSeatIds: string[]) => void;
 };
 
 // ── Stripe loader (singleton) ────────────────────────────────────────────────
@@ -114,9 +123,6 @@ const stripeAppearance = {
 
 // ── Checkout Form (inside Elements provider) ─────────────────────────────────
 
-// Fee constants — same as OrderSummary and create-intent API
-const STRIPE_PERCENT_FEE = 0.027;
-const STRIPE_FLAT_FEE = 0.30;
 
 function normalizeTaxRate(rate: number): number {
   return rate > 1 ? rate / 100 : rate;
@@ -141,6 +147,7 @@ function CheckoutForm({
   taxRate = 0,
   taxMethod = "multiplier",
   feesIncludedInPrice = false,
+  onSeatsUnavailable,
 }: InlineCheckoutProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -158,6 +165,9 @@ function CheckoutForm({
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
   const [cardError, setCardError] = useState("");
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
+  // Price details disclosure — collapsed by default, matches the all-inclusive
+  // price shown above it; expanding reveals the itemized fee/tax breakdown.
+  const [showDetails, setShowDetails] = useState(false);
   const [addedPaymentInfo, setAddedPaymentInfo] = useState(false);
   const [fwbOptIn, setFwbOptIn] = useState(false);
 
@@ -183,7 +193,7 @@ function CheckoutForm({
   // processing fee too — the customer is charged exactly subtotalBeforeStripe.
   const processingFee = feesIncludedInPrice
     ? 0
-    : Math.round((subtotalBeforeStripe * STRIPE_PERCENT_FEE + STRIPE_FLAT_FEE) * 100) / 100;
+    : onlineSurchargeDollars(subtotalBeforeStripe);
   const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
   const isFullyFree = isFreeEvent || ticketPrice === 0;
 
@@ -239,6 +249,12 @@ function CheckoutForm({
         const data = await res.json();
         if (!res.ok) {
           ev.complete("fail");
+          if (res.status === 409 && Array.isArray(data.unavailable)) {
+            setPaymentError("Those seats were just taken by another buyer. We've cleared them — please pick again from the map.");
+            setIsProcessing(false);
+            onSeatsUnavailable?.(data.unavailable as string[]);
+            return;
+          }
           setPaymentError(data.error || "Payment failed. Please try again.");
           setIsProcessing(false);
           return;
@@ -362,6 +378,15 @@ function CheckoutForm({
       const data = await res.json();
 
       if (!res.ok) {
+        // Seats were taken while this buyer was filling in the form — hand the
+        // ids back so the map refreshes and the dead seats leave the selection,
+        // instead of leaving them to retry the same doomed purchase.
+        if (res.status === 409 && Array.isArray(data.unavailable)) {
+          setPaymentError("Those seats were just taken by another buyer. We've cleared them — please pick again from the map.");
+          setIsProcessing(false);
+          onSeatsUnavailable?.(data.unavailable as string[]);
+          return;
+        }
         setPaymentError(data.error || "Failed to create payment. Please try again.");
         setIsProcessing(false);
         return;
@@ -461,9 +486,38 @@ function CheckoutForm({
         <h3 className="ic-form-title">Checkout</h3>
       </div>
 
-      {/* Order summary with full fee breakdown */}
+      {/* Order summary — all-inclusive price by default, itemized breakdown behind a toggle */}
       <div className="ic-order-breakdown">
         <div className="ic-order-line">
+          <span>{tierName} &times; {quantity}</span>
+          <span>{isFullyFree ? <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span> : `$${estimatedTotal.toFixed(2)}`}</span>
+        </div>
+        {!isFullyFree && (
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+            (Incl. Taxes &amp; Fees)
+          </p>
+        )}
+
+        {!isFullyFree && (totalTicketingFee > 0 || totalFacilityFee > 0 || tax > 0 || processingFee > 0) && (
+          <button
+            type="button"
+            onClick={() => setShowDetails((v) => !v)}
+            style={{
+              background: "none", border: "none", color: "#d0c290", cursor: "pointer",
+              fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            {showDetails ? "Hide" : "Show"} price details
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
+
+        {showDetails && (
+        <>
+        <div className="ic-order-line ic-order-line-fee">
           <span>{tierName} &times; {quantity}</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
@@ -508,6 +562,8 @@ function CheckoutForm({
           <span>Total</span>
           <span>{isFullyFree ? <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span> : `$${estimatedTotal.toFixed(2)}`}</span>
         </div>
+        </>
+        )}
       </div>
 
       <form className="ic-form" onSubmit={handleSubmit} noValidate>

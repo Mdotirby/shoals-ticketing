@@ -1,0 +1,135 @@
+{
+  "type_slug": "venue-settlement",
+  "source_sheet": "VENUE_SETTLEMENTv2",
+  "notes": [
+    "Header block (rows 5-21) is identical in content/addresses to artist-settlement -- same binding logic, same offer_id lookup.",
+    "This sheet's own row numbers differ slightly from ARTIST_SETTLEMENT's (TICKET AUDIT starts 1 row earlier here) -- built fresh against this sheet's actual addresses, not copy-pasted.",
+    "Bonus (L72) and Rebate to Promoter (L81) are the same concept in the source (L72=L81) -- both bound to settlement.ticketing_fees * settlement.service_fee_rebate_pct (the real, current mechanism for handing back part of the service fee as a deal term, per lib/settlement/model.ts's artistPayout()). NOT settlement.ticketing_rebate, a separate legacy field that's unrelated venue-side ticketing revenue and never reaches the artist.",
+    "% of Rebate to Venue (L82) and Cash Sales (L83) have no corresponding real Settlement field and no confirmed formula -- left blank rather than guessing at financial figures. Flagged for Matt.",
+    "TOTAL REVENUE (L85) and P&L (L87) are bound directly to the real, already-computed settlement.venue_total_revenue / settlement.venue_net_profit (same fields the admin page computes) rather than re-deriving the sheet's own GBOR+Rebate+CashSales+MerchToVenue-Expenses chain -- guarantees the bottom-line P&L always matches the app's real number. Expenses (Incl. Artist) (L86) is shown as the residual (Revenue - P&L) so the three cells always reconcile."
+  ],
+  "scalar_fields": [
+    { "cell": "J7", "field": "artist_name", "type": "text" },
+    { "cell": "B8", "field": "venue_name", "type": "text" },
+    { "cell": "F8", "field": "artist_name", "type": "text" },
+    { "cell": "I8", "field": "event_date_label", "type": "text" },
+    { "cell": "B9", "field": "venue_address", "type": "text" },
+    { "cell": "F9", "field": "agency", "type": "text" },
+    { "cell": "I9", "field": "shows_label", "type": "text" },
+    { "cell": "B10", "field": "venue_capacity", "type": "number" },
+    { "cell": "F10", "field": "agent_name", "type": "text" },
+    { "cell": "I10", "field": "show_time_label", "type": "text" },
+    { "cell": "B11", "field": "radius_clause", "type": "text" },
+    { "cell": "F11", "field": "agent_phone", "type": "text" },
+    { "cell": "I11", "field": "billing", "type": "text" },
+    { "cell": "F12", "field": "agent_email", "type": "text" },
+    { "cell": "B12", "field": "show_lineup_line_1", "type": "text" },
+    { "cell": "B13", "field": "show_lineup_line_2", "type": "text" },
+    { "cell": "B14", "field": "show_lineup_line_3", "type": "text" },
+
+    { "cell": "B16", "field": "guarantee", "type": "currency" },
+    { "cell": "F16", "field": "deposit_pct", "type": "percent" },
+    { "cell": "G16", "field": "deposit_amount", "type": "currency" },
+    { "cell": "B17", "field": "deal_type", "type": "text" },
+    { "cell": "F17", "field": "deposit_due", "type": "text" },
+    { "cell": "B18", "field": "backend_percentage", "type": "percent" },
+    { "cell": "F18", "field": "balance_due_terms", "type": "text" },
+    { "cell": "B19", "field": "radius_clause", "type": "text" },
+    { "cell": "F19", "field": "merch_split", "type": "text" },
+    { "cell": "B20", "field": "production_by", "type": "text" },
+    { "cell": "F20", "field": "merch_seller", "type": "text" },
+    { "cell": "B21", "field": "other_terms", "type": "text" },
+    { "cell": "F21", "field": "comps_label", "type": "text" },
+
+    { "cell": "B28", "field": "ticket_totals_capacity", "type": "number" },
+    { "cell": "C28", "field": "ticket_totals_sold", "type": "number" },
+    { "cell": "D28", "field": "ticket_totals_comps", "type": "number" },
+    { "cell": "E28", "field": "ticket_totals_unsold", "type": "number" },
+    { "cell": "F28", "field": "ticket_totals_avg_price", "type": "currency" },
+    { "cell": "G28", "field": "ticket_totals_svc", "type": "currency" },
+    { "cell": "H28", "field": "ticket_totals_fac", "type": "currency" },
+    { "cell": "I28", "field": "ticket_totals_tax", "type": "currency" },
+    { "cell": "K28", "field": "ticket_totals_cc", "type": "currency" },
+    { "cell": "L28", "field": "ticket_totals_gross", "type": "currency" },
+
+    { "cell": "L30", "field": "gbor", "type": "currency" },
+    { "cell": "L31", "field": "service_fees", "type": "currency" },
+    { "cell": "L32", "field": "facility_fees", "type": "currency" },
+    { "cell": "L33", "field": "cc_fees", "type": "currency" },
+    { "cell": "B34", "field": "tax_rate", "type": "percent" },
+    { "cell": "L34", "field": "taxes", "type": "currency" },
+    { "cell": "L35", "field": "nbor", "type": "currency" },
+
+    { "cell": "L37", "field": "total_fixed", "type": "currency" },
+    { "cell": "L52", "field": "total_variable", "type": "currency" },
+    { "cell": "L57", "field": "total_expenses", "type": "currency" },
+
+    { "cell": "L60", "field": "merch_total_gross", "type": "currency" },
+    { "cell": "A61", "field": "merch_tax_label", "type": "text" },
+    { "cell": "L61", "field": "merch_total_tax", "type": "currency" },
+    { "cell": "L62", "field": "merch_total_net", "type": "currency" },
+    { "cell": "A63", "field": "merch_venue_take_label", "type": "text" },
+    { "cell": "L63", "field": "merch_venue_share", "type": "currency" },
+    { "cell": "L64", "field": "merch_artist_share", "type": "currency" },
+
+    { "cell": "L66", "field": "artist_guarantee", "type": "currency" },
+    { "cell": "L67", "field": "splitpoint", "type": "currency" },
+    { "cell": "L68", "field": "merch_venue_take_deduction", "type": "currency" },
+    { "cell": "L69", "field": "seller_fee", "type": "currency" },
+    { "cell": "L70", "field": "cash_advance", "type": "currency" },
+    { "cell": "L71", "field": "deposits_paid", "type": "currency" },
+    { "cell": "L72", "field": "bonus", "type": "currency" },
+    { "cell": "L73", "field": "backend_overage", "type": "currency" },
+    { "cell": "L74", "field": "balance_due", "type": "currency" },
+    { "cell": "L75", "field": "total_artist_walkout", "type": "currency" },
+
+    { "cell": "L79", "field": "gbor", "type": "currency" },
+    { "cell": "L80", "field": "nbor", "type": "currency" },
+    { "cell": "L81", "field": "rebate_to_promoter", "type": "currency" },
+    { "cell": "L84", "field": "merch_venue_share", "type": "currency" },
+    { "cell": "L85", "field": "venue_total_revenue", "type": "currency" },
+    { "cell": "L86", "field": "expenses_incl_artist", "type": "currency" },
+    { "cell": "L87", "field": "venue_net_profit", "type": "currency" }
+  ],
+  "repeating_sections": [
+    {
+      "id": "ticket_audit",
+      "data_path": "ticket_audit",
+      "anchor_rows": [24],
+      "row_fields": [
+        { "col": "A", "field": "tier", "type": "text" },
+        { "col": "B", "field": "capacity", "type": "number" },
+        { "col": "C", "field": "sold", "type": "number" },
+        { "col": "D", "field": "comps", "type": "number" },
+        { "col": "E", "field": "unsold", "type": "number" },
+        { "col": "F", "field": "price", "type": "currency" },
+        { "col": "G", "field": "svc", "type": "currency" },
+        { "col": "H", "field": "fac", "type": "currency" },
+        { "col": "I", "field": "tax", "type": "currency" },
+        { "col": "K", "field": "cc", "type": "currency" },
+        { "col": "L", "field": "gross", "type": "currency" }
+      ],
+      "example_row_count": 4
+    },
+    {
+      "id": "fixed_expenses",
+      "data_path": "expenses_fixed",
+      "anchor_rows": [38],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 14
+    },
+    {
+      "id": "variable_expenses",
+      "data_path": "expenses_variable",
+      "anchor_rows": [53],
+      "row_fields": [
+        { "col": "A", "field": "name", "type": "text" },
+        { "col": "L", "field": "amount", "type": "currency" }
+      ],
+      "example_row_count": 4
+    }
+  ]
+}

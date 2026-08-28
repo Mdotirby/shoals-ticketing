@@ -80,3 +80,88 @@ export function formatEventTime(date: string): string | null {
 export function isDateOnly(date: string): boolean {
   return !!(date && date.length === 10);
 }
+
+// ── Venue-local "is this show still live?" ──────────────────────────────────
+//
+// Everything below exists because the app runs on UTC servers (Vercel) while
+// the venues run on Central time. Comparing a date-only event date against a
+// UTC "now" ends the show day at 6–7 PM local — i.e. right at doors, the show
+// in progress disappears from the box office and scanner dropdowns.
+//
+// The rule, one place, every surface: a show stays live through the whole of
+// its own day in venue-local time and turns "past" at local midnight.
+
+/** Every venue on both brands (venuecore.live, west72ent.com) runs Central. */
+export const VENUE_TZ = "America/Chicago";
+
+/**
+ * Today's date as "YYYY-MM-DD" in venue-local time.
+ *
+ * Use this anywhere you would have reached for
+ * `new Date().toISOString().slice(0, 10)` — that returns the *UTC* date, which
+ * rolls over at 7 PM CDT / 6 PM CST.
+ */
+export function localTodayISO(now: Date = new Date()): string {
+  // "en-CA" formats as YYYY-MM-DD, which is exactly the shape we compare on.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: VENUE_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+/**
+ * The calendar day a stored event date falls on, as "YYYY-MM-DD".
+ *
+ * Stored dates come in two shapes: date-only ("2026-08-05") and full
+ * timestamps. `safeDate` already treats the time portion of a timestamp as the
+ * intended *local* wall clock (it strips "Z" and offsets), so the leading 10
+ * characters are the venue-local day in both cases — and that keeps this in
+ * agreement with every date the UI already renders.
+ */
+export function eventDayISO(date: string): string {
+  return (date || "").slice(0, 10);
+}
+
+/** True once the show's own day has ended in venue-local time (local midnight). */
+export function isEventPast(date: string, now: Date = new Date()): boolean {
+  const day = eventDayISO(date);
+  if (!day) return false;
+  return day < localTodayISO(now);
+}
+
+/** True while the show is still sellable / scannable — through local midnight. */
+export function isEventLive(date: string, now: Date = new Date()): boolean {
+  return !isEventPast(date, now);
+}
+
+/** True when the show is happening today in venue-local time. */
+export function isEventToday(date: string, now: Date = new Date()): boolean {
+  const day = eventDayISO(date);
+  return !!day && day === localTodayISO(now);
+}
+
+/**
+ * Sort comparator for admin event lists: today's show(s) first, then upcoming
+ * soonest-first. Past events sort last (most recent first) for the cases where
+ * they're shown deliberately.
+ */
+export function compareEventsForDisplay(
+  a: { date: string },
+  b: { date: string },
+  now: Date = new Date()
+): number {
+  const today = localTodayISO(now);
+  const dayA = eventDayISO(a.date);
+  const dayB = eventDayISO(b.date);
+
+  // Rank: 0 = today, 1 = upcoming, 2 = past
+  const rank = (day: string) => (day === today ? 0 : day > today ? 1 : 2);
+  const rankA = rank(dayA);
+  const rankB = rank(dayB);
+  if (rankA !== rankB) return rankA - rankB;
+
+  // Past archive reads most-recent-first; today/upcoming read soonest-first.
+  return rankA === 2 ? dayB.localeCompare(dayA) : dayA.localeCompare(dayB);
+}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { surchargeCents, rateLabel } from "@/lib/fees/rates";
 import { getStripe } from "@/lib/stripe";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -101,10 +102,10 @@ export async function POST(request: Request, context: RouteContext) {
     0
   );
 
-  // Processing fee: 2.7% + $0.30 per transaction (only for CC)
+  // Card processing surcharge — rate card is the single source of truth.
   const processingFee =
     payment_method === "credit_debit"
-      ? Math.round((totalAmount * 0.027 + 0.3) * 100) / 100
+      ? surchargeCents(Math.round(totalAmount * 100)) / 100
       : 0;
 
   const grandTotal = Math.round((totalAmount + processingFee) * 100) / 100;
@@ -211,7 +212,7 @@ export async function POST(request: Request, context: RouteContext) {
                 currency: "usd",
                 product_data: {
                   name: "Processing Fee",
-                  description: "Credit/Debit card processing fee (2.7% + $0.30)",
+                  description: `Credit/Debit card processing fee (${rateLabel()})`,
                 },
                 unit_amount: Math.round(processingFee * 100),
               },

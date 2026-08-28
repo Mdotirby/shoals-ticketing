@@ -5,6 +5,7 @@
  */
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem } from "../types/offer";
 import type { Venue } from "../types/venue";
+import { offerSurchargePerTicket } from "@/lib/fees/rates";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize, formatTime12hr,
@@ -273,7 +274,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
         ? Math.round((r.net_price || 0) * taxRateDecScaling / (1 + taxRateDecScaling) * 100) / 100
         : Math.round((r.net_price || 0) * taxRateDecScaling * 100) / 100;
       const preCC = (r.price || 0) + (taxMethodScaling === "divisor" ? 0 : taxPer);
-      const ccPer = Math.round(preCC * 0.027 * 100) / 100;
+      const ccPer = offerSurchargePerTicket(preCC);
       const allIn = preCC + ccPer;
       const tierGross = (r.sellable_cap || 0) * allIn;
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
@@ -386,7 +387,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        const cc = Math.round(preCC * 0.027 * 100) / 100;
+        const cc = offerSurchargePerTicket(preCC);
         return sum + t.sellable_cap * (preCC + cc);
       }, 0)
     : Number(data.gross_potential || 0);
@@ -394,7 +395,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        return sum + t.sellable_cap * Math.round(preCC * 0.027 * 100) / 100;
+        return sum + t.sellable_cap * offerSurchargePerTicket(preCC);
       }, 0)
     : 0;
   const displayAdjGrossPDF = Math.round((displayGrossPDF - totalCCPDF - totalFeesPDF) * 100) / 100;
@@ -441,16 +442,25 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     return yPos + RH;
   };
 
+  // Splitpoint is the THRESHOLD (the guarantee); the pool it's measured
+  // against is netAfterExpenses. Computed here rather than read from
+  // data.splitpoint so a PDF regenerated from an older stored offer still
+  // prints the current model instead of a stale pool figure.
+  const totalExpensesPDF = Number(data.total_expenses || 0);
+  const netAfterExpensesPDF = netPotential - totalExpensesPDF;
   const hasSplipoint = data.deal_type !== "FLAT";
   let potY = potStartY;
   potY = potRow("Gross (Price × Sell)", f2(displayGrossPDF), taxLabel, `(${f2(taxAmount)})`, potY);
   potY = potRow("CC Fee", `(${f2(totalCCPDF)})`, "Net Potential", f2(netPotential), potY, true);
-  potY = potRow("Tkt & Fac. Fees", `(${f2(totalFeesPDF)})`, "Expenses", f2(Number(data.total_expenses || 0)), potY);
+  potY = potRow("Tkt & Fac. Fees", `(${f2(totalFeesPDF)})`, "Expenses", f2(totalExpensesPDF), potY);
   potY = potRow(
     "Adj. Gross", f2(displayAdjGrossPDF),
-    hasSplipoint ? "Splitpoint" : "", hasSplipoint ? f2(Number(data.splitpoint || 0)) : "",
+    "Net After Expenses", f2(netAfterExpensesPDF),
     potY, true,
   );
+  if (hasSplipoint) {
+    potY = potRow("", "", "Splitpoint (guarantee)", f2(Number(data.guarantee || 0)), potY);
+  }
   y = potY + 1;
 
   // ════════════════════════════════════════════════════════
@@ -460,7 +470,6 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   y = secH("Artist Potential at Sellout", y);
 
   const guarantee = Number(data.guarantee || 0);
-  const splitpoint = Number(data.splitpoint || 0);
   const backendPct = Number(data.backend_percentage || 0) / 100;
   const dealType = String(data.deal_type || "FLAT").toUpperCase();
 
@@ -469,19 +478,14 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setFontSize(M);
   doc.setTextColor(0, 0, 0);
 
-  let artistTotal = guarantee;
-  let backendAmt = 0;
-  let backendLabel = "";
-
-  if (dealType === "VS") {
-    artistTotal = splitpoint * backendPct;
-    backendAmt = Math.max(artistTotal - guarantee, 0);
-    backendLabel = "Overage (VS)";
-  } else if (dealType === "PLUS") {
-    backendAmt = splitpoint * backendPct;
-    artistTotal = guarantee + backendAmt;
-    backendLabel = "Overage (PLUS)";
-  }
+  // Same model as the offer builder and the settlement:
+  //   overage = (net after expenses × backend%) − guarantee
+  //   artist  = guarantee + overage, when positive
+  const overagePDF = netAfterExpensesPDF * backendPct - guarantee;
+  const backendAmt = dealType === "FLAT" || overagePDF <= 0 ? 0 : overagePDF;
+  const artistTotal = guarantee + backendAmt;
+  const backendLabel =
+    dealType === "FLAT" ? "" : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
 
   y = lv("Guarantee", f2(guarantee), y);
   if (backendLabel) {

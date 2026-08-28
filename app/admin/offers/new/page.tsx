@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
@@ -308,14 +309,14 @@ export default function AdminCreateOfferPage() {
       ? 0
       : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    const cc = Math.round(preCC * 0.027 * 100) / 100;
+    const cc = offerSurchargePerTicket(preCC);
     return sum + r.sellable_cap * (preCC + cc);
   }, 0);
   // totalCC = Stripe's share — customer-funded, goes to Stripe not promoter
   const totalCC = scaling.reduce((sum, r) => {
     const taxPer = taxMode === "divisor" ? 0 : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    return sum + r.sellable_cap * Math.round(preCC * 0.027 * 100) / 100;
+    return sum + r.sellable_cap * offerSurchargePerTicket(preCC);
   }, 0);
   const preCCGross = displayGross - totalCC;      // what promoter receives from Stripe
   const displayAdjGross = preCCGross - totalFees; // after ticketing/facility fees removed
@@ -327,30 +328,37 @@ export default function AdminCreateOfferPage() {
   const guaranteeNum = parseFloat(guarantee || "0");
   const backendNum = parseFloat(backendPct || "0") / 100;
 
-  // FLAT: no splitpoint — promoter gets net - expenses - guarantee
-  // VS/PLUS/BONUS: splitpoint = net - expenses, then artist backend calculated from that
-  let splitpoint = 0;
+  // ── Artist payment model ─────────────────────────────────────────────────
+  // Deliberately identical to the settlement page. The offer used to compute VS
+  // as max(guarantee, % of net-after-expenses) while the settlement paid
+  // guarantee + % of overage — two different amounts of money for one contract.
+  //
+  //   net after expenses = net potential − total expenses
+  //   overage            = (net after expenses × backend%) − guarantee
+  //   artist             = guarantee + overage, when positive
+  //
+  // "Splitpoint" is the pool the backend percentage is measured against --
+  // net receipts/potential minus expenses. Always netAfterExpenses,
+  // regardless of deal type; it's a factual "what's left after expenses"
+  // figure, not something that depends on how the backend split works.
+  const netAfterExpenses = netPotential - totalExpenses;
+  const splitpoint = netAfterExpenses;
   let artistBackend = 0;
   let artistPAS = guaranteeNum;
   let potWalkout = 0;
 
   if (dealType === "FLAT") {
-    // No splitpoint for FLAT deals. Guarantee IS already in expenses as Talent.
-    // So promoter walkout = net - expenses (guarantee already counted in expenses)
-    potWalkout = netPotential - totalExpenses;
+    // No backend on a FLAT deal. Guarantee is already carried in expenses as
+    // Talent, so the promoter's walkout is simply what's left of the pool.
+    potWalkout = netAfterExpenses;
     artistPAS = guaranteeNum;
   } else {
-    // VS, PLUS, BONUS — have splitpoints and backends
-    splitpoint = netPotential - totalExpenses;
-    artistBackend = splitpoint > 0 ? splitpoint * backendNum : 0;
-
-    if (dealType === "VS") {
-      artistPAS = Math.max(guaranteeNum, artistBackend);
-    } else {
-      // PLUS or BONUS — guarantee + backend
-      artistPAS = guaranteeNum + artistBackend;
-    }
-    potWalkout = splitpoint - artistPAS;
+    // Percentage runs on the whole pool; the guarantee is recouped out of the
+    // artist's own share. Equivalent to max(guarantee, pool × backend%).
+    const overage = netAfterExpenses * backendNum - guaranteeNum;
+    artistBackend = overage > 0 ? overage : 0;
+    artistPAS = guaranteeNum + artistBackend;
+    potWalkout = netAfterExpenses - artistPAS;
   }
 
   // Recalculate variable expenses when gross changes
@@ -659,7 +667,7 @@ export default function AdminCreateOfferPage() {
               ? Math.round(r.net_price * taxRateDecimal / (1 + taxRateDecimal) * 100) / 100
               : Math.round(r.net_price * taxRateDecimal * 100) / 100;
             const preCC = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
-            const ccPerTicket = Math.round(preCC * 0.027 * 100) / 100;
+            const ccPerTicket = offerSurchargePerTicket(preCC);
             const allIn = preCC + ccPerTicket;
             const tierGross = r.sellable_cap * allIn;
             return (
@@ -731,21 +739,19 @@ export default function AdminCreateOfferPage() {
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross (Price × Sellable):</span><strong>${displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Less: Stripe Fees (~2.9%):</span><strong>(${totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
+            <div className="offer-potential-row"><span>Less: Stripe Fees ({rateLabel()}):</span><strong>(${totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Less: Tkt &amp; Fac. Fees:</span><strong>(${totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>{taxMode === "multiplier" ? `Less: Tax (${taxRate}% — remitted to govt):` : `Less: Tax (${taxRate}% — extracted from price):`}</span><strong>(${taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
             <div className="offer-potential-row"><span>Net Potential:</span><strong>${netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {dealType !== "FLAT" && (
-              <div className="offer-potential-row highlight"><span>Splitpoint:</span><strong>${splitpoint.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            )}
+            <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
           <div className="offer-potential-col">
             <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
             <div className="offer-potential-row"><span>Guarantee:</span><strong>${guaranteeNum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             {dealType !== "FLAT" && (
-              <div className="offer-potential-row"><span>Backend ({dealType}):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+              <div className="offer-potential-row"><span>Overage ({dealType} — {backendPct || 0}% of net, less guarantee):</span><strong>${artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
             )}
             <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistPAS.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
@@ -777,17 +783,17 @@ export default function AdminCreateOfferPage() {
         const pnlGuarantee = guaranteeNum;
         const pnlDealType = dealType;
 
-        // Artist backend calculation (mirrors details tab logic)
-        let backendAmount = 0;
-        let pnlArtistTotal = pnlGuarantee;
-        if (pnlDealType === "VS") {
-          pnlArtistTotal = splitpoint * (backendNum);
-          backendAmount = Math.max(pnlArtistTotal - pnlGuarantee, 0);
-        } else if (pnlDealType === "PLUS" || pnlDealType === "BONUS") {
-          backendAmount = splitpoint * (backendNum);
-          pnlArtistTotal = pnlGuarantee + backendAmount;
-        }
-        // FLAT: backendAmount = 0, pnlArtistTotal = guarantee
+        // Artist backend: reuse the already-correct details-tab values
+        // directly instead of re-deriving them. The re-derivation this
+        // replaced used `splitpoint * backendNum`, where splitpoint was
+        // (wrongly, at the time) the guarantee -- so it computed Guarantee x
+        // Backend% instead of NetAfterExpenses x Backend%, the same wrong
+        // formula shape Matt corrected elsewhere, just reintroduced here in
+        // a second, disconnected copy of the math. artistBackend/artistPAS
+        // above are already right for every deal type (FLAT included, where
+        // artistBackend stays 0).
+        const backendAmount = artistBackend;
+        const pnlArtistTotal = artistPAS;
 
         // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in
         // fixed_expenses. It's already baked into totalExpenses — do NOT subtract it again

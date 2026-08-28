@@ -162,6 +162,10 @@ export default function OrderDetailPage() {
   const [reinstating, setReinstating] = useState(false);
   const [reinstateMsg, setReinstateMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Issue refund state
+  const [refunding, setRefunding] = useState(false);
+  const [refundMsg, setRefundMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   // Payment request state
   const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const [paymentNote, setPaymentNote] = useState("");
@@ -327,6 +331,38 @@ export default function OrderDetailPage() {
       setReinstateMsg({ type: "error", text: e instanceof Error ? e.message : "Failed" });
     } finally {
       setReinstating(false);
+    }
+  }
+
+  // ── Issue a full refund (wrong event/tickets — not a billing correction) ──
+  async function handleIssueRefund() {
+    if (!confirm(
+      "Issue a full refund for this order?\n\nThis will:\n" +
+      "• Refund the full amount via Stripe\n" +
+      "• Release all seats back to available for resale\n" +
+      "• Mark this order as Refunded\n\n" +
+      "Existing tickets will no longer scan in at the door. This does not undo any check-ins already scanned."
+    )) return;
+    const note = window.prompt("Optional note to record on this order (leave blank for default):", "") || undefined;
+    setRefunding(true);
+    setRefundMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Refund failed");
+      setRefundMsg({
+        type: "success",
+        text: `Refunded — ${data.seatsReleased} seat${data.seatsReleased === 1 ? "" : "s"} released back to available.`,
+      });
+      await load();
+    } catch (e) {
+      setRefundMsg({ type: "error", text: e instanceof Error ? e.message : "Refund failed" });
+    } finally {
+      setRefunding(false);
     }
   }
 
@@ -554,6 +590,21 @@ export default function OrderDetailPage() {
               </button>
             </>
           )}
+          {order.status === "paid" && (
+            <button
+              onClick={handleIssueRefund}
+              disabled={refunding}
+              title="Full cancellation — refunds the payment via Stripe and releases these seats for resale. Use for wrong-event/wrong-tickets mistakes, not billing corrections."
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+                background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)",
+                color: "#ef4444", cursor: refunding ? "not-allowed" : "pointer",
+              }}
+            >
+              {refunding ? "Refunding…" : "Issue Refund"}
+            </button>
+          )}
           <button
             onClick={handleRepairSeats}
             disabled={repairing}
@@ -597,6 +648,18 @@ export default function OrderDetailPage() {
           color: reinstateMsg.type === "success" ? "#22c55e" : "#ef4444",
         }}>
           {reinstateMsg.text}
+        </div>
+      )}
+
+      {/* Issue refund result banner */}
+      {refundMsg && (
+        <div style={{
+          marginBottom: 16, padding: "12px 16px", borderRadius: 8, fontSize: 13,
+          background: refundMsg.type === "success" ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+          border: `1px solid ${refundMsg.type === "success" ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
+          color: refundMsg.type === "success" ? "#22c55e" : "#ef4444",
+        }}>
+          {refundMsg.text}
         </div>
       )}
 

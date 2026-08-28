@@ -67,6 +67,14 @@ export function TicketDeliveryEmail({
         <style>{`
           :root { color-scheme: dark; supported-color-schemes: dark; }
           [data-ogsc] .email-bg, [data-ogsb] .email-bg { background-color: #000000 !important; }
+          /* The CTA button is light-on-dark by design — without this lock,
+             Gmail/other clients' auto-dark-mode sees a light element inside
+             an all-dark email and auto-inverts it, turning a white button
+             with dark text into a near-invisible black-on-black box. */
+          [data-ogsc] .email-cta-btn, [data-ogsb] .email-cta-btn {
+            background-color: #ffffff !important;
+            color: #0a0a0a !important;
+          }
         `}</style>
         <link
           rel="stylesheet"
@@ -165,8 +173,14 @@ export function TicketDeliveryEmail({
 
             <Button
               href={ticketUrl}
+              className="email-cta-btn"
               style={{
                 backgroundColor: "#ffffff",
+                // Gmail's dark mode auto-inverts background-color with no
+                // CSS opt-out — it does NOT touch background-image, so a
+                // same-color gradient here keeps the button white instead
+                // of going black-on-black.
+                backgroundImage: "linear-gradient(#ffffff, #ffffff)",
                 color: "#0a0a0a",
                 fontFamily: ARCHIVO_CONDENSED,
                 fontWeight: 900,

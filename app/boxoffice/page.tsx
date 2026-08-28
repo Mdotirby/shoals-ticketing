@@ -11,6 +11,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { compareEventsForDisplay, isEventLive, isEventToday, safeDate } from "@/lib/dates";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 const ALLOWED_ROLES = ["owner", "venue_admin", "box_office"];
@@ -19,6 +20,7 @@ type EventOption  = { id: string; title: string; date: string; price: number; ev
 type TierOption   = { id: string; tier_name: string; price: number };
 type PaymentMode  = "idle" | "terminal" | "manual";
 type TerminalStatus = "init" | "discovering" | "no_readers" | "connecting" | "ready" | "collecting" | "success" | "error";
+type SaleType = "card" | "cash";
 
 // ── Login Gate ────────────────────────────────────────────────────────────────
 
@@ -103,6 +105,15 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const [loadingEvents, setLoadingEvents] = useState(true);
   const [loadingTiers, setLoadingTiers]   = useState(false);
 
+  // Cash sale — no Stripe, no webhook, recorded directly. Only a name is
+  // required (no email, no phone) since cash tickets are auto-checked-in
+  // and there's no confirmation email to send.
+  const [saleType, setSaleType]           = useState<SaleType>("card");
+  const [cashFirstName, setCashFirstName] = useState("");
+  const [cashLastName, setCashLastName]   = useState("");
+  const [cashSubmitting, setCashSubmitting] = useState(false);
+  const [cashSuccess, setCashSuccess]     = useState<{ name: string; quantity: number } | null>(null);
+
   // Terminal state
   const terminalRef               = useRef<Terminal | null>(null);
   const [terminalStatus, setTerminalStatus] = useState<TerminalStatus>("init");
@@ -145,7 +156,15 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const discoverReaders = async (t: Terminal) => {
     setTerminalStatus("discovering");
     setTerminalError("");
-    const result = await t.discoverReaders({ method: "internet", simulated: false });
+    // Smart Readers (Stripe Reader S700) only appear when discovery is scoped
+    // to the Location they're registered under. Unset env var = unscoped
+    // discovery, which is the old behaviour.
+    const locationId = process.env.NEXT_PUBLIC_STRIPE_TERMINAL_LOCATION_ID;
+    const result = await t.discoverReaders({
+      method: "internet",
+      simulated: false,
+      ...(locationId ? { location: locationId } : {}),
+    });
     if ("error" in result) {
       setTerminalStatus("no_readers");
       setTerminalError(result.error.message);
@@ -173,12 +192,20 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   };
 
   // ── Load events ───────────────────────────────────────────────────────────
+  // Tonight's show has to stay in this dropdown all night — it's what the door
+  // reader sells against. `isEventLive` keeps it through Central midnight
+  // instead of dropping it at UTC rollover (7 PM CDT the evening *before*).
   useEffect(() => {
     fetch("/api/events")
       .then((r) => r.json())
       .then((data: EventOption[]) => {
-        const now = new Date();
-        setEvents((data || []).filter((e) => (e.event_type === "hard_ticket" || e.event_type === "ticketed") && new Date(e.date) >= now));
+        const live = (data || [])
+          .filter((e) => (e.event_type === "hard_ticket" || e.event_type === "ticketed") && isEventLive(e.date))
+          .sort(compareEventsForDisplay);
+        setEvents(live);
+        // Arm the reader on tonight's show without staff touching the dropdown.
+        const tonight = live.find((e) => isEventToday(e.date));
+        if (tonight) setSelectedEventId(tonight.id);
       })
       .catch(() => setFormError("Failed to load events"))
       .finally(() => setLoadingEvents(false));
@@ -269,9 +296,42 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     setShowManual(true);
   };
 
+  // ── Cash sale ──────────────────────────────────────────────────────────────
+  const handleCashSale = async () => {
+    if (!selectedEventId) { setFormError("Please select an event"); return; }
+    if (!cashFirstName.trim() || !cashLastName.trim()) {
+      setFormError("First and last name are required");
+      return;
+    }
+    setFormError(null);
+    setCashSubmitting(true);
+    try {
+      const res = await fetch("/api/box-office/cash-sale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_id: selectedEventId,
+          tier_id: selectedTierId || undefined,
+          quantity,
+          buyer_first_name: cashFirstName.trim(),
+          buyer_last_name: cashLastName.trim(),
+          operator_slug: isWest72 ? "west72" : "venuecore",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to record cash sale");
+      setCashSuccess({ name: data.customer_name, quantity: data.quantity });
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Failed to record cash sale");
+    } finally {
+      setCashSubmitting(false);
+    }
+  };
+
   const resetSale = () => {
     setShowManual(false); setPaymentMode("idle");
     setBuyerName(""); setBuyerEmail(""); setBuyerPhone(""); setBuyerZip("");
+    setCashFirstName(""); setCashLastName(""); setCashSuccess(null);
     setQuantity(1); setSelectedTierId(""); setFormError(null); setTerminalError("");
     if (terminalStatus === "success") setTerminalStatus("ready");
   };
@@ -300,6 +360,22 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         <h2 style={{ fontSize: 24, fontWeight: 800, color: "#4ade80", margin: "0 0 8px" }}>Payment Complete</h2>
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 32 }}>
           Ticket confirmed for {buyerName}. Confirmation email sent to {buyerEmail}.
+        </p>
+        <button onClick={resetSale} style={{ padding: "13px 32px", borderRadius: 10, border: "none", background: "var(--vc-gold)", color: "#0b0a08", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+          New Sale
+        </button>
+      </div>
+    );
+  }
+
+  // ── Cash sale success screen ──────────────────────────────────────────────
+  if (cashSuccess) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--vc-bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "var(--font-urbanist), sans-serif", textAlign: "center" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>✓</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#4ade80", margin: "0 0 8px" }}>Cash Sale Recorded</h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 32 }}>
+          {cashSuccess.quantity} ticket{cashSuccess.quantity === 1 ? "" : "s"} for {cashSuccess.name} — already checked in, no scan needed at the door.
         </p>
         <button onClick={resetSale} style={{ padding: "13px 32px", borderRadius: 10, border: "none", background: "var(--vc-gold)", color: "#0b0a08", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
           New Sale
@@ -364,7 +440,11 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           {loadingEvents ? <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>Loading…</div> : (
             <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)} style={{ ...fieldStyle, appearance: "none", WebkitAppearance: "none" }}>
               <option value="">— Select event —</option>
-              {events.map((e) => <option key={e.id} value={e.id}>{e.title} — {new Date(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</option>)}
+              {events.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.title} — {isEventToday(e.date) ? "Tonight" : safeDate(e.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </option>
+              ))}
             </select>
           )}
         </div>
@@ -400,8 +480,33 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
 
         {selectedEventId && <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "18px 0" }} />}
 
-        {/* Buyer info */}
+        {/* Sale type */}
         {selectedEventId && (
+          <div style={{ marginBottom: 16 }}>
+            <label style={labelStyle}>Payment</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["card", "cash"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => { setSaleType(t); setFormError(null); }}
+                  style={{
+                    flex: 1, padding: "11px 14px", borderRadius: 8,
+                    border: `1px solid ${saleType === t ? "var(--vc-gold)" : "rgba(255,255,255,0.1)"}`,
+                    background: saleType === t ? "rgba(208,194,144,0.1)" : "rgba(255,255,255,0.03)",
+                    color: saleType === t ? "var(--vc-gold)" : "rgba(255,255,255,0.6)",
+                    fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  }}
+                >
+                  {t === "card" ? "Card" : "Cash"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Buyer info — card */}
+        {selectedEventId && saleType === "card" && (
           <>
             <div style={{ marginBottom: 12 }}><label style={labelStyle}>Buyer Name *</label><input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Full name" style={fieldStyle} /></div>
             <div style={{ marginBottom: 12 }}><label style={labelStyle}>Email *</label><input type="email" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="email@example.com" style={fieldStyle} /></div>
@@ -450,6 +555,40 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
                 Manual Card Entry
               </button>
             </div>
+          </>
+        )}
+
+        {/* Buyer info — cash */}
+        {selectedEventId && saleType === "cash" && (
+          <>
+            <div style={{ marginBottom: 12 }}><label style={labelStyle}>First Name *</label><input type="text" value={cashFirstName} onChange={(e) => setCashFirstName(e.target.value)} placeholder="First name" style={fieldStyle} /></div>
+            <div style={{ marginBottom: 20 }}><label style={labelStyle}>Last Name *</label><input type="text" value={cashLastName} onChange={(e) => setCashLastName(e.target.value)} placeholder="Last name" style={fieldStyle} /></div>
+
+            {/* Price summary */}
+            {ticketPrice > 0 && (
+              <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 10, padding: "13px 16px", marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>
+                  <span>{quantity}× ${ticketPrice.toFixed(2)}</span>
+                  <span>${(ticketPrice * quantity).toFixed(2)}</span>
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>no fees, no tax — cash is face value only</div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleCashSale}
+              disabled={cashSubmitting || !cashFirstName.trim() || !cashLastName.trim()}
+              style={{
+                width: "100%", padding: "14px 20px", borderRadius: 10, border: "none",
+                background: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "var(--vc-gold)" : "rgba(208,194,144,0.15)",
+                color: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "#0b0a08" : "rgba(255,255,255,0.25)",
+                fontSize: 15, fontWeight: 700,
+                cursor: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "pointer" : "not-allowed",
+              }}
+            >
+              {cashSubmitting ? "Recording…" : "Record Cash Sale"}
+            </button>
           </>
         )}
       </div>

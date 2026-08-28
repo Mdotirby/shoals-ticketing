@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TicketType } from "@/lib/types/ticket";
+import { surchargeCents } from "@/lib/fees/rates";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
 import InlineCheckout from "@/app/components/InlineCheckout";
@@ -123,6 +124,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   const [seatingRoomH, setSeatingRoomH] = useState(60);
   const [selectedSeats, setSelectedSeats] = useState<{ seatId: string; sectionName: string; rowLabel: string; seatNumber: number; priceCents: number; color: string }[]>([]);
   const [selectedTables, setSelectedTables] = useState<{ objectId: string; seatIds: string[]; tableLabel: string; seatCount: number; sectionName: string; priceCents: number; color: string }[]>([]);
+  // Shown above the seat map when the server rejects a selection at payment time.
+  const [seatConflictMessage, setSeatConflictMessage] = useState<string | null>(null);
   const selectedSeatIds = new Set([
     ...selectedSeats.map((s) => s.seatId),
     ...selectedTables.flatMap((t) => t.seatIds),
@@ -216,23 +219,106 @@ export default function EventDetailClient({ requiresSeating = false }: { require
       .catch(() => {});
   }, [eventId]);
 
-  // Check if reserved seating is enabled and load layout data
-  useEffect(() => {
-    fetch(`/api/seating/events/${eventId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.enabled && data.layout) {
-          setReservedSeatingEnabled(true);
-          setSeatingSections(data.layout.sections || []);
-          setSeatingRoomW(data.layout.room_width_ft || 100);
-          setSeatingRoomH(data.layout.room_height_ft || 60);
-        }
-      })
-      .catch(() => {});
+  // Check if reserved seating is enabled and load layout data.
+  // Kept as a callable so seat availability can be re-pulled on demand — a
+  // one-shot fetch goes stale while the buyer fills in the checkout form, and
+  // on a near-sold-out show that means paying for a seat someone else took.
+  const refreshSeating = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/seating/events/${eventId}`, { cache: "no-store" });
+      const data = await r.json();
+      if (data && data.enabled && data.layout) {
+        setReservedSeatingEnabled(true);
+        setSeatingSections(data.layout.sections || []);
+        setSeatingRoomW(data.layout.room_width_ft || 100);
+        setSeatingRoomH(data.layout.room_height_ft || 60);
+        return (data.layout.sections || []) as SectionFull[];
+      }
+    } catch {
+      // Non-fatal — keep whatever the map already had
+    }
+    return null;
   }, [eventId]);
+
+  useEffect(() => {
+    refreshSeating();
+  }, [refreshSeating]);
+
+  // Poll seat status so the map doesn't serve a stale snapshot. The GET also
+  // releases expired holds server-side, so this doubles as hold cleanup.
+  useEffect(() => {
+    if (!reservedSeatingEnabled) return;
+    const id = setInterval(() => { refreshSeating(); }, 20 * 1000);
+    return () => clearInterval(id);
+  }, [reservedSeatingEnabled, refreshSeating]);
+
+  // Realtime seat updates — mirrors the standalone seating page so a seat taken
+  // by another buyer greys out immediately and is dropped from this selection
+  // rather than failing at payment.
+  useEffect(() => {
+    if (!reservedSeatingEnabled || seatingSections.length === 0) return;
+    let channel: { unsubscribe?: () => void } | null = null;
+    let cancelled = false;
+    let removeChannel: ((c: unknown) => void) | null = null;
+
+    import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
+      if (cancelled) return;
+      const supabase = getSupabaseBrowser();
+      removeChannel = (c: unknown) => supabase.removeChannel(c as never);
+      channel = supabase
+        .channel(`seats-inline-${eventId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "seats" },
+          (payload: { new: Record<string, unknown> }) => {
+            const updated = payload.new as { id: string; status: string; held_until: string | null };
+            setSeatingSections((prev) =>
+              prev.map((sec) => ({
+                ...sec,
+                seats: sec.seats.map((seat) =>
+                  seat.id === updated.id
+                    ? { ...seat, status: updated.status as "available" | "held" | "sold", held_until: updated.held_until }
+                    : seat
+                ),
+              }))
+            );
+            if (updated.status !== "available") {
+              setSelectedSeats((prev) => prev.filter((s) => s.seatId !== updated.id));
+              setSelectedTables((prev) => prev.filter((t) => !t.seatIds.includes(updated.id)));
+            }
+          }
+        )
+        .subscribe();
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (channel && removeChannel) removeChannel(channel);
+    };
+  }, [reservedSeatingEnabled, seatingSections.length, eventId]);
+
+  // Drop seats the server just rejected as unavailable, then re-pull the map so
+  // the customer sees current availability instead of retrying a dead seat.
+  // The explanation is held here rather than inside InlineCheckout because
+  // returning to the map unmounts that component — the buyer would otherwise be
+  // bounced back with their seats silently removed and no idea why.
+  const handleSeatsUnavailable = useCallback(async (unavailableIds: string[]) => {
+    if (unavailableIds.length > 0) {
+      setSelectedSeats((prev) => prev.filter((s) => !unavailableIds.includes(s.seatId)));
+      setSelectedTables((prev) => prev.filter((t) => !t.seatIds.some((id) => unavailableIds.includes(id))));
+    }
+    await refreshSeating();
+    setSeatConflictMessage(
+      unavailableIds.length === 1
+        ? "That seat was just taken by another buyer. We've removed it — please pick another from the map."
+        : "Those seats were just taken by another buyer. We've removed them — please pick again from the map."
+    );
+    setCheckoutStep("browse");
+  }, [refreshSeating]);
 
   // Seat click handler for inline SeatMap
   const handleSeatClick = useCallback((seatId: string, sectionId: string) => {
+    setSeatConflictMessage(null);
     setSelectedSeats((prev) => {
       const exists = prev.find((s) => s.seatId === seatId);
       if (exists) return prev.filter((s) => s.seatId !== seatId);
@@ -252,6 +338,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   }, [seatingSections]);
 
   const handleTableClick = useCallback((seatIds: string[], sectionId: string, objectId: string) => {
+    setSeatConflictMessage(null);
     setSelectedTables((prev) => {
       const exists = prev.find((t) => t.objectId === objectId);
       if (exists) return prev.filter((t) => t.objectId !== objectId);
@@ -368,18 +455,22 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               if (v) {
                 // Save hosted by name from the venues (client/promoter) table
                 if (v.name) setHostedByName(v.name as string);
-                setVenueFees({
-                  ticketing_fee: Number(v.ticketing_fee) || 3.0,
-                  facility_fee: Number(v.facility_fee) || 0,
-                  tax_rate: Number(v.tax_rate) || 0.095,
-                  // Event-level tax_method wins over venue default
-                  tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
-                    ? data.tax_method
-                    : (v.tax_method === "divisor" ? "divisor" : "multiplier"),
-                });
-                // Override facility fee if disabled on this event
-                if (data.facility_fee_enabled === false) {
-                  setVenueFees(prev => ({ ...prev, facility_fee: 0 }));
+                // Fees: event_venues wins when the event has one. Writing the
+                // venues row here too would race the event_venues read below
+                // and clobber its fees — the venues row is the promoter/host
+                // record and usually carries no facility fee, so whichever
+                // request landed last decided the price. Precedence now
+                // matches resolveVenueFees: event_venues -> venues -> defaults.
+                if (!data.event_venue_id) {
+                  setVenueFees({
+                    ticketing_fee: Number(v.ticketing_fee) || 3.0,
+                    facility_fee: data.facility_fee_enabled === false ? 0 : (Number(v.facility_fee) || 0),
+                    tax_rate: Number(v.tax_rate) || 0.095,
+                    // Event-level tax_method wins over venue default
+                    tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
+                      ? data.tax_method
+                      : (v.tax_method === "divisor" ? "divisor" : "multiplier"),
+                  });
                 }
                 // Only use venues table address as fallback when there is NO event_venue_id.
                 // The venues table holds the business/host address — customers should see
@@ -450,12 +541,15 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               const mapped = tiers.map((t: {
                 id: string; event_id: string; tier_name: string;
                 price: number; capacity: number; sort_order: number; quantity_sold?: number;
+                quantity_available?: number;
               }) => ({
                 id: t.id,
                 event_id: t.event_id,
                 name: t.tier_name,
                 price: t.price,
-                quantity_available: t.capacity,
+                // quantity_available is seat-derived for reserved-seating events;
+                // capacity is the raw admin-entered number (wrong unit for tables).
+                quantity_available: t.quantity_available ?? t.capacity,
                 quantity_sold: t.quantity_sold ?? 0,
                 sort_order: t.sort_order,
                 perks: ["Full event access", "Venue amenities"],
@@ -542,6 +636,22 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   // Determine if this is a free event
   const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
 
+  // All-in per-ticket price for the tier selector — same fee math as OrderSummary/
+  // InlineCheckout (Stripe fee constants matched to those components), computed
+  // for a single ticket (no quantity, no promo) so the dropdown shows what one
+  // ticket in that tier actually costs, not just its pre-fee face value.
+  const computeAllInPrice = (ticketPrice: number): number => {
+    const rawRate = venueFees.tax_rate;
+    const rate = venueFees.tax_method === "divisor" ? 0 : (rawRate > 1 ? rawRate / 100 : rawRate);
+    const tax = Math.round(ticketPrice * rate * 100) / 100;
+    if (event?.fees_included_in_price === true) {
+      return ticketPrice + tax;
+    }
+    const beforeStripe = ticketPrice + venueFees.ticketing_fee + venueFees.facility_fee + tax;
+    const processingFee = surchargeCents(Math.round(beforeStripe * 100)) / 100;
+    return beforeStripe + processingFee;
+  };
+
   // For reserved seating: derive sold-out tiers from seat-level status, not order counts.
   // A section is sold out when every seat it contains is marked "sold".
   const seatedSoldOutTierIds = useMemo(() => {
@@ -556,9 +666,14 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     );
   }, [reservedSeatingEnabled, seatingSections, ticketTypes]);
 
+  // For reserved-seating events, trust only real seat status — tickets.ticket_type_id
+  // is assigned once per order, not per seat, so a mixed-section purchase (e.g. seats
+  // from two different sections in one order) miscounts whichever tier the order
+  // happened to sync to. The quantity_sold/quantity_available count is only reliable
+  // for non-seated (GA) events, where there's no seat-level truth to check instead.
   const selectedTicketSoldOut =
     seatedSoldOutTierIds.has(selectedTicketId ?? "") ||
-    (selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
+    (!reservedSeatingEnabled && selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
 
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -792,10 +907,11 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       onChange={(e) => setSelectedTicketId(e.target.value)}
                     >
                       {ticketTypes.map((tt) => {
-                        const soldOut = seatedSoldOutTierIds.has(tt.id) || tt.quantity_sold >= tt.quantity_available;
+                        const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
+                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
                         return (
                           <option key={tt.id} value={tt.id} disabled={soldOut}>
-                            {tt.name} — ${tt.price.toFixed(2)}{soldOut ? " (Sold Out)" : ""}
+                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
                           </option>
                         );
                       })}
@@ -829,6 +945,21 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       <p style={{ fontSize: 13, color: "#a1a1aa", marginBottom: 8 }}>
                         Tap seats on the map to select them
                       </p>
+                      {seatConflictMessage && (
+                        <div
+                          role="status"
+                          style={{
+                            display: "flex", alignItems: "flex-start", gap: 8,
+                            padding: "10px 12px", marginBottom: 10, borderRadius: 8,
+                            background: "rgba(239,68,68,0.10)",
+                            border: "1px solid rgba(239,68,68,0.35)",
+                            color: "#fca5a5", fontSize: 13, lineHeight: 1.45,
+                          }}
+                        >
+                          <span aria-hidden="true">⚠</span>
+                          <span>{seatConflictMessage}</span>
+                        </div>
+                      )}
                       <div style={{ height: 350, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 12 }}>
                         <SeatMap
                           sections={seatingSections}
@@ -984,6 +1115,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     promoCode={appliedPromoRef.current}
                     presaleCode={presaleUnlocked ? presaleCode : undefined}
                     selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
+                    onSeatsUnavailable={handleSeatsUnavailable}
                     isFreeEvent={isFreeEvent}
                     onBack={() => setCheckoutStep("browse")}
                     ticketingFee={venueFees.ticketing_fee}

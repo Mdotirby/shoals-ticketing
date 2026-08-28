@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { computeEventAudit, findOfferForEvent } from "@/lib/settlement/audit";
+import { settlementWaterfall } from "@/lib/settlement/model";
 
 // GET /api/settlements
 //   ?venue_id=     filter by venue
@@ -215,20 +216,28 @@ export async function POST(request: Request) {
   const guarantee =
     body.guarantee ?? Number(offerData?.guarantee ?? 0) ?? 0;
   const dealType = body.deal_type ?? offerData?.deal_type ?? null;
+  // The settlements table stores backend as a DECIMAL (0.85) — the settlement
+  // page multiplies by 100 on load. But `artist_offers.backend_percentage` is
+  // a text column holding a PERCENT ("85"), so copying it across verbatim
+  // stored 85 and rendered as 8500%, computing a backend of 85× the net.
+  // Normalise: anything above 1 is a percent and gets divided down.
   const backendPctRaw = body.backend_percentage ?? offerData?.backend_percentage;
-  const backendPct =
+  const backendPctParsed =
     backendPctRaw != null ? parseFloat(String(backendPctRaw)) || 0 : 0;
+  const backendPct = backendPctParsed > 1 ? backendPctParsed / 100 : backendPctParsed;
   const taxRate =
     body.tax_rate ?? Number(offerData?.tax_rate ?? auditTotals.tax_rate) ?? 0;
   const taxMethod =
     body.tax_method ??
     (offerData?.tax_method === "divisor" ? "divisor" : "multiplier");
 
-  const adjGross =
-    auditTotals.total_gross -
-    auditTotals.ticketing_fees -
-    auditTotals.facility_fees;
-  const netReceipts = adjGross - auditTotals.taxes;
+  const { adjGross, taxes: waterfallTaxes, netReceipts } = settlementWaterfall({
+    totalGross: auditTotals.total_gross,
+    ticketingFees: auditTotals.ticketing_fees,
+    facilityFees: auditTotals.facility_fees,
+    taxRate,
+    taxMethod: taxMethod === "divisor" ? "divisor" : "multiplier",
+  });
 
   // 6. Create the settlement row
   const { data: settlement, error: settleErr } = await admin
@@ -263,13 +272,15 @@ export async function POST(request: Request) {
       ticketing_fees: auditTotals.ticketing_fees,
       facility_fees: auditTotals.facility_fees,
       cc_fees: auditTotals.cc_fees,
+      cc_fees_actual: auditTotals.cc_fees_actual,
       ticketing_fee_per_ticket: auditTotals.ticketing_fee_per_ticket,
       facility_fee_per_ticket: auditTotals.facility_fee_per_ticket,
       adj_gross: adjGross,
-      taxes: auditTotals.taxes,
+      taxes: waterfallTaxes,
       tax_rate: taxRate,
       tax_method: taxMethod,
       net_receipts: netReceipts,
+      reconciliation_variance: auditTotals.reconciliation_variance,
 
       // Pre-filled financials
       total_expenses:

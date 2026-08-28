@@ -8,6 +8,10 @@ export type SettlementStatus = "draft" | "finalized";
 export type TaxMethod = "multiplier" | "divisor";
 
 export type TicketAuditRow = {
+  /** Where this row's tickets were sold. Cash rows are synthesized client-side
+   *  from the settlement's manual cash_gross/cash_tickets_sold fields, not
+   *  computed by computeEventAudit. */
+  source: "online" | "terminal" | "cash";
   tier: string;
   capacity: number;
   sold: number;          // paying tickets only (status='paid', source != 'comp')
@@ -18,6 +22,31 @@ export type TicketAuditRow = {
   facility_fee: number;  // facility fee per ticket on this tier
   /** Sum of subtotal (face value) collected from paying tickets in this tier. */
   gross: number;
+  /**
+   * Distinct paying orders that bought into this row. Card fees are charged
+   * per ORDER, not per ticket — a buyer taking two seats pays one $0.30, not
+   * two — so this is what makes the cc_fees figure below legible.
+   */
+  orders: number;
+  /**
+   * Card surcharge actually paid by buyers in this row, allocated from each
+   * real order by that row's share of the order's subtotal.
+   *
+   * This used to be the event total split by ticket count, which systematically
+   * over-charged rows of single-seat buyers and under-charged rows of
+   * multi-seat buyers — the flat per-transaction fee doesn't scale with seats.
+   */
+  cc_fees: number;
+  /** What Stripe actually kept on this row's share of those orders. */
+  cc_fees_actual: number;
+  /** Billing units that never sold — capacity − sold − comps. */
+  unsold: number;
+  /** Tax attributable to this row. */
+  tax: number;
+  /** GBOR for this row: face + service + facility + tax + card surcharge. */
+  gross_receipts: number;
+  /** All-in price of ONE unit in this row — what a single buyer paid. */
+  total_price: number;
 };
 
 export type OtherAncillaryItem = {
@@ -74,6 +103,13 @@ export type Settlement = {
   guarantee: number;
   deal_type?: string;
   backend_percentage: number;
+  /**
+   * Share of the service fee handed back to the promoter, as a DECIMAL
+   * (0.5 = 50%). Sits outside the deal split — added on top of whatever the
+   * guarantee and backend produce. Stored as a percentage rather than a flat
+   * per-ticket amount so it follows the service fee if that ever changes.
+   */
+  service_fee_rebate_pct?: number;
   bonus_structure?: Record<string, unknown>;
   radius_clause?: string;
 
@@ -86,11 +122,28 @@ export type Settlement = {
   /** Face-value of comps (informational — what the comps would have cost). */
   comp_face_value: number;
 
+  /**
+   * Door cash sales — manual entry, since cash never touches Stripe and has
+   * no order/ledger row to source from. No fees, no tax: the whole figure
+   * feeds straight into net receipts (NBOR).
+   */
+  cash_gross?: number;
+  cash_tickets_sold?: number;
+  /**
+   * Real Stripe gross minus what the pricing model says it should have been.
+   * computeEventAudit always computed this; persisting it here so a mid-run
+   * price change surfaces as a visible warning instead of silently zeroing
+   * out the CC-fee column (the DNC $20->$25 bug).
+   */
+  reconciliation_variance?: number;
+
   // Calculated financials — all from actual order data when refreshed
   total_gross: number;          // Σ subtotal collected (face value, paying only)
   ticketing_fees: number;       // Σ ticketing service fees collected
   facility_fees: number;        // Σ facility fees collected
-  cc_fees: number;              // Σ Stripe / processing fees collected
+  cc_fees: number;              // card surcharge collected FROM BUYERS
+  /** What Stripe actually kept. Platform-internal — never on the artist copy. */
+  cc_fees_actual?: number;
   ticketing_fee_per_ticket: number; // snapshot of per-ticket rate
   facility_fee_per_ticket: number;  // snapshot of per-ticket rate
   adj_gross: number;            // total_gross − ticketing_fees − facility_fees

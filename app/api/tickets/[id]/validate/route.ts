@@ -13,7 +13,7 @@ export async function POST(
   // Look up ticket by qr_code
   const { data: ticket, error: findError } = await admin
     .from("tickets")
-    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue)")
+    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue), orders(status)")
     .eq("qr_code", id)
     .single();
 
@@ -22,6 +22,15 @@ export async function POST(
       { valid: false, reason: "Ticket not found" },
       { status: 200 }
     );
+  }
+
+  const orderStatus = (ticket.orders as unknown as { status: string } | null)?.status;
+  if (orderStatus === "refunded") {
+    return NextResponse.json({
+      valid: false,
+      reason: "This order was refunded — ticket is no longer valid.",
+      customer_name: ticket.customer_name,
+    });
   }
 
   if (ticket.is_scanned) {

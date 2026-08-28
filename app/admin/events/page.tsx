@@ -4,16 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { getCookie } from "@/lib/cookies";
-
-function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")); }
-
-function formatDate(date: string) {
-  return safeDate(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+import {
+  compareEventsForDisplay,
+  formatEventDateShort as formatDate,
+  isEventPast,
+  isEventToday,
+} from "@/lib/dates";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   hard_ticket: "Hard Ticket",
@@ -33,6 +29,7 @@ export default function AdminEventsPage() {
   const [loading, setLoading] = useState(true);
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
   const [bookingStatusFilter, setBookingStatusFilter] = useState("all");
+  const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
@@ -59,6 +56,14 @@ export default function AdminEventsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [eventTypeFilter, bookingStatusFilter]);
+
+  // `all=1` is what carries the type/status filters, but it also returns past
+  // shows, date-ascending — which buried tonight's show under every dead one.
+  // Split it here instead: today first, then upcoming, past behind a toggle.
+  const pastCount = events.filter((ev) => isEventPast(ev.date)).length;
+  const visibleEvents = (showPast ? events : events.filter((ev) => !isEventPast(ev.date)))
+    .slice()
+    .sort(compareEventsForDisplay);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this event? This cannot be undone.")) return;
@@ -107,21 +112,33 @@ export default function AdminEventsPage() {
           <option value="hold">Hold</option>
           <option value="cancelled">Cancelled</option>
         </select>
+        {pastCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowPast((v) => !v)}
+            className="admin-header-btn admin-header-btn-outline"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            {showPast ? "Hide past events" : `Show past events (${pastCount})`}
+          </button>
+        )}
       </div>
 
       {loading && (
         <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading events…</p>
       )}
 
-      {!loading && events.length === 0 && (
+      {!loading && visibleEvents.length === 0 && (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          No events found. Click &quot;+ Create Event&quot; to add one.
+          {pastCount > 0 && !showPast
+            ? "No active or upcoming events. Use “Show past events” to see the archive."
+            : "No events found. Click “+ Create Event” to add one."}
         </p>
       )}
 
-      {!loading && events.length > 0 && (
+      {!loading && visibleEvents.length > 0 && (
         <div className="admin-events-list">
-          {events.map((ev) => {
+          {visibleEvents.map((ev) => {
             const eventType = (ev as Record<string, unknown>).event_type as string || "hard_ticket";
             const bookingStatus = (ev as Record<string, unknown>).booking_status as string || "confirmed";
             const statusColor = BOOKING_STATUS_COLORS[bookingStatus] || BOOKING_STATUS_COLORS.confirmed;
@@ -144,7 +161,19 @@ export default function AdminEventsPage() {
                     />
                   )}
                   <div>
-                    <h3 className="admin-event-name">{ev.title}</h3>
+                    <h3 className="admin-event-name">
+                      {ev.title}
+                      {isEventToday(ev.date) && (
+                        <span style={{
+                          marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
+                          background: "rgba(208,194,144,0.18)", color: "#d0c290",
+                          fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
+                          verticalAlign: "middle",
+                        }}>
+                          Tonight
+                        </span>
+                      )}
+                    </h3>
                     <span className="admin-event-meta">
                       {ev.venue} · {formatDate(ev.date)}
                     </span>
