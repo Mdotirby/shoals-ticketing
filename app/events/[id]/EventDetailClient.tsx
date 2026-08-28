@@ -455,18 +455,22 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               if (v) {
                 // Save hosted by name from the venues (client/promoter) table
                 if (v.name) setHostedByName(v.name as string);
-                setVenueFees({
-                  ticketing_fee: Number(v.ticketing_fee) || 3.0,
-                  facility_fee: Number(v.facility_fee) || 0,
-                  tax_rate: Number(v.tax_rate) || 0.095,
-                  // Event-level tax_method wins over venue default
-                  tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
-                    ? data.tax_method
-                    : (v.tax_method === "divisor" ? "divisor" : "multiplier"),
-                });
-                // Override facility fee if disabled on this event
-                if (data.facility_fee_enabled === false) {
-                  setVenueFees(prev => ({ ...prev, facility_fee: 0 }));
+                // Fees: event_venues wins when the event has one. Writing the
+                // venues row here too would race the event_venues read below
+                // and clobber its fees — the venues row is the promoter/host
+                // record and usually carries no facility fee, so whichever
+                // request landed last decided the price. Precedence now
+                // matches resolveVenueFees: event_venues -> venues -> defaults.
+                if (!data.event_venue_id) {
+                  setVenueFees({
+                    ticketing_fee: Number(v.ticketing_fee) || 3.0,
+                    facility_fee: data.facility_fee_enabled === false ? 0 : (Number(v.facility_fee) || 0),
+                    tax_rate: Number(v.tax_rate) || 0.095,
+                    // Event-level tax_method wins over venue default
+                    tax_method: (data.tax_method === "divisor" || data.tax_method === "multiplier")
+                      ? data.tax_method
+                      : (v.tax_method === "divisor" ? "divisor" : "multiplier"),
+                  });
                 }
                 // Only use venues table address as fallback when there is NO event_venue_id.
                 // The venues table holds the business/host address — customers should see
