@@ -423,7 +423,14 @@ export function EventAnnouncementEmail({
                 href={ticketUrl}
                 className="email-cta-btn"
                 style={{
-                  backgroundColor: "#ffffff",
+                  // #fefefe, not pure #ffffff — Apple Mail's dark mode (iOS
+                  // and macOS) specifically auto-inverts colors that are
+                  // exactly #ffffff/#000000 regardless of any other
+                  // protection, but leaves near-pure values alone (confirmed
+                  // via a real Apple Mail test send that still went
+                  // black-on-black after the Gmail fix below). One-hex-digit
+                  // nudge, visually identical, dodges the trigger.
+                  backgroundColor: "#fefefe",
                   // Gmail's dark mode (Android/iOS apps) auto-inverts
                   // background-color with no CSS opt-out (confirmed: the
                   // [data-ogsc]/[data-ogsb] rule above only works for
@@ -431,7 +438,7 @@ export function EventAnnouncementEmail({
                   // though, so a same-color gradient here paints over the
                   // inverted color and keeps the button white instead of
                   // going black-on-black.
-                  backgroundImage: "linear-gradient(#ffffff, #ffffff)",
+                  backgroundImage: "linear-gradient(#fefefe, #fefefe)",
                   color: "#0a0a0a",
                   fontFamily: ARCHIVO_CONDENSED,
                   fontWeight: 900,

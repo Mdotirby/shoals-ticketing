@@ -175,12 +175,17 @@ export function TicketDeliveryEmail({
               href={ticketUrl}
               className="email-cta-btn"
               style={{
-                backgroundColor: "#ffffff",
+                // #fefefe, not pure #ffffff — Apple Mail's dark mode
+                // specifically auto-inverts colors that are exactly
+                // #ffffff/#000000 regardless of other protections.
+                // One-hex-digit nudge, visually identical, dodges the
+                // trigger.
+                backgroundColor: "#fefefe",
                 // Gmail's dark mode auto-inverts background-color with no
                 // CSS opt-out — it does NOT touch background-image, so a
                 // same-color gradient here keeps the button white instead
                 // of going black-on-black.
-                backgroundImage: "linear-gradient(#ffffff, #ffffff)",
+                backgroundImage: "linear-gradient(#fefefe, #fefefe)",
                 color: "#0a0a0a",
                 fontFamily: ARCHIVO_CONDENSED,
                 fontWeight: 900,
