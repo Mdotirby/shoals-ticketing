@@ -29,7 +29,7 @@ type BrandingState = {
 };
 
 const DEFAULTS: BrandingState = {
-  primary_color: "#d0c290",
+  primary_color: "#ffffff",
   secondary_color: "#111827",
   accent_color: "#202045",
   logo_url: null,
@@ -177,7 +177,7 @@ function ImageUpload({
     }
   };
 
-  const borderColor = isDragging ? "var(--vc-gold)" : "var(--vc-border)";
+  const borderColor = isDragging ? "#ffffff" : "var(--vc-border)";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -208,7 +208,7 @@ function ImageUpload({
           if (file) handleUpload(file);
         }}
         style={{
-          background: isDragging ? "rgba(208,194,144,0.05)" : "var(--vc-surface)",
+          background: isDragging ? "rgba(255, 255, 255, 0.05)" : "var(--vc-surface)",
           border: `2px dashed ${borderColor}`,
           borderRadius: "var(--vc-radius-md)",
           padding: value ? 0 : "32px 16px",
@@ -222,7 +222,7 @@ function ImageUpload({
           justifyContent: "center",
           transition: "border-color 150ms ease, background 150ms ease",
         }}
-        onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "var(--vc-gold)"; }}
+        onMouseEnter={e => { if (!isDragging) e.currentTarget.style.borderColor = "#ffffff"; }}
         onMouseLeave={e => { if (!isDragging) e.currentTarget.style.borderColor = "var(--vc-border)"; }}
       >
         {uploading ? (
@@ -293,7 +293,7 @@ function TextInput({
     border: "1px solid var(--vc-border)" as const,
     borderRadius: "var(--vc-radius-sm)" as const,
     color: "var(--vc-text)" as const,
-    fontFamily: "var(--font-urbanist), sans-serif" as const,
+    fontFamily: "var(--font-archivo), sans-serif" as const,
     fontSize: 16,
     padding: "10px 14px",
     outline: "none" as const,
@@ -342,10 +342,10 @@ function SectionHeader({ title }: { title: string }) {
   return (
     <h2
       style={{
-        fontFamily: "var(--font-bayon), sans-serif",
+        fontFamily: "var(--font-archivo), sans-serif",
         fontSize: 18,
         fontWeight: 400,
-        color: "var(--vc-gold)",
+        color: "#ffffff",
         margin: "0 0 16px",
         paddingBottom: 10,
         borderBottom: "1px solid var(--vc-border-subtle)",
@@ -648,9 +648,9 @@ export default function BrandingPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <h1
             style={{
-              fontFamily: "var(--font-bayon), sans-serif",
+              fontFamily: "var(--font-archivo), sans-serif",
               fontSize: "2rem",
-              color: "var(--vc-gold)",
+              color: "#ffffff",
               margin: 0,
               lineHeight: 1.1,
             }}
@@ -668,7 +668,7 @@ export default function BrandingPage() {
                 color: "var(--vc-text)",
                 padding: "8px 32px 8px 12px",
                 fontSize: 14,
-                fontFamily: "var(--font-urbanist), sans-serif",
+                fontFamily: "var(--font-archivo), sans-serif",
                 cursor: "pointer",
                 appearance: "none",
                 WebkitAppearance: "none",
@@ -917,9 +917,9 @@ export default function BrandingPage() {
             padding: "12px 32px",
             border: "none",
             borderRadius: "var(--vc-radius-sm)",
-            background: "var(--vc-gold)",
+            background: "#ffffff",
             color: "var(--vc-bg)",
-            fontFamily: "var(--font-urbanist), sans-serif",
+            fontFamily: "var(--font-archivo), sans-serif",
             fontSize: 15,
             fontWeight: 700,
             cursor: saving ? "not-allowed" : "pointer",

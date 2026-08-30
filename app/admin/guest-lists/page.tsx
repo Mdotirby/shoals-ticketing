@@ -43,7 +43,7 @@ async function generateGuestListPDF(
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
 
-  const gold: [number, number, number] = [208, 194, 144];
+  const gold: [number, number, number] = [255, 255, 255];
   const dark: [number, number, number] = [11, 13, 29];
   const white: [number, number, number] = [255, 255, 255];
 
@@ -340,17 +340,17 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
           style={{
             marginBottom: 20,
             padding: "12px 16px",
-            background: "rgba(208,194,144,0.08)",
+            background: "rgba(255, 255, 255, 0.08)",
             borderRadius: 8,
-            border: "1px solid rgba(208,194,144,0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
           }}
         >
-          <strong style={{ color: "#d0c290" }}>{selectedAssignment.events.title}</strong>
+          <strong style={{ color: "#ffffff" }}>{selectedAssignment.events.title}</strong>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
             {slugDate(selectedAssignment.events.date)} · {selectedAssignment.events.venue}
           </span>
           <div style={{ marginTop: 6, fontSize: 13 }}>
-            <span style={{ color: remaining > 0 ? "#d0c290" : "#ff6b6b" }}>
+            <span style={{ color: remaining > 0 ? "#ffffff" : "#ff6b6b" }}>
               {remaining} comp{remaining !== 1 ? "s" : ""} remaining
             </span>
             <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: 8 }}>
@@ -429,7 +429,7 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
                   <td style={{ padding: "10px 12px", color: "#fff" }}>
                     {g.first_name} {g.last_name}
                   </td>
-                  <td style={{ padding: "10px 12px", textAlign: "center", color: "#d0c290" }}>
+                  <td style={{ padding: "10px 12px", textAlign: "center", color: "#ffffff" }}>
                     {g.quantity}
                   </td>
                   <td style={{ padding: "10px 12px" }}>
@@ -729,9 +729,9 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
               style={{
                 marginBottom: 20,
                 padding: "12px 16px",
-                background: "rgba(208,194,144,0.08)",
+                background: "rgba(255, 255, 255, 0.08)",
                 borderRadius: 8,
-                border: "1px solid rgba(208,194,144,0.15)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -740,11 +740,11 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
               }}
             >
               <div>
-                <strong style={{ color: "#d0c290" }}>{selectedEvent.title}</strong>
+                <strong style={{ color: "#ffffff" }}>{selectedEvent.title}</strong>
                 <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
                   {slugDate(selectedEvent.date)} · {selectedEvent.venue}
                 </span>
-                <div style={{ marginTop: 4, fontSize: 13, color: "#d0c290" }}>
+                <div style={{ marginTop: 4, fontSize: 13, color: "#ffffff" }}>
                   {totalGuests} guest{totalGuests !== 1 ? "s" : ""} on list
                 </div>
               </div>
@@ -827,7 +827,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
                       <td style={{ padding: "10px 12px", color: "#fff" }}>
                         {g.first_name} {g.last_name}
                       </td>
-                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#d0c290" }}>
+                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#ffffff" }}>
                         {g.quantity}
                       </td>
                       <td style={{ padding: "10px 12px" }}>
@@ -857,9 +857,9 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
             <h2
               style={{
                 margin: "0 0 16px",
-                fontFamily: "var(--font-bayon), sans-serif",
+                fontFamily: "var(--font-archivo), sans-serif",
                 fontSize: "1.4rem",
-                color: "#d0c290",
+                color: "#ffffff",
               }}
             >
               Artist Assignments
@@ -890,7 +890,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
                           ({a.artist_email})
                         </span>
                       )}
-                      <span style={{ color: "#d0c290", fontSize: 12, marginLeft: 12 }}>
+                      <span style={{ color: "#ffffff", fontSize: 12, marginLeft: 12 }}>
                         {a.comp_limit} comps
                       </span>
                     </div>
@@ -961,7 +961,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
             ) : (
               <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
                 No artist users found. Create artists from the{" "}
-                <a href="/portal" style={{ color: "#d0c290" }}>
+                <a href="/portal" style={{ color: "#ffffff" }}>
                   Portal
                 </a>{" "}
                 page first.

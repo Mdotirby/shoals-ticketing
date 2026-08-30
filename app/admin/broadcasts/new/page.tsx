@@ -186,11 +186,11 @@ export default function NewBroadcastPage() {
               onClick={() => { setTrigger(t.value); setPreviewHtml(""); setTestResult(""); setReminderStage(""); setCustomMessage(""); setDigestMode("auto"); setSelectedEventIds([]); }}
               style={{
                 textAlign: "left", padding: "14px 16px", borderRadius: 10, cursor: "pointer",
-                minWidth: 220, background: trigger === t.value ? "rgba(208,194,144,0.12)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${trigger === t.value ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.08)"}`,
+                minWidth: 220, background: trigger === t.value ? "rgba(255, 255, 255, 0.12)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${trigger === t.value ? "rgba(255, 255, 255, 0.4)" : "rgba(255,255,255,0.08)"}`,
               }}
             >
-              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: trigger === t.value ? "#d0c290" : "#fff" }}>{t.label}</p>
+              <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 700, color: trigger === t.value ? "#ffffff" : "#fff" }}>{t.label}</p>
               <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{t.description}</p>
             </button>
           ))}
@@ -235,9 +235,9 @@ export default function NewBroadcastPage() {
                         onClick={() => { setReminderStage(opt.value); setPreviewHtml(""); setTestResult(""); }}
                         style={{
                           padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
-                          background: reminderStage === opt.value ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
-                          border: `1px solid ${reminderStage === opt.value ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.08)"}`,
-                          color: reminderStage === opt.value ? "#d0c290" : "rgba(255,255,255,0.75)",
+                          background: reminderStage === opt.value ? "rgba(255, 255, 255, 0.14)" : "rgba(255,255,255,0.03)",
+                          border: `1px solid ${reminderStage === opt.value ? "rgba(255, 255, 255, 0.4)" : "rgba(255,255,255,0.08)"}`,
+                          color: reminderStage === opt.value ? "#ffffff" : "rgba(255,255,255,0.75)",
                         }}
                       >
                         {opt.label}
@@ -277,9 +277,9 @@ export default function NewBroadcastPage() {
                     onClick={() => { setDigestMode(val); setPreviewHtml(""); setTestResult(""); }}
                     style={{
                       padding: "8px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13,
-                      background: digestMode === val ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
-                      border: `1px solid ${digestMode === val ? "rgba(208,194,144,0.4)" : "rgba(255,255,255,0.08)"}`,
-                      color: digestMode === val ? "#d0c290" : "rgba(255,255,255,0.75)",
+                      background: digestMode === val ? "rgba(255, 255, 255, 0.14)" : "rgba(255,255,255,0.03)",
+                      border: `1px solid ${digestMode === val ? "rgba(255, 255, 255, 0.4)" : "rgba(255,255,255,0.08)"}`,
+                      color: digestMode === val ? "#ffffff" : "rgba(255,255,255,0.75)",
                     }}
                   >
                     {label}

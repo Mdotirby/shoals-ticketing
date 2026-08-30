@@ -188,7 +188,7 @@ export default function AdminSalesPage() {
                 {isEventToday(ev.date) && (
                   <span style={{
                     marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                    background: "rgba(208,194,144,0.18)", color: "#d0c290",
+                    background: "rgba(255, 255, 255, 0.18)", color: "#ffffff",
                     fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
                     verticalAlign: "middle",
                   }}>
@@ -240,7 +240,7 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
-        stroke="#d0c290" strokeWidth={stroke}
+        stroke="#ffffff" strokeWidth={stroke}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
       />
@@ -271,7 +271,7 @@ function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
         cx={size / 2} cy={size / 2} r={radius} fill="none"
-        stroke={isSoldOut ? "#ff6b6b" : "#d0c290"} strokeWidth={stroke}
+        stroke={isSoldOut ? "#ff6b6b" : "#ffffff"} strokeWidth={stroke}
         strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
       />

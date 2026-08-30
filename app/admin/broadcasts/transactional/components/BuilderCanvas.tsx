@@ -55,9 +55,9 @@ function SortableBlock({ block, selected, onSelect, onDelete }: {
           padding: "10px 12px",
           borderRadius: 8,
           border: selected
-            ? "1px solid rgba(208,194,144,0.6)"
+            ? "1px solid rgba(255, 255, 255, 0.6)"
             : "1px solid rgba(255,255,255,0.08)",
-          background: selected ? "rgba(208,194,144,0.07)" : "rgba(255,255,255,0.02)",
+          background: selected ? "rgba(255, 255, 255, 0.07)" : "rgba(255,255,255,0.02)",
           cursor: "pointer",
           userSelect: "none",
           marginBottom: 6,
@@ -77,7 +77,7 @@ function SortableBlock({ block, selected, onSelect, onDelete }: {
         {/* Icon + labels */}
         <div style={{ fontSize: 18, flexShrink: 0 }}>{meta?.icon}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: selected ? "#d0c290" : "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 600 }}>
+          <div style={{ color: selected ? "#ffffff" : "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 600 }}>
             {meta?.label}
           </div>
           {summary && (

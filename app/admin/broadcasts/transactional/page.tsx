@@ -30,7 +30,7 @@ export default function TransactionalEmailsPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/broadcasts" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>
+      <Link href="/admin/broadcasts" style={{ color: "rgba(255, 255, 255, 0.7)", textDecoration: "none", fontSize: 13 }}>
         ← Broadcasts
       </Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Transactional Emails</h1>
@@ -59,8 +59,8 @@ export default function TransactionalEmailsPage() {
                 transition: "border-color 0.15s, background 0.15s",
               }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(208,194,144,0.35)";
-                  (e.currentTarget as HTMLDivElement).style.background = "rgba(208,194,144,0.04)";
+                  (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255, 255, 255, 0.35)";
+                  (e.currentTarget as HTMLDivElement).style.background = "rgba(255, 255, 255, 0.04)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)";
@@ -72,8 +72,8 @@ export default function TransactionalEmailsPage() {
                   <span style={{
                     fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px",
                     padding: "3px 8px", borderRadius: 20,
-                    background: isCustomized ? "rgba(208,194,144,0.15)" : "rgba(255,255,255,0.07)",
-                    color: isCustomized ? "#d0c290" : "rgba(255,255,255,0.3)",
+                    background: isCustomized ? "rgba(255, 255, 255, 0.15)" : "rgba(255,255,255,0.07)",
+                    color: isCustomized ? "#ffffff" : "rgba(255,255,255,0.3)",
                     flexShrink: 0,
                   }}>
                     {isCustomized ? "Custom" : "Default"}
@@ -86,7 +86,7 @@ export default function TransactionalEmailsPage() {
                   {meta.variables.map((v) => (
                     <code key={v} style={{
                       fontSize: 10, padding: "2px 6px", borderRadius: 4,
-                      background: "rgba(208,194,144,0.08)", color: "rgba(208,194,144,0.7)",
+                      background: "rgba(255, 255, 255, 0.08)", color: "rgba(255, 255, 255, 0.7)",
                       fontFamily: "monospace",
                     }}>{v}</code>
                   ))}
@@ -96,7 +96,7 @@ export default function TransactionalEmailsPage() {
                     Last saved {new Date(s.updated_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 )}
-                <div style={{ marginTop: 14, color: "#d0c290", fontSize: 12, fontWeight: 600 }}>
+                <div style={{ marginTop: 14, color: "#ffffff", fontSize: 12, fontWeight: 600 }}>
                   Edit template →
                 </div>
               </div>

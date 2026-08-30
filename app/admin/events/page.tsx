@@ -166,7 +166,7 @@ export default function AdminEventsPage() {
                       {isEventToday(ev.date) && (
                         <span style={{
                           marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                          background: "rgba(208,194,144,0.18)", color: "#d0c290",
+                          background: "rgba(255, 255, 255, 0.18)", color: "#ffffff",
                           fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
                           verticalAlign: "middle",
                         }}>

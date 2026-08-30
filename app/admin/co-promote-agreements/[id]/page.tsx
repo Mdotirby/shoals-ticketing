@@ -177,7 +177,7 @@ export default function CoPromoteAgreementDetailPage() {
         <div style={{ padding: 16, borderRadius: 8, background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>
           {error || "Agreement not found"}
         </div>
-        <Link href="/admin/co-promote-agreements" style={{ display: "inline-block", marginTop: 16, color: "#d0c290" }}>
+        <Link href="/admin/co-promote-agreements" style={{ display: "inline-block", marginTop: 16, color: "#ffffff" }}>
           ← Back
         </Link>
       </div>
@@ -187,7 +187,7 @@ export default function CoPromoteAgreementDetailPage() {
   const sc = statusColors[agreement.status];
 
   const sectionTitle: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: "#d0c290",
+    fontSize: 11, fontWeight: 700, color: "#ffffff",
     textTransform: "uppercase", letterSpacing: 1, margin: "24px 0 12px",
   };
 
@@ -201,7 +201,7 @@ export default function CoPromoteAgreementDetailPage() {
         <div>
           <Link
             href="/admin/co-promote-agreements"
-            style={{ fontSize: 12, color: "rgba(208,194,144,0.6)", textDecoration: "none" }}
+            style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.6)", textDecoration: "none" }}
           >
             ← Back to Agreements
           </Link>
@@ -227,8 +227,8 @@ export default function CoPromoteAgreementDetailPage() {
             onClick={generatePDF}
             style={{
               padding: "10px 16px", borderRadius: 8, fontWeight: 600, fontSize: 13,
-              background: "rgba(208,194,144,0.12)", border: "1px solid rgba(208,194,144,0.3)",
-              color: "#d0c290", cursor: "pointer",
+              background: "rgba(255, 255, 255, 0.12)", border: "1px solid rgba(255, 255, 255, 0.3)",
+              color: "#ffffff", cursor: "pointer",
             }}
           >
             Download PDF
@@ -441,8 +441,8 @@ export default function CoPromoteAgreementDetailPage() {
               onClick={addClause}
               style={{
                 padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                background: "rgba(208,194,144,0.08)", border: "1px solid rgba(208,194,144,0.2)",
-                color: "#d0c290", cursor: "pointer",
+                background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#ffffff", cursor: "pointer",
               }}
             >
               + Add Clause
@@ -499,8 +499,8 @@ export default function CoPromoteAgreementDetailPage() {
         <div style={{ position: "sticky", top: 20, alignSelf: "start" }}>
           {preview && (
             <div style={{
-              background: "rgba(208,194,144,0.04)",
-              border: "1px solid rgba(208,194,144,0.2)",
+              background: "rgba(255, 255, 255, 0.04)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: 12, padding: 20, marginBottom: 16,
             }}>
               <div style={{ ...sectionTitle, marginTop: 0 }}>Settlement Preview</div>
@@ -517,7 +517,7 @@ export default function CoPromoteAgreementDetailPage() {
                     <Row label="Net After Tax" value={fmtCurrency(preview.base)} bold />
                   </>
                 )}
-                <div style={{ margin: "8px 0", height: 1, background: "rgba(208,194,144,0.3)" }} />
+                <div style={{ margin: "8px 0", height: 1, background: "rgba(255, 255, 255, 0.3)" }} />
                 <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", color: "#6ab4ff", fontWeight: 700 }}>
                   <span>To VENUE</span>
                   <span>{fmtCurrency(preview.venueShare)}</span>
@@ -563,7 +563,7 @@ export default function CoPromoteAgreementDetailPage() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: "#131629", border: "1px solid rgba(208,194,144,0.2)",
+              background: "#131629", border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: 14, padding: 24, maxWidth: 480, width: "100%",
             }}
           >
@@ -571,7 +571,7 @@ export default function CoPromoteAgreementDetailPage() {
               Send Agreement to {agreement.partner_venue_name}
             </h2>
             <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: "8px 0 16px" }}>
-              Sending to <strong style={{ color: "#d0c290" }}>{agreement.partner_email}</strong>.
+              Sending to <strong style={{ color: "#ffffff" }}>{agreement.partner_email}</strong>.
               <br />
               <em>Tip: download the PDF first and attach it to the sent email from your inbox, or forward it from your sent folder.</em>
             </p>

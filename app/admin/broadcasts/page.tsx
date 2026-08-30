@@ -54,7 +54,7 @@ export default function BroadcastsDashboardPage() {
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <h2 style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: 0 }}>Recent Sends</h2>
-        <Link href="/admin/broadcasts/history" style={{ fontSize: 12, color: "rgba(208,194,144,0.7)", textDecoration: "none" }}>
+        <Link href="/admin/broadcasts/history" style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.7)", textDecoration: "none" }}>
           View full history →
         </Link>
       </div>

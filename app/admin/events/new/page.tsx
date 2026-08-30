@@ -433,7 +433,7 @@ export default function AdminCreateEventPage() {
           Show Type
           <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
             {[
-              { value: "hard_ticket",        label: "Hard Ticket",        color: "#d0c290",           bg: "rgba(208,194,144,0.1)" },
+              { value: "hard_ticket",        label: "Hard Ticket",        color: "#ffffff",           bg: "rgba(255, 255, 255, 0.1)" },
               { value: "non_ticketed",        label: "Non-Ticketed",       color: "rgba(100,149,237,0.9)", bg: "rgba(100,149,237,0.1)" },
               { value: "private",             label: "Private Event",      color: "rgba(180,100,200,0.9)", bg: "rgba(180,100,200,0.1)" },
               { value: "co_promote",          label: "Co-Promote",         color: "rgba(255,140,0,0.9)",   bg: "rgba(255,140,0,0.1)" },
@@ -742,7 +742,7 @@ export default function AdminCreateEventPage() {
                 type="checkbox"
                 checked={form.tax_exempt}
                 onChange={(e) => setForm({ ...form, tax_exempt: e.target.checked })}
-                style={{ width: 18, height: 18, accentColor: "#d0c290" }}
+                style={{ width: 18, height: 18, accentColor: "#ffffff" }}
               />
               Tax Exempt
             </label>
@@ -753,8 +753,8 @@ export default function AdminCreateEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -855,8 +855,8 @@ export default function AdminCreateEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <span style={{ color: onSaleDate ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
@@ -916,8 +916,8 @@ export default function AdminCreateEventPage() {
         {isHardTicket && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${facilityFeeEnabled ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: facilityFeeEnabled ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${facilityFeeEnabled ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -965,8 +965,8 @@ export default function AdminCreateEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(208,194,144,0.12)"}`,
+            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -1023,11 +1023,11 @@ export default function AdminCreateEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: "rgba(208,194,144,0.04)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             marginTop: 8,
           }}>
-            <span style={{ color: "#d0c290", fontWeight: 700, fontSize: 13, display: "block" }}>
+            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: 13, display: "block" }}>
               Promo Codes
             </span>
             <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: "6px 0 0" }}>

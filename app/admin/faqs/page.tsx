@@ -14,12 +14,12 @@ type FAQ = {
   created_at: string;
 };
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const card: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(208,194,144,0.12)",
+  border: "1px solid rgba(255, 255, 255, 0.12)",
   borderRadius: 10,
   padding: "18px 20px",
 };
@@ -181,7 +181,7 @@ export default function AdminFAQsPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.4, ease: EASE }}
-          style={{ ...card, marginBottom: 20, borderColor: "rgba(208,194,144,0.2)" }}
+          style={{ ...card, marginBottom: 20, borderColor: "rgba(255, 255, 255, 0.2)" }}
         >
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: "0 0 12px" }}>
             Your site currently shows these global defaults. Add a custom FAQ above to override them.
@@ -221,7 +221,7 @@ export default function AdminFAQsPage() {
             transition={{ duration: 0.28, ease: EASE }}
             style={{ overflow: "hidden", marginBottom: 20 }}
           >
-            <div style={{ ...card, border: "1px solid rgba(208,194,144,0.3)" }}>
+            <div style={{ ...card, border: "1px solid rgba(255, 255, 255, 0.3)" }}>
               <h3 style={{ color: GOLD, margin: "0 0 16px", fontSize: 15 }}>
                 {editingId ? "Edit FAQ" : "New FAQ"}
               </h3>
@@ -281,7 +281,7 @@ export default function AdminFAQsPage() {
                   animate={{ opacity: 1, y: 0, transition: { delay: i * 0.04, duration: 0.3, ease: EASE } }}
                   exit={{ opacity: 0, x: -20 }}
                   style={card}
-                  whileHover={{ borderColor: "rgba(208,194,144,0.25)" }}
+                  whileHover={{ borderColor: "rgba(255, 255, 255, 0.25)" }}
                 >
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                     {/* Drag handle */}

@@ -52,7 +52,7 @@ type DashboardData = {
 };
 
 const CHART_COLORS = [
-  "#d0c290",
+  "#ffffff",
   "#7eb8da",
   "#c78dba",
   "#8dd4a8",
@@ -336,7 +336,7 @@ export default function AdminDashboardPage() {
                   <Tooltip
                     contentStyle={{
                       background: "#12122e",
-                      border: "1px solid rgba(208,194,144,0.2)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
                       borderRadius: 10,
                       color: "#fff",
                       fontSize: 12,
@@ -588,7 +588,7 @@ export default function AdminDashboardPage() {
                     <Tooltip
                       contentStyle={{
                         background: "#12122e",
-                        border: "1px solid rgba(208,194,144,0.2)",
+                        border: "1px solid rgba(255, 255, 255, 0.2)",
                         borderRadius: 10,
                         color: "#fff",
                         fontSize: 12,

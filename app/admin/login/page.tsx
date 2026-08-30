@@ -155,7 +155,7 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 onClick={() => { setShowForgot(false); setResetMsg(""); }}
-                style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+                style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
               >
                 ← Back to Sign In
               </button>
@@ -197,7 +197,7 @@ export default function AdminLoginPage() {
               <button
                 type="button"
                 onClick={() => { setShowForgot(true); setResetMsg(""); }}
-                style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+                style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
               >
                 Forgot Password?
               </button>

@@ -110,18 +110,6 @@ body[data-operator="west72"] .lp-sticky-bar {
 body[data-operator="west72"] .admin-content {
   background: #0a0a0a;
 }
-body[data-operator="west72"] .dash-kpi-icon-week {
-  background: rgba(208, 194, 144, 0.08);
-  color: var(--vc-gold);
-}
-body[data-operator="west72"] .dash-kpi-icon-tickets {
-  background: rgba(208, 194, 144, 0.06);
-  color: var(--vc-gold);
-}
-body[data-operator="west72"] .dash-kpi-icon-total {
-  background: rgba(208, 194, 144, 0.06);
-  color: var(--vc-gold);
-}
 @media (max-width: 768px) {
   body[data-operator="west72"] .admin-sidebar {
     background: rgba(0, 0, 0, 0.95);
@@ -999,6 +987,26 @@ body {
   color: var(--vc-gold);
   margin: 0 0 8px;
   font-family: var(--font-bayon), var(--font-urbanist), sans-serif;
+}
+
+/* Staff login page (/login) title — deliberately a SEPARATE class from
+   .ticket-hero-title above, even though it reuses .ticket-page/.login-section
+   for layout. .ticket-hero-title is also used by the public checkout/ticket
+   pages and must keep its gold branding untouched; this class exists so the
+   staff login page can go white/Archivo without touching that shared class
+   (or its mobile display:none / font-size overrides, which don't apply here). */
+.staff-login-hero-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin: 0 0 8px;
+  font-family: var(--font-archivo), sans-serif;
+}
+@media (max-width: 480px) {
+  .staff-login-hero-title {
+    font-size: 1.3rem;
+  }
 }
 
 .ticket-event-meta {
@@ -3245,6 +3253,13 @@ body {
   justify-content: center;
   background: var(--vc-bg);
   padding: 40px 20px;
+  /* Explicit here (not relying on inheritance) so it's Archivo for both
+     operators — venuecore's body defaults to Urbanist and only west72's
+     body sets Archivo, but child elements with their own explicit
+     font-family (most of the admin-form-* classes) would win over either
+     anyway, so this only matters for the few unstyled text nodes like
+     .admin-login-subtitle. */
+  font-family: var(--font-archivo), sans-serif;
 }
 
 .admin-login-card {
@@ -3272,9 +3287,9 @@ body {
 
 .admin-login-title {
   margin: 0;
-  font-family: var(--font-bayon), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 2rem;
-  color: var(--vc-gold);
+  color: #ffffff;
 }
 
 .admin-login-subtitle {
@@ -3305,9 +3320,10 @@ body {
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: var(--vc-gold);
-  color: var(--vc-bg);
-  font-family: var(--font-urbanist), sans-serif;
+  /* Literal white, not var(--vc-gold) — see .login-form-submit above for why. */
+  background: #ffffff;
+  color: #0a0a0a;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -3315,7 +3331,7 @@ body {
 }
 
 .admin-login-btn:hover {
-  background: var(--vc-gold-hover);
+  background: #e8e8e8;
 }
 
 .admin-login-btn:disabled {
@@ -3331,6 +3347,11 @@ body {
   display: flex;
   min-height: 100vh;
   background: var(--vc-bg);
+  /* Explicit here (not relying on inheritance) so admin text is Archivo for
+     both operators regardless of body-level font-family — venuecore's body
+     defaults to Urbanist and only west72's body sets Archivo. Elements with
+     their own explicit font-family still win over this either way. */
+  font-family: var(--font-archivo), sans-serif;
 }
 
 .admin-sidebar {
@@ -3375,7 +3396,7 @@ body {
   border-radius: var(--vc-radius-sm);
   color: var(--vc-text-secondary);
   text-decoration: none;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 14px;
   font-weight: 500;
   transition: background 180ms ease, color 180ms ease;
@@ -3388,7 +3409,7 @@ body {
 
 .admin-sidebar-link.active {
   background: var(--vc-surface-active);
-  color: var(--vc-gold);
+  color: #ffffff;
 }
 
 .admin-sidebar-icon {
@@ -3416,9 +3437,9 @@ body {
 
 .admin-page-title {
   margin: 0;
-  font-family: var(--font-bayon), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 2rem;
-  color: var(--vc-gold);
+  color: #ffffff;
   line-height: 1.1;
 }
 
@@ -3454,7 +3475,7 @@ body {
 }
 
 .admin-stat-value {
-  font-family: var(--font-bayon), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 2rem;
   color: var(--vc-text);
   line-height: 1;
@@ -3507,7 +3528,7 @@ body {
   border: 1px solid var(--vc-border);
   border-radius: var(--vc-radius-sm);
   color: var(--vc-text);
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   transition: border-color 180ms ease;
 }
@@ -3515,7 +3536,7 @@ body {
 .admin-form-input:focus,
 .admin-form-textarea:focus {
   outline: none;
-  border-color: var(--vc-gold);
+  border-color: #ffffff;
 }
 
 .admin-form-input::placeholder,
@@ -3542,9 +3563,10 @@ body {
   padding: 12px 32px;
   border: none;
   border-radius: var(--vc-radius-sm);
-  background: var(--vc-gold);
-  color: var(--vc-bg);
-  font-family: var(--font-urbanist), sans-serif;
+  /* Literal white, not var(--vc-gold) — see .login-form-submit for why. */
+  background: #ffffff;
+  color: #0a0a0a;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -3552,7 +3574,7 @@ body {
 }
 
 .admin-form-submit:hover {
-  background: var(--vc-gold-hover);
+  background: #e8e8e8;
 }
 
 .admin-form-submit:disabled {
@@ -3725,8 +3747,8 @@ select.admin-form-input {
 }
 
 .admin-image-dropzone:hover {
-  border-color: rgba(208, 194, 144, 0.35);
-  background: rgba(208, 194, 144, 0.04);
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .admin-image-dropzone-icon {
@@ -3734,22 +3756,22 @@ select.admin-form-input {
 }
 
 .admin-image-dropzone-text {
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 14px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.7);
 }
 
 .admin-image-dropzone-hint {
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 12px;
   color: var(--vc-text-muted);
 }
 
 .admin-image-uploading {
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 14px;
-  color: var(--vc-gold);
+  color: #ffffff;
 }
 
 .admin-image-preview-wrapper {
@@ -3777,7 +3799,7 @@ select.admin-form-input {
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.65);
   color: var(--vc-text);
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -3819,7 +3841,7 @@ select.admin-form-input {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.6);
@@ -3833,7 +3855,7 @@ select.admin-form-input {
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: var(--vc-text);
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   outline: none;
   transition: border-color 180ms ease;
@@ -3841,7 +3863,7 @@ select.admin-form-input {
 }
 
 .login-form-input:focus {
-  border-color: rgba(208, 194, 144, 0.4);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .login-form-submit {
@@ -3849,9 +3871,12 @@ select.admin-form-input {
   padding: 14px;
   border: none;
   border-radius: 10px;
-  background: linear-gradient(135deg, var(--vc-gold), var(--vc-gold-dark));
-  color: var(--vc-bg);
-  font-family: var(--font-urbanist), sans-serif;
+  /* Literal white, not var(--vc-gold)/var(--venue-primary) — those can be
+     reassigned at runtime per white-label venue subdomain, which would
+     re-gild this button. Staff login should never show gold regardless. */
+  background: #ffffff;
+  color: #0a0a0a;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -4037,10 +4062,10 @@ select.admin-form-input {
 }
 
 .admin-tier-number {
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 12px;
   font-weight: 600;
-  color: var(--vc-gold);
+  color: #ffffff;
   white-space: nowrap;
   min-width: 44px;
 }
@@ -4077,11 +4102,11 @@ select.admin-form-input {
 .admin-tier-add-btn {
   margin-top: 10px;
   padding: 8px 18px;
-  background: rgba(208, 194, 144, 0.1);
-  border: 1px dashed rgba(208, 194, 144, 0.35);
+  background: #ffffff;
+  border: 1px dashed #ffffff;
   border-radius: 8px;
-  color: var(--vc-gold);
-  font-family: var(--font-urbanist), sans-serif;
+  color: #0a0a0a;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -4089,8 +4114,8 @@ select.admin-form-input {
 }
 
 .admin-tier-add-btn:hover {
-  background: rgba(208, 194, 144, 0.18);
-  border-color: rgba(208, 194, 144, 0.55);
+  background: #e8e8e8;
+  border-color: #e8e8e8;
 }
 
 @media (max-width: 768px) {
@@ -4124,11 +4149,11 @@ select.admin-form-input {
 
 .admin-header-btn {
   padding: 8px 18px;
-  background: rgba(208, 194, 144, 0.15);
-  border: 1px solid rgba(208, 194, 144, 0.35);
+  background: #ffffff;
+  border: 1px solid #ffffff;
   border-radius: 8px;
-  color: var(--vc-gold);
-  font-family: var(--font-urbanist), sans-serif;
+  color: #0a0a0a;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -4136,7 +4161,7 @@ select.admin-form-input {
 }
 
 .admin-header-btn:hover {
-  background: rgba(208, 194, 144, 0.25);
+  background: #e8e8e8;
 }
 
 .admin-sponsors-list {
@@ -4174,7 +4199,7 @@ select.admin-form-input {
 
 .admin-sponsor-name {
   margin: 0;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   font-weight: 600;
   color: var(--vc-text);
@@ -4182,7 +4207,7 @@ select.admin-form-input {
 
 .admin-sponsor-tier {
   font-size: 12px;
-  color: rgba(208, 194, 144, 0.85);
+  color: rgba(255, 255, 255, 0.85);
   display: block;
   margin-top: 2px;
 }
@@ -4207,10 +4232,10 @@ select.admin-form-input {
 
 .admin-sponsor-edit-btn {
   padding: 6px 14px;
-  background: rgba(208, 194, 144, 0.1);
-  border: 1px solid rgba(208, 194, 144, 0.25);
+  background: #ffffff;
+  border: 1px solid #ffffff;
   border-radius: 6px;
-  color: var(--vc-gold);
+  color: #0a0a0a;
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
@@ -4218,7 +4243,7 @@ select.admin-form-input {
 }
 
 .admin-sponsor-edit-btn:hover {
-  background: rgba(208, 194, 144, 0.2);
+  background: #e8e8e8;
 }
 
 .admin-sponsor-delete-btn {
@@ -4534,8 +4559,8 @@ select.admin-form-input {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(208,194,144,0.1);
-  color: var(--vc-gold);
+  background: rgba(255,255,255,0.1);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4566,7 +4591,7 @@ select.admin-form-input {
 
 .dash-kpi-label {
   color: var(--vc-text-secondary);
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 11px;
   font-weight: 600;
   color: var(--vc-text-secondary);
@@ -4575,14 +4600,14 @@ select.admin-form-input {
 }
 
 .dash-kpi-value {
-  font-family: var(--font-bayon), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: clamp(1.5rem, 2.5vw, 2rem);
   color: var(--vc-text);
   line-height: 1;
 }
 
 .dash-kpi-highlight .dash-kpi-value {
-  color: var(--vc-gold);
+  color: #ffffff;
 }
 
 .dash-kpi-secondary {
@@ -5106,7 +5131,7 @@ select.admin-form-input {
   justify-content: space-between;
   padding: 10px 16px;
   background: var(--vc-bg-deep);
-  border-bottom: 1px solid var(--vc-gold-15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   position: sticky;
   top: 0;
   z-index: 1001;
@@ -5124,7 +5149,7 @@ select.admin-form-input {
   align-items: center;
   gap: 6px;
   background: none;
-  border: 2px solid rgba(208, 194, 144, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
   padding: 3px 10px 3px 3px;
   cursor: pointer;
@@ -5141,17 +5166,17 @@ select.admin-form-input {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.15);
+  background: rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--vc-gold);
+  color: #ffffff;
   font-weight: 700;
   font-size: 15px;
 }
 
 .admin-mobile-dropdown-arrow {
-  color: rgba(208, 194, 144, 0.6);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 16px;
   transition: transform 200ms ease;
   line-height: 1;
@@ -5226,7 +5251,7 @@ select.admin-form-input {
     right: 0;
     min-width: 200px;
     background: var(--vc-bg-mid);
-    border: 1px solid var(--vc-gold-15);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 12px;
     padding: 6px 0;
     opacity: 0;
@@ -5235,7 +5260,7 @@ select.admin-form-input {
     pointer-events: none;
     transition: opacity 200ms ease, transform 200ms ease;
     z-index: 1003;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--vc-gold-8);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
     max-height: 70vh;
     overflow-y: auto;
   }
@@ -5258,16 +5283,16 @@ select.admin-form-input {
   }
 
   .admin-mobile-dropdown-link:hover {
-    background: var(--vc-gold-5);
+    background: rgba(255, 255, 255, 0.05);
     color: var(--vc-text);
-    border-left-color: var(--vc-gold-30);
+    border-left-color: rgba(255, 255, 255, 0.3);
     padding-left: 20px;
   }
 
   .admin-mobile-dropdown-link.active {
-    background: var(--vc-gold-10);
-    color: var(--vc-gold);
-    border-left-color: var(--vc-gold);
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-left-color: #ffffff;
     padding-left: 20px;
     font-weight: 700;
   }
@@ -5755,7 +5780,7 @@ select.admin-form-input {
 }
 
 .admin-event-card:hover {
-  border-color: rgba(208, 194, 144, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
@@ -5777,7 +5802,7 @@ select.admin-form-input {
 
 .admin-event-name {
   margin: 0;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   font-weight: 600;
   color: var(--vc-text);
@@ -5819,10 +5844,10 @@ select.admin-form-input {
 }
 
 .admin-event-price {
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: var(--vc-gold);
+  color: #ffffff;
 }
 
 @media (max-width: 768px) {
@@ -5952,11 +5977,11 @@ select.admin-form-input {
 
 .admin-form-section-title {
   margin: 24px 0 8px;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: var(--vc-gold);
-  border-bottom: 1px solid rgba(208, 194, 144, 0.15);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 6px;
 }
 
@@ -6242,7 +6267,7 @@ select.admin-form-input {
 /* Sidebar Welcome Message */
 .admin-sidebar-welcome {
   margin: 8px 0 0;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
   text-align: center;
@@ -6254,9 +6279,9 @@ select.admin-form-input {
 
 .admin-sidebar-venue {
   margin: 2px 0 0;
-  font-family: var(--font-urbanist), sans-serif;
+  font-family: var(--font-archivo), sans-serif;
   font-size: 11px;
-  color: var(--vc-gold);
+  color: #ffffff;
   text-align: center;
   letter-spacing: 0.04em;
 }
@@ -7285,66 +7310,21 @@ select.admin-form-input {
    ============================================================ */
 
 /* KPI Cards */
+/* NOTE: this "VENUE THEMING" section applies var(--venue-primary) (a
+   white-label color that can be reassigned at runtime per venue subdomain,
+   see VenueThemeProvider) to a lot of public-page classes below — but the
+   admin-scoped and dash-kpi rules that USED to be here were deliberately
+   removed. Admin should never theme by venue color, gold or otherwise, so those
+   selectors are now fixed literal white overrides living with their base
+   rules earlier in this file instead of being re-themed here. This block
+   used to win the cascade over those base rules (later + same specificity)
+   — removing it here, not just changing its value, is what actually makes
+   the earlier white fix visible. */
 .dash-kpi-card {
-  border: 1px solid color-mix(in srgb, var(--venue-primary) 15%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
-.dash-kpi-value { color: var(--venue-primary); }
-.dash-kpi-label { color: color-mix(in srgb, var(--venue-primary) 50%, #ffffff); }
-
-/* Sidebar active link */
-.admin-sidebar-link.active {
-  background: color-mix(in srgb, var(--venue-primary) 10%, transparent);
-  color: var(--venue-primary);
-}
-.admin-sidebar-link:hover {
-  color: var(--venue-primary);
-}
-.admin-sidebar-venue { color: var(--venue-primary); }
-
-/* Page titles */
-.admin-page-title { color: var(--venue-primary); }
-.admin-form-section-title {
-  color: var(--venue-primary);
-  border-bottom-color: color-mix(in srgb, var(--venue-primary) 15%, transparent);
-}
-
-/* Buttons and links */
-.admin-header-btn {
-  background: color-mix(in srgb, var(--venue-primary) 15%, transparent);
-  border-color: color-mix(in srgb, var(--venue-primary) 35%, transparent);
-  color: var(--venue-primary);
-}
-.admin-header-btn:hover { background: color-mix(in srgb, var(--venue-primary) 25%, transparent); }
-
-.admin-sponsor-edit-btn {
-  background: color-mix(in srgb, var(--venue-primary) 10%, transparent);
-  border-color: color-mix(in srgb, var(--venue-primary) 25%, transparent);
-  color: var(--venue-primary);
-}
-.admin-sponsor-edit-btn:hover { background: color-mix(in srgb, var(--venue-primary) 20%, transparent); }
-
-.admin-form-submit {
-  background: var(--venue-primary);
-  color: var(--venue-secondary);
-}
-.admin-form-submit:hover { opacity: 0.9; }
-
-/* Tier add button */
-.admin-tier-add-btn {
-  background: color-mix(in srgb, var(--venue-primary) 10%, transparent);
-  border-color: color-mix(in srgb, var(--venue-primary) 35%, transparent);
-  color: var(--venue-primary);
-}
-.admin-tier-add-btn:hover {
-  background: color-mix(in srgb, var(--venue-primary) 18%, transparent);
-  border-color: color-mix(in srgb, var(--venue-primary) 55%, transparent);
-}
-
-/* Tier number */
-.admin-tier-number { color: var(--venue-primary); }
-
-/* Event price + status */
-.admin-event-price { color: var(--venue-primary); }
+.dash-kpi-value { color: #ffffff; }
+.dash-kpi-label { color: rgba(255, 255, 255, 0.75); }
 
 /* Report tab active */
 .report-tab.active { color: var(--venue-primary); border-bottom-color: var(--venue-primary); }
@@ -7375,10 +7355,13 @@ select.admin-form-input {
 }
 .portal-slug { color: var(--venue-primary); background: color-mix(in srgb, var(--venue-primary) 8%, transparent); }
 
-/* Login button */
+/* Login button — literal white (see the base .login-form-submit rule above
+   for why, not var(--venue-primary)). This block wins the cascade over the
+   base rule above (later + same specificity), so it's the one that actually
+   renders — must stay in sync with it. */
 .login-form-submit {
-  background: var(--venue-primary);
-  color: var(--venue-secondary);
+  background: #ffffff;
+  color: #0a0a0a;
 }
 
 /* Sidebar full-height background */
@@ -10420,9 +10403,14 @@ body:has(.lp-main) .site-footer {
     opacity: 0;
     transform: translateY(-10px);
   }
+  /* transform: none (not translateY(0)) — same fix as checkoutExpand above:
+     any non-"none" transform locked in by animation-fill-mode:both creates
+     a containing block for position:fixed descendants, which broke
+     CheckoutSuccessModal's viewport-fixed centering on this checkout path
+     too. Visually identical. */
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -12345,7 +12333,15 @@ body:has(.lp-main) .site-footer {
 @keyframes checkoutExpand {
   0%   { opacity: 0; transform: translateY(14px) scale(0.97); }
   60%  { opacity: 1; }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  /* transform: none (not translateY(0) scale(1)) — any non-"none" transform,
+     even an identity one, permanently establishes a CSS containing block
+     for position:fixed descendants once animation-fill-mode:both locks it
+     in. CheckoutSuccessModal renders inside this wrapper on payment
+     success and needs to stay truly viewport-fixed, not fixed-relative-to-
+     this-div (that was the actual cause of the modal appearing "jumbled"
+     off-screen on mobile instead of centered). Visually identical either
+     way — translateY(0) scale(1) and none render the same. */
+  100% { opacity: 1; transform: none; }
 }
 
 .checkout-reveal {
@@ -12452,9 +12448,9 @@ body:has(.lp-main) .site-footer {
 }
 
 .admin-header-btn-outline {
-  background: rgba(208, 194, 144, 0.1);
-  color: var(--vc-gold);
-  border: 1px solid rgba(208, 194, 144, 0.2);
+  background: #ffffff;
+  color: #0a0a0a;
+  border: 1px solid #ffffff;
 }
 
 .admin-venue-filter-select {

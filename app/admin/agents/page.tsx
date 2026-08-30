@@ -257,7 +257,7 @@ export default function AdminAgentsPage() {
       <div style={{ overflowX: "auto" }}>
         <table className="admin-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid rgba(208,194,144,0.15)" }}>
+            <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.15)" }}>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Agent</th>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Agency</th>
               <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Email</th>
@@ -275,7 +275,7 @@ export default function AdminAgentsPage() {
             ) : (
               agents.map((agent) => (
                 <tr key={agent.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <td style={{ padding: "10px 12px", color: "#d0c290" }}>
+                  <td style={{ padding: "10px 12px", color: "#ffffff" }}>
                     {agent.first_name && agent.last_name
                       ? `${agent.first_name} ${agent.last_name}`
                       : agent.agent_name}
@@ -302,7 +302,7 @@ export default function AdminAgentsPage() {
                       </button>
                       <button
                         className="admin-sponsor-edit-btn"
-                        style={{ fontSize: 12, padding: "4px 10px", background: "rgba(208,194,144,0.1)" }}
+                        style={{ fontSize: 12, padding: "4px 10px", background: "rgba(255, 255, 255, 0.1)" }}
                         onClick={() => {
                           setAssignAgent(agent);
                           loadAssignments(agent.id);
@@ -336,9 +336,9 @@ export default function AdminAgentsPage() {
         }} onClick={() => setShowOnboard(false)}>
           <div style={{
             background: "#131629", borderRadius: 12, padding: 24, maxWidth: 520, width: "100%",
-            border: "1px solid rgba(208,194,144,0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
           }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#d0c290" }}>Onboard New Agent</h2>
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#ffffff" }}>Onboard New Agent</h2>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
               Creates a login account and sends a welcome email with temporary credentials.
             </p>
@@ -391,9 +391,9 @@ export default function AdminAgentsPage() {
         }} onClick={() => setEditAgent(null)}>
           <div style={{
             background: "#131629", borderRadius: 12, padding: 24, maxWidth: 480, width: "100%",
-            border: "1px solid rgba(208,194,144,0.15)",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
           }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#d0c290" }}>Edit Agent</h2>
+            <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#ffffff" }}>Edit Agent</h2>
             <form onSubmit={handleEdit}>
               <div className="admin-form-grid">
                 <label className="admin-form-label">
@@ -438,9 +438,9 @@ export default function AdminAgentsPage() {
         }} onClick={() => setAssignAgent(null)}>
           <div style={{
             background: "#131629", borderRadius: 12, padding: 24, maxWidth: 560, width: "100%",
-            border: "1px solid rgba(208,194,144,0.15)", maxHeight: "80vh", overflowY: "auto",
+            border: "1px solid rgba(255, 255, 255, 0.15)", maxHeight: "80vh", overflowY: "auto",
           }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#d0c290" }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#ffffff" }}>
               Event Assignments
             </h2>
             <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
@@ -490,11 +490,11 @@ export default function AdminAgentsPage() {
                     key={a.id}
                     style={{
                       display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "10px 12px", background: "rgba(208,194,144,0.05)", borderRadius: 8,
+                      padding: "10px 12px", background: "rgba(255, 255, 255, 0.05)", borderRadius: 8,
                     }}
                   >
                     <div>
-                      <span style={{ color: "#d0c290", fontSize: 14 }}>{a.event.title}</span>
+                      <span style={{ color: "#ffffff", fontSize: 14 }}>{a.event.title}</span>
                       <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginLeft: 8 }}>
                         {a.event.date ? new Date(a.event.date).toLocaleDateString() : "TBD"}
                       </span>

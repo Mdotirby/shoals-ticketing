@@ -507,7 +507,7 @@ export default function OrderDetailPage() {
         }}>
           {error ?? "Order not found."}
         </div>
-        <Link href={`/admin/orders/${eventId}`} style={{ display: "inline-block", marginTop: 16, color: "rgba(208,194,144,0.7)", fontSize: 13 }}>
+        <Link href={`/admin/orders/${eventId}`} style={{ display: "inline-block", marginTop: 16, color: "rgba(255, 255, 255, 0.7)", fontSize: 13 }}>
           ← Back to event orders
         </Link>
       </div>
@@ -524,7 +524,7 @@ export default function OrderDetailPage() {
         <div>
           <Link
             href={`/admin/orders/${eventId}`}
-            style={{ fontSize: 12, color: "rgba(208,194,144,0.6)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 8 }}
+            style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.6)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 8 }}
           >
             ← {order.events.title}
           </Link>
@@ -627,9 +627,9 @@ export default function OrderDetailPage() {
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
-              background: resending ? "rgba(208,194,144,0.1)" : "rgba(208,194,144,0.15)",
-              border: "1px solid rgba(208,194,144,0.3)",
-              color: tickets.length === 0 ? "rgba(208,194,144,0.35)" : "#d0c290",
+              background: resending ? "rgba(255, 255, 255, 0.1)" : "rgba(255, 255, 255, 0.15)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              color: tickets.length === 0 ? "rgba(255, 255, 255, 0.35)" : "#ffffff",
               cursor: resending || tickets.length === 0 ? "not-allowed" : "pointer",
               transition: "all 0.15s",
             }}
@@ -743,7 +743,7 @@ export default function OrderDetailPage() {
                         <span>${(cents / 100).toFixed(2)}</span>
                       </div>
                     ))}
-                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, color: "#d0c290" }}>
+                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", marginTop: 8, paddingTop: 8, display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 15, color: "#ffffff" }}>
                       <span>Total</span>
                       <span>${(b.totalCents / 100).toFixed(2)}</span>
                     </div>
@@ -941,7 +941,7 @@ export default function OrderDetailPage() {
           borderRadius: 12, padding: "20px 24px",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#d0c290", textTransform: "uppercase", letterSpacing: 1 }}>
+            <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#ffffff", textTransform: "uppercase", letterSpacing: 1 }}>
               Customer Info
             </h2>
             {!editing && (
@@ -949,8 +949,8 @@ export default function OrderDetailPage() {
                 onClick={() => { setEditing(true); setSaveMsg(null); }}
                 style={{
                   padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                  background: "rgba(208,194,144,0.1)", border: "1px solid rgba(208,194,144,0.25)",
-                  color: "#d0c290", cursor: "pointer",
+                  background: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.25)",
+                  color: "#ffffff", cursor: "pointer",
                 }}
               >
                 Edit
@@ -1027,7 +1027,7 @@ export default function OrderDetailPage() {
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: 12, padding: "20px 24px",
         }}>
-          <h2 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700, color: "#d0c290", textTransform: "uppercase", letterSpacing: 1 }}>
+          <h2 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 700, color: "#ffffff", textTransform: "uppercase", letterSpacing: 1 }}>
             Order Summary
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1062,7 +1062,7 @@ export default function OrderDetailPage() {
         borderRadius: 12, padding: "20px 24px",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#d0c290", textTransform: "uppercase", letterSpacing: 1 }}>
+          <h2 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#ffffff", textTransform: "uppercase", letterSpacing: 1 }}>
             Tickets ({tickets.length})
           </h2>
           <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
@@ -1136,7 +1136,7 @@ export default function OrderDetailPage() {
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
-                    fontSize: 11, color: "rgba(208,194,144,0.6)", textDecoration: "none",
+                    fontSize: 11, color: "rgba(255, 255, 255, 0.6)", textDecoration: "none",
                     fontFamily: "monospace", wordBreak: "break-all", textAlign: "center",
                   }}
                 >
@@ -1174,7 +1174,7 @@ function Row({ label, value, highlight, mono }: { label: string; value: string; 
       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</span>
       <span style={{
         fontSize: 13,
-        color: highlight ? "#d0c290" : "#fff",
+        color: highlight ? "#ffffff" : "#fff",
         fontWeight: highlight ? 700 : 400,
         fontFamily: mono ? "monospace" : undefined,
       }}>

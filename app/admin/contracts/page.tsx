@@ -14,7 +14,7 @@ const statusColors: Record<string, { bg: string; color: string }> = {
 };
 
 const sourceColors: Record<string, { bg: string; color: string }> = {
-  generated: { bg: "rgba(208,194,144,0.15)", color: "#d0c290" },
+  generated: { bg: "rgba(255, 255, 255, 0.15)", color: "#ffffff" },
   uploaded:  { bg: "rgba(180,180,255,0.12)", color: "#b4b4ff" },
 };
 
@@ -84,8 +84,8 @@ export default function ContractsListPage() {
             <span
               style={{
                 padding: "4px 12px", fontSize: 12, fontWeight: 600,
-                background: "rgba(208,194,144,0.15)", color: "#d0c290",
-                border: "1px solid rgba(208,194,144,0.3)", borderRadius: 6,
+                background: "rgba(255, 255, 255, 0.15)", color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.3)", borderRadius: 6,
               }}
             >
               Artist Contracts
@@ -127,7 +127,7 @@ export default function ContractsListPage() {
             <thead>
               <tr
                 style={{
-                  borderBottom: "2px solid rgba(208,194,144,0.3)",
+                  borderBottom: "2px solid rgba(255, 255, 255, 0.3)",
                   textAlign: "left",
                 }}
               >

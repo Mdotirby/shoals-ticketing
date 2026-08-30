@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useVenue } from "@/app/components/VenueContext";
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 
 type PrivateEvent = {
   id: string;
@@ -101,7 +101,7 @@ export default function PrivateEventsListPage() {
         >
           <div style={{
             background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             borderRadius: 10,
             padding: "16px 20px",
             marginBottom: 12,

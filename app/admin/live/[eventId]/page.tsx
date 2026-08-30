@@ -79,7 +79,7 @@ type LivePulseData = {
 
 // ── Helpers ────────────────────────────────────────────────────
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const DARK = "#0b0d1d";
 const GREEN = "#22c55e";
 const RED = "#ef4444";
@@ -368,7 +368,7 @@ export default function LivePulsePage() {
                   <Tooltip
                     contentStyle={{
                       background: "#12122e",
-                      border: "1px solid rgba(208,194,144,0.2)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
                       borderRadius: 10,
                       color: "#fff",
                       fontSize: 12,
@@ -415,7 +415,7 @@ export default function LivePulsePage() {
                   <Tooltip
                     contentStyle={{
                       background: "#12122e",
-                      border: "1px solid rgba(208,194,144,0.2)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
                       borderRadius: 10,
                       color: "#fff",
                       fontSize: 12,

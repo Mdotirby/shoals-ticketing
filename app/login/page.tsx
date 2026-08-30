@@ -219,7 +219,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
         <button
           type="button"
           onClick={onForgot}
-          style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
         >
           Forgot Password?
         </button>
@@ -283,7 +283,7 @@ function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
         <button
           type="button"
           onClick={onBack}
-          style={{ background: "none", border: "none", color: "rgba(208,194,144,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
+          style={{ background: "none", border: "none", color: "rgba(255,255,255,0.7)", cursor: "pointer", fontSize: 13, textDecoration: "underline" }}
         >
           ← Back to Sign In
         </button>
@@ -310,7 +310,7 @@ export default function LoginPage() {
               unoptimized
             />
           )}
-          <h1 className="ticket-hero-title">{showForgot ? "Reset Password" : "Log In"}</h1>
+          <h1 className="staff-login-hero-title">{showForgot ? "Reset Password" : "Log In"}</h1>
         </section>
 
         <section className="login-section">

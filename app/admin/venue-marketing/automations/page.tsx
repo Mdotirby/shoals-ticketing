@@ -89,7 +89,7 @@ export default function AutomationsPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/venue-marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
+      <Link href="/admin/venue-marketing" style={{ color: "rgba(255, 255, 255, 0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Email Automations</h1>
       <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
         Set up automated emails before or after events. E.g., send a survey 2 days after every show at 10am.
@@ -135,7 +135,7 @@ export default function AutomationsPage() {
           </div>
 
           {/* Preview */}
-          <div style={{ background: "rgba(208,194,144,0.05)", border: "1px solid rgba(208,194,144,0.15)", borderRadius: 8, padding: 12, marginTop: 12, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+          <div style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: 8, padding: 12, marginTop: 12, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
             Preview: Send <strong>{templates.find((t) => t.id === form.template_id)?.name || "..."}</strong> at <strong>{form.send_time}</strong>, <strong>{form.days_offset}</strong> day(s) <strong>{form.trigger_type === "before_event" ? "before" : "after"}</strong> {form.event_id ? events.find((e) => e.id === form.event_id)?.title || "event" : "every event"}
           </div>
 

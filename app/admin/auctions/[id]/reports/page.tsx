@@ -96,7 +96,7 @@ export default function AdminAuctionReportsPage() {
       body,
       startY: 32,
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [208, 194, 144], textColor: [11, 13, 29] },
+      headStyles: { fillColor: [255, 255, 255], textColor: [11, 13, 29] },
     });
 
     // Summary if present (gross receipts)
@@ -163,7 +163,7 @@ export default function AdminAuctionReportsPage() {
 
       {reportData && !loading && (
         <>
-          <h2 style={{ color: "#d0c290", fontSize: 18, marginBottom: 12 }}>
+          <h2 style={{ color: "#ffffff", fontSize: 18, marginBottom: 12 }}>
             {reportData.title}
           </h2>
 

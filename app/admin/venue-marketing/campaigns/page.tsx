@@ -93,10 +93,10 @@ export default function CampaignsPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/venue-marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
+      <Link href="/admin/venue-marketing" style={{ color: "rgba(255, 255, 255, 0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Email Campaigns</h1>
       <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
-        Send targeted emails to event buyers or FWB subscribers. Emails are personalized with <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code>.
+        Send targeted emails to event buyers or FWB subscribers. Emails are personalized with <code style={{ color: "#ffffff" }}>{"{{first_name}}"}</code>.
       </p>
 
       <button onClick={() => setShowForm(!showForm)} className="admin-form-submit" style={{ marginBottom: 16, padding: "10px 20px", fontSize: 13 }}>
@@ -131,7 +131,7 @@ export default function CampaignsPage() {
                 {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.title} ({new Date(ev.date).toLocaleDateString()})</option>)}
               </select>
               {selectedEvent && (
-                <span style={{ fontSize: 11, color: "rgba(208,194,144,0.6)", marginTop: 4, display: "block" }}>
+                <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.6)", marginTop: 4, display: "block" }}>
                   Will auto-populate all ticket buyer emails for this event
                 </span>
               )}
@@ -176,7 +176,7 @@ export default function CampaignsPage() {
                     <button
                       onClick={() => handleSend(c.id)}
                       disabled={sending === c.id}
-                      style={{ padding: "6px 14px", fontSize: 12, background: "rgba(208,194,144,0.15)", color: "#d0c290", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
+                      style={{ padding: "6px 14px", fontSize: 12, background: "rgba(255, 255, 255, 0.15)", color: "#ffffff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 600 }}
                     >
                       {sending === c.id ? "Sending..." : "Send Now"}
                     </button>
