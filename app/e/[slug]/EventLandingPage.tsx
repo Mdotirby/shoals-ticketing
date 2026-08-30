@@ -15,9 +15,11 @@ import {
   CardNumberElement,
   CardExpiryElement,
   CardCvcElement,
+  PaymentRequestButtonElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type { PaymentRequest } from "@stripe/stripe-js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,6 +220,13 @@ function CheckoutForm({
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
 
+  // Apple Pay / Google Pay via Stripe PaymentRequest — this form is a
+  // separate hand-maintained copy of InlineCheckout.tsx's checkout form and
+  // never received this feature when it was added there (PR "Move Apple
+  // Pay/Google Pay button to the top of the checkout form"); ported here
+  // with the same shape, adapted to this file's own promo-code/field names.
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+
   // Correct total: flat CC fee applied once per transaction, not once per ticket.
   // Use basePrice so the $0.30 flat fee isn't baked in per-ticket like allInPrice is.
   // Divisor: tax baked in — don't add it again to the estimated total.
@@ -308,6 +317,83 @@ function CheckoutForm({
       });
     }
   }, [cardNumberComplete, cardExpiryComplete, cardCvcComplete, addedPaymentInfo, event.title, event.id, estimatedTotal]);
+
+  // Apple Pay / Google Pay — set up PaymentRequest once stripe is loaded
+  useEffect(() => {
+    if (!stripe || isFullyFree) return;
+
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: { label: event.title, amount: Math.round(estimatedTotal * 100) },
+      requestPayerName: true,
+      requestPayerEmail: true,
+      requestPayerPhone: true,
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setIsProcessing(true);
+      setPaymentError("");
+      try {
+        const res = await fetch("/api/checkout/create-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId: event.id,
+            tierId: selectedTier.id,
+            quantity,
+            buyerName: ev.payerName || "",
+            buyerEmail: ev.payerEmail || "",
+            buyerPhone: ev.payerPhone || "",
+            promoCode: promoApplied ? promoCode.trim() : undefined,
+            presaleCode: presaleCode || undefined,
+            trackingRef: typeof sessionStorage !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : undefined,
+            ...getStoredUtmParams(),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          ev.complete("fail");
+          setPaymentError(data.error || "Payment failed. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+        setOrderDetails(data.orderDetails);
+        setPaymentIntentId(data.paymentIntentId ?? null);
+        const { error: confirmError } = await stripe.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+        if (confirmError) {
+          ev.complete("fail");
+          setPaymentError(confirmError.message || "Payment failed. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+        ev.complete("success");
+        trackFbEvent("Purchase", {
+          content_name: event.title,
+          content_ids: [event.id],
+          value: data.orderDetails.total,
+          currency: "USD",
+          num_items: quantity,
+        });
+        setPaymentSuccess(true);
+      } catch {
+        ev.complete("fail");
+        setPaymentError("An unexpected error occurred. Please try again.");
+        setIsProcessing(false);
+      }
+    });
+
+    pr.canMakePayment().then((result) => {
+      if (result) setPaymentRequest(pr);
+    });
+
+    return () => { setPaymentRequest(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -528,6 +614,23 @@ function CheckoutForm({
   // ── Checkout Form ──────────────────────────────────────────────────────────
   return (
     <form className="lp-checkout-form" onSubmit={handleSubmit} noValidate>
+        {/* Apple Pay / Google Pay — up top so it's seen before people manually
+            type their info; only appears when the browser supports it and
+            Stripe is configured for the domain */}
+        {paymentRequest && !isFullyFree && (
+          <div className="ic-wallet-section">
+            <PaymentRequestButtonElement
+              options={{
+                paymentRequest,
+                style: {
+                  paymentRequestButton: { theme: "dark", height: "48px", type: "buy" },
+                },
+              }}
+            />
+            <div className="ic-wallet-divider"><span>or pay by card</span></div>
+          </div>
+        )}
+
       <div className="lp-checkout-field">
         <label className="lp-checkout-label" htmlFor="lp-name">Full Name</label>
         <input

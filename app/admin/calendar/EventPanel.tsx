@@ -38,10 +38,10 @@ type Props = {
 
 // ── Style constants ────────────────────────────────────────────────────────────
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const card: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(208,194,144,0.12)",
+  border: "1px solid rgba(255, 255, 255, 0.12)",
   borderRadius: 10, padding: "16px 20px", marginBottom: 12,
 };
 const inp: React.CSSProperties = {
@@ -356,8 +356,8 @@ function DetailsTab({ event, onUpdate, onClose }: { event: CalendarEvent; onUpda
             {BOOKING_OPTS.map(o => (
               <button key={o.value} type="button" onClick={() => setForm(p => ({ ...p, booking_status: o.value }))}
                 style={{ flex: 1, padding: "7px 6px", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                  border: `1px solid ${form.booking_status === o.value ? "rgba(208,194,144,0.6)" : "rgba(255,255,255,0.1)"}`,
-                  background: form.booking_status === o.value ? "rgba(208,194,144,0.12)" : "transparent",
+                  border: `1px solid ${form.booking_status === o.value ? "rgba(255, 255, 255, 0.6)" : "rgba(255,255,255,0.1)"}`,
+                  background: form.booking_status === o.value ? "rgba(255, 255, 255, 0.12)" : "transparent",
                   color: form.booking_status === o.value ? GOLD : "rgba(255,255,255,0.45)",
                 }}>
                 {o.label}
@@ -556,7 +556,7 @@ function OffersTab({ eventId, event, venueSlug, onUpdate }: { eventId: string; e
                   <button key={s} onClick={() => updateStatus(o.id, s)} disabled={o.status === s || updatingId === o.id}
                     style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer",
                       border: `1px solid ${o.status === s ? GOLD : "rgba(255,255,255,0.15)"}`,
-                      background: o.status === s ? "rgba(208,194,144,0.12)" : "transparent",
+                      background: o.status === s ? "rgba(255, 255, 255, 0.12)" : "transparent",
                       color: o.status === s ? GOLD : "rgba(255,255,255,0.4)",
                     }}>
                     {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -711,7 +711,7 @@ function ContractsTab({ eventId, venueSlug }: { eventId: string; venueSlug: stri
                   <button key={s} onClick={() => updateStatus(c.id, s)} disabled={c.status === s}
                     style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer",
                       border: `1px solid ${c.status === s ? GOLD : "rgba(255,255,255,0.15)"}`,
-                      background: c.status === s ? "rgba(208,194,144,0.12)" : "transparent",
+                      background: c.status === s ? "rgba(255, 255, 255, 0.12)" : "transparent",
                       color: c.status === s ? GOLD : "rgba(255,255,255,0.4)",
                     }}>
                     {s.charAt(0).toUpperCase() + s.slice(1)}

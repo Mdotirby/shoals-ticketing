@@ -34,9 +34,9 @@ const valStyle: React.CSSProperties = { color: "#fff", fontSize: 14, fontWeight:
 const sectionTitleStyle: React.CSSProperties = {
   fontSize: 16,
   fontWeight: 700,
-  color: "var(--admin-primary, #d0c290)",
+  color: "var(--admin-primary, #ffffff)",
   margin: "28px 0 12px",
-  borderBottom: "1px solid rgba(208,194,144,0.25)",
+  borderBottom: "1px solid rgba(255, 255, 255, 0.25)",
   paddingBottom: 6,
 };
 
@@ -1049,10 +1049,10 @@ export default function SettlementDetailPage() {
                     whiteSpace: "nowrap",
                     padding: "8px 14px",
                     fontSize: 13,
-                    background: "rgba(208,194,144,0.15)",
-                    border: "1px solid rgba(208,194,144,0.4)",
+                    background: "rgba(255, 255, 255, 0.15)",
+                    border: "1px solid rgba(255, 255, 255, 0.4)",
                     borderRadius: 8,
-                    color: "#d0c290",
+                    color: "#ffffff",
                     cursor: isFinalized || !manualTicketPrice || !manualTicketsSold ? "not-allowed" : "pointer",
                     opacity: isFinalized || !manualTicketPrice || !manualTicketsSold ? 0.4 : 1,
                   }}
@@ -1137,13 +1137,13 @@ export default function SettlementDetailPage() {
               (Online / Terminal / Cash) with a subtotal per group, so gross
               per source is visible at a glance. */}
           <thead>
-            <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
+            <tr style={{ borderBottom: "2px solid rgba(255, 255, 255, 0.3)", textAlign: "left" }}>
               {["Tier Name","Capacity","Sold","Comp/Guest","Unsold","Price","SVC","FAC","Tax","Orders","CC","Gross","Tot. Price"].map((h, i) => (
                 <th
                   key={h}
                   style={{
                     padding: "8px 6px",
-                    color: h === "Gross" ? "rgba(208,194,144,0.7)" : "rgba(255,255,255,0.5)",
+                    color: h === "Gross" ? "rgba(255, 255, 255, 0.7)" : "rgba(255,255,255,0.5)",
                     textAlign: i === 0 ? "left" : "right",
                     whiteSpace: "nowrap",
                   }}
@@ -1195,7 +1195,7 @@ export default function SettlementDetailPage() {
                       style={{
                         padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
                         textTransform: "uppercase", letterSpacing: 0.5,
-                        color: "rgba(208,194,144,0.85)",
+                        color: "rgba(255, 255, 255, 0.85)",
                       }}
                     >
                       {label}
@@ -1221,7 +1221,7 @@ export default function SettlementDetailPage() {
                         <td style={cell}>{fmt(tierTax)}</td>
                         <td style={cell}>{row.orders ?? 0}</td>
                         <td style={cell}>{fmt(tierCcShare)}</td>
-                        <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>{fmt(tierGross)}</td>
+                        <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #ffffff)" }}>{fmt(tierGross)}</td>
                         <td style={cell}>{fmt(row.total_price ?? 0)}</td>
                         {isPlatformOwner && (
                           <td
@@ -1234,7 +1234,7 @@ export default function SettlementDetailPage() {
                       </tr>
                     );
                   })}
-                  <tr style={{ borderBottom: "1px solid rgba(208,194,144,0.2)" }}>
+                  <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <td style={{ padding: "6px", fontStyle: "italic", color: "rgba(255,255,255,0.5)" }}>{label} subtotal</td>
                     <td style={cell}>{sub.capacity}</td>
                     <td style={cell}>{sub.sold}</td>
@@ -1246,7 +1246,7 @@ export default function SettlementDetailPage() {
                     <td style={cell}>{fmt(sub.tax)}</td>
                     <td style={cell}>{sub.orders}</td>
                     <td style={cell}>{fmt(sub.cc)}</td>
-                    <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>{fmt(sub.gross)}</td>
+                    <td style={{ ...cell, fontWeight: 700, color: "var(--admin-primary, #ffffff)" }}>{fmt(sub.gross)}</td>
                     <td style={cell}>—</td>
                     {isPlatformOwner && <td style={{ ...cell, opacity: 0.6 }}>{fmt(sub.ccActual)}</td>}
                   </tr>
@@ -1268,7 +1268,7 @@ export default function SettlementDetailPage() {
                   style={{
                     padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
                     textTransform: "uppercase", letterSpacing: 0.5,
-                    color: "rgba(208,194,144,0.85)",
+                    color: "rgba(255, 255, 255, 0.85)",
                   }}
                 >
                   Cash (Manual)
@@ -1297,7 +1297,7 @@ export default function SettlementDetailPage() {
                 <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>—</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>{fmt(0)}</td>
-                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
+                <td style={{ padding: "4px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #ffffff)" }}>
                   <input
                     type="number" min="0" step="0.01"
                     className="admin-form-input"
@@ -1325,7 +1325,7 @@ export default function SettlementDetailPage() {
           </tbody>
           {(ticketAudit.length > 0 || cashGrossNum > 0) && (
             <tfoot>
-              <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
+              <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.capacity}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold + cashTicketsSoldNum}</td>
@@ -1341,7 +1341,7 @@ export default function SettlementDetailPage() {
                   {ticketAudit.reduce((a, r) => a + (r.orders ?? 0), 0)}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700 }}>{fmt(effectiveCcFees)}</td>
-                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #d0c290)" }}>
+                <td style={{ padding: "8px 6px", textAlign: "right", fontWeight: 700, color: "var(--admin-primary, #ffffff)" }}>
                   {fmt(gbor + cashGrossNum)}
                 </td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>—</td>
@@ -1369,7 +1369,7 @@ export default function SettlementDetailPage() {
       {/* ════════════════════════════════════════════
           §3  TAX CONFIG (read-only summary; values come from event/venue)
       ════════════════════════════════════════════ */}
-      <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.18)", borderRadius: 6, padding: "12px 16px", margin: "16px 0" }}>
+      <div style={{ background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.18)", borderRadius: 6, padding: "12px 16px", margin: "16px 0" }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", fontSize: 13, marginTop: 12 }}>
           <div>
             <span style={{ color: "rgba(255,255,255,0.55)" }}>Service Fee:</span>{" "}
@@ -1417,9 +1417,9 @@ export default function SettlementDetailPage() {
             already shows. Every line below it is either money collected on
             someone else's behalf and handed on, or (cash) has none to hand
             on at all. */}
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 15 }}>GBOR</span>
-          <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #d0c290)" }}>
+          <span style={{ ...valStyle, fontSize: 17, color: "var(--admin-primary, #ffffff)" }}>
             {fmt(gbor + cashGrossNum)}
           </span>
         </div>
@@ -1448,9 +1448,9 @@ export default function SettlementDetailPage() {
           </span>
           <span style={valStyle}>({fmt(taxes)})</span>
         </div>
-        <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #d0c290)", paddingBottom: 10 }}>
+        <div style={{ ...rowStyle, borderBottom: "3px solid var(--admin-primary, #ffffff)", paddingBottom: 10 }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>NBOR</span>
-          <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #d0c290)" }}>
+          <span style={{ ...valStyle, fontSize: 18, color: "var(--admin-primary, #ffffff)" }}>
             {fmt(netReceiptsWithCash)}
           </span>
         </div>
@@ -1489,7 +1489,7 @@ export default function SettlementDetailPage() {
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
           <thead>
-            <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
+            <tr style={{ borderBottom: "2px solid rgba(255, 255, 255, 0.3)", textAlign: "left" }}>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Name</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Category</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Estimated</th>
@@ -1540,7 +1540,7 @@ export default function SettlementDetailPage() {
                 <td style={{ padding: "6px" }}>
                   {exp.receipt_url ? (
                     <a href={exp.receipt_url} target="_blank" rel="noopener noreferrer"
-                      style={{ color: "var(--admin-primary, #d0c290)", fontSize: 12 }}>
+                      style={{ color: "var(--admin-primary, #ffffff)", fontSize: 12 }}>
                       View
                     </a>
                   ) : !isFinalized ? (
@@ -1571,7 +1571,7 @@ export default function SettlementDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
+            <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>
               <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Total Expenses</td>
               <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(totalExpenses)}</td>
               <td colSpan={2} />
@@ -1636,7 +1636,7 @@ export default function SettlementDetailPage() {
           />
           {dep.receipt_url ? (
             <a href={dep.receipt_url} target="_blank" rel="noopener noreferrer"
-              style={{ color: "var(--admin-primary, #d0c290)", fontSize: 12 }}>
+              style={{ color: "var(--admin-primary, #ffffff)", fontSize: 12 }}>
               Receipt
             </a>
           ) : !isFinalized ? (
@@ -1690,7 +1690,7 @@ export default function SettlementDetailPage() {
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
           <thead>
-            <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
+            <tr style={{ borderBottom: "2px solid rgba(255, 255, 255, 0.3)", textAlign: "left" }}>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Item</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Units Sold</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Unit Price</th>
@@ -1767,7 +1767,7 @@ export default function SettlementDetailPage() {
           </tbody>
           {merchItems.length > 0 && (
             <tfoot>
-              <tr style={{ borderTop: "2px solid rgba(208,194,144,0.3)" }}>
+              <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>
                 <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Gross Merch</td>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(merchTotalGross)}</td>
                 <td />
@@ -1891,7 +1891,7 @@ export default function SettlementDetailPage() {
             <span style={valStyle}>({fmt(merchDiscounts)})</span>
           </div>
         )}
-        <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
+        <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(255, 255, 255, 0.2)" }}>
           <span style={{ ...labelStyle, fontWeight: 600 }}>Net</span>
           <span style={valStyle}>{fmt(merchNetAfterDiscounts)}</span>
         </div>
@@ -1902,7 +1902,7 @@ export default function SettlementDetailPage() {
           </span>
           <span style={valStyle}>({fmt(merchTotalTax)})</span>
         </div>
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700 }}>Net Merch Sales</span>
           <span style={valStyle}>{fmt(merchTotalNet)}</span>
         </div>
@@ -1910,7 +1910,7 @@ export default function SettlementDetailPage() {
           <span style={labelStyle}>
             Split to VENUE ({merchSplitVenuePct.toFixed(1)}%)
           </span>
-          <span style={{ ...valStyle, color: "var(--admin-primary, #d0c290)" }}>
+          <span style={{ ...valStyle, color: "var(--admin-primary, #ffffff)" }}>
             {fmt(merchVenueShare)}
           </span>
         </div>
@@ -1934,8 +1934,8 @@ export default function SettlementDetailPage() {
             <span style={valStyle}>{fmt(merchTotalTax)}</span>
           </div>
         )}
-        <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(208,194,144,0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-          <strong style={{ color: "#d0c290" }}>Owed to VENUE from artist:</strong>
+        <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(255, 255, 255, 0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+          <strong style={{ color: "#ffffff" }}>Owed to VENUE from artist:</strong>
           {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
           {" (deducted from Balance Due)"}
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
@@ -1965,7 +1965,7 @@ export default function SettlementDetailPage() {
              (wrong) formula, hardcoded rather than read from the payout model,
              so it kept reporting a number the settlement never paid. The pool
              is what the overage below is actually computed from. */
-          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
             <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
             <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
               {fmt(netAfterExpenses)}
@@ -1973,7 +1973,7 @@ export default function SettlementDetailPage() {
           </div>
         )}
         {dealType === "DOOR" && (
-          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
             <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
             <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
               {fmt(netAfterExpenses)}
@@ -2004,7 +2004,7 @@ export default function SettlementDetailPage() {
         )}
         {serviceFeeRebate > 0 && (
           <>
-            <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(208,194,144,0.2)" }}>
+            <div style={{ ...rowStyle, borderBottom: "1px dashed rgba(255, 255, 255, 0.2)" }}>
               <span style={{ ...labelStyle, fontWeight: 600 }}>Deal Total</span>
               <span style={valStyle}>{fmt(dealTotal)}</span>
             </div>
@@ -2018,7 +2018,7 @@ export default function SettlementDetailPage() {
             </div>
           </>
         )}
-        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(208,194,144,0.3)" }}>
+        <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
           <span style={{ ...labelStyle, fontWeight: 700 }}>Artist Total</span>
           <span style={valStyle}>{fmt(artistTotal)}</span>
         </div>
@@ -2054,13 +2054,13 @@ export default function SettlementDetailPage() {
         )}
         <div style={{
           ...rowStyle,
-          borderBottom: "3px solid var(--admin-primary, #d0c290)",
+          borderBottom: "3px solid var(--admin-primary, #ffffff)",
           paddingBottom: 10,
         }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Balance Due to ARTIST</span>
           <span style={{
             ...valStyle, fontSize: 18,
-            color: balanceDue >= 0 ? "var(--admin-primary, #d0c290)" : "#ff9a9a",
+            color: balanceDue >= 0 ? "var(--admin-primary, #ffffff)" : "#ff9a9a",
           }}>
             {fmt(balanceDue)}
           </span>
@@ -2149,7 +2149,7 @@ export default function SettlementDetailPage() {
         </div>
         <div style={{
           ...rowStyle,
-          borderBottom: "3px solid var(--admin-primary, #d0c290)",
+          borderBottom: "3px solid var(--admin-primary, #ffffff)",
           paddingBottom: 10,
         }}>
           <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Venue Net Profit</span>

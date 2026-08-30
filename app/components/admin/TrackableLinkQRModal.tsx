@@ -108,7 +108,7 @@ export default function TrackableLinkQRModal({ url, label, eventTitle, onClose }
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#131629",
-          border: "1px solid rgba(208,194,144,0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
           borderRadius: 14,
           padding: 20,
           maxWidth: 440,
@@ -196,9 +196,9 @@ export default function TrackableLinkQRModal({ url, label, eventTitle, onClose }
               width: "100%",
               padding: "12px 16px", borderRadius: 8,
               fontSize: 14, fontWeight: 600,
-              background: "rgba(208,194,144,0.12)",
-              border: "1px solid rgba(208,194,144,0.3)",
-              color: "#d0c290",
+              background: "rgba(255, 255, 255, 0.12)",
+              border: "1px solid rgba(255, 255, 255, 0.3)",
+              color: "#ffffff",
               cursor: qrDataUrl ? "pointer" : "not-allowed",
               opacity: qrDataUrl ? 1 : 0.5,
             }}

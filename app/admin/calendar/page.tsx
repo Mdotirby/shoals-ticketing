@@ -71,8 +71,8 @@ const BOOKING_STATUS_BG: Record<string, string> = {
 
 // Event type indicator (secondary - shown as small badge)
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  hard_ticket: "rgba(208,194,144,0.85)",
-  ticketed: "rgba(208,194,144,0.85)",       // legacy support
+  hard_ticket: "rgba(255, 255, 255, 0.85)",
+  ticketed: "rgba(255, 255, 255, 0.85)",       // legacy support
   non_ticketed: "rgba(100,149,237,0.85)",
   private: "rgba(180,100,200,0.85)",
   co_promote: "rgba(255,140,0,0.85)",
@@ -86,8 +86,8 @@ const HOLD_LEVEL_COLORS: Record<string, string> = {
 };
 
 const EVENT_TYPE_BG: Record<string, string> = {
-  hard_ticket: "rgba(208,194,144,0.15)",
-  ticketed: "rgba(208,194,144,0.15)",
+  hard_ticket: "rgba(255, 255, 255, 0.15)",
+  ticketed: "rgba(255, 255, 255, 0.15)",
   non_ticketed: "rgba(100,149,237,0.15)",
   private: "rgba(180,100,200,0.15)",
   co_promote: "rgba(255,140,0,0.15)",
@@ -607,7 +607,7 @@ export default function CalendarPage() {
       {/* Month Navigation */}
       <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
         <button onClick={prevMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&larr;</button>
-        <h2 style={{ color: "#d0c290", fontSize: isMobile ? 16 : 20, fontWeight: 700, margin: 0, flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 200, textAlign: "center" }}>
+        <h2 style={{ color: "#ffffff", fontSize: isMobile ? 16 : 20, fontWeight: 700, margin: 0, flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 200, textAlign: "center" }}>
           {monthLabel}
         </h2>
         <button onClick={nextMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&rarr;</button>
@@ -677,9 +677,9 @@ export default function CalendarPage() {
                     borderRadius: 20,
                     fontSize: 11,
                     fontWeight: isActive ? 700 : 500,
-                    border: `1px solid ${isActive ? "#d0c290" : isToday ? "rgba(208,194,144,0.25)" : "rgba(255,255,255,0.1)"}`,
-                    background: isActive ? "rgba(208,194,144,0.15)" : "transparent",
-                    color: isActive ? "#d0c290" : isToday ? "rgba(208,194,144,0.5)" : "rgba(255,255,255,0.35)",
+                    border: `1px solid ${isActive ? "#ffffff" : isToday ? "rgba(255, 255, 255, 0.25)" : "rgba(255,255,255,0.1)"}`,
+                    background: isActive ? "rgba(255, 255, 255, 0.15)" : "transparent",
+                    color: isActive ? "#ffffff" : isToday ? "rgba(255, 255, 255, 0.5)" : "rgba(255,255,255,0.35)",
                     cursor: "pointer",
                     flexShrink: 0,
                     transition: "all 0.15s",
@@ -736,7 +736,7 @@ export default function CalendarPage() {
                     <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>
                       {monthName}
                     </div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: "#d0c290", lineHeight: 1.1 }}>
+                    <div style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", lineHeight: 1.1 }}>
                       {dayNum}
                     </div>
                     <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
@@ -826,7 +826,7 @@ export default function CalendarPage() {
                   minHeight: 100,
                   padding: "4px 6px",
                   background: isToday
-                    ? "rgba(208,194,144,0.06)"
+                    ? "rgba(255, 255, 255, 0.06)"
                     : day.inMonth
                     ? "rgba(255,255,255,0.01)"
                     : "rgba(0,0,0,0.15)",
@@ -835,10 +835,10 @@ export default function CalendarPage() {
                   cursor: "pointer",
                   transition: "background 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(208,194,144,0.08)"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"; }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = isToday
-                    ? "rgba(208,194,144,0.06)"
+                    ? "rgba(255, 255, 255, 0.06)"
                     : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
                 }}
               >
@@ -847,7 +847,7 @@ export default function CalendarPage() {
                   fontSize: 12,
                   fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
                   color: isToday
-                    ? "#d0c290"
+                    ? "#ffffff"
                     : day.inMonth
                     ? "rgba(255,255,255,0.6)"
                     : "rgba(255,255,255,0.2)",
@@ -1034,9 +1034,9 @@ export default function CalendarPage() {
                     flex: 1,
                     padding: "8px 12px",
                     borderRadius: 8,
-                    border: `1px solid ${holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.1)"}`,
-                    background: holdForm.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(208,194,144,0.15)") : "transparent",
-                    color: holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.4)",
+                    border: `1px solid ${holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.1)"}`,
+                    background: holdForm.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(255, 255, 255, 0.15)") : "transparent",
+                    color: holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.4)",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -1137,7 +1137,7 @@ export default function CalendarPage() {
               overflowY: "auto",
             }}
           >
-            <h2 style={{ color: "#d0c290", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
+            <h2 style={{ color: "#ffffff", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
               {editingEvent
                 ? (editingEvent.booking_status === "hold" ? "Edit Hold" : "Edit Show")
                 : "New Show"}
@@ -1169,9 +1169,9 @@ export default function CalendarPage() {
                     flex: 1,
                     padding: "8px 12px",
                     borderRadius: 8,
-                    border: `1px solid ${form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.1)"}`,
-                    background: form.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(208,194,144,0.15)") : "transparent",
-                    color: form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#d0c290") : "rgba(255,255,255,0.5)",
+                    border: `1px solid ${form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.1)"}`,
+                    background: form.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(255, 255, 255, 0.15)") : "transparent",
+                    color: form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.5)",
                     fontSize: 12,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -1408,7 +1408,7 @@ export default function CalendarPage() {
               <>
                 <label style={labelStyle}>Custom Color (overrides status color)</label>
                 <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                  {["", "#50c878", "#ffc832", "#ff6b6b", "#d0c290", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
+                  {["", "#50c878", "#ffc832", "#ff6b6b", "#ffffff", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
                     <button
                       key={c}
                       type="button"
@@ -1494,7 +1494,7 @@ export default function CalendarPage() {
                     Manage Rental →
                   </a>
                 ) : (
-                  <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
+                  <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(255, 255, 255, 0.6)", textDecoration: "underline" }}>
                     View Full Details →
                   </a>
                 )}

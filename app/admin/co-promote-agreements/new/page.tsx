@@ -247,7 +247,7 @@ export default function NewCoPromoteAgreementPage() {
   }
 
   const sectionTitle: React.CSSProperties = {
-    fontSize: 11, fontWeight: 700, color: "#d0c290",
+    fontSize: 11, fontWeight: 700, color: "#ffffff",
     textTransform: "uppercase", letterSpacing: 1, margin: "24px 0 12px",
   };
 
@@ -260,7 +260,7 @@ export default function NewCoPromoteAgreementPage() {
         <div>
           <Link
             href="/admin/co-promote-agreements"
-            style={{ fontSize: 12, color: "rgba(208,194,144,0.6)", textDecoration: "none" }}
+            style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.6)", textDecoration: "none" }}
           >
             ← Back to Co-Promote Agreements
           </Link>
@@ -544,8 +544,8 @@ export default function NewCoPromoteAgreementPage() {
           {/* ─── RIGHT: LIVE PREVIEW ─── */}
           <div style={{
             position: "sticky", top: 20, alignSelf: "start",
-            background: "rgba(208,194,144,0.04)",
-            border: "1px solid rgba(208,194,144,0.2)",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.2)",
             borderRadius: 12, padding: 20,
           }}>
             <div style={{ ...sectionTitle, marginTop: 0 }}>Live Settlement Preview</div>
@@ -601,7 +601,7 @@ export default function NewCoPromoteAgreementPage() {
                 );
               })}
 
-              <div style={{ margin: "8px 0", height: 1, background: "rgba(208,194,144,0.3)" }} />
+              <div style={{ margin: "8px 0", height: 1, background: "rgba(255, 255, 255, 0.3)" }} />
 
               <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontWeight: 700, color: "#6ab4ff" }}>
                 <span>Venue Takes</span>

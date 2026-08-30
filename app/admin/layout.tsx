@@ -467,7 +467,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               alt={adminName || "Artist"}
               style={{
                 width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
-                border: "3px solid rgba(208,194,144,0.3)",
+                border: "3px solid rgba(255,255,255,0.3)",
               }}
             />
           ) : (
@@ -488,7 +488,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
           {venueName && <p className="admin-sidebar-venue">{venueName}</p>}
           {userRole === "artist" && (
-            <p style={{ fontSize: 11, color: "rgba(208,194,144,0.5)", marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
               Artist Portal
             </p>
           )}
@@ -529,8 +529,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     width: "100%", display: "flex", alignItems: "center", gap: 8,
                     padding: "8px 14px", border: "none", borderRadius: "var(--vc-radius-sm)",
                     background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
-                    color: hasActivePage ? "var(--venue-primary, #d0c290)" : "var(--vc-text-muted)",
-                    fontFamily: "var(--font-urbanist), sans-serif", fontSize: 13, fontWeight: 700,
+                    color: hasActivePage ? "#ffffff" : "var(--vc-text-muted)",
+                    fontFamily: "var(--font-archivo), sans-serif", fontSize: 13, fontWeight: 700,
                     cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.04em",
                     transition: "background 150ms, color 150ms",
                   }}
@@ -592,7 +592,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               background: "transparent",
               border: "none",
               color: "var(--vc-text-muted)",
-              fontFamily: "var(--font-urbanist), sans-serif",
+              fontFamily: "var(--font-archivo), sans-serif",
               fontSize: 14,
               fontWeight: 500,
               cursor: "pointer",

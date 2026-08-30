@@ -47,8 +47,8 @@ export default function VenueMarketingPage() {
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(208,194,144,0.3)";
-                e.currentTarget.style.background = "rgba(208,194,144,0.05)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.3)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
@@ -56,7 +56,7 @@ export default function VenueMarketingPage() {
               }}
             >
               <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-              <h3 style={{ color: "#d0c290", fontSize: 16, margin: "0 0 8px", fontWeight: 600 }}>{s.label}</h3>
+              <h3 style={{ color: "#ffffff", fontSize: 16, margin: "0 0 8px", fontWeight: 600 }}>{s.label}</h3>
               <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: 0 }}>{s.desc}</p>
             </Link>
           ))}

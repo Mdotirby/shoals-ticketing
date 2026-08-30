@@ -131,7 +131,7 @@ export default function TransactionalEditorPage(props: { params: Promise<{ key: 
         borderBottom: "1px solid rgba(255,255,255,0.07)",
         background: "rgba(0,0,0,0.3)", flexShrink: 0,
       }}>
-        <Link href="/admin/broadcasts/transactional" style={{ color: "rgba(208,194,144,0.6)", textDecoration: "none", fontSize: 12 }}>
+        <Link href="/admin/broadcasts/transactional" style={{ color: "rgba(255, 255, 255, 0.6)", textDecoration: "none", fontSize: 12 }}>
           ← Transactional Emails
         </Link>
         <span style={{ color: "rgba(255,255,255,0.15)" }}>|</span>
@@ -166,7 +166,7 @@ export default function TransactionalEditorPage(props: { params: Promise<{ key: 
           <button
             onClick={handleSave}
             disabled={saving}
-            style={{ padding: "7px 18px", fontSize: 12, background: "#d0c290", color: "#111827", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}
+            style={{ padding: "7px 18px", fontSize: 12, background: "#ffffff", color: "#111827", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}
           >
             {saving ? "Saving…" : "Save template"}
           </button>
@@ -189,7 +189,7 @@ export default function TransactionalEditorPage(props: { params: Promise<{ key: 
               {meta.variables.map((v) => (
                 <code key={v} style={{
                   fontSize: 11, padding: "3px 7px", borderRadius: 4, display: "block",
-                  background: "rgba(208,194,144,0.07)", color: "rgba(208,194,144,0.75)",
+                  background: "rgba(255, 255, 255, 0.07)", color: "rgba(255, 255, 255, 0.75)",
                   fontFamily: "monospace", cursor: "default",
                 }}>
                   {v}
@@ -244,15 +244,15 @@ export default function TransactionalEditorPage(props: { params: Promise<{ key: 
             <div style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <div style={{ padding: "8px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Preview</span>
-                {previewLoading && <span style={{ fontSize: 11, color: "rgba(208,194,144,0.5)" }}>rendering…</span>}
+                {previewLoading && <span style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.5)" }}>rendering…</span>}
                 <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginLeft: 4 }}>sample data</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
                   {([560, 375] as const).map((w) => (
                     <button key={w} onClick={() => setPreviewWidth(w)} style={{
                       padding: "3px 8px", fontSize: 10, borderRadius: 4, cursor: "pointer",
-                      background: previewWidth === w ? "rgba(208,194,144,0.15)" : "rgba(255,255,255,0.04)",
-                      color: previewWidth === w ? "#d0c290" : "rgba(255,255,255,0.35)",
-                      border: `1px solid ${previewWidth === w ? "rgba(208,194,144,0.3)" : "rgba(255,255,255,0.08)"}`,
+                      background: previewWidth === w ? "rgba(255, 255, 255, 0.15)" : "rgba(255,255,255,0.04)",
+                      color: previewWidth === w ? "#ffffff" : "rgba(255,255,255,0.35)",
+                      border: `1px solid ${previewWidth === w ? "rgba(255, 255, 255, 0.3)" : "rgba(255,255,255,0.08)"}`,
                     }}>
                       {w === 560 ? "Desktop" : "Mobile"}
                     </button>

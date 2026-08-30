@@ -42,7 +42,7 @@ export function PropEditor({ block, onChange }: Props) {
                   type="checkbox"
                   checked={Boolean(value)}
                   onChange={(e) => updateProp(field.key, e.target.checked)}
-                  style={{ accentColor: "#d0c290", width: 14, height: 14 }}
+                  style={{ accentColor: "#ffffff", width: 14, height: 14 }}
                 />
                 <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 13 }}>{field.label}</span>
               </label>
@@ -134,18 +134,18 @@ export function PropEditor({ block, onChange }: Props) {
       </div>
 
       {/* Variable hint */}
-      <div style={{ marginTop: 20, padding: "10px 12px", background: "rgba(208,194,144,0.05)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 8 }}>
-        <p style={{ margin: "0 0 6px", color: "rgba(208,194,144,0.7)", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Variables</p>
+      <div style={{ marginTop: 20, padding: "10px 12px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.12)", borderRadius: 8 }}>
+        <p style={{ margin: "0 0 6px", color: "rgba(255, 255, 255, 0.7)", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Variables</p>
         <p style={{ margin: 0, color: "rgba(255,255,255,0.35)", fontSize: 10, lineHeight: 1.6 }}>
-          {"{{"}<span style={{ color: "rgba(208,194,144,0.6)" }}>first_name</span>{"}}"}
+          {"{{"}<span style={{ color: "rgba(255, 255, 255, 0.6)" }}>first_name</span>{"}}"}
           {" · "}
-          {"{{"}<span style={{ color: "rgba(208,194,144,0.6)" }}>event_name</span>{"}}"}
+          {"{{"}<span style={{ color: "rgba(255, 255, 255, 0.6)" }}>event_name</span>{"}}"}
           {" · "}
-          {"{{"}<span style={{ color: "rgba(208,194,144,0.6)" }}>event_date</span>{"}}"}
+          {"{{"}<span style={{ color: "rgba(255, 255, 255, 0.6)" }}>event_date</span>{"}}"}
           {" · "}
-          {"{{"}<span style={{ color: "rgba(208,194,144,0.6)" }}>venue_name</span>{"}}"}
+          {"{{"}<span style={{ color: "rgba(255, 255, 255, 0.6)" }}>venue_name</span>{"}}"}
           {" · "}
-          {"{{"}<span style={{ color: "rgba(208,194,144,0.6)" }}>event_url</span>{"}}"}
+          {"{{"}<span style={{ color: "rgba(255, 255, 255, 0.6)" }}>event_url</span>{"}}"}
         </p>
       </div>
     </div>
@@ -183,5 +183,5 @@ const inputStyle: React.CSSProperties = {
 function cssColorToHex(value: string): string {
   if (value.startsWith("#")) return value;
   // Fallback for rgba/named colors — color input needs a hex
-  return "#d0c290";
+  return "#ffffff";
 }

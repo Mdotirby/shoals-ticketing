@@ -8,12 +8,12 @@ import { getCookie } from "@/lib/cookies";
 
 type EventOption = { id: string; title: string };
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const card: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(208,194,144,0.12)",
+  border: "1px solid rgba(255, 255, 255, 0.12)",
   borderRadius: 10, padding: "20px 24px", marginBottom: 14,
 };
 const inp: React.CSSProperties = {
@@ -137,7 +137,7 @@ function EventMultiSelect({
             {events.map(ev => (
               <motion.label
                 key={ev.id}
-                whileHover={{ background: "rgba(208,194,144,0.06)" }}
+                whileHover={{ background: "rgba(255, 255, 255, 0.06)" }}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
                   padding: "10px 16px", cursor: "pointer",
@@ -460,7 +460,7 @@ export default function AdminEditSponsorPage() {
                   ) : (
                     <div
                       className="admin-image-dropzone"
-                      style={isDragging ? { borderColor: GOLD, background: "rgba(208,194,144,0.05)" } : undefined}
+                      style={isDragging ? { borderColor: GOLD, background: "rgba(255, 255, 255, 0.05)" } : undefined}
                       onClick={() => fileInputRef.current?.click()}
                       onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                       onDragLeave={() => setIsDragging(false)}
@@ -585,7 +585,7 @@ export default function AdminEditSponsorPage() {
                   transition={{ duration: 0.3, ease: EASE }}
                   style={{ overflow: "hidden" }}
                 >
-                  <div style={{ ...card, border: "1px solid rgba(208,194,144,0.25)", marginBottom: 20 }}>
+                  <div style={{ ...card, border: "1px solid rgba(255, 255, 255, 0.25)", marginBottom: 20 }}>
                     <h4 style={{ color: GOLD, margin: "0 0 16px", fontSize: 15 }}>
                       {editingPkg ? "Edit Package" : "New Package"}
                     </h4>
@@ -637,10 +637,10 @@ export default function AdminEditSponsorPage() {
                               animate={{ opacity: 1, scale: 1 }}
                               exit={{ opacity: 0, scale: 0.8 }}
                               transition={{ duration: 0.18 }}
-                              style={{ background: "rgba(208,194,144,0.1)", color: GOLD, border: "1px solid rgba(208,194,144,0.2)", borderRadius: 20, padding: "3px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
+                              style={{ background: "rgba(255, 255, 255, 0.1)", color: GOLD, border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: 20, padding: "3px 10px", fontSize: 12, display: "flex", alignItems: "center", gap: 6 }}
                             >
                               {d}
-                              <button onClick={() => setPkgForm(p => ({ ...p, deliverables: p.deliverables.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "rgba(208,194,144,0.6)", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
+                              <button onClick={() => setPkgForm(p => ({ ...p, deliverables: p.deliverables.filter((_, j) => j !== i) }))} style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.6)", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1 }}>×</button>
                             </motion.span>
                           ))}
                         </AnimatePresence>
@@ -694,7 +694,7 @@ export default function AdminEditSponsorPage() {
                           {pkg.deliverables?.length > 0 && (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                               {pkg.deliverables.map((d, j) => (
-                                <span key={j} style={{ background: "rgba(208,194,144,0.08)", color: "rgba(208,194,144,0.7)", borderRadius: 20, padding: "2px 8px", fontSize: 11 }}>• {d}</span>
+                                <span key={j} style={{ background: "rgba(255, 255, 255, 0.08)", color: "rgba(255, 255, 255, 0.7)", borderRadius: 20, padding: "2px 8px", fontSize: 11 }}>• {d}</span>
                               ))}
                             </div>
                           )}

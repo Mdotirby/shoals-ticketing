@@ -13,7 +13,7 @@ type EventOption = {
   image_url: string | null;
 };
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 
 export default function LivePulsePickerPage() {
   const [events, setEvents] = useState<EventOption[]>([]);

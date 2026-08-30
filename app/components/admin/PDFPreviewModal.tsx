@@ -27,7 +27,7 @@ export default function PDFPreviewModal({
       <div
         style={{
           background: "#0b0d1d",
-          border: "1px solid rgba(208,194,144,0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
           borderRadius: 12,
           width: "100%",
           maxWidth: 560,
@@ -43,7 +43,7 @@ export default function PDFPreviewModal({
           padding: "16px 20px",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}>
-          <h3 style={{ color: "#d0c290", margin: 0, fontSize: "1rem", fontWeight: 700 }}>
+          <h3 style={{ color: "#ffffff", margin: 0, fontSize: "1rem", fontWeight: 700 }}>
             Preview — {title}
           </h3>
           <button
@@ -70,14 +70,14 @@ export default function PDFPreviewModal({
                 <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                   <td style={{ padding: "9px 0", color: "rgba(255,255,255,0.35)" }}>{i + 1}</td>
                   <td style={{ padding: "9px 0", color: "#fff" }}>{row.name}</td>
-                  <td style={{ padding: "9px 0", textAlign: "right", color: "#d0c290" }}>{row.quantity}</td>
+                  <td style={{ padding: "9px 0", textAlign: "right", color: "#ffffff" }}>{row.quantity}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: "1px solid rgba(208,194,144,0.2)" }}>
+              <tr style={{ borderTop: "1px solid rgba(255, 255, 255, 0.2)" }}>
                 <td colSpan={2} style={{ padding: "10px 0", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>Total Guests</td>
-                <td style={{ padding: "10px 0", textAlign: "right", color: "#d0c290", fontWeight: 700 }}>{total}</td>
+                <td style={{ padding: "10px 0", textAlign: "right", color: "#ffffff", fontWeight: 700 }}>{total}</td>
               </tr>
             </tfoot>
           </table>

@@ -353,7 +353,7 @@ export default function AdminScanPage() {
             </div>
             <h2 style={{
               color: "#fff", fontSize: 32, fontWeight: 800, margin: "0 0 8px",
-              fontFamily: "var(--font-bayon), sans-serif",
+              fontFamily: "var(--font-archivo), sans-serif",
               textTransform: "uppercase", letterSpacing: 2,
             }}>
               {result.valid ? "VALID TICKET" : "INVALID"}
@@ -373,7 +373,7 @@ export default function AdminScanPage() {
                     </p>
                     {result.seat_assignments.map((s, i) => (
                       <p key={i} style={{ fontSize: 14, margin: "2px 0", color: "#fff" }}>
-                        <strong style={{ color: "#d0c290" }}>{s.section}</strong> &middot; Row {s.row} &middot; Seat {s.seat}
+                        <strong style={{ color: "#ffffff" }}>{s.section}</strong> &middot; Row {s.row} &middot; Seat {s.seat}
                       </p>
                     ))}
                   </div>
@@ -420,7 +420,7 @@ export default function AdminScanPage() {
       </div>
 
       {processing && (
-        <div style={{ textAlign: "center", padding: 12, color: "#d0c290", fontSize: 14 }}>
+        <div style={{ textAlign: "center", padding: 12, color: "#ffffff", fontSize: 14 }}>
           Validating…
         </div>
       )}
@@ -433,7 +433,7 @@ export default function AdminScanPage() {
           className="scan-camera-view"
           style={{
             borderRadius: 12, overflow: "hidden",
-            border: scanning ? "2px solid rgba(208,194,144,0.3)" : "2px dashed rgba(255,255,255,0.1)",
+            border: scanning ? "2px solid rgba(255, 255, 255, 0.3)" : "2px dashed rgba(255,255,255,0.1)",
             minHeight: scanning ? 300 : 80,
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "min-height 300ms ease",

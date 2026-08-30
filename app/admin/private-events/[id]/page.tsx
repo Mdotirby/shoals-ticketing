@@ -117,10 +117,10 @@ type Payment = {
 };
 
 // ── Styles ─────────────────────────────────────────────────────────
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const cardStyle: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(208,194,144,0.12)",
+  border: "1px solid rgba(255, 255, 255, 0.12)",
   borderRadius: 10,
   padding: "20px 24px",
   marginBottom: 16,
@@ -1535,8 +1535,8 @@ function QuoteTab({ event, quotes, onUpdate, venueSlug }: {
               onClick={() => applyTemplate(t.key)}
               style={{
                 padding: "7px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
-                background: "rgba(208,194,144,0.08)", color: GOLD,
-                border: "1px solid rgba(208,194,144,0.2)",
+                background: "rgba(255, 255, 255, 0.08)", color: GOLD,
+                border: "1px solid rgba(255, 255, 255, 0.2)",
               }}
             >
               {t.label}

@@ -863,9 +863,9 @@ export default function AdminEditEventPage() {
             borderRadius: 6,
             fontSize: 13,
             fontWeight: 600,
-            color: "#d0c290",
-            border: "1px solid rgba(208,194,144,0.4)",
-            background: "rgba(208,194,144,0.08)",
+            color: "#ffffff",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
+            background: "rgba(255, 255, 255, 0.08)",
             textDecoration: "none",
           }}
         >
@@ -1087,8 +1087,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -1187,8 +1187,8 @@ export default function AdminEditEventPage() {
         {/* ── External Ticketing Link ── */}
         <div className="admin-form-label admin-form-full" style={{
           padding: 16, borderRadius: 10,
-          background: externalTicketUrl ? "rgba(245,158,11,0.06)" : "rgba(208,194,144,0.04)",
-          border: `1px solid ${externalTicketUrl ? "rgba(245,158,11,0.2)" : "rgba(208,194,144,0.12)"}`,
+          background: externalTicketUrl ? "rgba(245,158,11,0.06)" : "rgba(255, 255, 255, 0.04)",
+          border: `1px solid ${externalTicketUrl ? "rgba(245,158,11,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
           marginTop: 8,
         }}>
           <span style={{ color: externalTicketUrl ? "#f59e0b" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
@@ -1229,8 +1229,8 @@ export default function AdminEditEventPage() {
         {/* ── Co-Promoter / Guest Meta Pixel ── */}
         <div className="admin-form-label admin-form-full" style={{
           padding: 16, borderRadius: 10,
-          background: metaPixelId ? "rgba(59,130,246,0.06)" : "rgba(208,194,144,0.04)",
-          border: `1px solid ${metaPixelId ? "rgba(59,130,246,0.2)" : "rgba(208,194,144,0.12)"}`,
+          background: metaPixelId ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
+          border: `1px solid ${metaPixelId ? "rgba(59,130,246,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
           marginTop: 8,
         }}>
           <span style={{ color: metaPixelId ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
@@ -1258,8 +1258,8 @@ export default function AdminEditEventPage() {
         {/* ── Spotify Embed ── */}
         <div className="admin-form-label admin-form-full" style={{
           padding: 16, borderRadius: 10,
-          background: spotifyUrl ? "rgba(30,215,96,0.06)" : "rgba(208,194,144,0.04)",
-          border: `1px solid ${spotifyUrl ? "rgba(30,215,96,0.25)" : "rgba(208,194,144,0.12)"}`,
+          background: spotifyUrl ? "rgba(30,215,96,0.06)" : "rgba(255, 255, 255, 0.04)",
+          border: `1px solid ${spotifyUrl ? "rgba(30,215,96,0.25)" : "rgba(255, 255, 255, 0.12)"}`,
           marginTop: 8,
         }}>
           <span style={{ color: spotifyUrl ? "#1ed760" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
@@ -1321,8 +1321,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(208,194,144,0.12)"}`,
+            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <span style={{ color: onSaleDate ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
@@ -1530,8 +1530,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && selectedEventVenueId && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: "rgba(208,194,144,0.04)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             marginTop: 8,
           }}>
             <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 4 }}>
@@ -1552,8 +1552,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: "rgba(208,194,144,0.04)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             marginTop: 8,
           }}>
             <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 10 }}>
@@ -1584,8 +1584,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: feesIncludedInPrice ? "rgba(99,102,241,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${feesIncludedInPrice ? "rgba(99,102,241,0.2)" : "rgba(208,194,144,0.12)"}`,
+            background: feesIncludedInPrice ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${feesIncludedInPrice ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -1613,8 +1613,8 @@ export default function AdminEditEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(208,194,144,0.04)",
-            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(208,194,144,0.12)"}`,
+            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
             marginTop: 8,
           }}>
             <label style={{
@@ -1671,11 +1671,11 @@ export default function AdminEditEventPage() {
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
             padding: 16, borderRadius: 10,
-            background: "rgba(208,194,144,0.04)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            background: "rgba(255, 255, 255, 0.04)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             marginTop: 8,
           }}>
-            <span style={{ color: "#d0c290", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
               Promo Codes
             </span>
 
@@ -1689,7 +1689,7 @@ export default function AdminEditEventPage() {
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}>
-                    <span style={{ fontWeight: 700, color: "#d0c290", fontSize: 13, minWidth: 80 }}>{pc.code}</span>
+                    <span style={{ fontWeight: 700, color: "#ffffff", fontSize: 13, minWidth: 80 }}>{pc.code}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1 }}>
                       {pc.discount_type === "fixed" ? `$${pc.discount_value}` : `${pc.discount_value}%`} off
                       {pc.max_uses ? ` · ${pc.current_uses}/${pc.max_uses} used` : ` · ${pc.current_uses} used`}
@@ -1803,9 +1803,9 @@ export default function AdminEditEventPage() {
                 }}
                 style={{
                   padding: "8px 14px", borderRadius: 8,
-                  border: "1px solid rgba(208,194,144,0.3)",
-                  background: "rgba(208,194,144,0.1)",
-                  color: "#d0c290", fontSize: 12, fontWeight: 600,
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  color: "#ffffff", fontSize: 12, fontWeight: 600,
                   cursor: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? "not-allowed" : "pointer",
                   opacity: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? 0.5 : 1,
                   whiteSpace: "nowrap",
@@ -2094,7 +2094,7 @@ export default function AdminEditEventPage() {
                                   { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
                                   { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
                                   { label: "Conversions", value: stats.total_conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
-                                  { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(208,194,144,0.1)" },
+                                  { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(255, 255, 255, 0.1)" },
                                   { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },
                                 ].map((s) => (
                                   <div key={s.label} style={{
@@ -2279,7 +2279,7 @@ export default function AdminEditEventPage() {
             {(() => {
               const total = revenueItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
               return total > 0 ? (
-                <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#d0c290" }}>
+                <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#ffffff" }}>
                   Total: ${total.toFixed(2)}
                 </div>
               ) : null;

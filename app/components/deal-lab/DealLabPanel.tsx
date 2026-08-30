@@ -418,7 +418,7 @@ const cardTitle: React.CSSProperties = {
   margin: "0 0 10px",
   textTransform: "uppercase",
   letterSpacing: 1,
-  color: "#d0c290",
+  color: "#ffffff",
 };
 const bannerStyle: React.CSSProperties = {
   padding: "8px 12px",

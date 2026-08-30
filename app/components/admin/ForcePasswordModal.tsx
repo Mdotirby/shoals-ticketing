@@ -60,7 +60,7 @@ export default function ForcePasswordModal({ userId, onComplete }: Props) {
         className="force-pw-modal"
         style={{
           background: "#0b0d1d",
-          border: "1px solid rgba(208,194,144,0.2)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
           borderRadius: 12,
           padding: "2rem",
           width: "100%",
@@ -68,7 +68,7 @@ export default function ForcePasswordModal({ userId, onComplete }: Props) {
         }}
       >
         <h2
-          style={{ color: "#d0c290", marginBottom: 4, fontSize: "1.25rem", fontWeight: 700 }}
+          style={{ color: "#ffffff", marginBottom: 4, fontSize: "1.25rem", fontWeight: 700 }}
         >
           Set Your Password
         </h2>

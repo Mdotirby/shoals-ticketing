@@ -62,8 +62,8 @@ export default function CoPromoteAgreementsListPage() {
             <span
               style={{
                 padding: "4px 12px", fontSize: 12, fontWeight: 600,
-                background: "rgba(208,194,144,0.15)", color: "#d0c290",
-                border: "1px solid rgba(208,194,144,0.3)", borderRadius: 6,
+                background: "rgba(255, 255, 255, 0.15)", color: "#ffffff",
+                border: "1px solid rgba(255, 255, 255, 0.3)", borderRadius: 6,
               }}
             >
               Co-Promote Agreements
@@ -80,8 +80,8 @@ export default function CoPromoteAgreementsListPage() {
             style={{
               display: "inline-block",
               padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
-              background: "rgba(208,194,144,0.15)", border: "1px solid rgba(208,194,144,0.3)",
-              color: "#d0c290", textDecoration: "none",
+              background: "rgba(255, 255, 255, 0.15)", border: "1px solid rgba(255, 255, 255, 0.3)",
+              color: "#ffffff", textDecoration: "none",
             }}
           >
             + New Agreement
@@ -114,8 +114,8 @@ export default function CoPromoteAgreementsListPage() {
             style={{
               display: "inline-block", marginTop: 8,
               padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
-              background: "rgba(208,194,144,0.15)", border: "1px solid rgba(208,194,144,0.3)",
-              color: "#d0c290", textDecoration: "none",
+              background: "rgba(255, 255, 255, 0.15)", border: "1px solid rgba(255, 255, 255, 0.3)",
+              color: "#ffffff", textDecoration: "none",
             }}
           >
             Create Your First Agreement
@@ -131,7 +131,7 @@ export default function CoPromoteAgreementsListPage() {
             }}
           >
             <thead>
-              <tr style={{ borderBottom: "2px solid rgba(208,194,144,0.3)", textAlign: "left" }}>
+              <tr style={{ borderBottom: "2px solid rgba(255, 255, 255, 0.3)", textAlign: "left" }}>
                 <th style={{ padding: "10px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Agreement #</th>
                 <th style={{ padding: "10px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Venue</th>
                 <th style={{ padding: "10px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Event / Date</th>
@@ -149,7 +149,7 @@ export default function CoPromoteAgreementsListPage() {
                   : `${Number(a.buyer_percentage ?? 0).toFixed(0)}/${Number(a.venue_percentage ?? 0).toFixed(0)}`;
                 return (
                   <tr key={a.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 12, color: "#d0c290" }}>
+                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: 12, color: "#ffffff" }}>
                       {a.agreement_number}
                     </td>
                     <td style={{ padding: "10px 12px" }}>
@@ -199,8 +199,8 @@ export default function CoPromoteAgreementsListPage() {
                         style={{
                           display: "inline-block",
                           padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                          background: "rgba(208,194,144,0.08)", color: "#d0c290",
-                          border: "1px solid rgba(208,194,144,0.2)", textDecoration: "none",
+                          background: "rgba(255, 255, 255, 0.08)", color: "#ffffff",
+                          border: "1px solid rgba(255, 255, 255, 0.2)", textDecoration: "none",
                           whiteSpace: "nowrap",
                         }}
                       >

@@ -120,7 +120,7 @@ export default function AdminSponsorsPage() {
                       </a>
                     )}
                     {s.display_on_homepage && (
-                      <span style={{ display: "inline-block", marginLeft: 8, fontSize: 10, color: "#d0c290", fontWeight: 600 }}>
+                      <span style={{ display: "inline-block", marginLeft: 8, fontSize: 10, color: "#ffffff", fontWeight: 600 }}>
                         ● Homepage
                       </span>
                     )}

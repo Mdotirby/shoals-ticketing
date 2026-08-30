@@ -454,10 +454,10 @@ export default function AdminOfferDetailPage() {
               padding: "10px 20px",
               fontSize: 13,
               fontWeight: 600,
-              color: activeTab === tab ? "#d0c290" : "rgba(255,255,255,0.4)",
+              color: activeTab === tab ? "#ffffff" : "rgba(255,255,255,0.4)",
               background: "transparent",
               border: "none",
-              borderBottom: activeTab === tab ? "2px solid #d0c290" : "2px solid transparent",
+              borderBottom: activeTab === tab ? "2px solid #ffffff" : "2px solid transparent",
               cursor: "pointer",
               transition: "all 0.15s",
             }}
@@ -769,7 +769,7 @@ export default function AdminOfferDetailPage() {
                   facility_fee: null,
                   tax_rate: null,
                   venue_rebate: null,
-                  primary_color: "#d0c290",
+                  primary_color: "#ffffff",
                   secondary_color: "#111827",
                   created_at: new Date().toISOString(),
                 };
@@ -928,7 +928,7 @@ export default function AdminOfferDetailPage() {
                       buyer_name: null, contract_signatory: null, buyer_phone: String(form.venue_phone || "") || null,
                       buyer_email: null, promoter_address: null,
                       ticketing_fee: null, facility_fee: null, tax_rate: null, venue_rebate: null,
-                      primary_color: "#d0c290", secondary_color: "#111827",
+                      primary_color: "#ffffff", secondary_color: "#111827",
                       created_at: new Date().toISOString(),
                     };
                     await exportContractPDF(contract, offer, dlVenue);
@@ -1199,11 +1199,11 @@ export default function AdminOfferDetailPage() {
                   <div className="offer-potential-row"><span>Avg Ticket Price (Net):</span><strong>${avgTicketPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                   <div className="offer-potential-row">
                     <span style={{ fontWeight: 700 }}>Breakeven:</span>
-                    <strong style={{ color: "#d0c290", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
+                    <strong style={{ color: "#ffffff", fontSize: 16 }}>{breakevenOffer.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tickets</strong>
                   </div>
                   <div className="offer-potential-row">
                     <span style={{ fontWeight: 700 }}>Tickets to Pay Band:</span>
-                    <strong style={{ color: "#d0c290", fontSize: 16 }}>{avgTicketPrice > 0 ? (guarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
+                    <strong style={{ color: "#ffffff", fontSize: 16 }}>{avgTicketPrice > 0 ? (guarantee / avgTicketPrice).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} tickets</strong>
                   </div>
                 </div>
               </div>
@@ -1232,7 +1232,7 @@ export default function AdminOfferDetailPage() {
                   )}
                   <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                   {dealType !== "FLAT" && (
-                    <div className="offer-potential-row"><span>Artist Lift:</span><strong style={{ color: "#d0c290" }}>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+                    <div className="offer-potential-row"><span>Artist Lift:</span><strong style={{ color: "#ffffff" }}>${backendAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                   )}
                 </div>
               </div>

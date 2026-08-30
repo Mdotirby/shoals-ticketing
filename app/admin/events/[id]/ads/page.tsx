@@ -197,7 +197,7 @@ export default function EventAdsPage({ params }: { params: Promise<{ id: string 
   return (
     <div style={{ maxWidth: 1200, padding: 24, color: "#eee" }}>
       <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.7 }}>
-        <Link href={`/admin/events/${eventId}/edit`} style={{ color: "#d0c290", textDecoration: "none" }}>
+        <Link href={`/admin/events/${eventId}/edit`} style={{ color: "#ffffff", textDecoration: "none" }}>
           ← Back to event
         </Link>
       </div>
@@ -369,7 +369,7 @@ const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repea
 const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #222" };
 const btnStyle: React.CSSProperties = {
   padding: "8px 14px",
-  background: "#d0c290",
+  background: "#ffffff",
   color: "#111",
   border: "none",
   borderRadius: 6,
@@ -389,7 +389,7 @@ const btnSmall: React.CSSProperties = {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: "#0f1116", border: "1px solid #222", borderRadius: 8, padding: 16, marginBottom: 16 }}>
-      <h3 style={{ fontSize: 14, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: 1, color: "#d0c290" }}>{title}</h3>
+      <h3 style={{ fontSize: 14, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: 1, color: "#ffffff" }}>{title}</h3>
       {children}
     </div>
   );

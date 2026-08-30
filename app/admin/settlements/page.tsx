@@ -172,7 +172,7 @@ export default function AdminSettlementsPage() {
 
       <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginTop: -8, marginBottom: 24 }}>
         To create a settlement from VenueCore ticket sales, open the event in{" "}
-        <Link href="/admin/orders" style={{ color: "var(--admin-primary, #d0c290)" }}>
+        <Link href="/admin/orders" style={{ color: "var(--admin-primary, #ffffff)" }}>
           Sales
         </Link>{" "}
         and click <strong>+ Create Settlement</strong>. Use <strong>+ Manual Settlement</strong> above
@@ -184,14 +184,14 @@ export default function AdminSettlementsPage() {
       {!loading && settlements.length === 0 && (
         <p style={{ color: "rgba(255,255,255,0.4)" }}>
           No settlements yet. Head to{" "}
-          <Link href="/admin/orders" style={{ color: "var(--admin-primary, #d0c290)" }}>Sales</Link>
+          <Link href="/admin/orders" style={{ color: "var(--admin-primary, #ffffff)" }}>Sales</Link>
           {" "}and create one, or use <strong>+ Manual Settlement</strong> above.
         </p>
       )}
 
       {!loading && drafts.length > 0 && (
         <>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #d0c290)", marginTop: 12, marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #ffffff)", marginTop: 12, marginBottom: 12 }}>
             Drafts ({drafts.length})
           </h2>
           <div className="admin-events-list">{drafts.map(renderRow)}</div>
@@ -200,7 +200,7 @@ export default function AdminSettlementsPage() {
 
       {!loading && finalized.length > 0 && (
         <>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #d0c290)", marginTop: 28, marginBottom: 12 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #ffffff)", marginTop: 28, marginBottom: 12 }}>
             Finalized ({finalized.length})
           </h2>
           <div className="admin-events-list">{finalized.map(renderRow)}</div>
@@ -218,7 +218,7 @@ export default function AdminSettlementsPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
           <div style={{
-            background: "#12122e", border: "1px solid rgba(208,194,144,0.2)",
+            background: "#12122e", border: "1px solid rgba(255, 255, 255, 0.2)",
             borderRadius: 14, padding: 28, width: "100%", maxWidth: 580,
             maxHeight: "90vh", overflowY: "auto",
           }}>

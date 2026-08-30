@@ -32,7 +32,7 @@ export function BlockPalette({ onAdd }: Props) {
               textAlign: "left",
               transition: "background 0.15s",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(208,194,144,0.08)")}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
           >
             <span style={{ fontSize: 16, flexShrink: 0 }}>{meta.icon}</span>
@@ -42,7 +42,7 @@ export function BlockPalette({ onAdd }: Props) {
                 {meta.description}
               </div>
             </div>
-            <span style={{ marginLeft: "auto", color: "rgba(208,194,144,0.5)", fontSize: 16, flexShrink: 0 }}>+</span>
+            <span style={{ marginLeft: "auto", color: "rgba(255, 255, 255, 0.5)", fontSize: 16, flexShrink: 0 }}>+</span>
           </button>
         ))}
       </div>

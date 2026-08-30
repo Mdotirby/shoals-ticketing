@@ -708,7 +708,7 @@ async function exportSOPtoPDF(
     const b = parseInt(hex.slice(5, 7), 16);
     return [r, g, b];
   };
-  const brandRgb = hexToRgb(primaryColor || "#d0c290");
+  const brandRgb = hexToRgb(primaryColor || "#ffffff");
 
   // ── Helper: add page with header/footer ──
   const addPageHeader = () => {
@@ -895,7 +895,7 @@ export default function SOPsPage() {
       const venueId = getCookie("venue-id");
       let venueName = "VenueCore";
       let logoUrl: string | null = null;
-      let primaryColor = "#d0c290";
+      let primaryColor = "#ffffff";
       let venueSlug: string | undefined = undefined;
 
       if (venueId) {
@@ -926,7 +926,7 @@ export default function SOPsPage() {
     <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
       <div>
-        <h1 style={{ fontFamily: "var(--font-bayon), sans-serif", fontSize: "2rem", color: "var(--vc-gold)", margin: 0, lineHeight: 1.1 }}>
+        <h1 style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: "2rem", color: "#ffffff", margin: 0, lineHeight: 1.1 }}>
           Standard Operating Procedures
         </h1>
         <p style={{ color: "var(--vc-text-secondary)", fontSize: 14, margin: "6px 0 0" }}>
@@ -938,10 +938,10 @@ export default function SOPsPage() {
       {categories.map((cat) => (
         <div key={cat}>
           <h2 style={{
-            fontFamily: "var(--font-bayon), sans-serif",
+            fontFamily: "var(--font-archivo), sans-serif",
             fontSize: 18,
             fontWeight: 400,
-            color: "var(--vc-gold)",
+            color: "#ffffff",
             margin: "0 0 12px",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -991,12 +991,12 @@ export default function SOPsPage() {
                       borderRadius: "var(--vc-radius-sm)",
                       border: "1px solid var(--vc-border-hover)",
                       background: "transparent",
-                      color: "var(--vc-gold)",
+                      color: "#ffffff",
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: generating === template.id ? "not-allowed" : "pointer",
                       opacity: generating === template.id ? 0.5 : 1,
-                      fontFamily: "var(--font-urbanist), sans-serif",
+                      fontFamily: "var(--font-archivo), sans-serif",
                     }}
                   >
                     {generating === template.id ? "Generating..." : "Export PDF"}
@@ -1035,12 +1035,12 @@ export default function SOPsPage() {
                 padding: "10px 24px",
                 borderRadius: "var(--vc-radius-sm)",
                 border: "none",
-                background: "var(--vc-gold)",
+                background: "#ffffff",
                 color: "var(--vc-bg)",
                 fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer",
-                fontFamily: "var(--font-urbanist), sans-serif",
+                fontFamily: "var(--font-archivo), sans-serif",
                 flexShrink: 0,
               }}
             >
@@ -1051,7 +1051,7 @@ export default function SOPsPage() {
           {selectedSOP.sections.map((section, sIdx) => (
             <div key={sIdx} style={{ marginBottom: 24 }}>
               <h3 style={{
-                fontSize: 16, fontWeight: 700, color: "var(--vc-gold)",
+                fontSize: 16, fontWeight: 700, color: "#ffffff",
                 margin: "0 0 12px",
                 paddingBottom: 8,
                 borderBottom: "1px solid var(--vc-border-subtle)",

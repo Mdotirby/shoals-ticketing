@@ -91,10 +91,10 @@ export default function TemplatesPage() {
 
   return (
     <div className="admin-form-page">
-      <Link href="/admin/venue-marketing" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
+      <Link href="/admin/venue-marketing" style={{ color: "rgba(255, 255, 255, 0.7)", textDecoration: "none", fontSize: 13 }}>← Venue Marketing</Link>
       <h1 className="admin-page-title" style={{ marginTop: 8 }}>Email Templates</h1>
       <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
-        Create reusable email templates. Available variables: <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_title}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_date}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{venue_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_image}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_id}}"}</code>
+        Create reusable email templates. Available variables: <code style={{ color: "#ffffff" }}>{"{{first_name}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{event_title}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{event_date}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{venue_name}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{event_image}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{event_id}}"}</code>
       </p>
 
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
@@ -115,7 +115,7 @@ export default function TemplatesPage() {
                 }
               }
             }}
-            style={{ padding: "10px 20px", fontSize: 13, background: "rgba(208,194,144,0.1)", color: "#d0c290", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
+            style={{ padding: "10px 20px", fontSize: 13, background: "rgba(255, 255, 255, 0.1)", color: "#ffffff", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
           >
             Seed Default Templates
           </button>
@@ -162,7 +162,7 @@ export default function TemplatesPage() {
           <div style={{ marginTop: 8 }}>
             <label className="admin-form-label">Email Body *</label>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", margin: "0 0 8px" }}>
-              Type your email content below. Use the toolbar to format. Insert variables like <code style={{ color: "#d0c290" }}>{"{{first_name}}"}</code>, <code style={{ color: "#d0c290" }}>{"{{event_title}}"}</code>, etc. using the buttons below.
+              Type your email content below. Use the toolbar to format. Insert variables like <code style={{ color: "#ffffff" }}>{"{{first_name}}"}</code>, <code style={{ color: "#ffffff" }}>{"{{event_title}}"}</code>, etc. using the buttons below.
             </p>
             {/* Simple formatting toolbar */}
             <div style={{ display: "flex", gap: 4, marginBottom: 4, flexWrap: "wrap" }}>
@@ -192,7 +192,7 @@ export default function TemplatesPage() {
                   const url = prompt("Enter link URL:");
                   if (url) document.execCommand("createLink", false, url);
                 }}
-                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(208,194,144,0.8)", cursor: "pointer" }}
+                style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 4, color: "rgba(255, 255, 255, 0.8)", cursor: "pointer" }}
               >
                 Link
               </button>
@@ -216,7 +216,7 @@ export default function TemplatesPage() {
                   onClick={() => {
                     document.execCommand("insertText", false, v.tag);
                   }}
-                  style={{ padding: "4px 10px", fontSize: 12, background: "rgba(208,194,144,0.1)", border: "1px solid rgba(208,194,144,0.2)", borderRadius: 4, color: "#d0c290", cursor: "pointer", fontWeight: 600 }}
+                  style={{ padding: "4px 10px", fontSize: 12, background: "rgba(255, 255, 255, 0.1)", border: "1px solid rgba(255, 255, 255, 0.2)", borderRadius: 4, color: "#ffffff", cursor: "pointer", fontWeight: 600 }}
                 >
                   {v.label}
                 </button>
@@ -274,11 +274,11 @@ export default function TemplatesPage() {
                   <h3 style={{ color: "#fff", fontSize: 15, margin: "0 0 4px", fontWeight: 600 }}>{t.name}</h3>
                   <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: 0 }}>
                     Subject: {t.subject} · {categoryLabels[t.category] || t.category}
-                    {t.is_system && <span style={{ color: "rgba(208,194,144,0.6)", marginLeft: 8 }}>System</span>}
+                    {t.is_system && <span style={{ color: "rgba(255, 255, 255, 0.6)", marginLeft: 8 }}>System</span>}
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => startEdit(t)} style={{ padding: "6px 12px", fontSize: 12, background: "rgba(208,194,144,0.1)", color: "#d0c290", border: "none", borderRadius: 6, cursor: "pointer" }}>Edit</button>
+                  <button onClick={() => startEdit(t)} style={{ padding: "6px 12px", fontSize: 12, background: "rgba(255, 255, 255, 0.1)", color: "#ffffff", border: "none", borderRadius: 6, cursor: "pointer" }}>Edit</button>
                   {!t.is_system && (
                     <button onClick={() => handleDelete(t.id)} style={{ padding: "6px 12px", fontSize: 12, background: "rgba(255,80,80,0.1)", color: "rgba(255,80,80,0.8)", border: "none", borderRadius: 6, cursor: "pointer" }}>Delete</button>
                   )}

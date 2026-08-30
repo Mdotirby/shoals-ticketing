@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 
 type EventOption = { id: string; title: string };
 
-const GOLD = "#d0c290";
+const GOLD = "#ffffff";
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
 const fieldVariant = (delay: number) => ({
@@ -90,7 +90,7 @@ function EventMultiSelect({
           {events.map(ev => (
             <motion.label
               key={ev.id}
-              whileHover={{ background: "rgba(208,194,144,0.06)" }}
+              whileHover={{ background: "rgba(255, 255, 255, 0.06)" }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "10px 16px", cursor: "pointer",
@@ -249,7 +249,7 @@ export default function AdminCreateSponsorPage() {
               ) : (
                 <div
                   className="admin-image-dropzone"
-                  style={isDragging ? { borderColor: GOLD, background: "rgba(208,194,144,0.05)" } : undefined}
+                  style={isDragging ? { borderColor: GOLD, background: "rgba(255, 255, 255, 0.05)" } : undefined}
                   onClick={() => fileInputRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}

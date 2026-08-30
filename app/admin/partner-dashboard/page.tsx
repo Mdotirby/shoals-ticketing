@@ -97,7 +97,7 @@ export default function PartnerDashboardPage() {
           {/* Email Performance */}
           {analytics && analytics.email_stats.sent > 0 && (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Email Performance</h3>
+              <h3 style={{ color: "#ffffff", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Email Performance</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 12 }}>
                 <MiniStat label="Emails Sent" value={analytics.email_stats.sent.toString()} />
                 <MiniStat label="Opened" value={analytics.email_stats.opened.toString()} />
@@ -111,14 +111,14 @@ export default function PartnerDashboardPage() {
           {/* Location Heatmap */}
           {analytics && analytics.top_zips.length > 0 && (
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-              <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Ticket Buyer Locations</h3>
+              <h3 style={{ color: "#ffffff", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Ticket Buyer Locations</h3>
               {analytics.top_zips.map((z) => {
                 const pct = maxZipCount > 0 ? (z.count / maxZipCount) * 100 : 0;
                 return (
                   <div key={z.zip} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                     <span style={{ width: 70, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", fontFamily: "monospace" }}>{z.zip}</span>
                     <div style={{ flex: 1, height: 18, background: "rgba(255,255,255,0.04)", borderRadius: 4, overflow: "hidden" }}>
-                      <div style={{ width: `${Math.max(pct, 2)}%`, height: "100%", background: `rgba(208,194,144,${0.3 + (pct / 100) * 0.5})`, borderRadius: 4 }} />
+                      <div style={{ width: `${Math.max(pct, 2)}%`, height: "100%", background: `rgba(255,255,255,${0.3 + (pct / 100) * 0.5})`, borderRadius: 4 }} />
                     </div>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", minWidth: 30, textAlign: "right" }}>{z.count}</span>
                   </div>
@@ -128,7 +128,7 @@ export default function PartnerDashboardPage() {
           )}
 
           {/* Event List */}
-          <h3 style={{ color: "#d0c290", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Assigned Events</h3>
+          <h3 style={{ color: "#ffffff", fontSize: 14, margin: "0 0 12px", fontWeight: 600 }}>Assigned Events</h3>
           {events.length === 0 ? (
             <p style={{ color: "rgba(255,255,255,0.4)" }}>No events assigned to your partner account yet.</p>
           ) : (
@@ -146,7 +146,7 @@ export default function PartnerDashboardPage() {
                       </div>
                       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                         <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 20, fontWeight: 700, color: "#d0c290" }}>{ev.tickets_sold}</div>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: "#ffffff" }}>{ev.tickets_sold}</div>
                           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>Sold</div>
                         </div>
                         <div style={{ textAlign: "center" }}>
@@ -173,7 +173,7 @@ export default function PartnerDashboardPage() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "16px 14px" }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: "#d0c290" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: "#ffffff" }}>{value}</div>
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
     </div>
   );

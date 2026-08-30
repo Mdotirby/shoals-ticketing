@@ -368,7 +368,7 @@ export default function EventSalesDetailPage() {
     if (!event) return;
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-    const gold: [number, number, number] = [208, 194, 144];
+    const gold: [number, number, number] = [255, 255, 255];
     const dark: [number, number, number] = [11, 13, 29];
     const W = 215.9;
 
@@ -466,7 +466,7 @@ export default function EventSalesDetailPage() {
     if (!event) return;
     const { jsPDF } = await import("jspdf");
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
-    const gold: [number, number, number] = [208, 194, 144];
+    const gold: [number, number, number] = [255, 255, 255];
     const dark: [number, number, number] = [11, 13, 29];
     const W = 215.9;
 
@@ -573,10 +573,10 @@ export default function EventSalesDetailPage() {
             className="admin-header-btn"
             style={{
               background: settlementId
-                ? "rgba(208,194,144,0.12)"
-                : "rgba(208,194,144,0.18)",
-              borderColor: "rgba(208,194,144,0.45)",
-              color: "#d0c290",
+                ? "rgba(255, 255, 255, 0.12)"
+                : "rgba(255, 255, 255, 0.18)",
+              borderColor: "rgba(255, 255, 255, 0.45)",
+              color: "#ffffff",
               fontWeight: 700,
             }}
             onClick={handleSettlementClick}
@@ -611,9 +611,9 @@ export default function EventSalesDetailPage() {
           <button
             className="admin-header-btn"
             style={{
-              background: isClosedOut ? "rgba(208,194,144,0.1)" : "rgba(239,68,68,0.1)",
-              borderColor: isClosedOut ? "rgba(208,194,144,0.35)" : "rgba(239,68,68,0.35)",
-              color: isClosedOut ? "#d0c290" : "#f87171",
+              background: isClosedOut ? "rgba(255, 255, 255, 0.1)" : "rgba(239,68,68,0.1)",
+              borderColor: isClosedOut ? "rgba(255, 255, 255, 0.35)" : "rgba(239,68,68,0.35)",
+              color: isClosedOut ? "#ffffff" : "#f87171",
             }}
             onClick={handleCloseOut}
             disabled={closingOut}
@@ -718,13 +718,13 @@ export default function EventSalesDetailPage() {
           <div style={{
             display: "grid", gridTemplateColumns: "1fr 1fr",
             gap: 12, padding: "14px 16px",
-            background: "rgba(208,194,144,0.05)",
-            border: "1px solid rgba(208,194,144,0.12)",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
             borderRadius: 10,
           }}>
             <div>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: 1 }}>Gross Receipts</span>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#d0c290", marginTop: 4 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#ffffff", marginTop: 4 }}>
                 ${revSummary.grossRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
               </div>
               {revSummary.refundTotal > 0 && (
@@ -890,9 +890,9 @@ export default function EventSalesDetailPage() {
                           borderRadius: 6,
                           fontSize: 12,
                           fontWeight: 600,
-                          background: "rgba(208,194,144,0.08)",
-                          border: "1px solid rgba(208,194,144,0.2)",
-                          color: "#d0c290",
+                          background: "rgba(255, 255, 255, 0.08)",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          color: "#ffffff",
                           textDecoration: "none",
                           whiteSpace: "nowrap",
                         }}
@@ -904,10 +904,10 @@ export default function EventSalesDetailPage() {
                 ))}
               </tbody>
               <tfoot>
-                <tr style={{ borderTop: "2px solid rgba(208,194,144,0.2)" }}>
-                  <td colSpan={3} style={{ fontWeight: 700, color: "#d0c290" }}>Gross Receipts</td>
-                  <td style={{ fontWeight: 700, color: "#d0c290" }}>{totalTickets}</td>
-                  <td style={{ fontWeight: 700, color: "#d0c290" }}>${totalRevenue.toFixed(2)}</td>
+                <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.2)" }}>
+                  <td colSpan={3} style={{ fontWeight: 700, color: "#ffffff" }}>Gross Receipts</td>
+                  <td style={{ fontWeight: 700, color: "#ffffff" }}>{totalTickets}</td>
+                  <td style={{ fontWeight: 700, color: "#ffffff" }}>${totalRevenue.toFixed(2)}</td>
                   <td /><td /><td /><td />
                 </tr>
               </tfoot>
