@@ -150,6 +150,21 @@ export default function Header() {
             {item.label}
           </Link>
         ))}
+        {/* The "Get Tickets" CTA is hidden in the collapsed mobile header and
+            lives here instead, full-width at the foot of the open menu. Same
+            featuredEvent target as the desktop header CTA. */}
+        {featuredEvent && (
+          <>
+            <div className="mobile-nav-divider" />
+            <Link
+              href={`/events/${featuredEvent.id}`}
+              className="mobile-nav-cta"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Get Tickets
+            </Link>
+          </>
+        )}
       </nav>
     </>
   );

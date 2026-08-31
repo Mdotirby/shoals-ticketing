@@ -13721,7 +13721,6 @@ body[data-operator="west72"] footer {
 body[data-operator="west72"] .glass {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   position: relative;
@@ -13750,7 +13749,6 @@ body[data-operator="west72"] .glass::before {
 body[data-operator="west72"] .site-header {
   background: transparent;
   backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border-bottom: none;
   box-shadow: none;
   padding: 20px clamp(12px, 3vw, 32px) 0;
@@ -13767,7 +13765,6 @@ body[data-operator="west72"] .header-inner {
   border-radius: 999px;
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
 }
@@ -13794,7 +13791,6 @@ body[data-operator="west72"] .header-nav-link:hover {
 body[data-operator="west72"] .header-cta {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
   border-radius: 999px;
@@ -13885,7 +13881,6 @@ body[data-operator="west72"] .featured-carousel-actions {
 body[data-operator="west72"] .home-hero-cta {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
   border-radius: 999px;
@@ -13907,7 +13902,6 @@ body[data-operator="west72"] .featured-carousel-preview {
   gap: 8px;
   background: rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   color: var(--lg-white);
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 999px;
@@ -14009,7 +14003,6 @@ body[data-operator="west72"] .home-upcoming-heading {
 body[data-operator="west72"] .home-events-search {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   border-radius: 999px;
   margin: 0 0 30px;
@@ -14084,7 +14077,6 @@ body[data-operator="west72"] .event-venue-badge {
   z-index: 2;
   background: rgba(0, 0, 0, 0.40);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 10px;
   padding: 6px 12px;
@@ -14162,7 +14154,6 @@ body[data-operator="west72"] .home-cta-section {
   border-radius: var(--lg-radius-lg);
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   overflow: hidden;
@@ -14189,7 +14180,6 @@ body[data-operator="west72"] .home-cta-subtitle {
 body[data-operator="west72"] .home-cta-button {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
   border-radius: 999px;
@@ -14222,7 +14212,6 @@ body[data-operator="west72"] .west72-fwb-overlay {
 body[data-operator="west72"] .west72-fwb-hero .newsletter-section {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
@@ -14394,16 +14383,248 @@ body[data-operator="west72"] .header-inner {
     rgba(10, 10, 12, 0.55);
 }
 
-/* Mobile keeps the "WEST-72" wordmark centred, per every _mobile mockup in
-   design/liquid-glass — the PSD pass had swapped it for the square icon mark,
-   which reads as a blank gap on the lighter glass pill. */
+
+/* ============================================================
+   WEST72 — LIQUID GLASS: MOBILE NAV + HERO DENSITY
+   Matches mobile_nav_states.png: the collapsed header is the square
+   "72" icon mark centred with a circular glass toggle on the right and
+   NO visible CTA; tapping it drops a glass sheet below the header
+   carrying the nav links and a full-width "Get Tickets".
+   The open/close state itself (isMenuOpen in Header.tsx) is unchanged —
+   this only restyles and repositions the markup it already toggles.
+   ============================================================ */
 @media (max-width: 768px) {
+  /* Collapsed header: no CTA — it moves inside the open menu. */
+  body[data-operator="west72"] .header-right {
+    display: none;
+  }
+  body[data-operator="west72"] .header-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 54px;
+  }
+
+  /* Square "72" icon mark, centred on the viewport rather than between
+     the surrounding controls. */
   body[data-operator="west72"] .header-logo-img--wordmark {
-    display: block;
-    width: 116px !important;
-    height: auto !important;
+    display: none;
   }
   body[data-operator="west72"] .header-logo-img--icon {
-    display: none !important;
+    display: block;
+    width: 36px !important;
+    height: auto !important;
+  }
+
+  /* The nav pill sits right over the orb field's brightest point on a phone,
+     where a thin white mark would otherwise wash out — so the mobile pill
+     carries a deeper base than the desktop one. */
+  body[data-operator="west72"] .header-inner {
+    background:
+      linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2)),
+      rgba(8, 8, 10, 0.82);
+  }
+
+  /* Circular glass toggle; the existing .hamburger-bar.open rules already
+     cross the bars into an X. */
+  body[data-operator="west72"] .hamburger {
+    display: flex;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    backdrop-filter: blur(16px);
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  body[data-operator="west72"] .hamburger-bar {
+    width: 15px;
+    background: #fff;
+  }
+  body[data-operator="west72"] .hamburger-bar.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  body[data-operator="west72"] .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* Dropdown sheet, not a side drawer. */
+  body[data-operator="west72"] .mobile-nav-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: fixed;
+    top: 78px;
+    /* The side-drawer rules this replaces pin bottom:0; leaving that set
+       would stretch the sheet to the full viewport height. */
+    bottom: auto;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    height: auto;
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    padding: 10px;
+    transform: translateY(-12px);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 200ms ease, transform 200ms ease, visibility 200ms;
+    border-radius: var(--lg-radius-lg);
+    background:
+      linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2)),
+      rgba(10, 10, 12, 0.72);
+    backdrop-filter: blur(28px) saturate(160%);
+    border: 1px solid var(--lg-glass-border);
+    box-shadow: var(--lg-glass-shadow);
+    z-index: 60;
+  }
+  body[data-operator="west72"] .mobile-nav-drawer.open {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+  body[data-operator="west72"] .mobile-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 15px 14px;
+    font-family: var(--font-archivo), sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.90);
+    border-radius: 14px;
+    border: none;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  body[data-operator="west72"] .mobile-nav-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.10);
+    margin: 6px 4px;
+  }
+  body[data-operator="west72"] .mobile-nav-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px 24px;
+    border-radius: 999px;
+    background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+    color: #14120f;
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+    font-family: var(--font-archivo), sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  /* Scrim dims the page behind the open sheet. */
+  body[data-operator="west72"] .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transition: opacity 200ms ease, visibility 200ms;
+    z-index: 49;
+  }
+  body[data-operator="west72"] .mobile-nav-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+  /* Header stays above the scrim so the toggle can close the menu. */
+  body[data-operator="west72"] .site-header {
+    z-index: 61;
+  }
+}
+
+/* ── Mobile hero density + card columns ────────────────────
+   The hero detail block was crowding the artwork out of frame, so the
+   type steps down, the vertical rhythm tightens, and the two CTAs share
+   one row — leaving noticeably more of the photo visible. */
+@media (max-width: 600px) {
+  body[data-operator="west72"] .featured-carousel .home-hero-content {
+    padding: 0 18px 34px;
+  }
+  body[data-operator="west72"] .featured-carousel-eyebrow {
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    margin-bottom: 7px;
+  }
+  body[data-operator="west72"] .featured-carousel-title {
+    font-size: clamp(26px, 8.2vw, 34px);
+    line-height: 1.0;
+    margin-bottom: 8px;
+    max-width: 100%;
+  }
+  body[data-operator="west72"] .featured-carousel-subtitle {
+    font-size: 13px;
+    margin-bottom: 3px;
+  }
+  body[data-operator="west72"] .featured-carousel-where {
+    font-size: 11.5px;
+    margin-bottom: 14px;
+  }
+
+  /* Two CTAs, one row, one line each. */
+  body[data-operator="west72"] .featured-carousel-actions {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    width: 100%;
+  }
+  body[data-operator="west72"] .featured-carousel-actions .home-hero-cta,
+  body[data-operator="west72"] .featured-carousel-preview {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    justify-content: center;
+    white-space: nowrap;
+    font-size: 13px;
+    padding: 13px 10px;
+  }
+  body[data-operator="west72"] .featured-carousel-preview svg {
+    flex-shrink: 0;
+  }
+
+  /* Upcoming Shows stays two-up on phones rather than one giant card
+     per row, so the strip reads as a grid instead of an endless scroll. */
+  body[data-operator="west72"] .home-events-carousel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  body[data-operator="west72"] .home-events-carousel .event-card,
+  body[data-operator="west72"] .home-event-card-wrapper .event-card {
+    aspect-ratio: 3 / 4;
+  }
+  /* Denser card furniture to suit the narrower column. */
+  body[data-operator="west72"] .event-main-content {
+    padding: 13px;
+  }
+  body[data-operator="west72"] .event-card-title {
+    font-size: 14.5px;
+    margin-bottom: 7px;
+  }
+  body[data-operator="west72"] .event-meta-badges {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  body[data-operator="west72"] .event-badge {
+    padding: 5px 10px;
+  }
+  body[data-operator="west72"] .event-badge .badge-text {
+    font-size: 10px;
+  }
+  body[data-operator="west72"] .event-venue-badge {
+    top: 10px;
+    left: 10px;
+    padding: 5px 9px;
+  }
+  body[data-operator="west72"] .event-venue-badge .badge-text {
+    font-size: 9px;
   }
 }
