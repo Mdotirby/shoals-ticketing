@@ -15022,6 +15022,14 @@ body[data-theme="liquid-glass"] .ticket-selection-heading {
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
+/* The base .ticket-hero-title rule (line ~986) sets text-transform:uppercase
+   for the old design. The mockup's artist name under the photo is title
+   case ("Cole Phillips") — only the top page heading stays uppercase, and
+   that one (.ticket-selection-heading) declares its own uppercase
+   independently, so this is scoped to just the name under the photo. */
+body[data-theme="liquid-glass"] .ticket-hero-title {
+  text-transform: none;
+}
 body[data-theme="liquid-glass"] .ticket-hero-image-wrap {
   border-radius: var(--lg-radius-lg);
   overflow: hidden;
@@ -15046,12 +15054,23 @@ body[data-theme="liquid-glass"] .order-summary {
   border-radius: var(--lg-radius-lg);
 }
 body[data-theme="liquid-glass"] .ticket-spotify-preview {
+  /* The base rule (line ~13148) is a bare underlined link with padding:0 —
+     turning it into a pill without setting its own padding left the border
+     hugging the bare text with no breathing room. */
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 999px;
+  padding: 7px 16px;
+  margin: 0 0 10px;
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
+  font-size: 12.5px;
   color: var(--lg-white);
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .ticket-spotify-preview:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1;
 }
 body[data-theme="liquid-glass"] .ticket-qty-control {
   background: rgba(255, 255, 255, 0.06);
@@ -15063,13 +15082,19 @@ body[data-theme="liquid-glass"] .ticket-qty-btn {
   background: transparent;
   border: none;
 }
-body[data-theme="liquid-glass"] .ticket-type-select,
-body[data-theme="liquid-glass"] .ticket-selector-row {
+body[data-theme="liquid-glass"] .ticket-type-select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
+}
+/* .ticket-selector-row is the bare flex wrapper around the select and the qty
+   stepper — it must NOT get its own glass box, or the select's pill renders
+   nested inside a second, larger pill. */
+body[data-theme="liquid-glass"] .ticket-selector-row {
+  background: transparent;
+  border: none;
 }
 body[data-theme="liquid-glass"] .event-featured-artists-heading,
 body[data-theme="liquid-glass"] .event-sponsors-heading,
