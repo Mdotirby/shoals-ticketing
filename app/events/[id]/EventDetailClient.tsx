@@ -917,30 +917,6 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     presaleActive={!!event.presaleAvailable && !ticketsOnSale && !presaleUnlocked}
                   />
 
-                  {/* Ticket type dropdown + quantity selector */}
-                  <div className="ticket-selector-row">
-                    <select
-                      className="ticket-type-select"
-                      value={selectedTicketId ?? ""}
-                      onChange={(e) => setSelectedTicketId(e.target.value)}
-                    >
-                      {ticketTypes.map((tt) => {
-                        const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
-                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
-                        return (
-                          <option key={tt.id} value={tt.id} disabled={soldOut}>
-                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <div className="ticket-qty-control">
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || selectedTicketSoldOut}>−</button>
-                      <span className="ticket-qty-value">{quantity}</span>
-                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
-                    </div>
-                  </div>
-
                   {/* Inline seat map for assigned seating */}
                   {reservedSeatingEnabled && seatingSections.length > 0 && (
                     <div style={{ marginTop: 16 }}>
@@ -1057,6 +1033,38 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column" ref={orderSummaryRef}>
+              {/* Ticket type + quantity — lives with the Order Summary card
+                  (event_detail.png shows the stepper inside that card, not in
+                  the main content column). Relocated here unconditionally, matching
+                  where it rendered before: it showed regardless of which
+                  order-summary-column state was active (external ticketing, past
+                  show, countdown, mid-checkout, etc.), so it still does — this is a
+                  DOM relocation only, same state/handlers, same visibility. */}
+              <div className="order-tier-panel">
+                <div className="ticket-selector-row">
+                  <select
+                    className="ticket-type-select"
+                    value={selectedTicketId ?? ""}
+                    onChange={(e) => setSelectedTicketId(e.target.value)}
+                  >
+                    {ticketTypes.map((tt) => {
+                      const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
+                      const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
+                      return (
+                        <option key={tt.id} value={tt.id} disabled={soldOut}>
+                          {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <div className="ticket-qty-control">
+                    <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || selectedTicketSoldOut}>−</button>
+                    <span className="ticket-qty-value">{quantity}</span>
+                    <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
+                  </div>
+                </div>
+              </div>
+
               {event.external_ticket_url ? (
                 /* ── External Ticketing ── */
                 <div style={{
@@ -1344,11 +1352,15 @@ export default function EventDetailClient({ requiresSeating = false }: { require
           const artistUrl = event.spotify_url ? getSpotifyEmbedUrl(event.spotify_url) : null;
           if (!featuredUrl && !artistUrl) return null;
           return (
-            <section
-              ref={spotifyRef}
-              className={`event-spotify-section${previewActive ? " event-spotify-section--playing" : " event-spotify-section--idle"}`}
-            >
-              <p className="event-spotify-label">
+            <>
+              {/* Page-level heading, matching "You May Also Like" / "Getting
+                  Here" / "Frequently Asked Questions" below (same tag,
+                  typography, position above its panel) — this was rendering
+                  as a small label inside the panel's corner, the only
+                  section on the page styled that way. The idle/"Now Playing"
+                  text swap and eq-bars animation are existing behavior,
+                  unchanged — only relocated and promoted to heading scale. */}
+              <h2 className={`event-spotify-label${previewActive ? " event-spotify-label--playing" : ""}`}>
                 {previewActive ? (
                   <>
                     <span className="spotify-eq-bars" aria-hidden="true">
@@ -1357,7 +1369,11 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     Now Playing
                   </>
                 ) : "Listen Before You Go"}
-              </p>
+              </h2>
+              <section
+                ref={spotifyRef}
+                className={`event-spotify-section${previewActive ? " event-spotify-section--playing" : " event-spotify-section--idle"}`}
+              >
               {featuredUrl && (
                 <iframe
                   key={previewActive ? "featured-playing" : "featured-idle"}
@@ -1385,7 +1401,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                   className="event-spotify-embed event-spotify-embed--artist"
                 />
               )}
-            </section>
+              </section>
+            </>
           );
         })()}
 

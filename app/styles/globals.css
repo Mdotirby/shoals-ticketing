@@ -13207,7 +13207,12 @@ body:has(.lp-main) .site-footer {
   border-radius: 12px;
 }
 
-.event-spotify-section--playing .event-spotify-label {
+/* The label used to live inside .event-spotify-section, so this could be a
+   descendant selector off the section's --playing class. It's now a sibling
+   heading rendered before the section (promoted to page-level heading scale
+   under the liquid-glass theme), so the label carries its own --playing
+   class instead. */
+.event-spotify-label--playing {
   color: #1ed760;
   display: flex;
   align-items: center;
@@ -15046,12 +15051,32 @@ body[data-theme="liquid-glass"] .event-featured-artist-card,
 body[data-theme="liquid-glass"] .event-spotify-section,
 body[data-theme="liquid-glass"] .event-sponsors-section,
 body[data-theme="liquid-glass"] .faq-card-question,
-body[data-theme="liquid-glass"] .order-summary {
+body[data-theme="liquid-glass"] .order-summary,
+body[data-theme="liquid-glass"] .order-tier-panel {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
+}
+
+/* Tier + quantity — relocated to sit with the Order Summary card (see
+   EventDetailClient.tsx), matching event_detail.png rather than living in
+   the main content column. Same .ticket-type-select / .ticket-qty-control
+   markup and behaviour as before, just repositioned; styled as its own
+   compact glass card directly above Order Summary, tight gap, so the two
+   read as one connected unit. */
+body[data-theme="liquid-glass"] .order-tier-panel {
+  padding: 18px 20px;
+  margin-bottom: 12px;
+}
+body[data-theme="liquid-glass"] .order-tier-panel .ticket-selector-row {
+  margin-top: 0;
+}
+body[data-theme="liquid-glass"] .order-tier-panel .ticket-type-select {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 14px;
 }
 body[data-theme="liquid-glass"] .ticket-spotify-preview {
   /* The base rule (line ~13148) is a bare underlined link with padding:0 —
@@ -15104,8 +15129,7 @@ body[data-theme="liquid-glass"] .faq-section-heading {
   letter-spacing: -0.01em;
   color: var(--lg-white);
 }
-body[data-theme="liquid-glass"] .faq-section-label,
-body[data-theme="liquid-glass"] .event-spotify-label {
+body[data-theme="liquid-glass"] .faq-section-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
@@ -15680,7 +15704,8 @@ body[data-theme="liquid-glass"] .footer-legal {
 body[data-theme="liquid-glass"] .ymal-heading,
 body[data-theme="liquid-glass"] .event-featured-artists-heading,
 body[data-theme="liquid-glass"] .venue-directions-heading,
-body[data-theme="liquid-glass"] .faq-section-heading {
+body[data-theme="liquid-glass"] .faq-section-heading,
+body[data-theme="liquid-glass"] .event-spotify-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: clamp(20px, 2.4vw, 26px);
@@ -15690,6 +15715,72 @@ body[data-theme="liquid-glass"] .faq-section-heading {
   color: var(--lg-white);
   margin-bottom: 20px;
 }
+/* "Listen Before You Go" was the only page-level section styled as a small
+   in-panel eyebrow instead of a full heading above its panel, like the three
+   sections below it. .event-spotify-label is promoted to match them; the
+   idle/"Now Playing" swap keeps working via its own --playing class (added
+   below) rather than the old descendant selector, since the label no longer
+   lives inside .event-spotify-section. */
+body[data-theme="liquid-glass"] .event-spotify-label--playing {
+  color: #1ed760;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+body[data-theme="liquid-glass"] .event-spotify-section {
+  margin-top: 0;
+}
+/* .event-spotify-label is now a bare sibling of .event-spotify-section rather
+   than a child inside it (previously the section's own width/margin/padding
+   positioned it correctly for free). As a direct child of the .ticket-page
+   flex column with no width of its own, it was shrinking to its text width
+   and landing flex-centered instead of aligned with the panel below it.
+   Matching .event-spotify-section's exact box model (1100px / 20px) lines
+   the two up. */
+body[data-theme="liquid-glass"] .event-spotify-label {
+  align-self: stretch;
+  width: 100%;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+/* "Featured Artists" was the only OTHER section on the page still centered
+   (its base rule's container is align-items:center on a column flex) — every
+   sibling section (Listen Before You Go, You May Also Like, Getting Here,
+   FAQ) is left-aligned. Not shown in the mockup at all (real feature it
+   didn't capture), but matched to the established page pattern rather than
+   left as the one inconsistent heading. */
+body[data-theme="liquid-glass"] .event-featured-artists-section {
+  align-items: flex-start;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+body[data-theme="liquid-glass"] .event-featured-artists-grid {
+  align-self: stretch;
+  justify-content: flex-start;
+}
+
+/* Same root cause as Featured Artists and Listen Before You Go above:
+   .venue-directions-section and .faq-section are align-items:center column
+   flex containers, and neither heading has a width of its own, so both were
+   flex-centered as content-width boxes — text-align:left inside a
+   single-line, content-width box reads almost identically to centered at a
+   glance, which is why this survived an earlier visual pass. Numerically
+   confirmed off (venue-directions-heading landed at x=560 vs. its own
+   section's x=40) and fixed the same way as the other two headings. */
+body[data-theme="liquid-glass"] .venue-directions-section,
+body[data-theme="liquid-glass"] .faq-section {
+  align-items: flex-start;
+}
+body[data-theme="liquid-glass"] .venue-directions-heading,
+body[data-theme="liquid-glass"] .faq-section-heading {
+  align-self: stretch;
+  width: 100%;
+  text-align: left;
+}
+
 body[data-theme="liquid-glass"] .faq-section-label {
   display: none; /* the heading carries the section on its own here */
 }
