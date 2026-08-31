@@ -15812,3 +15812,268 @@ body[data-theme="liquid-glass"] .pre-checkout-continue-btn,
 body[data-theme="liquid-glass"] .ymal-title {
   font-family: var(--font-archivo), sans-serif;
 }
+
+/* ── "Preparing your tickets…" loader ───────────────────────
+   Shown between payment succeeding and the confirmation resolving. The bar
+   is indeterminate on purpose — the wait is on the Stripe webhook and we
+   have no real percentage to report — so it sweeps rather than fills. */
+body[data-theme="liquid-glass"] .tpl {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .tpl-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lg-white);
+  margin: 0 0 14px;
+  animation: tpl-pulse 1.6s ease-in-out infinite;
+}
+body[data-theme="liquid-glass"] .tpl-sublabel {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub-dim);
+  margin: 14px 0 0;
+}
+body[data-theme="liquid-glass"] .tpl-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--lg-track);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .tpl-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.25), #fff 50%, rgba(255, 255, 255, 0.25));
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.45);
+  animation: tpl-sweep 1.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@keyframes tpl-sweep {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(360%); }
+}
+@keyframes tpl-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+/* Respect a reduced-motion preference: hold a steady partial bar rather than
+   sweeping and pulsing. */
+@media (prefers-reduced-motion: reduce) {
+  body[data-theme="liquid-glass"] .tpl-fill {
+    animation: none;
+    width: 55%;
+    transform: none;
+  }
+  body[data-theme="liquid-glass"] .tpl-label {
+    animation: none;
+  }
+}
+
+/* ── Confirmation: badge, lede, ready state ─────────────────
+   Matches checkout_success.png. */
+body[data-theme="liquid-glass"] .cs-check {
+  width: 64px;
+  height: 64px;
+  /* The confirmation card is a flex column, so this badge's height is its
+     main size and the default flex-shrink collapses it to the glyph's 28px.
+     Pin it, or the "circle" renders as a squat rounded box. */
+  flex: 0 0 64px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lg-white);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.03);
+}
+body[data-theme="liquid-glass"] .checkout-success-heading {
+  font-size: clamp(30px, 4vw, 42px);
+  margin-bottom: 14px;
+}
+body[data-theme="liquid-glass"] .cs-lede {
+  max-width: 560px;
+  margin: 0 auto;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .cs-lede strong {
+  color: var(--lg-white);
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .cs-ready {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--lg-white);
+  margin: 22px 0 0;
+}
+body[data-theme="liquid-glass"] .cs-preparing {
+  margin: 26px 0 4px;
+}
+body[data-theme="liquid-glass"] .cs-order-doors {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11.5px;
+  color: var(--lg-sub-dim);
+  margin-top: 3px;
+}
+
+/* ── Hotel partner panel ────────────────────────────────────
+   Static promo. The design brief expects live partner-rate data here; until
+   that feed exists the panel is driven by the constants in the component so
+   the numbers are editable in one place rather than invented per render. */
+body[data-theme="liquid-glass"] .hotel-panel {
+  display: flex;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  align-items: stretch;
+  margin: clamp(28px, 4vw, 40px) 0 0;
+  border-radius: var(--lg-radius-lg);
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  text-align: left;
+}
+body[data-theme="liquid-glass"] .hotel-photo {
+  width: 280px;
+  flex-shrink: 0;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.02));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .hotel-photo span {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 0 20px;
+  text-transform: uppercase;
+}
+body[data-theme="liquid-glass"] .hotel-body { flex: 1; padding: 30px 34px; }
+body[data-theme="liquid-glass"] .hotel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+body[data-theme="liquid-glass"] .hotel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+body[data-theme="liquid-glass"] .hotel-cutoff {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11.5px;
+  color: var(--lg-sub-dim);
+  font-weight: 600;
+}
+body[data-theme="liquid-glass"] .hotel-body h3 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: clamp(19px, 2.2vw, 23px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+  margin: 0 0 4px;
+}
+body[data-theme="liquid-glass"] .hotel-partner-name {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub);
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+body[data-theme="liquid-glass"] .hotel-desc {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  font-size: 13.5px;
+  line-height: 1.65;
+  margin: 0 0 22px;
+  max-width: 520px;
+}
+body[data-theme="liquid-glass"] .hotel-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .hotel-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+body[data-theme="liquid-glass"] .hotel-price-old {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  color: var(--lg-sub-dim);
+  text-decoration: line-through;
+}
+body[data-theme="liquid-glass"] .hotel-price-new {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+}
+body[data-theme="liquid-glass"] .hotel-price-unit {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  color: var(--lg-sub);
+  font-weight: 600;
+}
+body[data-theme="liquid-glass"] .hotel-code-note {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  color: var(--lg-sub-dim);
+  margin-top: 4px;
+}
+body[data-theme="liquid-glass"] .hotel-code-note b { color: rgba(255, 255, 255, 0.75); letter-spacing: 0.5px; }
+
+@media (max-width: 600px) {
+  body[data-theme="liquid-glass"] .hotel-panel { flex-direction: column; }
+  body[data-theme="liquid-glass"] .hotel-photo {
+    width: 100%;
+    height: 120px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  }
+  body[data-theme="liquid-glass"] .hotel-body { padding: 22px 20px; }
+  body[data-theme="liquid-glass"] .hotel-top { flex-direction: column; align-items: flex-start; gap: 8px; }
+  body[data-theme="liquid-glass"] .hotel-bottom { flex-direction: column; align-items: flex-start; gap: 16px; }
+  body[data-theme="liquid-glass"] .hotel-bottom a { width: 100%; text-align: center; }
+  body[data-theme="liquid-glass"] .cs-check { width: 56px; height: 56px; flex-basis: 56px; }
+}
+
+/* "Getting Here" repeats its own heading as a small eyebrow above itself
+   ("GETTING HERE" label + "Getting Here" heading) — the label reads as a
+   literal duplicate rather than a section tag, and the mockup has no eyebrow
+   here at all. Hidden to match. */
+body[data-theme="liquid-glass"] .venue-directions-label {
+  display: none;
+}

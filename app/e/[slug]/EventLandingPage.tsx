@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
 import { trackFbEvent } from "@/lib/fbq";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
@@ -544,8 +545,8 @@ function CheckoutForm({
   if (paymentSuccess) {
     return (
       <>
-        <div className="ic-form-wrap ic-redirecting" role="status" aria-live="polite">
-          <p className="ic-redirecting-text">Payment confirmed — loading your tickets…</p>
+        <div className="ic-form-wrap ic-redirecting">
+          <TicketPreparingLoader sublabel="Payment confirmed — hang tight." />
         </div>
 
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
@@ -463,8 +464,8 @@ function CheckoutForm({
   // never touch Stripe.
   if (paymentSuccess) {
     return (
-      <div className="ic-form-wrap ic-redirecting" role="status" aria-live="polite">
-        <p className="ic-redirecting-text">Payment confirmed — loading your tickets…</p>
+      <div className="ic-form-wrap ic-redirecting">
+        <TicketPreparingLoader sublabel="Payment confirmed — hang tight." />
       </div>
     );
   }

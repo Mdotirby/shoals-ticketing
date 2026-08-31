@@ -8,6 +8,7 @@ import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import EventCard from "@/app/components/EventCard";
+import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
 import { Event } from "@/lib/types/event";
 
 type ConfirmationData = {
@@ -21,10 +22,29 @@ type ConfirmationData = {
   };
   event: { id?: string; title: string; date: string; venue: string; image_url?: string | null } | null;
   ticket: { id: string; qr_code: string; qr_data_url: string } | null;
+  breakdown?: { subtotal: number; feesAndTax: number } | null;
 };
 
 // Matches the webhook's typical lag; ~20s of headroom before we stop waiting
 // and show what we have.
+/* Lodging partner promo shown after the order actions.
+ *
+ * PLACEHOLDER DATA. The design brief expects these wired to a live partner
+ * rate feed; that feed doesn't exist yet, so the values live here as named
+ * constants — editable in one place, and obvious that they are static rather
+ * than looked up. Set HOTEL_PARTNER to null to drop the panel entirely. */
+const HOTEL_PARTNER: {
+  name: string; rackRate: string; memberRate: string;
+  promoCode: string; cutoffLabel: string; href: string;
+} | null = {
+  name: "Renaissance Shoals Resort & Spa",
+  rackRate: "$189",
+  memberRate: "$129",
+  promoCode: "W72COLE",
+  cutoffLabel: "Oct 30",
+  href: "https://www.marriott.com/en-us/hotels/msltn-renaissance-shoals-resort-and-spa/overview/",
+};
+
 const CONFIRM_INTERVAL_MS = 800;
 const CONFIRM_MAX_ATTEMPTS = 25;
 
@@ -35,6 +55,15 @@ function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? n
 function shortOrderRef(id?: string) {
   if (!id) return "—";
   return id.replace(/-/g, "").slice(-6).toUpperCase();
+}
+
+/** Doors are conventionally an hour before the listed start. Returns null when
+ *  the event has no time set, so we render nothing rather than a fake "Doors". */
+function doorsLabel(d: string) {
+  const start = safeDate(d);
+  if (start.getHours() === 0 && start.getMinutes() === 0) return null;
+  const doors = new Date(start.getTime() - 60 * 60 * 1000);
+  return doors.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function formatDateShort(d: string) {
@@ -220,13 +249,36 @@ function SuccessContent() {
   return (
     <section className="checkout-success-section">
       <div className="checkout-success-card">
-        {/* Success icon */}
-        <div className="checkout-success-icon" style={{ marginBottom: 8 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="14" width="40" height="20" rx="4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><path d="M4 22a4 4 0 0 1 0 4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><path d="M44 22a4 4 0 0 0 0 4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><line x1="16" y1="14" x2="16" y2="34" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="1.5" strokeDasharray="2 2" /></svg></div>
-        <h2 className="checkout-success-heading">You&apos;re In!</h2>
-        <p className="checkout-success-text">
-          Payment confirmed. Your {(data?.order?.quantity || 1) > 1 ? 'tickets are' : 'ticket is'} ready.
-          {data?.order?.customer_email && (
-            <> A copy has been emailed to <strong>{data.order.customer_email}</strong>.</>
+        {/* Success badge — a checkmark in a ring, per checkout_success.png.
+            (This was a ticket glyph before; the tick reads as "done", which is
+            what this moment is.) */}
+        <div className="checkout-success-icon cs-check" aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+            <path
+              d="M5 13.5 L10.5 19 L21 7"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+
+        <h2 className="checkout-success-heading">You&apos;re In.</h2>
+
+        <p className="checkout-success-text cs-lede">
+          {data?.event?.title ? (
+            <>Your spot for <strong>{data.event.title}</strong> is locked in.</>
+          ) : (
+            <>Your spot is locked in.</>
+          )}{" "}
+          {data?.order?.customer_email ? (
+            <>
+              A confirmation and your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"}{" "}
+              headed to <strong>{data.order.customer_email}</strong> — try not to lose them before the show.
+            </>
+          ) : (
+            <>Your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"} on the way by email.</>
           )}
         </p>
 
@@ -257,17 +309,34 @@ function SuccessContent() {
                 <div className="cs-order-tier-name">
                   General Admission &times; {data.order?.quantity ?? 1}
                 </div>
+                {doorsLabel(data.event.date) && (
+                  <div className="cs-order-doors">Doors {doorsLabel(data.event.date)}</div>
+                )}
               </div>
             </div>
 
             {data.order && (
               <div className="cs-order-breakdown">
-                <div className="cs-order-line">
-                  <span>
-                    General Admission &times; {data.order.quantity}
-                  </span>
-                  <span>${data.order.total_amount.toFixed(2)}</span>
-                </div>
+                {/* The face-value/fees split only appears once the settlement
+                    row exists. We never compute it here — a receipt showing a
+                    wrong split is worse than one showing just the total. */}
+                {data.breakdown ? (
+                  <>
+                    <div className="cs-order-line">
+                      <span>General Admission &times; {data.order.quantity}</span>
+                      <span>${data.breakdown.subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="cs-order-line">
+                      <span>Taxes &amp; Fees</span>
+                      <span>${data.breakdown.feesAndTax.toFixed(2)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="cs-order-line">
+                    <span>General Admission &times; {data.order.quantity}</span>
+                    <span>${data.order.total_amount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="cs-order-line cs-order-line--total">
                   <span>Total Paid</span>
                   <span>${data.order.total_amount.toFixed(2)}</span>
@@ -302,6 +371,24 @@ function SuccessContent() {
           </p>
         </div>
 
+        {/* While the webhook is still creating the ticket, this is a real wait
+            for someone who has just paid — show progress, not a dead button.
+            Once it lands, the state flips to "ready" with the ticket link. */}
+        {data?.ticket?.qr_code ? (
+          <p className="cs-ready">Your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"} ready.</p>
+        ) : (
+          <div className="cs-preparing">
+            <TicketPreparingLoader
+              label={loading ? "Preparing your tickets…" : "Still finishing up…"}
+              sublabel={
+                loading
+                  ? "This usually takes a few seconds."
+                  : "Your tickets are on their way — we've emailed them too."
+              }
+            />
+          </div>
+        )}
+
         {/* Actions — primary ticket link plus Add to Calendar, side by side.
             There is deliberately no "Add to Apple Wallet": generating .pkpass
             files needs Apple Developer enrollment and a Pass Type ID cert,
@@ -312,10 +399,8 @@ function SuccessContent() {
               {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
             </Link>
           ) : (
-            /* Still waiting on the webhook — say so rather than showing a dead
-               link or nothing at all to someone who has just paid. */
-            <span className="checkout-success-btn cs-btn--pending" aria-live="polite">
-              {loading ? "Preparing your tickets…" : "Tickets are on their way"}
+            <span className="checkout-success-btn cs-btn--pending" aria-hidden="true">
+              {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
             </span>
           )}
 
@@ -329,6 +414,48 @@ function SuccessContent() {
             </a>
           )}
         </div>
+
+        {/* Lodging partner — placed right after the actions, while commitment
+            is highest. See HOTEL_PARTNER above: static promo, not a live rate. */}
+        {HOTEL_PARTNER && (
+          <div className="hotel-panel">
+            <div className="hotel-photo">
+              <span>{HOTEL_PARTNER.name}</span>
+            </div>
+            <div className="hotel-body">
+              <div className="hotel-top">
+                <span className="hotel-badge">&#10022; Unlocked By Your Ticket</span>
+                <span className="hotel-cutoff">Room block holds through {HOTEL_PARTNER.cutoffLabel}</span>
+              </div>
+              <h3>You Bought The Ticket. We Got You The Room.</h3>
+              <div className="hotel-partner-name">In partnership with {HOTEL_PARTNER.name}</div>
+              <p className="hotel-desc">
+                Ticket holders only. Not listed on their site, not open to the public.
+                Skip the drive home.
+              </p>
+              <div className="hotel-bottom">
+                <div>
+                  <div className="hotel-price-row">
+                    <span className="hotel-price-old">{HOTEL_PARTNER.rackRate}</span>
+                    <span className="hotel-price-new">{HOTEL_PARTNER.memberRate}</span>
+                    <span className="hotel-price-unit">/ night</span>
+                  </div>
+                  <div className="hotel-code-note">
+                    Code <b>{HOTEL_PARTNER.promoCode}</b> applied automatically &mdash; no account needed
+                  </div>
+                </div>
+                <a
+                  className="checkout-success-btn"
+                  href={HOTEL_PARTNER.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Unlock Our Rate
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Laylo SMS opt-in — west72 only, shown after purchase confirmed */}
         {isWest72 && layloStatus !== "dismissed" && (

@@ -48,6 +48,29 @@ export async function GET(request: Request) {
     .eq("id", order.event_id)
     .single();
 
+  // Real money breakdown for the confirmation receipt. Written by the same
+  // webhook that creates the ticket, so it can legitimately be missing while
+  // the order is still settling — callers must treat it as optional. We never
+  // derive these numbers client-side: a receipt showing a wrong split is worse
+  // than one showing only the total.
+  const { data: ledger } = await admin
+    .from("settlement_ledger")
+    .select("ticket_revenue, ticketing_fee, facility_fee, tax_collected")
+    .eq("order_id", order.id)
+    .maybeSingle();
+
+  const breakdown = ledger
+    ? {
+        subtotal: Number(ledger.ticket_revenue ?? 0),
+        // Everything the buyer paid on top of the face value, as one line —
+        // buyers don't need the ticketing/facility/tax split itemised.
+        feesAndTax:
+          Math.round(
+            (Number(order.total_amount) - Number(ledger.ticket_revenue ?? 0)) * 100
+          ) / 100,
+      }
+    : null;
+
   // Fetch first ticket's QR code (for display)
   const { data: tickets } = await admin
     .from("tickets")
@@ -95,6 +118,7 @@ export async function GET(request: Request) {
     order,
     event: event || null,
     ticket: tickets?.[0] || null,
+    breakdown,
     seatAssignments: seatAssignments.length > 0 ? seatAssignments : undefined,
   });
 }
