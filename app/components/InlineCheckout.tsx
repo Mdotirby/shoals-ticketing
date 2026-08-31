@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
@@ -16,7 +17,6 @@ import {
 import type { PaymentRequest } from "@stripe/stripe-js";
 import { trackFbEvent } from "@/lib/fbq";
 import { getStoredUtmParams } from "@/lib/clientAttribution";
-import CheckoutSuccessModal from "@/app/components/CheckoutSuccessModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +159,7 @@ function CheckoutForm({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const router = useRouter();
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
@@ -175,6 +176,9 @@ function CheckoutForm({
   // resolved via polling for paid (ticket is created async by the Stripe webhook).
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  // Free registrations never create a payment intent, so the confirmation
+  // page is keyed on the order id instead.
+  const [freeOrderId, setFreeOrderId] = useState<string | null>(null);
 
   // Apple Pay / Google Pay via Stripe PaymentRequest
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
@@ -343,6 +347,7 @@ function CheckoutForm({
 
         setOrderDetails({ subtotal: 0, ticketingFee: 0, facilityFee: 0, tax: 0, processingFee: 0, discount: estimatedTotal, total: 0 });
         setTicketUrl(data.ticket_url ?? null);
+        setFreeOrderId(data.order_id ?? null);
         setPaymentSuccess(true);
         return;
       }
@@ -435,23 +440,32 @@ function CheckoutForm({
     }
   };
 
-  // ── Success State ──────────────────────────────────────────────────────────
-  if (paymentSuccess) {
-    const finalTotal = orderDetails?.total ?? estimatedTotal;
+  // Navigate to the confirmation page once payment settles. Kept in an effect
+  // rather than called inline at the point of success so it runs after render
+  // and cannot fire during React's commit phase.
+  useEffect(() => {
+    if (!paymentSuccess) return;
+    const key = paymentIntentId
+      ? `payment_intent_id=${paymentIntentId}`
+      : freeOrderId
+        ? `order_id=${freeOrderId}`
+        : null;
+    // With no key there is nothing for the confirmation page to look up; send
+    // them straight to the ticket instead of a page that can only error.
+    router.push(key ? `/checkout/success?${key}` : (ticketUrl ?? "/events"));
+  }, [paymentSuccess, paymentIntentId, freeOrderId, ticketUrl, router]);
 
+  // ── Success State ──────────────────────────────────────────────────────────
+  // Confirmation is its own page now, not a modal over the checkout form. The
+  // order may not exist yet — the Stripe webhook creates it asynchronously —
+  // so we hand the confirmation page the key it can poll on: the payment
+  // intent for card/wallet, or the order id for free registrations, which
+  // never touch Stripe.
+  if (paymentSuccess) {
     return (
-      <CheckoutSuccessModal
-        eventTitle={eventTitle}
-        eventDate={eventDate}
-        eventVenue={eventVenue}
-        quantity={quantity}
-        totalAmount={finalTotal}
-        buyerName={buyerName}
-        buyerEmail={buyerEmail}
-        buyerPhone={buyerPhone}
-        ticketUrl={ticketUrl}
-        paymentIntentId={paymentIntentId}
-      />
+      <div className="ic-form-wrap ic-redirecting" role="status" aria-live="polite">
+        <p className="ic-redirecting-text">Payment confirmed — loading your tickets…</p>
+      </div>
     );
   }
 

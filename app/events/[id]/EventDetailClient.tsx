@@ -1469,11 +1469,11 @@ export default function EventDetailClient({ requiresSeating = false }: { require
           </section>
         )}
 
-        {/* ── How to Get to the Venue ── */}
+        {/* ── Getting Here ── */}
         {(mapSrc || event.venue_address) && (
           <section className="venue-directions-section">
             <span className="venue-directions-label">Getting Here</span>
-            <h2 className="venue-directions-heading">How to Get to the Venue</h2>
+            <h2 className="venue-directions-heading">Getting Here</h2>
 
             <div className="venue-directions-container">
               {mapSrc && (

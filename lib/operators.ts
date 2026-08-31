@@ -100,6 +100,27 @@ export function getOperator(slug: string): OperatorConfig {
 }
 
 /**
+ * Operators running the black-and-white "liquid glass" theme.
+ *
+ * The theme is a single opt-in attribute (`data-theme="liquid-glass"` on
+ * <body>, set in app/layout.tsx) that every rule in the theme's stylesheet
+ * hangs off. Listing operators here rather than hardcoding slugs in CSS
+ * means opting one in or out is a one-line change, and an operator that
+ * isn't ready keeps its own palette untouched.
+ *
+ * Both brands run it today. Unknown slugs (custom venue domains, which
+ * resolve to the venuecore operator) inherit venuecore's answer.
+ */
+const LIQUID_GLASS_OPERATORS = new Set(["west72", "venuecore"]);
+
+export function usesLiquidGlass(slug: string): boolean {
+  // Resolve first so an unknown slug — a venue's custom domain, which
+  // middleware maps to the default operator — gets the same answer as the
+  // operator actually serving it, rather than silently falling through.
+  return LIQUID_GLASS_OPERATORS.has(getOperator(slug).slug);
+}
+
+/**
  * Maps root hostnames to their operator slug.
  * Used by middleware to detect which operator is serving the request.
  */

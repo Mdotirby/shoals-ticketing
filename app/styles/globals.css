@@ -13631,15 +13631,17 @@ body:has(.lp-main) .site-footer {
 }
 
 /* ============================================================
-   WEST72 — LIQUID GLASS
+   LIQUID GLASS
    ============================================================
-   Black-and-white "liquid glass" system for west72ent.com:
-   translucent blurred panels floating over an ambient orb field,
-   white accents, Archivo throughout.
+   Black-and-white "liquid glass" system: translucent blurred panels
+   floating over an ambient orb field, white accents, Archivo throughout.
 
-   Scoped entirely to body[data-operator="west72"] so the VenueCore
-   brand (navy + gold) is untouched — same pattern as the operator
-   overrides at the top of this file.
+   Scoped to body[data-theme="liquid-glass"], an opt-in attribute set per
+   operator in app/layout.tsx, rather than to a single operator slug — both
+   west72ent.com and venuecore.live (including its venue subdomains) run
+   this theme. Keeping it an attribute rather than hardcoding operators
+   means a future operator opts in from the layout without touching CSS,
+   and it can be withheld from any surface not ready for it.
 
    This block SUPERSEDES the earlier "WEST72 — white/black buttons"
    PSD-derived pass for anything they both target. That pass squared
@@ -13651,7 +13653,7 @@ body:has(.lp-main) .site-footer {
    Spec: design/liquid-glass/LIQUID_GLASS_DESIGN_SYSTEM.md
    ============================================================ */
 
-body[data-operator="west72"] {
+body[data-theme="liquid-glass"] {
   --lg-ink:          #08080a;
   --lg-white:        #ffffff;
   --lg-sub:          rgba(255, 255, 255, 0.60);
@@ -13707,12 +13709,17 @@ body[data-operator="west72"] {
   --vc-shadow-gold:     0 4px 20px rgba(var(--vc-gold-rgb), 0.18);
   --vc-surface-active:  rgba(var(--vc-gold-rgb), 0.10);
   --vc-border-hover:    rgba(var(--vc-gold-rgb), 0.22);
+
+  /* Archivo everywhere. Set at the theme root rather than per selector so a
+     component that was never explicitly restyled still inherits it instead of
+     falling back to the old Urbanist/Bayon faces. */
+  font-family: var(--font-archivo), sans-serif;
 }
 
 /* ── Ambient background field ──────────────────────────────
    Rendered once by <BackgroundField /> in the root layout. Every
    .glass panel blurs THIS; without it the panels read as flat grey. */
-body[data-operator="west72"] .bg-field {
+body[data-theme="liquid-glass"] .bg-field {
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -13720,28 +13727,28 @@ body[data-operator="west72"] .bg-field {
   overflow: hidden;
   pointer-events: none;
 }
-body[data-operator="west72"] .orb {
+body[data-theme="liquid-glass"] .orb {
   position: absolute;
   border-radius: 50%;
   filter: blur(120px);
 }
-body[data-operator="west72"] .orb.one {
+body[data-theme="liquid-glass"] .orb.one {
   width: 900px; height: 900px; top: -260px; left: -100px;
   background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%);
 }
-body[data-operator="west72"] .orb.blue {
+body[data-theme="liquid-glass"] .orb.blue {
   width: 820px; height: 820px; top: 100px; right: -220px;
   background: radial-gradient(circle at 60% 40%, rgba(120, 150, 255, 0.28), rgba(120, 150, 255, 0) 70%);
 }
-body[data-operator="west72"] .orb.rose {
+body[data-theme="liquid-glass"] .orb.rose {
   width: 760px; height: 760px; bottom: -300px; left: 35%;
   background: radial-gradient(circle at 50% 50%, rgba(255, 140, 170, 0.20), rgba(255, 140, 170, 0) 70%);
 }
-body[data-operator="west72"] .orb.white {
+body[data-theme="liquid-glass"] .orb.white {
   width: 560px; height: 560px; bottom: 200px; right: 200px;
   background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
 }
-body[data-operator="west72"] .grain {
+body[data-theme="liquid-glass"] .grain {
   position: absolute;
   inset: 0;
   opacity: 0.035;
@@ -13749,16 +13756,16 @@ body[data-operator="west72"] .grain {
 }
 
 /* Content has to sit above the fixed orb field. */
-body[data-operator="west72"] .site-header,
-body[data-operator="west72"] .home-page,
-body[data-operator="west72"] main,
-body[data-operator="west72"] footer {
+body[data-theme="liquid-glass"] .site-header,
+body[data-theme="liquid-glass"] .home-page,
+body[data-theme="liquid-glass"] main,
+body[data-theme="liquid-glass"] footer {
   position: relative;
   z-index: 1;
 }
 
 /* ── Core glass surface ───────────────────────────────────── */
-body[data-operator="west72"] .glass {
+body[data-theme="liquid-glass"] .glass {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -13766,7 +13773,7 @@ body[data-operator="west72"] .glass {
   position: relative;
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .glass::before {
+body[data-theme="liquid-glass"] .glass::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -13777,7 +13784,7 @@ body[data-operator="west72"] .glass::before {
 
 /* Keep text legible where backdrop-filter isn't supported. */
 @supports not (backdrop-filter: blur(1px)) {
-  body[data-operator="west72"] .glass {
+  body[data-theme="liquid-glass"] .glass {
     background: rgba(20, 20, 22, 0.92);
   }
 }
@@ -13786,7 +13793,7 @@ body[data-operator="west72"] .glass::before {
    The header becomes a detached rounded pill floating over the
    content rather than a full-bleed bar. Markup and open/close
    state are untouched — this is geometry and colour only. */
-body[data-operator="west72"] .site-header {
+body[data-theme="liquid-glass"] .site-header {
   background: transparent;
   backdrop-filter: none;
   border-bottom: none;
@@ -13794,10 +13801,10 @@ body[data-operator="west72"] .site-header {
   padding: 20px clamp(12px, 3vw, 32px) 0;
   z-index: 50;
 }
-body[data-operator="west72"] .site-header.header-scrolled {
+body[data-theme="liquid-glass"] .site-header.header-scrolled {
   background: transparent;
 }
-body[data-operator="west72"] .header-inner {
+body[data-theme="liquid-glass"] .header-inner {
   width: min(100%, 1360px);
   margin: 0 auto;
   padding: 12px 14px 12px 26px;
@@ -13808,27 +13815,27 @@ body[data-operator="west72"] .header-inner {
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
 }
-body[data-operator="west72"] .header-right {
+body[data-theme="liquid-glass"] .header-right {
   display: flex;
   align-items: center;
   gap: 28px;
 }
-body[data-operator="west72"] .header-nav {
+body[data-theme="liquid-glass"] .header-nav {
   gap: 28px;
 }
-body[data-operator="west72"] .header-nav-link {
+body[data-theme="liquid-glass"] .header-nav-link {
   font-family: var(--font-archivo), sans-serif;
   font-size: 13.5px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.80);
   letter-spacing: 0;
 }
-body[data-operator="west72"] .header-nav-link:hover {
+body[data-theme="liquid-glass"] .header-nav-link:hover {
   color: var(--lg-white);
 }
 
 /* Header CTA — back to a white glass pill (the PSD pass squared it off). */
-body[data-operator="west72"] .header-cta {
+body[data-theme="liquid-glass"] .header-cta {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
   color: #14120f;
@@ -13841,7 +13848,7 @@ body[data-operator="west72"] .header-cta {
   padding: 13px 24px;
   letter-spacing: 0;
 }
-body[data-operator="west72"] .header-cta:hover {
+body[data-theme="liquid-glass"] .header-cta:hover {
   background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
 }
 
@@ -13849,7 +13856,7 @@ body[data-operator="west72"] .header-cta:hover {
    Skin only: the autoplay timer, the mobile drag/swipe handlers and
    the West-72-host filter query in FeaturedEventsCarousel.tsx are
    untouched. */
-body[data-operator="west72"] .home-hero.featured-carousel {
+body[data-theme="liquid-glass"] .home-hero.featured-carousel {
   margin: 14px clamp(12px, 3vw, 32px) 0;
   width: auto;
   min-height: min(72vh, 660px);
@@ -13858,7 +13865,7 @@ body[data-operator="west72"] .home-hero.featured-carousel {
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
 }
-body[data-operator="west72"] .featured-carousel .home-hero-overlay {
+body[data-theme="liquid-glass"] .featured-carousel .home-hero-overlay {
   background: linear-gradient(
     180deg,
     rgba(0, 0, 0, 0.45) 0%,
@@ -13867,13 +13874,13 @@ body[data-operator="west72"] .featured-carousel .home-hero-overlay {
     rgba(0, 0, 0, 0.92) 100%
   );
 }
-body[data-operator="west72"] .featured-carousel .home-hero-content {
+body[data-theme="liquid-glass"] .featured-carousel .home-hero-content {
   padding: 0 clamp(22px, 3.5vw, 52px) clamp(58px, 6vw, 74px);
   gap: 0;
 }
 
 /* "UP NEXT · SEP 10, 2026" eyebrow */
-body[data-operator="west72"] .featured-carousel-eyebrow {
+body[data-theme="liquid-glass"] .featured-carousel-eyebrow {
   font-family: var(--font-archivo), sans-serif;
   font-size: 11px;
   font-weight: 800;
@@ -13882,7 +13889,7 @@ body[data-operator="west72"] .featured-carousel-eyebrow {
   color: rgba(255, 255, 255, 0.72);
   margin: 0 0 14px;
 }
-body[data-operator="west72"] .featured-carousel-title {
+body[data-theme="liquid-glass"] .featured-carousel-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 900;
   font-size: clamp(38px, 6vw, 76px);
@@ -13892,7 +13899,7 @@ body[data-operator="west72"] .featured-carousel-title {
   margin: 0 0 16px;
   max-width: 14ch;
 }
-body[data-operator="west72"] .featured-carousel-subtitle {
+body[data-theme="liquid-glass"] .featured-carousel-subtitle {
   font-family: var(--font-archivo), sans-serif;
   font-size: clamp(15px, 1.5vw, 19px);
   font-weight: 700;
@@ -13900,25 +13907,25 @@ body[data-operator="west72"] .featured-carousel-subtitle {
   margin: 0 0 6px;
 }
 /* Venue · time line under the subtitle */
-body[data-operator="west72"] .featured-carousel-where {
+body[data-theme="liquid-glass"] .featured-carousel-where {
   font-family: var(--font-archivo), sans-serif;
   font-size: clamp(13px, 1.2vw, 15px);
   font-weight: 500;
   color: var(--lg-sub);
   margin: 0 0 26px;
 }
-body[data-operator="west72"] .featured-carousel-date {
+body[data-theme="liquid-glass"] .featured-carousel-date {
   display: none; /* folded into the eyebrow + .featured-carousel-where */
 }
 
 /* Hero CTA row — primary white glass + outline "Preview Artist" */
-body[data-operator="west72"] .featured-carousel-actions {
+body[data-theme="liquid-glass"] .featured-carousel-actions {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
 }
-body[data-operator="west72"] .home-hero-cta {
+body[data-theme="liquid-glass"] .home-hero-cta {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
   color: #14120f;
@@ -13931,11 +13938,11 @@ body[data-operator="west72"] .home-hero-cta {
   padding: 16px 34px;
   letter-spacing: 0;
 }
-body[data-operator="west72"] .home-hero-cta:hover {
+body[data-theme="liquid-glass"] .home-hero-cta:hover {
   background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
   box-shadow: 0 10px 34px rgba(255, 255, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.40);
 }
-body[data-operator="west72"] .featured-carousel-preview {
+body[data-theme="liquid-glass"] .featured-carousel-preview {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -13953,7 +13960,7 @@ body[data-operator="west72"] .featured-carousel-preview {
   cursor: pointer;
   transition: background 180ms ease, border-color 180ms ease;
 }
-body[data-operator="west72"] .featured-carousel-preview:hover {
+body[data-theme="liquid-glass"] .featured-carousel-preview:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.32);
 }
@@ -13961,7 +13968,7 @@ body[data-operator="west72"] .featured-carousel-preview:hover {
 /* Slide position indicator — read-only. It reflects the carousel's
    existing `index`; there are no click handlers on it, so autoplay and
    swipe remain the only ways the slide changes. */
-body[data-operator="west72"] .hero-dots {
+body[data-theme="liquid-glass"] .hero-dots {
   position: absolute;
   z-index: 3;
   left: 0;
@@ -13972,19 +13979,19 @@ body[data-operator="west72"] .hero-dots {
   gap: 8px;
   pointer-events: none;
 }
-body[data-operator="west72"] .hero-dots .dot {
+body[data-theme="liquid-glass"] .hero-dots .dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.35);
   transition: width 220ms ease, background 220ms ease;
 }
-body[data-operator="west72"] .hero-dots .dot.active {
+body[data-theme="liquid-glass"] .hero-dots .dot.active {
   width: 22px;
   border-radius: 5px;
   background: #fff;
 }
-body[data-operator="west72"] .hero-swipe-hint {
+body[data-theme="liquid-glass"] .hero-swipe-hint {
   position: absolute;
   z-index: 3;
   top: 28px;
@@ -14004,35 +14011,35 @@ body[data-operator="west72"] .hero-swipe-hint {
 /* ── Upcoming Shows ────────────────────────────────────────
    The search field and the Proud Partners strip are kept (they're
    live features, just absent from the mockup) and restyled as glass. */
-body[data-operator="west72"] .home-gold-separator {
+body[data-theme="liquid-glass"] .home-gold-separator {
   display: none; /* the glass hero already separates itself from the strip */
 }
-body[data-operator="west72"] .home-upcoming-section {
+body[data-theme="liquid-glass"] .home-upcoming-section {
   padding: clamp(48px, 6vw, 78px) clamp(12px, 3vw, 32px) clamp(30px, 4vw, 48px);
   max-width: 1424px;
   margin: 0 auto;
 }
-body[data-operator="west72"] .events-eyebrow-glow,
-body[data-operator="west72"] .events-eyebrow-accent-left,
-body[data-operator="west72"] .events-eyebrow-accent-right {
+body[data-theme="liquid-glass"] .events-eyebrow-glow,
+body[data-theme="liquid-glass"] .events-eyebrow-accent-left,
+body[data-theme="liquid-glass"] .events-eyebrow-accent-right {
   display: none;
 }
-body[data-operator="west72"] .events-eyebrow {
+body[data-theme="liquid-glass"] .events-eyebrow {
   justify-content: flex-start;
   margin-bottom: 6px;
 }
-body[data-operator="west72"] .events-eyebrow-text {
+body[data-theme="liquid-glass"] .events-eyebrow-text {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .home-upcoming-header {
+body[data-theme="liquid-glass"] .home-upcoming-header {
   text-align: left;
   max-width: none;
 }
-body[data-operator="west72"] .home-upcoming-heading {
+body[data-theme="liquid-glass"] .home-upcoming-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: clamp(28px, 3.4vw, 40px);
@@ -14040,7 +14047,7 @@ body[data-operator="west72"] .home-upcoming-heading {
   text-align: left;
   margin: 0 0 22px;
 }
-body[data-operator="west72"] .home-events-search {
+body[data-theme="liquid-glass"] .home-events-search {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14048,41 +14055,41 @@ body[data-operator="west72"] .home-events-search {
   margin: 0 0 30px;
   max-width: 420px;
 }
-body[data-operator="west72"] .home-events-search:focus-within {
+body[data-theme="liquid-glass"] .home-events-search:focus-within {
   border-color: rgba(255, 255, 255, 0.34);
   background: rgba(255, 255, 255, 0.10);
 }
-body[data-operator="west72"] .home-events-search-input {
+body[data-theme="liquid-glass"] .home-events-search-input {
   font-family: var(--font-archivo), sans-serif;
   font-size: 14px;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .home-events-search-input::placeholder {
+body[data-theme="liquid-glass"] .home-events-search-input::placeholder {
   color: rgba(255, 255, 255, 0.35);
 }
 
 /* 4-up grid of 4:3 cards on desktop, full-width 16:9 stack on mobile —
    replaces the horizontal scroll strip. CSS only; the JSX still maps the
    same filtered event list. */
-body[data-operator="west72"] .home-events-carousel {
+body[data-theme="liquid-glass"] .home-events-carousel {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   overflow: visible;
   padding: 0;
 }
-body[data-operator="west72"] .home-event-card-wrapper {
+body[data-theme="liquid-glass"] .home-event-card-wrapper {
   width: auto;
   flex-shrink: 1;
 }
-body[data-operator="west72"] .home-events-carousel .event-card,
-body[data-operator="west72"] .home-event-card-wrapper .event-card {
+body[data-theme="liquid-glass"] .home-events-carousel .event-card,
+body[data-theme="liquid-glass"] .home-event-card-wrapper .event-card {
   width: 100%;
   height: auto;
   aspect-ratio: 4 / 3;
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .home-events-loading {
+body[data-theme="liquid-glass"] .home-events-loading {
   grid-column: 1 / -1;
   color: var(--lg-sub);
   font-family: var(--font-archivo), sans-serif;
@@ -14091,7 +14098,7 @@ body[data-operator="west72"] .home-events-loading {
 /* ── Event card (shared with /events and the success cross-sell) ──
    Photo fills the card, venue tag pinned top-left, title + pills over a
    scrim at the bottom. */
-body[data-operator="west72"] .event-card {
+body[data-theme="liquid-glass"] .event-card {
   padding: 0;
   border-radius: var(--lg-radius-lg);
   box-shadow: var(--lg-glass-shadow);
@@ -14099,7 +14106,7 @@ body[data-operator="west72"] .event-card {
   background-position: center;
   justify-content: flex-end;
 }
-body[data-operator="west72"] .event-card::after {
+body[data-theme="liquid-glass"] .event-card::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -14107,10 +14114,10 @@ body[data-operator="west72"] .event-card::after {
   pointer-events: none;
   background: linear-gradient(180deg, transparent 38%, rgba(0, 0, 0, 0.55) 68%, rgba(0, 0, 0, 0.92) 100%);
 }
-body[data-operator="west72"] .event-card-glow {
+body[data-theme="liquid-glass"] .event-card-glow {
   display: none;
 }
-body[data-operator="west72"] .event-venue-badge {
+body[data-theme="liquid-glass"] .event-venue-badge {
   position: absolute;
   top: 14px;
   left: 14px;
@@ -14121,19 +14128,19 @@ body[data-operator="west72"] .event-venue-badge {
   border-radius: 10px;
   padding: 6px 12px;
 }
-body[data-operator="west72"] .event-venue-badge .badge-text {
+body[data-theme="liquid-glass"] .event-venue-badge .badge-text {
   font-family: var(--font-archivo), sans-serif;
   font-size: 10.5px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.85);
 }
-body[data-operator="west72"] .event-main-content {
+body[data-theme="liquid-glass"] .event-main-content {
   position: relative;
   z-index: 2;
   width: 100%;
   padding: 20px;
 }
-body[data-operator="west72"] .event-card-title {
+body[data-theme="liquid-glass"] .event-card-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 19px;
@@ -14141,18 +14148,18 @@ body[data-operator="west72"] .event-card-title {
   margin: 0 0 10px;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .event-meta-badges {
+body[data-theme="liquid-glass"] .event-meta-badges {
   display: flex;
   flex-wrap: nowrap;
   gap: 6px;
 }
-body[data-operator="west72"] .event-badge {
+body[data-theme="liquid-glass"] .event-badge {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   padding: 6px 14px;
 }
-body[data-operator="west72"] .event-badge .badge-text {
+body[data-theme="liquid-glass"] .event-badge .badge-text {
   font-family: var(--font-archivo), sans-serif;
   font-size: 11.5px;
   font-weight: 700;
@@ -14160,34 +14167,34 @@ body[data-operator="west72"] .event-badge .badge-text {
   white-space: nowrap;
 }
 /* Free events get the solid white "strong" chip. */
-body[data-operator="west72"] .event-price-badge.event-price-badge--free {
+body[data-theme="liquid-glass"] .event-price-badge.event-price-badge--free {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   border-color: rgba(255, 255, 255, 0.50);
 }
-body[data-operator="west72"] .event-price-badge--free .badge-text {
+body[data-theme="liquid-glass"] .event-price-badge--free .badge-text {
   color: #14120f;
 }
 
 /* ── Proud Partners strip ──────────────────────────────────
    Kept from the live site (the mockup omits it); de-golded to neutral. */
-body[data-operator="west72"] .home-partners-strip {
+body[data-theme="liquid-glass"] .home-partners-strip {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-body[data-operator="west72"] .home-partners-label {
+body[data-theme="liquid-glass"] .home-partners-label {
   color: rgba(255, 255, 255, 0.50) !important;
   font-family: var(--font-archivo), sans-serif;
 }
-body[data-operator="west72"] .home-partners-link {
+body[data-theme="liquid-glass"] .home-partners-link {
   color: rgba(255, 255, 255, 0.40) !important;
   font-family: var(--font-archivo), sans-serif;
 }
-body[data-operator="west72"] .home-partners-fallback {
+body[data-theme="liquid-glass"] .home-partners-fallback {
   color: rgba(255, 255, 255, 0.85) !important;
 }
 
 /* ── "Get Rowdy" panel ─────────────────────────────────────
    A single centred glass panel rather than a full-bleed band. */
-body[data-operator="west72"] .home-cta-section {
+body[data-theme="liquid-glass"] .home-cta-section {
   max-width: 1320px;
   margin: clamp(28px, 4vw, 44px) auto;
   padding: clamp(52px, 6vw, 82px) clamp(24px, 4vw, 60px);
@@ -14198,17 +14205,17 @@ body[data-operator="west72"] .home-cta-section {
   box-shadow: var(--lg-glass-shadow);
   overflow: hidden;
 }
-body[data-operator="west72"] .home-cta-glow {
+body[data-theme="liquid-glass"] .home-cta-glow {
   display: none;
 }
-body[data-operator="west72"] .home-cta-title {
+body[data-theme="liquid-glass"] .home-cta-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: clamp(30px, 3.6vw, 44px);
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .home-cta-subtitle {
+body[data-theme="liquid-glass"] .home-cta-subtitle {
   font-family: var(--font-archivo), sans-serif;
   font-size: clamp(14px, 1.4vw, 16px);
   line-height: 1.65;
@@ -14217,7 +14224,7 @@ body[data-operator="west72"] .home-cta-subtitle {
   margin-left: auto;
   margin-right: auto;
 }
-body[data-operator="west72"] .home-cta-button {
+body[data-theme="liquid-glass"] .home-cta-button {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   backdrop-filter: blur(20px);
   color: #14120f;
@@ -14230,7 +14237,7 @@ body[data-operator="west72"] .home-cta-button {
   letter-spacing: 0;
   padding: 16px 34px;
 }
-body[data-operator="west72"] .home-cta-button:hover {
+body[data-theme="liquid-glass"] .home-cta-button:hover {
   background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
   border: 1px solid rgba(255, 255, 255, 0.50);
   transform: none;
@@ -14238,7 +14245,7 @@ body[data-operator="west72"] .home-cta-button:hover {
 
 /* ── Friends With Benefits SMS opt-in ──────────────────────
    Photo band becomes a glass panel: copy left, CTA + fine print right. */
-body[data-operator="west72"] .west72-fwb-hero {
+body[data-theme="liquid-glass"] .west72-fwb-hero {
   background-image: none !important;
   max-width: 1320px;
   margin: 0 auto clamp(40px, 5vw, 64px);
@@ -14246,10 +14253,10 @@ body[data-operator="west72"] .west72-fwb-hero {
   min-height: 0;
   height: auto;
 }
-body[data-operator="west72"] .west72-fwb-overlay {
+body[data-theme="liquid-glass"] .west72-fwb-overlay {
   display: none;
 }
-body[data-operator="west72"] .west72-fwb-hero .newsletter-section {
+body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-section {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14257,17 +14264,17 @@ body[data-operator="west72"] .west72-fwb-hero .newsletter-section {
   border-radius: var(--lg-radius-lg);
   padding: clamp(30px, 4vw, 44px);
 }
-body[data-operator="west72"] .newsletter-input {
+body[data-theme="liquid-glass"] .newsletter-input {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .newsletter-input::placeholder {
+body[data-theme="liquid-glass"] .newsletter-input::placeholder {
   color: rgba(255, 255, 255, 0.30);
 }
-body[data-operator="west72"] .newsletter-submit {
+body[data-theme="liquid-glass"] .newsletter-submit {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -14285,75 +14292,75 @@ body[data-operator="west72"] .newsletter-submit {
    its type; the swipe hint is redundant where swipe is the primary
    gesture, so it's hidden. */
 @media (max-width: 900px) {
-  body[data-operator="west72"] .home-events-carousel {
+  body[data-theme="liquid-glass"] .home-events-carousel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 600px) {
-  body[data-operator="west72"] .site-header {
+  body[data-theme="liquid-glass"] .site-header {
     padding: 12px 12px 0;
   }
-  body[data-operator="west72"] .header-inner {
+  body[data-theme="liquid-glass"] .header-inner {
     padding: 10px 12px;
   }
-  body[data-operator="west72"] .home-hero.featured-carousel {
+  body[data-theme="liquid-glass"] .home-hero.featured-carousel {
     margin: 10px 12px 0;
     min-height: min(64vh, 520px);
   }
-  body[data-operator="west72"] .featured-carousel .home-hero-content {
+  body[data-theme="liquid-glass"] .featured-carousel .home-hero-content {
     padding: 0 20px 46px;
   }
-  body[data-operator="west72"] .featured-carousel-actions {
+  body[data-theme="liquid-glass"] .featured-carousel-actions {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
   }
-  body[data-operator="west72"] .featured-carousel-actions .home-hero-cta,
-  body[data-operator="west72"] .featured-carousel-preview {
+  body[data-theme="liquid-glass"] .featured-carousel-actions .home-hero-cta,
+  body[data-theme="liquid-glass"] .featured-carousel-preview {
     width: 100%;
     justify-content: center;
     font-size: 14px;
     padding: 15px 24px;
   }
-  body[data-operator="west72"] .hero-swipe-hint {
+  body[data-theme="liquid-glass"] .hero-swipe-hint {
     display: none;
   }
-  body[data-operator="west72"] .hero-dots {
+  body[data-theme="liquid-glass"] .hero-dots {
     bottom: 14px;
   }
-  body[data-operator="west72"] .home-events-carousel {
+  body[data-theme="liquid-glass"] .home-events-carousel {
     grid-template-columns: minmax(0, 1fr);
   }
-  body[data-operator="west72"] .home-events-carousel .event-card,
-  body[data-operator="west72"] .home-event-card-wrapper .event-card {
+  body[data-theme="liquid-glass"] .home-events-carousel .event-card,
+  body[data-theme="liquid-glass"] .home-event-card-wrapper .event-card {
     aspect-ratio: 16 / 9;
   }
-  body[data-operator="west72"] .home-events-search {
+  body[data-theme="liquid-glass"] .home-events-search {
     max-width: none;
   }
 }
 
 /* Pill row must survive the narrowest card without clipping: the price pill
    holds its size, the date/time pill absorbs the squeeze and ellipsises. */
-body[data-operator="west72"] .event-meta-badges {
+body[data-theme="liquid-glass"] .event-meta-badges {
   min-width: 0;
   max-width: 100%;
 }
-body[data-operator="west72"] .event-price-badge {
+body[data-theme="liquid-glass"] .event-price-badge {
   flex: 0 0 auto;
 }
-body[data-operator="west72"] .event-date-badge {
+body[data-theme="liquid-glass"] .event-date-badge {
   min-width: 0;
   flex: 0 1 auto;
   overflow: hidden;
 }
-body[data-operator="west72"] .event-date-badge .badge-text {
+body[data-theme="liquid-glass"] .event-date-badge .badge-text {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 /* Two lines max, so a long bill never pushes the pills off the card. */
-body[data-operator="west72"] .event-card-title {
+body[data-theme="liquid-glass"] .event-card-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -14365,51 +14372,51 @@ body[data-operator="west72"] .event-card-title {
    name/phone fields are kept, since they're what actually drives the SMS
    opt-in; they just move into the right-hand column. */
 @media (min-width: 901px) {
-  body[data-operator="west72"] .west72-fwb-hero .newsletter-content {
+  body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-content {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
     align-items: center;
     gap: 44px;
     max-width: none;
   }
-  body[data-operator="west72"] .west72-fwb-hero .newsletter-header {
+  body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-header {
     text-align: left;
     margin: 0;
   }
-  body[data-operator="west72"] .west72-fwb-hero .newsletter-form {
+  body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-form {
     margin: 0;
     max-width: none;
   }
-  body[data-operator="west72"] .west72-fwb-hero .newsletter-disclaimer,
-  body[data-operator="west72"] .west72-fwb-hero .newsletter-privacy-link {
+  body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-disclaimer,
+  body[data-theme="liquid-glass"] .west72-fwb-hero .newsletter-privacy-link {
     text-align: right;
   }
 }
-body[data-operator="west72"] .newsletter-glow {
+body[data-theme="liquid-glass"] .newsletter-glow {
   display: none;
 }
-body[data-operator="west72"] .newsletter-eyebrow {
+body[data-theme="liquid-glass"] .newsletter-eyebrow {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .newsletter-title {
+body[data-theme="liquid-glass"] .newsletter-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: clamp(24px, 2.6vw, 32px);
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .newsletter-subtitle {
+body[data-theme="liquid-glass"] .newsletter-subtitle {
   font-family: var(--font-archivo), sans-serif;
   font-size: 14px;
   line-height: 1.6;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .newsletter-disclaimer,
-body[data-operator="west72"] .newsletter-privacy-link {
+body[data-theme="liquid-glass"] .newsletter-disclaimer,
+body[data-theme="liquid-glass"] .newsletter-privacy-link {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub-dim);
 }
@@ -14417,7 +14424,7 @@ body[data-operator="west72"] .newsletter-privacy-link {
 /* The nav pill sits over the brightest part of the orb field, so it gets a
    dark base under the white glass gradient — without it, white logo/nav text
    loses contrast at narrow widths where the pill covers the orb's hot centre. */
-body[data-operator="west72"] .header-inner {
+body[data-theme="liquid-glass"] .header-inner {
   background:
     linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2)),
     rgba(10, 10, 12, 0.55);
@@ -14435,10 +14442,10 @@ body[data-operator="west72"] .header-inner {
    ============================================================ */
 @media (max-width: 768px) {
   /* Collapsed header: no CTA — it moves inside the open menu. */
-  body[data-operator="west72"] .header-right {
+  body[data-theme="liquid-glass"] .header-right {
     display: none;
   }
-  body[data-operator="west72"] .header-inner {
+  body[data-theme="liquid-glass"] .header-inner {
     position: relative;
     display: flex;
     align-items: center;
@@ -14448,10 +14455,10 @@ body[data-operator="west72"] .header-inner {
 
   /* Square "72" icon mark, centred on the viewport rather than between
      the surrounding controls. */
-  body[data-operator="west72"] .header-logo-img--wordmark {
+  body[data-theme="liquid-glass"] .header-logo-img--wordmark {
     display: none;
   }
-  body[data-operator="west72"] .header-logo-img--icon {
+  body[data-theme="liquid-glass"] .header-logo-img--icon {
     display: block;
     width: 36px !important;
     height: auto !important;
@@ -14460,7 +14467,7 @@ body[data-operator="west72"] .header-inner {
   /* The nav pill sits right over the orb field's brightest point on a phone,
      where a thin white mark would otherwise wash out — so the mobile pill
      carries a deeper base than the desktop one. */
-  body[data-operator="west72"] .header-inner {
+  body[data-theme="liquid-glass"] .header-inner {
     background:
       linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2)),
       rgba(8, 8, 10, 0.82);
@@ -14471,7 +14478,7 @@ body[data-operator="west72"] .header-inner {
      flings the three bars onto the top and bottom edges. Centre the stack and
      give it an explicit gap so the icon sits inside the circle with even
      breathing room on all sides. */
-  body[data-operator="west72"] .hamburger {
+  body[data-theme="liquid-glass"] .hamburger {
     display: flex;
     width: 38px;
     height: 38px;
@@ -14487,7 +14494,7 @@ body[data-operator="west72"] .header-inner {
     flex-shrink: 0;
     z-index: 2;
   }
-  body[data-operator="west72"] .hamburger-bar {
+  body[data-theme="liquid-glass"] .hamburger-bar {
     width: 16px;
     height: 2px;
     background: #fff;
@@ -14496,11 +14503,11 @@ body[data-operator="west72"] .header-inner {
   /* Bar centres sit (height + gap) = 7px apart, so 7px is what collapses the
      stack into a centred X. The shared rules translate by 11px, which is
      correct for the 32x24 box they were written for, not for this one. */
-  body[data-operator="west72"] .hamburger-bar.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-  body[data-operator="west72"] .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  body[data-theme="liquid-glass"] .hamburger-bar.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  body[data-theme="liquid-glass"] .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
   /* Dropdown sheet, not a side drawer. */
-  body[data-operator="west72"] .mobile-nav-drawer {
+  body[data-theme="liquid-glass"] .mobile-nav-drawer {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -14530,13 +14537,13 @@ body[data-operator="west72"] .header-inner {
     box-shadow: var(--lg-glass-shadow);
     z-index: 60;
   }
-  body[data-operator="west72"] .mobile-nav-drawer.open {
+  body[data-theme="liquid-glass"] .mobile-nav-drawer.open {
     transform: translateY(0);
     opacity: 1;
     pointer-events: auto;
     visibility: visible;
   }
-  body[data-operator="west72"] .mobile-nav-link {
+  body[data-theme="liquid-glass"] .mobile-nav-link {
     display: flex;
     align-items: center;
     padding: 15px 14px;
@@ -14549,12 +14556,12 @@ body[data-operator="west72"] .header-inner {
     text-transform: none;
     letter-spacing: 0;
   }
-  body[data-operator="west72"] .mobile-nav-divider {
+  body[data-theme="liquid-glass"] .mobile-nav-divider {
     height: 1px;
     background: rgba(255, 255, 255, 0.10);
     margin: 6px 4px;
   }
-  body[data-operator="west72"] .mobile-nav-cta {
+  body[data-theme="liquid-glass"] .mobile-nav-cta {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -14571,7 +14578,7 @@ body[data-operator="west72"] .header-inner {
   }
 
   /* Scrim dims the page behind the open sheet. */
-  body[data-operator="west72"] .mobile-nav-backdrop {
+  body[data-theme="liquid-glass"] .mobile-nav-backdrop {
     display: block;
     position: fixed;
     inset: 0;
@@ -14583,13 +14590,13 @@ body[data-operator="west72"] .header-inner {
     transition: opacity 200ms ease, visibility 200ms;
     z-index: 49;
   }
-  body[data-operator="west72"] .mobile-nav-backdrop.open {
+  body[data-theme="liquid-glass"] .mobile-nav-backdrop.open {
     opacity: 1;
     pointer-events: auto;
     visibility: visible;
   }
   /* Header stays above the scrim so the toggle can close the menu. */
-  body[data-operator="west72"] .site-header {
+  body[data-theme="liquid-glass"] .site-header {
     z-index: 61;
   }
 }
@@ -14599,39 +14606,39 @@ body[data-operator="west72"] .header-inner {
    type steps down, the vertical rhythm tightens, and the two CTAs share
    one row — leaving noticeably more of the photo visible. */
 @media (max-width: 600px) {
-  body[data-operator="west72"] .featured-carousel .home-hero-content {
+  body[data-theme="liquid-glass"] .featured-carousel .home-hero-content {
     padding: 0 18px 34px;
   }
-  body[data-operator="west72"] .featured-carousel-eyebrow {
+  body[data-theme="liquid-glass"] .featured-carousel-eyebrow {
     font-size: 9.5px;
     letter-spacing: 0.14em;
     margin-bottom: 7px;
   }
-  body[data-operator="west72"] .featured-carousel-title {
+  body[data-theme="liquid-glass"] .featured-carousel-title {
     font-size: clamp(26px, 8.2vw, 34px);
     line-height: 1.0;
     margin-bottom: 8px;
     max-width: 100%;
   }
-  body[data-operator="west72"] .featured-carousel-subtitle {
+  body[data-theme="liquid-glass"] .featured-carousel-subtitle {
     font-size: 13px;
     margin-bottom: 3px;
   }
-  body[data-operator="west72"] .featured-carousel-where {
+  body[data-theme="liquid-glass"] .featured-carousel-where {
     font-size: 11.5px;
     margin-bottom: 14px;
   }
 
   /* Two CTAs, one row, one line each. */
-  body[data-operator="west72"] .featured-carousel-actions {
+  body[data-theme="liquid-glass"] .featured-carousel-actions {
     flex-direction: row;
     align-items: center;
     flex-wrap: nowrap;
     gap: 8px;
     width: 100%;
   }
-  body[data-operator="west72"] .featured-carousel-actions .home-hero-cta,
-  body[data-operator="west72"] .featured-carousel-preview {
+  body[data-theme="liquid-glass"] .featured-carousel-actions .home-hero-cta,
+  body[data-theme="liquid-glass"] .featured-carousel-preview {
     flex: 1 1 0;
     min-width: 0;
     width: auto;
@@ -14640,44 +14647,44 @@ body[data-operator="west72"] .header-inner {
     font-size: 13px;
     padding: 13px 10px;
   }
-  body[data-operator="west72"] .featured-carousel-preview svg {
+  body[data-theme="liquid-glass"] .featured-carousel-preview svg {
     flex-shrink: 0;
   }
 
   /* Upcoming Shows stays two-up on phones rather than one giant card
      per row, so the strip reads as a grid instead of an endless scroll. */
-  body[data-operator="west72"] .home-events-carousel {
+  body[data-theme="liquid-glass"] .home-events-carousel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
-  body[data-operator="west72"] .home-events-carousel .event-card,
-  body[data-operator="west72"] .home-event-card-wrapper .event-card {
+  body[data-theme="liquid-glass"] .home-events-carousel .event-card,
+  body[data-theme="liquid-glass"] .home-event-card-wrapper .event-card {
     aspect-ratio: 3 / 4;
   }
   /* Denser card furniture to suit the narrower column. */
-  body[data-operator="west72"] .event-main-content {
+  body[data-theme="liquid-glass"] .event-main-content {
     padding: 13px;
   }
-  body[data-operator="west72"] .event-card-title {
+  body[data-theme="liquid-glass"] .event-card-title {
     font-size: 14.5px;
     margin-bottom: 7px;
   }
-  body[data-operator="west72"] .event-meta-badges {
+  body[data-theme="liquid-glass"] .event-meta-badges {
     flex-wrap: wrap;
     gap: 5px;
   }
-  body[data-operator="west72"] .event-badge {
+  body[data-theme="liquid-glass"] .event-badge {
     padding: 5px 10px;
   }
-  body[data-operator="west72"] .event-badge .badge-text {
+  body[data-theme="liquid-glass"] .event-badge .badge-text {
     font-size: 10px;
   }
-  body[data-operator="west72"] .event-venue-badge {
+  body[data-theme="liquid-glass"] .event-venue-badge {
     top: 10px;
     left: 10px;
     padding: 5px 9px;
   }
-  body[data-operator="west72"] .event-venue-badge .badge-text {
+  body[data-theme="liquid-glass"] .event-venue-badge .badge-text {
     font-size: 9px;
   }
 }
@@ -14689,47 +14696,47 @@ body[data-operator="west72"] .header-inner {
    ============================================================ */
 
 /* ── Footer (shared) ───────────────────────────────────────── */
-body[data-operator="west72"] .site-footer {
+body[data-theme="liquid-glass"] .site-footer {
   border-top: 1px solid rgba(255, 255, 255, 0.10);
   background: transparent;
 }
-body[data-operator="west72"] .footer-column-heading {
+body[data-theme="liquid-glass"] .footer-column-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.16em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .footer-link,
-body[data-operator="west72"] .footer-description,
-body[data-operator="west72"] .footer-copyright,
-body[data-operator="west72"] .footer-legal-link {
+body[data-theme="liquid-glass"] .footer-link,
+body[data-theme="liquid-glass"] .footer-description,
+body[data-theme="liquid-glass"] .footer-copyright,
+body[data-theme="liquid-glass"] .footer-legal-link {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .footer-link:hover,
-body[data-operator="west72"] .footer-legal-link:hover {
+body[data-theme="liquid-glass"] .footer-link:hover,
+body[data-theme="liquid-glass"] .footer-legal-link:hover {
   color: var(--lg-white);
 }
 
 /* ── Events listing ────────────────────────────────────────── */
-body[data-operator="west72"] .events-list-page {
+body[data-theme="liquid-glass"] .events-list-page {
   padding-top: clamp(30px, 4vw, 46px);
 }
-body[data-operator="west72"] .events-search-bar {
+body[data-theme="liquid-glass"] .events-search-bar {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   border-radius: 999px;
 }
-body[data-operator="west72"] .events-search-input {
+body[data-theme="liquid-glass"] .events-search-input {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .events-search-input::placeholder {
+body[data-theme="liquid-glass"] .events-search-input::placeholder {
   color: rgba(255, 255, 255, 0.35);
 }
-body[data-operator="west72"] .events-filter-select {
+body[data-theme="liquid-glass"] .events-filter-select {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14742,7 +14749,7 @@ body[data-operator="west72"] .events-filter-select {
 /* The listing card is a different component from the home EventCard:
    photo on top, body panel beneath. Restyled as glass rather than
    restructured, so its markup and CTA behaviour are unchanged. */
-body[data-operator="west72"] .events-grid-card {
+body[data-theme="liquid-glass"] .events-grid-card {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14750,20 +14757,20 @@ body[data-operator="west72"] .events-grid-card {
   box-shadow: var(--lg-glass-shadow);
   overflow: hidden;
 }
-body[data-operator="west72"] .event-card-body {
+body[data-theme="liquid-glass"] .event-card-body {
   padding: 20px;
 }
-body[data-operator="west72"] .event-card-title {
+body[data-theme="liquid-glass"] .event-card-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .event-card-meta {
+body[data-theme="liquid-glass"] .event-card-meta {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .event-card-price {
+body[data-theme="liquid-glass"] .event-card-price {
   background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
@@ -14772,7 +14779,7 @@ body[data-operator="west72"] .event-card-price {
   color: rgba(255, 255, 255, 0.85);
   padding: 6px 14px;
 }
-body[data-operator="west72"] .event-card-btn {
+body[data-theme="liquid-glass"] .event-card-btn {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -14782,16 +14789,16 @@ body[data-operator="west72"] .event-card-btn {
   font-weight: 700;
   letter-spacing: 0;
 }
-body[data-operator="west72"] .events-list-loading {
+body[data-theme="liquid-glass"] .events-list-loading {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
 
 /* ── About ─────────────────────────────────────────────────── */
-body[data-operator="west72"] .about-philosophy {
+body[data-theme="liquid-glass"] .about-philosophy {
   border-top: none;
 }
-body[data-operator="west72"] .about-philosophy-inner {
+body[data-theme="liquid-glass"] .about-philosophy-inner {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14799,18 +14806,18 @@ body[data-operator="west72"] .about-philosophy-inner {
   border-radius: var(--lg-radius-lg);
   padding: clamp(30px, 4.5vw, 60px);
 }
-body[data-operator="west72"] .about-label-line {
+body[data-theme="liquid-glass"] .about-label-line {
   display: none; /* the eyebrow rules read as leftover chrome in glass */
 }
-body[data-operator="west72"] .about-label-text {
+body[data-theme="liquid-glass"] .about-label-text {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .about-philosophy-title,
-body[data-operator="west72"] .about-why-us-title {
+body[data-theme="liquid-glass"] .about-philosophy-title,
+body[data-theme="liquid-glass"] .about-why-us-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -14820,19 +14827,19 @@ body[data-operator="west72"] .about-why-us-title {
    is carried by weight and pure white against the muted body copy. It also
    has to inherit the heading's Archivo — it carried its own condensed
    display face, which left the headline set in two fonts mid-sentence. */
-body[data-operator="west72"] .about-gold-text {
+body[data-theme="liquid-glass"] .about-gold-text {
   color: var(--lg-white);
   font-family: inherit;
   font-weight: inherit;
   letter-spacing: inherit;
 }
-body[data-operator="west72"] .about-philosophy-desc,
-body[data-operator="west72"] .about-feature-desc {
+body[data-theme="liquid-glass"] .about-philosophy-desc,
+body[data-theme="liquid-glass"] .about-feature-desc {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
   line-height: 1.7;
 }
-body[data-operator="west72"] .about-cta-btn {
+body[data-theme="liquid-glass"] .about-cta-btn {
   background: rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(20px);
   color: var(--lg-white);
@@ -14842,11 +14849,11 @@ body[data-operator="west72"] .about-cta-btn {
   font-weight: 700;
   padding: 15px 30px;
 }
-body[data-operator="west72"] .about-cta-btn:hover {
+body[data-theme="liquid-glass"] .about-cta-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.32);
 }
-body[data-operator="west72"] .about-feature-card {
+body[data-theme="liquid-glass"] .about-feature-card {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14854,95 +14861,95 @@ body[data-operator="west72"] .about-feature-card {
   border-radius: var(--lg-radius-lg);
   padding: clamp(24px, 3vw, 34px);
 }
-body[data-operator="west72"] .about-feature-icon {
+body[data-theme="liquid-glass"] .about-feature-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
 }
-body[data-operator="west72"] .about-feature-title {
+body[data-theme="liquid-glass"] .about-feature-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
   color: var(--lg-white);
 }
 
 /* ── Contact ───────────────────────────────────────────────── */
-body[data-operator="west72"] .contact-hero {
+body[data-theme="liquid-glass"] .contact-hero {
   border-bottom: none;
 }
-body[data-operator="west72"] .contact-hero-title,
-body[data-operator="west72"] .contact-info-title,
-body[data-operator="west72"] .contact-form-heading {
+body[data-theme="liquid-glass"] .contact-hero-title,
+body[data-theme="liquid-glass"] .contact-info-title,
+body[data-theme="liquid-glass"] .contact-form-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .contact-info-label {
+body[data-theme="liquid-glass"] .contact-info-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .contact-form-card,
-body[data-operator="west72"] .contact-method,
-body[data-operator="west72"] .contact-social {
+body[data-theme="liquid-glass"] .contact-form-card,
+body[data-theme="liquid-glass"] .contact-method,
+body[data-theme="liquid-glass"] .contact-social {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .contact-form-card {
+body[data-theme="liquid-glass"] .contact-form-card {
   padding: clamp(26px, 3.5vw, 40px);
 }
-body[data-operator="west72"] .contact-field,
-body[data-operator="west72"] .contact-form input,
-body[data-operator="west72"] .contact-form textarea,
-body[data-operator="west72"] .contact-form select {
+body[data-theme="liquid-glass"] .contact-field,
+body[data-theme="liquid-glass"] .contact-form input,
+body[data-theme="liquid-glass"] .contact-form textarea,
+body[data-theme="liquid-glass"] .contact-form select {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .contact-form input::placeholder,
-body[data-operator="west72"] .contact-form textarea::placeholder {
+body[data-theme="liquid-glass"] .contact-form input::placeholder,
+body[data-theme="liquid-glass"] .contact-form textarea::placeholder {
   color: rgba(255, 255, 255, 0.30);
 }
-body[data-operator="west72"] .contact-form input:focus,
-body[data-operator="west72"] .contact-form textarea:focus,
-body[data-operator="west72"] .contact-form select:focus {
+body[data-theme="liquid-glass"] .contact-form input:focus,
+body[data-theme="liquid-glass"] .contact-form textarea:focus,
+body[data-theme="liquid-glass"] .contact-form select:focus {
   border-color: rgba(255, 255, 255, 0.40);
   outline: none;
 }
-body[data-operator="west72"] .contact-method-icon {
+body[data-theme="liquid-glass"] .contact-method-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .contact-method-title {
+body[data-theme="liquid-glass"] .contact-method-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .contact-method-desc {
+body[data-theme="liquid-glass"] .contact-method-desc {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .contact-method-link {
+body[data-theme="liquid-glass"] .contact-method-link {
   color: var(--lg-white);
   font-weight: 700;
 }
-body[data-operator="west72"] .contact-social-title {
+body[data-theme="liquid-glass"] .contact-social-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.16em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .contact-social-icons a {
+body[data-theme="liquid-glass"] .contact-social-icons a {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
@@ -14950,7 +14957,7 @@ body[data-operator="west72"] .contact-social-icons a {
 }
 
 /* ── Login ─────────────────────────────────────────────────── */
-body[data-operator="west72"] .login-section {
+body[data-theme="liquid-glass"] .login-section {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -14961,13 +14968,13 @@ body[data-operator="west72"] .login-section {
   margin-left: auto;
   margin-right: auto;
 }
-body[data-operator="west72"] .staff-login-hero-title {
+body[data-theme="liquid-glass"] .staff-login-hero-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .login-form-label {
+body[data-theme="liquid-glass"] .login-form-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
   font-size: 11px;
@@ -14975,18 +14982,18 @@ body[data-operator="west72"] .login-form-label {
   color: var(--lg-sub-dim);
   text-transform: uppercase;
 }
-body[data-operator="west72"] .login-form-input {
+body[data-theme="liquid-glass"] .login-form-input {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .login-form-input:focus {
+body[data-theme="liquid-glass"] .login-form-input:focus {
   border-color: rgba(255, 255, 255, 0.40);
   outline: none;
 }
-body[data-operator="west72"] .login-form-submit {
+body[data-theme="liquid-glass"] .login-form-submit {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -15001,44 +15008,44 @@ body[data-operator="west72"] .login-form-submit {
    Two-column layout is unchanged; this is surface, type and colour only.
    The Spotify preview, quantity stepper, promo code, seat map and FAQ
    accordion all keep their existing markup and behaviour. */
-body[data-operator="west72"] .ticket-selection-eyebrow {
+body[data-theme="liquid-glass"] .ticket-selection-eyebrow {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .ticket-hero-title,
-body[data-operator="west72"] .ticket-selection-heading {
+body[data-theme="liquid-glass"] .ticket-hero-title,
+body[data-theme="liquid-glass"] .ticket-selection-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .ticket-hero-image-wrap {
+body[data-theme="liquid-glass"] .ticket-hero-image-wrap {
   border-radius: var(--lg-radius-lg);
   overflow: hidden;
   border: 1px solid var(--lg-glass-border);
 }
-body[data-operator="west72"] .ticket-event-meta,
-body[data-operator="west72"] .ticket-event-hosted-by,
-body[data-operator="west72"] .ticket-card-desc-wrap {
+body[data-theme="liquid-glass"] .ticket-event-meta,
+body[data-theme="liquid-glass"] .ticket-event-hosted-by,
+body[data-theme="liquid-glass"] .ticket-card-desc-wrap {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .ticket-event-card,
-body[data-operator="west72"] .event-featured-artist-card,
-body[data-operator="west72"] .event-spotify-section,
-body[data-operator="west72"] .event-sponsors-section,
-body[data-operator="west72"] .faq-card-question,
-body[data-operator="west72"] .order-summary {
+body[data-theme="liquid-glass"] .ticket-event-card,
+body[data-theme="liquid-glass"] .event-featured-artist-card,
+body[data-theme="liquid-glass"] .event-spotify-section,
+body[data-theme="liquid-glass"] .event-sponsors-section,
+body[data-theme="liquid-glass"] .faq-card-question,
+body[data-theme="liquid-glass"] .order-summary {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .ticket-spotify-preview {
+body[data-theme="liquid-glass"] .ticket-spotify-preview {
   background: rgba(255, 255, 255, 0.07);
   border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 999px;
@@ -15046,78 +15053,78 @@ body[data-operator="west72"] .ticket-spotify-preview {
   font-weight: 700;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .ticket-qty-control {
+body[data-theme="liquid-glass"] .ticket-qty-control {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
 }
-body[data-operator="west72"] .ticket-qty-btn {
+body[data-theme="liquid-glass"] .ticket-qty-btn {
   color: var(--lg-white);
   background: transparent;
   border: none;
 }
-body[data-operator="west72"] .ticket-type-select,
-body[data-operator="west72"] .ticket-selector-row {
+body[data-theme="liquid-glass"] .ticket-type-select,
+body[data-theme="liquid-glass"] .ticket-selector-row {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .event-featured-artists-heading,
-body[data-operator="west72"] .event-sponsors-heading,
-body[data-operator="west72"] .faq-section-heading {
+body[data-theme="liquid-glass"] .event-featured-artists-heading,
+body[data-theme="liquid-glass"] .event-sponsors-heading,
+body[data-theme="liquid-glass"] .faq-section-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .faq-section-label,
-body[data-operator="west72"] .event-spotify-label {
+body[data-theme="liquid-glass"] .faq-section-label,
+body[data-theme="liquid-glass"] .event-spotify-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
 }
-body[data-operator="west72"] .faq-card-question-text {
+body[data-theme="liquid-glass"] .faq-card-question-text {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .faq-card-answer-text {
+body[data-theme="liquid-glass"] .faq-card-answer-text {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
   line-height: 1.7;
 }
 
 /* Order summary card */
-body[data-operator="west72"] .order-summary {
+body[data-theme="liquid-glass"] .order-summary {
   padding: 26px 28px;
 }
-body[data-operator="west72"] .order-summary-title {
+body[data-theme="liquid-glass"] .order-summary-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .order-summary-line-label,
-body[data-operator="west72"] .order-summary-line-sub,
-body[data-operator="west72"] .order-summary-terms,
-body[data-operator="west72"] .order-summary-empty-text,
-body[data-operator="west72"] .order-summary-trust {
+body[data-theme="liquid-glass"] .order-summary-line-label,
+body[data-theme="liquid-glass"] .order-summary-line-sub,
+body[data-theme="liquid-glass"] .order-summary-terms,
+body[data-theme="liquid-glass"] .order-summary-empty-text,
+body[data-theme="liquid-glass"] .order-summary-trust {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .order-summary-line-value,
-body[data-operator="west72"] .order-summary-total {
+body[data-theme="liquid-glass"] .order-summary-line-value,
+body[data-theme="liquid-glass"] .order-summary-total {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .order-summary-divider {
+body[data-theme="liquid-glass"] .order-summary-divider {
   background: rgba(255, 255, 255, 0.10);
 }
-body[data-operator="west72"] .order-summary-checkout-btn {
+body[data-theme="liquid-glass"] .order-summary-checkout-btn {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -15131,47 +15138,47 @@ body[data-operator="west72"] .order-summary-checkout-btn {
 /* ── Inline checkout ───────────────────────────────────────
    Form submission, Stripe fields and the Apple/Google Pay wallet button
    keep their existing wiring — this restyles the chrome around them. */
-body[data-operator="west72"] .ic-form-wrap {
+body[data-theme="liquid-glass"] .ic-form-wrap {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .ic-form-title {
+body[data-theme="liquid-glass"] .ic-form-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .ic-label,
-body[data-operator="west72"] .ic-optional,
-body[data-operator="west72"] .ic-terms,
-body[data-operator="west72"] .ic-order-line {
+body[data-theme="liquid-glass"] .ic-label,
+body[data-theme="liquid-glass"] .ic-optional,
+body[data-theme="liquid-glass"] .ic-terms,
+body[data-theme="liquid-glass"] .ic-order-line {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .ic-input,
-body[data-operator="west72"] .ic-stripe-field {
+body[data-theme="liquid-glass"] .ic-input,
+body[data-theme="liquid-glass"] .ic-stripe-field {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--lg-radius-sm);
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .ic-input::placeholder {
+body[data-theme="liquid-glass"] .ic-input::placeholder {
   color: rgba(255, 255, 255, 0.30);
 }
-body[data-operator="west72"] .ic-input:focus,
-body[data-operator="west72"] .ic-stripe-field:focus-within {
+body[data-theme="liquid-glass"] .ic-input:focus,
+body[data-theme="liquid-glass"] .ic-stripe-field:focus-within {
   border-color: rgba(255, 255, 255, 0.40);
   outline: none;
 }
-body[data-operator="west72"] .ic-order-total {
+body[data-theme="liquid-glass"] .ic-order-total {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .ic-pay-btn {
+body[data-theme="liquid-glass"] .ic-pay-btn {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -15181,14 +15188,14 @@ body[data-operator="west72"] .ic-pay-btn {
   font-weight: 700;
   letter-spacing: 0;
 }
-body[data-operator="west72"] .ic-back-btn {
+body[data-theme="liquid-glass"] .ic-back-btn {
   background: transparent;
   border: none;
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
   font-weight: 700;
 }
-body[data-operator="west72"] .ic-wallet-divider {
+body[data-theme="liquid-glass"] .ic-wallet-divider {
   font-family: var(--font-archivo), sans-serif;
   font-size: 10.5px;
   font-weight: 800;
@@ -15197,23 +15204,23 @@ body[data-operator="west72"] .ic-wallet-divider {
   text-transform: uppercase;
 }
 /* Checkout stepper: TICKETS · CHECKOUT · DONE */
-body[data-operator="west72"] .ic-progress-dot {
+body[data-theme="liquid-glass"] .ic-progress-dot {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
-body[data-operator="west72"] .ic-progress-step.active .ic-progress-dot,
-body[data-operator="west72"] .ic-progress-done .ic-progress-dot {
+body[data-theme="liquid-glass"] .ic-progress-step.active .ic-progress-dot,
+body[data-theme="liquid-glass"] .ic-progress-done .ic-progress-dot {
   background: #fff;
   border-color: rgba(255, 255, 255, 0.60);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
 }
-body[data-operator="west72"] .ic-progress-connector {
+body[data-theme="liquid-glass"] .ic-progress-connector {
   background: rgba(255, 255, 255, 0.15);
 }
-body[data-operator="west72"] .ic-progress-connector-done {
+body[data-theme="liquid-glass"] .ic-progress-connector-done {
   background: rgba(255, 255, 255, 0.50);
 }
-body[data-operator="west72"] .ic-progress-label {
+body[data-theme="liquid-glass"] .ic-progress-label {
   font-family: var(--font-archivo), sans-serif;
   font-size: 9.5px;
   font-weight: 800;
@@ -15221,7 +15228,7 @@ body[data-operator="west72"] .ic-progress-label {
   text-transform: uppercase;
   color: var(--lg-sub-dim);
 }
-body[data-operator="west72"] .ic-progress-step.active .ic-progress-label {
+body[data-theme="liquid-glass"] .ic-progress-step.active .ic-progress-label {
   color: var(--lg-white);
 }
 
@@ -15231,44 +15238,44 @@ body[data-operator="west72"] .ic-progress-step.active .ic-progress-label {
    after a Stripe Checkout Session redirect, the modal after an inline
    PaymentIntent. Both are restyled here so the confirmation looks the same
    whichever path the buyer took. Neither one's logic is touched. */
-body[data-operator="west72"] .checkout-success-card,
-body[data-operator="west72"] .checkout-success-section {
+body[data-theme="liquid-glass"] .checkout-success-card,
+body[data-theme="liquid-glass"] .checkout-success-section {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
 }
-body[data-operator="west72"] .checkout-success-icon {
+body[data-theme="liquid-glass"] .checkout-success-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--lg-white);
 }
-body[data-operator="west72"] .checkout-success-heading {
+body[data-theme="liquid-glass"] .checkout-success-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .checkout-success-text,
-body[data-operator="west72"] .checkout-success-meta,
-body[data-operator="west72"] .checkout-success-detail,
-body[data-operator="west72"] .checkout-success-fwb-desc,
-body[data-operator="west72"] .checkout-success-fwb-fine-print {
+body[data-theme="liquid-glass"] .checkout-success-text,
+body[data-theme="liquid-glass"] .checkout-success-meta,
+body[data-theme="liquid-glass"] .checkout-success-detail,
+body[data-theme="liquid-glass"] .checkout-success-fwb-desc,
+body[data-theme="liquid-glass"] .checkout-success-fwb-fine-print {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-operator="west72"] .checkout-success-event,
-body[data-operator="west72"] .checkout-success-fwb-heading {
+body[data-theme="liquid-glass"] .checkout-success-event,
+body[data-theme="liquid-glass"] .checkout-success-fwb-heading {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
 }
 /* Primary confirmation action — white glass pill. The outline variant is
    set inline on the secondary link, so it keeps its transparent fill. */
-body[data-operator="west72"] .checkout-success-btn,
-body[data-operator="west72"] .checkout-success-cta,
-body[data-operator="west72"] .checkout-success-fwb-btn {
+body[data-theme="liquid-glass"] .checkout-success-btn,
+body[data-theme="liquid-glass"] .checkout-success-cta,
+body[data-theme="liquid-glass"] .checkout-success-fwb-btn {
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
   color: #14120f;
   border: 1px solid rgba(255, 255, 255, 0.50);
@@ -15278,41 +15285,530 @@ body[data-operator="west72"] .checkout-success-fwb-btn {
   font-weight: 700;
   letter-spacing: 0;
 }
-body[data-operator="west72"] .checkout-success-fwb {
+body[data-theme="liquid-glass"] .checkout-success-fwb {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--lg-radius-md);
 }
-body[data-operator="west72"] .checkout-success-fwb-icon {
+body[data-theme="liquid-glass"] .checkout-success-fwb-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
 }
-body[data-operator="west72"] .checkout-success-fwb-decline {
+body[data-theme="liquid-glass"] .checkout-success-fwb-decline {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub-dim);
   background: transparent;
   border: none;
 }
-body[data-operator="west72"] .checkout-success-backdrop {
+body[data-theme="liquid-glass"] .checkout-success-backdrop {
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
 }
 
 /* "You May Also Like" and "Getting Here" headings still carried the old
    Bayon display face on Event Detail. */
-body[data-operator="west72"] .ymal-title,
-body[data-operator="west72"] .venue-directions-heading,
-body[data-operator="west72"] .venue-directions-card-title {
+body[data-theme="liquid-glass"] .ymal-title,
+body[data-theme="liquid-glass"] .venue-directions-heading,
+body[data-theme="liquid-glass"] .venue-directions-card-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--lg-white);
 }
-body[data-operator="west72"] .venue-directions-card {
+body[data-theme="liquid-glass"] .venue-directions-card {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
   box-shadow: var(--lg-glass-shadow);
   border-radius: var(--lg-radius-lg);
+}
+
+/* ── Let the orb field through, on every page ───────────────
+   .bg-field is fixed at z-index 0 and the page content sits above it at
+   z-index 1, so any page wrapper carrying its own opaque fill paints the
+   whole ambient field out and the page reads as flat black. Several do —
+   .home-page and .policy-page inherit var(--vc-bg), .ticket-page stacks an
+   opaque !important fill on top of a gradient.
+
+   Every public page wrapper is cleared here rather than one at a time, so
+   a new route can't silently reintroduce the problem. !important is needed
+   to beat .ticket-page's own !important. Admin keeps its solid chrome —
+   it isn't running this theme's background yet. */
+body[data-theme="liquid-glass"] main,
+body[data-theme="liquid-glass"] .home-page,
+body[data-theme="liquid-glass"] .events-list-page,
+body[data-theme="liquid-glass"] .home-events-page,
+body[data-theme="liquid-glass"] .ticket-page,
+body[data-theme="liquid-glass"] .about-page,
+body[data-theme="liquid-glass"] .contact-page,
+body[data-theme="liquid-glass"] .policy-page,
+body[data-theme="liquid-glass"] .faq-page,
+body[data-theme="liquid-glass"] .fwb-page,
+body[data-theme="liquid-glass"] .partners-page,
+body[data-theme="liquid-glass"] .auction-page,
+body[data-theme="liquid-glass"] .auctions-about-page,
+body[data-theme="liquid-glass"] .auction-item-page,
+body[data-theme="liquid-glass"] .auction-register-page,
+body[data-theme="liquid-glass"] .auction-checkout-page,
+body[data-theme="liquid-glass"] .survey-page,
+body[data-theme="liquid-glass"] .checkout-page,
+body[data-theme="liquid-glass"] .home-hero-secondary,
+body[data-theme="liquid-glass"] .events-hero-shell {
+  background: transparent !important;
+}
+
+/* The orb field is the page's ground now, so html/body must not paint a
+   flat colour over it either. */
+body[data-theme="liquid-glass"] {
+  background: var(--lg-ink);
+}
+
+/* ── Confirmation page: order card, actions, cross-sell ─────
+   Replaces the old modal. Reached from the hosted Checkout Session redirect,
+   the inline card/wallet flow, and free registrations. */
+body[data-theme="liquid-glass"] .checkout-success-section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 48px) clamp(12px, 3vw, 32px) clamp(40px, 6vw, 72px);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+/* The original confirmation card was a narrow ~400px column sized for a
+   headline and a button. It now carries a full order card, so it takes the
+   section's width — otherwise its contents overflow it. */
+body[data-theme="liquid-glass"] .checkout-success-card {
+  width: 100%;
+  max-width: none;
+  padding: clamp(24px, 3.5vw, 40px);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+body[data-theme="liquid-glass"] .cs-order-card {
+  text-align: left;
+  margin: 24px 0;
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: var(--lg-radius-lg);
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+}
+body[data-theme="liquid-glass"] .cs-order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+body[data-theme="liquid-glass"] .cs-order-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-theme="liquid-glass"] .cs-order-number {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  color: var(--lg-sub-dim);
+}
+body[data-theme="liquid-glass"] .cs-order-ticket {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--lg-radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .cs-order-photo {
+  width: 84px;
+  height: 84px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background-size: cover;
+  background-position: center;
+  background-image: linear-gradient(150deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.04));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+body[data-theme="liquid-glass"] .cs-order-ticket-body {
+  flex: 1;
+  min-width: 0;
+}
+body[data-theme="liquid-glass"] .cs-order-event {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lg-white);
+  margin-bottom: 4px;
+}
+/* One line, truncated — the date/venue string is long and wrapping it mid
+   sentence was the specific thing that read badly on a phone. */
+body[data-theme="liquid-glass"] .cs-order-when {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body[data-theme="liquid-glass"] .cs-order-tier {
+  flex-shrink: 0;
+  text-align: right;
+  padding-left: 16px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.14);
+}
+body[data-theme="liquid-glass"] .cs-order-tier-name {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .cs-order-breakdown {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .cs-order-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13.5px;
+  color: var(--lg-sub);
+  padding: 4px 0;
+}
+body[data-theme="liquid-glass"] .cs-order-line--total {
+  margin-top: 6px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+
+/* Actions row — primary + outline, side by side, stacking on mobile. */
+body[data-theme="liquid-glass"] .cs-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  justify-content: center;
+  margin: 24px 0 8px;
+}
+body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn {
+  flex: 0 1 260px;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .cs-btn--outline {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--lg-white) !important;
+  border: 1px solid rgba(255, 255, 255, 0.20) !important;
+  box-shadow: none !important;
+}
+/* Shown while the webhook is still creating the ticket. */
+body[data-theme="liquid-glass"] .cs-btn--pending {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--lg-sub) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: none !important;
+  cursor: default;
+}
+
+/* Cross-sell */
+body[data-theme="liquid-glass"] .cs-crosssell {
+  margin-top: clamp(40px, 6vw, 68px);
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .cs-crosssell-eyebrow {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 8px;
+}
+body[data-theme="liquid-glass"] .cs-crosssell-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: clamp(20px, 2.6vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+  margin: 0 0 24px;
+}
+body[data-theme="liquid-glass"] .cs-crosssell-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+body[data-theme="liquid-glass"] .cs-crosssell-grid .event-card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
+/* Interstitial between "paid" and the confirmation page loading. */
+body[data-theme="liquid-glass"] .ic-redirecting {
+  padding: 40px 28px;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .ic-redirecting-text {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  font-size: 14px;
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  body[data-theme="liquid-glass"] .cs-actions {
+    flex-direction: column;
+  }
+  body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  /* The tier drops to its own full-width row rather than squeezing in
+     beside the event details. */
+  body[data-theme="liquid-glass"] .cs-order-ticket {
+    flex-wrap: wrap;
+  }
+  body[data-theme="liquid-glass"] .cs-order-photo {
+    width: 64px;
+    height: 64px;
+  }
+  body[data-theme="liquid-glass"] .cs-order-tier {
+    flex-basis: 100%;
+    text-align: left;
+    padding: 12px 0 0;
+    margin-top: 4px;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+  }
+  /* Two-up, per the mobile density note — keeps this long page from
+     becoming an endless scroll. */
+  body[data-theme="liquid-glass"] .cs-crosssell-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  body[data-theme="liquid-glass"] .cs-crosssell-grid .event-card {
+    aspect-ratio: 3 / 4;
+  }
+}
+
+/* ── Default hero (operators without the featured carousel) ──
+   west72 renders FeaturedEventsCarousel; every other operator gets the
+   static Ken Burns hero. Framing it the same way keeps the two brands on
+   one system instead of one glass hero and one full-bleed banner. */
+body[data-theme="liquid-glass"] .home-hero:not(.featured-carousel) {
+  margin: 14px clamp(12px, 3vw, 32px) 0;
+  width: auto;
+  min-height: min(72vh, 660px);
+  border-radius: var(--lg-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+}
+body[data-theme="liquid-glass"] .home-hero-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(38px, 6vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .home-hero-subtitle {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .home-hero-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.15) 30%,
+    rgba(0, 0, 0, 0.62) 72%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+}
+/* Nav links live in the drawer, which is display:none above 768px — declare
+   their type outside that media query so it isn't breakpoint-dependent. */
+body[data-theme="liquid-glass"] .mobile-nav-link,
+body[data-theme="liquid-glass"] .mobile-nav-cta,
+body[data-theme="liquid-glass"] .footer-legal-separator,
+body[data-theme="liquid-glass"] .footer-legal {
+  font-family: var(--font-archivo), sans-serif;
+}
+
+@media (max-width: 600px) {
+  body[data-theme="liquid-glass"] .home-hero:not(.featured-carousel) {
+    margin: 10px 12px 0;
+    min-height: min(64vh, 520px);
+  }
+}
+
+/* ── Event Detail: match the section rhythm in event_detail.png ──
+   Headings are left-aligned title case rather than centred uppercase, the
+   order summary's title becomes a small eyebrow, and the FAQ rows read as
+   glass pills. Copy, markup and the accordion behaviour are unchanged. */
+body[data-theme="liquid-glass"] .ymal-heading,
+body[data-theme="liquid-glass"] .event-featured-artists-heading,
+body[data-theme="liquid-glass"] .venue-directions-heading,
+body[data-theme="liquid-glass"] .faq-section-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(20px, 2.4vw, 26px);
+  letter-spacing: -0.02em;
+  text-transform: none;
+  text-align: left;
+  color: var(--lg-white);
+  margin-bottom: 20px;
+}
+body[data-theme="liquid-glass"] .faq-section-label {
+  display: none; /* the heading carries the section on its own here */
+}
+
+/* "ORDER SUMMARY" as an eyebrow, per the mockup. */
+body[data-theme="liquid-glass"] .order-summary-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* FAQ rows: glass pills with the chevron pinned right. */
+body[data-theme="liquid-glass"] .faq-card-question {
+  padding: 18px 22px;
+  border-radius: var(--lg-radius-md);
+  margin-bottom: 10px;
+}
+body[data-theme="liquid-glass"] .faq-card-chevron {
+  color: var(--lg-sub-dim);
+  margin-left: auto;
+}
+body[data-theme="liquid-glass"] .faq-cards-grid,
+body[data-theme="liquid-glass"] .faq-cards-column {
+  gap: 0;
+}
+
+/* "Getting Here": map panel and the address/parking copy in one glass card. */
+body[data-theme="liquid-glass"] .venue-directions-card {
+  padding: clamp(20px, 3vw, 28px);
+}
+body[data-theme="liquid-glass"] .venue-directions-card-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+/* "You May Also Like" cards — compact 4-up row. */
+body[data-theme="liquid-glass"] .ymal-title {
+  font-size: 14.5px;
+  font-weight: 800;
+}
+
+/* FAQ is a single stacked column in the mockup, not a two-up grid, and the
+   heading sits left with no separate "FAQ" eyebrow above it. */
+body[data-theme="liquid-glass"] .faq-cards-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+body[data-theme="liquid-glass"] .faq-section-heading {
+  text-align: left !important;
+}
+body[data-theme="liquid-glass"] .faq-section-label {
+  display: none !important;
+}
+
+/* ── Retire the legacy faces under this theme ───────────────
+   Setting Archivo on the theme root only reaches text that inherits it.
+   These 84 selectors set Urbanist/Bayon/Cairo explicitly, so they win
+   over inheritance and have to be named. Generated from the rules in this
+   file that reference --font-urbanist / --font-bayon / --font-cairo. */
+body[data-theme="liquid-glass"] .events-section-header,
+body[data-theme="liquid-glass"] .events-heading,
+body[data-theme="liquid-glass"] .events-eyebrow-text,
+body[data-theme="liquid-glass"] .event-card-title,
+body[data-theme="liquid-glass"] .badge-text,
+body[data-theme="liquid-glass"] .ticket-hero-title,
+body[data-theme="liquid-glass"] .ticket-selection-heading,
+body[data-theme="liquid-glass"] .purchase-ticket-card,
+body[data-theme="liquid-glass"] .ptc-name,
+body[data-theme="liquid-glass"] .ptc-price,
+body[data-theme="liquid-glass"] .ptc-sold-out-overlay,
+body[data-theme="liquid-glass"] .order-summary-title,
+body[data-theme="liquid-glass"] .order-summary-total .order-summary-line-label,
+body[data-theme="liquid-glass"] .order-summary-total .order-summary-line-value,
+body[data-theme="liquid-glass"] .order-summary-checkout-btn,
+body[data-theme="liquid-glass"] .venue-directions-heading,
+body[data-theme="liquid-glass"] .venue-directions-card-title,
+body[data-theme="liquid-glass"] .faq-section-heading,
+body[data-theme="liquid-glass"] .faq-card-question,
+body[data-theme="liquid-glass"] .newsletter-eyebrow,
+body[data-theme="liquid-glass"] .newsletter-title,
+body[data-theme="liquid-glass"] .policy-title,
+body[data-theme="liquid-glass"] .policy-section h2,
+body[data-theme="liquid-glass"] .footer-column-heading,
+body[data-theme="liquid-glass"] .checkout-success-heading,
+body[data-theme="liquid-glass"] .checkout-success-btn,
+body[data-theme="liquid-glass"] .home-hero-title,
+body[data-theme="liquid-glass"] .home-hero-cta,
+body[data-theme="liquid-glass"] .home-upcoming-heading,
+body[data-theme="liquid-glass"] .home-cta-title,
+body[data-theme="liquid-glass"] .home-cta-button,
+body[data-theme="liquid-glass"] .elc-title,
+body[data-theme="liquid-glass"] .events-grid-card .event-card-title,
+body[data-theme="liquid-glass"] .image-cropper-zoom-label,
+body[data-theme="liquid-glass"] .image-cropper-btn,
+body[data-theme="liquid-glass"] .login-form-error,
+body[data-theme="liquid-glass"] .portal-welcome,
+body[data-theme="liquid-glass"] .portal-signout-btn,
+body[data-theme="liquid-glass"] .portal-card-title,
+body[data-theme="liquid-glass"] .portal-card-desc,
+body[data-theme="liquid-glass"] .portal-empty,
+body[data-theme="liquid-glass"] .portal-table,
+body[data-theme="liquid-glass"] .portal-quick-link,
+body[data-theme="liquid-glass"] .event-sponsors-heading,
+body[data-theme="liquid-glass"] .sponsor-tier-label,
+body[data-theme="liquid-glass"] .sponsor-name-text,
+body[data-theme="liquid-glass"] .dash-lifetime-value,
+body[data-theme="liquid-glass"] .dash-panel-title,
+body[data-theme="liquid-glass"] .report-tab,
+body[data-theme="liquid-glass"] .report-filter-label,
+body[data-theme="liquid-glass"] .report-export-btn,
+body[data-theme="liquid-glass"] .portal-form-heading,
+body[data-theme="liquid-glass"] .portal-form-input,
+body[data-theme="liquid-glass"] .portal-form-submit,
+body[data-theme="liquid-glass"] .portal-inline-select,
+body[data-theme="liquid-glass"] .offer-calc-cell,
+body[data-theme="liquid-glass"] .offer-totals-row,
+body[data-theme="liquid-glass"] .offer-expenses-heading,
+body[data-theme="liquid-glass"] .offer-expense-total,
+body[data-theme="liquid-glass"] .offer-total-expenses,
+body[data-theme="liquid-glass"] .offer-potential-row,
+body[data-theme="liquid-glass"] .offer-detail-section h3,
+body[data-theme="liquid-glass"] .sales-event-name,
+body[data-theme="liquid-glass"] .sales-stat-value,
+body[data-theme="liquid-glass"] .sales-stat-label,
+body[data-theme="liquid-glass"] .digital-ticket-page-title,
+body[data-theme="liquid-glass"] .ga-ticket-header-text,
+body[data-theme="liquid-glass"] .ga-ticket-type-heading,
+body[data-theme="liquid-glass"] .rs-ticket-seat-value,
+body[data-theme="liquid-glass"] .auction-create-panel-title,
+body[data-theme="liquid-glass"] .about-gold-text,
+body[data-theme="liquid-glass"] .about-philosophy-title,
+body[data-theme="liquid-glass"] .about-why-us-title,
+body[data-theme="liquid-glass"] .about-feature-title,
+body[data-theme="liquid-glass"] .contact-hero-title,
+body[data-theme="liquid-glass"] .contact-form-heading,
+body[data-theme="liquid-glass"] .contact-info-title,
+body[data-theme="liquid-glass"] .contact-method-title,
+body[data-theme="liquid-glass"] .contact-social-title,
+body[data-theme="liquid-glass"] .lp-main,
+body[data-theme="liquid-glass"] .pre-checkout-form h3,
+body[data-theme="liquid-glass"] .pre-checkout-field input,
+body[data-theme="liquid-glass"] .pre-checkout-continue-btn,
+body[data-theme="liquid-glass"] .ymal-title {
+  font-family: var(--font-archivo), sans-serif;
 }

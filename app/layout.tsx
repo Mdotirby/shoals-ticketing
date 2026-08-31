@@ -9,7 +9,7 @@ import { OperatorProvider } from "./components/OperatorContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TrackingPixels from "./components/TrackingPixels";
 import BackgroundField from "./components/BackgroundField";
-import { getOperator } from "@/lib/operators";
+import { getOperator, usesLiquidGlass } from "@/lib/operators";
 
 
 const urbanist = Urbanist({
@@ -111,15 +111,21 @@ export default async function RootLayout({
   const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
   const operator = getOperator(operatorSlug);
 
+  // Opt this operator into the liquid-glass theme. Everything in the
+  // theme's stylesheet hangs off body[data-theme="liquid-glass"], so this
+  // one attribute is the switch — see usesLiquidGlass in lib/operators.
+  const liquidGlass = usesLiquidGlass(operatorSlug);
+
   return (
     <html lang="en">
       <body
         data-operator={operatorSlug}
+        data-theme={liquidGlass ? "liquid-glass" : undefined}
         className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} ${archivo.variable} ${archivoNarrow.variable} antialiased`}
       >
-        {/* Ambient orb field the liquid-glass surfaces refract. west72 only —
-            VenueCore keeps its navy theme. */}
-        {operatorSlug === "west72" && <BackgroundField />}
+        {/* The ambient orb field every .glass surface refracts. Without a
+            bright layer behind them the panels read as flat dark cards. */}
+        {liquidGlass && <BackgroundField />}
 
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
         <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />

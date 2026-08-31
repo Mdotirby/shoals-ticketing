@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useOperator } from "./OperatorContext";
 import { useVenueTheme } from "./VenueThemeProvider";
+import { usesLiquidGlass } from "@/lib/operators";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -21,6 +22,7 @@ export default function Header() {
   const pathname = usePathname();
   const operator = useOperator();
   const venueTheme = useVenueTheme();
+  const glass = usesLiquidGlass(operator.slug);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [featuredEvent, setFeaturedEvent] = useState<{ id: string; title: string } | null>(null);
@@ -62,17 +64,21 @@ export default function Header() {
   if (isHidden) return null;
 
   // On a venue subdomain, show the venue's own logo from Supabase storage.
-  // Fall back to the operator horizontal logo otherwise.
+  // Otherwise use the operator wordmark — the white cut under the liquid-glass
+  // theme, since the header pill is a dark translucent surface there and the
+  // full-colour mark reads muddy against it.
+  const operatorWordmark = glass ? operator.logoWhite : operator.logo;
   const logoSrc = venueTheme.isVenueSubdomain && venueTheme.logo_url
     ? venueTheme.logo_url
-    : operator.logo;
+    : operatorWordmark;
   const logoAlt = venueTheme.isVenueSubdomain && venueTheme.name
     ? venueTheme.name
     : operator.logoAlt;
 
-  // West72's mobile header swaps the wordmark for the square icon mark,
-  // centered on the full header width — see .header-logo-img--icon below.
-  const showMobileIcon = operator.slug === "west72" && !venueTheme.isVenueSubdomain;
+  // The mobile header swaps the wordmark for the square icon mark, centred on
+  // the full header width — see .header-logo-img--icon. Venue subdomains keep
+  // their own logo rather than the operator's mark.
+  const showMobileIcon = glass && !venueTheme.isVenueSubdomain;
 
   return (
     <>
