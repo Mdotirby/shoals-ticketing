@@ -14681,3 +14681,638 @@ body[data-operator="west72"] .header-inner {
     font-size: 9px;
   }
 }
+
+/* ============================================================
+   WEST72 — LIQUID GLASS: REMAINING CUSTOMER PAGES
+   Footer, Events, About, Contact, Login. Same rules as the Home
+   pass: presentation only, no markup or behaviour changes.
+   ============================================================ */
+
+/* ── Footer (shared) ───────────────────────────────────────── */
+body[data-operator="west72"] .site-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  background: transparent;
+}
+body[data-operator="west72"] .footer-column-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .footer-link,
+body[data-operator="west72"] .footer-description,
+body[data-operator="west72"] .footer-copyright,
+body[data-operator="west72"] .footer-legal-link {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .footer-link:hover,
+body[data-operator="west72"] .footer-legal-link:hover {
+  color: var(--lg-white);
+}
+
+/* ── Events listing ────────────────────────────────────────── */
+body[data-operator="west72"] .events-list-page {
+  padding-top: clamp(30px, 4vw, 46px);
+}
+body[data-operator="west72"] .events-search-bar {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  border-radius: 999px;
+}
+body[data-operator="west72"] .events-search-input {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .events-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+body[data-operator="west72"] .events-filter-select {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 600;
+  color: var(--lg-sub);
+}
+
+/* The listing card is a different component from the home EventCard:
+   photo on top, body panel beneath. Restyled as glass rather than
+   restructured, so its markup and CTA behaviour are unchanged. */
+body[data-operator="west72"] .events-grid-card {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  border-radius: var(--lg-radius-lg);
+  box-shadow: var(--lg-glass-shadow);
+  overflow: hidden;
+}
+body[data-operator="west72"] .event-card-body {
+  padding: 20px;
+}
+body[data-operator="west72"] .event-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .event-card-meta {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .event-card-price {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 6px 14px;
+}
+body[data-operator="west72"] .event-card-btn {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .events-list-loading {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+
+/* ── About ─────────────────────────────────────────────────── */
+body[data-operator="west72"] .about-philosophy {
+  border-top: none;
+}
+body[data-operator="west72"] .about-philosophy-inner {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+  padding: clamp(30px, 4.5vw, 60px);
+}
+body[data-operator="west72"] .about-label-line {
+  display: none; /* the eyebrow rules read as leftover chrome in glass */
+}
+body[data-operator="west72"] .about-label-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .about-philosophy-title,
+body[data-operator="west72"] .about-why-us-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+/* The highlighted phrase was the gold accent; in this system the emphasis
+   is carried by weight and pure white against the muted body copy. It also
+   has to inherit the heading's Archivo — it carried its own condensed
+   display face, which left the headline set in two fonts mid-sentence. */
+body[data-operator="west72"] .about-gold-text {
+  color: var(--lg-white);
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+body[data-operator="west72"] .about-philosophy-desc,
+body[data-operator="west72"] .about-feature-desc {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  line-height: 1.7;
+}
+body[data-operator="west72"] .about-cta-btn {
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px);
+  color: var(--lg-white);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  padding: 15px 30px;
+}
+body[data-operator="west72"] .about-cta-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+body[data-operator="west72"] .about-feature-card {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+  padding: clamp(24px, 3vw, 34px);
+}
+body[data-operator="west72"] .about-feature-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+}
+body[data-operator="west72"] .about-feature-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+
+/* ── Contact ───────────────────────────────────────────────── */
+body[data-operator="west72"] .contact-hero {
+  border-bottom: none;
+}
+body[data-operator="west72"] .contact-hero-title,
+body[data-operator="west72"] .contact-info-title,
+body[data-operator="west72"] .contact-form-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .contact-info-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .contact-form-card,
+body[data-operator="west72"] .contact-method,
+body[data-operator="west72"] .contact-social {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .contact-form-card {
+  padding: clamp(26px, 3.5vw, 40px);
+}
+body[data-operator="west72"] .contact-field,
+body[data-operator="west72"] .contact-form input,
+body[data-operator="west72"] .contact-form textarea,
+body[data-operator="west72"] .contact-form select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--lg-radius-sm);
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .contact-form input::placeholder,
+body[data-operator="west72"] .contact-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+body[data-operator="west72"] .contact-form input:focus,
+body[data-operator="west72"] .contact-form textarea:focus,
+body[data-operator="west72"] .contact-form select:focus {
+  border-color: rgba(255, 255, 255, 0.40);
+  outline: none;
+}
+body[data-operator="west72"] .contact-method-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .contact-method-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .contact-method-desc {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .contact-method-link {
+  color: var(--lg-white);
+  font-weight: 700;
+}
+body[data-operator="west72"] .contact-social-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .contact-social-icons a {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  color: var(--lg-white);
+}
+
+/* ── Login ─────────────────────────────────────────────────── */
+body[data-operator="west72"] .login-section {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+  padding: clamp(28px, 4vw, 40px);
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+body[data-operator="west72"] .staff-login-hero-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .login-form-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--lg-sub-dim);
+  text-transform: uppercase;
+}
+body[data-operator="west72"] .login-form-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--lg-radius-sm);
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .login-form-input:focus {
+  border-color: rgba(255, 255, 255, 0.40);
+  outline: none;
+}
+body[data-operator="west72"] .login-form-submit {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ── Event Detail ──────────────────────────────────────────
+   Two-column layout is unchanged; this is surface, type and colour only.
+   The Spotify preview, quantity stepper, promo code, seat map and FAQ
+   accordion all keep their existing markup and behaviour. */
+body[data-operator="west72"] .ticket-selection-eyebrow {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .ticket-hero-title,
+body[data-operator="west72"] .ticket-selection-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .ticket-hero-image-wrap {
+  border-radius: var(--lg-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--lg-glass-border);
+}
+body[data-operator="west72"] .ticket-event-meta,
+body[data-operator="west72"] .ticket-event-hosted-by,
+body[data-operator="west72"] .ticket-card-desc-wrap {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .ticket-event-card,
+body[data-operator="west72"] .event-featured-artist-card,
+body[data-operator="west72"] .event-spotify-section,
+body[data-operator="west72"] .event-sponsors-section,
+body[data-operator="west72"] .faq-card-question,
+body[data-operator="west72"] .order-summary {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .ticket-spotify-preview {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .ticket-qty-control {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+body[data-operator="west72"] .ticket-qty-btn {
+  color: var(--lg-white);
+  background: transparent;
+  border: none;
+}
+body[data-operator="west72"] .ticket-type-select,
+body[data-operator="west72"] .ticket-selector-row {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--lg-radius-sm);
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .event-featured-artists-heading,
+body[data-operator="west72"] .event-sponsors-heading,
+body[data-operator="west72"] .faq-section-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .faq-section-label,
+body[data-operator="west72"] .event-spotify-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .faq-card-question-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .faq-card-answer-text {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  line-height: 1.7;
+}
+
+/* Order summary card */
+body[data-operator="west72"] .order-summary {
+  padding: 26px 28px;
+}
+body[data-operator="west72"] .order-summary-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .order-summary-line-label,
+body[data-operator="west72"] .order-summary-line-sub,
+body[data-operator="west72"] .order-summary-terms,
+body[data-operator="west72"] .order-summary-empty-text,
+body[data-operator="west72"] .order-summary-trust {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .order-summary-line-value,
+body[data-operator="west72"] .order-summary-total {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .order-summary-divider {
+  background: rgba(255, 255, 255, 0.10);
+}
+body[data-operator="west72"] .order-summary-checkout-btn {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* ── Inline checkout ───────────────────────────────────────
+   Form submission, Stripe fields and the Apple/Google Pay wallet button
+   keep their existing wiring — this restyles the chrome around them. */
+body[data-operator="west72"] .ic-form-wrap {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .ic-form-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .ic-label,
+body[data-operator="west72"] .ic-optional,
+body[data-operator="west72"] .ic-terms,
+body[data-operator="west72"] .ic-order-line {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .ic-input,
+body[data-operator="west72"] .ic-stripe-field {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--lg-radius-sm);
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .ic-input::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+body[data-operator="west72"] .ic-input:focus,
+body[data-operator="west72"] .ic-stripe-field:focus-within {
+  border-color: rgba(255, 255, 255, 0.40);
+  outline: none;
+}
+body[data-operator="west72"] .ic-order-total {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .ic-pay-btn {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .ic-back-btn {
+  background: transparent;
+  border: none;
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  font-weight: 700;
+}
+body[data-operator="west72"] .ic-wallet-divider {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--lg-sub-dim);
+  text-transform: uppercase;
+}
+/* Checkout stepper: TICKETS · CHECKOUT · DONE */
+body[data-operator="west72"] .ic-progress-dot {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+body[data-operator="west72"] .ic-progress-step.active .ic-progress-dot,
+body[data-operator="west72"] .ic-progress-done .ic-progress-dot {
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.60);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+body[data-operator="west72"] .ic-progress-connector {
+  background: rgba(255, 255, 255, 0.15);
+}
+body[data-operator="west72"] .ic-progress-connector-done {
+  background: rgba(255, 255, 255, 0.50);
+}
+body[data-operator="west72"] .ic-progress-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lg-sub-dim);
+}
+body[data-operator="west72"] .ic-progress-step.active .ic-progress-label {
+  color: var(--lg-white);
+}
+
+/* ── Checkout Success (route + the inline-flow modal) ───────
+   The /checkout/success route and CheckoutSuccessModal are two separate
+   confirmation surfaces on different payment paths — the route is reached
+   after a Stripe Checkout Session redirect, the modal after an inline
+   PaymentIntent. Both are restyled here so the confirmation looks the same
+   whichever path the buyer took. Neither one's logic is touched. */
+body[data-operator="west72"] .checkout-success-card,
+body[data-operator="west72"] .checkout-success-section {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .checkout-success-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .checkout-success-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .checkout-success-text,
+body[data-operator="west72"] .checkout-success-meta,
+body[data-operator="west72"] .checkout-success-detail,
+body[data-operator="west72"] .checkout-success-fwb-desc,
+body[data-operator="west72"] .checkout-success-fwb-fine-print {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .checkout-success-event,
+body[data-operator="west72"] .checkout-success-fwb-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+/* Primary confirmation action — white glass pill. The outline variant is
+   set inline on the secondary link, so it keeps its transparent fill. */
+body[data-operator="west72"] .checkout-success-btn,
+body[data-operator="west72"] .checkout-success-cta,
+body[data-operator="west72"] .checkout-success-fwb-btn {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .checkout-success-fwb {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--lg-radius-md);
+}
+body[data-operator="west72"] .checkout-success-fwb-icon {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+}
+body[data-operator="west72"] .checkout-success-fwb-decline {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub-dim);
+  background: transparent;
+  border: none;
+}
+body[data-operator="west72"] .checkout-success-backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+/* "You May Also Like" and "Getting Here" headings still carried the old
+   Bayon display face on Event Detail. */
+body[data-operator="west72"] .ymal-title,
+body[data-operator="west72"] .venue-directions-heading,
+body[data-operator="west72"] .venue-directions-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .venue-directions-card {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
