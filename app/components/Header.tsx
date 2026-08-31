@@ -120,15 +120,21 @@ export default function Header() {
             <span className={`hamburger-bar ${isMenuOpen ? "open" : ""}`} />
           </button>
 
-          <div className="header-right">
-            <nav className="header-nav">
-              {navItems.map((item) => (
-                <Link key={item.label} href={item.href} className="header-nav-link">
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+          {/* .header-nav is a direct sibling of the logo and .header-right now,
+              not nested inside .header-right alongside the CTA — nesting it
+              there meant the links could only ever sit tight against the CTA
+              button, never centered in the bar the way the design calls for.
+              Display:none under 768px either way (mobile uses the drawer), so
+              this doesn't affect the mobile layout. */}
+          <nav className="header-nav">
+            {navItems.map((item) => (
+              <Link key={item.label} href={item.href} className="header-nav-link">
+                {item.label}
+              </Link>
+            ))}
+          </nav>
 
+          <div className="header-right">
             {featuredEvent && (
               <Link href={`/events/${featuredEvent.id}`} className="header-cta">
                 Get Tickets

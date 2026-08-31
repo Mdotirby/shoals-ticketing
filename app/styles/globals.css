@@ -15046,7 +15046,9 @@ body[data-theme="liquid-glass"] .ticket-card-desc-wrap {
   font-family: var(--font-archivo), sans-serif;
   color: var(--lg-sub);
 }
-body[data-theme="liquid-glass"] .ticket-event-card,
+/* .ticket-event-card deliberately NOT in this group — see below. The mockup
+   only boxes the photo; the name/listeners/description block underneath it
+   sits directly on the page. */
 body[data-theme="liquid-glass"] .event-featured-artist-card,
 body[data-theme="liquid-glass"] .event-spotify-section,
 body[data-theme="liquid-glass"] .event-sponsors-section,
@@ -16192,4 +16194,159 @@ body[data-theme="liquid-glass"] .hotel-code-note b { color: rgba(255, 255, 255, 
    here at all. Hidden to match. */
 body[data-theme="liquid-glass"] .venue-directions-label {
   display: none;
+}
+
+/* ============================================================
+   EVENT DETAIL — RESTRUCTURE (not re-wrap)
+   ============================================================
+   Second pass: the first Event Detail pass papered over structural gaps by
+   building new boxes near the mockup's target regions instead of changing
+   which elements actually share a container. This pass restructures the
+   real components instead. See event_detail.png.
+   ============================================================ */
+
+/* ── Un-box the event-info text ──────────────────────────────
+   .ticket-event-card previously gave the WHOLE photo+text block one shared
+   glass card. The mockup only boxes the photo — name, listeners, Preview
+   Artist, date, badges and description sit directly on the page. */
+body[data-theme="liquid-glass"] .ticket-event-card {
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+}
+body[data-theme="liquid-glass"] .ticket-card-body {
+  padding: 22px 0 0;
+}
+
+/* ── Listener count + Preview Artist ─────────────────────────
+   One row, matching the mockup, instead of two stacked block elements.
+   Preview Artist is plain bold text — no pill/background/border — same
+   treatment as the listener count. Spotify green traded for white per
+   direction; the SVGs now use currentColor so this one rule recolours both. */
+body[data-theme="liquid-glass"] .ticket-spotify-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+body[data-theme="liquid-glass"] .ticket-spotify-listeners,
+body[data-theme="liquid-glass"] .ticket-spotify-preview {
+  margin: 0;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .ticket-spotify-inline-sep {
+  color: var(--lg-sub-dim);
+  font-size: 13px;
+}
+body[data-theme="liquid-glass"] .ticket-spotify-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-decoration: none;
+  cursor: pointer;
+  animation: ticket-preview-pulse 2.6s ease-in-out infinite;
+}
+body[data-theme="liquid-glass"] .ticket-spotify-preview:hover:not(:disabled) {
+  opacity: 0.75;
+}
+body[data-theme="liquid-glass"] .ticket-spotify-preview:disabled {
+  animation: none;
+  opacity: 0.6;
+}
+@keyframes ticket-preview-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-theme="liquid-glass"] .ticket-spotify-preview {
+    animation: none;
+  }
+}
+
+/* ── Quantity stepper — two discrete chips, not one shared pill ──
+   .ticket-qty-control previously carried its own background/border/radius
+   wrapping both buttons and the number into one long pill. The mockup shows
+   each button as its own small rounded-square control. */
+body[data-theme="liquid-glass"] .ticket-qty-control {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  gap: 10px;
+}
+body[data-theme="liquid-glass"] .ticket-qty-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  color: var(--lg-white);
+  font-size: 16px;
+}
+body[data-theme="liquid-glass"] .ticket-qty-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+body[data-theme="liquid-glass"] .ticket-qty-value {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  color: var(--lg-white);
+  padding: 0;
+}
+
+/* ── Tier panel fuses with Order Summary into one card ───────
+   These stay two separate React components (OrderSummary.tsx does real tax/
+   fee/discount math — not something to fold the tier selector into), but
+   when the tier panel is immediately followed by the Order Summary card —
+   the two states the mockup actually shows — the touching edges are
+   squared off and de-bordered so together they read as one continuous
+   card, the way the mockup draws it, rather than two boxes with a gap.
+   Every OTHER order-summary-column state (external ticketing, past show,
+   countdown, mid-checkout) has no adjacent Order Summary to fuse with, so
+   the tier panel keeps its own fully-rounded corners there — the mockup
+   doesn't cover those states, so nothing is invented for them. */
+body[data-theme="liquid-glass"] .order-tier-panel:has(+ .order-summary) {
+  margin-bottom: 0;
+  border-bottom: none;
+  border-radius: var(--lg-radius-lg) var(--lg-radius-lg) 0 0;
+}
+body[data-theme="liquid-glass"] .order-tier-panel:has(+ .order-summary) + .order-summary {
+  border-top: none;
+  border-radius: 0 0 var(--lg-radius-lg) var(--lg-radius-lg);
+}
+
+/* ── You May Also Like mini-cards ─────────────────────────────
+   No venue badge in the mockup's cards — title, then date + price. */
+body[data-theme="liquid-glass"] .ymal-venue-badge {
+  display: none;
+}
+
+/* Mobile base rules stretch .ticket-qty-control to 100% width and flex:1
+   each button to fill it, which is what turned the two discrete chips back
+   into wide bars on phones. The mockup's mobile stepper is the same compact
+   left-aligned pair of chips as desktop, not full-width. */
+@media (max-width: 768px) {
+  body[data-theme="liquid-glass"] .ticket-qty-control {
+    width: auto;
+    justify-content: flex-start;
+  }
+  body[data-theme="liquid-glass"] .ticket-qty-btn {
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+  }
 }
