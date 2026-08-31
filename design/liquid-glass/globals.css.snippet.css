@@ -1,0 +1,162 @@
+/**
+ * LIQUID GLASS — global CSS additions
+ * Append to app/globals.css (App Router) or styles/globals.css (Pages Router).
+ * Assumes Tailwind's base/components/utilities are already imported above this.
+ */
+
+/* ---- Font ----
+   Recommended: use next/font/google in app/layout.tsx instead of a CSS @import
+   (Google Fonts is blocked by some corporate egress, next/font self-hosts at
+   build time so this is also faster + more reliable in prod):
+
+   import { Archivo } from 'next/font/google'
+   const archivo = Archivo({ subsets: ['latin'], variable: '--font-archivo' })
+   // then on <html className={archivo.variable}>
+
+   If you'd rather self-host the font file directly, drop the .ttf/.woff2 in
+   /public/fonts and use @font-face here instead:
+*/
+/*
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/Archivo-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-stretch: 75% 125%;
+  font-display: swap;
+}
+*/
+
+:root{
+  --ink:#08080a;
+  --white:#ffffff;
+  --sub: rgba(255,255,255,0.60);
+  --sub-dim: rgba(255,255,255,0.40);
+  --accent:#ffffff;
+  --accent-soft: rgba(255,255,255,0.90);
+  --glass-bg: rgba(255,255,255,0.07);
+  --glass-bg-2: rgba(255,255,255,0.04);
+  --glass-border: rgba(255,255,255,0.16);
+  --glass-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.16);
+  --track: rgba(255,255,255,0.12);
+  --good:#8fd6a8;
+}
+
+html, body{ background:#000; }
+body{ color:var(--white); position:relative; }
+
+/* ---- Ambient background field ----
+   Render this ONCE per page (e.g. in the root layout, behind {children}),
+   fixed and full-bleed. Every .glass surface blurs THIS, which is what
+   makes the frost read as "glass" instead of flat dark grey. Without a
+   colorful/bright layer behind them, glass panels over solid black look
+   like nothing — this field is required, not decorative.
+*/
+.bg-field{ position:fixed; inset:0; z-index:0; background:var(--ink); overflow:hidden; pointer-events:none; }
+.orb{ position:absolute; border-radius:50%; filter:blur(120px); }
+.orb.one{ width:900px; height:900px; top:-260px; left:-100px; background:radial-gradient(circle at 35% 35%, rgba(255,255,255,0.5), rgba(255,255,255,0) 70%); }
+.orb.blue{ width:820px; height:820px; top:100px; right:-220px; background:radial-gradient(circle at 60% 40%, rgba(120,150,255,0.28), rgba(120,150,255,0) 70%); }
+.orb.rose{ width:760px; height:760px; bottom:-300px; left:35%; background:radial-gradient(circle at 50% 50%, rgba(255,140,170,0.20), rgba(255,140,170,0) 70%); }
+.orb.white{ width:560px; height:560px; bottom:200px; right:200px; background:radial-gradient(circle at 50% 50%, rgba(255,255,255,0.16), rgba(255,255,255,0) 70%); }
+.grain{
+  position:absolute; inset:0; opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- Core glass surface ----
+   Apply alongside Tailwind utilities, e.g.:
+   <div className="glass rounded-glass-lg p-8"> ... </div>
+*/
+.glass{
+  background: linear-gradient(155deg, var(--glass-bg), var(--glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+}
+.glass::before{
+  content:"";
+  position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+}
+
+/* Safari/older-browser fallback: if backdrop-filter isn't supported,
+   fall back to a solid translucent-over-opaque card so text stays legible. */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass{ background: rgba(20,20,22,0.92); }
+}
+
+/* ---- Home hero carousel chrome ----
+   Visual skin for HeroCarouselChrome (liquid-glass-components.tsx). Drop
+   these classes onto your EXISTING carousel's controls — do not use this
+   as a reason to rebuild the carousel itself. See the design doc's
+   "visual-only" warning. */
+.hero-arrow{
+  position:absolute; top:38%; transform:translateY(-50%); z-index:3;
+  width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.10); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.22); color:#fff; font-size:16px; cursor:pointer;
+}
+.hero-arrow.prev{ left:24px; }
+.hero-arrow.next{ right:24px; }
+.hero-dots{ position:absolute; z-index:3; left:0; right:0; bottom:22px; display:flex; justify-content:center; gap:8px; }
+.hero-dots .dot{ width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,0.35); }
+.hero-dots .dot.active{ width:22px; border-radius:5px; background:#fff; }
+.hero-swipe-hint{ position:absolute; z-index:3; top:28px; right:36px; font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:rgba(255,255,255,0.4); text-transform:uppercase; display:flex; align-items:center; gap:6px; }
+@media (max-width: 600px){
+  .hero-arrow{ width:38px; height:38px; font-size:13px; }
+  .hero-arrow.prev{ left:12px; }
+  .hero-arrow.next{ right:12px; }
+  .hero-swipe-hint{ display:none; }
+  .hero-dots{ bottom:14px; }
+}
+
+/* ---- Mobile nav menu (opened hamburger state) ----
+   Visual skin for MobileNavMenu (liquid-glass-components.tsx). Wire `open`
+   to your existing mobile-nav toggle — see mobile_nav_states.png. */
+.nav-scrim{
+  position:fixed; inset:0; z-index:49; background:rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.nav-menu{ margin-top:10px; padding:10px; display:flex; flex-direction:column; gap:4px; position:relative; z-index:50; }
+.nav-menu a{ display:flex; align-items:center; padding:15px 14px; font-size:15px; font-weight:700; color:rgba(255,255,255,0.9); border-radius:14px; }
+.nav-menu a.active{ background:rgba(255,255,255,0.08); color:#fff; }
+.nav-menu-divider{ height:1px; background:rgba(255,255,255,0.10); margin:6px 4px; }
+.nav-close{ width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:14px; color:#fff; cursor:pointer; }
+@media (max-width: 600px){
+  /* Collapsed mobile header: centered logo, no visible CTA — the CTA moves
+     into .nav-menu above once the menu is open. */
+  .nav{ display:grid; grid-template-columns:38px 1fr 38px; align-items:center; }
+  .nav .logo{ grid-column:2; justify-self:center; text-align:center; }
+  .nav > .btn-primary{ display:none; }
+  .nav-hamburger, .nav-close{ grid-column:3; justify-self:end; }
+}
+
+/* ---- Hotel partner panel (Checkout Success) ----
+   Visual skin for HotelPartnerPanel (liquid-glass-components.tsx). See the
+   design doc's "Hotel partner section" note for the buyer-psychology
+   reasoning behind this layout/copy. */
+.hotel-panel{ display:flex; gap:0; overflow:hidden; padding:0; align-items:stretch; }
+.hotel-photo{ width:280px; flex-shrink:0; background:linear-gradient(150deg, rgba(255,255,255,0.24), rgba(255,255,255,0.02)); display:flex; align-items:center; justify-content:center; border-right:1px solid rgba(255,255,255,0.10); }
+.hotel-photo span{ font-size:10.5px; font-weight:700; color:rgba(255,255,255,0.35); letter-spacing:1px; text-align:center; padding:0 20px; }
+.hotel-body{ flex:1; padding:30px 34px; }
+.hotel-top{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
+.hotel-cutoff{ font-size:11.5px; color:var(--sub-dim); font-weight:600; }
+.hotel-body h3{ font-size:23px; margin-bottom:4px; letter-spacing:-0.3px; }
+.hotel-partner-name{ font-size:12.5px; color:var(--sub); margin-bottom:16px; font-weight:600; }
+.hotel-desc{ color:var(--sub); font-size:13.5px; line-height:1.65; margin-bottom:22px; max-width:520px; }
+.hotel-bottom{ display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+.hotel-price-row{ display:flex; align-items:baseline; gap:10px; }
+.hotel-price-old{ font-size:14px; color:var(--sub-dim); text-decoration:line-through; }
+.hotel-price-new{ font-size:26px; font-weight:800; color:#fff; }
+.hotel-price-unit{ font-size:12px; color:var(--sub); font-weight:600; }
+.hotel-code-note{ font-size:11px; color:var(--sub-dim); margin-top:4px; }
+.hotel-code-note b{ color:rgba(255,255,255,0.75); letter-spacing:0.5px; }
+@media (max-width: 600px){
+  .hotel-panel{ flex-direction:column; }
+  .hotel-photo{ width:100%; height:120px; border-right:none; border-bottom:1px solid rgba(255,255,255,0.10); }
+  .hotel-body{ padding:22px 20px; }
+  .hotel-top{ flex-direction:column; align-items:flex-start; gap:8px; }
+  .hotel-bottom{ flex-direction:column; align-items:flex-start; gap:16px; }
+  .hotel-bottom button, .hotel-bottom a{ width:100%; }
+}
