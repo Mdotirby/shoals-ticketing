@@ -8,6 +8,7 @@ import { VenueProvider } from "./components/VenueContext";
 import { OperatorProvider } from "./components/OperatorContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TrackingPixels from "./components/TrackingPixels";
+import BackgroundField from "./components/BackgroundField";
 import { getOperator } from "@/lib/operators";
 
 
@@ -116,6 +117,10 @@ export default async function RootLayout({
         data-operator={operatorSlug}
         className={`${urbanist.variable} ${cairo.variable} ${bayon.variable} ${archivo.variable} ${archivoNarrow.variable} antialiased`}
       >
+        {/* Ambient orb field the liquid-glass surfaces refract. west72 only —
+            VenueCore keeps its navy theme. */}
+        {operatorSlug === "west72" && <BackgroundField />}
+
         {/* Operator-specific tracking pixels (Meta Pixel, etc.) */}
         <TrackingPixels metaPixelId={operator.metaPixelId ?? null} />
         <OperatorProvider operatorSlug={operatorSlug}>

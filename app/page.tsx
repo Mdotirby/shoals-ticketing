@@ -40,7 +40,7 @@ function SponsorLogo({ sponsor }: { sponsor: Sponsor }) {
           style={{ height: tierH, maxWidth: 160, objectFit: "contain" }}
         />
       ) : (
-        <span style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.9)", letterSpacing: "0.05em" }}>
+        <span className="home-partners-fallback" style={{ fontSize: sponsor.tier === "title" ? 16 : 13, fontWeight: 700, color: "rgba(208,194,144,0.9)", letterSpacing: "0.05em" }}>
           {sponsor.sponsor_name}
         </span>
       )}
@@ -232,11 +232,12 @@ export default function HomePage() {
 
         {/* ── PROUD PARTNERS STRIP ── */}
         {homeSponsors.length > 0 && (
-          <section ref={sponsorRef} style={{ padding: "32px 24px", textAlign: "center", borderBottom: "1px solid rgba(208,194,144,0.08)" }}>
+          <section ref={sponsorRef} className="home-partners-strip" style={{ padding: "32px 24px", textAlign: "center", borderBottom: "1px solid rgba(208,194,144,0.08)" }}>
             <motion.p
               initial={{ opacity: 0 }}
               animate={sponsorInView ? { opacity: 1 } : { opacity: 0 }}
               transition={{ duration: 0.6 }}
+              className="home-partners-label"
               style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(208,194,144,0.5)", marginBottom: 20 }}
             >
               Proud Partners
@@ -256,7 +257,7 @@ export default function HomePage() {
               animate={sponsorInView ? { opacity: 1 } : { opacity: 0 }}
               transition={{ delay: 0.6, duration: 0.4 }}
             >
-              <Link href="/partners" style={{ display: "inline-block", marginTop: 16, fontSize: 11, color: "rgba(208,194,144,0.4)", textDecoration: "none", letterSpacing: "0.08em" }}>
+              <Link href="/partners" className="home-partners-link" style={{ display: "inline-block", marginTop: 16, fontSize: 11, color: "rgba(208,194,144,0.4)", textDecoration: "none", letterSpacing: "0.08em" }}>
                 View All Partners →
               </Link>
             </motion.div>

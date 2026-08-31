@@ -40,6 +40,15 @@ export function formatEventDateShort(date: string): string {
   });
 }
 
+/** Format a date as "Nov 8" — no year, for tight card pills where the date
+ *  shares one line with the time and has to survive narrow phone widths. */
+export function formatEventDateCompact(date: string): string {
+  return safeDate(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** Format a date as "Saturday, November 8, 2025" */
 export function formatEventDateFull(date: string): string {
   return safeDate(date).toLocaleDateString("en-US", {

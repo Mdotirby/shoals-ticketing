@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
-import { formatEventDateLong, formatEventTime } from "@/lib/dates";
+import { formatEventDateCompact, formatEventTime } from "@/lib/dates";
 
 type EventCardProps = {
   event: Event;
@@ -38,19 +38,24 @@ export default function EventCard({ event, soldOut = false }: EventCardProps) {
         <h2 className="event-card-title">{event.title}</h2>
 
         <div className="event-meta-badges">
-          <span className="event-badge event-price-badge">
+          <span
+            className={`event-badge event-price-badge${
+              Number(event.price) === 0 ? " event-price-badge--free" : ""
+            }`}
+          >
             <span className="badge-text">
-              {Number(event.price) === 0 ? "Free" : `From $${Number(event.price).toFixed(2)}`}
+              {Number(event.price) === 0 ? "FREE" : `From $${Number(event.price).toFixed(2)}`}
             </span>
           </span>
+          {/* Date and time share one pill so the row stays on a single line at
+              every breakpoint — split across two pills they wrapped on narrow
+              phones. */}
           <span className="event-badge event-date-badge">
-            <span className="badge-text">{formatEventDateLong(event.date)}</span>
-          </span>
-          {formatEventTime(event.date) && (
-            <span className="event-badge event-time-badge">
-              <span className="badge-text">{formatEventTime(event.date)}</span>
+            <span className="badge-text">
+              {formatEventDateCompact(event.date)}
+              {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
             </span>
-          )}
+          </span>
         </div>
       </div>
     </Link>

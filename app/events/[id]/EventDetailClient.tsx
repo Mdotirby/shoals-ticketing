@@ -134,6 +134,24 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
   useEffect(() => { window.scrollTo(0, 0); }, []);
 
+  // Arriving from the homepage hero's "Preview Artist" button (/events/[id]?preview=1)
+  // starts the same Spotify preview the on-page button does. Read off
+  // window.location rather than useSearchParams so this doesn't drag the page
+  // into a Suspense boundary. Runs once the event is loaded, since the embed it
+  // scrolls to only renders when the event has Spotify data.
+  const previewParamHandled = useRef(false);
+  useEffect(() => {
+    if (!event || previewParamHandled.current) return;
+    if (!new URLSearchParams(window.location.search).has("preview")) return;
+    if (!event.spotify_featured_track && !event.spotify_url) return;
+    previewParamHandled.current = true;
+    setPreviewActive(true);
+    // Wait for the embed to mount before scrolling to it.
+    requestAnimationFrame(() => {
+      spotifyRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [event]);
+
   // Restore presale session
   useEffect(() => {
     if (!eventId) return;

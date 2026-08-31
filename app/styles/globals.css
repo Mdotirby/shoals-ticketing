@@ -13626,3 +13626,784 @@ body:has(.lp-main) .site-footer {
     width: 36px;
   }
 }
+
+/* ============================================================
+   WEST72 — LIQUID GLASS
+   ============================================================
+   Black-and-white "liquid glass" system for west72ent.com:
+   translucent blurred panels floating over an ambient orb field,
+   white accents, Archivo throughout.
+
+   Scoped entirely to body[data-operator="west72"] so the VenueCore
+   brand (navy + gold) is untouched — same pattern as the operator
+   overrides at the top of this file.
+
+   This block SUPERSEDES the earlier "WEST72 — white/black buttons"
+   PSD-derived pass for anything they both target. That pass squared
+   every corner (border-radius: 0) and used flat opaque fills; liquid
+   glass restores pill/rounded geometry and translucent surfaces, so
+   the rules below deliberately win on the shared selectors by virtue
+   of coming later in the cascade.
+
+   Spec: design/liquid-glass/LIQUID_GLASS_DESIGN_SYSTEM.md
+   ============================================================ */
+
+body[data-operator="west72"] {
+  --lg-ink:          #08080a;
+  --lg-white:        #ffffff;
+  --lg-sub:          rgba(255, 255, 255, 0.60);
+  --lg-sub-dim:      rgba(255, 255, 255, 0.40);
+  --lg-accent:       #ffffff;
+  --lg-accent-soft:  rgba(255, 255, 255, 0.90);
+  --lg-glass-bg:     rgba(255, 255, 255, 0.07);
+  --lg-glass-bg-2:   rgba(255, 255, 255, 0.04);
+  --lg-glass-border: rgba(255, 255, 255, 0.16);
+  --lg-glass-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --lg-track:        rgba(255, 255, 255, 0.12);
+  --lg-good:         #8fd6a8;
+
+  --lg-radius-lg: 24px;
+  --lg-radius-md: 18px;
+  --lg-radius-sm: 12px;
+
+  background: var(--lg-ink);
+}
+
+/* ── Ambient background field ──────────────────────────────
+   Rendered once by <BackgroundField /> in the root layout. Every
+   .glass panel blurs THIS; without it the panels read as flat grey. */
+body[data-operator="west72"] .bg-field {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--lg-ink);
+  overflow: hidden;
+  pointer-events: none;
+}
+body[data-operator="west72"] .orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+}
+body[data-operator="west72"] .orb.one {
+  width: 900px; height: 900px; top: -260px; left: -100px;
+  background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 70%);
+}
+body[data-operator="west72"] .orb.blue {
+  width: 820px; height: 820px; top: 100px; right: -220px;
+  background: radial-gradient(circle at 60% 40%, rgba(120, 150, 255, 0.28), rgba(120, 150, 255, 0) 70%);
+}
+body[data-operator="west72"] .orb.rose {
+  width: 760px; height: 760px; bottom: -300px; left: 35%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 140, 170, 0.20), rgba(255, 140, 170, 0) 70%);
+}
+body[data-operator="west72"] .orb.white {
+  width: 560px; height: 560px; bottom: 200px; right: 200px;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 70%);
+}
+body[data-operator="west72"] .grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Content has to sit above the fixed orb field. */
+body[data-operator="west72"] .site-header,
+body[data-operator="west72"] .home-page,
+body[data-operator="west72"] main,
+body[data-operator="west72"] footer {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Core glass surface ───────────────────────────────────── */
+body[data-operator="west72"] .glass {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  position: relative;
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0) 60%);
+}
+
+/* Keep text legible where backdrop-filter isn't supported. */
+@supports not (backdrop-filter: blur(1px)) {
+  body[data-operator="west72"] .glass {
+    background: rgba(20, 20, 22, 0.92);
+  }
+}
+
+/* ── Floating glass pill nav ───────────────────────────────
+   The header becomes a detached rounded pill floating over the
+   content rather than a full-bleed bar. Markup and open/close
+   state are untouched — this is geometry and colour only. */
+body[data-operator="west72"] .site-header {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
+  box-shadow: none;
+  padding: 20px clamp(12px, 3vw, 32px) 0;
+  z-index: 50;
+}
+body[data-operator="west72"] .site-header.header-scrolled {
+  background: transparent;
+}
+body[data-operator="west72"] .header-inner {
+  width: min(100%, 1360px);
+  margin: 0 auto;
+  padding: 12px 14px 12px 26px;
+  min-height: 0;
+  border-radius: 999px;
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+}
+body[data-operator="west72"] .header-right {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+body[data-operator="west72"] .header-nav {
+  gap: 28px;
+}
+body[data-operator="west72"] .header-nav-link {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.80);
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .header-nav-link:hover {
+  color: var(--lg-white);
+}
+
+/* Header CTA — back to a white glass pill (the PSD pass squared it off). */
+body[data-operator="west72"] .header-cta {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 13px 24px;
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .header-cta:hover {
+  background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
+}
+
+/* ── Hero carousel ─────────────────────────────────────────
+   Skin only: the autoplay timer, the mobile drag/swipe handlers and
+   the West-72-host filter query in FeaturedEventsCarousel.tsx are
+   untouched. */
+body[data-operator="west72"] .home-hero.featured-carousel {
+  margin: 14px clamp(12px, 3vw, 32px) 0;
+  width: auto;
+  min-height: min(72vh, 660px);
+  border-radius: var(--lg-radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+}
+body[data-operator="west72"] .featured-carousel .home-hero-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.45) 0%,
+    rgba(0, 0, 0, 0.15) 30%,
+    rgba(0, 0, 0, 0.62) 72%,
+    rgba(0, 0, 0, 0.92) 100%
+  );
+}
+body[data-operator="west72"] .featured-carousel .home-hero-content {
+  padding: 0 clamp(22px, 3.5vw, 52px) clamp(58px, 6vw, 74px);
+  gap: 0;
+}
+
+/* "UP NEXT · SEP 10, 2026" eyebrow */
+body[data-operator="west72"] .featured-carousel-eyebrow {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 14px;
+}
+body[data-operator="west72"] .featured-carousel-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 900;
+  font-size: clamp(38px, 6vw, 76px);
+  line-height: 0.96;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+  max-width: 14ch;
+}
+body[data-operator="west72"] .featured-carousel-subtitle {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: clamp(15px, 1.5vw, 19px);
+  font-weight: 700;
+  color: var(--lg-white);
+  margin: 0 0 6px;
+}
+/* Venue · time line under the subtitle */
+body[data-operator="west72"] .featured-carousel-where {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: clamp(13px, 1.2vw, 15px);
+  font-weight: 500;
+  color: var(--lg-sub);
+  margin: 0 0 26px;
+}
+body[data-operator="west72"] .featured-carousel-date {
+  display: none; /* folded into the eyebrow + .featured-carousel-where */
+}
+
+/* Hero CTA row — primary white glass + outline "Preview Artist" */
+body[data-operator="west72"] .featured-carousel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+body[data-operator="west72"] .home-hero-cta {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 16px 34px;
+  letter-spacing: 0;
+}
+body[data-operator="west72"] .home-hero-cta:hover {
+  background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
+  box-shadow: 0 10px 34px rgba(255, 255, 255, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+}
+body[data-operator="west72"] .featured-carousel-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--lg-white);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 16px 30px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+body[data-operator="west72"] .featured-carousel-preview:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+/* Slide position indicator — read-only. It reflects the carousel's
+   existing `index`; there are no click handlers on it, so autoplay and
+   swipe remain the only ways the slide changes. */
+body[data-operator="west72"] .hero-dots {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+}
+body[data-operator="west72"] .hero-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: width 220ms ease, background 220ms ease;
+}
+body[data-operator="west72"] .hero-dots .dot.active {
+  width: 22px;
+  border-radius: 5px;
+  background: #fff;
+}
+body[data-operator="west72"] .hero-swipe-hint {
+  position: absolute;
+  z-index: 3;
+  top: 28px;
+  right: 36px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.40);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+/* ── Upcoming Shows ────────────────────────────────────────
+   The search field and the Proud Partners strip are kept (they're
+   live features, just absent from the mockup) and restyled as glass. */
+body[data-operator="west72"] .home-gold-separator {
+  display: none; /* the glass hero already separates itself from the strip */
+}
+body[data-operator="west72"] .home-upcoming-section {
+  padding: clamp(48px, 6vw, 78px) clamp(12px, 3vw, 32px) clamp(30px, 4vw, 48px);
+  max-width: 1424px;
+  margin: 0 auto;
+}
+body[data-operator="west72"] .events-eyebrow-glow,
+body[data-operator="west72"] .events-eyebrow-accent-left,
+body[data-operator="west72"] .events-eyebrow-accent-right {
+  display: none;
+}
+body[data-operator="west72"] .events-eyebrow {
+  justify-content: flex-start;
+  margin-bottom: 6px;
+}
+body[data-operator="west72"] .events-eyebrow-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .home-upcoming-header {
+  text-align: left;
+  max-width: none;
+}
+body[data-operator="west72"] .home-upcoming-heading {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(28px, 3.4vw, 40px);
+  letter-spacing: -0.02em;
+  text-align: left;
+  margin: 0 0 22px;
+}
+body[data-operator="west72"] .home-events-search {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  border-radius: 999px;
+  margin: 0 0 30px;
+  max-width: 420px;
+}
+body[data-operator="west72"] .home-events-search:focus-within {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.10);
+}
+body[data-operator="west72"] .home-events-search-input {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .home-events-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* 4-up grid of 4:3 cards on desktop, full-width 16:9 stack on mobile —
+   replaces the horizontal scroll strip. CSS only; the JSX still maps the
+   same filtered event list. */
+body[data-operator="west72"] .home-events-carousel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  overflow: visible;
+  padding: 0;
+}
+body[data-operator="west72"] .home-event-card-wrapper {
+  width: auto;
+  flex-shrink: 1;
+}
+body[data-operator="west72"] .home-events-carousel .event-card,
+body[data-operator="west72"] .home-event-card-wrapper .event-card {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--lg-radius-lg);
+}
+body[data-operator="west72"] .home-events-loading {
+  grid-column: 1 / -1;
+  color: var(--lg-sub);
+  font-family: var(--font-archivo), sans-serif;
+}
+
+/* ── Event card (shared with /events and the success cross-sell) ──
+   Photo fills the card, venue tag pinned top-left, title + pills over a
+   scrim at the bottom. */
+body[data-operator="west72"] .event-card {
+  padding: 0;
+  border-radius: var(--lg-radius-lg);
+  box-shadow: var(--lg-glass-shadow);
+  border: 1px solid var(--lg-glass-border);
+  background-position: center;
+  justify-content: flex-end;
+}
+body[data-operator="west72"] .event-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 38%, rgba(0, 0, 0, 0.55) 68%, rgba(0, 0, 0, 0.92) 100%);
+}
+body[data-operator="west72"] .event-card-glow {
+  display: none;
+}
+body[data-operator="west72"] .event-venue-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+body[data-operator="west72"] .event-venue-badge .badge-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+body[data-operator="west72"] .event-main-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 20px;
+}
+body[data-operator="west72"] .event-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 19px;
+  line-height: 1.15;
+  margin: 0 0 10px;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .event-meta-badges {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+body[data-operator="west72"] .event-badge {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 6px 14px;
+}
+body[data-operator="west72"] .event-badge .badge-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+/* Free events get the solid white "strong" chip. */
+body[data-operator="west72"] .event-price-badge.event-price-badge--free {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  border-color: rgba(255, 255, 255, 0.50);
+}
+body[data-operator="west72"] .event-price-badge--free .badge-text {
+  color: #14120f;
+}
+
+/* ── Proud Partners strip ──────────────────────────────────
+   Kept from the live site (the mockup omits it); de-golded to neutral. */
+body[data-operator="west72"] .home-partners-strip {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+body[data-operator="west72"] .home-partners-label {
+  color: rgba(255, 255, 255, 0.50) !important;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-operator="west72"] .home-partners-link {
+  color: rgba(255, 255, 255, 0.40) !important;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-operator="west72"] .home-partners-fallback {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* ── "Get Rowdy" panel ─────────────────────────────────────
+   A single centred glass panel rather than a full-bleed band. */
+body[data-operator="west72"] .home-cta-section {
+  max-width: 1320px;
+  margin: clamp(28px, 4vw, 44px) auto;
+  padding: clamp(52px, 6vw, 82px) clamp(24px, 4vw, 60px);
+  border-radius: var(--lg-radius-lg);
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  overflow: hidden;
+}
+body[data-operator="west72"] .home-cta-glow {
+  display: none;
+}
+body[data-operator="west72"] .home-cta-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(30px, 3.6vw, 44px);
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .home-cta-subtitle {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: clamp(14px, 1.4vw, 16px);
+  line-height: 1.65;
+  color: var(--lg-sub);
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
+}
+body[data-operator="west72"] .home-cta-button {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0;
+  padding: 16px 34px;
+}
+body[data-operator="west72"] .home-cta-button:hover {
+  background: linear-gradient(155deg, #fff, rgba(255, 255, 255, 0.70));
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  transform: none;
+}
+
+/* ── Friends With Benefits SMS opt-in ──────────────────────
+   Photo band becomes a glass panel: copy left, CTA + fine print right. */
+body[data-operator="west72"] .west72-fwb-hero {
+  background-image: none !important;
+  max-width: 1320px;
+  margin: 0 auto clamp(40px, 5vw, 64px);
+  padding: 0 clamp(12px, 3vw, 32px);
+  min-height: 0;
+  height: auto;
+}
+body[data-operator="west72"] .west72-fwb-overlay {
+  display: none;
+}
+body[data-operator="west72"] .west72-fwb-hero .newsletter-section {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+  padding: clamp(30px, 4vw, 44px);
+}
+body[data-operator="west72"] .newsletter-input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--lg-radius-sm);
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .newsletter-input::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+body[data-operator="west72"] .newsletter-submit {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 16px 30px;
+  letter-spacing: 0;
+}
+
+/* ── Mobile ────────────────────────────────────────────────
+   Every multi-column grid collapses to one column; the hero steps down
+   its type; the swipe hint is redundant where swipe is the primary
+   gesture, so it's hidden. */
+@media (max-width: 900px) {
+  body[data-operator="west72"] .home-events-carousel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  body[data-operator="west72"] .site-header {
+    padding: 12px 12px 0;
+  }
+  body[data-operator="west72"] .header-inner {
+    padding: 10px 12px;
+  }
+  body[data-operator="west72"] .home-hero.featured-carousel {
+    margin: 10px 12px 0;
+    min-height: min(64vh, 520px);
+  }
+  body[data-operator="west72"] .featured-carousel .home-hero-content {
+    padding: 0 20px 46px;
+  }
+  body[data-operator="west72"] .featured-carousel-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  body[data-operator="west72"] .featured-carousel-actions .home-hero-cta,
+  body[data-operator="west72"] .featured-carousel-preview {
+    width: 100%;
+    justify-content: center;
+    font-size: 14px;
+    padding: 15px 24px;
+  }
+  body[data-operator="west72"] .hero-swipe-hint {
+    display: none;
+  }
+  body[data-operator="west72"] .hero-dots {
+    bottom: 14px;
+  }
+  body[data-operator="west72"] .home-events-carousel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  body[data-operator="west72"] .home-events-carousel .event-card,
+  body[data-operator="west72"] .home-event-card-wrapper .event-card {
+    aspect-ratio: 16 / 9;
+  }
+  body[data-operator="west72"] .home-events-search {
+    max-width: none;
+  }
+}
+
+/* Pill row must survive the narrowest card without clipping: the price pill
+   holds its size, the date/time pill absorbs the squeeze and ellipsises. */
+body[data-operator="west72"] .event-meta-badges {
+  min-width: 0;
+  max-width: 100%;
+}
+body[data-operator="west72"] .event-price-badge {
+  flex: 0 0 auto;
+}
+body[data-operator="west72"] .event-date-badge {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+body[data-operator="west72"] .event-date-badge .badge-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Two lines max, so a long bill never pushes the pills off the card. */
+body[data-operator="west72"] .event-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* FWB panel: copy left, form right on desktop (mockup layout), stacked on
+   mobile. The mockup shows only a button on the right — the real form's
+   name/phone fields are kept, since they're what actually drives the SMS
+   opt-in; they just move into the right-hand column. */
+@media (min-width: 901px) {
+  body[data-operator="west72"] .west72-fwb-hero .newsletter-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+    align-items: center;
+    gap: 44px;
+    max-width: none;
+  }
+  body[data-operator="west72"] .west72-fwb-hero .newsletter-header {
+    text-align: left;
+    margin: 0;
+  }
+  body[data-operator="west72"] .west72-fwb-hero .newsletter-form {
+    margin: 0;
+    max-width: none;
+  }
+  body[data-operator="west72"] .west72-fwb-hero .newsletter-disclaimer,
+  body[data-operator="west72"] .west72-fwb-hero .newsletter-privacy-link {
+    text-align: right;
+  }
+}
+body[data-operator="west72"] .newsletter-glow {
+  display: none;
+}
+body[data-operator="west72"] .newsletter-eyebrow {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-operator="west72"] .newsletter-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: clamp(24px, 2.6vw, 32px);
+  letter-spacing: -0.02em;
+  color: var(--lg-white);
+}
+body[data-operator="west72"] .newsletter-subtitle {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--lg-sub);
+}
+body[data-operator="west72"] .newsletter-disclaimer,
+body[data-operator="west72"] .newsletter-privacy-link {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub-dim);
+}
+
+/* The nav pill sits over the brightest part of the orb field, so it gets a
+   dark base under the white glass gradient — without it, white logo/nav text
+   loses contrast at narrow widths where the pill covers the orb's hot centre. */
+body[data-operator="west72"] .header-inner {
+  background:
+    linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2)),
+    rgba(10, 10, 12, 0.55);
+}
+
+/* Mobile keeps the "WEST-72" wordmark centred, per every _mobile mockup in
+   design/liquid-glass — the PSD pass had swapped it for the square icon mark,
+   which reads as a blank gap on the lighter glass pill. */
+@media (max-width: 768px) {
+  body[data-operator="west72"] .header-logo-img--wordmark {
+    display: block;
+    width: 116px !important;
+    height: auto !important;
+  }
+  body[data-operator="west72"] .header-logo-img--icon {
+    display: none !important;
+  }
+}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion, type PanInfo } from "framer-motion";
 import { Event } from "@/lib/types/event";
-import { formatEventDateLong } from "@/lib/dates";
+import { formatEventDateLong, formatEventTime } from "@/lib/dates";
 import { WEST72_HOST_VENUE_ID, WEST72_EVENT_VENUE_ID } from "@/lib/west72-featured";
 
 const ROTATE_MS = 4000;
@@ -104,17 +104,51 @@ export default function FeaturedEventsCarousel() {
             exit={{ opacity: 0, y: prefersReduced ? 0 : -16 }}
             transition={{ duration: prefersReduced ? 0 : 0.4, ease: "easeOut" }}
           >
+            <p className="featured-carousel-eyebrow">
+              Up Next · {formatEventDateLong(event.date)}
+            </p>
             <h1 className="featured-carousel-title">{event.title}</h1>
             {event.subtitle && (
               <p className="featured-carousel-subtitle">{event.subtitle}</p>
             )}
-            <p className="featured-carousel-date">{formatEventDateLong(event.date)}</p>
-            <Link href={`/events/${event.id}`} className="home-hero-cta">
-              Get Tickets
-            </Link>
+            <p className="featured-carousel-where">
+              {event.venue}
+              {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
+            </p>
+            <div className="featured-carousel-actions">
+              <Link href={`/events/${event.id}`} className="home-hero-cta">
+                Get Tickets
+              </Link>
+              {/* Hands off to the event page's existing Spotify preview, which
+                  autoplays the artist's featured track. The events list API
+                  doesn't return the Spotify fields, so the event page — which
+                  does have them — decides whether there's anything to play. */}
+              <Link
+                href={`/events/${event.id}?preview=1`}
+                className="featured-carousel-preview"
+              >
+                <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden="true">
+                  <polygon points="0,0 9,5 0,10" />
+                </svg>
+                Preview Artist
+              </Link>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Desktop-only affordance for the mobile swipe gesture. */}
+      <div className="hero-swipe-hint" aria-hidden="true">&#8596; Swipe</div>
+
+      {/* Position indicator only — deliberately not clickable, so autoplay and
+          swipe stay the only things that move the carousel. */}
+      {events.length > 1 && (
+        <div className="hero-dots" aria-hidden="true">
+          {events.map((e, i) => (
+            <span key={e.id} className={`dot${i === index ? " active" : ""}`} />
+          ))}
+        </div>
+      )}
     </motion.section>
   );
 }
