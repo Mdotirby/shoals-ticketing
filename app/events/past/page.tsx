@@ -62,7 +62,7 @@ export default function PastEventsPage() {
           </h1>
           <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, margin: "8px 0 0" }}>
             Shows we&apos;ve hosted. Tickets are no longer on sale —
-            <Link href="/events" style={{ color: "#d0c290", marginLeft: 4 }}>
+            <Link href="/events" style={{ color: "rgb(var(--vc-gold-rgb))", marginLeft: 4 }}>
               see what&apos;s coming →
             </Link>
           </p>
@@ -119,7 +119,7 @@ export default function PastEventsPage() {
             display: block;
           }
           .past-event-card:hover {
-            border-color: rgba(208,194,144,0.3);
+            border-color: rgba(var(--vc-gold-rgb), 0.3);
             transform: translateY(-2px);
           }
           .past-event-thumb {

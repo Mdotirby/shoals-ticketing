@@ -13,7 +13,7 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-const GOLD = "#d0c290";
+const GOLD = "rgb(var(--vc-gold-rgb))";
 const DARK = "#0b0d1d";
 
 type InvoiceData = {
@@ -133,7 +133,7 @@ export default function PayInvoicePage() {
     <div style={{ minHeight: "100vh", background: DARK }}>
       {/* Header */}
       <div style={{
-        background: "rgba(208,194,144,0.05)", borderBottom: "1px solid rgba(208,194,144,0.15)",
+        background: "rgba(var(--vc-gold-rgb), 0.05)", borderBottom: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
         padding: "20px 0", textAlign: "center",
       }}>
         <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: 2, color: GOLD, textTransform: "uppercase" }}>VenueCore</p>
@@ -145,7 +145,7 @@ export default function PayInvoicePage() {
           <>
             {/* Invoice summary card */}
             <div style={{
-              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(208,194,144,0.15)",
+              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
               borderRadius: 12, padding: "24px 28px", marginBottom: 24,
             }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -192,7 +192,7 @@ export default function PayInvoicePage() {
                     <span style={{ color: "#22c55e" }}>-{fmt(Number(invoice.amount_paid))}</span>
                   </div>
                 )}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(208,194,144,0.2)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, paddingTop: 8, borderTop: "1px solid rgba(var(--vc-gold-rgb), 0.2)" }}>
                   <span style={{ color: GOLD, fontSize: 18, fontWeight: 700 }}>Amount Due</span>
                   <span style={{ color: GOLD, fontSize: 18, fontWeight: 700 }}>{fmt(balanceDue)}</span>
                 </div>

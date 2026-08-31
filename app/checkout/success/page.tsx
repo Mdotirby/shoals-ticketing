@@ -120,7 +120,7 @@ function SuccessContent() {
     <section className="checkout-success-section">
       <div className="checkout-success-card">
         {/* Success icon */}
-        <div className="checkout-success-icon" style={{ marginBottom: 8 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="14" width="40" height="20" rx="4" stroke="#d0c290" strokeWidth="2" /><path d="M4 22a4 4 0 0 1 0 4" stroke="#d0c290" strokeWidth="2" /><path d="M44 22a4 4 0 0 0 0 4" stroke="#d0c290" strokeWidth="2" /><line x1="16" y1="14" x2="16" y2="34" stroke="#d0c290" strokeWidth="1.5" strokeDasharray="2 2" /></svg></div>
+        <div className="checkout-success-icon" style={{ marginBottom: 8 }}><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="4" y="14" width="40" height="20" rx="4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><path d="M4 22a4 4 0 0 1 0 4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><path d="M44 22a4 4 0 0 0 0 4" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="2" /><line x1="16" y1="14" x2="16" y2="34" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="1.5" strokeDasharray="2 2" /></svg></div>
         <h2 className="checkout-success-heading">You&apos;re In!</h2>
         <p className="checkout-success-text">
           Payment confirmed. Your {(data?.order?.quantity || 1) > 1 ? 'tickets are' : 'ticket is'} ready.
@@ -135,13 +135,13 @@ function SuccessContent() {
             style={{
               margin: "20px 0",
               padding: "16px 20px",
-              background: "rgba(208,194,144,0.07)",
-              border: "1px solid rgba(208,194,144,0.15)",
+              background: "rgba(var(--vc-gold-rgb), 0.07)",
+              border: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
               borderRadius: 10,
               textAlign: "left",
             }}
           >
-            <p style={{ color: "#d0c290", fontWeight: 700, margin: 0, fontSize: "1.05rem" }}>
+            <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, margin: 0, fontSize: "1.05rem" }}>
               {data.event.title}
             </p>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14, margin: "4px 0 0" }}>
@@ -168,12 +168,12 @@ function SuccessContent() {
         <div style={{
           margin: "16px 0",
           padding: "14px 20px",
-          background: "rgba(208,194,144,0.06)",
-          border: "1px solid rgba(208,194,144,0.12)",
+          background: "rgba(var(--vc-gold-rgb), 0.06)",
+          border: "1px solid rgba(var(--vc-gold-rgb), 0.12)",
           borderRadius: 10,
           textAlign: "center",
         }}>
-          <p style={{ color: "#d0c290", fontWeight: 700, fontSize: 14, margin: "0 0 4px" }}>
+          <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 14, margin: "0 0 4px" }}>
             Your QR Code Is Your Ticket
           </p>
           <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
@@ -194,7 +194,7 @@ function SuccessContent() {
           )}
 
           {/* Back to events */}
-          <Link href="/events" className="checkout-success-btn" style={{ background: "transparent", border: "1px solid rgba(208,194,144,0.3)" }}>
+          <Link href="/events" className="checkout-success-btn" style={{ background: "transparent", border: "1px solid rgba(var(--vc-gold-rgb), 0.3)" }}>
             ← Back to Events
           </Link>
         </div>
@@ -204,15 +204,15 @@ function SuccessContent() {
           <div style={{
             margin: "20px 0 0",
             padding: "20px",
-            background: "rgba(208,194,144,0.06)",
-            border: "1px solid rgba(208,194,144,0.18)",
+            background: "rgba(var(--vc-gold-rgb), 0.06)",
+            border: "1px solid rgba(var(--vc-gold-rgb), 0.18)",
             borderRadius: 12,
             textAlign: "center",
           }}>
             {layloStatus === "success" ? (
               <>
                 <p style={{ fontSize: 22, margin: "0 0 6px" }}>📱</p>
-                <p style={{ color: "#d0c290", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>You&apos;re on the list!</p>
+                <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>You&apos;re on the list!</p>
                 <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: 0 }}>
                   We&apos;ll text you first for presales and upcoming shows.
                 </p>
@@ -220,7 +220,7 @@ function SuccessContent() {
             ) : (
               <>
                 <p style={{ fontSize: 20, margin: "0 0 8px" }}>🎟️</p>
-                <p style={{ color: "#d0c290", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>
+                <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>
                   Want early access to future shows?
                 </p>
                 <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: "0 0 14px", lineHeight: 1.5 }}>
@@ -234,7 +234,7 @@ function SuccessContent() {
                   inputMode="tel"
                   style={{
                     width: "100%", padding: "11px 14px", marginBottom: 10,
-                    background: "rgba(0,0,0,0.3)", border: "1px solid rgba(208,194,144,0.2)",
+                    background: "rgba(0,0,0,0.3)", border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
                     borderRadius: 8, color: "#fff", fontSize: 15, outline: "none",
                     boxSizing: "border-box",
                   }}
@@ -244,7 +244,7 @@ function SuccessContent() {
                   disabled={layloStatus === "loading" || layloPhone.replace(/\D/g,"").length < 10}
                   style={{
                     width: "100%", padding: "13px", borderRadius: 8, border: "none",
-                    background: layloStatus === "loading" ? "rgba(208,194,144,0.4)" : "#d0c290",
+                    background: layloStatus === "loading" ? "rgba(var(--vc-gold-rgb), 0.4)" : "rgb(var(--vc-gold-rgb))",
                     color: "#111", fontWeight: 700, fontSize: 15, cursor: "pointer",
                     marginBottom: 8, opacity: layloPhone.replace(/\D/g,"").length < 10 ? 0.5 : 1,
                   }}
@@ -278,11 +278,11 @@ function SuccessContent() {
         <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 24, lineHeight: 1.6 }}>
           All sales are final. Refunds are issued only if the event is cancelled by the organizer.
           By completing your purchase you agreed to our{" "}
-          <Link href="/faq" style={{ color: "rgba(208,194,144,0.6)", textDecoration: "underline" }}>
+          <Link href="/faq" style={{ color: "rgba(var(--vc-gold-rgb), 0.6)", textDecoration: "underline" }}>
             Terms of Sale
           </Link>.
           Questions? Email{" "}
-          <a href={`mailto:${operator.supportEmail}`} style={{ color: "rgba(208,194,144,0.6)" }}>
+          <a href={`mailto:${operator.supportEmail}`} style={{ color: "rgba(var(--vc-gold-rgb), 0.6)" }}>
             {operator.supportEmail}
           </a>
         </p>

@@ -55,7 +55,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               width: 64,
               height: 64,
               borderRadius: "50%",
-              background: "rgba(208,194,144,0.1)",
+              background: "rgba(var(--vc-gold-rgb), 0.1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -63,11 +63,11 @@ export default class ErrorBoundary extends Component<Props, State> {
             }}
           >
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="#d0c290" strokeWidth="1.5" />
-              <path d="M12 8v4M12 16h.01" stroke="#d0c290" strokeWidth="1.5" strokeLinecap="round" />
+              <circle cx="12" cy="12" r="10" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="1.5" />
+              <path d="M12 8v4M12 16h.01" stroke="rgb(var(--vc-gold-rgb))" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "#d0c290", marginBottom: 8 }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 700, color: "rgb(var(--vc-gold-rgb))", marginBottom: 8 }}>
             Something went wrong
           </h1>
           <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.95rem", maxWidth: 400, marginBottom: 24 }}>
@@ -80,9 +80,9 @@ export default class ErrorBoundary extends Component<Props, State> {
               style={{
                 padding: "10px 24px",
                 borderRadius: 8,
-                border: "1px solid rgba(208,194,144,0.3)",
-                background: "rgba(208,194,144,0.1)",
-                color: "#d0c290",
+                border: "1px solid rgba(var(--vc-gold-rgb), 0.3)",
+                background: "rgba(var(--vc-gold-rgb), 0.1)",
+                color: "rgb(var(--vc-gold-rgb))",
                 fontSize: 14,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -97,7 +97,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                 padding: "10px 24px",
                 borderRadius: 8,
                 border: "none",
-                background: "#d0c290",
+                background: "rgb(var(--vc-gold-rgb))",
                 color: "#0b0d1d",
                 fontSize: 14,
                 fontWeight: 700,

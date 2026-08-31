@@ -122,7 +122,7 @@ export default function CheckoutSuccessModal({
         <div className="checkout-success-icon">
           {isWest72 ? (
             <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
-              <circle cx="28" cy="28" r="28" fill="#d0c290" />
+              <circle cx="28" cy="28" r="28" fill="rgb(var(--vc-gold-rgb))" />
               <path d="M16 28.5L24 36.5L40 19.5" stroke="#0a0a0a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (

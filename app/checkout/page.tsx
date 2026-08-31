@@ -339,7 +339,7 @@ function CheckoutContent() {
                 style={{
                   background: "transparent",
                   border: "none",
-                  color: "rgba(208,194,144,0.7)",
+                  color: "rgba(var(--vc-gold-rgb), 0.7)",
                   fontSize: 13,
                   cursor: "pointer",
                   textDecoration: "underline",
@@ -385,7 +385,7 @@ function CheckoutContent() {
                       placeholder="Enter code"
                       style={{
                         flex: 1, padding: "8px 12px", borderRadius: 8,
-                        border: "1px solid rgba(208,194,144,0.2)",
+                        border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
                         background: "rgba(255,255,255,0.05)",
                         color: "#fff", fontSize: 16, textTransform: "uppercase",
                       }}
@@ -396,9 +396,9 @@ function CheckoutContent() {
                       disabled={promoLoading || !promoCode.trim()}
                       style={{
                         padding: "8px 16px", borderRadius: 8,
-                        border: "1px solid rgba(208,194,144,0.3)",
-                        background: "rgba(208,194,144,0.1)",
-                        color: "#d0c290", fontSize: 13, fontWeight: 600,
+                        border: "1px solid rgba(var(--vc-gold-rgb), 0.3)",
+                        background: "rgba(var(--vc-gold-rgb), 0.1)",
+                        color: "rgb(var(--vc-gold-rgb))", fontSize: 13, fontWeight: 600,
                         cursor: promoLoading || !promoCode.trim() ? "not-allowed" : "pointer",
                         opacity: promoLoading || !promoCode.trim() ? 0.5 : 1,
                       }}
@@ -451,7 +451,7 @@ function CheckoutContent() {
               onChange={(e) => setAgreed(e.target.checked)}
             />
             <span>
-              I agree to the <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(208,194,144,0.7)", textDecoration: "underline" }}>Terms of Sale</a> and 
+              I agree to the <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(var(--vc-gold-rgb), 0.7)", textDecoration: "underline" }}>Terms of Sale</a> and 
               acknowledge that all sales are final. I consent to receiving my ticket and order 
               confirmation via email.
             </span>

@@ -103,7 +103,7 @@ export default function ExitIntentPopup({ enabled = true, headline = "Get Early 
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#131629", border: "1px solid rgba(208,194,144,0.2)",
+          background: "#131629", border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
           borderRadius: 16, padding: "32px 28px", maxWidth: 420, width: "100%",
           position: "relative",
         }}
@@ -122,14 +122,14 @@ export default function ExitIntentPopup({ enabled = true, headline = "Get Early 
 
         {submitted ? (
           <div style={{ textAlign: "center" }}>
-            <h2 style={{ color: "#d0c290", fontSize: 22, margin: "0 0 8px" }}>You&apos;re In!</h2>
+            <h2 style={{ color: "rgb(var(--vc-gold-rgb))", fontSize: 22, margin: "0 0 8px" }}>You&apos;re In!</h2>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
               Welcome to Friends With Benefits. You&apos;ll get presale access and exclusive offers.
             </p>
           </div>
         ) : (
           <>
-            <h2 style={{ color: "#d0c290", fontSize: 22, margin: "0 0 6px", textAlign: "center" }}>{headline}</h2>
+            <h2 style={{ color: "rgb(var(--vc-gold-rgb))", fontSize: 22, margin: "0 0 6px", textAlign: "center" }}>{headline}</h2>
             <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", margin: "0 0 20px" }}>
               Join <strong>Friends With Benefits</strong> for presale access, exclusive offers, and breaking news.
             </p>
@@ -168,7 +168,7 @@ export default function ExitIntentPopup({ enabled = true, headline = "Get Early 
                 disabled={loading}
                 style={{
                   width: "100%", padding: "14px 0",
-                  background: "linear-gradient(135deg, #d0c290, #b8a66e)",
+                  background: "linear-gradient(135deg, rgb(var(--vc-gold-rgb)), rgba(var(--vc-gold-rgb), 0.72))",
                   color: "#0b0d1d", fontWeight: 700, fontSize: 14,
                   border: "none", borderRadius: 8, cursor: "pointer",
                 }}

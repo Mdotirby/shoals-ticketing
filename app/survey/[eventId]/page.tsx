@@ -43,7 +43,7 @@ export default function SurveyPage() {
     return (
       <div style={pageStyle}>
         <div style={cardStyle}>
-          <h1 style={{ color: "#d0c290", fontSize: 28, margin: "0 0 12px", textAlign: "center" }}>Thank You!</h1>
+          <h1 style={{ color: "rgb(var(--vc-gold-rgb))", fontSize: 28, margin: "0 0 12px", textAlign: "center" }}>Thank You!</h1>
           <p style={{ color: "rgba(255,255,255,0.6)", textAlign: "center", fontSize: 15 }}>
             Your feedback helps us make better shows. See you next time!
           </p>
@@ -55,7 +55,7 @@ export default function SurveyPage() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h1 style={{ color: "#d0c290", fontSize: 24, margin: "0 0 4px", textAlign: "center" }}>Post-Show Survey</h1>
+        <h1 style={{ color: "rgb(var(--vc-gold-rgb))", fontSize: 24, margin: "0 0 4px", textAlign: "center" }}>Post-Show Survey</h1>
         {eventTitle && <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", fontSize: 14, margin: "0 0 24px" }}>{eventTitle}</p>}
 
         <form onSubmit={handleSubmit}>
@@ -71,7 +71,7 @@ export default function SurveyPage() {
                   style={{
                     width: 48, height: 48, borderRadius: "50%", border: "none", cursor: "pointer",
                     fontSize: 18, fontWeight: 700,
-                    background: form.overall_rating >= n ? "#d0c290" : "rgba(255,255,255,0.08)",
+                    background: form.overall_rating >= n ? "rgb(var(--vc-gold-rgb))" : "rgba(255,255,255,0.08)",
                     color: form.overall_rating >= n ? "#0b0d1d" : "rgba(255,255,255,0.4)",
                     transition: "all 0.2s",
                   }}
@@ -95,9 +95,9 @@ export default function SurveyPage() {
                   style={{
                     padding: "10px 24px", borderRadius: 8, border: "none", cursor: "pointer",
                     fontSize: 14, fontWeight: 600,
-                    background: form.would_return === opt.value ? "rgba(208,194,144,0.2)" : "rgba(255,255,255,0.05)",
-                    color: form.would_return === opt.value ? "#d0c290" : "rgba(255,255,255,0.5)",
-                    borderColor: form.would_return === opt.value ? "rgba(208,194,144,0.3)" : "rgba(255,255,255,0.08)",
+                    background: form.would_return === opt.value ? "rgba(var(--vc-gold-rgb), 0.2)" : "rgba(255,255,255,0.05)",
+                    color: form.would_return === opt.value ? "rgb(var(--vc-gold-rgb))" : "rgba(255,255,255,0.5)",
+                    borderColor: form.would_return === opt.value ? "rgba(var(--vc-gold-rgb), 0.3)" : "rgba(255,255,255,0.08)",
                     borderWidth: 1,
                     borderStyle: "solid",
                   }}
@@ -154,7 +154,7 @@ export default function SurveyPage() {
             disabled={loading || form.overall_rating === 0}
             style={{
               width: "100%", padding: "14px 0",
-              background: form.overall_rating > 0 ? "linear-gradient(135deg, #d0c290, #b8a66e)" : "rgba(255,255,255,0.05)",
+              background: form.overall_rating > 0 ? "linear-gradient(135deg, rgb(var(--vc-gold-rgb)), rgba(var(--vc-gold-rgb), 0.72))" : "rgba(255,255,255,0.05)",
               color: form.overall_rating > 0 ? "#0b0d1d" : "rgba(255,255,255,0.3)",
               fontWeight: 700, fontSize: 14,
               border: "none", borderRadius: 8, cursor: form.overall_rating > 0 ? "pointer" : "default",
@@ -179,7 +179,7 @@ const pageStyle: React.CSSProperties = {
 
 const cardStyle: React.CSSProperties = {
   background: "#131629",
-  border: "1px solid rgba(208,194,144,0.15)",
+  border: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
   borderRadius: 16,
   padding: "32px 28px",
   maxWidth: 480,

@@ -810,7 +810,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
             border: none;
             padding: 0;
             cursor: pointer;
-            color: rgba(208, 194, 144, 0.7);
+            color: rgba(var(--vc-gold-rgb), 0.7);
             font-size: 13px;
             font-weight: 600;
             letter-spacing: 0.01em;
@@ -820,7 +820,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
             transition: color 0.2s ease;
           }
           .edc-presale-link:hover {
-            color: rgba(208, 194, 144, 1);
+            color: rgba(var(--vc-gold-rgb), 1);
             animation: none;
           }
           .edc-presale-link::after {
@@ -830,13 +830,13 @@ export default function EventDetailClient({ requiresSeating = false }: { require
             left: 0;
             width: 0;
             height: 1px;
-            background: rgba(208, 194, 144, 0.7);
+            background: rgba(var(--vc-gold-rgb), 0.7);
             transition: width 0.28s ease;
           }
           .edc-presale-link:hover::after { width: 100%; }
           .edc-presale-input:focus {
-            border-color: rgba(208, 194, 144, 0.45) !important;
-            box-shadow: 0 0 0 3px rgba(208, 194, 144, 0.07) !important;
+            border-color: rgba(var(--vc-gold-rgb), 0.45) !important;
+            box-shadow: 0 0 0 3px rgba(var(--vc-gold-rgb), 0.07) !important;
             outline: none;
           }
         `}</style>
@@ -1060,8 +1060,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               {event.external_ticket_url ? (
                 /* ── External Ticketing ── */
                 <div style={{
-                  background: "rgba(208,194,144,0.04)",
-                  border: "1px solid rgba(208,194,144,0.15)",
+                  background: "rgba(var(--vc-gold-rgb), 0.04)",
+                  border: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
                   borderRadius: 12,
                   padding: 28,
                   textAlign: "center",
@@ -1076,7 +1076,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     style={{
                       display: "inline-block",
                       padding: "14px 32px",
-                      background: "linear-gradient(135deg, #d0c290, #b8a870)",
+                      background: "linear-gradient(135deg, rgb(var(--vc-gold-rgb)), rgba(var(--vc-gold-rgb), 0.72))",
                       color: "#0b0d1d",
                       fontWeight: 700,
                       fontSize: 15,
@@ -1147,16 +1147,16 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                 /* ── On-Sale Countdown ── */
                 <div style={{
                   background: "rgba(20, 20, 24, 0.95)",
-                  border: "1px solid rgba(208, 194, 144, 0.2)",
+                  border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
                   borderRadius: 12,
                   padding: 24,
                   textAlign: "center",
                   boxShadow: "0 4px 24px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)",
                 }}>
-                  <p style={{ color: "rgba(208,194,144,0.65)", fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  <p style={{ color: "rgba(var(--vc-gold-rgb), 0.65)", fontWeight: 700, fontSize: 12, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>
                     Tickets On Sale Soon
                   </p>
-                  <p style={{ color: "#d0c290", fontSize: 28, fontWeight: 800, fontFamily: "monospace", letterSpacing: 2 }}>
+                  <p style={{ color: "rgb(var(--vc-gold-rgb))", fontSize: 28, fontWeight: 800, fontFamily: "monospace", letterSpacing: 2 }}>
                     {onSaleCountdown}
                   </p>
                   <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginTop: 8 }}>
@@ -1218,9 +1218,9 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                               style={{
                                 padding: "11px 20px",
                                 borderRadius: 8,
-                                border: "1px solid rgba(208,194,144,0.35)",
-                                background: "rgba(208,194,144,0.09)",
-                                color: "#d0c290",
+                                border: "1px solid rgba(var(--vc-gold-rgb), 0.35)",
+                                background: "rgba(var(--vc-gold-rgb), 0.09)",
+                                color: "rgb(var(--vc-gold-rgb))",
                                 fontSize: 13,
                                 fontWeight: 700,
                                 letterSpacing: "0.03em",
@@ -1251,10 +1251,10 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     marginBottom: 16,
                     padding: "6px 20px",
                     borderRadius: 20,
-                    background: "linear-gradient(90deg, rgba(208,194,144,0.07) 0%, rgba(208,194,144,0.18) 40%, rgba(255,248,220,0.16) 50%, rgba(208,194,144,0.18) 60%, rgba(208,194,144,0.07) 100%)",
+                    background: "linear-gradient(90deg, rgba(var(--vc-gold-rgb), 0.07) 0%, rgba(var(--vc-gold-rgb), 0.18) 40%, rgba(255,248,220,0.16) 50%, rgba(var(--vc-gold-rgb), 0.18) 60%, rgba(var(--vc-gold-rgb), 0.07) 100%)",
                     backgroundSize: "220% auto",
-                    border: "1px solid rgba(208,194,144,0.3)",
-                    color: "#d0c290",
+                    border: "1px solid rgba(var(--vc-gold-rgb), 0.3)",
+                    color: "rgb(var(--vc-gold-rgb))",
                     fontSize: 11,
                     fontWeight: 700,
                     letterSpacing: "0.1em",

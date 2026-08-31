@@ -202,7 +202,7 @@ export default function OrderSummary({
                   style={{
                     background: "none",
                     border: "none",
-                    color: "#d0c290",
+                    color: "rgb(var(--vc-gold-rgb))",
                     cursor: "pointer",
                     fontSize: 13,
                     padding: 0,
@@ -243,7 +243,7 @@ export default function OrderSummary({
                     style={{
                       padding: "6px 14px",
                       fontSize: 13,
-                      background: "#d0c290",
+                      background: "rgb(var(--vc-gold-rgb))",
                       color: "#1a1a2e",
                       border: "none",
                       borderRadius: 6,
@@ -301,7 +301,7 @@ export default function OrderSummary({
               type="button"
               onClick={() => setShowDetails((v) => !v)}
               style={{
-                background: "none", border: "none", color: "#d0c290", cursor: "pointer",
+                background: "none", border: "none", color: "rgb(var(--vc-gold-rgb))", cursor: "pointer",
                 fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
                 display: "flex", alignItems: "center", gap: 4,
               }}

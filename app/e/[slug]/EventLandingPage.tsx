@@ -119,7 +119,7 @@ const stripePromise = loadStripe(
 const stripeAppearance = {
   theme: "night" as const,
   variables: {
-    colorPrimary: "#d0c290",
+    colorPrimary: "rgb(var(--vc-gold-rgb))",
     colorBackground: "rgba(255, 255, 255, 0.04)",
     colorText: "#ffffff",
     colorTextSecondary: "rgba(255, 255, 255, 0.5)",
@@ -141,8 +141,8 @@ const stripeAppearance = {
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     },
     ".Input:focus": {
-      borderColor: "rgba(208, 194, 144, 0.5)",
-      boxShadow: "0 0 0 2px rgba(208, 194, 144, 0.15)",
+      borderColor: "rgba(var(--vc-gold-rgb), 0.5)",
+      boxShadow: "0 0 0 2px rgba(var(--vc-gold-rgb), 0.15)",
     },
     ".Input--invalid": {
       borderColor: "#ef4444",
@@ -566,8 +566,8 @@ function CheckoutForm({
               .lp-ymal-card:nth-child(3){animation-delay:0.19s;}
               .lp-ymal-card:nth-child(4){animation-delay:0.26s;}
               .lp-ymal-card:hover { transform:translateY(-4px); box-shadow:inset 0 0 1px 1px #2d3139,0 8px 20px rgba(0,0,0,0.35); }
-              .lp-ymal-glow { width:200%; height:80%; display:block; filter:blur(18px); background:radial-gradient(50% 50% at 50% 50%,rgba(208,194,144,0.7) 0%,rgba(0,76,255,0.02) 100%); z-index:0; border-radius:100%; position:absolute; left:50%; bottom:-55%; transform:translateX(-50%); pointer-events:none; }
-              .lp-ymal-venue { max-width:calc(100% - 8px); display:flex; align-items:center; padding:2px 6px; background-color:rgba(208,194,144,0.5); border-radius:3px; position:relative; z-index:2; font-size:9px; font-weight:700; color:#0b0d1d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+              .lp-ymal-glow { width:200%; height:80%; display:block; filter:blur(18px); background:radial-gradient(50% 50% at 50% 50%,rgba(var(--vc-gold-rgb), 0.7) 0%,rgba(0,76,255,0.02) 100%); z-index:0; border-radius:100%; position:absolute; left:50%; bottom:-55%; transform:translateX(-50%); pointer-events:none; }
+              .lp-ymal-venue { max-width:calc(100% - 8px); display:flex; align-items:center; padding:2px 6px; background-color:rgba(var(--vc-gold-rgb), 0.5); border-radius:3px; position:relative; z-index:2; font-size:9px; font-weight:700; color:#0b0d1d; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
               .lp-ymal-content { width:100%; margin-top:auto; display:flex; flex-direction:column; align-items:flex-start; gap:4px; position:relative; z-index:2; }
               .lp-ymal-title { width:100%; font-family:var(--font-bayon),sans-serif; font-size:clamp(14px,4vw,20px); line-height:1.05; color:#fff; margin:0; text-align:left; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; text-shadow:0 1px 6px rgba(0,0,0,0.6); }
               .lp-ymal-badges { display:flex; flex-wrap:nowrap; gap:4px; }
@@ -1133,7 +1133,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             border: none;
             padding: 0;
             cursor: pointer;
-            color: rgba(208, 194, 144, 0.7);
+            color: rgba(var(--vc-gold-rgb), 0.7);
             font-size: 13px;
             font-weight: 600;
             letter-spacing: 0.01em;
@@ -1143,7 +1143,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             transition: color 0.2s ease;
           }
           .lp-presale-link:hover {
-            color: rgba(208, 194, 144, 1);
+            color: rgba(var(--vc-gold-rgb), 1);
             animation: none;
           }
           .lp-presale-link::after {
@@ -1153,13 +1153,13 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
             left: 0;
             width: 0;
             height: 1px;
-            background: rgba(208, 194, 144, 0.7);
+            background: rgba(var(--vc-gold-rgb), 0.7);
             transition: width 0.28s ease;
           }
           .lp-presale-link:hover::after { width: 100%; }
           .lp-presale-input:focus {
-            border-color: rgba(208, 194, 144, 0.45) !important;
-            box-shadow: 0 0 0 3px rgba(208, 194, 144, 0.07) !important;
+            border-color: rgba(var(--vc-gold-rgb), 0.45) !important;
+            box-shadow: 0 0 0 3px rgba(var(--vc-gold-rgb), 0.07) !important;
             outline: none;
           }
         `}</style>
@@ -1297,9 +1297,9 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                           style={{
                             padding: "11px 20px",
                             borderRadius: 8,
-                            border: "1px solid rgba(208,194,144,0.35)",
-                            background: "rgba(208,194,144,0.09)",
-                            color: "#d0c290",
+                            border: "1px solid rgba(var(--vc-gold-rgb), 0.35)",
+                            background: "rgba(var(--vc-gold-rgb), 0.09)",
+                            color: "rgb(var(--vc-gold-rgb))",
                             fontSize: 13,
                             fontWeight: 700,
                             letterSpacing: "0.03em",
@@ -1331,10 +1331,10 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                   marginBottom: 16,
                   padding: "6px 20px",
                   borderRadius: 20,
-                  background: "linear-gradient(90deg, rgba(208,194,144,0.07) 0%, rgba(208,194,144,0.18) 40%, rgba(255,248,220,0.16) 50%, rgba(208,194,144,0.18) 60%, rgba(208,194,144,0.07) 100%)",
+                  background: "linear-gradient(90deg, rgba(var(--vc-gold-rgb), 0.07) 0%, rgba(var(--vc-gold-rgb), 0.18) 40%, rgba(255,248,220,0.16) 50%, rgba(var(--vc-gold-rgb), 0.18) 60%, rgba(var(--vc-gold-rgb), 0.07) 100%)",
                   backgroundSize: "220% auto",
-                  border: "1px solid rgba(208,194,144,0.3)",
-                  color: "#d0c290",
+                  border: "1px solid rgba(var(--vc-gold-rgb), 0.3)",
+                  color: "rgb(var(--vc-gold-rgb))",
                   fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: "0.1em",

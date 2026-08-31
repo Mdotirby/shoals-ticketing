@@ -191,7 +191,7 @@ export default function EventsPage() {
           }
           .events-grid-card:hover {
             transform: scale(1.02);
-            border-color: rgba(208,194,144,0.45);
+            border-color: rgba(var(--vc-gold-rgb), 0.45);
           }
           .event-card-img {
             position: relative;
@@ -251,8 +251,8 @@ export default function EventsPage() {
             border-radius: 999px;
             font-size: 13px;
             font-weight: 600;
-            background: rgba(208,194,144,0.15);
-            color: #d0c290;
+            background: rgba(var(--vc-gold-rgb), 0.15);
+            color: rgb(var(--vc-gold-rgb));
             align-self: flex-start;
           }
           .event-card-btn {
@@ -261,7 +261,7 @@ export default function EventsPage() {
             padding: 12px;
             border: none;
             border-radius: 8px;
-            background: #d0c290;
+            background: rgb(var(--vc-gold-rgb));
             color: #0b0d1d;
             font-size: 14px;
             font-weight: 700;

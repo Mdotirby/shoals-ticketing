@@ -35,7 +35,7 @@ const TIERS = [
   {
     name: "Ride or Die",
     range: "20,000+ pts",
-    color: "#d0c290",
+    color: "rgb(var(--vc-gold-rgb))",
     perks: ["All perks unlocked", "Surprise rewards", "The ultimate insider"],
   },
 ];

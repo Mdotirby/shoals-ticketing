@@ -23,12 +23,12 @@ body {
   --vc-bg-mid:          #1a1d35;
   --vc-surface:         rgba(255, 255, 255, 0.04);
   --vc-surface-hover:   rgba(255, 255, 255, 0.07);
-  --vc-surface-active:  rgba(208, 194, 144, 0.10);
+  --vc-surface-active:  rgba(var(--vc-gold-rgb), 0.10);
   --vc-surface-subtle:  rgba(255, 255, 255, 0.025);
 
   /* Borders */
   --vc-border:          rgba(255, 255, 255, 0.09);
-  --vc-border-hover:    rgba(208, 194, 144, 0.20);
+  --vc-border-hover:    rgba(var(--vc-gold-rgb), 0.20);
   --vc-border-subtle:   rgba(255, 255, 255, 0.06);
 
   /* Text */
@@ -37,22 +37,25 @@ body {
   --vc-text-muted:      rgba(255, 255, 255, 0.3);
   --vc-text-disabled:   rgba(255, 255, 255, 0.2);
 
-  /* Brand gold — single source of truth */
-  --vc-gold:            #d0c290;
+  /* Brand gold — single source of truth.
+     --vc-gold-rgb carries the raw channels so every gold value below can be
+     re-tinted per operator by overriding just these three numbers. */
+  --vc-gold-rgb:        208, 194, 144;
+  --vc-gold:            rgb(var(--vc-gold-rgb));
   --vc-gold-hover:      #e0d4a8;
   --vc-gold-dark:       #b8a66e;
-  --vc-gold-5:          rgba(208, 194, 144, 0.05);
-  --vc-gold-8:          rgba(208, 194, 144, 0.08);
-  --vc-gold-10:         rgba(208, 194, 144, 0.10);
-  --vc-gold-12:         rgba(208, 194, 144, 0.12);
-  --vc-gold-15:         rgba(208, 194, 144, 0.15);
-  --vc-gold-20:         rgba(208, 194, 144, 0.20);
-  --vc-gold-25:         rgba(208, 194, 144, 0.25);
-  --vc-gold-30:         rgba(208, 194, 144, 0.30);
-  --vc-gold-35:         rgba(208, 194, 144, 0.35);
-  --vc-gold-40:         rgba(208, 194, 144, 0.40);
-  --vc-gold-50:         rgba(208, 194, 144, 0.50);
-  --vc-gold-muted:      rgba(208, 194, 144, 0.15);
+  --vc-gold-5:          rgba(var(--vc-gold-rgb), 0.05);
+  --vc-gold-8:          rgba(var(--vc-gold-rgb), 0.08);
+  --vc-gold-10:         rgba(var(--vc-gold-rgb), 0.10);
+  --vc-gold-12:         rgba(var(--vc-gold-rgb), 0.12);
+  --vc-gold-15:         rgba(var(--vc-gold-rgb), 0.15);
+  --vc-gold-20:         rgba(var(--vc-gold-rgb), 0.20);
+  --vc-gold-25:         rgba(var(--vc-gold-rgb), 0.25);
+  --vc-gold-30:         rgba(var(--vc-gold-rgb), 0.30);
+  --vc-gold-35:         rgba(var(--vc-gold-rgb), 0.35);
+  --vc-gold-40:         rgba(var(--vc-gold-rgb), 0.40);
+  --vc-gold-50:         rgba(var(--vc-gold-rgb), 0.50);
+  --vc-gold-muted:      rgba(var(--vc-gold-rgb), 0.15);
 
   /* Status */
   --vc-success:         #10b981;
@@ -65,7 +68,7 @@ body {
   --vc-shadow-glass:       0 4px 24px rgba(0, 0, 0, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   --vc-shadow-glass-hover: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.10);
   --vc-shadow-glass-lg:    0 8px 40px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --vc-shadow-gold:        0 4px 20px rgba(208, 194, 144, 0.20);
+  --vc-shadow-gold:        0 4px 20px rgba(var(--vc-gold-rgb), 0.20);
 
   /* Radius */
   --vc-radius-sm:  8px;
@@ -78,7 +81,7 @@ body {
   --vc-blur-heavy: blur(24px);
 
   /* Venue theming defaults (overridden per-venue by VenueThemeProvider) */
-  --venue-primary:   #d0c290;
+  --venue-primary:   rgb(var(--vc-gold-rgb));
   --venue-secondary: #111827;
   --venue-accent:    #1a1d35;
 }
@@ -122,7 +125,7 @@ body[data-operator="west72"] .home-hero-overlay {
     180deg,
     transparent 0%,
     transparent 45%,
-    rgba(208, 194, 144, 0.06) 70%,
+    rgba(var(--vc-gold-rgb), 0.06) 70%,
     rgba(0, 0, 0, 0.72) 100%
   );
 }
@@ -357,7 +360,7 @@ body {
   bottom: 0;
   height: 2px;
   background-color: var(--vc-gold);
-  box-shadow: 0 0 12px rgba(208,194,144,0.6);
+  box-shadow: 0 0 12px rgba(var(--vc-gold-rgb),0.6);
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 220ms ease, transform 220ms ease;
@@ -420,8 +423,8 @@ body {
 }
 
 @keyframes header-cta-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(208, 194, 144, 0.55); }
-  50% { box-shadow: 0 0 0 8px rgba(208, 194, 144, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--vc-gold-rgb), 0.55); }
+  50% { box-shadow: 0 0 0 8px rgba(var(--vc-gold-rgb), 0); }
 }
 
 /* ── Mobile nav drawer + backdrop (rendered outside .site-header) ── */
@@ -491,7 +494,7 @@ body {
   height: 30px;
   display: block;
   filter: blur(30px);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(208, 194, 144, 0.43) 0%, rgba(0, 76, 255, 0.03) 100%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(var(--vc-gold-rgb), 0.43) 0%, rgba(0, 76, 255, 0.03) 100%);
   opacity: 0.55;
   z-index: 0;
   border-radius: 100%;
@@ -614,7 +617,7 @@ body {
   height: 130px;
   display: block;
   filter: blur(18px);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(208, 194, 144, 0.82) 0%, rgba(0, 76, 255, 0.03) 100%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(var(--vc-gold-rgb), 0.82) 0%, rgba(0, 76, 255, 0.03) 100%);
   z-index: 0;
   border-radius: 100%;
   position: absolute;
@@ -630,7 +633,7 @@ body {
   justify-content: center;
   align-items: center;
   padding: 0 3px;
-  background-color: rgba(208, 194, 144, 0.5);
+  background-color: rgba(var(--vc-gold-rgb), 0.5);
   gap: 3px;
   position: relative;
   border-radius: 3px;
@@ -798,7 +801,7 @@ body {
     width: min(78vw, 320px);
     padding-top: 76px;
     background: var(--vc-bg-deep, #0a0a0a);
-    border-right: 1px solid rgba(208,194,144,0.12);
+    border-right: 1px solid rgba(var(--vc-gold-rgb),0.12);
     box-shadow: 8px 0 40px rgba(0,0,0,0.7);
     z-index: 1001;
     overflow-y: auto;
@@ -831,7 +834,7 @@ body {
 
   .mobile-nav-link:active,
   .mobile-nav-link:hover {
-    background: rgba(208,194,144,0.08);
+    background: rgba(var(--vc-gold-rgb),0.08);
     color: var(--vc-gold);
   }
 
@@ -1060,7 +1063,7 @@ body {
   -webkit-appearance: none;
 }
 .ticket-type-select:focus {
-  border-color: rgba(208,194,144,0.3);
+  border-color: rgba(var(--vc-gold-rgb),0.3);
 }
 
 .ticket-qty-control {
@@ -1224,12 +1227,12 @@ body {
 }
 
 .purchase-ticket-card:hover {
-  border-color: rgba(208, 194, 144, 0.25);
+  border-color: rgba(var(--vc-gold-rgb), 0.25);
 }
 
 .purchase-ticket-card.selected {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 24px rgba(208, 194, 144, 0.08);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 24px rgba(var(--vc-gold-rgb), 0.08);
 }
 
 .purchase-ticket-card.sold-out {
@@ -1332,7 +1335,7 @@ body {
   align-items: center;
   gap: 4px;
   padding: 3px 10px;
-  background: rgba(208, 194, 144, 0.15);
+  background: rgba(var(--vc-gold-rgb), 0.15);
   border-radius: 20px;
   font-size: 11px;
   font-weight: 500;
@@ -1350,7 +1353,7 @@ body {
   right: 0;
   bottom: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent 0%, #d0c290 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgb(var(--vc-gold-rgb)) 50%, transparent 100%);
   opacity: 0;
   transition: opacity 200ms ease;
 }
@@ -1522,7 +1525,7 @@ body {
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(208, 194, 144, 0.6);
+  color: rgba(var(--vc-gold-rgb), 0.6);
   text-align: center;
 }
 
@@ -1598,7 +1601,7 @@ body {
 
 .venue-directions-card-link {
   font-size: 12px;
-  color: rgba(208, 194, 144, 0.7);
+  color: rgba(var(--vc-gold-rgb), 0.7);
   text-decoration: none;
   transition: color 150ms ease;
 }
@@ -1666,7 +1669,7 @@ body {
   font-weight: 600;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(208, 194, 144, 0.6);
+  color: rgba(var(--vc-gold-rgb), 0.6);
   text-align: center;
 }
 
@@ -1708,7 +1711,7 @@ body {
 }
 
 .faq-card-open {
-  border-color: rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.15);
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -1731,7 +1734,7 @@ body {
 }
 
 .faq-card-question:hover .faq-card-question-text {
-  color: rgba(208, 194, 144, 0.9);
+  color: rgba(var(--vc-gold-rgb), 0.9);
 }
 
 .faq-card-question-text {
@@ -1802,7 +1805,7 @@ body {
 
 /* Keep the glow subtle against the image */
 .west72-fwb-hero .newsletter-glow {
-  background: radial-gradient(ellipse, rgba(208, 194, 144, 0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(var(--vc-gold-rgb), 0.12) 0%, transparent 70%);
 }
 
 /* Inputs: frosted glass against the photo */
@@ -1837,7 +1840,7 @@ body {
   transform: translate(-50%, -50%);
   width: 600px;
   height: 300px;
-  background: radial-gradient(ellipse, rgba(208, 194, 144, 0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(var(--vc-gold-rgb), 0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -1912,7 +1915,7 @@ body {
 }
 
 .newsletter-input:focus {
-  border-color: rgba(208, 194, 144, 0.4);
+  border-color: rgba(var(--vc-gold-rgb), 0.4);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -1936,7 +1939,7 @@ body {
 
 .newsletter-submit:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
+  box-shadow: 0 4px 20px rgba(var(--vc-gold-rgb), 0.3);
 }
 
 .newsletter-submit:disabled {
@@ -1990,7 +1993,7 @@ body {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.15);
+  background: rgba(var(--vc-gold-rgb), 0.15);
   color: var(--vc-gold);
   font-size: 24px;
 }
@@ -2124,7 +2127,7 @@ body {
   box-sizing: border-box;
   width: 100%;
   background: var(--vc-bg);
-  border-top: 1px solid rgba(208, 194, 144, 0.12);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.12);
   padding: 60px 60px 24px;
   display: flex;
   flex-direction: column;
@@ -2772,7 +2775,7 @@ body {
   height: 200px;
   background: radial-gradient(
     50% 50% at 50% 50%,
-    rgba(208, 194, 144, 0.12) 0%,
+    rgba(var(--vc-gold-rgb), 0.12) 0%,
     transparent 100%
   );
   pointer-events: none;
@@ -2883,7 +2886,7 @@ body {
 }
 .events-search-bar:focus-within,
 .home-events-search:focus-within {
-  border-color: rgba(208, 194, 144, 0.3);
+  border-color: rgba(var(--vc-gold-rgb), 0.3);
   background: rgba(255, 255, 255, 0.09);
 }
 
@@ -2919,7 +2922,7 @@ body {
   font-family: inherit;
 }
 .events-filter-select:focus {
-  border-color: rgba(208,194,144,0.3);
+  border-color: rgba(var(--vc-gold-rgb),0.3);
 }
 
 .events-list-card {
@@ -2935,7 +2938,7 @@ body {
   gap: 16px;
 }
 .events-list-card:hover {
-  border-color: rgba(208,194,144,0.2);
+  border-color: rgba(var(--vc-gold-rgb),0.2);
   box-shadow: 0 4px 24px rgba(0,0,0,0.3);
 }
 
@@ -2949,7 +2952,7 @@ body {
 
 .elc-price-badge {
   display: inline-block;
-  background: rgba(208,194,144,0.15);
+  background: rgba(var(--vc-gold-rgb),0.15);
   color: var(--vc-gold);
   font-size: 13px;
   font-weight: 700;
@@ -3007,8 +3010,8 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(208,194,144,0.12);
-  border: 1px solid rgba(208,194,144,0.25);
+  background: rgba(var(--vc-gold-rgb),0.12);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.25);
   color: var(--vc-gold);
   font-weight: 600;
   font-size: 14px;
@@ -3019,8 +3022,8 @@ body {
   transition: background 0.2s, border-color 0.2s;
 }
 .elc-buy-btn:hover {
-  background: rgba(208,194,144,0.2);
-  border-color: rgba(208,194,144,0.4);
+  background: rgba(var(--vc-gold-rgb),0.2);
+  border-color: rgba(var(--vc-gold-rgb),0.4);
 }
 
 .elc-photo {
@@ -3029,7 +3032,7 @@ body {
   border-radius: 50%;
   background-size: cover;
   background-position: center;
-  border: 2px solid rgba(208,194,144,0.15);
+  border: 2px solid rgba(var(--vc-gold-rgb),0.15);
   flex-shrink: 0;
 }
 .elc-photo-placeholder {
@@ -4011,7 +4014,7 @@ select.admin-form-input {
   letter-spacing: 0.03em;
 }
 
-.role-owner { background: rgba(208, 194, 144, 0.15); color: var(--vc-gold); }
+.role-owner { background: rgba(var(--vc-gold-rgb), 0.15); color: var(--vc-gold); }
 .role-super_admin { background: rgba(100, 180, 255, 0.12); color: #64b4ff; }
 .role-venue_admin { background: rgba(100, 220, 150, 0.12); color: #64dc96; }
 .role-promoter { background: rgba(200, 130, 255, 0.12); color: #c882ff; }
@@ -4036,7 +4039,7 @@ select.admin-form-input {
 }
 
 .portal-quick-link:hover {
-  border-color: rgba(208, 194, 144, 0.35);
+  border-color: rgba(var(--vc-gold-rgb), 0.35);
   color: var(--vc-gold);
 }
 
@@ -4282,7 +4285,7 @@ select.admin-form-input {
 .event-featured-artists-heading {
   font-size: 1.3rem;
   font-weight: 700;
-  color: var(--venue-primary, #d0c290);
+  color: var(--venue-primary, rgb(var(--vc-gold-rgb)));
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 20px;
@@ -4308,14 +4311,14 @@ select.admin-form-input {
   height: 90px;
   border-radius: 50%;
   overflow: hidden;
-  border: 3px solid rgba(208, 194, 144, 0.25);
-  background: rgba(208, 194, 144, 0.08);
+  border: 3px solid rgba(var(--vc-gold-rgb), 0.25);
+  background: rgba(var(--vc-gold-rgb), 0.08);
 }
 
 .event-featured-artist-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, rgba(208,194,144,0.15), rgba(208,194,144,0.05));
+  background: linear-gradient(135deg, rgba(var(--vc-gold-rgb),0.15), rgba(var(--vc-gold-rgb),0.05));
 }
 
 .event-featured-artist-name {
@@ -4513,7 +4516,7 @@ select.admin-form-input {
 .dash-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid rgba(208,194,144,0.2);
+  border: 3px solid rgba(var(--vc-gold-rgb),0.2);
   border-top-color: var(--vc-gold);
   border-radius: 50%;
   animation: dash-spin 0.8s linear infinite;
@@ -4640,8 +4643,8 @@ select.admin-form-input {
   justify-content: center;
   gap: 32px;
   padding: 16px 24px;
-  background: rgba(208,194,144,0.04);
-  border: 1px solid rgba(208,194,144,0.08);
+  background: rgba(var(--vc-gold-rgb),0.04);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.08);
   border-radius: 12px;
 }
 
@@ -4717,7 +4720,7 @@ select.admin-form-input {
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
   color: var(--vc-gold);
   font-weight: 600;
 }
@@ -4837,8 +4840,8 @@ select.admin-form-input {
   align-items: center;
   min-width: 56px;
   padding: 6px 8px;
-  background: rgba(208,194,144,0.08);
-  border: 1px solid rgba(208,194,144,0.12);
+  background: rgba(var(--vc-gold-rgb),0.08);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.12);
   border-radius: 8px;
 }
 
@@ -4920,7 +4923,7 @@ select.admin-form-input {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(208,194,144,0.2), rgba(208,194,144,0.05));
+  background: linear-gradient(135deg, rgba(var(--vc-gold-rgb),0.2), rgba(var(--vc-gold-rgb),0.05));
   color: var(--vc-gold);
   display: flex;
   align-items: center;
@@ -5415,8 +5418,8 @@ select.admin-form-input {
 
 .report-export-btn {
   padding: 8px 16px;
-  background: rgba(208, 194, 144, 0.1);
-  border: 1px solid rgba(208, 194, 144, 0.3);
+  background: rgba(var(--vc-gold-rgb), 0.1);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.3);
   border-radius: 8px;
   color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
@@ -5427,7 +5430,7 @@ select.admin-form-input {
 }
 
 .report-export-btn:hover:not(:disabled) {
-  background: rgba(208, 194, 144, 0.2);
+  background: rgba(var(--vc-gold-rgb), 0.2);
 }
 
 .report-export-btn:disabled {
@@ -5469,14 +5472,14 @@ select.admin-form-input {
 
 .report-card {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(208, 194, 144, 0.15);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.15);
   border-radius: 12px;
   padding: 24px;
   transition: border-color 0.2s;
 }
 
 .report-card:hover {
-  border-color: rgba(208, 194, 144, 0.3);
+  border-color: rgba(var(--vc-gold-rgb), 0.3);
 }
 
 .report-card-header {
@@ -5554,13 +5557,13 @@ select.admin-form-input {
 }
 
 .report-card-btn-generate {
-  background: rgba(208, 194, 144, 0.15);
-  border-color: rgba(208, 194, 144, 0.3);
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.3);
   color: var(--vc-gold);
 }
 
 .report-card-btn-generate:hover:not(:disabled) {
-  background: rgba(208, 194, 144, 0.25);
+  background: rgba(var(--vc-gold-rgb), 0.25);
 }
 
 .report-card-btn-csv {
@@ -5611,13 +5614,13 @@ select.admin-form-input {
 /* ── Card Preview ──────────────────────────────────────────────── */
 .report-card-preview {
   margin-top: 16px;
-  border-top: 1px solid rgba(208, 194, 144, 0.1);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.1);
   padding-top: 16px;
 }
 
 /* ── Report Table: Event group rows ────────────────────────────── */
 .report-table-event-row td {
-  background: rgba(208, 194, 144, 0.1) !important;
+  background: rgba(var(--vc-gold-rgb), 0.1) !important;
   color: var(--vc-gold) !important;
   font-weight: 600;
   font-size: 13px;
@@ -5631,18 +5634,18 @@ select.admin-form-input {
 }
 
 .report-table-subtotal-row td {
-  background: rgba(208, 194, 144, 0.06) !important;
+  background: rgba(var(--vc-gold-rgb), 0.06) !important;
   color: var(--vc-gold) !important;
   font-weight: 600;
-  border-top: 1px solid rgba(208, 194, 144, 0.15);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.15);
 }
 
 .report-table-grand-row td {
-  background: rgba(208, 194, 144, 0.12) !important;
+  background: rgba(var(--vc-gold-rgb), 0.12) !important;
   color: var(--vc-gold) !important;
   font-weight: 700;
   font-size: 13px;
-  border-top: 2px solid rgba(208, 194, 144, 0.3);
+  border-top: 2px solid rgba(var(--vc-gold-rgb), 0.3);
 }
 
 /* ── Mini Sections (Revenue Preview) ───────────────────────────── */
@@ -5669,8 +5672,8 @@ select.admin-form-input {
 }
 
 .report-mini-totals {
-  border-color: rgba(208, 194, 144, 0.2);
-  background: rgba(208, 194, 144, 0.04);
+  border-color: rgba(var(--vc-gold-rgb), 0.2);
+  background: rgba(var(--vc-gold-rgb), 0.04);
 }
 
 .report-kv-grid {
@@ -5902,8 +5905,8 @@ select.admin-form-input {
 
 .portal-form-submit {
   padding: 8px 18px;
-  background: rgba(208, 194, 144, 0.15);
-  border: 1px solid rgba(208, 194, 144, 0.35);
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.35);
   border-radius: 8px;
   color: var(--vc-gold);
   font-family: var(--font-urbanist), sans-serif;
@@ -5915,7 +5918,7 @@ select.admin-form-input {
 }
 
 .portal-form-submit:hover:not(:disabled) {
-  background: rgba(208, 194, 144, 0.25);
+  background: rgba(var(--vc-gold-rgb), 0.25);
 }
 
 .portal-form-submit:disabled {
@@ -5948,7 +5951,7 @@ select.admin-form-input {
   font-family: monospace;
   font-size: 12px;
   color: var(--vc-gold);
-  background: rgba(208, 194, 144, 0.08);
+  background: rgba(var(--vc-gold-rgb), 0.08);
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -6166,7 +6169,7 @@ select.admin-form-input {
   font-weight: 600;
   color: var(--vc-text);
   padding: 12px 0;
-  border-top: 1px solid rgba(208, 194, 144, 0.2);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   margin-top: 8px;
 }
 
@@ -6204,7 +6207,7 @@ select.admin-form-input {
 
 .offer-potential-row.highlight {
   padding: 8px 0;
-  border-top: 1px solid rgba(208, 194, 144, 0.2);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   color: var(--vc-gold);
   font-weight: 600;
 }
@@ -6374,7 +6377,7 @@ select.admin-form-input {
 }
 
 .sales-event-card:hover {
-  border-color: rgba(208, 194, 144, 0.2);
+  border-color: rgba(var(--vc-gold-rgb), 0.2);
   background: rgba(255, 255, 255, 0.04);
 }
 
@@ -6443,7 +6446,7 @@ select.admin-form-input {
 
 .sales-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #d0c290 0%, #e8d9a0 100%);
+  background: linear-gradient(90deg, rgb(var(--vc-gold-rgb)) 0%, #e8d9a0 100%);
   border-radius: 4px;
   transition: width 500ms ease;
 }
@@ -7166,7 +7169,7 @@ select.admin-form-input {
 
 /* ── Check In All button ── */
 .scan-checkin-all-btn {
-  background: #d0c290;
+  background: rgb(var(--vc-gold-rgb));
   color: #0b0d1d;
   border: none;
   border-radius: 8px;
@@ -7226,9 +7229,9 @@ select.admin-form-input {
   flex-shrink: 0;
 }
 .scan-single-checkin-btn {
-  background: rgba(208,194,144,0.12);
-  color: #d0c290;
-  border: 1px solid rgba(208,194,144,0.25);
+  background: rgba(var(--vc-gold-rgb),0.12);
+  color: rgb(var(--vc-gold-rgb));
+  border: 1px solid rgba(var(--vc-gold-rgb),0.25);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
@@ -7237,7 +7240,7 @@ select.admin-form-input {
   flex-shrink: 0;
   transition: background 150ms;
 }
-.scan-single-checkin-btn:hover { background: rgba(208,194,144,0.2); }
+.scan-single-checkin-btn:hover { background: rgba(var(--vc-gold-rgb),0.2); }
 .scan-single-checkin-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ── Manual entry toggle ── */
@@ -7434,7 +7437,7 @@ select.admin-form-input {
   align-items: center;
   gap: 14px;
   padding: 16px 0;
-  border-bottom: 1px solid rgba(208,194,144,0.12);
+  border-bottom: 1px solid rgba(var(--vc-gold-rgb),0.12);
   margin-bottom: 16px;
 }
 
@@ -7529,7 +7532,7 @@ select.admin-form-input {
 }
 
 .auction-nav-link:hover {
-  background: rgba(208,194,144,0.15);
+  background: rgba(var(--vc-gold-rgb),0.15);
   color: var(--vc-gold);
 }
 
@@ -7560,8 +7563,8 @@ select.admin-form-input {
 
 .auction-item-tile {
   display: block;
-  background: linear-gradient(145deg, rgba(208,194,144,0.08) 0%, rgba(20,22,50,0.9) 100%);
-  border: 1px solid rgba(208,194,144,0.12);
+  background: linear-gradient(145deg, rgba(var(--vc-gold-rgb),0.08) 0%, rgba(20,22,50,0.9) 100%);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.12);
   border-radius: 14px;
   padding: 16px;
   text-decoration: none;
@@ -7570,7 +7573,7 @@ select.admin-form-input {
 }
 
 .auction-item-tile:hover {
-  border-color: rgba(208,194,144,0.3);
+  border-color: rgba(var(--vc-gold-rgb),0.3);
   transform: translateY(-1px);
 }
 
@@ -7611,7 +7614,7 @@ select.admin-form-input {
 .auction-item-tile-leader {
   margin: 8px 0 0;
   font-size: 12px;
-  color: rgba(208,194,144,0.7);
+  color: rgba(var(--vc-gold-rgb),0.7);
 }
 
 .auction-empty {
@@ -7623,7 +7626,7 @@ select.admin-form-input {
 /* ── Bid Page ── */
 .auction-bid-card {
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(208,194,144,0.12);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.12);
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
@@ -7751,12 +7754,12 @@ select.admin-form-input {
 
 .auction-btn-outline {
   background: transparent;
-  border: 1px solid rgba(208,194,144,0.3);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.3);
   color: var(--vc-gold);
 }
 
 .auction-btn-outline:hover:not(:disabled) {
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
 }
 
 .auction-btn-large {
@@ -7805,7 +7808,7 @@ select.admin-form-input {
 /* ── Register Page ── */
 .auction-register-card {
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(208,194,144,0.12);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.12);
   border-radius: 16px;
   padding: 24px 20px;
 }
@@ -7857,7 +7860,7 @@ select.admin-form-input {
 
 .auction-modal {
   background: #1a1d3a;
-  border: 1px solid rgba(208,194,144,0.2);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.2);
   border-radius: 16px;
   padding: 24px;
   max-width: 360px;
@@ -7942,8 +7945,8 @@ select.admin-form-input {
 }
 
 .auction-dashboard-closed-banner {
-  background: rgba(208,194,144,0.08);
-  border: 1px solid rgba(208,194,144,0.2);
+  background: rgba(var(--vc-gold-rgb),0.08);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.2);
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
@@ -7993,7 +7996,7 @@ select.admin-form-input {
 }
 
 .auction-dashboard-card:hover {
-  border-color: rgba(208,194,144,0.3);
+  border-color: rgba(var(--vc-gold-rgb),0.3);
 }
 
 .auction-dashboard-card-winning {
@@ -8043,7 +8046,7 @@ select.admin-form-input {
 /* ── Checkout ── */
 .auction-checkout-card {
   background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(208,194,144,0.12);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.12);
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
@@ -8095,7 +8098,7 @@ select.admin-form-input {
   font-weight: 800;
   color: var(--vc-gold);
   padding-top: 8px;
-  border-top: 1px solid rgba(208,194,144,0.2);
+  border-top: 1px solid rgba(var(--vc-gold-rgb),0.2);
   margin-top: 8px;
 }
 
@@ -8133,7 +8136,7 @@ select.admin-form-input {
 
 .auction-btn-method:hover {
   border-color: var(--vc-gold);
-  background: rgba(208,194,144,0.08);
+  background: rgba(var(--vc-gold-rgb),0.08);
 }
 
 .auction-btn-method-cc {
@@ -8147,8 +8150,8 @@ select.admin-form-input {
 .auction-checkout-offline {
   text-align: center;
   padding: 24px;
-  background: rgba(208,194,144,0.06);
-  border: 1px solid rgba(208,194,144,0.15);
+  background: rgba(var(--vc-gold-rgb),0.06);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.15);
   border-radius: 16px;
   margin-bottom: 16px;
 }
@@ -8205,7 +8208,7 @@ select.admin-form-input {
 }
 
 .auction-footer strong {
-  color: rgba(208,194,144,0.4);
+  color: rgba(var(--vc-gold-rgb),0.4);
 }
 
 /* ── Auction Creation Page ── */
@@ -8252,7 +8255,7 @@ select.admin-form-input {
 }
 
 .auction-create-panel:focus-within {
-  border-color: rgba(208,194,144,0.15);
+  border-color: rgba(var(--vc-gold-rgb),0.15);
 }
 
 .auction-create-panel-header {
@@ -8268,7 +8271,7 @@ select.admin-form-input {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
   color: var(--vc-gold);
   display: flex;
   align-items: center;
@@ -8329,7 +8332,7 @@ select.admin-form-input {
   justify-content: center;
   gap: 8px;
   padding: 32px;
-  border: 2px dashed rgba(208,194,144,0.2);
+  border: 2px dashed rgba(var(--vc-gold-rgb),0.2);
   border-radius: 12px;
   color: var(--vc-text-secondary);
   font-size: 14px;
@@ -8338,8 +8341,8 @@ select.admin-form-input {
 }
 
 .auction-logo-placeholder:hover {
-  border-color: rgba(208,194,144,0.4);
-  background: rgba(208,194,144,0.03);
+  border-color: rgba(var(--vc-gold-rgb),0.4);
+  background: rgba(var(--vc-gold-rgb),0.03);
 }
 
 .auction-logo-hint {
@@ -8509,7 +8512,7 @@ select.admin-form-input {
 }
 
 .auction-toggle-checkbox:checked + .auction-toggle-switch {
-  background: rgba(208,194,144,0.3);
+  background: rgba(var(--vc-gold-rgb),0.3);
 }
 
 .auction-toggle-checkbox:checked + .auction-toggle-switch::after {
@@ -8584,7 +8587,7 @@ select.admin-form-input {
 }
 
 .auction-card:hover {
-  border-color: rgba(208,194,144,0.2);
+  border-color: rgba(var(--vc-gold-rgb),0.2);
   box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
@@ -8681,9 +8684,9 @@ select.admin-form-input {
 }
 
 .auction-card-tag-gold {
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
   color: var(--vc-gold);
-  border-color: rgba(208,194,144,0.15);
+  border-color: rgba(var(--vc-gold-rgb),0.15);
 }
 
 .auction-card-actions {
@@ -8695,7 +8698,7 @@ select.admin-form-input {
 
 /* Admin edit page */
 .auction-item-counter {
-  background: rgba(208,194,144,0.15);
+  background: rgba(var(--vc-gold-rgb),0.15);
   color: var(--vc-gold);
   padding: 4px 12px;
   border-radius: 20px;
@@ -8731,7 +8734,7 @@ select.admin-form-input {
 
 .auction-item-new {
   border-style: dashed;
-  border-color: rgba(208,194,144,0.2);
+  border-color: rgba(var(--vc-gold-rgb),0.2);
 }
 
 .auction-item-card-header {
@@ -8763,8 +8766,8 @@ select.admin-form-input {
 
 /* Report summary */
 .auction-report-summary {
-  background: rgba(208,194,144,0.06);
-  border: 1px solid rgba(208,194,144,0.15);
+  background: rgba(var(--vc-gold-rgb),0.06);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.15);
   border-radius: 12px;
   padding: 16px;
   margin-top: 16px;
@@ -8839,7 +8842,7 @@ select.admin-form-input {
 .auctions-hero {
   padding: 60px 20px 48px;
   text-align: center;
-  background: linear-gradient(180deg, rgba(208,194,144,0.06) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(var(--vc-gold-rgb),0.06) 0%, transparent 100%);
 }
 
 .auctions-hero-content {
@@ -8851,7 +8854,7 @@ select.admin-form-input {
   display: inline-block;
   padding: 5px 14px;
   border-radius: 20px;
-  background: rgba(208,194,144,0.12);
+  background: rgba(var(--vc-gold-rgb),0.12);
   color: var(--vc-gold);
   font-size: 12px;
   font-weight: 700;
@@ -8905,12 +8908,12 @@ select.admin-form-input {
 
 .auctions-cta-outline {
   background: transparent;
-  border: 1px solid rgba(208,194,144,0.3);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.3);
   color: var(--vc-gold);
 }
 
 .auctions-cta-outline:hover {
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
 }
 
 /* Sections */
@@ -8972,8 +8975,8 @@ select.admin-form-input {
 
 .auctions-pain-solution {
   color: rgba(255,255,255,0.8) !important;
-  background: rgba(208,194,144,0.06);
-  border-left: 3px solid #d0c290;
+  background: rgba(var(--vc-gold-rgb),0.06);
+  border-left: 3px solid rgb(var(--vc-gold-rgb));
   padding: 12px 14px;
   border-radius: 0 8px 8px 0;
 }
@@ -8998,7 +9001,7 @@ select.admin-form-input {
 }
 
 .auctions-feature-card:hover {
-  border-color: rgba(208,194,144,0.2);
+  border-color: rgba(var(--vc-gold-rgb),0.2);
 }
 
 .auctions-feature-icon {
@@ -9023,7 +9026,7 @@ select.admin-form-input {
 /* How It Works */
 .auctions-how-section {
   padding: 48px 0;
-  background: rgba(208,194,144,0.03);
+  background: rgba(var(--vc-gold-rgb),0.03);
 }
 
 .auctions-steps {
@@ -9169,7 +9172,7 @@ select.admin-form-input {
 /* ── Philosophy Section ── */
 .about-philosophy {
   padding: 80px 24px 60px;
-  border-top: 1px solid rgba(208,194,144,0.12);
+  border-top: 1px solid rgba(var(--vc-gold-rgb),0.12);
 }
 
 .about-philosophy-inner {
@@ -9205,7 +9208,7 @@ select.admin-form-input {
   gap: 8px;
   margin-top: 16px;
   padding: 10px 24px;
-  border: 1px solid rgba(208,194,144,0.5);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.5);
   border-radius: 24px;
   color: var(--vc-text);
   text-decoration: none;
@@ -9215,7 +9218,7 @@ select.admin-form-input {
 }
 
 .about-cta-btn:hover {
-  background: rgba(208,194,144,0.1);
+  background: rgba(var(--vc-gold-rgb),0.1);
   border-color: var(--vc-gold);
 }
 
@@ -9231,7 +9234,7 @@ select.admin-form-input {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, rgba(32,32,69,0.8), rgba(11,13,29,0.9));
-  border: 2px dashed rgba(208,194,144,0.25);
+  border: 2px dashed rgba(var(--vc-gold-rgb),0.25);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -9284,7 +9287,7 @@ select.admin-form-input {
 }
 
 .about-feature-card:hover {
-  border-color: rgba(208, 194, 144, 0.25);
+  border-color: rgba(var(--vc-gold-rgb), 0.25);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   transform: translateY(-4px);
 }
@@ -9293,7 +9296,7 @@ select.admin-form-input {
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  border: 1px solid rgba(208,194,144,0.25);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9348,7 +9351,7 @@ select.admin-form-input {
   padding: 60px 24px 48px;
   text-align: center;
   background: linear-gradient(180deg, rgba(32,32,69,0.5) 0%, transparent 100%);
-  border-bottom: 1px solid rgba(208,194,144,0.08);
+  border-bottom: 1px solid rgba(var(--vc-gold-rgb),0.08);
 }
 
 .contact-hero-title {
@@ -9457,7 +9460,7 @@ select.admin-form-input {
 .contact-field select:focus,
 .contact-field textarea:focus {
   border-color: var(--vc-gold);
-  box-shadow: 0 0 0 2px rgba(208,194,144,0.15);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb),0.15);
 }
 
 .contact-field select {
@@ -9543,7 +9546,7 @@ select.admin-form-input {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 1px solid rgba(208,194,144,0.25);
+  border: 1px solid rgba(var(--vc-gold-rgb),0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9703,7 +9706,7 @@ body:has(.lp-main) .site-footer {
     rgba(10, 8, 4, 0.97) 25%,
     rgba(14, 11, 5, 0.72) 50%,
     rgba(12, 10, 4, 0.35) 72%,
-    rgba(208, 194, 144, 0.04) 88%,
+    rgba(var(--vc-gold-rgb), 0.04) 88%,
     transparent 100%
   );
   z-index: 1;
@@ -9713,7 +9716,7 @@ body:has(.lp-main) .site-footer {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse at 65% 35%, rgba(208, 194, 144, 0.1) 0%, transparent 65%),
+    radial-gradient(ellipse at 65% 35%, rgba(var(--vc-gold-rgb), 0.1) 0%, transparent 65%),
     linear-gradient(160deg, #0d0a05 0%, #120e07 45%, #0a0a0f 100%);
   z-index: 0;
 }
@@ -9796,14 +9799,14 @@ body:has(.lp-main) .site-footer {
   gap: 6px;
   padding: 20px 24px;
   background: rgba(20, 20, 24, 0.95);
-  border: 1px solid rgba(208, 194, 144, 0.2);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   border-radius: var(--vc-radius-md);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .lp-countdown-label {
   font-size: 12px;
-  color: rgba(208, 194, 144, 0.6);
+  color: rgba(var(--vc-gold-rgb), 0.6);
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 600;
@@ -9853,12 +9856,12 @@ body:has(.lp-main) .site-footer {
 
 .lp-tier-btn:hover {
   border-color: var(--vc-gold-muted);
-  background: rgba(208, 194, 144, 0.06);
+  background: rgba(var(--vc-gold-rgb), 0.06);
 }
 
 .lp-tier-btn-active {
   border-color: var(--vc-gold);
-  background: rgba(208, 194, 144, 0.1);
+  background: rgba(var(--vc-gold-rgb), 0.1);
   box-shadow: 0 0 0 1px var(--vc-gold);
 }
 
@@ -9957,12 +9960,12 @@ body:has(.lp-main) .site-footer {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
+  box-shadow: 0 4px 20px rgba(var(--vc-gold-rgb), 0.3);
 }
 
 .lp-cta-btn:hover {
   background: var(--vc-gold-hover);
-  box-shadow: 0 6px 28px rgba(208, 194, 144, 0.45);
+  box-shadow: 0 6px 28px rgba(var(--vc-gold-rgb), 0.45);
   transform: translateY(-1px);
 }
 
@@ -10074,8 +10077,8 @@ body:has(.lp-main) .site-footer {
   gap: 10px;
   padding: 14px 20px;
   border-radius: var(--vc-radius-md);
-  background: rgba(208, 194, 144, 0.06);
-  border: 1px solid rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.06);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.12);
   color: var(--vc-gold);
   font-size: 14px;
   font-weight: 600;
@@ -10222,7 +10225,7 @@ body:has(.lp-main) .site-footer {
   letter-spacing: 0.04em;
   white-space: nowrap;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.3);
+  box-shadow: 0 4px 16px rgba(var(--vc-gold-rgb), 0.3);
 }
 
 .lp-sticky-cta:hover {
@@ -10270,7 +10273,7 @@ body:has(.lp-main) .site-footer {
       var(--vc-bg) 0%,
       rgba(10, 8, 4, 0.98) 18%,
       rgba(14, 11, 5, 0.6) 55%,
-      rgba(208, 194, 144, 0.03) 85%,
+      rgba(var(--vc-gold-rgb), 0.03) 85%,
       transparent 100%
     );
   }
@@ -10490,8 +10493,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .lp-checkout-input:focus {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb), 0.15);
 }
 
 /* ── Card Row (Expiry + CVC side by side) ── */
@@ -10513,8 +10516,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .lp-checkout-card-element:focus-within {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb), 0.15);
 }
 
 /* Make Stripe iframes fill the wrapper */
@@ -10541,9 +10544,9 @@ body:has(.lp-main) .site-footer {
 
 .lp-checkout-promo-btn {
   padding: 12px 20px;
-  border: 1px solid rgba(208, 194, 144, 0.3);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.3);
   border-radius: var(--vc-radius-md);
-  background: rgba(208, 194, 144, 0.08);
+  background: rgba(var(--vc-gold-rgb), 0.08);
   color: var(--vc-gold);
   font-size: 14px;
   font-weight: 700;
@@ -10554,8 +10557,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .lp-checkout-promo-btn:hover:not(:disabled) {
-  background: rgba(208, 194, 144, 0.15);
-  border-color: rgba(208, 194, 144, 0.5);
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
 }
 
 .lp-checkout-promo-btn:disabled {
@@ -10599,13 +10602,13 @@ body:has(.lp-main) .site-footer {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   transition: all 0.2s ease;
-  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
+  box-shadow: 0 4px 20px rgba(var(--vc-gold-rgb), 0.3);
   margin-top: 4px;
 }
 
 .lp-checkout-pay-btn:hover:not(:disabled) {
   background: var(--venue-primary-hover, var(--vc-gold-hover));
-  box-shadow: 0 6px 28px rgba(208, 194, 144, 0.45);
+  box-shadow: 0 6px 28px rgba(var(--vc-gold-rgb), 0.45);
   transform: translateY(-1px);
 }
 
@@ -10728,8 +10731,8 @@ body:has(.lp-main) .site-footer {
 .lp-checkout-fwb {
   margin-top: 24px;
   padding: 24px;
-  background: rgba(208, 194, 144, 0.05);
-  border: 1px solid rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.05);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.12);
   border-radius: var(--vc-radius-lg);
   display: flex;
   flex-direction: column;
@@ -10746,7 +10749,7 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.12);
   color: var(--vc-gold);
   margin-bottom: 4px;
 }
@@ -10773,8 +10776,8 @@ body:has(.lp-main) .site-footer {
   justify-content: center;
   padding: 10px 28px;
   border-radius: var(--vc-radius-md);
-  border: 1px solid rgba(208, 194, 144, 0.3);
-  background: rgba(208, 194, 144, 0.08);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.3);
+  background: rgba(var(--vc-gold-rgb), 0.08);
   color: var(--vc-gold);
   font-size: 14px;
   font-weight: 700;
@@ -10784,8 +10787,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .lp-checkout-fwb-btn:hover {
-  background: rgba(208, 194, 144, 0.15);
-  border-color: rgba(208, 194, 144, 0.5);
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
 }
 
 /* ── Checkout Mobile Responsiveness ── */
@@ -10869,7 +10872,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .lp-artist-card:hover {
-  border-color: rgba(208, 194, 144, 0.2);
+  border-color: rgba(var(--vc-gold-rgb), 0.2);
 }
 
 .lp-artist-avatar {
@@ -10877,14 +10880,14 @@ body:has(.lp-main) .site-footer {
   height: 72px;
   border-radius: 50%;
   overflow: hidden;
-  background: rgba(208, 194, 144, 0.08);
+  background: rgba(var(--vc-gold-rgb), 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .lp-artist-avatar-placeholder {
-  color: rgba(208, 194, 144, 0.4);
+  color: rgba(var(--vc-gold-rgb), 0.4);
 }
 
 .lp-artist-name {
@@ -10962,7 +10965,7 @@ body:has(.lp-main) .site-footer {
 .lp-venue-detail-link {
   display: block;
   font-size: 13px;
-  color: rgba(208, 194, 144, 0.7);
+  color: rgba(var(--vc-gold-rgb), 0.7);
   text-decoration: none;
   margin-top: 4px;
   transition: color 0.2s;
@@ -11087,8 +11090,8 @@ body:has(.lp-main) .site-footer {
   font-size: 15px;
   font-weight: 800;
   color: #fff;
-  background: rgba(208, 194, 144, 0.06);
-  border-top: 1px solid rgba(208, 194, 144, 0.1) !important;
+  background: rgba(var(--vc-gold-rgb), 0.06);
+  border-top: 1px solid rgba(var(--vc-gold-rgb), 0.1) !important;
 }
 
 /* ── Form Fields ── */
@@ -11130,8 +11133,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .ic-input:focus {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb), 0.15);
 }
 
 .ic-input::placeholder {
@@ -11147,8 +11150,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .ic-stripe-field:focus-within {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb), 0.15);
 }
 
 .ic-card-row {
@@ -11184,7 +11187,7 @@ body:has(.lp-main) .site-footer {
 
 .ic-pay-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(208, 194, 144, 0.25);
+  box-shadow: 0 6px 24px rgba(var(--vc-gold-rgb), 0.25);
 }
 
 .ic-pay-btn:disabled {
@@ -11258,8 +11261,8 @@ body:has(.lp-main) .site-footer {
 .ic-fwb-prompt {
   margin-top: 20px;
   padding: 24px 20px;
-  background: rgba(208, 194, 144, 0.06);
-  border: 1px solid rgba(208, 194, 144, 0.18);
+  background: rgba(var(--vc-gold-rgb), 0.06);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.18);
   border-radius: var(--vc-radius-lg);
   display: flex;
   flex-direction: column;
@@ -11278,7 +11281,7 @@ body:has(.lp-main) .site-footer {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(208, 194, 144, 0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--vc-gold-rgb), 0.4), transparent);
 }
 
 .ic-fwb-idle {
@@ -11296,7 +11299,7 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.12);
   color: var(--vc-gold);
   margin-bottom: 2px;
 }
@@ -11320,7 +11323,7 @@ body:has(.lp-main) .site-footer {
 
 .ic-fwb-join-btn {
   padding: 14px 32px;
-  background: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
   color: #111;
   font-weight: 800;
   font-size: 15px;
@@ -11336,7 +11339,7 @@ body:has(.lp-main) .site-footer {
 
 .ic-fwb-join-btn:hover:not(:disabled) {
   filter: brightness(1.08);
-  box-shadow: 0 4px 20px rgba(208, 194, 144, 0.3);
+  box-shadow: 0 4px 20px rgba(var(--vc-gold-rgb), 0.3);
 }
 
 .ic-fwb-join-btn:disabled {
@@ -11445,7 +11448,7 @@ body:has(.lp-main) .site-footer {
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   background: var(--vc-bg-mid, #1a1d35);
-  border: 1px solid rgba(208, 194, 144, 0.2);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   border-radius: var(--vc-radius-lg, 16px);
   padding: 32px 24px;
   display: flex;
@@ -11531,8 +11534,8 @@ body:has(.lp-main) .site-footer {
 .checkout-success-fwb {
   margin-top: 20px;
   padding: 24px 20px;
-  background: rgba(208, 194, 144, 0.06);
-  border: 1px solid rgba(208, 194, 144, 0.18);
+  background: rgba(var(--vc-gold-rgb), 0.06);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.18);
   border-radius: var(--vc-radius-lg, 16px);
   display: flex;
   flex-direction: column;
@@ -11555,13 +11558,13 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.12);
   color: var(--vc-gold);
 }
 
 .checkout-success-card-west72 .checkout-success-fwb-icon {
-  background: rgba(208, 194, 144, 0.15);
-  color: #d0c290;
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  color: rgb(var(--vc-gold-rgb));
 }
 
 .checkout-success-fwb-heading {
@@ -11584,7 +11587,7 @@ body:has(.lp-main) .site-footer {
   width: 100%;
   box-sizing: border-box;
   padding: 14px 32px;
-  background: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
   color: #111;
   font-weight: 800;
   font-size: 15px;
@@ -11685,7 +11688,7 @@ body:has(.lp-main) .site-footer {
   transform: translateX(-50%);
   width: 500px;
   height: 300px;
-  background: radial-gradient(ellipse, rgba(208, 194, 144, 0.1) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(var(--vc-gold-rgb), 0.1) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -11701,8 +11704,8 @@ body:has(.lp-main) .site-footer {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--vc-gold);
-  background: rgba(208, 194, 144, 0.1);
-  border: 1px solid rgba(208, 194, 144, 0.15);
+  background: rgba(var(--vc-gold-rgb), 0.1);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.15);
   border-radius: 100px;
   padding: 6px 16px;
   margin-bottom: 20px;
@@ -11743,7 +11746,7 @@ body:has(.lp-main) .site-footer {
 
 .fwb-hero-cta:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(208, 194, 144, 0.25);
+  box-shadow: 0 6px 24px rgba(var(--vc-gold-rgb), 0.25);
 }
 
 /* ── Sections ── */
@@ -11786,7 +11789,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .fwb-perk-card:hover {
-  border-color: rgba(208, 194, 144, 0.2);
+  border-color: rgba(var(--vc-gold-rgb), 0.2);
 }
 
 .fwb-perk-icon {
@@ -11796,7 +11799,7 @@ body:has(.lp-main) .site-footer {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: rgba(208, 194, 144, 0.08);
+  background: rgba(var(--vc-gold-rgb), 0.08);
   color: var(--vc-gold);
   margin: 0 auto 14px;
 }
@@ -11833,7 +11836,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .fwb-tier-card:hover {
-  border-color: rgba(208, 194, 144, 0.2);
+  border-color: rgba(var(--vc-gold-rgb), 0.2);
 }
 
 .fwb-tier-badge {
@@ -11877,8 +11880,8 @@ body:has(.lp-main) .site-footer {
   max-width: 480px;
   margin: 0 auto;
   padding: 36px 32px;
-  background: rgba(208, 194, 144, 0.04);
-  border: 1px solid rgba(208, 194, 144, 0.12);
+  background: rgba(var(--vc-gold-rgb), 0.04);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.12);
   border-radius: var(--vc-radius-lg);
 }
 
@@ -11961,8 +11964,8 @@ body:has(.lp-main) .site-footer {
 }
 
 .fwb-signup-field input:focus {
-  border-color: rgba(208, 194, 144, 0.5);
-  box-shadow: 0 0 0 2px rgba(208, 194, 144, 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  box-shadow: 0 0 0 2px rgba(var(--vc-gold-rgb), 0.15);
 }
 
 .fwb-signup-field input::placeholder {
@@ -11986,7 +11989,7 @@ body:has(.lp-main) .site-footer {
 
 .fwb-signup-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+  box-shadow: 0 4px 16px rgba(var(--vc-gold-rgb), 0.25);
 }
 
 .fwb-signup-submit:disabled {
@@ -12048,7 +12051,7 @@ body:has(.lp-main) .site-footer {
 
 .fwb-signup-success-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(208, 194, 144, 0.25);
+  box-shadow: 0 4px 16px rgba(var(--vc-gold-rgb), 0.25);
 }
 
 /* ── Back Link ── */
@@ -12058,7 +12061,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .fwb-back-link a {
-  color: rgba(208, 194, 144, 0.5);
+  color: rgba(var(--vc-gold-rgb), 0.5);
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s;
@@ -12221,7 +12224,7 @@ body:has(.lp-main) .site-footer {
 }
 
 .pre-checkout-field input:focus {
-  border-color: rgba(208, 194, 144, 0.4);
+  border-color: rgba(var(--vc-gold-rgb), 0.4);
 }
 
 .pre-checkout-checkbox {
@@ -12368,7 +12371,7 @@ body:has(.lp-main) .site-footer {
     background: rgba(11, 13, 29, 0.92);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(208, 194, 144, 0.18);
+    border-top: 1px solid rgba(var(--vc-gold-rgb), 0.18);
     padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
   }
 
@@ -12396,14 +12399,14 @@ body:has(.lp-main) .site-footer {
   .sticky-ticket-amount {
     font-size: 18px;
     font-weight: 700;
-    color: #d0c290;
+    color: rgb(var(--vc-gold-rgb));
     line-height: 1;
   }
 
   .sticky-get-tickets-btn {
     flex-shrink: 0;
     padding: 13px 28px;
-    background: linear-gradient(135deg, #d0c290, #b8a870);
+    background: linear-gradient(135deg, rgb(var(--vc-gold-rgb)), #b8a870);
     color: #0b0d1d;
     border: none;
     border-radius: 10px;
@@ -12995,7 +12998,7 @@ body:has(.lp-main) .site-footer {
   height: 80%;
   display: block;
   filter: blur(18px);
-  background: radial-gradient(50% 50% at 50% 50%, rgba(208, 194, 144, 0.7) 0%, rgba(0, 76, 255, 0.02) 100%);
+  background: radial-gradient(50% 50% at 50% 50%, rgba(var(--vc-gold-rgb), 0.7) 0%, rgba(0, 76, 255, 0.02) 100%);
   z-index: 0;
   border-radius: 100%;
   position: absolute;
@@ -13011,7 +13014,7 @@ body:has(.lp-main) .site-footer {
   display: flex;
   align-items: center;
   padding: 2px 6px;
-  background-color: rgba(208, 194, 144, 0.5);
+  background-color: rgba(var(--vc-gold-rgb), 0.5);
   border-radius: 3px;
   position: relative;
   z-index: 2;
@@ -13285,11 +13288,11 @@ body:has(.lp-main) .site-footer {
   transition: background 0.25s;
 }
 .ic-progress-done .ic-progress-dot {
-  background: var(--vc-gold, #d0c290);
-  border-color: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
+  border-color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 .ic-progress-done .ic-progress-label {
-  color: var(--vc-gold, #d0c290);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 .ic-progress-active .ic-progress-dot {
   background: #fff;
@@ -13300,7 +13303,7 @@ body:has(.lp-main) .site-footer {
   color: rgba(255, 255, 255, 0.9);
 }
 .ic-progress-connector-done {
-  background: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 
 /* ─────────────────────────────────────────────
@@ -13375,7 +13378,7 @@ body:has(.lp-main) .site-footer {
   transition: background 0.25s;
 }
 .co-step-line-done {
-  background: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 .co-step-active .co-step-num {
   background: #fff;
@@ -13387,12 +13390,12 @@ body:has(.lp-main) .site-footer {
   color: rgba(255, 255, 255, 0.9);
 }
 .co-step-done .co-step-num {
-  background: var(--vc-gold, #d0c290);
-  border-color: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
+  border-color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
   color: #111;
 }
 .co-step-done .co-step-label {
-  color: var(--vc-gold, #d0c290);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 
 /* ─────────────────────────────────────────────
@@ -13436,7 +13439,7 @@ body:has(.lp-main) .site-footer {
 }
 .co-event-qty {
   font-size: 12px;
-  color: var(--vc-gold, #d0c290);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
   font-weight: 600;
   margin: 0;
 }
@@ -13445,8 +13448,8 @@ body:has(.lp-main) .site-footer {
    ADMIN — Day of Show banner
 ───────────────────────────────────────────── */
 .dash-dos-banner {
-  background: linear-gradient(135deg, rgba(208, 194, 144, 0.12) 0%, rgba(208, 194, 144, 0.04) 100%);
-  border: 1px solid rgba(208, 194, 144, 0.3);
+  background: linear-gradient(135deg, rgba(var(--vc-gold-rgb), 0.12) 0%, rgba(var(--vc-gold-rgb), 0.04) 100%);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.3);
   border-radius: 14px;
   padding: 18px 20px;
   margin-bottom: 24px;
@@ -13460,7 +13463,7 @@ body:has(.lp-main) .site-footer {
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--vc-gold, #d0c290), transparent);
+  background: linear-gradient(90deg, var(--vc-gold, rgb(var(--vc-gold-rgb))), transparent);
 }
 .dash-dos-badge {
   display: inline-flex;
@@ -13470,9 +13473,9 @@ body:has(.lp-main) .site-footer {
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--vc-gold, #d0c290);
-  background: rgba(208, 194, 144, 0.12);
-  border: 1px solid rgba(208, 194, 144, 0.2);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
+  background: rgba(var(--vc-gold-rgb), 0.12);
+  border: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   border-radius: 20px;
   padding: 3px 10px;
   margin-bottom: 12px;
@@ -13482,7 +13485,7 @@ body:has(.lp-main) .site-footer {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--vc-gold, #d0c290);
+  background: var(--vc-gold, rgb(var(--vc-gold-rgb)));
   animation: dos-pulse 1.5s ease-in-out infinite;
 }
 @keyframes dos-pulse {
@@ -13567,14 +13570,14 @@ body:has(.lp-main) .site-footer {
   color: #fff;
 }
 .dash-dos-action-primary {
-  background: rgba(208, 194, 144, 0.15);
-  border-color: rgba(208, 194, 144, 0.35);
-  color: var(--vc-gold, #d0c290);
+  background: rgba(var(--vc-gold-rgb), 0.15);
+  border-color: rgba(var(--vc-gold-rgb), 0.35);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 .dash-dos-action-primary:hover {
-  background: rgba(208, 194, 144, 0.25);
-  border-color: rgba(208, 194, 144, 0.5);
-  color: var(--vc-gold, #d0c290);
+  background: rgba(var(--vc-gold-rgb), 0.25);
+  border-color: rgba(var(--vc-gold-rgb), 0.5);
+  color: var(--vc-gold, rgb(var(--vc-gold-rgb)));
 }
 
 /* ─────────────────────────────────────────────
@@ -13667,6 +13670,43 @@ body[data-operator="west72"] {
   --lg-radius-sm: 12px;
 
   background: var(--lg-ink);
+
+  /* ── Gold retirement ──────────────────────────────────────
+     Every gold value in this stylesheet resolves through --vc-gold-rgb,
+     so flipping those three channels here retires gold across the whole
+     west72 surface at once — at every alpha, without duplicating a
+     hundred overrides. VenueCore keeps 208,194,144 and renders exactly
+     as before.
+
+     Scoped to body rather than :root deliberately: VenueThemeProvider
+     injects --vc-gold as an inline style on <html> for venue subdomains,
+     and a custom property set on body wins for body's subtree over one
+     inherited from <html>. */
+  --vc-gold-rgb:        255, 255, 255;
+  --vc-gold-hover:      #ffffff;
+  --vc-gold-dark:       rgba(255, 255, 255, 0.72);
+  --venue-primary:      #ffffff;
+
+  /* The derived tokens have to be re-declared here, not just inherited: each
+     was computed against :root's --vc-gold-rgb and inherits that resolved
+     colour, so flipping the channels on body alone would not reach them.
+     Re-declaring re-resolves each one against body's channels. */
+  --vc-gold:            rgb(var(--vc-gold-rgb));
+  --vc-gold-5:          rgba(var(--vc-gold-rgb), 0.05);
+  --vc-gold-8:          rgba(var(--vc-gold-rgb), 0.08);
+  --vc-gold-10:         rgba(var(--vc-gold-rgb), 0.10);
+  --vc-gold-12:         rgba(var(--vc-gold-rgb), 0.12);
+  --vc-gold-15:         rgba(var(--vc-gold-rgb), 0.15);
+  --vc-gold-20:         rgba(var(--vc-gold-rgb), 0.20);
+  --vc-gold-25:         rgba(var(--vc-gold-rgb), 0.24);
+  --vc-gold-30:         rgba(var(--vc-gold-rgb), 0.28);
+  --vc-gold-35:         rgba(var(--vc-gold-rgb), 0.32);
+  --vc-gold-40:         rgba(var(--vc-gold-rgb), 0.36);
+  --vc-gold-50:         rgba(var(--vc-gold-rgb), 0.45);
+  --vc-gold-muted:      rgba(var(--vc-gold-rgb), 0.15);
+  --vc-shadow-gold:     0 4px 20px rgba(var(--vc-gold-rgb), 0.18);
+  --vc-surface-active:  rgba(var(--vc-gold-rgb), 0.10);
+  --vc-border-hover:    rgba(var(--vc-gold-rgb), 0.22);
 }
 
 /* ── Ambient background field ──────────────────────────────

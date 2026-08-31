@@ -47,14 +47,14 @@ export default async function PartnersPage() {
       <div style={{
         padding: "72px 24px 48px",
         textAlign: "center",
-        borderBottom: "1px solid rgba(208,194,144,0.1)",
+        borderBottom: "1px solid rgba(var(--vc-gold-rgb), 0.1)",
       }}>
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(208,194,144,0.5)", marginBottom: 12 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(var(--vc-gold-rgb), 0.5)", marginBottom: 12 }}>
           Our Partners
         </p>
         <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, color: "#fff", margin: "0 0 16px", lineHeight: 1.1 }}>
           The People Behind<br />
-          <span style={{ color: "#d0c290" }}>the Music</span>
+          <span style={{ color: "rgb(var(--vc-gold-rgb))" }}>the Music</span>
         </h1>
         <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 16, maxWidth: 560, margin: "0 auto", lineHeight: 1.6 }}>
           These businesses make it possible to bring world-class live music and events to the Shoals region. We&apos;re proud to work alongside each of them.

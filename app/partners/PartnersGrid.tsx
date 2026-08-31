@@ -46,7 +46,7 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
         style={{
           position: "relative",
           background: "rgba(255,255,255,0.03)",
-          border: `1px solid ${hovered && hasBio ? "rgba(208,194,144,0.3)" : "rgba(255,255,255,0.07)"}`,
+          border: `1px solid ${hovered && hasBio ? "rgba(var(--vc-gold-rgb), 0.3)" : "rgba(255,255,255,0.07)"}`,
           borderRadius: 14,
           padding: "28px 20px",
           cursor: hasBio ? "pointer" : "default",
@@ -68,7 +68,7 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
             style={{ height: logoH, maxWidth: 220, objectFit: "contain", filter: "grayscale(0.3) brightness(1.1)", transition: "filter 0.2s" }}
           />
         ) : (
-          <span style={{ fontSize, fontWeight: 800, color: "rgba(208,194,144,0.85)", textAlign: "center", letterSpacing: "0.04em" }}>
+          <span style={{ fontSize, fontWeight: 800, color: "rgba(var(--vc-gold-rgb), 0.85)", textAlign: "center", letterSpacing: "0.04em" }}>
             {sponsor.sponsor_name}
           </span>
         )}
@@ -107,7 +107,7 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={e => e.stopPropagation()}
-                  style={{ fontSize: 12, color: "#d0c290", textDecoration: "none", fontWeight: 600, letterSpacing: "0.04em" }}
+                  style={{ fontSize: 12, color: "rgb(var(--vc-gold-rgb))", textDecoration: "none", fontWeight: 600, letterSpacing: "0.04em" }}
                 >
                   Visit Website →
                 </a>
@@ -118,7 +118,7 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
 
         {/* Bio hint indicator */}
         {hasBio && !hovered && (
-          <div style={{ position: "absolute", bottom: 8, right: 10, fontSize: 10, color: "rgba(208,194,144,0.3)", fontWeight: 600 }}>
+          <div style={{ position: "absolute", bottom: 8, right: 10, fontSize: 10, color: "rgba(var(--vc-gold-rgb), 0.3)", fontWeight: 600 }}>
             ···
           </div>
         )}
@@ -143,7 +143,7 @@ function SponsorCard({ sponsor, logoH, fontSize }: { sponsor: Sponsor; logoH: nu
                   href={sponsor.website_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: "#d0c290", textDecoration: "none", fontWeight: 600 }}
+                  style={{ fontSize: 12, color: "rgb(var(--vc-gold-rgb))", textDecoration: "none", fontWeight: 600 }}
                 >
                   Visit Website →
                 </a>
@@ -174,8 +174,8 @@ function TierSection({ sponsors, tier }: { sponsors: Sponsor[]; tier: "title" | 
         <span style={{
           display: "inline-block",
           fontSize: 10, fontWeight: 700, letterSpacing: "0.18em",
-          textTransform: "uppercase", color: "rgba(208,194,144,0.5)",
-          borderBottom: "1px solid rgba(208,194,144,0.2)",
+          textTransform: "uppercase", color: "rgba(var(--vc-gold-rgb), 0.5)",
+          borderBottom: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
           paddingBottom: 6,
         }}>
           {config.label}{sponsors.length > 1 ? "s" : ""}

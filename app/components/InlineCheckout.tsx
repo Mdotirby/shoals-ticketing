@@ -72,7 +72,7 @@ const stripePromise = loadStripe(
 const stripeAppearance = {
   theme: "night" as const,
   variables: {
-    colorPrimary: "#d0c290",
+    colorPrimary: "rgb(var(--vc-gold-rgb))",
     colorBackground: "rgba(255, 255, 255, 0.04)",
     colorText: "#ffffff",
     colorTextSecondary: "rgba(255, 255, 255, 0.5)",
@@ -94,8 +94,8 @@ const stripeAppearance = {
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     },
     ".Input:focus": {
-      borderColor: "rgba(208, 194, 144, 0.5)",
-      boxShadow: "0 0 0 2px rgba(208, 194, 144, 0.15)",
+      borderColor: "rgba(var(--vc-gold-rgb), 0.5)",
+      boxShadow: "0 0 0 2px rgba(var(--vc-gold-rgb), 0.15)",
     },
     ".Input--invalid": {
       borderColor: "#ef4444",
@@ -503,7 +503,7 @@ function CheckoutForm({
             type="button"
             onClick={() => setShowDetails((v) => !v)}
             style={{
-              background: "none", border: "none", color: "#d0c290", cursor: "pointer",
+              background: "none", border: "none", color: "rgb(var(--vc-gold-rgb))", cursor: "pointer",
               fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
               display: "flex", alignItems: "center", gap: 4,
             }}
@@ -649,7 +649,7 @@ function CheckoutForm({
             type="checkbox"
             checked={fwbOptIn}
             onChange={(e) => setFwbOptIn(e.target.checked)}
-            style={{ marginTop: 2, accentColor: "#d0c290", width: 16, height: 16, flexShrink: 0 }}
+            style={{ marginTop: 2, accentColor: "rgb(var(--vc-gold-rgb))", width: 16, height: 16, flexShrink: 0 }}
           />
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
             Sign me up for exclusive offers &amp; rewards

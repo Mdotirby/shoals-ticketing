@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useOperator } from "@/app/components/OperatorContext";
 
-const GOLD = "#d0c290";
+const GOLD = "rgb(var(--vc-gold-rgb))";
 const DARK = "#0b0d1d";
 
 function fmt(n: number) {
@@ -45,8 +45,8 @@ function SuccessContent() {
 
         {invoice && (
           <div style={{
-            background: "rgba(208,194,144,0.06)",
-            border: "1px solid rgba(208,194,144,0.15)",
+            background: "rgba(var(--vc-gold-rgb), 0.06)",
+            border: "1px solid rgba(var(--vc-gold-rgb), 0.15)",
             borderRadius: 10,
             padding: "16px 20px",
             marginBottom: 20,
