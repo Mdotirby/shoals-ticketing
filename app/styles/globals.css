@@ -14426,8 +14426,11 @@ body[data-operator="west72"] .header-inner {
       rgba(8, 8, 10, 0.82);
   }
 
-  /* Circular glass toggle; the existing .hamburger-bar.open rules already
-     cross the bars into an X. */
+  /* Circular glass toggle. The shared .hamburger is a 32x24 box laid out with
+     justify-content: space-between, so resizing it to a 38px circle on its own
+     flings the three bars onto the top and bottom edges. Centre the stack and
+     give it an explicit gap so the icon sits inside the circle with even
+     breathing room on all sides. */
   body[data-operator="west72"] .hamburger {
     display: flex;
     width: 38px;
@@ -14436,13 +14439,23 @@ body[data-operator="west72"] .header-inner {
     background: rgba(255, 255, 255, 0.14);
     border: 1px solid rgba(255, 255, 255, 0.20);
     backdrop-filter: blur(16px);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 0;
     flex-shrink: 0;
     z-index: 2;
   }
   body[data-operator="west72"] .hamburger-bar {
-    width: 15px;
+    width: 16px;
+    height: 2px;
     background: #fff;
+    border-radius: 2px;
   }
+  /* Bar centres sit (height + gap) = 7px apart, so 7px is what collapses the
+     stack into a centred X. The shared rules translate by 11px, which is
+     correct for the 32x24 box they were written for, not for this one. */
   body[data-operator="west72"] .hamburger-bar.open:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   body[data-operator="west72"] .hamburger-bar.open:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
