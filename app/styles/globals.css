@@ -3560,7 +3560,6 @@ body {
   padding: 24px 20px;
   background: var(--vc-surface);
   backdrop-filter: var(--vc-blur);
-  -webkit-backdrop-filter: var(--vc-blur);
   border: 1px solid var(--vc-border);
   box-shadow: var(--vc-shadow-glass);
   border-radius: var(--vc-radius-lg);
@@ -3630,7 +3629,6 @@ body {
   padding: 10px 14px;
   background: var(--vc-surface);
   backdrop-filter: var(--vc-blur);
-  -webkit-backdrop-filter: var(--vc-blur);
   border: 1px solid var(--vc-border);
   border-radius: var(--vc-radius-sm);
   color: var(--vc-text);
@@ -4643,7 +4641,6 @@ select.admin-form-input {
   padding: 20px;
   background: var(--vc-surface);
   backdrop-filter: var(--vc-blur);
-  -webkit-backdrop-filter: var(--vc-blur);
   border: 1px solid var(--vc-border);
   box-shadow: var(--vc-shadow-glass);
   border-radius: var(--vc-radius-lg);
@@ -4796,7 +4793,6 @@ select.admin-form-input {
 .dash-panel {
   background: var(--vc-surface);
   backdrop-filter: var(--vc-blur);
-  -webkit-backdrop-filter: var(--vc-blur);
   border: 1px solid var(--vc-border);
   box-shadow: var(--vc-shadow-glass);
   border-radius: var(--vc-radius-lg);
@@ -17032,5 +17028,957 @@ body[data-theme="liquid-glass"] .venue-directions-info-label {
   }
   body[data-theme="liquid-glass"] .ticket-hero-image-wrap {
     height: 240px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN PORTAL — LIQUID GLASS
+   ══════════════════════════════════════════════════════════════════════
+   Design doc: design/liquid-glass/ADMIN_PORTAL_DESIGN_SYSTEM.md
+
+   Reuses the SAME tokens and .glass surface already defined above —
+   body[data-theme="liquid-glass"] sets --lg-* globally and BackgroundField
+   (app/layout.tsx) already renders behind every route including /admin,
+   so there's no new token set or ambient-orb layer to build here, only
+   the surfaces that refract it. Gold is already retired globally via the
+   --vc-gold-rgb channel-flip a few thousand lines up — anything already
+   routing through --vc-gold-*, --vc-surface-active, --vc-border-hover here
+   needs no separate fix.
+
+   Scope: every rule below is scoped under body[data-theme="liquid-glass"]
+   .admin-shell — .admin-shell wraps every /admin page (app/admin/layout.tsx)
+   and nothing outside /admin uses it, so this can never leak into the
+   customer-facing pages. Grepped before adding: none of the short class
+   names below (.card, .badge, .btn, .tag, .field, .list-row, etc.) were
+   already in use anywhere in the app.
+
+   Restyle-only per the design doc except where noted: the sidebar below
+   restyles the REAL existing markup in admin/layout.tsx (it already does
+   everything the design doc's Sidebar section asks for — auto-expanding
+   only the active group, role-based visibility — this is not a new
+   Sidebar component). The mobile nav keeps its current topbar+dropdown
+   INTERACTION pattern for now (visual restyle only) — the new mobile
+   mockups specify an off-canvas drawer instead, which is a real
+   behavior/markup change flagged for confirmation before it's built.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Most existing admin components (.dash-panel, .dash-kpi-card, and ~40
+   other rules across the file) already build their surfaces from
+   --vc-surface/--vc-border/--vc-blur/--vc-shadow-glass/--vc-radius-lg/
+   --vc-radius-sm rather than one-off values — an earlier, subtler
+   glassmorphism pass, not gold-tinted, just lower-intensity than the
+   liquid-glass system (--lg-glass-bg is 0.07 background/28px blur/24px
+   radius vs. these at 0.04/16px/14px). Bumping the tokens themselves
+   here, once, gives every one of those ~40 existing rules the real
+   liquid-glass surface for free — instead of re-declaring each one. */
+body[data-theme="liquid-glass"] .admin-shell {
+  --vc-surface:      var(--lg-glass-bg);
+  --vc-border:       var(--lg-glass-border);
+  --vc-blur:         blur(28px) saturate(160%);
+  --vc-shadow-glass: var(--lg-glass-shadow);
+  --vc-radius-lg:    var(--lg-radius-lg);
+  --vc-radius-sm:    var(--lg-radius-sm);
+}
+body[data-theme="liquid-glass"] .admin-shell {
+  background: transparent;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-theme="liquid-glass"] .admin-shell::before {
+  background: transparent;
+  border-right: none;
+}
+body[data-theme="liquid-glass"] .admin-sidebar {
+  background: linear-gradient(180deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border-right: 1px solid var(--lg-glass-border);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-header {
+  border-bottom: 1px solid var(--lg-glass-border);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-welcome {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-welcome strong {
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-venue {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub-dim);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-link {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+  border-radius: 10px;
+}
+body[data-theme="liquid-glass"] .admin-sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-link.active {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--lg-white);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .admin-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Mobile topbar + dropdown menu — visual restyle of the existing
+   pattern, interaction unchanged (see note above). ── */
+body[data-theme="liquid-glass"] .admin-mobile-topbar {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-bottom: 1px solid var(--lg-glass-border);
+}
+body[data-theme="liquid-glass"] .admin-mobile-hamburger,
+body[data-theme="liquid-glass"] .admin-mobile-avatar-btn {
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-mobile-avatar-placeholder {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-mobile-dropdown-menu {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+}
+body[data-theme="liquid-glass"] .admin-mobile-dropdown-link {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .admin-mobile-dropdown-link:hover,
+body[data-theme="liquid-glass"] .admin-mobile-dropdown-link.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-overlay {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+/* ── Page header (topbar / title / actions / buttons) — reusable across
+   every admin page, matches .topbar/.btn in the design doc. ── */
+body[data-theme="liquid-glass"] .admin-shell .topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .topbar h1 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--lg-white);
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .topbar p {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13.5px;
+  color: var(--lg-sub);
+  margin: 6px 0 0;
+  max-width: 640px;
+  line-height: 1.6;
+}
+body[data-theme="liquid-glass"] .admin-shell .actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .btn {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 13px 22px;
+  border-radius: 14px;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-primary {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.90), rgba(255, 255, 255, 0.55));
+  backdrop-filter: blur(20px);
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-primary:hover {
+  opacity: 0.92;
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-outline {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  color: var(--lg-white);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-danger {
+  background: rgba(229, 138, 138, 0.12);
+  border: 1px solid rgba(229, 138, 138, 0.30);
+  color: #e58a8a;
+}
+body[data-theme="liquid-glass"] .admin-shell .btn-sm {
+  padding: 9px 16px;
+  font-size: 12px;
+  border-radius: 11px;
+}
+body[data-theme="liquid-glass"] .admin-shell .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Filter bar ── */
+body[data-theme="liquid-glass"] .admin-shell .filter-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .pill-select {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lg-sub);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+body[data-theme="liquid-glass"] .admin-shell .pill-select select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .admin-shell .pill-select .car {
+  font-size: 9px;
+  opacity: 0.6;
+}
+body[data-theme="liquid-glass"] .admin-shell .filter-spacer {
+  flex: 1;
+}
+body[data-theme="liquid-glass"] .admin-shell .filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--lg-sub);
+  cursor: pointer;
+}
+
+/* ── Status badges — gold retirement, specifically. Draft/pending gets a
+   neutral translucent-white outline instead of the old amber fill. ── */
+body[data-theme="liquid-glass"] .admin-shell .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+body[data-theme="liquid-glass"] .admin-shell .badge-draft {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: rgba(255, 255, 255, 0.68);
+}
+body[data-theme="liquid-glass"] .admin-shell .badge-live {
+  background: rgba(255, 255, 255, 0.92);
+  color: #14120f;
+}
+body[data-theme="liquid-glass"] .admin-shell .badge-good {
+  background: rgba(143, 214, 168, 0.14);
+  border: 1px solid rgba(143, 214, 168, 0.35);
+  color: var(--lg-good);
+}
+body[data-theme="liquid-glass"] .admin-shell .badge-bad {
+  background: rgba(229, 138, 138, 0.14);
+  border: 1px solid rgba(229, 138, 138, 0.35);
+  color: #e58a8a;
+}
+body[data-theme="liquid-glass"] .admin-shell .badge-info {
+  background: rgba(143, 180, 224, 0.14);
+  border: 1px solid rgba(143, 180, 224, 0.35);
+  color: #8fb4e0;
+}
+body[data-theme="liquid-glass"] .admin-shell .tag {
+  padding: 4px 10px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--lg-sub);
+  text-transform: uppercase;
+}
+
+/* ── Section card (generic glass container for page content) ── */
+body[data-theme="liquid-glass"] .admin-shell .card {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+body[data-theme="liquid-glass"] .admin-shell .card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+body[data-theme="liquid-glass"] .admin-shell .card-head h3 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  letter-spacing: 1.3px;
+  font-weight: 800;
+  color: var(--lg-sub);
+  text-transform: uppercase;
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .card-head .count {
+  color: var(--lg-sub-dim);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .card-sub {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub);
+  margin: -8px 0 20px;
+  line-height: 1.6;
+  max-width: 760px;
+}
+body[data-theme="liquid-glass"] .admin-shell .view-all {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--lg-accent-soft);
+}
+
+/* ── List row — thumbnail + body + right stats/actions. Events, Ticket
+   Sales, Booking/Offers all share this. ── */
+body[data-theme="liquid-glass"] .admin-shell .list-card {
+  padding: 8px;
+  margin-bottom: 14px;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+  border-radius: 16px;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+body[data-theme="liquid-glass"] .admin-shell .list-row + .list-row {
+  margin-top: 2px;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-size: cover;
+  background-position: center;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-body {
+  flex: 1;
+  min-width: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .list-meta {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  color: var(--lg-sub-dim);
+  margin-top: 3px;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-shrink: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-stat {
+  text-align: center;
+  min-width: 56px;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-stat .n {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .list-stat .l {
+  font-size: 9px;
+  color: var(--lg-sub-dim);
+  letter-spacing: 0.6px;
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-price {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--lg-white);
+  min-width: 64px;
+  text-align: right;
+}
+body[data-theme="liquid-glass"] .admin-shell .list-actions {
+  display: flex;
+  gap: 8px;
+}
+body[data-theme="liquid-glass"] .admin-shell .ring {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.14);
+  border-top-color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+
+/* ── Recent orders / recent sales rows (Dashboard) ── */
+body[data-theme="liquid-glass"] .admin-shell .order-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row:last-child {
+  border-bottom: none;
+}
+body[data-theme="liquid-glass"] .admin-shell .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row .info {
+  flex: 1;
+  min-width: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row .info .t {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row .info .v {
+  font-size: 12px;
+  color: var(--lg-sub-dim);
+  margin-top: 2px;
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row .right {
+  text-align: right;
+  flex-shrink: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .amt {
+  color: var(--lg-good);
+  font-weight: 800;
+  font-size: 14px;
+}
+body[data-theme="liquid-glass"] .admin-shell .order-row .right .v {
+  font-size: 11.5px;
+  color: var(--lg-sub-dim);
+  margin-top: 3px;
+}
+
+/* ── Data table (Contracts) ── */
+body[data-theme="liquid-glass"] .admin-shell .tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+body[data-theme="liquid-glass"] .admin-shell .tab {
+  padding: 9px 16px;
+  border-radius: 11px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--lg-sub);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .admin-shell .tab.active {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--lg-white);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable {
+  width: 100%;
+  border-collapse: collapse;
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable th {
+  text-align: left;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--lg-sub-dim);
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0 14px 14px;
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable td {
+  padding: 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13.5px;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable .dim {
+  color: var(--lg-sub-dim);
+}
+body[data-theme="liquid-glass"] .admin-shell .dtable .name {
+  font-weight: 700;
+}
+
+/* ── Calendar ── */
+body[data-theme="liquid-glass"] .admin-shell .cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-toolbar h2 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+  min-width: 170px;
+  color: var(--lg-white);
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-nav {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--lg-white);
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-months {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-month {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11.5px;
+  color: var(--lg-sub-dim);
+  font-weight: 700;
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-month.active {
+  background: rgba(255, 255, 255, 0.90);
+  color: #14120f;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-dow {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  letter-spacing: 1px;
+  color: var(--lg-sub-dim);
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  text-align: left;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-cell {
+  min-height: 96px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px;
+  position: relative;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-cell:nth-child(7n+1) {
+  border-left: none;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-cell .d {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11.5px;
+  color: var(--lg-sub-dim);
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-cell.dim .d {
+  color: rgba(255, 255, 255, 0.18);
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-cell.today .d {
+  color: #14120f;
+  background: #fff;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-chip {
+  margin-top: 6px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-chip .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--lg-good);
+  flex-shrink: 0;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-chip.hold .dot {
+  background: rgba(255, 255, 255, 0.55);
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-chip.hold {
+  background: rgba(255, 255, 255, 0.05);
+  border-style: dashed;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  color: var(--lg-sub);
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-legend .k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+body[data-theme="liquid-glass"] .admin-shell .cal-legend .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+/* ── Empty state ── */
+body[data-theme="liquid-glass"] .admin-shell .empty {
+  padding: 70px 30px;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .admin-shell .empty .ic {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .admin-shell .empty h4 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .empty p {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  color: var(--lg-sub-dim);
+  margin: 0;
+}
+
+/* ── Forms ── */
+body[data-theme="liquid-glass"] .admin-shell .field {
+  margin-bottom: 16px;
+}
+body[data-theme="liquid-glass"] .admin-shell .field label {
+  display: block;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lg-sub-dim);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+body[data-theme="liquid-glass"] .admin-shell .field input,
+body[data-theme="liquid-glass"] .admin-shell .field select,
+body[data-theme="liquid-glass"] .admin-shell .field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--lg-white);
+  font-size: 13.5px;
+  font-family: inherit;
+}
+body[data-theme="liquid-glass"] .admin-shell .field input:focus,
+body[data-theme="liquid-glass"] .admin-shell .field select:focus,
+body[data-theme="liquid-glass"] .admin-shell .field textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.40);
+}
+body[data-theme="liquid-glass"] .admin-shell .field input::placeholder,
+body[data-theme="liquid-glass"] .admin-shell .field textarea::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+body[data-theme="liquid-glass"] .admin-shell .row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+body[data-theme="liquid-glass"] .admin-shell .row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Report card ── */
+body[data-theme="liquid-glass"] .admin-shell .report-card {
+  padding: 26px 30px;
+  margin-bottom: 18px;
+}
+body[data-theme="liquid-glass"] .admin-shell .report-card h3 {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 15.5px;
+  font-weight: 800;
+  margin: 0 0 6px;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .report-card p {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub-dim);
+  line-height: 1.6;
+  margin: 0 0 18px;
+  max-width: 760px;
+}
+body[data-theme="liquid-glass"] .admin-shell .report-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* ── Scanner ── */
+body[data-theme="liquid-glass"] .admin-shell .scan-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+body[data-theme="liquid-glass"] .admin-shell .scan-view {
+  aspect-ratio: 16 / 10;
+  border-radius: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+body[data-theme="liquid-glass"] .admin-shell .scan-view span {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  color: var(--lg-sub-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .admin-shell .scan-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 26px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .admin-shell .search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  margin-bottom: 14px;
+}
+body[data-theme="liquid-glass"] .admin-shell .search-box input {
+  background: none;
+  border: none;
+  color: var(--lg-white);
+  font-size: 13.5px;
+  flex: 1;
+  font-family: inherit;
+  outline: none;
+}
+body[data-theme="liquid-glass"] .admin-shell .search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+body[data-theme="liquid-glass"] .admin-shell .manual-toggle {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--lg-sub);
+  font-weight: 700;
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .admin-shell .event-picker {
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+body[data-theme="liquid-glass"] .admin-shell .event-picker .name {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .event-picker .car {
+  color: var(--lg-sub-dim);
+  font-size: 11px;
+}
+
+/* ── KPI tiles (Dashboard) — restyles the existing .dash-kpi-* markup in
+   app/admin/page.tsx, not a new component. ── */
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-card {
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-highlight {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.12), var(--lg-glass-bg-2));
+}
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-icon {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-label {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-value {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+  font-weight: 800;
+}
+body[data-theme="liquid-glass"] .admin-shell .dash-kpi-secondary {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub-dim);
+}
+
+@media (max-width: 900px) {
+  body[data-theme="liquid-glass"] .admin-shell .row-3,
+  body[data-theme="liquid-glass"] .admin-shell .row-2 {
+    grid-template-columns: 1fr;
+  }
+  body[data-theme="liquid-glass"] .admin-shell .scan-layout {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 680px) {
+  body[data-theme="liquid-glass"] .admin-shell .list-row {
+    flex-wrap: wrap;
+  }
+  body[data-theme="liquid-glass"] .admin-shell .list-right {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 10px;
   }
 }
