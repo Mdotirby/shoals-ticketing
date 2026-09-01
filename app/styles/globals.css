@@ -2938,8 +2938,21 @@ body {
   padding: 40px 0;
 }
 
-/* ── Liquid Glass Search Bar ── */
-.events-search-bar,
+/* ── Liquid Glass Search Bar ──
+   .events-search-bar is the bare flex-row wrapper (search pill + filter
+   pills + the "View past shows" link, spread across the full row —
+   events.png doesn't cap this to one centered 600px pill). Only
+   .home-events-search still wants the old all-in-one-pill treatment
+   (Home has no separate filter pills next to it), so it keeps its own
+   rule below rather than sharing this one. */
+.events-search-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 32px;
+}
 .home-events-search {
   display: flex;
   align-items: center;
@@ -2954,8 +2967,28 @@ body {
   margin: 0 auto 32px;
   transition: border-color 0.2s, background 0.2s;
 }
-.events-search-bar:focus-within,
 .home-events-search:focus-within {
+  border-color: rgba(var(--vc-gold-rgb), 0.3);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* The search icon + input's own pill — carries the background/border/
+   radius .events-search-bar used to have before it became a bare row. */
+.events-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 240px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 4px 6px 4px 18px;
+  transition: border-color 0.2s, background 0.2s;
+}
+.events-search-pill:focus-within {
   border-color: rgba(var(--vc-gold-rgb), 0.3);
   background: rgba(255, 255, 255, 0.09);
 }
@@ -9373,6 +9406,10 @@ select.admin-form-input {
   color: var(--vc-gold);
   margin-bottom: 20px;
 }
+.about-feature-icon--emoji {
+  font-size: 22px;
+  line-height: 1;
+}
 
 .about-feature-title {
   font-family: var(--font-bayon), sans-serif;
@@ -14890,7 +14927,7 @@ body[data-theme="liquid-glass"] .footer-legal-link:hover {
 body[data-theme="liquid-glass"] .events-list-page {
   padding-top: clamp(30px, 4vw, 46px);
 }
-body[data-theme="liquid-glass"] .events-search-bar {
+body[data-theme="liquid-glass"] .events-search-pill {
   background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
   backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--lg-glass-border);
@@ -15007,8 +15044,15 @@ body[data-theme="liquid-glass"] .about-why-us-title {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
-  /* about.png shows normal title case; the base rules for both of these
-     set text-transform: uppercase and neither was ever cleared here. */
+}
+/* Correction: an earlier pass cleared text-transform on BOTH of the
+   selectors above, on the assumption neither should be uppercase. Re-
+   measured against about.png at full resolution — the H1
+   (.about-philosophy-title) genuinely IS uppercase ("CREATING MEMORIES,
+   ONE NIGHT AT A TIME"); only .about-why-us-title ("What Makes West 72
+   Different") is actual title case. Scoped the fix to just the one
+   selector that needs it instead of both. */
+body[data-theme="liquid-glass"] .about-why-us-title {
   text-transform: none;
 }
 /* The highlighted phrase was the gold accent; in this system the emphasis
@@ -15462,6 +15506,67 @@ body[data-theme="liquid-glass"] .ic-wallet-divider {
   letter-spacing: 0.16em;
   color: var(--lg-sub-dim);
   text-transform: uppercase;
+}
+/* Custom checkbox — checkout_step.png draws a filled white square with a
+   checkmark when checked, not a native browser checkbox. */
+body[data-theme="liquid-glass"] .ic-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  cursor: pointer;
+  user-select: none;
+}
+body[data-theme="liquid-glass"] .ic-checkbox-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+body[data-theme="liquid-glass"] .ic-checkbox-box {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+body[data-theme="liquid-glass"] .ic-checkbox-input:checked + .ic-checkbox-box {
+  background: var(--lg-white);
+  border-color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .ic-checkbox-input:focus-visible + .ic-checkbox-box {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+body[data-theme="liquid-glass"] .ic-checkbox-label {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  color: var(--lg-sub);
+  line-height: 1.4;
+}
+/* "Show price details" toggle — was rgb(var(--vc-gold-rgb)) (gold was
+   retired everywhere else in this theme) with a stroked chevron; now a
+   solid triangle matching the same glyph used on Event Detail's Order
+   Summary. */
+body[data-theme="liquid-glass"] .ic-price-details-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  margin: 6px 0;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--lg-white);
 }
 /* Checkout stepper: TICKETS · CHECKOUT · DONE */
 body[data-theme="liquid-glass"] .ic-progress-dot {

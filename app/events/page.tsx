@@ -71,19 +71,31 @@ export default function EventsPage() {
   return (
     <>
       <main className="events-list-page">
-        {/* ── Search + Filter bar ── */}
+        {/* ── Search + Filter bar ──
+            events.png shows the search input, the two filter pills, and the
+            "View past shows" link as separate elements spread across the
+            full row width — not all crammed inside one big capped-width
+            pill. .events-search-bar is now the bare flex-row wrapper; the
+            search icon+input got its own pill (.events-search-pill) so it
+            doesn't lose that styling now that the outer div isn't a pill
+            itself. */}
         <div className="events-search-bar">
-          <svg className="events-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <input
-            type="search"
-            className="events-search-input"
-            placeholder="Search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+          <div className="events-search-pill">
+            <svg className="events-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              className="events-search-input"
+              placeholder="Search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "4px 8px" }}>✕</button>
+            )}
+          </div>
           <select
             className="events-filter-select"
             value={filter}
@@ -98,7 +110,6 @@ export default function EventsPage() {
           {hostsWithEvents.length > 0 && (
             <select
               className="events-filter-select"
-              style={{ marginLeft: 6 }}
               value={hostFilter}
               onChange={(e) => setHostFilter(e.target.value)}
             >
@@ -108,9 +119,24 @@ export default function EventsPage() {
               ))}
             </select>
           )}
-          {query && (
-            <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "8px 12px" }}>✕</button>
-          )}
+
+          {/* events.png puts this on the same row as search/filters, right-aligned
+              — was a separate row below the whole bar. */}
+          <Link
+            href="/events/past"
+            className="events-view-past-link"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              color: "rgba(255,255,255,0.55)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              borderBottom: "1px solid rgba(255,255,255,0.15)",
+              paddingBottom: 1,
+            }}
+          >
+            View past shows →
+          </Link>
         </div>
 
         {isLoading && <p className="events-list-loading">Loading events...</p>}
@@ -120,22 +146,6 @@ export default function EventsPage() {
             {query ? `No events match "${query}".` : "No events available."}
           </p>
         )}
-
-        {/* Always-visible link to the past-shows archive */}
-        <div style={{ textAlign: "right", marginTop: 8 }}>
-          <Link
-            href="/events/past"
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.55)",
-              textDecoration: "none",
-              borderBottom: "1px solid rgba(255,255,255,0.15)",
-              paddingBottom: 1,
-            }}
-          >
-            View past shows →
-          </Link>
-        </div>
 
         {/* ── Responsive grid styles ── */}
         <style>{`

@@ -73,7 +73,10 @@ const stripePromise = loadStripe(
 const stripeAppearance = {
   theme: "night" as const,
   variables: {
-    colorPrimary: "rgb(var(--vc-gold-rgb))",
+    // Gold was retired everywhere else in the liquid-glass theme — this
+    // module-level config is the same object for both operators (both run
+    // liquid-glass now), so there's no live case where gold is still right.
+    colorPrimary: "#ffffff",
     colorBackground: "rgba(255, 255, 255, 0.04)",
     colorText: "#ffffff",
     colorTextSecondary: "rgba(255, 255, 255, 0.5)",
@@ -95,8 +98,8 @@ const stripeAppearance = {
       transition: "border-color 0.2s ease, box-shadow 0.2s ease",
     },
     ".Input:focus": {
-      borderColor: "rgba(var(--vc-gold-rgb), 0.5)",
-      boxShadow: "0 0 0 2px rgba(var(--vc-gold-rgb), 0.15)",
+      borderColor: "rgba(255, 255, 255, 0.5)",
+      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.15)",
     },
     ".Input--invalid": {
       borderColor: "#ef4444",
@@ -516,16 +519,12 @@ function CheckoutForm({
         {!isFullyFree && (totalTicketingFee > 0 || totalFacilityFee > 0 || tax > 0 || processingFee > 0) && (
           <button
             type="button"
+            className="ic-price-details-btn"
             onClick={() => setShowDetails((v) => !v)}
-            style={{
-              background: "none", border: "none", color: "rgb(var(--vc-gold-rgb))", cursor: "pointer",
-              fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
-              display: "flex", alignItems: "center", gap: 4,
-            }}
           >
             {showDetails ? "Hide" : "Show"} price details
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="8" height="6" viewBox="0 0 8 6" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} aria-hidden="true">
+              <path d="M0 0L8 0L4 6Z" fill="currentColor" />
             </svg>
           </button>
         )}
@@ -658,17 +657,26 @@ function CheckoutForm({
           />
         </div>
 
-        {/* FWB opt-in */}
-        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 4 }}>
+        {/* FWB opt-in — checkout_step.png draws a custom checkbox (a filled
+            white square with a checkmark when checked), not a native
+            browser checkbox with the (now-retired) gold accent colour this
+            had before. Real checkbox input still drives the state — the
+            visible box is a styled sibling <span>, not decoration alone. */}
+        <label className="ic-checkbox-row">
           <input
             type="checkbox"
             checked={fwbOptIn}
             onChange={(e) => setFwbOptIn(e.target.checked)}
-            style={{ marginTop: 2, accentColor: "rgb(var(--vc-gold-rgb))", width: 16, height: 16, flexShrink: 0 }}
+            className="ic-checkbox-input"
           />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.4 }}>
-            Sign me up for exclusive offers &amp; rewards
+          <span className="ic-checkbox-box" aria-hidden="true">
+            {fwbOptIn && (
+              <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                <path d="M1 4.5L4 7.5L10 1" stroke="#08080a" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
           </span>
+          <span className="ic-checkbox-label">Sign me up for exclusive offers &amp; rewards</span>
         </label>
 
         {/* Stripe Card Fields (only for paid checkout) */}

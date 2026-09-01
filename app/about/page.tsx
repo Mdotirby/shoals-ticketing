@@ -37,9 +37,14 @@ function West72About() {
               <span className="about-label-line" />
             </div>
 
+            {/* CSS text-transform: uppercase renders this in caps (confirmed
+                against the mockup — the H1 IS genuinely uppercase, unlike
+                the "What Makes West 72 Different" / feature-card headings
+                below, which are title case). Typed in caps to match what's
+                actually rendered, not left mixed-case under a transform. */}
             <h1 className="about-philosophy-title">
-              Creating Memories,{" "}
-              <span className="about-gold-text">One Night at a Time</span>
+              CREATING MEMORIES,{" "}
+              <span className="about-gold-text">ONE NIGHT AT A TIME</span>
             </h1>
 
             <p className="about-philosophy-desc">
@@ -77,11 +82,11 @@ function West72About() {
 
         <div className="about-features-grid">
           <AnimatedCard index={0}>
-            <div className="about-feature-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </div>
+            {/* about.png's icons are emoji glyphs, not monochrome SVGs — a
+                deliberate mockup choice for this page specifically (unlike
+                the Seating/Scanner admin icon fix elsewhere), confirmed at
+                full resolution. */}
+            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">🎤</div>
             <h3 className="about-feature-title">Fan-First, Always</h3>
             <p className="about-feature-desc">
               We don&apos;t do velvet ropes and VIP egos. Every show is built
@@ -92,12 +97,7 @@ function West72About() {
           </AnimatedCard>
 
           <AnimatedCard index={1}>
-            <div className="about-feature-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-            </div>
+            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">📍</div>
             <h3 className="about-feature-title">Rooted in the Shoals</h3>
             <p className="about-feature-desc">
               This is where the music was born, and we&apos;re not about to
@@ -108,13 +108,7 @@ function West72About() {
           </AnimatedCard>
 
           <AnimatedCard index={2}>
-            <div className="about-feature-icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18V5l12-2v13" />
-                <circle cx="6" cy="18" r="3" />
-                <circle cx="18" cy="16" r="3" />
-              </svg>
-            </div>
+            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">✨</div>
             <h3 className="about-feature-title">Unforgettable Nights, Zero Pretension</h3>
             <p className="about-feature-desc">
               We put on shows that people actually talk about the

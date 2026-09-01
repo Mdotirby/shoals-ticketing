@@ -1057,13 +1057,17 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     </div>
                   )}
 
-                  {/* Description inside card — collapsed to 3 lines with Read More */}
+                  {/* Description inside card — collapsed to 3 lines with Read More.
+                      checkout_step.png has no Read More link at all, even with
+                      the same-length description as Event Detail — the left
+                      column is shared across both states, so gate the button
+                      (not the whole description) on checkoutStep specifically. */}
                   {event.description && (
                     <div className="ticket-card-desc-wrap">
                       <p className={`ticket-card-desc ${descExpanded ? "ticket-card-desc-expanded" : ""}`}>
                         {event.description}
                       </p>
-                      {!descExpanded && (
+                      {!descExpanded && checkoutStep !== "checkout" && (
                         <button
                           type="button"
                           className="ticket-card-desc-more"
