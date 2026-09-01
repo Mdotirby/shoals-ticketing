@@ -1,23 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { Event } from "@/lib/types/event";
-import { formatEventDateCompact, formatEventTime } from "@/lib/dates";
 
+/**
+ * Flat-prop shape (name/venue/dateLabel/.../ctaHref) instead of `event:
+ * Event` — matches design/liquid-glass/liquid-glass-components.tsx's
+ * EventCard, now the real target shape rather than a reference. Callers
+ * that have a full Event record map it with lib/eventCardProps.ts's
+ * eventToCardProps() rather than each formatting price/date locally.
+ *
+ * The visual implementation (full-bleed photo, venue tag pinned top-left,
+ * gradient scrim, title + pills) is unchanged — it already matched the
+ * mockup — only the inputs changed, so nothing about how this actually
+ * renders was touched.
+ */
 type EventCardProps = {
-  event: Event;
+  name: string;
+  venue: string;
+  dateLabel: string;
+  timeLabel: string;
+  priceLabel: string;
+  isFree?: boolean;
+  photoUrl?: string;
+  ctaHref: string;
+  /** Not part of the mockup's EventCard, but a real capability the old
+   *  event-based version had (unused anywhere today, per a repo-wide grep —
+   *  kept rather than silently dropped, since something could start passing
+   *  it later). */
   soldOut?: boolean;
 };
 
-export default function EventCard({ event, soldOut = false }: EventCardProps) {
+export default function EventCard({
+  name,
+  venue,
+  dateLabel,
+  timeLabel,
+  priceLabel,
+  isFree = false,
+  photoUrl,
+  ctaHref,
+  soldOut = false,
+}: EventCardProps) {
   return (
     <Link
-      href={`/events/${event.id}`}
+      href={ctaHref}
       className="event-card"
-      aria-label={soldOut ? `${event.title} — Sold Out` : `View tickets for ${event.title}`}
+      aria-label={soldOut ? `${name} — Sold Out` : `View tickets for ${name}`}
       style={{
-        backgroundImage: event.image_url
-          ? `url(${event.image_url})`
+        backgroundImage: photoUrl
+          ? `url(${photoUrl})`
           : "linear-gradient(145deg, #202045 0%, #0b0d1d 100%)",
       }}
     >
@@ -30,30 +61,24 @@ export default function EventCard({ event, soldOut = false }: EventCardProps) {
       )}
       {!soldOut && (
         <div className="event-venue-badge">
-          <span className="badge-text">{event.venue}</span>
+          <span className="badge-text">{venue}</span>
         </div>
       )}
 
       <div className="event-main-content">
-        <h2 className="event-card-title">{event.title}</h2>
+        <h2 className="event-card-title">{name}</h2>
 
         <div className="event-meta-badges">
-          <span
-            className={`event-badge event-price-badge${
-              Number(event.price) === 0 ? " event-price-badge--free" : ""
-            }`}
-          >
-            <span className="badge-text">
-              {Number(event.price) === 0 ? "FREE" : `From $${Number(event.price).toFixed(2)}`}
-            </span>
+          <span className={`event-badge event-price-badge${isFree ? " event-price-badge--free" : ""}`}>
+            <span className="badge-text">{isFree ? "FREE" : priceLabel}</span>
           </span>
           {/* Date and time share one pill so the row stays on a single line at
               every breakpoint — split across two pills they wrapped on narrow
               phones. */}
           <span className="event-badge event-date-badge">
             <span className="badge-text">
-              {formatEventDateCompact(event.date)}
-              {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
+              {dateLabel}
+              {timeLabel && ` · ${timeLabel}`}
             </span>
           </span>
         </div>

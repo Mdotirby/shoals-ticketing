@@ -74,9 +74,26 @@ export async function GET(request: Request) {
   // Fetch first ticket's QR code (for display)
   const { data: tickets } = await admin
     .from("tickets")
-    .select("id, qr_code, qr_data_url")
+    .select("id, qr_code, qr_data_url, ticket_type_id")
     .eq("order_id", order.id)
     .limit(1);
+
+  // Real tier name for the confirmation receipt. The page used to hardcode
+  // "General Admission" for every order regardless of what was actually
+  // bought — wrong for any multi-tier event (a VIP table order showed up as
+  // "General Admission" too). tickets.ticket_type_id is the reliable link
+  // (stamped once per ticket by the webhook); only resolved once the ticket
+  // itself exists, same as the QR code above.
+  let tierName: string | null = null;
+  const ticketTypeId = tickets?.[0]?.ticket_type_id;
+  if (ticketTypeId) {
+    const { data: tier } = await admin
+      .from("ticket_tiers")
+      .select("tier_name")
+      .eq("id", ticketTypeId)
+      .maybeSingle();
+    tierName = tier?.tier_name ?? null;
+  }
 
   // V3: Look up seat assignments via seats.order_id
   let seatAssignments: { section: string; row: string; seat: string }[] = [];
@@ -118,6 +135,7 @@ export async function GET(request: Request) {
     order,
     event: event || null,
     ticket: tickets?.[0] || null,
+    tierName,
     breakdown,
     seatAssignments: seatAssignments.length > 0 ? seatAssignments : undefined,
   });

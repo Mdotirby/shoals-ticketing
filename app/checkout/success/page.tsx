@@ -7,8 +7,11 @@ import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import EventCard from "@/app/components/EventCard";
-import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
+import { HotelPartnerPanel } from "@/app/components/liquid-glass-components";
+import { SuccessHeader } from "./_components/SuccessHeader";
+import { OrderConfirmationPanel } from "./_components/OrderConfirmationPanel";
+import { ActionRow } from "./_components/ActionRow";
+import { CrossSellSection } from "./_components/CrossSellSection";
 import { Event } from "@/lib/types/event";
 
 type ConfirmationData = {
@@ -22,6 +25,11 @@ type ConfirmationData = {
   };
   event: { id?: string; title: string; date: string; venue: string; image_url?: string | null } | null;
   ticket: { id: string; qr_code: string; qr_data_url: string } | null;
+  /** Real ticket-tier name, e.g. "VIP Table" — resolved server-side from
+   *  tickets.ticket_type_id, so it only arrives once the ticket itself
+   *  does. Null until then; falls back to "General Admission" for display
+   *  rather than showing nothing. */
+  tierName?: string | null;
   breakdown?: { subtotal: number; feesAndTax: number } | null;
 };
 
@@ -99,12 +107,6 @@ function calendarHref(event: { title: string; date: string; venue: string }) {
   return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
 }
 
-function formatDate(d: string) {
-  return safeDate(d).toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
-  });
-}
-
 const PREVIEW_DATA: ConfirmationData = {
   order: {
     id: "preview-order",
@@ -116,6 +118,7 @@ const PREVIEW_DATA: ConfirmationData = {
   },
   event: { title: "Summer Throwdown 2026", date: "2026-07-19", venue: "The Shoals Theatre" },
   ticket: { id: "preview-ticket", qr_code: "PREVIEW", qr_data_url: "" },
+  tierName: "General Admission",
 };
 
 function SuccessContent() {
@@ -246,284 +249,108 @@ function SuccessContent() {
     }
   }
 
+  const quantity = data?.order?.quantity || 1;
+  const tierName = data?.tierName || "General Admission";
+  const tierLabel = quantity > 1 ? `${tierName} × ${quantity}` : tierName;
+
   return (
     <section className="checkout-success-section">
       <div className="checkout-success-card">
-        {/* Success badge — a checkmark in a ring, per checkout_success.png.
-            (This was a ticket glyph before; the tick reads as "done", which is
-            what this moment is.) */}
-        <div className="checkout-success-icon cs-check" aria-hidden="true">
-          <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-            <path
-              d="M5 13.5 L10.5 19 L21 7"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+        <SuccessHeader
+          eventTitle={data?.event?.title}
+          email={data?.order?.customer_email}
+          quantity={quantity}
+        />
 
-        <h2 className="checkout-success-heading">You&apos;re In.</h2>
-
-        <p className="checkout-success-text cs-lede">
-          {data?.event?.title ? (
-            <>Your spot for <strong>{data.event.title}</strong> is locked in.</>
-          ) : (
-            <>Your spot is locked in.</>
-          )}{" "}
-          {data?.order?.customer_email ? (
-            <>
-              A confirmation and your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"}{" "}
-              headed to <strong>{data.order.customer_email}</strong> — try not to lose them before the show.
-            </>
-          ) : (
-            <>Your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"} on the way by email.</>
-          )}
-        </p>
-
-        {/* Order card — event photo, tier, breakdown and order number */}
+        {/* Order card — event photo, tier, breakdown, QR notice and
+            ready/preparing status all live inside this one card now. */}
         {!loading && data?.event && (
-          <div className="cs-order-card">
-            <div className="cs-order-head">
-              <span className="cs-order-label">Order Confirmed</span>
-              <span className="cs-order-number">Order #{shortOrderRef(data.order?.id)}</span>
-            </div>
-
-            <div className="cs-order-ticket">
-              <div
-                className="cs-order-photo"
-                style={
-                  data.event.image_url
-                    ? { backgroundImage: `url(${data.event.image_url})` }
-                    : undefined
-                }
-              />
-              <div className="cs-order-ticket-body">
-                <div className="cs-order-event">{data.event.title}</div>
-                <div className="cs-order-when">
-                  {formatDateShort(data.event.date)} · {data.event.venue}
-                </div>
-              </div>
-              <div className="cs-order-tier">
-                <div className="cs-order-tier-name">
-                  General Admission &times; {data.order?.quantity ?? 1}
-                </div>
-                {doorsLabel(data.event.date) && (
-                  <div className="cs-order-doors">Doors {doorsLabel(data.event.date)}</div>
-                )}
-              </div>
-            </div>
-
-            {data.order && (
-              <div className="cs-order-breakdown">
-                {/* The face-value/fees split only appears once the settlement
-                    row exists. We never compute it here — a receipt showing a
-                    wrong split is worse than one showing just the total. */}
-                {data.breakdown ? (
-                  <>
-                    <div className="cs-order-line">
-                      <span>General Admission &times; {data.order.quantity}</span>
-                      <span>${data.breakdown.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="cs-order-line">
-                      <span>Taxes &amp; Fees</span>
-                      <span>${data.breakdown.feesAndTax.toFixed(2)}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="cs-order-line">
-                    <span>General Admission &times; {data.order.quantity}</span>
-                    <span>${data.order.total_amount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="cs-order-line cs-order-line--total">
-                  <span>Total Paid</span>
-                  <span>${data.order.total_amount.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* QR code removed — available on the ticket page via "View My Tickets" */}
-
-        {/* Thank you */}
-        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, margin: "8px 0 20px" }}>
-          Thank you for your purchase. We can&apos;t wait to see you there —
-          get ready for an unforgettable night!
-        </p>
-
-        {/* QR Code Entry Notice */}
-        <div style={{
-          margin: "16px 0",
-          padding: "14px 20px",
-          background: "rgba(var(--vc-gold-rgb), 0.06)",
-          border: "1px solid rgba(var(--vc-gold-rgb), 0.12)",
-          borderRadius: 10,
-          textAlign: "center",
-        }}>
-          <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 14, margin: "0 0 4px" }}>
-            Your QR Code Is Your Ticket
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-            Present your QR code at the door for entry. Screenshot it, save it to your photos, or print a copy — just have it ready when you arrive.
-          </p>
-        </div>
-
-        {/* While the webhook is still creating the ticket, this is a real wait
-            for someone who has just paid — show progress, not a dead button.
-            Once it lands, the state flips to "ready" with the ticket link. */}
-        {data?.ticket?.qr_code ? (
-          <p className="cs-ready">Your {(data?.order?.quantity || 1) > 1 ? "tickets are" : "ticket is"} ready.</p>
-        ) : (
-          <div className="cs-preparing">
-            <TicketPreparingLoader
-              label={loading ? "Preparing your tickets…" : "Still finishing up…"}
-              sublabel={
-                loading
-                  ? "This usually takes a few seconds."
-                  : "Your tickets are on their way — we've emailed them too."
-              }
-            />
-          </div>
+          <OrderConfirmationPanel
+            orderNumber={shortOrderRef(data.order?.id)}
+            quantity={quantity}
+            ticketReady={!!data?.ticket?.qr_code}
+            loading={loading}
+            ticket={{
+              eventName: data.event.title,
+              dateVenue: `${formatDateShort(data.event.date)} · ${data.event.venue}`,
+              tierLabel,
+              subLabel: doorsLabel(data.event.date) ? `Doors ${doorsLabel(data.event.date)}` : undefined,
+              photoUrl: data.event.image_url ?? undefined,
+            }}
+            priceLines={
+              // The face-value/fees split only appears once the settlement
+              // row exists. We never compute it here — a receipt showing a
+              // wrong split is worse than one showing just the total.
+              data.breakdown
+                ? [
+                    { label: tierLabel, amount: `$${data.breakdown.subtotal.toFixed(2)}` },
+                    { label: "Taxes & Fees", amount: `$${data.breakdown.feesAndTax.toFixed(2)}` },
+                  ]
+                : [{ label: tierLabel, amount: `$${(data.order?.total_amount ?? 0).toFixed(2)}` }]
+            }
+            total={`$${(data.order?.total_amount ?? 0).toFixed(2)}`}
+          />
         )}
 
         {/* Actions — primary ticket link plus Add to Calendar, side by side.
             There is deliberately no "Add to Apple Wallet": generating .pkpass
             files needs Apple Developer enrollment and a Pass Type ID cert,
             which isn't set up. */}
-        <div className="checkout-success-actions cs-actions">
-          {data?.ticket?.qr_code ? (
-            <Link href={`/tickets/${data.ticket.qr_code}`} className="checkout-success-btn">
-              {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
-            </Link>
-          ) : (
-            <span className="checkout-success-btn cs-btn--pending" aria-hidden="true">
-              {(data?.order?.quantity || 1) > 1 ? "View My Tickets" : "View My Ticket"}
-            </span>
-          )}
-
-          {data?.event && (
-            <a
-              className="checkout-success-btn cs-btn--outline"
-              href={calendarHref(data.event)}
-              download={`${data.event.title.replace(/[^\w]+/g, "-").toLowerCase()}.ics`}
-            >
-              Add to Calendar
-            </a>
-          )}
-        </div>
+        <ActionRow
+          ticketHref={data?.ticket?.qr_code ? `/tickets/${data.ticket.qr_code}` : null}
+          ticketLabel={quantity > 1 ? "View My Tickets" : "View My Ticket"}
+          calendarHref={data?.event ? calendarHref(data.event) : undefined}
+          calendarFilename={data?.event ? `${data.event.title.replace(/[^\w]+/g, "-").toLowerCase()}.ics` : undefined}
+        />
 
         {/* Lodging partner — placed right after the actions, while commitment
             is highest. See HOTEL_PARTNER above: static promo, not a live rate. */}
         {HOTEL_PARTNER && (
-          <div className="hotel-panel">
-            <div className="hotel-photo">
-              <span>{HOTEL_PARTNER.name}</span>
-            </div>
-            <div className="hotel-body">
-              <div className="hotel-top">
-                <span className="hotel-badge">&#10022; Unlocked By Your Ticket</span>
-                <span className="hotel-cutoff">Room block holds through {HOTEL_PARTNER.cutoffLabel}</span>
-              </div>
-              <h3>You Bought The Ticket. We Got You The Room.</h3>
-              <div className="hotel-partner-name">In partnership with {HOTEL_PARTNER.name}</div>
-              <p className="hotel-desc">
-                Ticket holders only. Not listed on their site, not open to the public.
-                Skip the drive home.
-              </p>
-              <div className="hotel-bottom">
-                <div>
-                  <div className="hotel-price-row">
-                    <span className="hotel-price-old">{HOTEL_PARTNER.rackRate}</span>
-                    <span className="hotel-price-new">{HOTEL_PARTNER.memberRate}</span>
-                    <span className="hotel-price-unit">/ night</span>
-                  </div>
-                  <div className="hotel-code-note">
-                    Code <b>{HOTEL_PARTNER.promoCode}</b> applied automatically &mdash; no account needed
-                  </div>
-                </div>
-                <a
-                  className="checkout-success-btn"
-                  href={HOTEL_PARTNER.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Unlock Our Rate
-                </a>
-              </div>
-            </div>
-          </div>
+          <HotelPartnerPanel
+            partnerName={HOTEL_PARTNER.name}
+            cutoffLabel={HOTEL_PARTNER.cutoffLabel}
+            rackRate={HOTEL_PARTNER.rackRate}
+            memberRate={HOTEL_PARTNER.memberRate}
+            promoCode={HOTEL_PARTNER.promoCode}
+            ctaHref={HOTEL_PARTNER.href}
+          />
         )}
 
         {/* Laylo SMS opt-in — west72 only, shown after purchase confirmed */}
         {isWest72 && layloStatus !== "dismissed" && (
-          <div style={{
-            margin: "20px 0 0",
-            padding: "20px",
-            background: "rgba(var(--vc-gold-rgb), 0.06)",
-            border: "1px solid rgba(var(--vc-gold-rgb), 0.18)",
-            borderRadius: 12,
-            textAlign: "center",
-          }}>
+          <div className="cs-laylo">
             {layloStatus === "success" ? (
               <>
-                <p style={{ fontSize: 22, margin: "0 0 6px" }}>📱</p>
-                <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>You&apos;re on the list!</p>
-                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: 0 }}>
-                  We&apos;ll text you first for presales and upcoming shows.
-                </p>
+                <p className="cs-laylo-success-icon">📱</p>
+                <p className="cs-laylo-title">You&apos;re on the list!</p>
+                <p className="cs-laylo-text">We&apos;ll text you first for presales and upcoming shows.</p>
               </>
             ) : (
               <>
-                <p style={{ fontSize: 20, margin: "0 0 8px" }}>🎟️</p>
-                <p style={{ color: "rgb(var(--vc-gold-rgb))", fontWeight: 700, fontSize: 15, margin: "0 0 4px" }}>
-                  Want early access to future shows?
-                </p>
-                <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, margin: "0 0 14px", lineHeight: 1.5 }}>
-                  Get presale texts before tickets go public. One tap, no spam.
-                </p>
+                <p className="cs-laylo-icon">🎟️</p>
+                <p className="cs-laylo-title">Want early access to future shows?</p>
+                <p className="cs-laylo-text">Get presale texts before tickets go public. One tap, no spam.</p>
                 <input
                   type="tel"
+                  className="cs-laylo-input"
                   value={layloPhone}
                   onChange={(e) => setLayloPhone(formatPhoneNumber(e.target.value))}
                   placeholder="(555)-555-5555"
                   inputMode="tel"
-                  style={{
-                    width: "100%", padding: "11px 14px", marginBottom: 10,
-                    background: "rgba(0,0,0,0.3)", border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
-                    borderRadius: 8, color: "#fff", fontSize: 15, outline: "none",
-                    boxSizing: "border-box",
-                  }}
                 />
                 <button
+                  type="button"
+                  className="lg-btn lg-btn--md lg-btn--primary cs-laylo-submit"
                   onClick={handleLayloOptIn}
-                  disabled={layloStatus === "loading" || layloPhone.replace(/\D/g,"").length < 10}
-                  style={{
-                    width: "100%", padding: "13px", borderRadius: 8, border: "none",
-                    background: layloStatus === "loading" ? "rgba(var(--vc-gold-rgb), 0.4)" : "rgb(var(--vc-gold-rgb))",
-                    color: "#111", fontWeight: 700, fontSize: 15, cursor: "pointer",
-                    marginBottom: 8, opacity: layloPhone.replace(/\D/g,"").length < 10 ? 0.5 : 1,
-                  }}
+                  disabled={layloStatus === "loading" || layloPhone.replace(/\D/g, "").length < 10}
                 >
                   {layloStatus === "loading" ? "Joining..." : "Yes, Text Me 📱"}
                 </button>
-                {layloError && (
-                  <p style={{ color: "#f87171", fontSize: 12, margin: "0 0 8px", textAlign: "center" }}>
-                    {layloError}
-                  </p>
-                )}
-                <button
-                  onClick={() => setLayloStatus("dismissed")}
-                  style={{
-                    background: "none", border: "none", color: "rgba(255,255,255,0.3)",
-                    fontSize: 12, cursor: "pointer", padding: "4px",
-                  }}
-                >
+                {layloError && <p className="cs-laylo-error">{layloError}</p>}
+                <button type="button" className="cs-laylo-decline" onClick={() => setLayloStatus("dismissed")}>
                   No thanks
                 </button>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", margin: "10px 0 0", lineHeight: 1.5 }}>
+                <p className="cs-laylo-fineprint">
                   By tapping &quot;Yes&quot; you agree to receive recurring automated texts from West72 Entertainment.
                   Reply STOP to unsubscribe. Msg &amp; data rates may apply.
                 </p>
@@ -533,14 +360,12 @@ function SuccessContent() {
         )}
 
         {/* Fine print */}
-        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", marginTop: 24, lineHeight: 1.6 }}>
+        <p className="checkout-success-terms">
           All sales are final. Refunds are issued only if the event is cancelled by the organizer.
           By completing your purchase you agreed to our{" "}
-          <Link href="/faq" style={{ color: "rgba(var(--vc-gold-rgb), 0.6)", textDecoration: "underline" }}>
-            Terms of Sale
-          </Link>.
+          <Link href="/faq" className="checkout-success-terms-link">Terms of Sale</Link>.
           Questions? Email{" "}
-          <a href={`mailto:${operator.supportEmail}`} style={{ color: "rgba(var(--vc-gold-rgb), 0.6)" }}>
+          <a href={`mailto:${operator.supportEmail}`} className="checkout-success-terms-link">
             {operator.supportEmail}
           </a>
         </p>
@@ -548,19 +373,7 @@ function SuccessContent() {
 
       {/* Cross-sell — sits outside the confirmation card so it reads as a
           separate invitation rather than part of the receipt. */}
-      {alsoLike.length > 0 && (
-        <div className="cs-crosssell">
-          <p className="cs-crosssell-eyebrow">While You&apos;re Here</p>
-          <h3 className="cs-crosssell-heading">
-            More Nights Worth Clearing Your Calendar For
-          </h3>
-          <div className="cs-crosssell-grid">
-            {alsoLike.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
-          </div>
-        </div>
-      )}
+      <CrossSellSection shows={alsoLike} />
     </section>
   );
 }

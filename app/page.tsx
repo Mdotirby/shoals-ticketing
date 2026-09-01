@@ -8,6 +8,7 @@ import Footer from "./components/Footer";
 import NewsletterSignup from "./components/NewsletterSignup";
 import FeaturedEventsCarousel from "./components/FeaturedEventsCarousel";
 import { Event } from "@/lib/types/event";
+import { eventToCardProps } from "@/lib/eventCardProps";
 import { Sponsor } from "@/lib/types/sponsor";
 import { useVenue } from "./components/VenueContext";
 import { useVenueTheme } from "./components/VenueThemeProvider";
@@ -60,7 +61,7 @@ function AnimatedEventCard({ event, index }: { event: Event; index: number }) {
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
     >
-      <EventCard event={event} />
+      <EventCard {...eventToCardProps(event)} />
     </motion.div>
   );
 }

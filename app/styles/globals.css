@@ -11511,8 +11511,20 @@ body:has(.lp-main) .site-footer {
   z-index: 0;
   width: 100%;
   max-width: 400px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
+  /* max-height: calc(100vh - 40px); overflow-y: auto; — REMOVED. This rule
+     was written for a CheckoutSuccessModal that no longer exists anywhere
+     in the app (grepped: zero JSX consumers of .checkout-success-overlay/
+     .checkout-success-curtain, its reveal-animation siblings above). The
+     liquid-glass pass unboxed this selector's background/border for the
+     real full-page route at app/checkout/success/page.tsx but never
+     touched this max-height, which silently forced the whole page's
+     content into a viewport-height flex box — confirmed via
+     getComputedStyle that it was shrinking .hotel-panel's children below
+     their own content height, clipping the promo-code line and CTA button
+     off the bottom of the card, worse on mobile where it cut off content
+     mid-sentence. If a real modal reusing this selector shows up later,
+     give the max-height/overflow back to ITS OWN selector, not this
+     shared one. */
   background: var(--vc-bg-mid, #1a1d35);
   border: 1px solid rgba(var(--vc-gold-rgb), 0.2);
   border-radius: var(--vc-radius-lg, 16px);
@@ -13860,6 +13872,81 @@ body[data-theme="liquid-glass"] .glass::before {
   }
 }
 
+/* .glass defaults to --lg-radius-lg (24px) above; these give the reusable
+   GlassCard component (app/components/liquid-glass-components.tsx) its
+   other two radii without hardcoding a second copy of the surface itself.
+   Two classes on one element outrank .glass alone on specificity, so
+   source order doesn't matter here. */
+body[data-theme="liquid-glass"] .glass.lg-radius-md { border-radius: var(--lg-radius-md); }
+body[data-theme="liquid-glass"] .glass.lg-radius-sm { border-radius: var(--lg-radius-sm); }
+
+/* ── Reusable button + chip primitives ──────────────────────
+   Same visual language already established by .checkout-success-btn /
+   .cs-btn--outline / .cs-btn--pending (Checkout Success) and .hotel-badge
+   (hotel panel) — pulled out into reusable classes so the new Button/Chip
+   components in liquid-glass-components.tsx reuse this instead of
+   hand-rolling another near-identical treatment under a fourth name. */
+body[data-theme="liquid-glass"] .lg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+body[data-theme="liquid-glass"] .lg-btn--md { padding: 12px 24px; font-size: 13px; }
+body[data-theme="liquid-glass"] .lg-btn--lg { padding: 16px 28px; font-size: 14px; }
+body[data-theme="liquid-glass"] .lg-btn--primary {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  box-shadow: 0 10px 30px rgba(255, 255, 255, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.40);
+}
+body[data-theme="liquid-glass"] .lg-btn--primary:hover { opacity: 0.92; }
+body[data-theme="liquid-glass"] .lg-btn--outline {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--lg-white);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+}
+body[data-theme="liquid-glass"] .lg-btn--outline:hover { background: rgba(255, 255, 255, 0.12); }
+/* Shown while the webhook is still creating the ticket — same idea as
+   .cs-btn--pending had. */
+body[data-theme="liquid-glass"] .lg-btn--pending {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--lg-sub);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  cursor: default;
+}
+body[data-theme="liquid-glass"] .lg-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+body[data-theme="liquid-glass"] .lg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
+}
+body[data-theme="liquid-glass"] .lg-chip--strong {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.60));
+  color: #14120f;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+}
+
 /* ── Floating glass pill nav ───────────────────────────────
    The header becomes a detached rounded pill floating over the
    content rather than a full-bleed bar. Markup and open/close
@@ -15622,7 +15709,8 @@ body[data-theme="liquid-glass"] .cs-actions {
   justify-content: center;
   margin: 24px 0 8px;
 }
-body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn {
+body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn,
+body[data-theme="liquid-glass"] .cs-actions .lg-btn {
   flex: 0 1 260px;
   text-align: center;
 }
@@ -15639,6 +15727,153 @@ body[data-theme="liquid-glass"] .cs-btn--pending {
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: none !important;
   cursor: default;
+}
+
+/* ── SuccessHeader thank-you line ──
+   Was an inline style (color/size/margin) further down the page; moved up
+   next to the lede per the rewrite brief and given a real class. */
+body[data-theme="liquid-glass"] .checkout-success-thankyou {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-sub-dim);
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+
+/* ── QR-code notice + ready/preparing status, now inside .cs-order-card ──
+   Was a standalone gold-tinted box outside the order card — restyled to
+   the same glass sub-panel language as .cs-order-ticket (light fill,
+   thin border) instead of introducing a second accent colour, and moved
+   inside the card per the rewrite brief. */
+body[data-theme="liquid-glass"] .cs-order-qr-notice {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: var(--lg-radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .cs-order-qr-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--lg-white);
+  margin: 0 0 4px;
+}
+body[data-theme="liquid-glass"] .cs-order-qr-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--lg-sub);
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .cs-order-ready {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--lg-good);
+  text-align: center;
+  margin: 16px 0 0;
+}
+body[data-theme="liquid-glass"] .cs-preparing {
+  margin-top: 16px;
+}
+
+/* ── Fine print below the actions/hotel/laylo stack ──
+   Same small-centered treatment as .order-summary-terms on the Event
+   Detail checkout card, for consistency across the redesign. */
+body[data-theme="liquid-glass"] .checkout-success-terms {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--lg-sub-dim);
+  text-align: center;
+  margin-top: 24px;
+}
+body[data-theme="liquid-glass"] .checkout-success-terms-link {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ── Laylo SMS opt-in (west72 only) ──
+   Previously gold (rgba(var(--vc-gold-rgb)...)) inline styles — gold was
+   retired for the liquid-glass theme everywhere else, this panel was
+   just never caught. Same glass sub-panel language as the QR notice
+   above, not a new accent colour. */
+body[data-theme="liquid-glass"] .cs-laylo {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: var(--lg-radius-md);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .cs-laylo-icon {
+  font-size: 20px;
+  margin: 0 0 8px;
+}
+body[data-theme="liquid-glass"] .cs-laylo-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--lg-white);
+  margin: 0 0 4px;
+}
+body[data-theme="liquid-glass"] .cs-laylo-text {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--lg-sub);
+  margin: 0 0 14px;
+}
+body[data-theme="liquid-glass"] .cs-laylo-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  margin-bottom: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--lg-radius-sm);
+  color: var(--lg-white);
+  font-size: 14px;
+  font-family: var(--font-archivo), sans-serif;
+  outline: none;
+}
+body[data-theme="liquid-glass"] .cs-laylo-input:focus {
+  border-color: rgba(255, 255, 255, 0.40);
+}
+body[data-theme="liquid-glass"] .cs-laylo-submit {
+  width: 100%;
+  padding: 13px;
+  border-radius: var(--lg-radius-sm);
+  margin-bottom: 8px;
+}
+body[data-theme="liquid-glass"] .cs-laylo-error {
+  color: #f87171;
+  font-size: 12px;
+  margin: 0 0 8px;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .cs-laylo-decline {
+  background: none;
+  border: none;
+  color: var(--lg-sub-dim);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-theme="liquid-glass"] .cs-laylo-decline:hover {
+  color: var(--lg-sub);
+}
+body[data-theme="liquid-glass"] .cs-laylo-fineprint {
+  font-size: 10.5px;
+  color: var(--lg-sub-dim);
+  margin: 10px 0 0;
+  line-height: 1.5;
+}
+body[data-theme="liquid-glass"] .cs-laylo-success-icon {
+  font-size: 22px;
+  margin: 0 0 6px;
 }
 
 /* Cross-sell */
@@ -15690,7 +15925,8 @@ body[data-theme="liquid-glass"] .ic-redirecting-text {
   body[data-theme="liquid-glass"] .cs-actions {
     flex-direction: column;
   }
-  body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn {
+  body[data-theme="liquid-glass"] .cs-actions .checkout-success-btn,
+  body[data-theme="liquid-glass"] .cs-actions .lg-btn {
     flex: 1 1 auto;
     width: 100%;
   }

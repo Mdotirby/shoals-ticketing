@@ -1,5 +1,6 @@
 import EventCard from "./EventCard";
 import { Event } from "@/lib/types/event";
+import { eventToCardProps } from "@/lib/eventCardProps";
 
 type EventCarouselProps = {
   events: Event[];
@@ -14,7 +15,7 @@ export default function EventCarousel({ events }: EventCarouselProps) {
         <div className="upcoming-events-stack">
           {events.map((event) => (
             <div className="upcoming-events-item" key={event.id}>
-              <EventCard event={event} />
+              <EventCard {...eventToCardProps(event)} />
             </div>
           ))}
         </div>
