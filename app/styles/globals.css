@@ -15367,13 +15367,13 @@ body[data-theme="liquid-glass"] .venue-directions-card-title {
   letter-spacing: -0.01em;
   color: var(--lg-white);
 }
-body[data-theme="liquid-glass"] .venue-directions-card {
-  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
-  backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid var(--lg-glass-border);
-  box-shadow: var(--lg-glass-shadow);
-  border-radius: var(--lg-radius-lg);
-}
+/* .venue-directions-card's box treatment was removed here — see the
+   canonical unbox rule further down, which also has to clear box-shadow
+   and border-radius specifically: this rule used to set those and, being
+   earlier in the cascade, was overridden on background/border but NOT on
+   the two properties the later rule never touched — a shadow with no
+   fill still renders as a ghost box, which is exactly what was showing up
+   behind the Address / Directions & Parking text. */
 
 /* ── Let the orb field through, on every page ───────────────
    .bg-field is fixed at z-index 0 and the page content sits above it at
@@ -15809,6 +15809,23 @@ body[data-theme="liquid-glass"] .faq-card-chevron {
 body[data-theme="liquid-glass"] .faq-cards-grid,
 body[data-theme="liquid-glass"] .faq-cards-column {
   gap: 0;
+}
+/* The outer .faq-card wrapper still carried its pre-liquid-glass box
+   (background/border/radius) — a second container distinct from
+   .faq-card-question's own glass pill. Collapsed, the two nearly overlap so
+   it wasn't obvious; expanded, this outer box grows to enclose the answer,
+   which is the unwanted container around the answer text. The visible pill
+   should be .faq-card-question alone; the answer flows under it unboxed. */
+body[data-theme="liquid-glass"] .faq-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+body[data-theme="liquid-glass"] .faq-card:hover,
+body[data-theme="liquid-glass"] .faq-card-open {
+  background: transparent;
+  border: none;
 }
 
 /* "Getting Here": map panel and the address/parking copy in one glass card. */
@@ -16378,9 +16395,16 @@ body[data-theme="liquid-glass"] .ymal-venue-badge {
    .ticket-cards-column/.ticket-event-card — grid-area placement only works
    on direct children, so this required moving it in the JSX, not just a
    CSS change. */
+/* Column widths measured directly off event_detail.png's pixels (not
+   eyeballed): photo spans x=168–909 (741px), Order Summary x=939–1431
+   (492px) — a ~3:2 split, not 50/50. Heights DO match exactly though —
+   both start and end at the same y (198 and 618) — so 1fr 1fr was half
+   right: matching height was correct, forcing equal width on top of that
+   is what squared the photo off. Row 1 still stretches photo and Order
+   Summary to match each other's height regardless of the column ratio. */
 body[data-theme="liquid-glass"] .ticket-selection-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 2fr;
   grid-template-areas:
     "photo summary"
     "info  .";
@@ -16505,6 +16529,8 @@ body[data-theme="liquid-glass"] .venue-directions-cards {
 body[data-theme="liquid-glass"] .venue-directions-card {
   background: transparent;
   border: none;
+  box-shadow: none;
+  border-radius: 0;
   padding: 0;
   gap: 4px;
 }
