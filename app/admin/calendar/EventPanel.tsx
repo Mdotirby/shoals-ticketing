@@ -566,7 +566,7 @@ function OffersTab({ eventId, event, venueSlug, onUpdate }: { eventId: string; e
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={() => downloadPDF(o)} style={{ ...btnGold, fontSize: 12, padding: "7px 13px" }}>
-                  ⬇ Offer PDF
+                  Offer PDF
                 </button>
                 <a href={`/admin/offers/${o.id}`} target="_blank" rel="noopener noreferrer"
                   style={{ ...btnOutline, textDecoration: "none", fontSize: 12, padding: "7px 13px" }}>
@@ -720,7 +720,7 @@ function ContractsTab({ eventId, venueSlug }: { eventId: string; venueSlug: stri
                 {c.file_url && (
                   <a href={c.file_url} target="_blank" rel="noopener noreferrer"
                     style={{ ...btnGold, fontSize: 11, padding: "5px 12px", textDecoration: "none" }}>
-                    ⬇ Download
+                    Download
                   </a>
                 )}
               </div>
@@ -1026,7 +1026,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button onClick={() => downloadPDF(q)} disabled={downloadingId === q.id}
               style={{ ...btnGold, fontSize: 11, padding: "6px 12px" }}>
-              {downloadingId === q.id ? "…" : "⬇ PDF"}
+              {downloadingId === q.id ? "…" : "PDF"}
             </button>
             {q.status !== "accepted" && (
               <>
@@ -1112,7 +1112,7 @@ function InvoicesTab({ event, venueSlug }: { event: CalendarEvent; venueSlug: st
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => downloadPDF(inv)} disabled={generatingId === inv.id}
                   style={{ ...btnGold, fontSize: 11, padding: "6px 12px" }}>
-                  {generatingId === inv.id ? "…" : "⬇ PDF"}
+                  {generatingId === inv.id ? "…" : "PDF"}
                 </button>
                 <a href={`/pay/${inv.id}`} target="_blank" rel="noopener noreferrer"
                   style={{ ...btnOutline, fontSize: 11, padding: "6px 12px", textDecoration: "none" }}>
@@ -1191,7 +1191,7 @@ function AttachmentsTab({ eventId }: { eventId: string }) {
               <div style={{ display: "flex", gap: 8 }}>
                 <a href={f.file_url} target="_blank" rel="noopener noreferrer"
                   style={{ ...btnGold, fontSize: 11, padding: "6px 12px", textDecoration: "none" }}>
-                  ⬇ Download
+                  Download
                 </a>
                 <button onClick={() => deleteFile(f.id)} style={{ ...btnDanger, fontSize: 11, padding: "6px 10px" }}>
                   Delete

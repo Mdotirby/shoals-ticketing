@@ -292,7 +292,7 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
       <div className="admin-form-page">
         <h1 className="admin-page-title">Guest Lists</h1>
         <div style={{ padding: "20px", background: "rgba(255,200,50,0.08)", border: "1px solid rgba(255,200,50,0.2)", borderRadius: 8 }}>
-          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>⚠ Guest list tables not found.</p>
+          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>Guest list tables not found.</p>
           <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
             Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.
           </p>
@@ -683,7 +683,7 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
           }}
         >
           <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>
-            ⚠ Guest list tables not found.
+            Guest list tables not found.
           </p>
           <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
             Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.

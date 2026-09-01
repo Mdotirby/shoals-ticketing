@@ -49,7 +49,17 @@ function SeatHoldTimer({ heldUntil }: { heldUntil: string }) {
       color: expired ? "#f87171" : urgent ? "#fbbf24" : "rgba(255,255,255,0.6)",
       marginBottom: 16,
     }}>
-      <span style={{ fontSize: 16 }}>{expired ? "⚠" : "🔒"}</span>
+      {expired ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <path d="M12 3.5L2 20h20L12 3.5z" />
+          <path d="M12 10v4M12 17h.01" />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <rect x="4" y="10" width="16" height="10" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      )}
       {expired
         ? "Your seat hold has expired. Please go back and reselect."
         : `Seats held for ${mins}:${String(secs).padStart(2, "0")} — complete payment before time runs out.`}

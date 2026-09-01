@@ -1343,8 +1343,8 @@ body {
   white-space: nowrap;
 }
 
-.ptc-perk-emoji {
-  font-size: 12px;
+.ptc-perk-icon {
+  flex-shrink: 0;
 }
 
 .ptc-bottom-bar {
@@ -3858,7 +3858,7 @@ select.admin-form-input {
 }
 
 .admin-image-dropzone-icon {
-  font-size: 28px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .admin-image-dropzone-text {
@@ -9405,10 +9405,6 @@ select.admin-form-input {
   justify-content: center;
   color: var(--vc-gold);
   margin-bottom: 20px;
-}
-.about-feature-icon--emoji {
-  font-size: 22px;
-  line-height: 1;
 }
 
 .about-feature-title {
@@ -15097,6 +15093,9 @@ body[data-theme="liquid-glass"] .about-feature-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
+  /* Base rule's color: var(--vc-gold) was never cleared here — gold is
+     retired, and these icons went back to stroke SVGs (currentColor). */
+  color: var(--lg-white);
 }
 body[data-theme="liquid-glass"] .about-feature-title {
   font-family: var(--font-archivo), sans-serif;
@@ -15962,8 +15961,9 @@ body[data-theme="liquid-glass"] .cs-laylo {
   text-align: center;
 }
 body[data-theme="liquid-glass"] .cs-laylo-icon {
-  font-size: 20px;
-  margin: 0 0 8px;
+  display: block;
+  margin: 0 auto 10px;
+  color: var(--lg-white);
 }
 body[data-theme="liquid-glass"] .cs-laylo-title {
   font-family: var(--font-archivo), sans-serif;
@@ -16026,8 +16026,9 @@ body[data-theme="liquid-glass"] .cs-laylo-fineprint {
   line-height: 1.5;
 }
 body[data-theme="liquid-glass"] .cs-laylo-success-icon {
-  font-size: 22px;
-  margin: 0 0 6px;
+  display: block;
+  margin: 0 auto 8px;
+  color: var(--lg-good);
 }
 
 /* Cross-sell */

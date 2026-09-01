@@ -1221,7 +1221,7 @@ export default function AdminEditEventPage() {
           </div>
           {externalTicketUrl && (
             <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8, margin: "8px 0 0" }}>
-              ⚠ VenueCore checkout is disabled for this event. Tickets link out to the URL above.
+              VenueCore checkout is disabled for this event. Tickets link out to the URL above.
             </p>
           )}
         </div>

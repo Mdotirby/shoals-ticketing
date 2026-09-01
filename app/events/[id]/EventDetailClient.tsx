@@ -977,7 +977,10 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                             background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
                             display: "flex", alignItems: "center", gap: 8,
                           }}>
-                            <span style={{ fontSize: 14 }}>🚫</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.8" aria-hidden="true">
+                              <circle cx="12" cy="12" r="9" />
+                              <path d="M6.5 6.5l11 11" strokeLinecap="round" />
+                            </svg>
                             <span style={{ fontSize: 13, fontWeight: 700, color: "#f87171" }}>
                               {sec.name} are SOLD OUT
                             </span>
@@ -998,7 +1001,10 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                             color: "#fca5a5", fontSize: 13, lineHeight: 1.45,
                           }}
                         >
-                          <span aria-hidden="true">⚠</span>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
+                            <path d="M12 3.5L2 20h20L12 3.5z" />
+                            <path d="M12 10v4M12 17h.01" />
+                          </svg>
                           <span>{seatConflictMessage}</span>
                         </div>
                       )}
@@ -1621,7 +1627,6 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     )}
                     {event.venue_directions_transit && (
                       <div className="venue-directions-info-block">
-                        <span className="venue-directions-info-icon">🚌</span>
                         <div>
                           <strong className="venue-directions-info-label">Public Transport</strong>
                           <p className="venue-directions-card-text">{event.venue_directions_transit}</p>

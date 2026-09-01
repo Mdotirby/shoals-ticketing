@@ -175,7 +175,16 @@ export default function HomePage() {
         variants={revealVariant(prefersReduced ? 0 : 0.24)}
       >
         <Link href="/events" className="home-cta-button">
-          {operator.slug === "west72" ? "See the Full Calendar" : <>🎫 See What&apos;s Coming</>}
+          {operator.slug === "west72" ? (
+            "See the Full Calendar"
+          ) : (
+            <>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 6, verticalAlign: -2 }}>
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z" />
+              </svg>
+              See What&apos;s Coming
+            </>
+          )}
         </Link>
       </motion.div>
     </section>

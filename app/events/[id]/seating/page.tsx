@@ -256,7 +256,10 @@ export default function EventSeatingPage() {
               background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)",
               display: "flex", alignItems: "center", gap: 10,
             }}>
-              <span style={{ fontSize: 16 }}>🚫</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.8" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M6.5 6.5l11 11" strokeLinecap="round" />
+              </svg>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#f87171" }}>
                 {sec.name} are SOLD OUT
               </span>

@@ -123,7 +123,7 @@ function SuccessContent() {
           marginBottom: 10,
         }}
       >
-        🎫 New Sale
+        New Sale
       </Link>
     </div>
   );

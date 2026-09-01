@@ -448,12 +448,17 @@ export default function AdminScanPage() {
               Start Camera
             </button>
           ) : (
-            <button className="portal-signout-btn" onClick={stopScanner} style={{ minWidth: 160 }}>
-              ⏹ Stop Camera
+            <button className="portal-signout-btn" onClick={stopScanner} style={{ minWidth: 160, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+              Stop Camera
             </button>
           )}
           <label className="scan-file-btn">
-            📷 Scan from Photo
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 6, verticalAlign: -2 }}>
+              <path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+            Scan from Photo
             <input
               type="file"
               accept="image/*"
@@ -469,7 +474,10 @@ export default function AdminScanPage() {
       <div className="scan-search-section">
         <div className="scan-section-label">Search by Name or Email</div>
         <div className="scan-search-input-row">
-          <span className="scan-search-icon">🔍</span>
+          <svg className="scan-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4-4" />
+          </svg>
           <input
             type="text"
             className="admin-form-input scan-search-input"

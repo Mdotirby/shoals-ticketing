@@ -157,7 +157,7 @@ function StatCard({ label, value, benchmark, good }: { label: string; value: str
       <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{label}</div>
       {benchmark && (
         <div style={{ fontSize: 10, color: good ? "rgba(80,200,120,0.7)" : "rgba(255,180,80,0.7)", marginTop: 4 }}>
-          {good ? "✓" : "⚠"} {benchmark}
+          {good ? "✓" : "!"} {benchmark}
         </div>
       )}
     </div>

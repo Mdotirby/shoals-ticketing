@@ -262,7 +262,7 @@ export default function SocialPage() {
         const bgColor = hasErrors ? "rgba(255,180,50,0.08)" : "rgba(96,165,250,0.06)";
         const borderColor = hasErrors ? "rgba(255,180,50,0.2)" : "rgba(96,165,250,0.15)";
         const titleColor = hasErrors ? "#ffb432" : "rgba(96,165,250,0.9)";
-        const title = hasErrors ? "⚠️ Meta API Issues Detected" : "ℹ️ Sync Info";
+        const title = hasErrors ? "Meta API Issues Detected" : "Sync Info";
         return (
           <div style={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: 10, padding: 16, marginBottom: 24 }}>
             <div style={{ color: titleColor, fontWeight: 600, fontSize: 14, marginBottom: 8 }}>{title}</div>

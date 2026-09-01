@@ -470,7 +470,11 @@ export default function AdminEditSponsorPage() {
                         <span className="admin-image-uploading">Uploading…</span>
                       ) : (
                         <>
-                          <span className="admin-image-dropzone-icon">🖼</span>
+                          <svg className="admin-image-dropzone-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="3" y="4" width="18" height="16" rx="2" />
+                            <circle cx="8.5" cy="9.5" r="1.5" />
+                            <path d="M21 16l-5-5-4 4-3-3-6 6" />
+                          </svg>
                           <span className="admin-image-dropzone-text">Drop logo here or click to upload</span>
                           <span className="admin-image-dropzone-hint">PNG, JPG, WEBP, or SVG — transparent PNG works best</span>
                         </>
@@ -719,7 +723,7 @@ export default function AdminEditSponsorPage() {
                           whileHover={{ scale: 1.03 }}
                           whileTap={{ scale: 0.97 }}
                         >
-                          {generatingInvoice === pkg.id ? "Generating…" : "⬇ Generate Invoice PDF"}
+                          {generatingInvoice === pkg.id ? "Generating…" : "Generate Invoice PDF"}
                         </motion.button>
                         <button onClick={() => openEditPkg(pkg)} style={{ ...btnSecondary, fontSize: 12, padding: "8px 16px" }}>Edit</button>
                         <button onClick={() => handleDeletePackage(pkg)} style={{ ...btnDanger, marginLeft: "auto" }}>Delete</button>

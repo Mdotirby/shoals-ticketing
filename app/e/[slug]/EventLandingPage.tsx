@@ -725,7 +725,7 @@ function CheckoutForm({
         {promoApplied && discountType && (
           <div className="lp-checkout-promo-applied">
             {discountType === "percentage" && discountValue >= 100 ? (
-              <span>🎉 100% off — your tickets are free!</span>
+              <span>100% off — your tickets are free!</span>
             ) : discountType === "percentage" ? (
               <span>{discountValue}% off applied — new total: ${discountedTotal.toFixed(2)}</span>
             ) : (

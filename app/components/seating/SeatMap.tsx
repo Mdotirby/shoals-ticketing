@@ -332,9 +332,14 @@ export default function SeatMap({
           background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 6, color: "rgba(255,255,255,0.5)", fontSize: 11,
           padding: "4px 8px", cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 4,
         }}
       >
-        ⌖ Reset
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 1 3 6.7" />
+          <path d="M3 17v-5h5" />
+        </svg>
+        Reset
       </button>
 
       {/* Seat count label */}

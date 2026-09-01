@@ -1440,7 +1440,7 @@ function QuoteTab({ event, quotes, onUpdate, venueSlug }: {
                     disabled={downloadingId === q.id}
                     style={{ ...btnPrimary, fontSize: 12, padding: "8px 16px" }}
                   >
-                    {downloadingId === q.id ? "Generating..." : "⬇ Download PDF"}
+                    {downloadingId === q.id ? "Generating..." : "Download PDF"}
                   </button>
                   {q.status !== "accepted" && (
                     <>

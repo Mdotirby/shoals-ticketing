@@ -391,7 +391,7 @@ const SOP_TEMPLATES: SOPTemplate[] = [
       {
         heading: "Creating a Seating Layout",
         steps: [
-          { title: "Quick Build (Recommended)", details: ["Navigate to Admin → Shows → Seating", "Click '⚡ Quick Build' for the fastest method", "Choose the event type: Tables + GA, Full Tables, or Theater", "Enter room dimensions in feet (width and depth)", "Set stage position (front or back of room)", "Configure tables (count, seats per table, diameter, spacing) or rows (count, seats per row, spacing)", "Set pricing for each section", "The preview updates instantly — no loading", "Click 'Save & Open' to save the layout"] },
+          { title: "Quick Build (Recommended)", details: ["Navigate to Admin → Shows → Seating", "Click 'Quick Build' for the fastest method", "Choose the event type: Tables + GA, Full Tables, or Theater", "Enter room dimensions in feet (width and depth)", "Set stage position (front or back of room)", "Configure tables (count, seats per table, diameter, spacing) or rows (count, seats per row, spacing)", "Set pricing for each section", "The preview updates instantly — no loading", "Click 'Save & Open' to save the layout"] },
           { title: "Custom Layout Builder", details: ["Click '+ Custom Layout' for more control", "Enter room dimensions and layout name", "Use the generator panel to add sections one at a time", "Each section gets a name, price, color, and type (tables/rows/GA)", "Configure the generator parameters and click 'Generate Seats'", "Add multiple sections to build complex layouts"] },
         ],
       },

@@ -321,13 +321,19 @@ function SuccessContent() {
           <div className="cs-laylo">
             {layloStatus === "success" ? (
               <>
-                <p className="cs-laylo-success-icon">📱</p>
+                <svg className="cs-laylo-success-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M8 12.5l2.5 2.5L16 9.5" />
+                </svg>
                 <p className="cs-laylo-title">You&apos;re on the list!</p>
                 <p className="cs-laylo-text">We&apos;ll text you first for presales and upcoming shows.</p>
               </>
             ) : (
               <>
-                <p className="cs-laylo-icon">🎟️</p>
+                <svg className="cs-laylo-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="7" y="2" width="10" height="18" rx="2" />
+                  <path d="M11 17h2" />
+                </svg>
                 <p className="cs-laylo-title">Want early access to future shows?</p>
                 <p className="cs-laylo-text">Get presale texts before tickets go public. One tap, no spam.</p>
                 <input
@@ -344,7 +350,7 @@ function SuccessContent() {
                   onClick={handleLayloOptIn}
                   disabled={layloStatus === "loading" || layloPhone.replace(/\D/g, "").length < 10}
                 >
-                  {layloStatus === "loading" ? "Joining..." : "Yes, Text Me 📱"}
+                  {layloStatus === "loading" ? "Joining..." : "Yes, Text Me"}
                 </button>
                 {layloError && <p className="cs-laylo-error">{layloError}</p>}
                 <button type="button" className="cs-laylo-decline" onClick={() => setLayloStatus("dismissed")}>

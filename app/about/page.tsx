@@ -82,11 +82,16 @@ function West72About() {
 
         <div className="about-features-grid">
           <AnimatedCard index={0}>
-            {/* about.png's icons are emoji glyphs, not monochrome SVGs — a
-                deliberate mockup choice for this page specifically (unlike
-                the Seating/Scanner admin icon fix elsewhere), confirmed at
-                full resolution. */}
-            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">🎤</div>
+            {/* about.png's icons are emoji, but Matt's asked for emoji removed
+                site-wide in favor of minimal icons — overrides the earlier
+                mockup-fidelity call on this one element. */}
+            <div className="about-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V6a3 3 0 0 1 6 0v6a3 3 0 0 1-6 0" />
+                <path d="M5 10v2a7 7 0 0 0 14 0v-2" />
+                <path d="M12 19v3M9 22h6" />
+              </svg>
+            </div>
             <h3 className="about-feature-title">Fan-First, Always</h3>
             <p className="about-feature-desc">
               We don&apos;t do velvet ropes and VIP egos. Every show is built
@@ -97,7 +102,12 @@ function West72About() {
           </AnimatedCard>
 
           <AnimatedCard index={1}>
-            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">📍</div>
+            <div className="about-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
             <h3 className="about-feature-title">Rooted in the Shoals</h3>
             <p className="about-feature-desc">
               This is where the music was born, and we&apos;re not about to
@@ -108,7 +118,11 @@ function West72About() {
           </AnimatedCard>
 
           <AnimatedCard index={2}>
-            <div className="about-feature-icon about-feature-icon--emoji" aria-hidden="true">✨</div>
+            <div className="about-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.1 2.1M15.6 15.6l2.1 2.1M17.7 6.3l-2.1 2.1M8.4 15.6l-2.1 2.1" />
+              </svg>
+            </div>
             <h3 className="about-feature-title">Unforgettable Nights, Zero Pretension</h3>
             <p className="about-feature-desc">
               We put on shows that people actually talk about the

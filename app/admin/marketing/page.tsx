@@ -297,7 +297,11 @@ export default function MarketingHubPage() {
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center min-h-[80px] sm:min-h-0">
-                      <span className="text-2xl sm:text-4xl opacity-30">♪</span>
+                      <svg className="w-8 h-8 sm:w-12 sm:h-12 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M9 18V5l12-2v13" />
+                        <circle cx="6" cy="18" r="3" />
+                        <circle cx="18" cy="16" r="3" />
+                      </svg>
                     </div>
                   )}
                   {/* Status badge */}

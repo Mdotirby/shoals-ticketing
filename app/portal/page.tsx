@@ -763,8 +763,12 @@ export default function PortalPage() {
                   </label>
                 )}
                 <input type="url" className="portal-form-input" placeholder="Artist URL (e.g. https://artistname.com)" value={newArtistUrl} onChange={(e) => setNewArtistUrl(e.target.value)} />
-                <button type="button" className="admin-header-btn" onClick={openNewArtistImagePicker} style={{ fontSize: 12, padding: "6px 14px" }}>
-                  📷 Upload Artist Photo
+                <button type="button" className="admin-header-btn" onClick={openNewArtistImagePicker} style={{ fontSize: 12, padding: "6px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+                    <circle cx="12" cy="13" r="3.5" />
+                  </svg>
+                  Upload Artist Photo
                 </button>
                 <button type="submit" className="portal-form-submit" disabled={creatingArtist}>
                   {creatingArtist ? "Creating…" : "+ Create Artist"}
@@ -803,7 +807,10 @@ export default function PortalPage() {
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={artist.avatar_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                               ) : (
-                                <span style={{ fontSize: 18, color: "rgba(208,194,144,0.4)" }}>📷</span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(208,194,144,0.4)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                  <path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8z" />
+                                  <circle cx="12" cy="13" r="3.5" />
+                                </svg>
                               )}
                             </div>
                             <span style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}>

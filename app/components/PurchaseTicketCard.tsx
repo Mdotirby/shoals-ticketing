@@ -67,9 +67,9 @@ export default function PurchaseTicketCard({
             : ["General Admission", "Full Event Access", "Venue Amenities"]
           ).map((perk, i) => (
             <span key={i} className="ptc-perk-badge">
-              <span className="ptc-perk-emoji">
-                {i === 0 ? "🎯" : i === 1 ? "☕" : "👥"}
-              </span>
+              <svg className="ptc-perk-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 12.5l5 5L20 6" />
+              </svg>
               {perk}
             </span>
           ))}

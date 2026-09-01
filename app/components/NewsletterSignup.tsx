@@ -40,7 +40,7 @@ export default function NewsletterSignup() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Something went wrong");
         setStatus("success");
-        setMessage("You're on the list! We'll text you first. 📱");
+        setMessage("You're on the list! We'll text you first.");
         setFirstName(""); setLastName(""); setPhone("");
       } else {
         const res = await fetch("/api/newsletter", {

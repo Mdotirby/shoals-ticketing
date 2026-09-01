@@ -46,7 +46,10 @@ export default function AdminSeatingPage() {
               color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer",
             }}
           >
-            ⚡ Quick Build
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ marginRight: 6, verticalAlign: -2 }}>
+              <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+            </svg>
+            Quick Build
           </button>
           <button
             onClick={() => router.push("/dashboard/layout-builder/new")}
