@@ -1399,6 +1399,55 @@ body {
   line-height: 1;
 }
 
+/* ── Tier name + quantity, rendered inside the card itself ──
+   See OrderSummary.tsx: this row only appears when a `ticketTypes` array is
+   passed in. Single-tier events render .order-summary-tier-name as plain
+   text with no <select> at all — there's nothing to choose, so it isn't
+   presented as choosable. Multi-tier events add the caret and lay a real,
+   transparent <select> directly over the name + caret, so the plain text
+   itself is the click target rather than a select styled to look like one. */
+.order-summary-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-summary-tier-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.order-summary-tier-name {
+  font-family: var(--font-urbanist), sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--vc-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-summary-tier-caret {
+  flex: 0 0 auto;
+  color: var(--vc-text-muted);
+}
+
+.order-summary-tier-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
 .order-summary-empty {
   display: flex;
   flex-direction: column;
@@ -1503,6 +1552,23 @@ body {
   text-align: center;
   font-size: 12px;
   color: var(--vc-text-muted);
+}
+
+/* .order-summary-terms had no base rule at all before this — it was a bare
+   <p>, inheriting default paragraph size/alignment (left, body-text-sized)
+   rather than the small centered fine print the mockup shows sitting right
+   below the CTA alongside .order-summary-trust. */
+.order-summary-terms {
+  margin: 10px 0 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--vc-text-muted);
+}
+
+.order-summary-terms-link {
+  color: inherit;
+  text-decoration: underline;
 }
 
 /* ============================================================
@@ -15062,12 +15128,12 @@ body[data-theme="liquid-glass"] .order-tier-panel {
   border-radius: var(--lg-radius-lg);
 }
 
-/* Tier + quantity — relocated to sit with the Order Summary card (see
-   EventDetailClient.tsx), matching event_detail.png rather than living in
-   the main content column. Same .ticket-type-select / .ticket-qty-control
-   markup and behaviour as before, just repositioned; styled as its own
-   compact glass card directly above Order Summary, tight gap, so the two
-   read as one connected unit. */
+/* .order-tier-panel now renders only for the order-summary-column states
+   with no Order Summary card to live inside (external ticketing, past show,
+   countdown, mid-checkout — see `willShowOrderSummary` in
+   EventDetailClient.tsx). Where an Order Summary card IS shown, the tier +
+   quantity picker renders inside it directly (.order-summary-tier-row in
+   OrderSummary.tsx) instead of this standalone panel. */
 body[data-theme="liquid-glass"] .order-tier-panel {
   padding: 18px 20px;
   margin-bottom: 12px;
@@ -15157,6 +15223,13 @@ body[data-theme="liquid-glass"] .order-summary-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .order-summary-tier-name {
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .order-summary-tier-caret {
+  color: var(--lg-sub);
 }
 body[data-theme="liquid-glass"] .order-summary-line-label,
 body[data-theme="liquid-glass"] .order-summary-line-sub,
@@ -16324,26 +16397,13 @@ body[data-theme="liquid-glass"] .ticket-qty-value {
   padding: 0;
 }
 
-/* ── Tier panel fuses with Order Summary into one card ───────
-   These stay two separate React components (OrderSummary.tsx does real tax/
-   fee/discount math — not something to fold the tier selector into), but
-   when the tier panel is immediately followed by the Order Summary card —
-   the two states the mockup actually shows — the touching edges are
-   squared off and de-bordered so together they read as one continuous
-   card, the way the mockup draws it, rather than two boxes with a gap.
-   Every OTHER order-summary-column state (external ticketing, past show,
-   countdown, mid-checkout) has no adjacent Order Summary to fuse with, so
-   the tier panel keeps its own fully-rounded corners there — the mockup
-   doesn't cover those states, so nothing is invented for them. */
-body[data-theme="liquid-glass"] .order-tier-panel:has(+ .order-summary) {
-  margin-bottom: 0;
-  border-bottom: none;
-  border-radius: var(--lg-radius-lg) var(--lg-radius-lg) 0 0;
-}
-body[data-theme="liquid-glass"] .order-tier-panel:has(+ .order-summary) + .order-summary {
-  border-top: none;
-  border-radius: 0 0 var(--lg-radius-lg) var(--lg-radius-lg);
-}
+/* A previous pass tried to make .order-tier-panel and .order-summary read as
+   one card by de-bordering the seam where they touched (`:has(+ .order-summary)`).
+   That still measured and looked like two joined boxes — a shared edge isn't
+   the same as one container. The tier + quantity picker now renders inside
+   OrderSummary.tsx itself for the two states where an Order Summary card is
+   shown (see `willShowOrderSummary` in EventDetailClient.tsx); .order-tier-panel
+   is only ever rendered on its own now, so there is no seam left to fuse. */
 
 /* ── You May Also Like mini-cards ─────────────────────────────
    No venue badge in the mockup's cards — title, then date + price. */

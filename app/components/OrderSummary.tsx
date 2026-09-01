@@ -28,6 +28,26 @@ type OrderSummaryProps = {
   checkoutDisabled?: boolean;
   /** Message to show instead of the empty-cart state when checkoutDisabled is true */
   checkoutDisabledMessage?: string;
+
+  /** ── Tier + quantity picker, rendered inside this card ──
+   * event_detail.png shows the tier name and quantity stepper as part of
+   * the Order Summary card itself, not a separate element above it — a
+   * CSS-only "fusion" of two adjacent boxes was tried first and still read
+   * as two things, so the picker genuinely lives in this component now.
+   * Omit `ticketTypes` (or pass an empty array) to hide the row entirely —
+   * used by callers that render their own standalone picker instead (the
+   * mockup only covers the states below need it in-card).
+   */
+  ticketTypes?: TicketType[];
+  selectedTicketId?: string | null;
+  onSelectTicket?: (id: string) => void;
+  computeAllInPrice?: (price: number) => number;
+  isTierSoldOut?: (ticket: TicketType) => boolean;
+  onQuantityChange?: (updater: (quantity: number) => number) => void;
+  /** Drives the qty stepper's disabled state — distinct from checkoutDisabled,
+   * which can also be true for reasons (unpicked seats) that shouldn't block
+   * changing the quantity itself. */
+  selectedTicketSoldOut?: boolean;
 };
 
 export default function OrderSummary({
@@ -43,6 +63,13 @@ export default function OrderSummary({
   onFreeCheckout,
   checkoutDisabled = false,
   checkoutDisabledMessage,
+  ticketTypes,
+  selectedTicketId,
+  onSelectTicket,
+  computeAllInPrice,
+  isTierSoldOut,
+  onQuantityChange,
+  selectedTicketSoldOut = false,
 }: OrderSummaryProps) {
   // Divisor = tax baked into face price; don't charge it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
@@ -145,6 +172,66 @@ export default function OrderSummary({
   return (
     <div className="order-summary">
       <h2 className="order-summary-title">Order Summary</h2>
+
+      {ticketTypes && ticketTypes.length > 0 && (
+        <div className="order-summary-tier-row">
+          <div className="order-summary-tier-select-wrap">
+            <span className="order-summary-tier-name">
+              {selectedTicket ? selectedTicket.name : "Select ticket type"}
+            </span>
+            {ticketTypes.length > 1 && (
+              <>
+                {/* Solid triangle, not a stroked chevron — matches the mockup's
+                    glyph and signals "more options" without drawing a box
+                    around what is otherwise plain text. */}
+                <svg className="order-summary-tier-caret" width="8" height="6" viewBox="0 0 8 6" aria-hidden="true">
+                  <path d="M0 0L8 0L4 6Z" fill="currentColor" />
+                </svg>
+                {/* Real, functional <select> — transparent and laid directly
+                    over the name + caret above, so the plain text IS the
+                    click target rather than a styled box drawn to look like
+                    one. A single-tier event gets no <select> at all: there's
+                    nothing to choose, so it isn't presented as choosable. */}
+                <select
+                  className="order-summary-tier-select"
+                  value={selectedTicketId ?? ""}
+                  onChange={(e) => onSelectTicket?.(e.target.value)}
+                  aria-label="Ticket type"
+                >
+                  {ticketTypes.map((tt) => {
+                    const soldOut = isTierSoldOut?.(tt) ?? false;
+                    const allInPrice = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price) ?? tt.price);
+                    return (
+                      <option key={tt.id} value={tt.id} disabled={soldOut}>
+                        {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </>
+            )}
+          </div>
+          <div className="ticket-qty-control">
+            <button
+              type="button"
+              className="ticket-qty-btn"
+              onClick={() => onQuantityChange?.((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1 || selectedTicketSoldOut}
+            >
+              −
+            </button>
+            <span className="ticket-qty-value">{quantity}</span>
+            <button
+              type="button"
+              className="ticket-qty-btn"
+              onClick={() => onQuantityChange?.((q) => Math.min(10, q + 1))}
+              disabled={selectedTicketSoldOut}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      )}
 
       {checkoutDisabled && checkoutDisabledMessage ? (
         <div className="order-summary-empty">
@@ -307,8 +394,8 @@ export default function OrderSummary({
               }}
             >
               {showDetails ? "Hide" : "Show"} price details
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="8" height="6" viewBox="0 0 8 6" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} aria-hidden="true">
+                <path d="M0 0L8 0L4 6Z" fill="currentColor" />
               </svg>
             </button>
           )}

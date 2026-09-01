@@ -693,6 +693,21 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     seatedSoldOutTierIds.has(selectedTicketId ?? "") ||
     (!reservedSeatingEnabled && selectedTicket ? selectedTicket.quantity_sold >= selectedTicket.quantity_available : false);
 
+  // Mirrors the order-summary-column ternary below: OrderSummary renders in
+  // exactly two of its branches (presale-unlocked-and-paid, and the plain
+  // browse-mode fallback), and both require the same four things — not
+  // external ticketing, not a past show, not mid-Stripe-checkout, on sale
+  // (or presale-unlocked), and not a free event (free events go straight to
+  // InlineCheckout instead). Used to decide whether the standalone tier
+  // panel below should render, or whether OrderSummary owns that markup.
+  const willShowOrderSummary =
+    !!event &&
+    !event.external_ticket_url &&
+    !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+    checkoutStep !== "checkout" &&
+    (ticketsOnSale || presaleUnlocked) &&
+    !isFreeEvent;
+
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
   // A reserved-seating event ALWAYS requires a seat selection — use the
@@ -1052,37 +1067,42 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column" ref={orderSummaryRef}>
-              {/* Ticket type + quantity — lives with the Order Summary card
-                  (event_detail.png shows the stepper inside that card, not in
-                  the main content column). Relocated here unconditionally, matching
-                  where it rendered before: it showed regardless of which
-                  order-summary-column state was active (external ticketing, past
-                  show, countdown, mid-checkout, etc.), so it still does — this is a
-                  DOM relocation only, same state/handlers, same visibility. */}
-              <div className="order-tier-panel">
-                <div className="ticket-selector-row">
-                  <select
-                    className="ticket-type-select"
-                    value={selectedTicketId ?? ""}
-                    onChange={(e) => setSelectedTicketId(e.target.value)}
-                  >
-                    {ticketTypes.map((tt) => {
-                      const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
-                      const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
-                      return (
-                        <option key={tt.id} value={tt.id} disabled={soldOut}>
-                          {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <div className="ticket-qty-control">
-                    <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || selectedTicketSoldOut}>−</button>
-                    <span className="ticket-qty-value">{quantity}</span>
-                    <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
+              {/* Ticket type + quantity: the mockup renders this INSIDE the
+                  Order Summary card, not as a box sitting above it — a
+                  CSS-only "fuse the seam" attempt still read as two joined
+                  boxes, so OrderSummary.tsx now owns this markup for the two
+                  branches below that actually render it (`willShowOrderSummary`).
+                  Every other order-summary-column state (external ticketing,
+                  past show, countdown, mid-checkout) has no Order Summary card
+                  to live inside, so it keeps its own standalone panel here,
+                  unchanged — the mockup doesn't cover those states, so nothing
+                  new is invented for them. */}
+              {!willShowOrderSummary && (
+                <div className="order-tier-panel">
+                  <div className="ticket-selector-row">
+                    <select
+                      className="ticket-type-select"
+                      value={selectedTicketId ?? ""}
+                      onChange={(e) => setSelectedTicketId(e.target.value)}
+                    >
+                      {ticketTypes.map((tt) => {
+                        const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
+                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
+                        return (
+                          <option key={tt.id} value={tt.id} disabled={soldOut}>
+                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <div className="ticket-qty-control">
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.max(1, q - 1))} disabled={quantity <= 1 || selectedTicketSoldOut}>−</button>
+                      <span className="ticket-qty-value">{quantity}</span>
+                      <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {event.external_ticket_url ? (
                 /* ── External Ticketing ── */
@@ -1321,6 +1341,13 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                           ? "This ticket type is sold out."
                           : "Select seats from the map to continue."
                       }
+                      ticketTypes={ticketTypes}
+                      selectedTicketId={selectedTicketId}
+                      onSelectTicket={setSelectedTicketId}
+                      computeAllInPrice={computeAllInPrice}
+                      isTierSoldOut={(tt) => seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available)}
+                      onQuantityChange={setQuantity}
+                      selectedTicketSoldOut={selectedTicketSoldOut}
                     />
                   )}
                 </>
@@ -1358,6 +1385,13 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                         ? "Seating is still loading — please refresh if the seat map doesn't appear."
                         : "Select seats from the map to continue."
                   }
+                  ticketTypes={ticketTypes}
+                  selectedTicketId={selectedTicketId}
+                  onSelectTicket={setSelectedTicketId}
+                  computeAllInPrice={computeAllInPrice}
+                  isTierSoldOut={(tt) => seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available)}
+                  onQuantityChange={setQuantity}
+                  selectedTicketSoldOut={selectedTicketSoldOut}
                 />
               )}
             </div>
