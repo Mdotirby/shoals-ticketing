@@ -853,22 +853,31 @@ export default function EventDetailClient({ requiresSeating = false }: { require
         <section className="ticket-selection-section">
           <div className="ticket-selection-layout">
 
+            {/* Photo is now a direct sibling of .order-summary-column (was
+                nested two levels inside .ticket-cards-column), so the two can
+                be placed in the same grid row and stretch to match each
+                other's height — the mockup shows the photo and the Order
+                Summary card ending at the same height, with the text below
+                the photo flowing independently underneath, unconstrained by
+                either. Nesting it inside .ticket-cards-column made that
+                impossible: the text's own height was part of the same box,
+                so matching the column to Order Summary's height meant the
+                photo had to shrink to make room for the text instead. */}
+            {event.image_url && (
+              <div className="ticket-hero-image-wrap">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={event.image_url}
+                  alt={event.title}
+                  className="ticket-hero-image"
+                />
+                <div className="ticket-hero-gradient" />
+              </div>
+            )}
+
             {/* LEFT: Event Detail Card */}
             <div className="ticket-cards-column">
               <div className="ticket-event-card">
-                {/* Hero image with gradient fade */}
-                {event.image_url && (
-                  <div className="ticket-hero-image-wrap">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={event.image_url}
-                      alt={event.title}
-                      className="ticket-hero-image"
-                    />
-                    <div className="ticket-hero-gradient" />
-                  </div>
-                )}
-
                 <div className="ticket-card-body">
                   <h1 className="ticket-hero-title">{event.title}</h1>
                   {/* Listener count and Preview Artist share one row, matching

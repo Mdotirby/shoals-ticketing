@@ -16350,3 +16350,210 @@ body[data-theme="liquid-glass"] .ymal-venue-badge {
     padding: 0;
   }
 }
+
+/* ============================================================
+   EVENT DETAIL — THIRD PASS: proportions, unboxing, FAQ shadow
+   ============================================================
+   Confirmed against the live DOM's measured geometry before writing any of
+   this — root causes, not just symptoms:
+   - .ticket-selection-layout used align-items:flex-start, so the two
+     columns sized to their own content instead of matching each other.
+   - .order-summary-column was flex:0 0 340px, a fixed width from the old
+     narrow-sidebar design, against .ticket-cards-column's flex:1 — nowhere
+     close to splitting the page evenly around the centre.
+   - .ticket-hero-image-wrap had a hard height:320px, so even a stretched
+     column wouldn't make the photo itself grow to match it.
+   ============================================================ */
+
+/* Photo and Order Summary card: equal height, matching the mockup — not the
+   whole left column (photo + text combined) against the right column. The
+   text below the photo has its own, unconstrained height (it's much longer
+   than either card), so a two-item flex/height-match would force the photo
+   to shrink to make room for it. Grid with named areas instead: photo and
+   Order Summary share row 1 and stretch to match each other (grid's default
+   row behaviour), the text sits alone in row 2 under the photo, and the
+   cell beside it (row 2, column 2) is simply left empty — matching the
+   mockup, where nothing fills that space either.
+   .ticket-hero-image-wrap is a direct grid child now, not nested inside
+   .ticket-cards-column/.ticket-event-card — grid-area placement only works
+   on direct children, so this required moving it in the JSX, not just a
+   CSS change. */
+body[data-theme="liquid-glass"] .ticket-selection-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "photo summary"
+    "info  .";
+  gap: 24px;
+  align-items: stretch;
+}
+body[data-theme="liquid-glass"] .ticket-hero-image-wrap {
+  grid-area: photo;
+  height: auto;
+  min-height: 0;
+}
+body[data-theme="liquid-glass"] .order-summary-column {
+  grid-area: summary;
+}
+body[data-theme="liquid-glass"] .ticket-cards-column {
+  grid-area: info;
+  min-width: 0;
+}
+
+/* The gradient existed to fade the photo into text that used to be overlaid
+   on top of it. That text lives below the photo now, not on it, so the
+   gradient has no job — and its colour (var(--vc-bg-deep)) reads as navy on
+   VenueCore, which never overrides that token to black the way west72 does. */
+body[data-theme="liquid-glass"] .ticket-hero-gradient {
+  display: none;
+}
+
+/* Name under the photo: regular weight, not the bold the top page title
+   uses — .ticket-selection-heading (the top title) sets its own weight
+   independently and is unaffected. */
+body[data-theme="liquid-glass"] .ticket-hero-title {
+  font-weight: 400;
+}
+
+/* CTA: softer rounded rectangle, not a full pill, matching the mockup. */
+body[data-theme="liquid-glass"] .order-summary-checkout-btn {
+  border-radius: var(--lg-radius-md);
+}
+
+/* ── Unbox Spotify + Featured Artists + Our Partners ─────────
+   Same correction as the event-info text: the mockup's "STREAMING EMBED" /
+   avatar placeholders mark where real content mounts, they are not an
+   instruction to build a decorative box around that content. The real
+   iframe/avatar already has its own visual boundary. */
+body[data-theme="liquid-glass"] .event-spotify-section,
+body[data-theme="liquid-glass"] .event-featured-artist-card {
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Featured Artists and Our Partners are centred, unlike every other section
+   on the page (which are all left-aligned to match the mockup) — direct
+   instruction, not something the mockup shows either way since neither
+   section appears in it. */
+body[data-theme="liquid-glass"] .event-featured-artists-section,
+body[data-theme="liquid-glass"] .event-sponsors-section {
+  align-items: center;
+  text-align: center;
+}
+body[data-theme="liquid-glass"] .event-featured-artists-heading,
+body[data-theme="liquid-glass"] .event-sponsors-heading {
+  text-align: center;
+  width: 100%;
+}
+body[data-theme="liquid-glass"] .event-featured-artists-grid {
+  justify-content: center;
+}
+
+/* ── FAQ rows: drop the floating-card shadow ─────────────────
+   .faq-card-question was carrying the full standalone-panel shadow
+   (0 20px 60px, meant for one large card floating over the orb field).
+   Applied to six thin rows stacked a few pixels apart, the overlapping
+   60px blurs read as a smear behind the whole section — not on the
+   mockup, which shows a much flatter, barely-there row treatment. */
+body[data-theme="liquid-glass"] .faq-card-question {
+  box-shadow: none;
+}
+
+/* ── Getting Here — rebuild, not a tweak ─────────────────────
+   The mockup puts the map and the address/directions text SIDE BY SIDE in
+   one row inside one card. What was built stacked them — map full-width on
+   top, two separately-boxed sub-cards (Address / Directions & Parking)
+   below. Real restructuring: the outer container becomes a row (map left,
+   text right, stretched to equal height), the two info blocks go from a
+   2-up grid of boxed sub-cards to one continuous unboxed text column,
+   matching how the mockup shows "Singin' River Brewing Co." / "By Car" /
+   "Parking" as plain headings in one flow, not three separate cards.
+   "Address" and "Directions & Parking" stay as small labels rather than
+   being deleted outright — they're organising real, separately-sourced
+   fields (address vs. phone/email vs. transit) that this one single-tier,
+   no-phone-no-email mockup example doesn't fully exercise. */
+body[data-theme="liquid-glass"] .venue-directions-container {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: linear-gradient(155deg, var(--lg-glass-bg), var(--lg-glass-bg-2));
+  backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid var(--lg-glass-border);
+  box-shadow: var(--lg-glass-shadow);
+  border-radius: var(--lg-radius-lg);
+}
+body[data-theme="liquid-glass"] .venue-directions-map-wrap {
+  flex: 0 0 40%;
+  height: auto;
+}
+body[data-theme="liquid-glass"] .venue-directions-map-iframe {
+  filter: none;
+}
+body[data-theme="liquid-glass"] .venue-directions-cards {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px 32px;
+}
+/* Each "card" is now a plain text block in that one column, not its own
+   nested card — background/border/padding stripped so Address and
+   Directions & Parking read as continuous copy, matching the mockup. */
+body[data-theme="liquid-glass"] .venue-directions-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 4px;
+}
+body[data-theme="liquid-glass"] .venue-directions-card-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+body[data-theme="liquid-glass"] .venue-directions-card-name {
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 800;
+  color: var(--lg-white);
+}
+body[data-theme="liquid-glass"] .venue-directions-card-text,
+body[data-theme="liquid-glass"] .venue-directions-info-label {
+  font-family: var(--font-archivo), sans-serif;
+}
+body[data-theme="liquid-glass"] .venue-directions-info-label {
+  color: var(--lg-white);
+}
+
+@media (max-width: 768px) {
+  body[data-theme="liquid-glass"] .venue-directions-container {
+    flex-direction: column;
+  }
+  body[data-theme="liquid-glass"] .venue-directions-map-wrap {
+    flex: none;
+    height: 200px;
+  }
+}
+
+/* Mobile: single column, matching event_detail_mobile.png's stacking order
+   — photo, then the text info block, then the Order Summary card (Listen
+   Before You Go follows after). The base rule sets flex-direction:column,
+   which has no effect now that this is a grid; the grid needs its own
+   single-column area map instead. */
+@media (max-width: 768px) {
+  body[data-theme="liquid-glass"] .ticket-selection-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "photo"
+      "info"
+      "summary";
+    gap: 20px;
+  }
+  body[data-theme="liquid-glass"] .ticket-hero-image-wrap {
+    height: 240px;
+  }
+}
