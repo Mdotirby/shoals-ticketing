@@ -38,8 +38,8 @@ function West72About() {
             </div>
 
             <h1 className="about-philosophy-title">
-              CREATING MEMORIES,{" "}
-              <span className="about-gold-text">ONE NIGHT AT A TIME</span>
+              Creating Memories,{" "}
+              <span className="about-gold-text">One Night at a Time</span>
             </h1>
 
             <p className="about-philosophy-desc">
@@ -60,16 +60,6 @@ function West72About() {
               Upcoming Events <span className="cta-arrow">&rarr;</span>
             </Link>
           </div>
-
-          <div className="about-philosophy-image">
-            <Image
-              src="/IMG_5742.png"
-              alt="West 72 Entertainment"
-              width={600}
-              height={450}
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }}
-            />
-          </div>
         </div>
       </section>
 
@@ -82,7 +72,7 @@ function West72About() {
         </div>
 
         <h2 className="about-why-us-title">
-          WHAT MAKES <span className="about-gold-text">WEST 72</span> DIFFERENT
+          What Makes <span className="about-gold-text">West 72</span> Different
         </h2>
 
         <div className="about-features-grid">
@@ -92,7 +82,7 @@ function West72About() {
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
             </div>
-            <h3 className="about-feature-title">FAN-FIRST, ALWAYS</h3>
+            <h3 className="about-feature-title">Fan-First, Always</h3>
             <p className="about-feature-desc">
               We don&apos;t do velvet ropes and VIP egos. Every show is built
               around the people who actually show up, sing along, and make the
@@ -108,7 +98,7 @@ function West72About() {
                 <circle cx="12" cy="10" r="3" />
               </svg>
             </div>
-            <h3 className="about-feature-title">ROOTED IN THE SHOALS</h3>
+            <h3 className="about-feature-title">Rooted in the Shoals</h3>
             <p className="about-feature-desc">
               This is where the music was born, and we&apos;re not about to
               let anyone forget it. We promote shows in the community we
@@ -125,7 +115,7 @@ function West72About() {
                 <circle cx="18" cy="16" r="3" />
               </svg>
             </div>
-            <h3 className="about-feature-title">UNFORGETTABLE NIGHTS, ZERO PRETENSION</h3>
+            <h3 className="about-feature-title">Unforgettable Nights, Zero Pretension</h3>
             <p className="about-feature-desc">
               We put on shows that people actually talk about the
               next morning&mdash;and not because the sound was bad. Great

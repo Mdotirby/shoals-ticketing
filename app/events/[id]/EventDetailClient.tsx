@@ -708,6 +708,20 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     (ticketsOnSale || presaleUnlocked) &&
     !isFreeEvent;
 
+  // InlineCheckout (mid-Stripe-checkout, or any free-event path) renders its
+  // own "General Admission × 1  $29.01" line inside .ic-order-breakdown —
+  // checkout_step.png shows that line, with no separate tier/qty panel above
+  // it (quantity is fixed once you're in checkout: InlineCheckout takes
+  // `quantity` as a plain prop, no setter). The standalone panel was still
+  // showing here too — same bug as the OrderSummary one, just never caught
+  // for this branch — reading as a redundant floating box above the real
+  // checkout card instead of one card.
+  const willShowInlineCheckout =
+    !!event &&
+    !event.external_ticket_url &&
+    !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+    (checkoutStep === "checkout" || ((ticketsOnSale || presaleUnlocked) && isFreeEvent));
+
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
   // A reserved-seating event ALWAYS requires a seat selection — use the
@@ -1068,16 +1082,16 @@ export default function EventDetailClient({ requiresSeating = false }: { require
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column" ref={orderSummaryRef}>
               {/* Ticket type + quantity: the mockup renders this INSIDE the
-                  Order Summary card, not as a box sitting above it — a
-                  CSS-only "fuse the seam" attempt still read as two joined
-                  boxes, so OrderSummary.tsx now owns this markup for the two
-                  branches below that actually render it (`willShowOrderSummary`).
-                  Every other order-summary-column state (external ticketing,
-                  past show, countdown, mid-checkout) has no Order Summary card
-                  to live inside, so it keeps its own standalone panel here,
-                  unchanged — the mockup doesn't cover those states, so nothing
-                  new is invented for them. */}
-              {!willShowOrderSummary && (
+                  Order Summary / Checkout card, not as a box sitting above it.
+                  OrderSummary.tsx owns this markup for `willShowOrderSummary`;
+                  InlineCheckout owns its own read-only "name × qty  $price"
+                  line for `willShowInlineCheckout` (checkout_step.png shows
+                  no separate qty control there — quantity is fixed once
+                  checkout starts). Only external ticketing / past show /
+                  countdown have no card of their own to live inside, so they
+                  keep this standalone panel — the mockup doesn't cover those
+                  states, so nothing new is invented for them. */}
+              {!willShowOrderSummary && !willShowInlineCheckout && (
                 <div className="order-tier-panel">
                   <div className="ticket-selector-row">
                     <select

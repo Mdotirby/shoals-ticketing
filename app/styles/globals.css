@@ -13961,7 +13961,12 @@ body[data-theme="liquid-glass"] .site-header {
   border-bottom: none;
   box-shadow: none;
   padding: 20px clamp(12px, 3vw, 32px) 0;
-  z-index: 50;
+  /* mobile_nav_states.png keeps the header pill (logo + close button) fully
+     visible above the dimmed scrim when the drawer is open. At the old
+     z-index: 50 the header sat BENEATH .mobile-nav-backdrop (z-index: 1000)
+     and .mobile-nav-drawer (1001), so the 60%-black scrim rendered on top
+     of the logo, making it read as missing rather than just dim. */
+  z-index: 1002;
 }
 body[data-theme="liquid-glass"] .site-header.header-scrolled {
   background: transparent;
@@ -14927,6 +14932,13 @@ body[data-theme="liquid-glass"] .event-card-title {
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--lg-white);
+  /* events.png shows normal title case ("Tyler Halverson"), not caps. The
+     base rule at .events-grid-card .event-card-title (same specificity,
+     earlier in the file) sets text-transform: uppercase and this rule
+     never mentioned it, so the transform survived untouched — same
+     "later rule doesn't clear an earlier property" trap as the ghost-box
+     bugs on Event Detail. */
+  text-transform: none;
 }
 body[data-theme="liquid-glass"] .event-card-meta {
   font-family: var(--font-archivo), sans-serif;
@@ -14968,6 +14980,17 @@ body[data-theme="liquid-glass"] .about-philosophy-inner {
   border-radius: var(--lg-radius-lg);
   padding: clamp(30px, 4.5vw, 60px);
 }
+/* about.png's philosophy card is a single text column, no photo — West72About's
+   JSX no longer renders .about-philosophy-image (removed to match the
+   mockup), so the base rule's 1fr 1fr grid needs collapsing to one column
+   here. Scoped to west72 specifically: VenueCoreAbout still has its own
+   photo and keeps the 2-column base grid. */
+body[data-operator="west72"] .about-philosophy-inner {
+  grid-template-columns: 1fr;
+}
+body[data-theme="liquid-glass"] .about-philosophy-title {
+  max-width: 720px;
+}
 body[data-theme="liquid-glass"] .about-label-line {
   display: none; /* the eyebrow rules read as leftover chrome in glass */
 }
@@ -14984,6 +15007,9 @@ body[data-theme="liquid-glass"] .about-why-us-title {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
+  /* about.png shows normal title case; the base rules for both of these
+     set text-transform: uppercase and neither was ever cleared here. */
+  text-transform: none;
 }
 /* The highlighted phrase was the gold accent; in this system the emphasis
    is carried by weight and pure white against the muted body copy. It also
@@ -15032,6 +15058,7 @@ body[data-theme="liquid-glass"] .about-feature-title {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 700;
   color: var(--lg-white);
+  text-transform: none;
 }
 
 /* ── Contact ───────────────────────────────────────────────── */
@@ -15046,12 +15073,24 @@ body[data-theme="liquid-glass"] .contact-form-heading {
   letter-spacing: -0.02em;
   color: var(--lg-white);
 }
+/* contact.png shows "Shoot Us a Message!" and "Email Us" in normal case —
+   unlike .contact-hero-title/.contact-info-title above (which the mockup
+   DOES show as caps, so that part of the shared rule stays as-is), these
+   two never had their base text-transform: uppercase cleared. */
+body[data-theme="liquid-glass"] .contact-form-heading,
+body[data-theme="liquid-glass"] .contact-method-title {
+  text-transform: none;
+}
 body[data-theme="liquid-glass"] .contact-info-label {
   font-family: var(--font-archivo), sans-serif;
   font-weight: 800;
   font-size: 11px;
   letter-spacing: 0.18em;
   color: rgba(255, 255, 255, 0.72);
+}
+body[data-theme="liquid-glass"] .contact-hero-label {
+  display: block;
+  margin: 0 0 10px;
 }
 body[data-theme="liquid-glass"] .contact-form-card,
 body[data-theme="liquid-glass"] .contact-method,
@@ -15135,6 +15174,11 @@ body[data-theme="liquid-glass"] .staff-login-hero-title {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--lg-white);
+  /* Now renders inside .login-section (a left-aligned form card) instead of
+     the old centered .ticket-hero wrapper — needs its own centering and
+     bottom margin since it no longer gets either for free. */
+  text-align: center;
+  margin: 0 0 28px;
 }
 body[data-theme="liquid-glass"] .login-form-label {
   font-family: var(--font-archivo), sans-serif;

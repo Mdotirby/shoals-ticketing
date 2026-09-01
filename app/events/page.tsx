@@ -245,6 +245,13 @@ export default function EventsPage() {
             align-items: center;
             gap: 5px;
           }
+          .event-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: auto;
+          }
           .event-card-price {
             display: inline-block;
             padding: 4px 12px;
@@ -253,14 +260,12 @@ export default function EventsPage() {
             font-weight: 600;
             background: rgba(var(--vc-gold-rgb), 0.15);
             color: rgb(var(--vc-gold-rgb));
-            align-self: flex-start;
           }
           .event-card-btn {
-            display: block;
-            width: 100%;
-            padding: 12px;
+            display: inline-block;
+            padding: 10px 20px;
             border: none;
-            border-radius: 8px;
+            border-radius: 999px;
             background: rgb(var(--vc-gold-rgb));
             color: #0b0d1d;
             font-size: 14px;
@@ -268,7 +273,7 @@ export default function EventsPage() {
             text-align: center;
             text-decoration: none;
             cursor: pointer;
-            margin-top: auto;
+            white-space: nowrap;
             transition: opacity 0.15s ease;
           }
           .event-card-btn:hover { opacity: 0.88; }
@@ -314,13 +319,15 @@ export default function EventsPage() {
                       {event.venue}
                     </p>
 
-                    <span className="event-card-price">
-                      {isFree ? "FREE" : `$${event.price.toFixed(2)}`}
-                    </span>
+                    <div className="event-card-footer">
+                      <span className="event-card-price">
+                        {isFree ? "FREE" : `$${event.price.toFixed(2)}`}
+                      </span>
 
-                    <span className="event-card-btn">
-                      {isFree ? "Register Free" : "Get Tickets"}
-                    </span>
+                      <span className="event-card-btn">
+                        {isFree ? "Register Free" : "Get Tickets"}
+                      </span>
+                    </div>
                   </div>
                 </Link>
               );

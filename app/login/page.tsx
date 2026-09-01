@@ -299,7 +299,12 @@ export default function LoginPage() {
   return (
     <>
       <main className="ticket-page">
-        <section className="ticket-hero">
+        {/* login.png renders "LOG IN" as the first element inside the glass
+            card, not as a page-level heading floating above it — moved in
+            from the old standalone .ticket-hero wrapper (real restructuring,
+            not just a visual nudge: it's now a genuine child of
+            .login-section). */}
+        <section className="login-section">
           {isWest72 && (
             <Image
               src="/West72_Logos/W72_tech_icon_white.png"
@@ -311,9 +316,7 @@ export default function LoginPage() {
             />
           )}
           <h1 className="staff-login-hero-title">{showForgot ? "Reset Password" : "Log In"}</h1>
-        </section>
 
-        <section className="login-section">
           {showForgot ? (
             <ForgotPasswordForm onBack={() => setShowForgot(false)} />
           ) : (
