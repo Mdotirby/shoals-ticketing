@@ -1399,20 +1399,16 @@ body {
   line-height: 1;
 }
 
-/* ── Tier name + quantity, rendered inside the card itself ──
-   See OrderSummary.tsx: this row only appears when a `ticketTypes` array is
-   passed in. Single-tier events render .order-summary-tier-name as plain
-   text with no <select> at all — there's nothing to choose, so it isn't
-   presented as choosable. Multi-tier events add the caret and lay a real,
-   transparent <select> directly over the name + caret, so the plain text
-   itself is the click target rather than a select styled to look like one. */
-.order-summary-tier-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
+/* ── Tier name (inside the existing summary line) + quantity row ──
+   See OrderSummary.tsx: event_detail.png shows the tier name sharing the
+   SAME row as its price (the normal order-summary-line), with the
+   quantity stepper as its OWN separate row directly underneath — not a
+   second name+qty row glued on above the summary line. Single-tier events
+   render .order-summary-tier-name as plain text with no <select> at all —
+   there's nothing to choose, so it isn't presented as choosable. Multi-tier
+   events add the caret and lay a real, transparent <select> directly over
+   the name + caret, so the plain text itself is the click target rather
+   than a select styled to look like one. */
 .order-summary-tier-select-wrap {
   position: relative;
   display: inline-flex;
@@ -1446,6 +1442,14 @@ body {
   background: transparent;
   appearance: none;
   cursor: pointer;
+}
+
+/* Quantity stepper's own row, directly under the tier name + price line —
+   left-aligned, not stretched or paired with anything beside it. Reuses
+   .ticket-qty-control/.ticket-qty-btn as-is (same chip styling as the
+   photo card's own stepper); this class only adds the row spacing. */
+.order-summary-qty-control {
+  margin: 10px 0 2px;
 }
 
 .order-summary-empty {
@@ -15219,8 +15223,9 @@ body[data-theme="liquid-glass"] .order-tier-panel {
    with no Order Summary card to live inside (external ticketing, past show,
    countdown, mid-checkout — see `willShowOrderSummary` in
    EventDetailClient.tsx). Where an Order Summary card IS shown, the tier +
-   quantity picker renders inside it directly (.order-summary-tier-row in
-   OrderSummary.tsx) instead of this standalone panel. */
+   quantity picker renders inside it directly (OrderSummary.tsx's own
+   .order-summary-line + .order-summary-qty-control) instead of this
+   standalone panel. */
 body[data-theme="liquid-glass"] .order-tier-panel {
   padding: 18px 20px;
   margin-bottom: 12px;
