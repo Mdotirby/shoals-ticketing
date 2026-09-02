@@ -4838,6 +4838,12 @@ select.admin-form-input {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* Grid items default to min-width: auto, so without this a wide child
+     (long event/venue text, the Recharts SVG) forces this column past its
+     own grid track — it doesn't cause a page scrollbar (admin-content
+     catches it with overflow-x: auto) so it reads as content silently
+     running off the right edge on narrow screens instead. */
+  min-width: 0;
 }
 
 /* Panel */
@@ -14643,6 +14649,10 @@ body[data-theme="liquid-glass"] .newsletter-submit {
   body[data-theme="liquid-glass"] .home-events-search {
     max-width: none;
   }
+  /* 14px makes iOS Safari zoom the page in when this input is focused. */
+  body[data-theme="liquid-glass"] .home-events-search-input {
+    font-size: 16px;
+  }
 }
 
 /* Pill row must survive the narrowest card without clipping: the price pill
@@ -15430,6 +15440,12 @@ body[data-theme="liquid-glass"] .order-tier-panel .ticket-type-select {
   font-weight: 700;
   padding: 11px 14px;
 }
+@media (max-width: 768px) {
+  /* 14px makes iOS Safari zoom the page in when this select is focused. */
+  body[data-theme="liquid-glass"] .order-tier-panel .ticket-type-select {
+    font-size: 16px;
+  }
+}
 body[data-theme="liquid-glass"] .ticket-spotify-preview {
   /* The base rule (line ~13148) is a bare underlined link with padding:0 —
      turning it into a pill without setting its own padding left the border
@@ -16099,6 +16115,12 @@ body[data-theme="liquid-glass"] .cs-laylo-input {
 }
 body[data-theme="liquid-glass"] .cs-laylo-input:focus {
   border-color: rgba(255, 255, 255, 0.40);
+}
+@media (max-width: 768px) {
+  /* 14px makes iOS Safari zoom the page in when this input is focused. */
+  body[data-theme="liquid-glass"] .cs-laylo-input {
+    font-size: 16px;
+  }
 }
 body[data-theme="liquid-glass"] .cs-laylo-submit {
   width: 100%;
@@ -17385,6 +17407,9 @@ body[data-theme="liquid-glass"] .admin-shell .pill-select select {
   border: none;
   color: inherit;
   font: inherit;
+  /* Override the pill's 12.5px label size for the actual <select> —
+     under 16px, iOS Safari zooms the page on focus. */
+  font-size: 16px;
   cursor: pointer;
 }
 body[data-theme="liquid-glass"] .admin-shell .pill-select .car {
@@ -17666,6 +17691,25 @@ body[data-theme="liquid-glass"] .admin-shell .tabs {
   gap: 8px;
   margin-bottom: 18px;
 }
+@media (max-width: 900px) {
+  /* A 7-tab bar (Event Workspace) doesn't fit 375px wide — let it scroll
+     horizontally within itself instead of spilling past the screen edge
+     or wrapping into a ragged multi-row block. */
+  body[data-theme="liquid-glass"] .admin-shell .tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin: 0 -16px 18px;
+    padding: 0 16px;
+  }
+  body[data-theme="liquid-glass"] .admin-shell .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  body[data-theme="liquid-glass"] .admin-shell .tab {
+    flex-shrink: 0;
+  }
+}
 body[data-theme="liquid-glass"] .admin-shell .tab {
   padding: 9px 16px;
   border-radius: 11px;
@@ -17907,7 +17951,9 @@ body[data-theme="liquid-glass"] .admin-shell .field textarea {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: var(--lg-white);
-  font-size: 13.5px;
+  /* 16px, not the visually-matched 13.5px: anything smaller makes iOS
+     Safari zoom the whole page in on focus. */
+  font-size: 16px;
   font-family: inherit;
 }
 body[data-theme="liquid-glass"] .admin-shell .field input:focus,
@@ -18005,7 +18051,8 @@ body[data-theme="liquid-glass"] .admin-shell .search-box input {
   background: none;
   border: none;
   color: var(--lg-white);
-  font-size: 13.5px;
+  /* 16px minimum — under that, iOS Safari zooms the page on focus. */
+  font-size: 16px;
   flex: 1;
   font-family: inherit;
   outline: none;
@@ -18175,6 +18222,7 @@ body[data-theme="liquid-glass"] .admin-shell .dash-kpi-secondary {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
 }
 
 .ev-checklist {
