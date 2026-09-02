@@ -185,6 +185,24 @@ export async function DELETE(request: Request) {
     .eq("id", id);
 
   if (dbError) {
+    // 23503 = foreign_key_violation. This user has created records elsewhere
+    // (a settlement they finalized, an email campaign/template, an ad-engine
+    // or deal-lab row, an agent profile — several tables reference
+    // admin_users(id) with no ON DELETE action, i.e. RESTRICT) and Postgres
+    // is refusing to delete them out from under those rows. Surface that
+    // plainly instead of the raw constraint-name error.
+    if (dbError.code === "23503") {
+      return NextResponse.json(
+        {
+          error:
+            "This user can't be deleted — they're referenced by other records " +
+            "(a finalized settlement, an email campaign or template, an ad/deal-lab " +
+            "entry, or an agent profile). Remove or reassign those first, or ask an " +
+            "engineer to update the reference instead of deleting the account.",
+        },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: dbError.message }, { status: 500 });
   }
 

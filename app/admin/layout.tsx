@@ -169,6 +169,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [avatarUrl, setAvatarUrl] = useState("");
   const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Shows"]));
+  // Lazy initializer runs once on mount — cookie is always present (set by middleware, not httpOnly)
+  const [isWest72Operator] = useState(() => getCookie("operatorSlug") === "west72");
 
   useEffect(() => {
     // Immediately read cookies for instant display (no flash of empty sidebar)
@@ -306,6 +308,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       });
   }, [userRole]);
 
+  // Auto-expand the group containing the current page. Must run
+  // unconditionally, before the /admin/login early return below — this
+  // component stays mounted across a client-side navigation from
+  // /admin/login into the dashboard (same layout boundary), and a hook
+  // called only on one side of that branch throws "Rendered more hooks
+  // than during the previous render" the moment that navigation happens,
+  // which is exactly what "blank screen right after logging in" looks like.
+  useEffect(() => {
+    for (const g of sidebarGroups) {
+      if (g.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)))) {
+        setExpandedGroups((prev) => new Set(prev).add(g.groupLabel));
+        break;
+      }
+    }
+  }, [pathname]);
+
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
@@ -343,18 +361,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     });
   };
 
-  // Auto-expand the group containing the current page
-  useEffect(() => {
-    for (const g of sidebarGroups) {
-      if (g.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)))) {
-        setExpandedGroups((prev) => new Set(prev).add(g.groupLabel));
-        break;
-      }
-    }
-  }, [pathname]);
-
-  // Lazy initializer runs once on mount — cookie is always present (set by middleware, not httpOnly)
-  const [isWest72Operator] = useState(() => getCookie("operatorSlug") === "west72");
   const operatorIconFallback = isWest72Operator
     ? "/West72_Logos/W72_tech_icon_white.png"
     : "/VenueCore_Logos/VenueCore_Icon_Color.png";
