@@ -13,16 +13,16 @@ export async function GET(
   // Try with closed_out_at (closeout migration); fall back without it.
   let { data, error } = await admin
     .from("events")
-    .select("id,title,subtitle,venue,date,price,image_url,email_flyer_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,fees_included_in_price,spotify_url,spotify_monthly_listeners,spotify_featured_track")
+    .select("id,title,subtitle,venue,date,price,image_url,email_flyer_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,fees_included_in_price,spotify_url,spotify_monthly_listeners,spotify_featured_track,status,doors_time,age_restriction,talent_buyer,booking_agent")
     .eq("id", id)
     .single();
-  if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|tax_method|fees_included_in_price|spotify_url|spotify_monthly_listeners|spotify_featured_track|column .* does not exist/i.test(error.message)) {
+  if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|tax_method|fees_included_in_price|spotify_url|spotify_monthly_listeners|spotify_featured_track|doors_time|age_restriction|talent_buyer|booking_agent|column .* does not exist/i.test(error.message)) {
     const retry = await admin
       .from("events")
-      .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug")
+      .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,status")
       .eq("id", id)
       .single();
-    data = retry.data ? { ...retry.data, subtitle: null, email_flyer_url: null, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, tax_method: null, fees_included_in_price: false, spotify_url: null, spotify_monthly_listeners: null, spotify_featured_track: null } : null;
+    data = retry.data ? { ...retry.data, subtitle: null, email_flyer_url: null, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, tax_method: null, fees_included_in_price: false, spotify_url: null, spotify_monthly_listeners: null, spotify_featured_track: null, doors_time: null, age_restriction: null, talent_buyer: null, booking_agent: null } : null;
     error = retry.error;
   }
 
@@ -105,6 +105,10 @@ export async function PUT(
   if (body.spotify_url !== undefined) updates.spotify_url = body.spotify_url || null;
   if (body.spotify_monthly_listeners !== undefined) updates.spotify_monthly_listeners = body.spotify_monthly_listeners || null;
   if (body.spotify_featured_track !== undefined) updates.spotify_featured_track = body.spotify_featured_track || null;
+  if (body.doors_time !== undefined) updates.doors_time = body.doors_time || null;
+  if (body.age_restriction !== undefined) updates.age_restriction = body.age_restriction || null;
+  if (body.talent_buyer !== undefined) updates.talent_buyer = body.talent_buyer || null;
+  if (body.booking_agent !== undefined) updates.booking_agent = body.booking_agent || null;
 
   console.log(`PUT /api/events/${id} — updating fields:`, Object.keys(updates));
   if (updates.start_time !== undefined || updates.end_time !== undefined) {
@@ -119,11 +123,15 @@ export async function PUT(
     .single();
 
   // If the update itself failed due to unknown columns, retry without the new optional columns
-  if (error && /spotify_url|spotify_monthly_listeners|spotify_featured_track|fees_included_in_price|column .* does not exist/i.test(error.message)) {
+  if (error && /spotify_url|spotify_monthly_listeners|spotify_featured_track|fees_included_in_price|doors_time|age_restriction|talent_buyer|booking_agent|column .* does not exist/i.test(error.message)) {
     delete updates.spotify_url;
     delete updates.spotify_monthly_listeners;
     delete updates.spotify_featured_track;
     delete updates.fees_included_in_price;
+    delete updates.doors_time;
+    delete updates.age_restriction;
+    delete updates.talent_buyer;
+    delete updates.booking_agent;
     const retry = await admin.from("events").update(updates).eq("id", id).select().single();
     data = retry.data;
     error = retry.error;

@@ -23,6 +23,7 @@ type UpcomingEvent = {
   image_url: string | null;
   ticketsSold: number;
   revenue: number;
+  totalCapacity: number;
 };
 
 type RecentOrder = {
@@ -422,6 +423,30 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* ── QUICK ACTIONS ── */}
+      <div className="dash-panel dash-quick-actions">
+        <span className="dash-quick-actions-label">Quick Actions</span>
+        <div className="dash-quick-actions-row">
+          <Link href="/admin/events/new" className="dash-quick-action-btn">
+            + New Show
+          </Link>
+          <button
+            type="button"
+            className="dash-quick-action-btn dash-quick-action-btn-disabled"
+            disabled
+            title="Holds aren't set up yet"
+          >
+            + New Hold
+          </button>
+          <Link href="/admin/scan" className="dash-quick-action-btn">
+            Start Scanner
+          </Link>
+          <Link href="/admin/reports" className="dash-quick-action-btn">
+            Generate Report
+          </Link>
+        </div>
+      </div>
+
       {/* ── DAY OF SHOW BANNER — shows when an event is today ── */}
       {dosEvent && (
         <div className="dash-dos-banner">
@@ -619,32 +644,46 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          {/* Tier Breakdown */}
-          {data.tierBreakdown.length > 0 && (
+          {/* Upcoming Events — Sales Progress (per-event, not per-tier: each
+              bar is that event's own tickets-sold vs. its own ticket_tiers
+              capacity, not a breakdown of one pooled tier count). */}
+          {data.upcomingEvents.length > 0 && (
             <div className="dash-panel">
               <div className="dash-panel-header">
-                <h2 className="dash-panel-title">Sales by Tier</h2>
+                <h2 className="dash-panel-title">Upcoming Events — Sales Progress</h2>
               </div>
-              <div className="dash-tier-grid">
-                {data.tierBreakdown.map((tier) => (
-                  <div key={tier.tier_name} className="dash-tier-item">
-                    <div className="dash-tier-bar-wrapper">
-                      <div
-                        className="dash-tier-bar"
-                        style={{
-                          width: `${Math.max(
-                            8,
-                            (tier.tickets_sold / Math.max(...data.tierBreakdown.map((t) => t.tickets_sold))) * 100
-                          )}%`,
-                        }}
-                      />
+              <div className="dash-progress-list">
+                {data.upcomingEvents.map((ev) => {
+                  const pct = ev.totalCapacity > 0 ? (ev.ticketsSold / ev.totalCapacity) * 100 : 0;
+                  return (
+                    <div key={ev.id} className="dash-progress-row">
+                      <div className="dash-event-date-badge">
+                        <span className="dash-event-countdown">
+                          {new Date(ev.date).toLocaleDateString("en-US", { day: "numeric" })}
+                        </span>
+                        <span className="dash-event-date-text">
+                          {new Date(ev.date).toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="dash-progress-main">
+                        <div className="dash-progress-top">
+                          <span className="dash-progress-title">
+                            <span className="dash-event-name">{ev.title}</span>{" "}
+                            <span className="dash-progress-venue-sep">·</span>{" "}
+                            <span className="dash-event-venue">{ev.venue}</span>
+                          </span>
+                          <div className="dash-event-stats">
+                            <span className="dash-event-tickets">{ev.ticketsSold} tickets</span>
+                            <span className="dash-event-revenue">{formatCurrency(ev.revenue)}</span>
+                          </div>
+                        </div>
+                        <div className="dash-progress-bar-wrapper">
+                          <div className="dash-progress-bar" style={{ width: `${Math.max(2, pct)}%` }} />
+                        </div>
+                      </div>
                     </div>
-                    <div className="dash-tier-info">
-                      <span className="dash-tier-name">{tier.tier_name}</span>
-                      <span className="dash-tier-count">{tier.tickets_sold} sold</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

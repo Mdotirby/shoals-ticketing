@@ -91,6 +91,7 @@ const sidebarGroups: SidebarGroup[] = [
       { label: "FAQ Content",   href: "/admin/faqs",                 roles: ["owner","venue_admin"] },
       { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
       { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
+      { label: "Venues",        href: "/admin/venues",               roles: ["owner"] },
       { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
       { label: "Onboarding",    href: "/admin/onboarding",           roles: ["owner"] },
     ],

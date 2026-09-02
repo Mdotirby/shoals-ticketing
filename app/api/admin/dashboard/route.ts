@@ -159,14 +159,15 @@ export async function GET(request: Request) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, events]) => ({ date, ...events }));
 
-    // Upcoming events with ticket sold counts
+    // Upcoming events with ticket sold counts + total capacity (for sales-progress bars)
     const upcomingEvents = [];
     if (upcomingEventsRes.data) {
       for (const ev of upcomingEventsRes.data) {
-        const { count: ticketCount } = await admin
-          .from("tickets")
-          .select("id", { count: "exact", head: true })
-          .eq("event_id", ev.id);
+        const [{ count: ticketCount }, { data: tiers }] = await Promise.all([
+          admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", ev.id),
+          admin.from("ticket_tiers").select("capacity").eq("event_id", ev.id),
+        ]);
+        const totalCapacity = (tiers || []).reduce((sum, t) => sum + (t.capacity || 0), 0);
 
         upcomingEvents.push({
           id: ev.id,
@@ -176,6 +177,7 @@ export async function GET(request: Request) {
           image_url: ev.image_url,
           ticketsSold: ticketCount ?? 0,
           revenue: revenueByEventMap[ev.id] || 0,
+          totalCapacity,
         });
       }
     }
