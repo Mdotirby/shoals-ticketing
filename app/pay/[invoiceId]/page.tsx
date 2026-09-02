@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
-  EmbeddedCheckoutProvider,
-  EmbeddedCheckout,
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
 } from "@stripe/react-stripe-js";
 import { useOperator } from "@/app/components/OperatorContext";
+import { stripeAppearance } from "@/lib/stripeAppearance";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -15,6 +20,123 @@ const stripePromise = loadStripe(
 
 const GOLD = "rgb(var(--vc-gold-rgb))";
 const DARK = "#0b0d1d";
+
+// ── Payment form (raw Elements + PaymentIntent) ────────────────────────────
+function InvoicePayForm({
+  clientSecret,
+  paymentIntentId,
+  invoiceId,
+  buyerName,
+  buyerEmail,
+}: {
+  clientSecret: string;
+  paymentIntentId: string;
+  invoiceId: string;
+  buyerName: string;
+  buyerEmail: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardNumberElement = elements.getElement(CardNumberElement);
+    if (!cardNumberElement) { setCardError("Card fields not ready."); return; }
+
+    setIsProcessing(true);
+    setCardError("");
+
+    try {
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: buyerName || undefined,
+              email: buyerEmail || undefined,
+            },
+          },
+        }
+      );
+
+      if (confirmError) {
+        setCardError(confirmError.message || "Payment failed. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        router.push(`/pay/${invoiceId}/success?payment_intent_id=${paymentIntentId}`);
+        return;
+      }
+
+      setCardError("Payment did not complete. Please try again.");
+      setIsProcessing(false);
+    } catch {
+      setCardError("An unexpected error occurred. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  const cardFieldsComplete = cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+
+  return (
+    <form className="ic-form" onSubmit={handleSubmit} noValidate>
+      <div className="ic-field">
+        <label className="ic-label">Card Number</label>
+        <div className="ic-stripe-field">
+          <CardNumberElement
+            options={{ showIcon: true }}
+            onChange={(e) => {
+              setCardNumberComplete(e.complete);
+              setCardError(e.error?.message || "");
+            }}
+          />
+        </div>
+      </div>
+      <div className="ic-card-row">
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">Expiry</label>
+          <div className="ic-stripe-field">
+            <CardExpiryElement
+              onChange={(e) => {
+                setCardExpiryComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">CVC</label>
+          <div className="ic-stripe-field">
+            <CardCvcElement
+              onChange={(e) => {
+                setCardCvcComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+      {cardError && <p className="ic-error">{cardError}</p>}
+      <button
+        type="submit"
+        className="ic-pay-btn"
+        disabled={!stripe || isProcessing || !cardFieldsComplete}
+      >
+        {isProcessing ? "Processing…" : "Pay Now"}
+      </button>
+    </form>
+  );
+}
 
 type InvoiceData = {
   id: string;
@@ -50,6 +172,9 @@ export default function PayInvoicePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [creatingIntent, setCreatingIntent] = useState(false);
+  const [clientSecret, setClientSecret] = useState("");
+  const [paymentIntentId, setPaymentIntentId] = useState("");
 
   useEffect(() => {
     if (!invoiceId) return;
@@ -63,20 +188,29 @@ export default function PayInvoicePage() {
       .finally(() => setLoading(false));
   }, [invoiceId]);
 
-  const fetchClientSecret = useCallback(async () => {
-    if (!invoiceId) return "";
-    const res = await fetch(`/api/invoices/${invoiceId}/checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) {
+  const handleStartCheckout = async () => {
+    if (!invoiceId) return;
+    setCreatingIntent(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       const data = await res.json();
-      setError(data.error || "Failed to start checkout");
-      return "";
+      if (!res.ok) {
+        setError(data.error || "Failed to start checkout");
+        return;
+      }
+      setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId ?? "");
+      setShowCheckout(true);
+    } catch {
+      setError("Failed to start checkout. Please try again.");
+    } finally {
+      setCreatingIntent(false);
     }
-    const data = await res.json();
-    return data.clientSecret;
-  }, [invoiceId]);
+  };
 
   if (loading) {
     return (
@@ -201,15 +335,21 @@ export default function PayInvoicePage() {
 
             {/* Pay button */}
             <button
-              onClick={() => setShowCheckout(true)}
+              onClick={handleStartCheckout}
+              disabled={creatingIntent}
               style={{
                 width: "100%", padding: "16px", background: GOLD, color: DARK,
                 border: "none", borderRadius: 10, fontSize: 16, fontWeight: 700,
-                cursor: "pointer", letterSpacing: 0.5,
+                cursor: creatingIntent ? "not-allowed" : "pointer", letterSpacing: 0.5,
+                opacity: creatingIntent ? 0.7 : 1,
               }}
             >
-              Pay {fmt(balanceDue)}
+              {creatingIntent ? "Loading…" : `Pay ${fmt(balanceDue)}`}
             </button>
+
+            {error && (
+              <p style={{ textAlign: "center", color: "#ef4444", fontSize: 13, marginTop: 12 }}>{error}</p>
+            )}
 
             <p style={{ textAlign: "center", color: "rgba(255,255,255,0.3)", fontSize: 12, marginTop: 16 }}>
               Secure payment powered by Stripe
@@ -226,11 +366,21 @@ export default function PayInvoicePage() {
             >
               ← Back to invoice
             </button>
-            <div id="checkout" style={{ borderRadius: 12, overflow: "hidden" }}>
-              <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret }}>
-                <EmbeddedCheckout />
-              </EmbeddedCheckoutProvider>
-            </div>
+            {clientSecret ? (
+              <div className="ic-form-wrap">
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
+                  <InvoicePayForm
+                    clientSecret={clientSecret}
+                    paymentIntentId={paymentIntentId}
+                    invoiceId={invoiceId}
+                    buyerName={invoice.client_name}
+                    buyerEmail={invoice.client_email}
+                  />
+                </Elements>
+              </div>
+            ) : (
+              <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading payment…</p>
+            )}
           </div>
         )}
       </div>

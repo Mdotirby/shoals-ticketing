@@ -802,21 +802,93 @@ export async function POST(request: Request) {
     });
   }
 
-  // ── payment_intent.succeeded (inline checkout via Card Elements) ──
+  // ── payment_intent.succeeded (raw Elements checkout — no Checkout Session
+  //    involved at all: /checkout, InlineCheckout, EventLandingPage, box
+  //    office's card fallback, auction checkout, and invoice payment all
+  //    create a PaymentIntent directly and land here). ──
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object as Stripe.PaymentIntent;
 
-    // Only process PaymentIntents from inline checkout or a Terminal card
-    // reader, to avoid interfering with Checkout Session–based flows or other
-    // PI sources.
+    // ── Handle Auction Checkout ──
+    if (paymentIntent.metadata?.type === "auction") {
+      const auctionOrderId = paymentIntent.metadata.auction_order_id;
+      if (auctionOrderId) {
+        await admin
+          .from("auction_orders")
+          .update({
+            status: "paid",
+            stripe_payment_intent_id: paymentIntent.id,
+            stripe_transaction_id: paymentIntent.id,
+          })
+          .eq("id", auctionOrderId);
+        console.log(`Auction order ${auctionOrderId} marked as paid`);
+      }
+      return NextResponse.json({ received: true });
+    }
+
+    // ── Handle Invoice Payment ──
+    if (paymentIntent.metadata?.type === "invoice") {
+      const invoiceId = paymentIntent.metadata.invoice_id;
+      if (invoiceId) {
+        const paymentAmount = (paymentIntent.amount || 0) / 100;
+
+        await admin
+          .from("invoice_payments")
+          .insert({
+            invoice_id: invoiceId,
+            venue_id: paymentIntent.metadata.venue_id,
+            amount: paymentAmount,
+            payment_method: "stripe",
+            type: "payment",
+            stripe_payment_intent_id: paymentIntent.id,
+            stripe_charge_id: paymentIntent.id,
+            notes: `Stripe inline payment`,
+            received_at: new Date().toISOString(),
+          });
+
+        const { data: invoice } = await admin
+          .from("invoices")
+          .select("total, amount_paid")
+          .eq("id", invoiceId)
+          .single();
+
+        if (invoice) {
+          const newAmountPaid = Number(invoice.amount_paid || 0) + paymentAmount;
+          const newBalanceDue = Number(invoice.total) - newAmountPaid;
+          const newStatus = newBalanceDue <= 0 ? "paid" : "partial";
+
+          await admin
+            .from("invoices")
+            .update({
+              amount_paid: newAmountPaid,
+              balance_due: Math.max(0, newBalanceDue),
+              status: newStatus,
+              ...(newStatus === "paid" ? { paid_at: new Date().toISOString() } : {}),
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", invoiceId);
+
+          console.log(`Invoice ${invoiceId} payment of $${paymentAmount} recorded — status: ${newStatus}`);
+        }
+      }
+      return NextResponse.json({ received: true });
+    }
+
+    // ── Everything else: ticket orders. Only process PaymentIntents from a
+    // known raw-Elements source, to avoid interfering with other PI sources
+    // this account might create.
     //
-    // Terminal was missing here: /api/terminal/payment-intent stamps
-    // source='terminal', which this gate rejected, so a card-present sale at
-    // the door charged the customer and then created no order, no ticket and
-    // no ledger row — the money arrived at Stripe and vanished from the books.
+    // Terminal was missing here once already: /api/terminal/payment-intent
+    // stamps source='terminal', which this gate rejected, so a card-present
+    // sale at the door charged the customer and then created no order, no
+    // ticket and no ledger row — the money arrived at Stripe and vanished
+    // from the books. Same failure mode applies to any future source added
+    // to /api/checkout/create-intent's `source` param — it must be added
+    // here too, not just there.
     if (
       paymentIntent.metadata?.source === "inline_checkout" ||
-      paymentIntent.metadata?.source === "terminal"
+      paymentIntent.metadata?.source === "terminal" ||
+      paymentIntent.metadata?.source === "box_office"
     ) {
       const meta = paymentIntent.metadata;
       const eventId = meta.event_id;

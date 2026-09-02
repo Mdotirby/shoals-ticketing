@@ -31,17 +31,23 @@ function formatDate(d: string) {
 function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
+  const paymentIntentId = searchParams.get("payment_intent_id");
   const [data, setData] = useState<ConfirmationData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!sessionId) { setLoading(false); return; }
-    fetch(`/api/checkout/confirmation?session_id=${sessionId}`)
+    const key = sessionId
+      ? `session_id=${sessionId}`
+      : paymentIntentId
+        ? `payment_intent_id=${paymentIntentId}`
+        : null;
+    if (!key) { setLoading(false); return; }
+    fetch(`/api/checkout/confirmation?${key}`)
       .then((r) => r.json())
       .then((d) => { if (!d.error) setData(d); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [sessionId, paymentIntentId]);
 
   if (loading) {
     return (

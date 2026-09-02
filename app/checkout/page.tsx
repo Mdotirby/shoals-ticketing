@@ -1,22 +1,158 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 import {
-  EmbeddedCheckoutProvider,
-  EmbeddedCheckout,
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
 } from "@stripe/react-stripe-js";
 import Footer from "@/app/components/Footer";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { safeDate, formatEventDateFull } from "@/lib/dates";
 import { getStoredUtmParams } from "@/lib/clientAttribution";
+import { stripeAppearance } from "@/lib/stripeAppearance";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
+
+// ── Payment step — raw Elements + PaymentIntent, styled via the shared
+// stripeAppearance config so the card fields actually match the rest of the
+// dark page instead of Stripe's un-themeable Embedded Checkout default. ──
+function CheckoutPaymentForm({
+  clientSecret,
+  paymentIntentId,
+  buyerName,
+  buyerEmail,
+  buyerPhone,
+  buyerZip,
+}: {
+  clientSecret: string;
+  paymentIntentId: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerZip: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    const cardNumberElement = elements.getElement(CardNumberElement);
+    if (!cardNumberElement) {
+      setCardError("Card fields not ready.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setCardError("");
+
+    try {
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: buyerName,
+              email: buyerEmail,
+              phone: buyerPhone || undefined,
+              address: buyerZip ? { postal_code: buyerZip } : undefined,
+            },
+          },
+        }
+      );
+
+      if (confirmError) {
+        setCardError(confirmError.message || "Payment failed. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        trackFbEvent("Purchase");
+        router.push(`/checkout/success?payment_intent_id=${paymentIntentId}`);
+        return;
+      }
+
+      setCardError("Payment did not complete. Please try again.");
+      setIsProcessing(false);
+    } catch {
+      setCardError("An unexpected error occurred. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  const cardFieldsComplete = cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+
+  return (
+    <form className="ic-form" onSubmit={handleSubmit} noValidate>
+      <div className="ic-field">
+        <label className="ic-label">Card Number</label>
+        <div className="ic-stripe-field">
+          <CardNumberElement
+            options={{ showIcon: true }}
+            onChange={(e) => {
+              setCardNumberComplete(e.complete);
+              setCardError(e.error?.message || "");
+            }}
+          />
+        </div>
+      </div>
+
+      <div className="ic-card-row">
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">Expiry</label>
+          <div className="ic-stripe-field">
+            <CardExpiryElement
+              onChange={(e) => {
+                setCardExpiryComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">CVC</label>
+          <div className="ic-stripe-field">
+            <CardCvcElement
+              onChange={(e) => {
+                setCardCvcComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {cardError && <p className="ic-error">{cardError}</p>}
+
+      <button
+        type="submit"
+        className="ic-pay-btn"
+        disabled={!stripe || isProcessing || !cardFieldsComplete}
+      >
+        {isProcessing ? "Processing…" : "Pay Now"}
+      </button>
+    </form>
+  );
+}
 
 function SeatHoldTimer({ heldUntil }: { heldUntil: string }) {
   const [secsLeft, setSecsLeft] = useState(() =>
@@ -109,6 +245,9 @@ function CheckoutContent() {
   const [fwbOptIn, setFwbOptIn] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [creatingIntent, setCreatingIntent] = useState(false);
+  const [clientSecret, setClientSecret] = useState("");
+  const [paymentIntentId, setPaymentIntentId] = useState("");
 
   // Promo code state
   const [showPromo, setShowPromo] = useState(false);
@@ -147,28 +286,6 @@ function CheckoutContent() {
     setPromoError("");
   };
 
-  const handleContinue = () => {
-    if (!buyerName.trim() || !buyerEmail.trim()) {
-      setError("Name and email are required.");
-      return;
-    }
-    if (!agreed) {
-      setError("Please agree to the terms to continue.");
-      return;
-    }
-    setError(null);
-    // Fire Meta Pixel InitiateCheckout when buyer moves from info form → Stripe
-    trackFbEvent("InitiateCheckout");
-    setShowCheckout(true);
-  };
-
-  // Fire AddPaymentInfo when Stripe embedded checkout becomes visible
-  useEffect(() => {
-    if (showCheckout) {
-      trackFbEvent("AddPaymentInfo");
-    }
-  }, [showCheckout]);
-
   // Get seat_ids from URL params (for assigned seating)
   const seatIdsParam = searchParams.get("seat_ids");
   const seatIds = seatIdsParam ? seatIdsParam.split(",").filter(Boolean) : [];
@@ -179,41 +296,68 @@ function CheckoutContent() {
   // Get trackable link ref from URL params (for conversion attribution)
   const trackingRef = searchParams.get("ref") || (typeof window !== "undefined" ? sessionStorage.getItem("vc_tracking_ref") : null);
 
-  const fetchClientSecret = useCallback(async () => {
+  const handleContinue = async () => {
+    if (!buyerName.trim() || !buyerEmail.trim()) {
+      setError("Name and email are required.");
+      return;
+    }
+    if (!agreed) {
+      setError("Please agree to the terms to continue.");
+      return;
+    }
     if (!eventId) {
       setError("No event selected.");
-      return "";
+      return;
     }
+    setError(null);
+    setCreatingIntent(true);
 
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event_id: eventId,
-        quantity: quantity,
-        buyer_name: buyerName.trim(),
-        buyer_email: buyerEmail.trim(),
-        buyer_phone: buyerPhone.trim(),
-        buyer_zip: buyerZip.trim() || undefined,
-        fwb_opt_in: fwbOptIn,
-        promo_code: promoValid ? promoCode.trim() : undefined,
-        seat_ids: seatIds.length > 0 ? seatIds : undefined,
-        session_id: typeof window !== "undefined" ? sessionStorage.getItem("vc_session") : undefined,
-        tracking_ref: trackingRef || undefined,
-        ...getStoredUtmParams(),
-      }),
-    });
+    try {
+      const res = await fetch("/api/checkout/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId,
+          quantity,
+          buyerName: buyerName.trim(),
+          buyerEmail: buyerEmail.trim(),
+          buyerPhone: buyerPhone.trim(),
+          buyerZip: buyerZip.trim() || undefined,
+          fwbOptIn,
+          promoCode: promoValid ? promoCode.trim() : undefined,
+          selectedSeats: seatIds.length > 0 ? seatIds : undefined,
+          sessionId: typeof window !== "undefined" ? sessionStorage.getItem("vc_session") || undefined : undefined,
+          trackingRef: trackingRef || undefined,
+          ...getStoredUtmParams(),
+        }),
+      });
 
-    if (!res.ok) {
       const data = await res.json();
-      setError(data.error || "Failed to start checkout.");
-      return "";
-    }
 
-    const data = await res.json();
-    return data.clientSecret;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, quantity, buyerName, buyerEmail, buyerPhone, fwbOptIn]);
+      if (!res.ok) {
+        setError(data.error || "Failed to start checkout.");
+        setCreatingIntent(false);
+        return;
+      }
+
+      setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId ?? "");
+      // Fire Meta Pixel InitiateCheckout when buyer moves from info form → payment
+      trackFbEvent("InitiateCheckout");
+      setShowCheckout(true);
+    } catch {
+      setError("Failed to start checkout. Please try again.");
+    } finally {
+      setCreatingIntent(false);
+    }
+  };
+
+  // Fire AddPaymentInfo once the payment step is shown
+  useEffect(() => {
+    if (showCheckout) {
+      trackFbEvent("AddPaymentInfo");
+    }
+  }, [showCheckout]);
 
   if (!eventId) {
     return (
@@ -475,9 +619,9 @@ function CheckoutContent() {
             type="button"
             className="pre-checkout-continue-btn"
             onClick={handleContinue}
-            disabled={!buyerName.trim() || !buyerEmail.trim() || !agreed}
+            disabled={!buyerName.trim() || !buyerEmail.trim() || !agreed || creatingIntent}
           >
-            Continue to Payment
+            {creatingIntent ? "Loading…" : "Continue to Payment"}
           </button>
         </div>
       </section>
@@ -488,17 +632,27 @@ function CheckoutContent() {
     return <div className="ticket-page-loading">{error}</div>;
   }
 
+  if (!clientSecret) {
+    return <div className="ticket-page-loading">Loading payment…</div>;
+  }
+
   return (
     <section className="checkout-embed-section">
       {stepBar}
       {eventContextCard}
       {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
-      <EmbeddedCheckoutProvider
-        stripe={stripePromise}
-        options={{ fetchClientSecret }}
-      >
-        <EmbeddedCheckout className="checkout-embed" />
-      </EmbeddedCheckoutProvider>
+      <div className="ic-form-wrap">
+        <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
+          <CheckoutPaymentForm
+            clientSecret={clientSecret}
+            paymentIntentId={paymentIntentId}
+            buyerName={buyerName.trim()}
+            buyerEmail={buyerEmail.trim()}
+            buyerPhone={buyerPhone.trim()}
+            buyerZip={buyerZip.trim()}
+          />
+        </Elements>
+      </div>
     </section>
   );
 }

@@ -46,35 +46,22 @@ export async function POST(
 
   const stripe = getStripe();
 
-  // Determine the base URL
-  const origin = request.headers.get("origin") || process.env.NEXT_PUBLIC_APP_URL || "https://venuecore.live";
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: `Invoice ${invoice.invoice_number}`,
-            description: `Payment for ${invoice.client_name}`,
-          },
-          unit_amount: Math.round(balanceDue * 100), // cents
-        },
-        quantity: 1,
-      },
-    ],
+  // Raw Elements + PaymentIntent, not a Checkout Session — its fields render
+  // on our own dark page instead of an un-themeable Stripe-hosted UI.
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(balanceDue * 100), // cents
+    currency: "usd",
+    description: venue?.name
+      ? `${venue.name} — Invoice ${invoice.invoice_number}`
+      : `Invoice ${invoice.invoice_number} — Payment for ${invoice.client_name}`,
     metadata: {
       type: "invoice",
       invoice_id: invoice.id,
       venue_id: invoice.venue_id,
       event_id: invoice.event_id,
+      source: "invoice",
     },
-    ui_mode: "embedded",
-    return_url: `${origin}/pay/${invoice.id}/success?session_id={CHECKOUT_SESSION_ID}`,
-    ...(venue?.name ? { payment_intent_data: { description: `${venue.name} — Invoice ${invoice.invoice_number}` } } : {}),
   });
 
-  return NextResponse.json({ clientSecret: session.client_secret });
+  return NextResponse.json({ clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id });
 }

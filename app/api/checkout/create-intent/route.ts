@@ -16,11 +16,19 @@ import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 /**
  * POST /api/checkout/create-intent
  *
- * Creates a Stripe PaymentIntent for inline (Elements) checkout on landing pages.
- * Uses the SAME fee calculation logic as the Checkout Session route.
+ * Creates a Stripe PaymentIntent for any raw-Elements checkout — the public
+ * event page (InlineCheckout.tsx), the standalone /checkout page, and box
+ * office's card-sale fallback all call this.
+ * Uses the SAME fee calculation logic as the (legacy) Checkout Session route.
  *
  * Request body:
- *   { eventId, tierId?, quantity, buyerName, buyerEmail, buyerPhone, promoCode?, selectedSeats?, sessionId? }
+ *   { eventId, tierId?, quantity, buyerName, buyerEmail, buyerPhone, promoCode?, selectedSeats?, sessionId?, source? }
+ *   source defaults to "inline_checkout" — pass "box_office" etc. to keep
+ *   that value on the resulting order instead. The webhook's
+ *   payment_intent.succeeded handler only processes a fixed allow-list of
+ *   source values (see app/api/webhooks/stripe/route.ts) — a new source
+ *   value must be added there too, or the PaymentIntent will succeed in
+ *   Stripe and silently never become an order.
  *
  * Response:
  *   { clientSecret, paymentIntentId, orderDetails: { subtotal, ticketingFee, facilityFee, tax, processingFee, discount, total } }
@@ -52,6 +60,11 @@ export async function POST(request: Request) {
       utm_source,
       utm_medium,
       utm_campaign,
+      // Overridable so callers other than the public inline-checkout widget
+      // (box office's card-sale fallback, for instance) keep their own
+      // orders.source value instead of all landing on "inline_checkout" —
+      // settlement/ticket-audit reporting groups rows by this field.
+      source = "inline_checkout",
     } = body;
 
     // ── Validate required fields ──────────────────────────────────────────
@@ -283,7 +296,7 @@ export async function POST(request: Request) {
         buyer_email: buyerEmail || "",
         buyer_phone: buyerPhone || "",
         buyer_zip: buyerZip || "",
-        source: "inline_checkout",
+        source,
         fwb_opt_in: fwbOptIn ? "true" : "false",
         promo_code: promoResult?.promoCodeStr || "",
         promo_code_id: promoResult?.promoCodeId || "",

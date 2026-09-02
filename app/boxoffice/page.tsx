@@ -1,17 +1,23 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { loadStripe } from "@stripe/stripe-js";
 import { loadStripeTerminal } from "@stripe/terminal-js";
 import type { Terminal, Reader } from "@stripe/terminal-js";
 import {
-  EmbeddedCheckoutProvider,
-  EmbeddedCheckout,
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
 } from "@stripe/react-stripe-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
 import { compareEventsForDisplay, isEventLive, isEventToday, safeDate } from "@/lib/dates";
+import { stripeAppearance } from "@/lib/stripeAppearance";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 const ALLOWED_ROLES = ["owner", "venue_admin", "box_office"];
@@ -88,6 +94,127 @@ function LoginScreen({ onSuccess }: { onSuccess: (name: string) => void }) {
   );
 }
 
+// ── Manual card entry payment form (raw Elements + PaymentIntent) ─────────────
+function ManualPayForm({
+  clientSecret,
+  paymentIntentId,
+  buyerName,
+  buyerEmail,
+  buyerPhone,
+  buyerZip,
+}: {
+  clientSecret: string;
+  paymentIntentId: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerZip: string;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardNumberElement = elements.getElement(CardNumberElement);
+    if (!cardNumberElement) { setCardError("Card fields not ready."); return; }
+
+    setIsProcessing(true);
+    setCardError("");
+
+    try {
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: buyerName,
+              email: buyerEmail,
+              phone: buyerPhone || undefined,
+              address: buyerZip ? { postal_code: buyerZip } : undefined,
+            },
+          },
+        }
+      );
+
+      if (confirmError) {
+        setCardError(confirmError.message || "Payment failed. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        router.push(`/boxoffice/success?payment_intent_id=${paymentIntentId}`);
+        return;
+      }
+
+      setCardError("Payment did not complete. Please try again.");
+      setIsProcessing(false);
+    } catch {
+      setCardError("An unexpected error occurred. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  const cardFieldsComplete = cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+
+  return (
+    <form className="ic-form" onSubmit={handleSubmit} noValidate>
+      <div className="ic-field">
+        <label className="ic-label">Card Number</label>
+        <div className="ic-stripe-field">
+          <CardNumberElement
+            options={{ showIcon: true }}
+            onChange={(e) => {
+              setCardNumberComplete(e.complete);
+              setCardError(e.error?.message || "");
+            }}
+          />
+        </div>
+      </div>
+      <div className="ic-card-row">
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">Expiry</label>
+          <div className="ic-stripe-field">
+            <CardExpiryElement
+              onChange={(e) => {
+                setCardExpiryComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">CVC</label>
+          <div className="ic-stripe-field">
+            <CardCvcElement
+              onChange={(e) => {
+                setCardCvcComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+      {cardError && <p className="ic-error">{cardError}</p>}
+      <button
+        type="submit"
+        className="ic-pay-btn"
+        disabled={!stripe || isProcessing || !cardFieldsComplete}
+      >
+        {isProcessing ? "Processing…" : "Charge Card"}
+      </button>
+    </form>
+  );
+}
+
 // ── Box Office Content ────────────────────────────────────────────────────────
 
 function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignOut: () => void }) {
@@ -122,8 +249,11 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const [terminalError, setTerminalError]     = useState("");
   const [paymentMode, setPaymentMode]         = useState<PaymentMode>("idle");
 
-  // Manual (EmbeddedCheckout) fallback
+  // Manual card-entry fallback (raw Elements + PaymentIntent)
   const [showManual, setShowManual] = useState(false);
+  const [creatingManualIntent, setCreatingManualIntent] = useState(false);
+  const [manualClientSecret, setManualClientSecret] = useState("");
+  const [manualPaymentIntentId, setManualPaymentIntentId] = useState("");
 
   const isWest72 = getCookie("operatorSlug") === "west72";
 
@@ -274,26 +404,42 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     }
   };
 
-  // ── Manual entry fallback (EmbeddedCheckout) ──────────────────────────────
-  const fetchManualSecret = useCallback(async () => {
-    const res = await fetch("/api/boxoffice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event_id: selectedEventId, quantity,
-        tier_id: selectedTierId || undefined,
-        buyer_name: buyerName.trim(), buyer_email: buyerEmail.trim(),
-        buyer_phone: buyerPhone.trim(), buyer_zip: buyerZip.trim() || undefined,
-      }),
-    });
-    if (!res.ok) { const d = await res.json(); setFormError(d.error || "Failed to start checkout"); return ""; }
-    return (await res.json()).clientSecret;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEventId, selectedTierId, quantity, buyerName, buyerEmail, buyerPhone, buyerZip]);
-
-  const handleManualPay = () => {
+  // ── Manual entry fallback (raw Elements + PaymentIntent) ──────────────────
+  // source: "box_office" keeps these on their own line in settlement/ticket-
+  // audit reporting instead of folding into "inline_checkout" — see the
+  // comment on create-intent's `source` param.
+  const handleManualPay = async () => {
     if (!validateForm()) return;
-    setShowManual(true);
+    setFormError(null);
+    setCreatingManualIntent(true);
+    try {
+      const res = await fetch("/api/checkout/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: selectedEventId,
+          quantity,
+          tierId: selectedTierId || undefined,
+          buyerName: buyerName.trim(),
+          buyerEmail: buyerEmail.trim(),
+          buyerPhone: buyerPhone.trim(),
+          buyerZip: buyerZip.trim() || undefined,
+          source: "box_office",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFormError(data.error || "Failed to start checkout");
+        return;
+      }
+      setManualClientSecret(data.clientSecret);
+      setManualPaymentIntentId(data.paymentIntentId ?? "");
+      setShowManual(true);
+    } catch {
+      setFormError("Failed to start checkout. Please try again.");
+    } finally {
+      setCreatingManualIntent(false);
+    }
   };
 
   // ── Cash sale ──────────────────────────────────────────────────────────────
@@ -333,6 +479,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     setBuyerName(""); setBuyerEmail(""); setBuyerPhone(""); setBuyerZip("");
     setCashFirstName(""); setCashLastName(""); setCashSuccess(null);
     setQuantity(1); setSelectedTierId(""); setFormError(null); setTerminalError("");
+    setManualClientSecret(""); setManualPaymentIntentId("");
     if (terminalStatus === "success") setTerminalStatus("ready");
   };
 
@@ -384,7 +531,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     );
   }
 
-  // ── Manual entry (EmbeddedCheckout) ──────────────────────────────────────
+  // ── Manual entry (raw Elements + PaymentIntent) ───────────────────────────
   if (showManual) {
     return (
       <div style={{ minHeight: "100vh", background: "var(--vc-bg)", fontFamily: "var(--font-urbanist), sans-serif" }}>
@@ -397,9 +544,22 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
             <span style={{ margin: "0 8px" }}>·</span>{quantity}× {selectedTier?.tier_name || "GA"} @ ${ticketPrice.toFixed(2)}
             <span style={{ margin: "0 8px" }}>·</span>{buyerName}
           </div>
-          <EmbeddedCheckoutProvider stripe={stripePromise} options={{ fetchClientSecret: fetchManualSecret }}>
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
+          {manualClientSecret ? (
+            <div className="ic-form-wrap">
+              <Elements stripe={stripePromise} options={{ clientSecret: manualClientSecret, appearance: stripeAppearance }}>
+                <ManualPayForm
+                  clientSecret={manualClientSecret}
+                  paymentIntentId={manualPaymentIntentId}
+                  buyerName={buyerName.trim()}
+                  buyerEmail={buyerEmail.trim()}
+                  buyerPhone={buyerPhone.trim()}
+                  buyerZip={buyerZip.trim()}
+                />
+              </Elements>
+            </div>
+          ) : (
+            <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading payment…</p>
+          )}
         </div>
       </div>
     );
@@ -549,10 +709,10 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
               <button
                 type="button"
                 onClick={handleManualPay}
-                disabled={!buyerName.trim() || !buyerEmail.trim()}
-                style={{ width: "100%", padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: buyerName.trim() && buyerEmail.trim() ? "pointer" : "not-allowed" }}
+                disabled={!buyerName.trim() || !buyerEmail.trim() || creatingManualIntent}
+                style={{ width: "100%", padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: buyerName.trim() && buyerEmail.trim() && !creatingManualIntent ? "pointer" : "not-allowed" }}
               >
-                Manual Card Entry
+                {creatingManualIntent ? "Loading…" : "Manual Card Entry"}
               </button>
             </div>
           </>

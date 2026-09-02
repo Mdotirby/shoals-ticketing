@@ -178,7 +178,9 @@ export async function POST(request: Request, context: RouteContext) {
     });
   }
 
-  // ── 7. For CC, create Stripe Checkout Session ──
+  // ── 7. For CC, create a Stripe PaymentIntent (raw Elements checkout,
+  //     not a Checkout Session — its fields render on our own dark page
+  //     instead of an un-themeable Stripe-hosted UI). ──
   const stripe = getStripe();
 
   // Get bidder info for Stripe
@@ -188,59 +190,30 @@ export async function POST(request: Request, context: RouteContext) {
     .eq("id", bidder_id)
     .single();
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://venuecore.live";
-
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer_email: bidder?.email,
-    line_items: [
-      ...filteredWonItems.map((item) => ({
-        price_data: {
-          currency: "usd",
-          product_data: {
-            name: item.name,
-            description: `Auction: ${auction.name}`,
-          },
-          unit_amount: Math.round(parseFloat(String(item.current_bid)) * 100),
-        },
-        quantity: 1,
-      })),
-      ...(processingFee > 0
-        ? [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: "Processing Fee",
-                  description: `Credit/Debit card processing fee (${rateLabel()})`,
-                },
-                unit_amount: Math.round(processingFee * 100),
-              },
-              quantity: 1,
-            },
-          ]
-        : []),
-    ],
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: Math.round(grandTotal * 100),
+    currency: "usd",
+    ...(bidder?.email ? { receipt_email: bidder.email } : {}),
+    description: `Auction: ${auction.name}${processingFee > 0 ? ` (incl. ${rateLabel()} processing fee)` : ""}`,
     metadata: {
       auction_order_id: orderId,
       auction_id: auctionId,
       bidder_id,
       type: "auction",
+      source: "auction",
     },
-    // embedded mode uses return_url, NOT success_url/cancel_url
-    ui_mode: "embedded",
-    return_url: `${baseUrl}/auction/${auctionId}/checkout?session_id={CHECKOUT_SESSION_ID}&order=${orderId}`,
   });
 
-  // Store the session id on the order for webhook lookup
+  // Store the PaymentIntent id on the order for webhook lookup
   await supabase
     .from("auction_orders")
-    .update({ stripe_payment_intent_id: session.id })
+    .update({ stripe_payment_intent_id: paymentIntent.id })
     .eq("id", orderId);
 
   return NextResponse.json({
     order_id: orderId,
-    clientSecret: session.client_secret,
+    clientSecret: paymentIntent.client_secret,
+    paymentIntentId: paymentIntent.id,
     total_amount: totalAmount,
     processing_fee: processingFee,
     grand_total: grandTotal,

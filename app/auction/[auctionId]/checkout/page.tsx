@@ -1,19 +1,141 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import {
-  EmbeddedCheckoutProvider,
-  EmbeddedCheckout,
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
 } from "@stripe/react-stripe-js";
 import type { BidderSession } from "@/lib/types/auction";
 import { useOperator } from "@/app/components/OperatorContext";
+import { stripeAppearance } from "@/lib/stripeAppearance";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
+
+// ── Payment form (raw Elements + PaymentIntent) ────────────────────────────
+function AuctionPayForm({
+  clientSecret,
+  buyerName,
+  buyerEmail,
+  onSuccess,
+  onError,
+}: {
+  clientSecret: string;
+  buyerName: string;
+  buyerEmail: string;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardError, setCardError] = useState("");
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardNumberElement = elements.getElement(CardNumberElement);
+    if (!cardNumberElement) { setCardError("Card fields not ready."); return; }
+
+    setIsProcessing(true);
+    setCardError("");
+
+    try {
+      const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: cardNumberElement,
+            billing_details: {
+              name: buyerName || undefined,
+              email: buyerEmail || undefined,
+            },
+          },
+        }
+      );
+
+      if (confirmError) {
+        setCardError(confirmError.message || "Payment failed. Please try again.");
+        onError(confirmError.message || "Payment failed. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      if (paymentIntent?.status === "succeeded") {
+        onSuccess();
+        return;
+      }
+
+      setCardError("Payment did not complete. Please try again.");
+      setIsProcessing(false);
+    } catch {
+      setCardError("An unexpected error occurred. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  const cardFieldsComplete = cardNumberComplete && cardExpiryComplete && cardCvcComplete;
+
+  return (
+    <form className="ic-form" onSubmit={handleSubmit} noValidate>
+      <div className="ic-field">
+        <label className="ic-label">Card Number</label>
+        <div className="ic-stripe-field">
+          <CardNumberElement
+            options={{ showIcon: true }}
+            onChange={(e) => {
+              setCardNumberComplete(e.complete);
+              setCardError(e.error?.message || "");
+            }}
+          />
+        </div>
+      </div>
+      <div className="ic-card-row">
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">Expiry</label>
+          <div className="ic-stripe-field">
+            <CardExpiryElement
+              onChange={(e) => {
+                setCardExpiryComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+        <div className="ic-field" style={{ flex: 1 }}>
+          <label className="ic-label">CVC</label>
+          <div className="ic-stripe-field">
+            <CardCvcElement
+              onChange={(e) => {
+                setCardCvcComplete(e.complete);
+                if (e.error) setCardError(e.error.message);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+      {cardError && <p className="ic-error">{cardError}</p>}
+      <button
+        type="submit"
+        className="ic-pay-btn"
+        disabled={!stripe || isProcessing || !cardFieldsComplete}
+      >
+        {isProcessing ? "Processing…" : "Pay Now"}
+      </button>
+    </form>
+  );
+}
 
 type WonItem = {
   id: string;
@@ -129,10 +251,6 @@ export default function AuctionCheckoutPage() {
     }
     setSubmitting(false);
   };
-
-  const fetchClientSecret = useCallback(async () => {
-    return clientSecret || "";
-  }, [clientSecret]);
 
   if (loading) {
     return <div className="auction-loading">Loading checkout…</div>;
@@ -279,15 +397,18 @@ export default function AuctionCheckoutPage() {
         </div>
       )}
 
-      {/* Stripe Embedded Checkout */}
+      {/* Card payment (raw Elements + PaymentIntent) */}
       {checkoutState === "stripe" && clientSecret && (
-        <div className="auction-checkout-stripe">
-          <EmbeddedCheckoutProvider
-            stripe={stripePromise}
-            options={{ fetchClientSecret }}
-          >
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
+        <div className="auction-checkout-stripe ic-form-wrap">
+          <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
+            <AuctionPayForm
+              clientSecret={clientSecret}
+              buyerName={session ? `${session.first_name} ${session.last_name}`.trim() : ""}
+              buyerEmail={session?.email || ""}
+              onSuccess={() => setCheckoutState("success")}
+              onError={(msg) => setError(msg)}
+            />
+          </Elements>
         </div>
       )}
 
