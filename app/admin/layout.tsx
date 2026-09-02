@@ -311,10 +311,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Auto-expand the group containing the current page. Must run
   // unconditionally, before the /admin/login early return below — this
   // component stays mounted across a client-side navigation from
-  // /admin/login into the dashboard (same layout boundary), and a hook
-  // called only on one side of that branch throws "Rendered more hooks
-  // than during the previous render" the moment that navigation happens,
-  // which is exactly what "blank screen right after logging in" looks like.
+  // /admin/login into the dashboard (same layout boundary, router.push not
+  // a full reload), and a hook called only on one side of that branch
+  // throws "Rendered more hooks than during the previous render" the moment
+  // that navigation happens — which is exactly what a blank screen right
+  // after logging in looks like.
   useEffect(() => {
     for (const g of sidebarGroups) {
       if (g.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)))) {
