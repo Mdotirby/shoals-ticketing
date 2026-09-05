@@ -71,31 +71,47 @@ export default function FeaturedEventsCarousel() {
 
   const event = events[index];
 
+  // Mockup line 1268 draws the kicker as uppercase DAY · MONTH DATE · VENUE.
+  // formatEventDateLong already returns the "Friday, November 6" shape, so the
+  // comma becomes the separator and the venue joins on the end.
+  //
+  // The doors time is appended as a fourth segment. The mockup's kicker has
+  // only three, but the previous markup carried the time on its own
+  // .featured-carousel-where line and dropping it here would lose information
+  // the hero used to show.
+  const kicker = [
+    formatEventDateLong(event.date).replace(/,\s*/, " · "),
+    event.venue,
+    formatEventTime(event.date),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <motion.section
-      className="home-hero featured-carousel"
+      className="sf-hero"
       drag={isMobile && events.length > 1 ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.2}
       onDragEnd={handleDragEnd}
     >
-      <AnimatePresence>
-        <motion.div
-          key={event.id}
-          className="featured-carousel-bg"
-          style={{
-            backgroundImage: event.image_url ? `url(${event.image_url})` : undefined,
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: prefersReduced ? 0 : 0.8, ease: "easeOut" }}
-        />
-      </AnimatePresence>
+      <div className="sf-hero-media">
+        <AnimatePresence>
+          <motion.div
+            key={event.id}
+            className="sf-hero-media-layer"
+            style={{
+              backgroundImage: event.image_url ? `url(${event.image_url})` : undefined,
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: prefersReduced ? 0 : 0.8, ease: "easeOut" }}
+          />
+        </AnimatePresence>
+      </div>
 
-      <div className="home-hero-overlay" />
-
-      <div className="home-hero-content">
+      <div className="sf-hero-overlay">
         <AnimatePresence mode="wait">
           <motion.div
             key={event.id}
@@ -104,30 +120,30 @@ export default function FeaturedEventsCarousel() {
             exit={{ opacity: 0, y: prefersReduced ? 0 : -16 }}
             transition={{ duration: prefersReduced ? 0 : 0.4, ease: "easeOut" }}
           >
-            <p className="featured-carousel-eyebrow">
-              Up Next · {formatEventDateLong(event.date)}
-            </p>
-            <h1 className="featured-carousel-title">{event.title}</h1>
+            <p className="sf-hero-kicker">{kicker}</p>
+            <h1 className="sf-hero-title">{event.title}</h1>
             {event.subtitle && (
               <p className="featured-carousel-subtitle">{event.subtitle}</p>
             )}
-            <p className="featured-carousel-where">
-              {event.venue}
-              {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
-            </p>
-            <div className="featured-carousel-actions">
-              <Link href={`/events/${event.id}`} className="home-hero-cta">
+            <div className="sf-hero-actions">
+              <Link
+                href={`/events/${event.id}`}
+                className="sf-btn sf-btn--primary sf-btn--lg"
+              >
                 Get Tickets
               </Link>
-              {/* Hands off to the event page's existing Spotify preview, which
+              {/* Mockup's second button is "Details"; production's is this —
+                  it hands off to the event page's Spotify preview, which
                   autoplays the artist's featured track. The events list API
                   doesn't return the Spotify fields, so the event page — which
-                  does have them — decides whether there's anything to play. */}
+                  does have them — decides whether there's anything to play.
+                  Kept over the mockup's label because it does something the
+                  primary button doesn't; restyled as the secondary. */}
               <Link
                 href={`/events/${event.id}?preview=1`}
-                className="featured-carousel-preview"
+                className="sf-btn sf-btn--secondary sf-btn--lg"
               >
-                <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden="true">
+                <svg width="9" height="10" viewBox="0 0 9 10" fill="currentColor" aria-hidden="true" style={{ marginRight: 7 }}>
                   <polygon points="0,0 9,5 0,10" />
                 </svg>
                 Preview Artist
@@ -138,14 +154,14 @@ export default function FeaturedEventsCarousel() {
       </div>
 
       {/* Desktop-only affordance for the mobile swipe gesture. */}
-      <div className="hero-swipe-hint" aria-hidden="true">&#8596; Swipe</div>
+      <div className="sf-hero-swipe" aria-hidden="true">SWIPE →</div>
 
       {/* Position indicator only — deliberately not clickable, so autoplay and
           swipe stay the only things that move the carousel. */}
       {events.length > 1 && (
-        <div className="hero-dots" aria-hidden="true">
+        <div className="sf-hero-dots" aria-hidden="true">
           {events.map((e, i) => (
-            <span key={e.id} className={`dot${i === index ? " active" : ""}`} />
+            <i key={e.id} className={i === index ? "active" : undefined} />
           ))}
         </div>
       )}

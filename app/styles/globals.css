@@ -19213,7 +19213,7 @@ body[data-theme="liquid-glass"] .sf-header-logo {
   text-decoration: none;
 }
 body[data-theme="liquid-glass"] .sf-header .hamburger { display: none; }
-body[data-theme="liquid-glass"] .sf-header-mark--icon { display: none; }
+body[data-theme="liquid-glass"] .sf-header-logo img.sf-header-mark--icon { display: none; }
 
 @media (max-width: 640px) {
   body[data-theme="liquid-glass"] .sf-header .hamburger {
@@ -19221,6 +19221,169 @@ body[data-theme="liquid-glass"] .sf-header-mark--icon { display: none; }
     grid-column: 3;
     justify-self: end;
   }
-  body[data-theme="liquid-glass"] .sf-header-mark--wordmark { display: none; }
-  body[data-theme="liquid-glass"] .sf-header-mark--icon { display: block; }
+  body[data-theme="liquid-glass"] .sf-header-logo img.sf-header-mark--wordmark { display: none; }
+  body[data-theme="liquid-glass"] .sf-header-logo img.sf-header-mark--icon { display: block; }
+}
+
+/* ── Storefront hero: carousel additions ────────────────────────
+   The mockup draws the hero photo as a single static <img>. Production's hero
+   is the existing FeaturedEventsCarousel, which crossfades between events by
+   stacking absolutely-positioned background layers — so it needs a positioned
+   media box and a fill layer rather than .sf-hero-media img. Values below are
+   read off the mockup: actions row line 1270, SWIPE hint line 1274. */
+body[data-theme="liquid-glass"] .sf-hero-media {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(150deg, rgba(255,255,255,0.26), rgba(120,150,255,0.16) 55%, rgba(255,140,170,0.14));
+}
+body[data-theme="liquid-glass"] .sf-hero-media-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+body[data-theme="liquid-glass"] .sf-hero-overlay { z-index: 1; }
+body[data-theme="liquid-glass"] .sf-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .sf-hero-swipe {
+  position: absolute;
+  top: 26px;
+  right: 32px;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.42);
+}
+body[data-theme="liquid-glass"] .sf-hero-dots { z-index: 1; }
+
+/* Home keeps its search box and its section rows; the mockup has no search on
+   home but production does, and it stays. Sits on the section-head row. */
+body[data-theme="liquid-glass"] .sf-home-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--sf-glass);
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid var(--sf-border);
+  flex: 0 1 260px;
+  margin-left: auto;
+}
+body[data-theme="liquid-glass"] .sf-home-search input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--sf-white);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+}
+body[data-theme="liquid-glass"] .sf-home-search input::placeholder { color: var(--sf-dim); }
+body[data-theme="liquid-glass"] .sf-home-search button {
+  background: none;
+  border: none;
+  color: var(--sf-sub);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+/* ── Storefront home: sections the mockup doesn't draw ──────────
+   Proud Partners, the "Get Rowdy" CTA and the decorative second hero band all
+   exist in production and are kept per Matt's call (the partners strip carries
+   paid placements; the CTA is the only calendar link below the fold). The
+   mockup has no equivalent to copy values off, so these reuse the tokens the
+   rest of the storefront block already defines rather than inventing new ones. */
+body[data-theme="liquid-glass"] .sf-partners {
+  text-align: center;
+  padding: 34px 0 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+body[data-theme="liquid-glass"] .sf-partners .sf-eyebrow { margin-bottom: 18px; }
+body[data-theme="liquid-glass"] .sf-partners-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px 40px;
+}
+body[data-theme="liquid-glass"] .sf-partners-fallback {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--sf-sub);
+}
+body[data-theme="liquid-glass"] .sf-partners-link {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--sf-dim);
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .sf-partners-link:hover { color: var(--sf-white); }
+
+body[data-theme="liquid-glass"] .sf-cta {
+  text-align: center;
+  padding: 56px 24px 48px;
+}
+body[data-theme="liquid-glass"] .sf-cta-title {
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .sf-cta-sub {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--sf-sub);
+  max-width: 520px;
+  margin: 12px auto 22px;
+}
+
+body[data-theme="liquid-glass"] .sf-hero-secondary {
+  margin-top: 22px;
+  aspect-ratio: 3.2;
+  border-radius: var(--sf-r-card);
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+  background-size: cover;
+  background-position: center;
+}
+
+body[data-theme="liquid-glass"] .sf-empty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--sf-sub);
+}
+
+/* The orb field (.bg-field) is position:fixed with z-index:0 and sits before
+   .sf-page in the DOM, so it paints above any NON-positioned content that
+   follows it — which was all of the storefront chrome. The header pill and the
+   section-head row were rendering correctly and being covered by the orbs; the
+   hero only escaped because its media layers are absolutely positioned.
+   Promoting the page shell into the positioned layer puts every storefront
+   surface back above the field, which is where the glass is meant to refract
+   it from. */
+body[data-theme="liquid-glass"] .sf-page {
+  position: relative;
+  z-index: 1;
+  /* The mockup's content column is exactly 1240px and its frame supplies the
+     outer gutter. .sf-page is the outermost element here, so it carries the
+     gutter itself — without this the pill and the cards go flush to the
+     viewport edge on anything narrower than 1280. */
+  max-width: calc(var(--sf-max) + 40px);
+  padding: 0 20px;
 }

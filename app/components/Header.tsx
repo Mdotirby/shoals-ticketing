@@ -18,6 +18,18 @@ const navItems = [
 /** Routes where the public header should be hidden (they have their own nav) */
 const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
 
+/**
+ * Storefront routes that render <SfHeader> themselves — the floating glass
+ * pill from the mockup. Exact matches, not prefixes: /events/[id]/seating is
+ * out of scope for the storefront rebuild and still wants this header, so
+ * hiding all of /events would break it.
+ *
+ * This list grows one entry per storefront page as each is rebuilt. When the
+ * last one lands, this header serves /login, /fwb, /partners, the legal pages
+ * and the auction routes.
+ */
+const SF_HEADER_ROUTES = ["/"];
+
 export default function Header() {
   const pathname = usePathname();
   const operator = useOperator();
@@ -29,7 +41,9 @@ export default function Header() {
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
 
-  const isHidden = HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const isHidden =
+    HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    SF_HEADER_ROUTES.includes(pathname);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
