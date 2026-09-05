@@ -4,8 +4,35 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { useVenue } from "@/app/components/VenueContext";
-import Footer from "@/app/components/Footer";
-import { formatEventDateShort, formatEventTime } from "@/lib/dates";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
+import EventGridCard from "@/app/components/EventGridCard";
+
+/**
+ * Events listing — storefront glass rebuild (step 4/8).
+ *
+ * DATA LAYER UNCHANGED. Both fetches, their query-param construction, the
+ * [venueSlug, isVenueSubdomain] dependency array, the FilterType union,
+ * matchesFilter(), hostsWithEvents and the `filtered` memo are byte-identical.
+ *
+ * What changed is presentation only:
+ *
+ *  - The inline <style> block is gone. Not because it was "pre-glass drift" —
+ *    that claim was wrong and got this file reverted once. It goes because
+ *    storefront-glass.css now supplies every one of those classes, including
+ *    the grid tracks, so the block is genuinely redundant rather than merely
+ *    overridden. The glass rules in globals.css that style .events-grid-card
+ *    are untouched and still do the work.
+ *
+ *  - The hand-inlined card markup moves to <EventGridCard>. That component is
+ *    a verbatim extraction of exactly this markup — same elements, same class
+ *    names, same formatters — so the card still renders photo-on-top with the
+ *    date line, the venue line, the price pill and the Get Tickets button.
+ *    It is NOT EventCard, which is the full-bleed tile and belongs only to the
+ *    cross-sell.
+ *
+ *  - EventsHero stays unmounted. The mockup has no hero on the listing.
+ */
 
 type FilterType = "all" | "event" | "artist" | "venue" | "city";
 
@@ -69,7 +96,9 @@ export default function EventsPage() {
   );
 
   return (
-    <>
+    <div className="sf-page">
+      <SfHeader />
+
       <main className="events-list-page">
         {/* ── Search + Filter bar ──
             events.png shows the search input, the two filter pills, and the
@@ -93,7 +122,14 @@ export default function EventsPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "4px 8px" }}>✕</button>
+              <button
+                type="button"
+                className="sf-search-clear"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+              >
+                ✕
+              </button>
             )}
           </div>
           <select
@@ -122,19 +158,7 @@ export default function EventsPage() {
 
           {/* events.png puts this on the same row as search/filters, right-aligned
               — was a separate row below the whole bar. */}
-          <Link
-            href="/events/past"
-            className="events-view-past-link"
-            style={{
-              marginLeft: "auto",
-              fontSize: 12,
-              color: "rgba(255,255,255,0.55)",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              borderBottom: "1px solid rgba(255,255,255,0.15)",
-              paddingBottom: 1,
-            }}
-          >
+          <Link href="/events/past" className="events-view-past-link">
             View past shows →
           </Link>
         </div>
@@ -147,206 +171,19 @@ export default function EventsPage() {
           </p>
         )}
 
-        {/* ── Responsive grid styles ── */}
-        <style>{`
-          .events-card-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 24px;
-          }
-          @media (max-width: 1024px) {
-            .events-card-grid { grid-template-columns: repeat(2, 1fr); }
-          }
-          @media (max-width: 768px) {
-            .events-card-grid {
-              grid-template-columns: repeat(2, 1fr);
-              gap: 12px;
-            }
-            .events-grid-card .event-card-body {
-              padding: 10px;
-              gap: 6px;
-            }
-            .events-grid-card .event-card-title {
-              font-size: 14px;
-            }
-            .events-grid-card .event-card-meta {
-              font-size: 11px;
-            }
-            .events-grid-card .event-card-price {
-              font-size: 11px;
-              padding: 3px 10px;
-            }
-            .events-grid-card .event-card-btn {
-              font-size: 12px;
-              padding: 8px;
-            }
-          }
-          @media (max-width: 400px) {
-            .events-card-grid {
-              grid-template-columns: repeat(2, 1fr);
-              gap: 8px;
-            }
-          }
-          .events-grid-card {
-            background: #131629;
-            border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.08);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-            text-decoration: none;
-            color: inherit;
-          }
-          .events-grid-card:hover {
-            transform: scale(1.02);
-            border-color: rgba(var(--vc-gold-rgb), 0.45);
-          }
-          .event-card-img {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 16 / 9;
-            background: #0b0d1d;
-            overflow: hidden;
-          }
-          .event-card-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-          }
-          .event-card-img::after {
-            content: "";
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            height: 50%;
-            background: linear-gradient(to top, rgba(19,22,41,0.85), transparent);
-            pointer-events: none;
-          }
-          .event-card-placeholder {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          }
-          .event-card-body {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
-          }
-          .event-card-title {
-            font-size: 17px;
-            font-weight: 700;
-            color: #fff;
-            margin: 0;
-            line-height: 1.3;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-          .event-card-meta {
-            font-size: 13px;
-            color: rgba(255,255,255,0.5);
-            margin: 0;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-          }
-          .event-card-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-top: auto;
-          }
-          .event-card-price {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 999px;
-            font-size: 13px;
-            font-weight: 600;
-            background: rgba(var(--vc-gold-rgb), 0.15);
-            color: rgb(var(--vc-gold-rgb));
-          }
-          .event-card-btn {
-            display: inline-block;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 999px;
-            background: rgb(var(--vc-gold-rgb));
-            color: #0b0d1d;
-            font-size: 14px;
-            font-weight: 700;
-            text-align: center;
-            text-decoration: none;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: opacity 0.15s ease;
-          }
-          .event-card-btn:hover { opacity: 0.88; }
-        `}</style>
-
+        {/* Grid tracks, card surface, search pill, filter selects and the
+            past-shows link all come from the storefront block in globals.css
+            now — this route carries no <style> of its own. */}
         {!isLoading && filtered.length > 0 && (
-          <div className="events-card-grid">
-            {filtered.map((event) => {
-              const isFree = event.price === 0;
-              return (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="events-grid-card"
-                >
-                  {/* Image */}
-                  <div className={`event-card-img${!event.image_url ? " event-card-placeholder" : ""}`}>
-                    {event.image_url ? (
-                      <img src={event.image_url} alt={event.title} />
-                    ) : (
-                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.25 }}>
-                        <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/>
-                        <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/>
-                      </svg>
-                    )}
-                  </div>
-
-                  {/* Body */}
-                  <div className="event-card-body">
-                    <h2 className="event-card-title">{event.title}</h2>
-
-                    <p className="event-card-meta">
-                      {formatEventDateShort(event.date)}
-                      {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
-                    </p>
-
-                    <p className="event-card-meta">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/>
-                        <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-                      </svg>
-                      {event.venue}
-                    </p>
-
-                    <div className="event-card-footer">
-                      <span className="event-card-price">
-                        {isFree ? "FREE" : `$${event.price.toFixed(2)}`}
-                      </span>
-
-                      <span className="event-card-btn">
-                        {isFree ? "Register Free" : "Get Tickets"}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
+          <div className="sf-grid-events">
+            {filtered.map((event) => (
+              <EventGridCard key={event.id} event={event} />
+            ))}
           </div>
         )}
       </main>
 
-      <Footer />
-    </>
+      <SfFooter />
+    </div>
   );
 }

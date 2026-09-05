@@ -19387,3 +19387,36 @@ body[data-theme="liquid-glass"] .sf-page {
   max-width: calc(var(--sf-max) + 40px);
   padding: 0 20px;
 }
+
+/* ── Storefront listing: controls ───────────────────────────────
+   Two classes the listing markup uses that nothing defines yet.
+
+   .events-view-past-link genuinely has no rule anywhere in this file — it was
+   carrying an inline style={{}} prop on the element instead, which the glass
+   rebuild removes. (An earlier note claimed a competing rule existed here and
+   that source order decided it; that was wrong, there is no other rule.)
+
+   .sf-search-clear replaces the other inline style prop on the same row. */
+body[data-theme="liquid-glass"] .events-view-past-link {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--sf-sub);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  padding-bottom: 1px;
+}
+body[data-theme="liquid-glass"] .events-view-past-link:hover {
+  color: var(--sf-white);
+  border-bottom-color: rgba(255, 255, 255, 0.4);
+}
+body[data-theme="liquid-glass"] .sf-search-clear {
+  background: none;
+  border: none;
+  color: var(--sf-sub);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+body[data-theme="liquid-glass"] .sf-search-clear:hover { color: var(--sf-white); }

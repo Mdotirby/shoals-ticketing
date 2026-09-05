@@ -28,7 +28,7 @@ const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
  * last one lands, this header serves /login, /fwb, /partners, the legal pages
  * and the auction routes.
  */
-const SF_HEADER_ROUTES = ["/"];
+const SF_HEADER_ROUTES = ["/", "/events"];
 
 export default function Header() {
   const pathname = usePathname();
