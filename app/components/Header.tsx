@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { useOperator } from "./OperatorContext";
 import { useVenueTheme } from "./VenueThemeProvider";
-import { usesLiquidGlass } from "@/lib/operators";
+import { usesLiquidGlass, logoFor } from "@/lib/operators";
 
 const navItems = [
   { label: "Events", href: "/events" },
@@ -67,7 +67,12 @@ export default function Header() {
   // Otherwise use the operator wordmark — the white cut under the liquid-glass
   // theme, since the header pill is a dark translucent surface there and the
   // full-colour mark reads muddy against it.
-  const operatorWordmark = glass ? operator.logoWhite : operator.logo;
+  //
+  // logoFor() replaces the hand-written `glass ? logoWhite : logo` ternary that
+  // used to be here. Same result for the wordmark; the change is that the icon
+  // mark below now gets the same treatment instead of always using the colour
+  // cut, which is what made the VenueCore icon read muddy on the mobile pill.
+  const operatorWordmark = logoFor(operator, "horizontal", glass);
   const logoSrc = venueTheme.isVenueSubdomain && venueTheme.logo_url
     ? venueTheme.logo_url
     : operatorWordmark;
@@ -96,7 +101,7 @@ export default function Header() {
             />
             {showMobileIcon && (
               <Image
-                src={operator.logoIcon}
+                src={logoFor(operator, "icon", glass)}
                 alt={logoAlt}
                 width={65}
                 height={64}

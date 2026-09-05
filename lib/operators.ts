@@ -4,6 +4,23 @@
  * Defines branding and contact info for each operator domain.
  * VenueCore is the platform; West72 is a licensee with its own domain.
  * Add new operators here as needed — one entry per root domain.
+ *
+ * ── Storefront mount change (2026-09-05) ────────────────────────────────
+ * This file is ADDITIVE against main. Nothing was removed or repointed, so
+ * every existing `operator.logo` / `operator.logoIcon` / `operator.logoStacked`
+ * call site keeps the exact asset it resolves to today.
+ *
+ * What was added: `logoIconWhite` and `logoStackedWhite`, plus `logoFor()`.
+ * The reason is a real bug on venuecore.live — the header renders the icon
+ * mark on a dark translucent glass pill, but `logoIcon` for venuecore is
+ * `VenueCore_Icon_Color.png`, the navy-on-transparent cut. It reads muddy
+ * there, the same way the full-colour horizontal did before `logoWhite`
+ * was introduced for it. West72 already only had white cuts wired up, so
+ * `logoFor()` returns the same file it does now for that brand — the fix
+ * lands on VenueCore and is a no-op for West 72.
+ *
+ * One non-branding fix: privacyEmail for venuecore was privacy@venuecore.com,
+ * a domain this operator does not serve (see `domain` two fields up).
  */
 
 export type OperatorConfig = {
@@ -17,8 +34,13 @@ export type OperatorConfig = {
   logoWhite: string;
   /** Icon-only logo — used in admin sidebar and collapsed nav */
   logoIcon: string;
+  /** Icon-only white cut — the mobile storefront header and any other dark
+   *  translucent surface. Prefer resolving via logoFor(op, "icon", glass). */
+  logoIconWhite: string;
   /** Stacked logo — used on auth/login/splash screens */
   logoStacked: string;
+  /** Stacked white cut — login/splash under the liquid-glass theme. */
+  logoStackedWhite: string;
   logoAlt: string;
   /** Path to favicon in /public/favicons */
   favicon: string;
@@ -50,12 +72,14 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     logo: "/VenueCore_Logos/VenueCore_Horizontal_Color.png",
     logoWhite: "/VenueCore_Logos/VenueCore_Horizontal_White.png",
     logoIcon: "/VenueCore_Logos/VenueCore_Icon_Color.png",
+    logoIconWhite: "/VenueCore_Logos/VenueCore_Icon_White.png",
     logoStacked: "/VenueCore_Logos/VenueCore_Stacked_Color.png",
+    logoStackedWhite: "/VenueCore_Logos/VenueCore_Stacked_White.png",
     logoAlt: "VenueCore",
     favicon: "/favicons/icon_32.ico",
     supportEmail: "support@venuecore.live",
     contactEmail: "contact@venuecore.live",
-    privacyEmail: "privacy@venuecore.com",
+    privacyEmail: "privacy@venuecore.live",
     tagline: "One Platform. Every Ticket.",
     footerDescription:
       "The all-in-one ticketing and venue management platform built for the people who make live music happen. Venues, promoters, agents, artists — everybody wins.",
@@ -74,7 +98,11 @@ export const OPERATORS: Record<string, OperatorConfig> = {
     logo: "/West72_Logos/W72_tech_wordmark_white.png",
     logoWhite: "/West72_Logos/W72_tech_wordmark_white.png",
     logoIcon: "/West72_Logos/W72_tech_icon_white.png",
-    logoStacked: "/West72_Logos/W72_tech_wordmark_white.png",
+    logoIconWhite: "/West72_Logos/W72_tech_icon_white.png",
+    // The stacked slot pointed at the wordmark. W72_tech_lockup_white.png is
+    // the real stacked lockup and is already in /public/West72_Logos.
+    logoStacked: "/West72_Logos/W72_tech_lockup_white.png",
+    logoStackedWhite: "/West72_Logos/W72_tech_lockup_white.png",
     logoAlt: "West 72 Entertainment",
     favicon: "/favicons/West72/W72_tech_icon_solid_black.ico",
     supportEmail: "support@west72ent.com",
@@ -97,6 +125,33 @@ export const DEFAULT_OPERATOR = OPERATORS.venuecore;
 
 export function getOperator(slug: string): OperatorConfig {
   return OPERATORS[slug] ?? DEFAULT_OPERATOR;
+}
+
+/**
+ * Resolve the right cut of an operator's mark for the surface it sits on.
+ *
+ * `glass` means "this mark is going on a dark translucent panel" — which is
+ * every storefront chrome surface under data-theme="liquid-glass". Header
+ * already did this by hand for the horizontal wordmark
+ * (`glass ? operator.logoWhite : operator.logo`); this is that same choice
+ * for all three shapes, in one place, so the mobile icon and the login
+ * splash stop being the exception.
+ */
+export type LogoShape = "horizontal" | "icon" | "stacked";
+
+export function logoFor(
+  operator: OperatorConfig,
+  shape: LogoShape,
+  glass: boolean
+): string {
+  switch (shape) {
+    case "icon":
+      return glass ? operator.logoIconWhite : operator.logoIcon;
+    case "stacked":
+      return glass ? operator.logoStackedWhite : operator.logoStacked;
+    default:
+      return glass ? operator.logoWhite : operator.logo;
+  }
 }
 
 /**
