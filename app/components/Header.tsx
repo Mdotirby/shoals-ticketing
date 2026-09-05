@@ -30,6 +30,18 @@ const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
  */
 const SF_HEADER_ROUTES = ["/", "/events"];
 
+/**
+ * Event detail (/events/<id>) also renders SfHeader, but it's a dynamic route
+ * so it can't be an exact-match entry. Matches one segment under /events only:
+ *
+ *   /events/abc123          → hidden (event detail, has SfHeader)
+ *   /events/abc123/seating  → shown  (out of scope, still needs this header)
+ *   /events/past            → shown  (separate page, not rebuilt)
+ */
+function isSfEventDetail(pathname: string): boolean {
+  return /^\/events\/[^/]+$/.test(pathname) && pathname !== "/events/past";
+}
+
 export default function Header() {
   const pathname = usePathname();
   const operator = useOperator();
@@ -43,7 +55,8 @@ export default function Header() {
 
   const isHidden =
     HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    SF_HEADER_ROUTES.includes(pathname);
+    SF_HEADER_ROUTES.includes(pathname) ||
+    isSfEventDetail(pathname);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);

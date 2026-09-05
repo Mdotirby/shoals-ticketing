@@ -19420,3 +19420,20 @@ body[data-theme="liquid-glass"] .sf-search-clear {
   padding: 4px 8px;
 }
 body[data-theme="liquid-glass"] .sf-search-clear:hover { color: var(--sf-white); }
+
+/* ── Event detail: mockup divergence ────────────────────────────
+   The existing glass pass on this page deliberately kept the markup and
+   restyled surface/type only (see the "Event Detail" banner around line
+   15370), so this is a targeted property override, not a rewrite — the whole
+   .ticket-* / .order-summary-* rule set above stays live.
+
+   The one structural divergence from the mockup: the layout is 3fr 2fr, the
+   mockup (line 1383) is `1fr 452px` — a fixed-width cart column rather than a
+   proportional one. Scoped to min-width 769px so it cannot outrank the
+   existing max-width:768px single-column rule, which sits EARLIER in this file
+   and would otherwise lose to an unconditional override at equal specificity. */
+@media (min-width: 769px) {
+  body[data-theme="liquid-glass"] .ticket-selection-layout {
+    grid-template-columns: 1fr 452px;
+  }
+}

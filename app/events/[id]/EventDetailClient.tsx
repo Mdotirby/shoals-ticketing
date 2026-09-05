@@ -13,7 +13,9 @@ import type { SectionFull } from "@/lib/seating/types";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
-import Footer from "@/app/components/Footer";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
+import SfStepper from "@/app/components/SfStepper";
 import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { trackFbEvent } from "@/lib/fbq";
 import { pastEventReason } from "@/lib/events/closeout";
@@ -870,6 +872,15 @@ export default function EventDetailClient({ requiresSeating = false }: { require
           }
         `}</style>
       )}
+      {/* Wrapped in .sf-page so the pill gets the 1240px column, the 20px
+          gutter, AND the positioned layer — .bg-field is a fixed z-index:0
+          element earlier in the DOM, so unpositioned chrome paints underneath
+          it. .ticket-page itself is left unwrapped: it is a full-bleed flex
+          column whose children carry their own max-widths. */}
+      <div className="sf-page">
+        <SfHeader />
+      </div>
+
       <main className="ticket-page">
 
         {/* ── Section Header ── */}
@@ -901,6 +912,41 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                   className="ticket-hero-image"
                 />
                 <div className="ticket-hero-gradient" />
+
+                {/* Mockup line 1387-1400 overlays the photo with a venue badge
+                    top-left, an age badge top-right, and a four-fact strip
+                    along the bottom. Production had the photo and the scrim
+                    but none of these — they are added here, on top of the
+                    existing markup, rather than by restructuring it. The same
+                    values already render elsewhere on the page (meta line,
+                    EventBadges); this is the mockup's placement of them, not
+                    a second source of truth. */}
+                <div className="sf-art-badge sf-art-badge--l">{event.venue}</div>
+                {event.age_restriction && (
+                  <div className="sf-art-badge sf-art-badge--r">{event.age_restriction}</div>
+                )}
+                <div className="sf-art-facts">
+                  <div>
+                    <div className="sf-fact-label">Date</div>
+                    <div className="sf-fact-value">{formatEventDateFull(event.date)}</div>
+                  </div>
+                  {showTime && (
+                    <div>
+                      <div className="sf-fact-label">Doors</div>
+                      <div className="sf-fact-value">{showTime}</div>
+                    </div>
+                  )}
+                  <div>
+                    <div className="sf-fact-label">Venue</div>
+                    <div className="sf-fact-value">{event.venue}</div>
+                  </div>
+                  {event.age_restriction && (
+                    <div>
+                      <div className="sf-fact-label">Ages</div>
+                      <div className="sf-fact-value">{event.age_restriction}</div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1091,6 +1137,24 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}
             <div className="order-summary-column" ref={orderSummaryRef}>
+              {/* Mockup puts the TICKETS/CHECKOUT/DONE stepper at the top of
+                  the cart panel (line 1437). Production had no stepper at all.
+                  Purely additive — it renders above whichever of the seven
+                  branches below is active, and none of them change.
+
+                  Hidden in three cases: external ticketing and past shows,
+                  where a progress indicator would claim a flow that doesn't
+                  exist; and whenever InlineCheckout renders, because that
+                  component already draws its own progress bar (.ic-progress-*)
+                  and showing both puts two steppers on screen at once. So this
+                  one only ever renders step 1 — InlineCheckout owns the
+                  display from step 2 on. */}
+              {!event.external_ticket_url &&
+                !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+                !willShowInlineCheckout && (
+                  <SfStepper current={1} />
+                )}
+
               {/* Ticket type + quantity: the mockup renders this INSIDE the
                   Order Summary / Checkout card, not as a box sitting above it.
                   OrderSummary.tsx owns this markup for `willShowOrderSummary`;
@@ -1678,7 +1742,9 @@ export default function EventDetailClient({ requiresSeating = false }: { require
         <FAQAccordion />
       </main>
 
-      <Footer />
+      <div className="sf-page">
+        <SfFooter />
+      </div>
     </>
   );
 }
