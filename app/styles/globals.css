@@ -19187,3 +19187,40 @@ body[data-theme="liquid-glass"] .sf-footer a:hover { color: rgba(255, 255, 255, 
   body[data-theme="liquid-glass"] .sf-cart { padding: 18px 16px 20px; }
   body[data-theme="liquid-glass"] .sf-field-row { grid-template-columns: 1fr; }
 }
+
+/* ── Storefront chrome: addendum ────────────────────────────────
+   Two things SfHeader needs that storefront-glass.css doesn't cover. Added
+   here, in the same block, per the handoff rule: "if something's missing,
+   take it from the mockup and add it to that block."
+
+   1. The hamburger. The shared .hamburger already has a glass treatment —
+      a 38px circle — but it's switched on at max-width:768px, while the
+      collapsed sf-header grid is max-width:640px. Between those two widths
+      the button would show while the full nav is still visible. Scoping to
+      `.sf-header .hamburger` (0,3,1) beats the existing
+      `body[data-theme] .hamburger` (0,2,1) regardless of media query, so
+      the storefront pill controls its own breakpoint without touching the
+      site header's.
+
+   2. The mark swap. The mockup's collapsed header (line 1820) centres the
+      square icon cut where the wordmark sits at full width. Same swap
+      Header does via .header-logo-img--icon; the sf pill needs its own
+      pair since the class names differ. */
+body[data-theme="liquid-glass"] .sf-header-logo {
+  display: flex;
+  align-items: center;
+  flex: none;
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .sf-header .hamburger { display: none; }
+body[data-theme="liquid-glass"] .sf-header-mark--icon { display: none; }
+
+@media (max-width: 640px) {
+  body[data-theme="liquid-glass"] .sf-header .hamburger {
+    display: flex;
+    grid-column: 3;
+    justify-self: end;
+  }
+  body[data-theme="liquid-glass"] .sf-header-mark--wordmark { display: none; }
+  body[data-theme="liquid-glass"] .sf-header-mark--icon { display: block; }
+}
