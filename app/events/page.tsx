@@ -4,42 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { useVenue } from "@/app/components/VenueContext";
-import EventsHero from "@/app/components/EventsHero";
-import EventCard from "@/app/components/EventCard";
 import Footer from "@/app/components/Footer";
-import { eventToCardProps } from "@/lib/eventCardProps";
-
-/**
- * Events index — storefront rebuild (2026-09-05).
- *
- * DATA LAYER UNCHANGED. Both fetches, their query-param construction, their
- * effect dependencies, the FilterType union, matchesFilter(), hostsWithEvents
- * and the `filtered` memo are byte-identical to main. Nothing about which
- * events appear, in what order, or under what filter moved.
- *
- * What changed is presentation only, and it removes code rather than adding it:
- *
- * 1. The 200-line inline <style> block is gone. It hardcoded the pre-glass
- *    navy palette — background:#131629, #0b0d1d, rgb(var(--vc-gold-rgb))
- *    pills and buttons — so this page rendered in the old theme while every
- *    other storefront surface had moved to liquid glass. That block was the
- *    single largest source of the drift.
- *
- * 2. The hand-inlined card markup is replaced by <EventCard>, fed through
- *    eventToCardProps(). EventCard already renders on the .event-card classes
- *    in globals.css under body[data-theme="liquid-glass"], and the home page
- *    and checkout-success cross-sell grid already use exactly this pairing —
- *    so the cards here now match those two surfaces instead of being a third
- *    private implementation that formats its own dates and prices.
- *
- * 3. <EventsHero /> now renders above the search bar. It existed in the repo,
- *    picks up the per-venue hero via SafeImage, and was simply never mounted
- *    on this route — the page opened straight onto a bare filter row.
- *
- * The only CSS this file still carries is the grid track definition, which is
- * layout specific to this route. Card styling stays in globals.css so it can't
- * fork again.
- */
+import { formatEventDateShort, formatEventTime } from "@/lib/dates";
 
 type FilterType = "all" | "event" | "artist" | "venue" | "city";
 
@@ -104,16 +70,15 @@ export default function EventsPage() {
 
   return (
     <>
-      <EventsHero />
-
       <main className="events-list-page">
         {/* ── Search + Filter bar ──
             events.png shows the search input, the two filter pills, and the
             "View past shows" link as separate elements spread across the
             full row width — not all crammed inside one big capped-width
-            pill. .events-search-bar is the bare flex-row wrapper; the
-            search icon+input has its own pill (.events-search-pill) so it
-            doesn't lose that styling given the outer div isn't a pill. */}
+            pill. .events-search-bar is now the bare flex-row wrapper; the
+            search icon+input got its own pill (.events-search-pill) so it
+            doesn't lose that styling now that the outer div isn't a pill
+            itself. */}
         <div className="events-search-bar">
           <div className="events-search-pill">
             <svg className="events-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -128,17 +93,9 @@ export default function EventsPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
             {query && (
-              <button
-                type="button"
-                className="events-search-clear"
-                aria-label="Clear search"
-                onClick={() => setQuery("")}
-              >
-                ✕
-              </button>
+              <button type="button" onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 18, padding: "4px 8px" }}>✕</button>
             )}
           </div>
-
           <select
             className="events-filter-select"
             value={filter}
@@ -150,7 +107,6 @@ export default function EventsPage() {
             <option value="venue">by Venue</option>
             <option value="city">by City</option>
           </select>
-
           {hostsWithEvents.length > 0 && (
             <select
               className="events-filter-select"
@@ -164,10 +120,21 @@ export default function EventsPage() {
             </select>
           )}
 
-          {/* events.png puts this on the same row as search/filters,
-              right-aligned. The inline style block it used to carry moved
-              into .events-view-past-link below. */}
-          <Link href="/events/past" className="events-view-past-link">
+          {/* events.png puts this on the same row as search/filters, right-aligned
+              — was a separate row below the whole bar. */}
+          <Link
+            href="/events/past"
+            className="events-view-past-link"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              color: "rgba(255,255,255,0.55)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              borderBottom: "1px solid rgba(255,255,255,0.15)",
+              paddingBottom: 1,
+            }}
+          >
             View past shows →
           </Link>
         </div>
@@ -180,8 +147,7 @@ export default function EventsPage() {
           </p>
         )}
 
-        {/* Grid tracks only — card surfaces live in globals.css so this route
-            can't fork the card design again. */}
+        {/* ── Responsive grid styles ── */}
         <style>{`
           .events-card-grid {
             display: grid;
@@ -193,41 +159,189 @@ export default function EventsPage() {
             .events-card-grid { grid-template-columns: repeat(2, 1fr); }
           }
           @media (max-width: 768px) {
-            .events-card-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .events-card-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+            }
+            .events-grid-card .event-card-body {
+              padding: 10px;
+              gap: 6px;
+            }
+            .events-grid-card .event-card-title {
+              font-size: 14px;
+            }
+            .events-grid-card .event-card-meta {
+              font-size: 11px;
+            }
+            .events-grid-card .event-card-price {
+              font-size: 11px;
+              padding: 3px 10px;
+            }
+            .events-grid-card .event-card-btn {
+              font-size: 12px;
+              padding: 8px;
+            }
           }
           @media (max-width: 400px) {
-            .events-card-grid { grid-template-columns: 1fr; gap: 12px; }
+            .events-card-grid {
+              grid-template-columns: repeat(2, 1fr);
+              gap: 8px;
+            }
           }
-          .events-search-clear {
-            background: none;
-            border: none;
-            color: rgba(255,255,255,0.5);
-            cursor: pointer;
-            font-size: 18px;
-            padding: 4px 8px;
-            line-height: 1;
-          }
-          .events-search-clear:hover { color: rgba(255,255,255,0.85); }
-          .events-view-past-link {
-            margin-left: auto;
-            font-size: 12px;
-            color: rgba(255,255,255,0.55);
+          .events-grid-card {
+            background: #131629;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, border-color 0.2s ease;
             text-decoration: none;
+            color: inherit;
+          }
+          .events-grid-card:hover {
+            transform: scale(1.02);
+            border-color: rgba(var(--vc-gold-rgb), 0.45);
+          }
+          .event-card-img {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #0b0d1d;
+            overflow: hidden;
+          }
+          .event-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+          .event-card-img::after {
+            content: "";
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 50%;
+            background: linear-gradient(to top, rgba(19,22,41,0.85), transparent);
+            pointer-events: none;
+          }
+          .event-card-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .event-card-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+          }
+          .event-card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .event-card-meta {
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+          .event-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: auto;
+          }
+          .event-card-price {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(var(--vc-gold-rgb), 0.15);
+            color: rgb(var(--vc-gold-rgb));
+          }
+          .event-card-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 999px;
+            background: rgb(var(--vc-gold-rgb));
+            color: #0b0d1d;
+            font-size: 14px;
+            font-weight: 700;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
             white-space: nowrap;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
-            padding-bottom: 1px;
+            transition: opacity 0.15s ease;
           }
-          .events-view-past-link:hover {
-            color: rgba(255,255,255,0.9);
-            border-bottom-color: rgba(255,255,255,0.4);
-          }
+          .event-card-btn:hover { opacity: 0.88; }
         `}</style>
 
         {!isLoading && filtered.length > 0 && (
           <div className="events-card-grid">
-            {filtered.map((event) => (
-              <EventCard key={event.id} {...eventToCardProps(event)} />
-            ))}
+            {filtered.map((event) => {
+              const isFree = event.price === 0;
+              return (
+                <Link
+                  key={event.id}
+                  href={`/events/${event.id}`}
+                  className="events-grid-card"
+                >
+                  {/* Image */}
+                  <div className={`event-card-img${!event.image_url ? " event-card-placeholder" : ""}`}>
+                    {event.image_url ? (
+                      <img src={event.image_url} alt={event.title} />
+                    ) : (
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" style={{ opacity: 0.25 }}>
+                        <path d="M9 18V5l12-2v13" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="6" cy="18" r="3" stroke="#fff" strokeWidth="1.5"/>
+                        <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="1.5"/>
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Body */}
+                  <div className="event-card-body">
+                    <h2 className="event-card-title">{event.title}</h2>
+
+                    <p className="event-card-meta">
+                      {formatEventDateShort(event.date)}
+                      {formatEventTime(event.date) && ` · ${formatEventTime(event.date)}`}
+                    </p>
+
+                    <p className="event-card-meta">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="currentColor" strokeWidth="1.5"/>
+                        <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                      {event.venue}
+                    </p>
+
+                    <div className="event-card-footer">
+                      <span className="event-card-price">
+                        {isFree ? "FREE" : `$${event.price.toFixed(2)}`}
+                      </span>
+
+                      <span className="event-card-btn">
+                        {isFree ? "Register Free" : "Get Tickets"}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </main>
