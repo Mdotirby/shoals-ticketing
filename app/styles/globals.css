@@ -18407,3 +18407,783 @@ body[data-theme="liquid-glass"] .admin-shell .dash-kpi-secondary {
     grid-template-columns: 1fr;
   }
 }
+
+/**
+ * STOREFRONT — LIQUID GLASS
+ * =========================
+ * Extracted verbatim from the approved mockup (handoff/mockup/VenueCore.dc.html,
+ * storefront screens at lines 1250–1990). Every value here was read off that
+ * file, not recalled or approximated.
+ *
+ * WHERE THIS GOES
+ * ---------------
+ * Append as ONE block at the very end of app/styles/globals.css, under the
+ * banner comment already there. Do NOT edit the existing
+ * body[data-theme="liquid-glass"] rules above it — several are correct and
+ * shared with admin. This block is later in source order and every selector
+ * carries the same body[data-theme] prefix, so equal-specificity conflicts
+ * resolve to these. Where an OLD rule must lose, this file overrides the
+ * specific property explicitly rather than relying on you deleting the old one.
+ *
+ * A WARNING WORTH READING
+ * -----------------------
+ * `.event-card` and `.events-grid-card` are TWO DIFFERENT COMPONENTS.
+ *   .event-card       → full-bleed photo tile, venue badge top-left,
+ *                       title + pills over a bottom scrim. Home carousel and
+ *                       the checkout-success cross-sell.
+ *   .events-grid-card → photo on top, body panel beneath, with date line,
+ *                       venue line, price pill and a Get Tickets BUTTON.
+ *                       The /events listing.
+ * They are not interchangeable. Merging them removes the listing's CTA button
+ * and orphans ~80 lines of correct CSS. This already happened once. Don't.
+ *
+ * The mockup uses BOTH: home cards (line 1288) are the grid-card shape, and
+ * the events listing (line 1338) is also the grid-card shape. Neither storefront
+ * page in the mockup uses the full-bleed .event-card. Keep .event-card as-is for
+ * the cross-sell; style .events-grid-card to match the mockup.
+ */
+
+/* ── Tokens ─────────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] {
+  --sf-ink: #08080a;
+  --sf-white: rgba(255, 255, 255, 0.95);
+  --sf-sub: rgba(255, 255, 255, 0.52);
+  --sf-sub-2: rgba(255, 255, 255, 0.44);
+  --sf-dim: rgba(255, 255, 255, 0.38);
+  --sf-faint: rgba(255, 255, 255, 0.34);
+  --sf-mint: #8fd6a8;
+
+  /* The two-layer glass fill. Layer 1 is the specular sweep, layer 2 the
+     body tint. Both are required — layer 1 alone reads flat, layer 2 alone
+     reads grey. */
+  --sf-glass: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+              linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  /* Header pill and other raised chrome sit one step brighter. */
+  --sf-glass-raised: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+                     linear-gradient(155deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+  --sf-blur: blur(28px) saturate(160%);
+  --sf-border: rgba(255, 255, 255, 0.16);
+  --sf-border-raised: rgba(255, 255, 255, 0.18);
+  --sf-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --sf-shadow-raised: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+
+  --sf-r-card: 24px;
+  --sf-r-row: 18px;
+  --sf-r-box: 16px;
+  --sf-r-input: 14px;
+  --sf-r-chip: 12px;
+
+  --sf-max: 1240px;
+}
+
+/* ── Page shell ─────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-page {
+  max-width: var(--sf-max);
+  margin: 0 auto;
+  width: 100%;
+  font-family: var(--font-archivo), sans-serif;
+  color: var(--sf-white);
+}
+
+/* ── Glass surface (composable) ─────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-glass {
+  background: var(--sf-glass);
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+  border-radius: var(--sf-r-card);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  body[data-theme="liquid-glass"] .sf-glass { background: rgba(20, 20, 22, 0.92); }
+}
+
+/* ── Floating header pill ───────────────────────────────────── */
+/* The mockup's storefront header is a pill floating in the content column,
+   NOT a full-width bar. 15px 26px padding, 999px radius, raised glass. */
+body[data-theme="liquid-glass"] .sf-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 26px;
+  border-radius: 999px;
+  background: var(--sf-glass-raised);
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid var(--sf-border-raised);
+  box-shadow: var(--sf-shadow-raised);
+}
+body[data-theme="liquid-glass"] .sf-header-spacer { flex: 1 0 0; }
+body[data-theme="liquid-glass"] .sf-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+body[data-theme="liquid-glass"] .sf-header-nav a {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--sf-sub);
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .sf-header-nav a:hover { color: #fff; }
+body[data-theme="liquid-glass"] .sf-header-nav a[aria-current="page"] {
+  font-weight: 700;
+  color: #fff;
+}
+/* Operator logo inside the pill. The mockup drew a text lockup; production
+   uses the real mark — see STOREFRONT_SPEC.md § Branding. */
+body[data-theme="liquid-glass"] .sf-header-logo img {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-archivo), sans-serif;
+  font-weight: 700;
+  text-decoration: none;
+  border: none;
+}
+body[data-theme="liquid-glass"] .sf-btn--primary {
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.80));
+  color: #0a0a0c;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.32),
+              0 10px 26px -10px rgba(0, 0, 0, 0.7),
+              inset 0 1px 0 #fff;
+}
+body[data-theme="liquid-glass"] .sf-btn--primary:hover { filter: brightness(1.05); }
+body[data-theme="liquid-glass"] .sf-btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: var(--sf-white);
+  font-weight: 600;
+}
+body[data-theme="liquid-glass"] .sf-btn--secondary:hover { background: rgba(255, 255, 255, 0.12); }
+/* Sizes as drawn in the mockup */
+body[data-theme="liquid-glass"] .sf-btn--sm { padding: 9px 17px; font-size: 12px; }
+body[data-theme="liquid-glass"] .sf-btn--md { padding: 11px 22px; font-size: 13px; }
+body[data-theme="liquid-glass"] .sf-btn--lg { padding: 12px 24px; font-size: 13px; }
+body[data-theme="liquid-glass"] .sf-btn--block {
+  width: 100%;
+  padding: 15px;
+  font-size: 14px;
+}
+
+/* ── Chip / price pill ──────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-chip {
+  display: inline-block;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: var(--sf-white);
+}
+
+/* ── Eyebrow ────────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+body[data-theme="liquid-glass"] .sf-eyebrow--lg {
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+/* ── Event listing card (photo top, body beneath) ───────────── */
+/* Overrides the pre-glass rules earlier in globals.css. Property-by-property
+   so nothing has to be deleted above. */
+body[data-theme="liquid-glass"] .events-grid-card {
+  background: var(--sf-glass);
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-r-card);
+  box-shadow: var(--sf-shadow);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease;
+}
+body[data-theme="liquid-glass"] .events-grid-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sf-border);
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-img {
+  aspect-ratio: 1.55;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: linear-gradient(150deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+}
+/* The pre-glass rule painted a navy scrim over the photo. Cancel it. */
+body[data-theme="liquid-glass"] .events-grid-card .event-card-img::after { content: none; }
+body[data-theme="liquid-glass"] .events-grid-card .event-card-body {
+  padding: 18px 19px 19px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0;
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--sf-white);
+  text-transform: none;
+  margin: 0;
+  text-wrap: pretty;
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-meta {
+  font-size: 12px;
+  color: var(--sf-sub);
+  margin: 5px 0 0;
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-meta + .event-card-meta {
+  color: var(--sf-dim);
+  margin-top: 2px;
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-price {
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: var(--sf-white);
+}
+body[data-theme="liquid-glass"] .events-grid-card .event-card-btn {
+  margin-left: auto;
+  padding: 9px 17px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.80));
+  color: #0a0a0c;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.32),
+              0 10px 26px -10px rgba(0, 0, 0, 0.7),
+              inset 0 1px 0 #fff;
+  border: none;
+  letter-spacing: 0;
+}
+
+/* ── Grids ──────────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-grid-home {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+body[data-theme="liquid-glass"] .sf-grid-events {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(292px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+/* ── Home hero ──────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-hero {
+  position: relative;
+  margin-top: 22px;
+  border-radius: var(--sf-r-card);
+  overflow: hidden;
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+}
+body[data-theme="liquid-glass"] .sf-hero-media { aspect-ratio: 2.35; }
+body[data-theme="liquid-glass"] .sf-hero-media img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+body[data-theme="liquid-glass"] .sf-hero-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 34px 38px 30px;
+  background: linear-gradient(0deg, rgba(0,0,0,0.86), rgba(0,0,0,0.35) 60%, transparent);
+}
+body[data-theme="liquid-glass"] .sf-hero-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.60);
+}
+body[data-theme="liquid-glass"] .sf-hero-title {
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  margin: 10px 0 0;
+  line-height: 1;
+}
+body[data-theme="liquid-glass"] .sf-hero-dots {
+  position: absolute; left: 0; right: 0; bottom: 18px;
+  display: flex; justify-content: center; gap: 8px;
+}
+body[data-theme="liquid-glass"] .sf-hero-dots i {
+  width: 7px; height: 7px; border-radius: 5px;
+  background: rgba(255, 255, 255, 0.35);
+}
+body[data-theme="liquid-glass"] .sf-hero-dots i.active {
+  width: 22px; background: #fff;
+}
+
+/* ── Section heading row ────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 34px 0 16px;
+}
+body[data-theme="liquid-glass"] .sf-section-head h2 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+body[data-theme="liquid-glass"] .sf-section-head a {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .sf-section-head a:hover { color: #fff; }
+
+/* ── Event detail: two-column with sticky cart ──────────────── */
+body[data-theme="liquid-glass"] .sf-detail-title {
+  text-align: center;
+  margin: 30px 0 26px;
+}
+body[data-theme="liquid-glass"] .sf-detail-title h1 {
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  margin: 8px 0 0;
+}
+body[data-theme="liquid-glass"] .sf-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 452px;
+  gap: 22px;
+  align-items: start;
+}
+body[data-theme="liquid-glass"] .sf-cart {
+  padding: 24px 24px 26px;
+  position: sticky;
+  top: 88px;
+  border-radius: var(--sf-r-card);
+  background: var(--sf-glass);
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+}
+body[data-theme="liquid-glass"] .sf-cart h2 {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+/* Artist photo panel with corner badges + fact strip */
+body[data-theme="liquid-glass"] .sf-art {
+  position: relative;
+  border-radius: var(--sf-r-card);
+  overflow: hidden;
+  border: 1px solid var(--sf-border);
+  box-shadow: var(--sf-shadow);
+}
+body[data-theme="liquid-glass"] .sf-art-media { aspect-ratio: 1.32; }
+body[data-theme="liquid-glass"] .sf-art-media img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+body[data-theme="liquid-glass"] .sf-art-scrim {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0.30) 0%, transparent 26%, rgba(0,0,0,0.55) 66%, rgba(0,0,0,0.92) 100%);
+}
+body[data-theme="liquid-glass"] .sf-art-badge {
+  position: absolute;
+  top: 14px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+body[data-theme="liquid-glass"] .sf-art-badge--l { left: 14px; }
+body[data-theme="liquid-glass"] .sf-art-badge--r { right: 14px; }
+body[data-theme="liquid-glass"] .sf-art-facts {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 22px 24px 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+body[data-theme="liquid-glass"] .sf-fact-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.52);
+}
+body[data-theme="liquid-glass"] .sf-fact-value {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* ── Ticket tier row + qty stepper ──────────────────────────── */
+body[data-theme="liquid-glass"] .sf-tier {
+  padding: 15px 16px;
+  border-radius: var(--sf-r-row);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .sf-tier--active {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.26);
+}
+body[data-theme="liquid-glass"] .sf-tier-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+body[data-theme="liquid-glass"] .sf-tier-note {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.48);
+  margin-top: 3px;
+  text-wrap: pretty;
+}
+body[data-theme="liquid-glass"] .sf-tier-price {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+body[data-theme="liquid-glass"] .sf-tier-left {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.40);
+}
+body[data-theme="liquid-glass"] .sf-qty {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+body[data-theme="liquid-glass"] .sf-qty button {
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  display: grid; place-items: center;
+  cursor: pointer;
+  font-size: 15px; font-weight: 700;
+  background: none; border: none;
+  color: var(--sf-white);
+}
+body[data-theme="liquid-glass"] .sf-qty button:hover { background: rgba(255, 255, 255, 0.10); }
+body[data-theme="liquid-glass"] .sf-qty button:disabled { color: rgba(255, 255, 255, 0.28); cursor: default; }
+body[data-theme="liquid-glass"] .sf-qty button:disabled:hover { background: none; }
+body[data-theme="liquid-glass"] .sf-qty output {
+  width: 30px; text-align: center;
+  font-size: 14px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Cart summary lines ─────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .sf-summary-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.62);
+}
+body[data-theme="liquid-glass"] .sf-summary-row span:last-child {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme="liquid-glass"] .sf-summary-row--total {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--sf-white);
+}
+body[data-theme="liquid-glass"] .sf-hold-note {
+  font-size: 11px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.36);
+  margin-top: 11px;
+}
+
+/* ── Checkout stepper (3 steps) ─────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 2px 24px;
+}
+body[data-theme="liquid-glass"] .sf-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+body[data-theme="liquid-glass"] .sf-step-dot {
+  width: 10px; height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+body[data-theme="liquid-glass"] .sf-step-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.35);
+}
+body[data-theme="liquid-glass"] .sf-step--done .sf-step-dot {
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.60);
+}
+body[data-theme="liquid-glass"] .sf-step--done .sf-step-label { color: rgba(255, 255, 255, 0.62); }
+body[data-theme="liquid-glass"] .sf-step--current .sf-step-dot {
+  background: #fff;
+  border-color: rgba(255, 255, 255, 0.60);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+body[data-theme="liquid-glass"] .sf-step--current .sf-step-label { color: #fff; }
+body[data-theme="liquid-glass"] .sf-step-line {
+  flex: 1 1 0;
+  height: 1px;
+  margin: 4px 4px 0;
+  background: rgba(255, 255, 255, 0.16);
+}
+body[data-theme="liquid-glass"] .sf-step-line--done { background: rgba(255, 255, 255, 0.55); }
+
+/* ── Form fields ────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 6px;
+  display: block;
+}
+body[data-theme="liquid-glass"] .sf-input {
+  width: 100%;
+  padding: 13px 15px;
+  border-radius: var(--sf-r-input);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  color: var(--sf-white);
+}
+body[data-theme="liquid-glass"] .sf-input::placeholder { color: rgba(255, 255, 255, 0.38); }
+body[data-theme="liquid-glass"] .sf-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.34);
+}
+body[data-theme="liquid-glass"] .sf-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+body[data-theme="liquid-glass"] .sf-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Express checkout buttons ───────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-express {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+body[data-theme="liquid-glass"] .sf-express button {
+  padding: 15px;
+  border-radius: var(--sf-r-chip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 15.5px;
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .sf-express--apple {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+body[data-theme="liquid-glass"] .sf-express--apple:hover { border-color: rgba(255, 255, 255, 0.40); }
+body[data-theme="liquid-glass"] .sf-express--google {
+  background: #fff;
+  color: #0a0a0c;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.6);
+}
+body[data-theme="liquid-glass"] .sf-express--google:hover { filter: brightness(0.96); }
+body[data-theme="liquid-glass"] .sf-express-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.38);
+  margin-top: 10px;
+  text-wrap: pretty;
+}
+
+/* ── "OR PAY WITH CARD" rule ────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0 18px;
+}
+body[data-theme="liquid-glass"] .sf-or::before,
+body[data-theme="liquid-glass"] .sf-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+body[data-theme="liquid-glass"] .sf-or span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ── Info note box ──────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-note {
+  padding: 15px 16px;
+  border-radius: var(--sf-r-row);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+body[data-theme="liquid-glass"] .sf-note-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.62);
+  margin-top: 7px;
+  text-wrap: pretty;
+}
+
+/* ── Spotify preview panel (mint-tinted glass) ──────────────── */
+body[data-theme="liquid-glass"] .sf-spotify {
+  margin-top: 16px;
+  padding: 18px 19px 19px;
+  border-radius: var(--sf-r-card);
+  background: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+              linear-gradient(155deg, rgba(143,214,168,0.13), rgba(255,255,255,0.035));
+  backdrop-filter: var(--sf-blur);
+  -webkit-backdrop-filter: var(--sf-blur);
+  border: 1px solid rgba(143, 214, 168, 0.28);
+  box-shadow: var(--sf-shadow);
+}
+body[data-theme="liquid-glass"] .sf-spotify-eyebrow {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--sf-mint);
+}
+
+/* ── Body copy ──────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-prose {
+  font-size: 14px;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.66);
+  max-width: 640px;
+  text-wrap: pretty;
+}
+body[data-theme="liquid-glass"] .sf-hosted-by {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.46);
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+body[data-theme="liquid-glass"] .sf-footer {
+  text-align: center;
+  padding: 42px 0 8px;
+  font-size: 12px;
+  color: var(--sf-faint);
+}
+body[data-theme="liquid-glass"] .sf-footer a {
+  color: var(--sf-faint);
+  text-decoration: none;
+}
+body[data-theme="liquid-glass"] .sf-footer a:hover { color: rgba(255, 255, 255, 0.7); }
+
+/* ── Mobile ─────────────────────────────────────────────────── */
+/* Mockup spec (line 1820 onward): collapsed header is a three-part grid —
+   icon mark centered, hamburger right, CTA hidden and moved into the open
+   menu sheet. Ticket picker rows stay tappable; cart docks to the bottom.
+   Checkout collapses to one column with the summary as a total bar. */
+@media (max-width: 900px) {
+  body[data-theme="liquid-glass"] .sf-detail-grid { grid-template-columns: 1fr; }
+  body[data-theme="liquid-glass"] .sf-cart { position: static; top: auto; }
+}
+@media (max-width: 640px) {
+  body[data-theme="liquid-glass"] .sf-header {
+    display: grid;
+    grid-template-columns: 38px 1fr 38px;
+    padding: 12px 14px;
+  }
+  body[data-theme="liquid-glass"] .sf-header-logo { grid-column: 2; justify-self: center; }
+  body[data-theme="liquid-glass"] .sf-header-nav,
+  body[data-theme="liquid-glass"] .sf-header-spacer { display: none; }
+  body[data-theme="liquid-glass"] .sf-header .sf-btn--primary { display: none; }
+
+  body[data-theme="liquid-glass"] .sf-hero-media { aspect-ratio: 1.15; }
+  body[data-theme="liquid-glass"] .sf-hero-overlay { padding: 20px 20px 18px; }
+  body[data-theme="liquid-glass"] .sf-hero-title { font-size: 30px; }
+  body[data-theme="liquid-glass"] .sf-detail-title h1 { font-size: 30px; }
+
+  body[data-theme="liquid-glass"] .sf-grid-home,
+  body[data-theme="liquid-glass"] .sf-grid-events { grid-template-columns: 1fr; gap: 12px; }
+
+  body[data-theme="liquid-glass"] .sf-cart { padding: 18px 16px 20px; }
+  body[data-theme="liquid-glass"] .sf-field-row { grid-template-columns: 1fr; }
+}
