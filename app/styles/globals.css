@@ -19630,3 +19630,55 @@ body[data-theme="liquid-glass"] .sf-payment-form {
   flex-direction: column;
   gap: 13px;
 }
+
+/* ── Storefront order-complete ──────────────────────────────────
+   Mockup lines 1613-1717: the stepper sits above a single confirmation panel
+   carrying the tick, "You're in", the confirmation line and the order line.
+   .sf-success-card composes on .sf-cart for the glass surface but drops the
+   sticky positioning, which only makes sense beside a scrolling column. */
+body[data-theme="liquid-glass"] .sf-success {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 26px 0 0;
+}
+body[data-theme="liquid-glass"] .sf-success-card {
+  position: static;
+  top: auto;
+}
+body[data-theme="liquid-glass"] .sf-success-head {
+  text-align: center;
+  padding-bottom: 6px;
+}
+body[data-theme="liquid-glass"] .sf-success-check {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #8fd6a8;
+  background: rgba(143, 214, 168, 0.12);
+  border: 1px solid rgba(143, 214, 168, 0.35);
+}
+body[data-theme="liquid-glass"] .sf-success-title {
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  margin: 0 0 10px;
+  color: var(--sf-white);
+}
+body[data-theme="liquid-glass"] .sf-success-lede {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--sf-sub);
+  margin: 0 auto;
+  max-width: 46ch;
+}
+body[data-theme="liquid-glass"] .sf-success-lede strong { color: var(--sf-white); }
+body[data-theme="liquid-glass"] .sf-success-thanks {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--sf-dim);
+  margin: 12px auto 0;
+  max-width: 46ch;
+}

@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Footer from "@/app/components/Footer";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
+import SfStepper from "@/app/components/SfStepper";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { formatPhoneNumber } from "@/lib/formatPhone";
@@ -254,8 +256,25 @@ function SuccessContent() {
   const tierLabel = quantity > 1 ? `${tierName} × ${quantity}` : tierName;
 
   return (
-    <section className="checkout-success-section">
-      <div className="checkout-success-card">
+    /* Storefront glass rebuild (step 7/8). Mockup order-complete screen,
+       lines 1613-1717: stepper on DONE, then the "You're in" confirmation
+       panel, the ticket card with its QR, the action row, and the cross-sell
+       grid outside the receipt.
+
+       DATA LAYER UNCHANGED: the /api/checkout/confirmation poll and its
+       retry/backoff (CONFIRM_INTERVAL_MS / CONFIRM_MAX_ATTEMPTS), /api/events
+       for cross-sell, /api/laylo/subscribe, every searchParams read
+       (session_id, payment_intent_id, order_id, preview) and the trackFbEvent
+       Purchase call are byte-identical.
+
+       Two components are deliberately NOT restyled, per STOREFRONT_SPEC.md §5:
+       CrossSellSection renders .event-card, "leave that component alone — it's
+       already correct for this surface", and HotelPartnerPanel's glass rules
+       already exist and are to be reused rather than rebuilt. */
+    <section className="sf-success">
+      <SfStepper current={3} />
+
+      <div className="sf-cart sf-success-card">
         <SuccessHeader
           eventTitle={data?.event?.title}
           email={data?.order?.customer_email}
@@ -386,13 +405,12 @@ function SuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <>
-      <main className="ticket-page">
-        <Suspense fallback={<div className="ticket-page-loading">Loading…</div>}>
-          <SuccessContent />
-        </Suspense>
-      </main>
-      <Footer />
-    </>
+    <div className="sf-page">
+      <SfHeader />
+      <Suspense fallback={<div className="sf-empty">Loading…</div>}>
+        <SuccessContent />
+      </Suspense>
+      <SfFooter />
+    </div>
   );
 }

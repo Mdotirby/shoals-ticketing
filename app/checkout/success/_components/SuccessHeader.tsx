@@ -17,8 +17,8 @@ export function SuccessHeader({
   quantity: number;
 }) {
   return (
-    <div className="cs-header">
-      <div className="checkout-success-icon cs-check" aria-hidden="true">
+    <div className="sf-success-head">
+      <div className="sf-success-check" aria-hidden="true">
         <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
           <path
             d="M5 13.5 L10.5 19 L21 7"
@@ -30,9 +30,9 @@ export function SuccessHeader({
         </svg>
       </div>
 
-      <h2 className="checkout-success-heading">You&apos;re In.</h2>
+      <h2 className="sf-success-title">You&apos;re In.</h2>
 
-      <p className="checkout-success-text cs-lede">
+      <p className="sf-success-lede">
         {eventTitle ? (
           <>
             Your spot for <strong>{eventTitle}</strong> is locked in.
@@ -50,7 +50,7 @@ export function SuccessHeader({
         )}
       </p>
 
-      <p className="checkout-success-thankyou">
+      <p className="sf-success-thanks">
         Thank you for your purchase. We can&apos;t wait to see you there — get ready for an unforgettable night!
       </p>
     </div>
