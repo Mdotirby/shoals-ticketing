@@ -12,7 +12,9 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import Footer from "@/app/components/Footer";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
+import SfStepper from "@/app/components/SfStepper";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { safeDate, formatEventDateFull } from "@/lib/dates";
@@ -33,6 +35,7 @@ function CheckoutPaymentForm({
   buyerEmail,
   buyerPhone,
   buyerZip,
+  payLabel,
 }: {
   clientSecret: string;
   paymentIntentId: string;
@@ -40,6 +43,8 @@ function CheckoutPaymentForm({
   buyerEmail: string;
   buyerPhone: string;
   buyerZip: string;
+  /** Mockup's CTA reads "Pay $29.01" rather than a generic label. */
+  payLabel: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -102,9 +107,12 @@ function CheckoutPaymentForm({
   const cardFieldsComplete = cardNumberComplete && cardExpiryComplete && cardCvcComplete;
 
   return (
-    <form className="ic-form" onSubmit={handleSubmit} noValidate>
-      <div className="ic-field">
-        <label className="ic-label">Card Number</label>
+    /* .ic-stripe-field and stripeAppearance are deliberately untouched — that
+       pairing is what keeps Stripe's iframes dark. Only the surrounding labels
+       and the submit button move to sf-* classes. */
+    <form className="sf-payment-form" onSubmit={handleSubmit} noValidate>
+      <div>
+        <label className="sf-field-label">Card Number</label>
         <div className="ic-stripe-field">
           <CardNumberElement
             options={{ showIcon: true }}
@@ -116,9 +124,9 @@ function CheckoutPaymentForm({
         </div>
       </div>
 
-      <div className="ic-card-row">
-        <div className="ic-field" style={{ flex: 1 }}>
-          <label className="ic-label">Expiry</label>
+      <div className="sf-field-row">
+        <div>
+          <label className="sf-field-label">Expiry</label>
           <div className="ic-stripe-field">
             <CardExpiryElement
               onChange={(e) => {
@@ -128,8 +136,8 @@ function CheckoutPaymentForm({
             />
           </div>
         </div>
-        <div className="ic-field" style={{ flex: 1 }}>
-          <label className="ic-label">CVC</label>
+        <div>
+          <label className="sf-field-label">CVC</label>
           <div className="ic-stripe-field">
             <CardCvcElement
               onChange={(e) => {
@@ -141,14 +149,14 @@ function CheckoutPaymentForm({
         </div>
       </div>
 
-      {cardError && <p className="ic-error">{cardError}</p>}
+      {cardError && <p className="sf-error">{cardError}</p>}
 
       <button
         type="submit"
-        className="ic-pay-btn"
+        className="sf-btn sf-btn--primary sf-btn--block"
         disabled={!stripe || isProcessing || !cardFieldsComplete}
       >
-        {isProcessing ? "Processing…" : "Pay Now"}
+        {isProcessing ? "Processing…" : payLabel}
       </button>
     </form>
   );
@@ -213,6 +221,7 @@ type EventSummary = {
 
 function CheckoutContent() {
   const operator = useOperator();
+  const router = useRouter();
   const isWest72 = operator.slug === "west72";
   const searchParams = useSearchParams();
 
@@ -248,6 +257,14 @@ function CheckoutContent() {
   const [creatingIntent, setCreatingIntent] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
   const [paymentIntentId, setPaymentIntentId] = useState("");
+  /* /api/checkout/create-intent already returns the authoritative breakdown in
+     `orderDetails` — this page just never read it. Capturing it (no change to
+     the request) is what lets the pay button state the real amount Stripe is
+     about to charge instead of the face price. */
+  const [orderDetails, setOrderDetails] = useState<{
+    subtotal: number; ticketingFee: number; facilityFee: number;
+    tax: number; processingFee: number; discount: number; total: number;
+  } | null>(null);
 
   // Promo code state
   const [showPromo, setShowPromo] = useState(false);
@@ -342,6 +359,7 @@ function CheckoutContent() {
 
       setClientSecret(data.clientSecret);
       setPaymentIntentId(data.paymentIntentId ?? "");
+      setOrderDetails(data.orderDetails ?? null);
       // Fire Meta Pixel InitiateCheckout when buyer moves from info form → payment
       trackFbEvent("InitiateCheckout");
       setShowCheckout(true);
@@ -387,294 +405,308 @@ function CheckoutContent() {
     triggerDodge();
   }
 
-  // Shared step bar + event context rendered above both checkout steps
-  const stepBar = (
-    <div className="co-step-bar">
-      <div className={`co-step ${!showCheckout ? "co-step-active" : "co-step-done"}`}>
-        <span className="co-step-num">{!showCheckout ? "1" : "✓"}</span>
-        <span className="co-step-label">Your Info</span>
-      </div>
-      <div className={`co-step-line ${showCheckout ? "co-step-line-done" : ""}`} />
-      <div className={`co-step ${showCheckout ? "co-step-active" : ""}`}>
-        <span className="co-step-num">2</span>
-        <span className="co-step-label">Payment</span>
-      </div>
-      <div className="co-step-line" />
-      <div className="co-step">
-        <span className="co-step-num">3</span>
-        <span className="co-step-label">Done</span>
-      </div>
-    </div>
-  );
+  // Face price × qty until the intent exists; the server's real total after.
+  const facePrice = eventSummary?.price ? eventSummary.price * quantity : null;
+  const shownTotal = orderDetails?.total ?? facePrice;
+  const totalIsAllIn = orderDetails != null;
+  const payLabel = orderDetails ? `Pay $${orderDetails.total.toFixed(2)}` : "Pay Now";
 
-  const eventContextCard = eventSummary ? (
-    <div className="co-event-context">
-      {eventSummary.image_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={eventSummary.image_url} alt={eventSummary.title} className="co-event-thumb" />
-      )}
-      <div className="co-event-details">
-        <p className="co-event-title">{eventSummary.title}</p>
-        <p className="co-event-meta">
-          {eventSummary.date ? formatEventDateFull(eventSummary.date) : ""} · {eventSummary.venue}
-        </p>
-        <p className="co-event-qty">
-          {quantity} ticket{quantity !== 1 ? "s" : ""}
-          {eventSummary.price ? ` · $${(eventSummary.price * quantity).toFixed(2)} + fees` : ""}
-        </p>
+  /* ── Storefront glass rebuild (step 6/8) ──
+   * Restructured to the mockup's checkout screen (VenueCore.dc.html lines
+   * 1491-1611): .sf-detail-grid with the .sf-art photo panel and a "before you
+   * go in" note on the left, and one .sf-cart panel on the right carrying the
+   * stepper, the order line, the buyer fields and the payment block.
+   *
+   * NOTHING ABOUT THE PAYMENT PATH CHANGED. loadStripe, the <Elements> options
+   * (clientSecret + stripeAppearance), confirmCardPayment and its error
+   * handling, /api/checkout/create-intent and its exact body, the
+   * /api/promo-codes/validate call, every searchParams read (event, qty,
+   * seat_ids, held_until, ref), both sessionStorage reads (vc_session,
+   * vc_tracking_ref), getStoredUtmParams(), the trackFbEvent calls and the
+   * router.push to /checkout/success are byte-identical. The .ic-stripe-field
+   * wrappers are kept exactly as they were — that pairing with stripeAppearance
+   * is what keeps Stripe's iframes dark.
+   *
+   * TWO DELIBERATE DEPARTURES FROM THE MOCKUP, both flagged rather than faked:
+   *
+   * 1. The mockup shows the buyer fields and the card fields together on one
+   *    screen. Production cannot: the PaymentIntent is created from the buyer
+   *    details, so clientSecret does not exist until Continue is pressed and
+   *    the card fields have nothing to mount against. The mockup's single-panel
+   *    SHAPE is kept — the payment block sits in the same panel, directly under
+   *    the fields — and it swaps from the Continue button to the live Stripe
+   *    fields once the intent exists. Matching it literally would mean creating
+   *    a PaymentIntent before the buyer has entered anything.
+   *
+   * 2. The express-checkout block (Apple Pay / Google Pay, mockup line 1556)
+   *    is NOT rendered. Production has no PaymentRequest wiring, so those
+   *    buttons would be decorative — a dead Apple Pay button on a live
+   *    checkout is worse than no button. It needs Stripe's PaymentRequest API,
+   *    which is a feature, not a reskin. The .sf-or divider it introduced goes
+   *    with it.
+   */
+  return (
+    <>
+      <div className="sf-detail-title">
+        <div className="sf-eyebrow">Checkout</div>
+        <h1>{eventSummary?.title ?? "Secure Checkout"}</h1>
       </div>
-    </div>
-  ) : null;
 
-  // Show buyer info form first
-  if (!showCheckout) {
-    return (
-      <section className="checkout-embed-section">
-        {stepBar}
-        {eventContextCard}
-        <div className="pre-checkout-form">
+      <div className="sf-detail-grid">
+        <div className="sf-detail-left">
+          {eventSummary?.image_url && (
+            <div className="sf-art">
+              <div className="sf-art-media">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={eventSummary.image_url} alt={eventSummary.title} />
+              </div>
+              <div className="sf-art-scrim" />
+              <div className="sf-art-badge sf-art-badge--l">{eventSummary.venue}</div>
+              <div className="sf-art-facts">
+                <div>
+                  <div className="sf-fact-label">Date</div>
+                  <div className="sf-fact-value">
+                    {eventSummary.date ? formatEventDateFull(eventSummary.date) : ""}
+                  </div>
+                </div>
+                <div>
+                  <div className="sf-fact-label">Venue</div>
+                  <div className="sf-fact-value">{eventSummary.venue}</div>
+                </div>
+                <div>
+                  <div className="sf-fact-label">Tickets</div>
+                  <div className="sf-fact-value">{quantity}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="sf-hosted-by">Hosted by {operator.copyright}</div>
+
+          <div className="sf-note">
+            <div className="sf-eyebrow">Before you go in</div>
+            <div className="sf-note-body">
+              Doors open an hour before the show. Bring the QR code in your
+              confirmation email — a screenshot works. Check the event page for
+              age policy, bag policy and parking before you head out.
+            </div>
+          </div>
+        </div>
+
+        <div className="sf-cart">
+          <SfStepper current={2} />
+
+          <div className="sf-checkout-head">
+            <button type="button" className="sf-back" onClick={() => router.back()}>
+              ← Back
+            </button>
+            <h2>Checkout</h2>
+          </div>
+
           {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
-          <h3>Your Information</h3>
 
-          <div className="pre-checkout-field">
-            <label htmlFor="buyer-name">Full Name *</label>
-            <input
-              id="buyer-name"
-              type="text"
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-              placeholder="John Doe"
-              required
-            />
+          <div className="sf-order-line">
+            <span>General Admission × {quantity}</span>
+            <span>{shownTotal != null ? `$${shownTotal.toFixed(2)}` : "—"}</span>
           </div>
+          {/* The mockup's line reads "(Incl. Taxes & Fees)" because its figure
+              is the all-in price. Ours is NOT: this page only fetches
+              /api/events/{id}, which returns the face price — the real total is
+              computed server-side by /api/checkout/create-intent. Claiming
+              "included" here would understate what the buyer is about to be
+              charged, so this keeps the previous page's honest "+ fees"
+              wording. Showing a true all-in figure needs the venue fee data
+              this route doesn't currently load. */}
+          <p className="sf-order-note">
+            {totalIsAllIn ? "(Incl. Taxes & Fees)" : "+ Taxes & Fees, calculated at payment"}
+          </p>
 
-          <div className="pre-checkout-field">
-            <label htmlFor="buyer-email">Email Address *</label>
-            <input
-              id="buyer-email"
-              type="email"
-              value={buyerEmail}
-              onChange={(e) => setBuyerEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-
-          <div className="pre-checkout-field">
-            <label htmlFor="buyer-phone">Phone Number</label>
-            <input
-              id="buyer-phone"
-              type="tel"
-              value={buyerPhone}
-              onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
-              placeholder="(555)-555-1234"
-            />
-          </div>
-
-          <div className="pre-checkout-field">
-            <label htmlFor="buyer-zip">ZIP Code <span style={{ fontWeight: 400, opacity: 0.55 }}>(optional)</span></label>
-            <input
-              id="buyer-zip"
-              type="text"
-              inputMode="numeric"
-              value={buyerZip}
-              onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
-              placeholder="35630"
-              autoComplete="postal-code"
-            />
-          </div>
-
-          {/* Promo Code Section */}
-          <div style={{ margin: "16px 0 12px" }}>
+          {/* Not in the mockup — kept. */}
+          <div className="sf-promo">
             {!showPromo ? (
-              <button
-                type="button"
-                onClick={() => setShowPromo(true)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "rgba(var(--vc-gold-rgb), 0.7)",
-                  fontSize: 13,
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                  padding: 0,
-                }}
-              >
+              <button type="button" className="sf-promo-toggle" onClick={() => setShowPromo(true)}>
                 Have a promo code?
               </button>
-            ) : (
-              <div>
-                <label style={{ display: "block", fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>
-                  Promo Code
-                </label>
-                {promoValid ? (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    background: "rgba(80,200,120,0.08)",
-                    border: "1px solid rgba(80,200,120,0.3)",
-                    borderRadius: 8, padding: "8px 12px",
-                  }}>
-                    <span style={{ color: "#50c878", fontSize: 13, fontWeight: 600, flex: 1 }}>
-                      ✓ {promoCode.toUpperCase()} — {promoValid.discount_type === "fixed"
-                        ? `$${promoValid.discount_value.toFixed(2)} off`
-                        : `${promoValid.discount_value}% off`}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleRemovePromo}
-                      style={{
-                        background: "transparent", border: "none",
-                        color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 13,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                      placeholder="Enter code"
-                      style={{
-                        flex: 1, padding: "8px 12px", borderRadius: 8,
-                        border: "1px solid rgba(var(--vc-gold-rgb), 0.2)",
-                        background: "rgba(255,255,255,0.05)",
-                        color: "#fff", fontSize: 16, textTransform: "uppercase",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyPromo}
-                      disabled={promoLoading || !promoCode.trim()}
-                      style={{
-                        padding: "8px 16px", borderRadius: 8,
-                        border: "1px solid rgba(var(--vc-gold-rgb), 0.3)",
-                        background: "rgba(var(--vc-gold-rgb), 0.1)",
-                        color: "rgb(var(--vc-gold-rgb))", fontSize: 13, fontWeight: 600,
-                        cursor: promoLoading || !promoCode.trim() ? "not-allowed" : "pointer",
-                        opacity: promoLoading || !promoCode.trim() ? 0.5 : 1,
-                      }}
-                    >
-                      {promoLoading ? "..." : "Apply"}
-                    </button>
-                  </div>
-                )}
-                {promoError && (
-                  <p style={{ color: "#ff6b6b", fontSize: 12, margin: "6px 0 0" }}>{promoError}</p>
-                )}
+            ) : promoValid ? (
+              <div className="sf-promo--applied">
+                <span>
+                  ✓ {promoCode.toUpperCase()} — {promoValid.discount_type === "fixed"
+                    ? `$${promoValid.discount_value.toFixed(2)} off`
+                    : `${promoValid.discount_value}% off`}
+                </span>
+                <button type="button" className="sf-promo-remove" onClick={handleRemovePromo}>✕</button>
               </div>
+            ) : (
+              <>
+                <div className="sf-promo-row">
+                  <input
+                    type="text"
+                    className="sf-input"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                    placeholder="Enter code"
+                  />
+                  <button
+                    type="button"
+                    className="sf-btn sf-btn--secondary sf-btn--sm"
+                    onClick={handleApplyPromo}
+                    disabled={promoLoading || !promoCode.trim()}
+                  >
+                    {promoLoading ? "..." : "Apply"}
+                  </button>
+                </div>
+                {promoError && <p className="sf-promo-error">{promoError}</p>}
+              </>
             )}
           </div>
 
-          <div
-            className={`w72-fwb-dodge-wrap ${dodgeClass}`}
-            onMouseEnter={handleFwbMouseEnter}
-            onAnimationEnd={() => setDodgeClass("")}
-          >
-            <label className="pre-checkout-checkbox" onClick={handleFwbClick}>
+          <div className="sf-fields">
+            <div>
+              <label className="sf-field-label" htmlFor="buyer-name">Full Name</label>
+              <input
+                id="buyer-name"
+                className="sf-input"
+                type="text"
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+                placeholder="Jane Doe"
+                disabled={showCheckout}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="sf-field-label" htmlFor="buyer-email">Email</label>
+              <input
+                id="buyer-email"
+                className="sf-input"
+                type="email"
+                value={buyerEmail}
+                onChange={(e) => setBuyerEmail(e.target.value)}
+                placeholder="jane@example.com"
+                disabled={showCheckout}
+                required
+              />
+            </div>
+
+            <div className="sf-field-row">
+              <div>
+                <label className="sf-field-label" htmlFor="buyer-phone">Phone (optional)</label>
+                <input
+                  id="buyer-phone"
+                  className="sf-input"
+                  type="tel"
+                  value={buyerPhone}
+                  onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))}
+                  placeholder="(555) 123-4567"
+                  disabled={showCheckout}
+                />
+              </div>
+              <div>
+                <label className="sf-field-label" htmlFor="buyer-zip">ZIP Code (optional)</label>
+                <input
+                  id="buyer-zip"
+                  className="sf-input"
+                  type="text"
+                  inputMode="numeric"
+                  value={buyerZip}
+                  onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
+                  placeholder="35630"
+                  autoComplete="postal-code"
+                  disabled={showCheckout}
+                />
+              </div>
+            </div>
+
+            <div
+              className={`w72-fwb-dodge-wrap ${dodgeClass}`}
+              onMouseEnter={handleFwbMouseEnter}
+              onAnimationEnd={() => setDodgeClass("")}
+            >
+              <label className="sf-check" onClick={handleFwbClick}>
+                <input
+                  type="checkbox"
+                  checked={fwbOptIn}
+                  onChange={(e) => setFwbOptIn(e.target.checked)}
+                  disabled={showCheckout}
+                />
+                <span>Sign me up for exclusive offers &amp; rewards</span>
+              </label>
+            </div>
+            {isWest72 && fwbOptIn && (
+              <p className="sf-check-note">
+                We&apos;ll text you when there&apos;s a show, send the link first, and otherwise
+                leave you alone. We&apos;re not gonna text you good morning. We have boundaries.
+              </p>
+            )}
+
+            <label className="sf-check">
               <input
                 type="checkbox"
-                checked={fwbOptIn}
-                onChange={(e) => setFwbOptIn(e.target.checked)}
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                disabled={showCheckout}
               />
               <span>
-                Yes, sign me up for <strong>Friends with Benefits</strong> — get early access to tickets,
-                exclusive offers, and event updates via email and text. You can unsubscribe at any time.
+                I agree to the{" "}
+                <a href="/faq" target="_blank" rel="noopener noreferrer">Terms of Sale</a>{" "}
+                and acknowledge that all sales are final. I consent to receiving my ticket
+                and order confirmation via email.
               </span>
             </label>
           </div>
-          {isWest72 && fwbOptIn && (
-            <p style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.4)",
-              margin: "-6px 0 0 28px",
-              lineHeight: 1.6,
-              fontStyle: "italic",
-            }}>
-              We&apos;ll text you when there&apos;s a show, send the link first, and otherwise leave you alone.
-              We&apos;re not gonna text you good morning. We have boundaries.
-            </p>
+
+          <div className="sf-divider" />
+
+          <div className="sf-eyebrow sf-eyebrow--lg">🔒 Payment</div>
+
+          {error && <p className="sf-error">{error}</p>}
+
+          {showCheckout && clientSecret ? (
+            <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
+              <CheckoutPaymentForm
+                clientSecret={clientSecret}
+                paymentIntentId={paymentIntentId}
+                buyerName={buyerName.trim()}
+                buyerEmail={buyerEmail.trim()}
+                buyerPhone={buyerPhone.trim()}
+                buyerZip={buyerZip.trim()}
+                payLabel={payLabel}
+              />
+            </Elements>
+          ) : (
+            <button
+              type="button"
+              className="sf-btn sf-btn--primary sf-btn--block"
+              onClick={handleContinue}
+              disabled={!buyerName.trim() || !buyerEmail.trim() || !agreed || creatingIntent}
+            >
+              {creatingIntent ? "Loading…" : "Continue to Payment"}
+            </button>
           )}
 
-          <label className="pre-checkout-checkbox">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-            />
-            <span>
-              I agree to the <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(var(--vc-gold-rgb), 0.7)", textDecoration: "underline" }}>Terms of Sale</a> and 
-              acknowledge that all sales are final. I consent to receiving my ticket and order 
-              confirmation via email.
-            </span>
-          </label>
-
-          {error && (
-            <p style={{ color: "#ff6b6b", fontSize: 13, margin: "12px 0 0" }}>{error}</p>
-          )}
-
-          <button
-            type="button"
-            className="pre-checkout-continue-btn"
-            onClick={handleContinue}
-            disabled={!buyerName.trim() || !buyerEmail.trim() || !agreed || creatingIntent}
-          >
-            {creatingIntent ? "Loading…" : "Continue to Payment"}
-          </button>
+          <p className="sf-cart-terms">
+            All sales are final. Refunds only if event is cancelled.
+          </p>
+          <p className="sf-cart-trust">🔒 Secure Checkout · Instant confirmation</p>
         </div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return <div className="ticket-page-loading">{error}</div>;
-  }
-
-  if (!clientSecret) {
-    return <div className="ticket-page-loading">Loading payment…</div>;
-  }
-
-  return (
-    <section className="checkout-embed-section">
-      {stepBar}
-      {eventContextCard}
-      {heldUntilParam && <SeatHoldTimer heldUntil={heldUntilParam} />}
-      <div className="ic-form-wrap">
-        <Elements stripe={stripePromise} options={{ clientSecret, appearance: stripeAppearance }}>
-          <CheckoutPaymentForm
-            clientSecret={clientSecret}
-            paymentIntentId={paymentIntentId}
-            buyerName={buyerName.trim()}
-            buyerEmail={buyerEmail.trim()}
-            buyerPhone={buyerPhone.trim()}
-            buyerZip={buyerZip.trim()}
-          />
-        </Elements>
       </div>
-    </section>
+    </>
   );
 }
 
 export default function CheckoutPage() {
   return (
-    <>
-      <main className="ticket-page">
-        <section className="ticket-hero">
-          <h1 className="ticket-hero-title">Secure Checkout</h1>
-        </section>
+    <div className="sf-page">
+      <SfHeader />
 
-        <Suspense
-          fallback={
-            <div className="ticket-page-loading">Loading checkout...</div>
-          }
-        >
-          <CheckoutContent />
-        </Suspense>
-      </main>
+      <Suspense
+        fallback={<div className="sf-empty">Loading checkout...</div>}
+      >
+        <CheckoutContent />
+      </Suspense>
 
-      <Footer />
-    </>
+      <SfFooter />
+    </div>
   );
 }

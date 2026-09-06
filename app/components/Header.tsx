@@ -28,7 +28,7 @@ const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent"];
  * last one lands, this header serves /login, /fwb, /partners, the legal pages
  * and the auction routes.
  */
-const SF_HEADER_ROUTES = ["/", "/events"];
+const SF_HEADER_ROUTES = ["/", "/events", "/checkout"];
 
 /**
  * Event detail (/events/<id>) also renders SfHeader, but it's a dynamic route

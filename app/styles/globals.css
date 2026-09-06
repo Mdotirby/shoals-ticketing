@@ -19543,3 +19543,90 @@ body[data-theme="liquid-glass"] .sf-detail-grid > .order-summary-column,
 body[data-theme="liquid-glass"] .sf-detail-left > .ticket-cards-column {
   grid-area: auto;
 }
+
+/* ── Storefront checkout ────────────────────────────────────────
+   Classes the checkout panel needs that storefront-glass.css doesn't define.
+   Values read off the mockup's checkout screen (VenueCore.dc.html 1491-1611):
+   the order line at 1561, the divider/eyebrow pair at 1588, the fine print at
+   1609. .ic-stripe-field is deliberately NOT redefined here — Stripe's iframes
+   are styled through stripeAppearance, and overriding the wrapper is how the
+   card fields go white. */
+body[data-theme="liquid-glass"] .sf-checkout-head {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  margin-bottom: 16px;
+}
+body[data-theme="liquid-glass"] .sf-checkout-head h2 { margin: 0; }
+body[data-theme="liquid-glass"] .sf-back {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.56);
+}
+body[data-theme="liquid-glass"] .sf-back:hover { color: #fff; }
+
+body[data-theme="liquid-glass"] .sf-order-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--sf-r-box);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 14px;
+  font-weight: 700;
+}
+body[data-theme="liquid-glass"] .sf-order-line span:last-child {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+body[data-theme="liquid-glass"] .sf-order-note {
+  margin: 7px 0 0;
+  font-size: 11.5px;
+  color: var(--sf-dim);
+}
+
+body[data-theme="liquid-glass"] .sf-divider {
+  height: 1px;
+  margin: 20px 0 18px;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+body[data-theme="liquid-glass"] .sf-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--sf-sub);
+  cursor: pointer;
+}
+body[data-theme="liquid-glass"] .sf-check input {
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: #fff;
+}
+body[data-theme="liquid-glass"] .sf-check a { color: rgba(255, 255, 255, 0.78); }
+body[data-theme="liquid-glass"] .sf-check-note {
+  margin: -2px 0 0 26px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--sf-dim);
+}
+
+body[data-theme="liquid-glass"] .sf-error {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: #fca5a5;
+}
+
+body[data-theme="liquid-glass"] .sf-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
