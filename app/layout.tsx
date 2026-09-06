@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo, Archivo_Narrow, Bayon, Cairo, Urbanist } from "next/font/google";
 import { cookies } from "next/headers";
 import "./styles/globals.css";
@@ -98,6 +98,26 @@ export async function generateMetadata(): Promise<Metadata> {
             apple: operator.favicon,
             shortcut: operator.favicon,
           },
+  };
+}
+
+/**
+ * Safari on iOS tints its own chrome — the status-bar strip above the page and
+ * the toolbar below it — from theme-color. Without one it defaults to black,
+ * which is what made the orb field look "cut off" at the top and bottom of the
+ * screen: the field's glow ran to the edge of the visual viewport and then met
+ * a hard black band on either side.
+ *
+ * Matching it to --lg-ink (#08080a), the same colour the field and <body> sit
+ * on, closes the seam. Both operators run the liquid-glass theme today; this
+ * resolves per-operator anyway so a future non-glass brand doesn't inherit the
+ * wrong colour.
+ */
+export async function generateViewport(): Promise<Viewport> {
+  const cookieStore = await cookies();
+  const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
+  return {
+    themeColor: usesLiquidGlass(operatorSlug) ? "#08080a" : "#0b0d1d",
   };
 }
 

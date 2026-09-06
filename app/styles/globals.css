@@ -19786,3 +19786,78 @@ body[data-theme="liquid-glass"] .sf-details-toggle {
   color: var(--sf-sub);
 }
 body[data-theme="liquid-glass"] .sf-details-toggle:hover { color: var(--sf-white); }
+
+/* ── Storefront: mobile filter row + full-bleed background ──────
+   Both reported off a real iPhone screenshot of west72ent.com/events. */
+
+/* 1. The filter row wrapped to FOUR lines on a phone: .events-search-pill
+      carries min-width:240px and .events-search-bar wraps, so at a 335px
+      content width the search pill claimed the first line on its own and each
+      control below it followed suit. Letting the pill shrink (flex-basis 0,
+      min-width 0) puts the search and both filter selects back on one row, and
+      the controls are tightened so they stay legible at that width. */
+@media (max-width: 640px) {
+  /* Wrapping stays ON. It has to: the past-shows link below claims a full-width
+     basis so it drops to its own line, and with nowrap it could not — it sat on
+     the same row demanding 100% and crushed the search pill to a sliver. The
+     four-line stack came from the pill's 240px min-width, not from wrapping. */
+  body[data-theme="liquid-glass"] .events-search-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  body[data-theme="liquid-glass"] .events-search-pill {
+    flex: 2 1 90px;
+    min-width: 0;
+    padding: 3px 4px 3px 13px;
+  }
+  body[data-theme="liquid-glass"] .events-search-input {
+    min-width: 0;
+    font-size: 16px; /* keep 16px — anything smaller makes iOS zoom on focus */
+  }
+  /* A <select> sizes itself to its WIDEST option, so the host filter came out
+     172px on a 318px row — one venue with a long name pushed it onto its own
+     line regardless of how the other controls flexed. Capping it and letting it
+     shrink is what actually gets the row down to one line; the label ellipses
+     rather than the control wrapping. */
+  body[data-theme="liquid-glass"] .events-filter-select {
+    flex: 1 1 60px;
+    min-width: 0;
+    max-width: 120px;
+    padding: 9px 10px;
+    font-size: 12px;
+    text-overflow: ellipsis;
+  }
+  /* The past-shows link does not fit on that row at phone widths without
+     squeezing the search box to nothing, so it drops to its own line,
+     right-aligned where it already sat. */
+  body[data-theme="liquid-glass"] .events-view-past-link {
+    flex: 1 0 100%;
+    text-align: right;
+    margin-top: -8px;
+    margin-bottom: 16px;
+  }
+}
+
+/* 2. The orb field is position:fixed inset:0, so its glow terminated exactly
+      at the visual viewport — visible as a hard seam against the black above
+      and below on iOS, where Safari's chrome frames the page. Overscanning the
+      field past the viewport on both axes removes the seam.
+
+      Each orb's offset is compensated by the same 15vh so the composition
+      lands exactly where it did before: the field's top edge moves up 15vh, so
+      top-anchored orbs get +15vh back, and likewise for the bottom-anchored
+      ones. Without this the whole field would slide down the screen. */
+body[data-theme="liquid-glass"] .bg-field {
+  /* Longhands, not `inset`, and they must come after the base rule's inset:0
+     to win. Do not add a shorthand back here — an `inset` declaration below
+     these would reset all four. */
+  top: -15vh;
+  bottom: -15vh;
+  left: 0;
+  right: 0;
+}
+body[data-theme="liquid-glass"] .orb.one   { top: calc(-260px + 15vh); }
+body[data-theme="liquid-glass"] .orb.blue  { top: calc(100px + 15vh); }
+body[data-theme="liquid-glass"] .orb.rose  { bottom: calc(-300px + 15vh); }
+body[data-theme="liquid-glass"] .orb.white { bottom: calc(200px + 15vh); }
