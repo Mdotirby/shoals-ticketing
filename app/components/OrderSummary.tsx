@@ -238,7 +238,6 @@ export default function OrderSummary({
               const isActive = tt.id === (selectedTicketId ?? selectedTicket?.id);
               const soldOut = isTierSoldOut?.(tt) ?? false;
               const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price) ?? tt.price);
-              const left = Math.max(tt.quantity_available - tt.quantity_sold, 0);
               return (
                 <div
                   key={tt.id}
@@ -256,10 +255,13 @@ export default function OrderSummary({
                       {tt.price === 0 ? "FREE" : `$${allIn.toFixed(2)}`}
                     </div>
                   </div>
+                  {/* The mockup has a remaining-inventory count here ("18
+                      left"). Removed at Matt's request — it publishes how much
+                      stock is left on every tier, and it read as scarcity
+                      pressure rather than information. Sold-out state is still
+                      conveyed by the tier note and the disabled stepper, so
+                      nothing about availability is hidden. */}
                   <div className="sf-tier-bottom">
-                    <span className="sf-tier-left">
-                      {soldOut ? "None left" : `${left} left`}
-                    </span>
                     {qtyStepper(tt, isActive, soldOut)}
                   </div>
                 </div>
@@ -307,6 +309,27 @@ export default function OrderSummary({
 
           {hasSelection && (
             <div className="sf-summary">
+              {/* Collapsed by default. The itemised lines sit behind "Show
+                  price details", the way the mockup's checkout draws it and the
+                  way this component behaved before the glass rebuild — the
+                  rebuild made them unconditional, which put five fee lines in
+                  front of every buyer before they had asked for them. The
+                  total is always visible; only the breakdown toggles. */}
+              <button
+                type="button"
+                className="sf-details-toggle"
+                aria-expanded={showDetails}
+                onClick={() => setShowDetails((v) => !v)}
+              >
+                {showDetails ? "Hide" : "Show"} price details
+                <svg width="8" height="6" viewBox="0 0 8 6" aria-hidden="true"
+                  style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                  <path d="M0 0L8 0L4 6Z" fill="currentColor" />
+                </svg>
+              </button>
+
+              {showDetails && (
+                <>
               <div className="sf-summary-row">
                 <span>{selectedTicket.name}{quantity > 1 ? ` × ${quantity}` : ""}</span>
                 <span>${subtotal.toFixed(2)}</span>
@@ -350,6 +373,8 @@ export default function OrderSummary({
                   <span>Processing fee</span>
                   <span>${processingFee.toFixed(2)}</span>
                 </div>
+              )}
+                </>
               )}
 
               <div className="sf-summary-row sf-summary-row--total">

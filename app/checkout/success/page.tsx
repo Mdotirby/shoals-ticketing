@@ -9,7 +9,6 @@ import SfStepper from "@/app/components/SfStepper";
 import { trackFbEvent } from "@/lib/fbq";
 import { useOperator } from "@/app/components/OperatorContext";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { HotelPartnerPanel } from "@/app/components/liquid-glass-components";
 import { SuccessHeader } from "./_components/SuccessHeader";
 import { OrderConfirmationPanel } from "./_components/OrderConfirmationPanel";
 import { ActionRow } from "./_components/ActionRow";
@@ -37,23 +36,16 @@ type ConfirmationData = {
 
 // Matches the webhook's typical lag; ~20s of headroom before we stop waiting
 // and show what we have.
-/* Lodging partner promo shown after the order actions.
- *
- * PLACEHOLDER DATA. The design brief expects these wired to a live partner
- * rate feed; that feed doesn't exist yet, so the values live here as named
- * constants — editable in one place, and obvious that they are static rather
- * than looked up. Set HOTEL_PARTNER to null to drop the panel entirely. */
-const HOTEL_PARTNER: {
-  name: string; rackRate: string; memberRate: string;
-  promoCode: string; cutoffLabel: string; href: string;
-} | null = {
-  name: "Renaissance Shoals Resort & Spa",
-  rackRate: "$189",
-  memberRate: "$129",
-  promoCode: "W72COLE",
-  cutoffLabel: "Oct 30",
-  href: "https://www.marriott.com/en-us/hotels/msltn-renaissance-shoals-resort-and-spa/overview/",
-};
+
+/* The lodging-partner promo that used to sit here has been REMOVED, not
+ * disabled. It advertised a named hotel with specific nightly rates ($189
+ * rack / $129 member), a promo code and a booking cutoff — all of it
+ * placeholder data written against a partner rate feed that does not exist.
+ * Quoting rates we have no agreement for is a promise to the buyer we can't
+ * keep, so the data is gone rather than left behind a flag where it could be
+ * switched back on by accident. Bring it back when there's a signed rate and a
+ * real booking link; HotelPartnerPanel is still in
+ * app/components/liquid-glass-components.tsx, now unused. */
 
 const CONFIRM_INTERVAL_MS = 800;
 const CONFIRM_MAX_ATTEMPTS = 25;
@@ -268,9 +260,10 @@ function SuccessContent() {
        Purchase call are byte-identical.
 
        Two components are deliberately NOT restyled, per STOREFRONT_SPEC.md §5:
-       CrossSellSection renders .event-card, "leave that component alone — it's
-       already correct for this surface", and HotelPartnerPanel's glass rules
-       already exist and are to be reused rather than rebuilt. */
+       CrossSellSection renders .event-card — "leave that component alone, it's
+       already correct for this surface". (The spec also called for reusing the
+       hotel partner panel's glass rules; that section has since been removed
+       outright — see the note above.) */
     <section className="sf-success">
       <SfStepper current={3} />
 
@@ -321,19 +314,6 @@ function SuccessContent() {
           calendarHref={data?.event ? calendarHref(data.event) : undefined}
           calendarFilename={data?.event ? `${data.event.title.replace(/[^\w]+/g, "-").toLowerCase()}.ics` : undefined}
         />
-
-        {/* Lodging partner — placed right after the actions, while commitment
-            is highest. See HOTEL_PARTNER above: static promo, not a live rate. */}
-        {HOTEL_PARTNER && (
-          <HotelPartnerPanel
-            partnerName={HOTEL_PARTNER.name}
-            cutoffLabel={HOTEL_PARTNER.cutoffLabel}
-            rackRate={HOTEL_PARTNER.rackRate}
-            memberRate={HOTEL_PARTNER.memberRate}
-            promoCode={HOTEL_PARTNER.promoCode}
-            ctaHref={HOTEL_PARTNER.href}
-          />
-        )}
 
         {/* Laylo SMS opt-in — west72 only, shown after purchase confirmed */}
         {isWest72 && layloStatus !== "dismissed" && (

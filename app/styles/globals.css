@@ -19459,10 +19459,13 @@ body[data-theme="liquid-glass"] .sf-tier-info { flex: 1; min-width: 0; }
 body[data-theme="liquid-glass"] .sf-tier-bottom {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   margin-top: 13px;
 }
-body[data-theme="liquid-glass"] .sf-tier-left { flex: 1; }
+/* .sf-tier-left (the "N left" count) is no longer rendered — the flex:1 rule
+   that used to sit here went with it. The base rule in the storefront block
+   above is left alone per the no-delete rule. */
 
 body[data-theme="liquid-glass"] .sf-summary-row--credit { color: #6ee7a8; }
 
@@ -19766,3 +19769,20 @@ body[data-theme="liquid-glass"] .sf-social-icons a:hover { color: #fff; }
 @media (max-width: 900px) {
   body[data-theme="liquid-glass"] .sf-contact-grid { grid-template-columns: 1fr; }
 }
+
+/* Price-details disclosure in the cart summary. Collapsed by default so the
+   buyer sees the total, not five fee lines, until they ask for the breakdown. */
+body[data-theme="liquid-glass"] .sf-details-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sf-sub);
+}
+body[data-theme="liquid-glass"] .sf-details-toggle:hover { color: var(--sf-white); }
