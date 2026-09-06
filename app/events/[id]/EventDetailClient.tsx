@@ -891,7 +891,14 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
         {/* ── Side by side: Event Card + Order Summary ── */}
         <section className="ticket-selection-section">
-          <div className="ticket-selection-layout">
+          {/* .sf-detail-grid (mockup line 1383): 1fr 452px, two children — the
+              left column and the cart. The previous .ticket-selection-layout
+              used three named grid areas because the photo and the info card
+              were separate siblings; the mockup has them in one column, so
+              they are nested now. This orphans the .ticket-selection-layout
+              glass rules, which is expected under a full rewrite. */}
+          <div className="sf-detail-grid">
+            <div className="sf-detail-left">
 
             {/* Photo is now a direct sibling of .order-summary-column (was
                 nested two levels inside .ticket-cards-column), so the two can
@@ -904,14 +911,12 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                 so matching the column to Order Summary's height meant the
                 photo had to shrink to make room for the text instead. */}
             {event.image_url && (
-              <div className="ticket-hero-image-wrap">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={event.image_url}
-                  alt={event.title}
-                  className="ticket-hero-image"
-                />
-                <div className="ticket-hero-gradient" />
+              <div className="sf-art">
+                <div className="sf-art-media">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={event.image_url} alt={event.title} />
+                </div>
+                <div className="sf-art-scrim" />
 
                 {/* Mockup line 1387-1400 overlays the photo with a venue badge
                     top-left, an age badge top-right, and a four-fact strip
@@ -1133,6 +1138,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
                 </div>
               </div>
+            </div>
+
             </div>
 
             {/* RIGHT: Order Summary / Inline Checkout / Countdown */}

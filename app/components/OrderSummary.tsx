@@ -169,374 +169,250 @@ export default function OrderSummary({
     : 0);
   const total = isFreeOrder ? 0 : subtotalBeforeStripe + processingFee;
 
+  /* ── Storefront glass rebuild ──
+   * Markup restructured to the mockup's .sf-cart (VenueCore.dc.html lines
+   * 1436-1485): "Select tickets" heading, one .sf-tier row per ticket type
+   * with its own .sf-qty stepper, a .sf-summary block, a block primary CTA
+   * and the hold note.
+   *
+   * NOTHING ABOUT THE MONEY CHANGED. Every prop, the promo fetch to
+   * /api/promo-codes/validate, and every line of the fee/tax/discount/total
+   * math above is byte-identical. This is markup and class names only.
+   *
+   * One mapping worth stating: the mockup draws a quantity stepper on EVERY
+   * tier row, which reads as a multi-tier cart. Production sells ONE tier per
+   * order — InlineCheckout takes a single tierId and quantity, and so does the
+   * payment intent. So the layout matches (every row has a stepper) while the
+   * semantics do not change: the active row's stepper edits quantity, and
+   * pressing + on another row selects that tier at quantity 1. Rendering a
+   * real multi-tier cart would have meant changing what gets charged.
+   *
+   * Two production features the mockup has no equivalent for are kept per
+   * Matt's rule, placed above the summary: the promo code entry and the
+   * free-order name/email capture. The "Show price details" disclosure is
+   * gone — the mockup's .sf-summary shows the itemised lines unconditionally,
+   * so there is nothing left to disclose.
+   */
+  const tiers = ticketTypes && ticketTypes.length > 0
+    ? ticketTypes
+    : (selectedTicket ? [selectedTicket] : []);
+
+  const qtyStepper = (tt: TicketType, isActive: boolean, soldOut: boolean) => (
+    <div className="sf-qty">
+      <button
+        type="button"
+        aria-label={`Decrease ${tt.name} quantity`}
+        disabled={!isActive || quantity <= 1 || selectedTicketSoldOut}
+        onClick={() => onQuantityChange?.((q) => Math.max(1, q - 1))}
+      >
+        −
+      </button>
+      <output>{isActive ? quantity : 0}</output>
+      <button
+        type="button"
+        aria-label={`Increase ${tt.name} quantity`}
+        disabled={soldOut || (isActive && selectedTicketSoldOut)}
+        onClick={() => {
+          if (!isActive) {
+            onSelectTicket?.(tt.id);
+            return;
+          }
+          onQuantityChange?.((q) => Math.min(10, q + 1));
+        }}
+      >
+        +
+      </button>
+    </div>
+  );
+
   return (
-    <div className="order-summary">
-      <h2 className="order-summary-title">Order Summary</h2>
+    <div className="sf-cart">
+      <h2>Select tickets</h2>
 
       {checkoutDisabled && checkoutDisabledMessage ? (
-        <div className="order-summary-empty">
-          <p className="order-summary-empty-text" style={{ color: "#f87171" }}>
-            {checkoutDisabledMessage}
-          </p>
-        </div>
-      ) : !hasSelection ? (
-        <div className="order-summary-empty">
-          <svg
-            className="order-summary-cart-icon"
-            width="40"
-            height="40"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
-            <path
-              d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <p className="order-summary-empty-text">Select a ticket to continue</p>
-        </div>
+        <p className="sf-cart-notice">{checkoutDisabledMessage}</p>
       ) : (
-        <div className="order-summary-details">
-          <div className="order-summary-line">
-            <span className="order-summary-line-label">
-              {/* Plain text for a single-tier event — nothing to choose, so
-                  it isn't presented as choosable. Multi-tier events add a
-                  small solid-triangle caret and a real, transparent <select>
-                  laid directly over the name, so the plain text itself is
-                  the click target rather than a select styled to look like
-                  one. */}
-              <span className="order-summary-tier-select-wrap">
-                <span className="order-summary-tier-name">{selectedTicket.name}</span>
-                {ticketTypes && ticketTypes.length > 1 && (
-                  <>
-                    <svg className="order-summary-tier-caret" width="8" height="6" viewBox="0 0 8 6" aria-hidden="true">
-                      <path d="M0 0L8 0L4 6Z" fill="currentColor" />
-                    </svg>
-                    <select
-                      className="order-summary-tier-select"
-                      value={selectedTicketId ?? ""}
-                      onChange={(e) => onSelectTicket?.(e.target.value)}
-                      aria-label="Ticket type"
-                    >
-                      {ticketTypes.map((tt) => {
-                        const soldOut = isTierSoldOut?.(tt) ?? false;
-                        const allInPrice = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price) ?? tt.price);
-                        return (
-                          <option key={tt.id} value={tt.id} disabled={soldOut}>
-                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </>
-                )}
-              </span>
-              {quantity > 1 ? ` × ${quantity}` : ""}
-            </span>
-            <span className="order-summary-line-value">
-              {isFreeOrder ? (
-                <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span>
-              ) : (
-                `$${total.toFixed(2)}`
-              )}
-            </span>
-          </div>
-
-          {/* Quantity stepper — its own row directly under the tier name,
-              matching event_detail.png, not paired beside the name. */}
-          <div className="ticket-qty-control order-summary-qty-control">
-            <button
-              type="button"
-              className="ticket-qty-btn"
-              onClick={() => onQuantityChange?.((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1 || selectedTicketSoldOut}
-            >
-              −
-            </button>
-            <span className="ticket-qty-value">{quantity}</span>
-            <button
-              type="button"
-              className="ticket-qty-btn"
-              onClick={() => onQuantityChange?.((q) => Math.min(10, q + 1))}
-              disabled={selectedTicketSoldOut}
-            >
-              +
-            </button>
-          </div>
-
-          {!isFreeOrder && (
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
-              (Incl. Taxes &amp; Fees)
-            </p>
-          )}
-
-          {/* ── Promo Code Section ── */}
-          {!appliedPromo ? (
-            <div style={{ margin: "8px 0" }}>
-              {!showPromoInput ? (
-                <button
-                  type="button"
-                  onClick={() => setShowPromoInput(true)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "rgb(var(--vc-gold-rgb))",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    padding: 0,
-                    textDecoration: "underline",
-                    fontFamily: "inherit",
-                  }}
+        <>
+          <div className="sf-tier-list">
+            {tiers.map((tt) => {
+              const isActive = tt.id === (selectedTicketId ?? selectedTicket?.id);
+              const soldOut = isTierSoldOut?.(tt) ?? false;
+              const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price) ?? tt.price);
+              const left = Math.max(tt.quantity_available - tt.quantity_sold, 0);
+              return (
+                <div
+                  key={tt.id}
+                  className={`sf-tier${isActive ? " sf-tier--active" : ""}`}
+                  onClick={() => { if (!soldOut) onSelectTicket?.(tt.id); }}
                 >
+                  <div className="sf-tier-top">
+                    <div className="sf-tier-info">
+                      <div className="sf-tier-name">{tt.name}</div>
+                      <div className="sf-tier-note">
+                        {soldOut ? "Sold out" : (tt.perks?.[0] ?? "Full event access")}
+                      </div>
+                    </div>
+                    <div className="sf-tier-price">
+                      {tt.price === 0 ? "FREE" : `$${allIn.toFixed(2)}`}
+                    </div>
+                  </div>
+                  <div className="sf-tier-bottom">
+                    <span className="sf-tier-left">
+                      {soldOut ? "None left" : `${left} left`}
+                    </span>
+                    {qtyStepper(tt, isActive, soldOut)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Not in the mockup — kept. */}
+          {!appliedPromo ? (
+            <div className="sf-promo">
+              {!showPromoInput ? (
+                <button type="button" className="sf-promo-toggle" onClick={() => setShowPromoInput(true)}>
                   Use Promo Code
                 </button>
               ) : (
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div className="sf-promo-row">
                   <input
                     type="text"
+                    className="sf-input"
                     value={promoCode}
                     onChange={(e) => setPromoCode(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        validatePromo();
-                      }
+                      if (e.key === "Enter") { e.preventDefault(); validatePromo(); }
                     }}
                     placeholder="Enter code"
-                    className="admin-form-input"
-                    style={{
-                      flex: 1,
-                      padding: "6px 10px",
-                      fontSize: 13,
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      borderRadius: 6,
-                      color: "#fff",
-                    }}
                   />
                   <button
                     type="button"
+                    className="sf-btn sf-btn--secondary sf-btn--sm"
                     onClick={validatePromo}
                     disabled={promoLoading || !promoCode.trim()}
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: 13,
-                      background: "rgb(var(--vc-gold-rgb))",
-                      color: "#1a1a2e",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: promoLoading || !promoCode.trim() ? "not-allowed" : "pointer",
-                      fontWeight: 600,
-                      opacity: promoLoading || !promoCode.trim() ? 0.5 : 1,
-                      whiteSpace: "nowrap",
-                    }}
                   >
                     {promoLoading ? "…" : "Apply"}
                   </button>
                 </div>
               )}
-              {promoError && (
-                <p style={{ color: "#ef4444", fontSize: 12, margin: "4px 0 0" }}>{promoError}</p>
-              )}
+              {promoError && <p className="sf-promo-error">{promoError}</p>}
             </div>
           ) : (
-            <div style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "#22c55e", fontSize: 13 }}>
-                ✓ {appliedPromo.code} applied — ${totalDiscount.toFixed(2)} off
-              </span>
+            <div className="sf-promo sf-promo--applied">
+              <span>✓ {appliedPromo.code} applied — ${totalDiscount.toFixed(2)} off</span>
+              <button type="button" className="sf-promo-remove" onClick={removePromo}>Remove</button>
+            </div>
+          )}
+
+          {hasSelection && (
+            <div className="sf-summary">
+              <div className="sf-summary-row">
+                <span>{selectedTicket.name}{quantity > 1 ? ` × ${quantity}` : ""}</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+
+              {totalDiscount > 0 && (
+                <div className="sf-summary-row sf-summary-row--credit">
+                  <span>Discount</span>
+                  <span>-${totalDiscount.toFixed(2)}</span>
+                </div>
+              )}
+
+              {totalTicketingFee > 0 && (
+                <div className="sf-summary-row">
+                  <span>Ticketing Service Fee</span>
+                  <span>{feesIncludedInPrice ? "Included" : `$${totalTicketingFee.toFixed(2)}`}</span>
+                </div>
+              )}
+
+              {totalFacilityFee > 0 && (
+                <div className="sf-summary-row">
+                  <span>Facility fee</span>
+                  <span>{feesIncludedInPrice ? "Included" : `$${totalFacilityFee.toFixed(2)}`}</span>
+                </div>
+              )}
+
+              {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (
+                <div className="sf-summary-row">
+                  <span>Sales tax</span>
+                  <span>Included</span>
+                </div>
+              ) : tax > 0 ? (
+                <div className="sf-summary-row">
+                  <span>Sales tax</span>
+                  <span>${tax.toFixed(2)}</span>
+                </div>
+              ) : null}
+
+              {processingFee > 0 && (
+                <div className="sf-summary-row">
+                  <span>Processing fee</span>
+                  <span>${processingFee.toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="sf-summary-row sf-summary-row--total">
+                <span>Total</span>
+                <span>{isFreeOrder ? "FREE" : `$${total.toFixed(2)}`}</span>
+              </div>
+            </div>
+          )}
+
+          {isFreeOrder && hasSelection ? (
+            <div className="sf-fields">
+              <input
+                type="text"
+                className="sf-input"
+                placeholder="Your name"
+                value={freeName}
+                onChange={(e) => setFreeName(e.target.value)}
+              />
+              <input
+                type="email"
+                className="sf-input"
+                placeholder="Your email"
+                value={freeEmail}
+                onChange={(e) => setFreeEmail(e.target.value)}
+              />
               <button
                 type="button"
-                onClick={removePromo}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#ef4444",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  padding: 0,
-                  textDecoration: "underline",
-                  fontFamily: "inherit",
+                className="sf-btn sf-btn--primary sf-btn--block"
+                disabled={!freeName.trim() || !freeEmail.trim() || freeLoading}
+                onClick={async () => {
+                  setFreeLoading(true);
+                  try {
+                    await onFreeCheckout?.(freeName.trim(), freeEmail.trim());
+                  } finally {
+                    setFreeLoading(false);
+                  }
                 }}
               >
-                Remove
+                {freeLoading ? "Claiming..." : "Claim Free Tickets"}
               </button>
             </div>
-          )}
-
-          {totalDiscount > 0 && (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label" style={{ color: "#22c55e" }}>
-                Discount
-              </span>
-              <span className="order-summary-line-value" style={{ color: "#22c55e" }}>
-                -${totalDiscount.toFixed(2)}
-              </span>
-            </div>
-          )}
-
-          {!isFreeOrder && (totalTicketingFee > 0 || totalFacilityFee > 0 || tax > 0 || processingFee > 0) && (
+          ) : (
             <button
               type="button"
-              onClick={() => setShowDetails((v) => !v)}
-              style={{
-                background: "none", border: "none", color: "rgb(var(--vc-gold-rgb))", cursor: "pointer",
-                fontSize: 12, padding: 0, margin: "6px 0", fontFamily: "inherit",
-                display: "flex", alignItems: "center", gap: 4,
-              }}
+              className="sf-btn sf-btn--primary sf-btn--block"
+              disabled={!hasSelection || checkoutDisabled}
+              onClick={onCheckout}
             >
-              {showDetails ? "Hide" : "Show"} price details
-              <svg width="8" height="6" viewBox="0 0 8 6" style={{ transform: showDetails ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} aria-hidden="true">
-                <path d="M0 0L8 0L4 6Z" fill="currentColor" />
-              </svg>
+              Continue to Checkout
             </button>
           )}
 
-          {showDetails && (
-          <>
-          <div className="order-summary-line order-summary-line-sub">
-            <span className="order-summary-line-label">
-              {selectedTicket.name}
-              {quantity > 1 ? ` × ${quantity}` : ""}
-            </span>
-            <span className="order-summary-line-value">${subtotal.toFixed(2)}</span>
-          </div>
-          {totalTicketingFee > 0 && (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Ticketing Service Fee</span>
-              {feesIncludedInPrice ? (
-                <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                  Included in ticket price
-                </span>
-              ) : (
-                <span className="order-summary-line-value">${totalTicketingFee.toFixed(2)}</span>
-              )}
-            </div>
-          )}
-          {totalFacilityFee > 0 && (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Facility fee</span>
-              {feesIncludedInPrice ? (
-                <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                  Included in ticket price
-                </span>
-              ) : (
-                <span className="order-summary-line-value">${totalFacilityFee.toFixed(2)}</span>
-              )}
-            </div>
-          )}
-          {taxMethod === "divisor" && normalizeTaxRate(taxRate) > 0 ? (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Sales tax</span>
-              <span className="order-summary-line-value" style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                Included in ticket price
-              </span>
-            </div>
-          ) : tax > 0 ? (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">Sales tax</span>
-              <span className="order-summary-line-value">${tax.toFixed(2)}</span>
-            </div>
-          ) : null}
-          {processingFee > 0 && (
-            <div className="order-summary-line order-summary-line-sub">
-              <span className="order-summary-line-label">
-                Processing fee
-              </span>
-              <span className="order-summary-line-value">${processingFee.toFixed(2)}</span>
-            </div>
-          )}
-
-          <div className="order-summary-divider" />
-
-          <div className="order-summary-line order-summary-total">
-            <span className="order-summary-line-label">Total</span>
-            <span className="order-summary-line-value">
-              {isFreeOrder ? (
-                <span style={{ color: "#22c55e", fontWeight: 800 }}>FREE</span>
-              ) : (
-                `$${total.toFixed(2)}`
-              )}
-            </span>
-          </div>
-          </>
-          )}
-        </div>
+          <p className="sf-hold-note">Seats held for 10:00 while you check out</p>
+        </>
       )}
 
-      {isFreeOrder && hasSelection ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
-          <input
-            type="text"
-            placeholder="Your name"
-            value={freeName}
-            onChange={(e) => setFreeName(e.target.value)}
-            className="admin-form-input"
-            style={{
-              padding: "10px 14px",
-              fontSize: 14,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 8,
-              color: "#fff",
-            }}
-          />
-          <input
-            type="email"
-            placeholder="Your email"
-            value={freeEmail}
-            onChange={(e) => setFreeEmail(e.target.value)}
-            className="admin-form-input"
-            style={{
-              padding: "10px 14px",
-              fontSize: 14,
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 8,
-              color: "#fff",
-            }}
-          />
-          <button
-            type="button"
-            className="order-summary-checkout-btn"
-            disabled={!freeName.trim() || !freeEmail.trim() || freeLoading}
-            onClick={async () => {
-              setFreeLoading(true);
-              try {
-                await onFreeCheckout?.(freeName.trim(), freeEmail.trim());
-              } finally {
-                setFreeLoading(false);
-              }
-            }}
-            style={{ opacity: (!freeName.trim() || !freeEmail.trim() || freeLoading) ? 0.5 : 1 }}
-          >
-            {freeLoading ? "Claiming..." : "Claim Free Tickets"}
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="order-summary-checkout-btn"
-          disabled={!hasSelection || checkoutDisabled}
-          onClick={onCheckout}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M2 10h20" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
-          Secure Your Spot
-        </button>
-      )}
-
-      <p className="order-summary-terms">
+      <p className="sf-cart-terms">
         By completing your purchase you agree to our{" "}
-        <a href="/faq" className="order-summary-terms-link">Terms of Sale</a>.
+        <a href="/faq">Terms of Sale</a>.
         All sales are final. Refunds only if event is cancelled.
       </p>
 
-      <p className="order-summary-trust">Secure Checkout &bull; Instant confirmation</p>
+      <p className="sf-cart-trust">Secure Checkout &bull; Instant confirmation</p>
     </div>
   );
 }

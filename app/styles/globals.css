@@ -19432,8 +19432,114 @@ body[data-theme="liquid-glass"] .sf-search-clear:hover { color: var(--sf-white);
    proportional one. Scoped to min-width 769px so it cannot outrank the
    existing max-width:768px single-column rule, which sits EARLIER in this file
    and would otherwise lose to an unconditional override at equal specificity. */
-@media (min-width: 769px) {
-  body[data-theme="liquid-glass"] .ticket-selection-layout {
-    grid-template-columns: 1fr 452px;
-  }
+/* (The .ticket-selection-layout override added earlier in this session is
+   gone — that class is no longer rendered now the layout is .sf-detail-grid,
+   which carries 1fr 452px itself. Only my own rule was removed; the
+   pre-existing .ticket-selection-layout rules above are left in place.) */
+
+/* ── Storefront cart: classes the sf block assumes but doesn't define ──
+   .sf-tier-left in storefront-glass.css is the "N left" count (11px / 0.40),
+   not the name wrapper — the mockup leaves that wrapper unclassed, so it needs
+   a name here. The rest are the production-only affordances the mockup has no
+   equivalent for (promo entry, disabled notice, terms/trust lines), which are
+   kept per Matt's rule and styled to sit with the glass surfaces. */
+body[data-theme="liquid-glass"] .sf-tier-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+body[data-theme="liquid-glass"] .sf-tier { cursor: pointer; }
+body[data-theme="liquid-glass"] .sf-tier-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+body[data-theme="liquid-glass"] .sf-tier-info { flex: 1; min-width: 0; }
+body[data-theme="liquid-glass"] .sf-tier-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 13px;
+}
+body[data-theme="liquid-glass"] .sf-tier-left { flex: 1; }
+
+body[data-theme="liquid-glass"] .sf-summary-row--credit { color: #6ee7a8; }
+
+body[data-theme="liquid-glass"] .sf-cart-notice {
+  margin: 16px 0 0;
+  font-size: 13px;
+  color: #fca5a5;
+}
+body[data-theme="liquid-glass"] .sf-promo { margin-top: 14px; }
+body[data-theme="liquid-glass"] .sf-promo-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12.5px;
+  color: var(--sf-sub);
+  text-decoration: underline;
+}
+body[data-theme="liquid-glass"] .sf-promo-toggle:hover { color: var(--sf-white); }
+body[data-theme="liquid-glass"] .sf-promo-row { display: flex; gap: 8px; align-items: center; }
+body[data-theme="liquid-glass"] .sf-promo-row .sf-input { flex: 1; }
+body[data-theme="liquid-glass"] .sf-promo-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #fca5a5;
+}
+body[data-theme="liquid-glass"] .sf-promo--applied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #6ee7a8;
+}
+body[data-theme="liquid-glass"] .sf-promo-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 12px;
+  color: #fca5a5;
+  text-decoration: underline;
+}
+body[data-theme="liquid-glass"] .sf-cart .sf-fields { margin-top: 16px; }
+body[data-theme="liquid-glass"] .sf-cart-terms {
+  margin: 14px 0 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--sf-faint);
+}
+body[data-theme="liquid-glass"] .sf-cart-terms a { color: var(--sf-sub); }
+body[data-theme="liquid-glass"] .sf-cart-trust {
+  margin: 8px 0 0;
+  font-size: 10.5px;
+  text-align: center;
+  color: var(--sf-faint);
+}
+
+/* Left column of .sf-detail-grid — the mockup stacks art, spotify, hosted-by
+   and prose in one column (line 1384). */
+body[data-theme="liquid-glass"] .sf-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+
+/* .order-summary-column still carries `grid-area: summary` from the old
+   three-area .ticket-selection-layout. On .sf-detail-grid there is no such
+   named area, so it resolved to non-existent line names and grid created
+   implicit tracks — the computed columns came out "0px 452px 0px 542px" and
+   the left column collapsed to zero width. Reset the placement for children of
+   the new grid; the old rule is left in place for anything still using the old
+   layout. */
+body[data-theme="liquid-glass"] .sf-detail-grid > .order-summary-column,
+body[data-theme="liquid-glass"] .sf-detail-left > .ticket-cards-column {
+  grid-area: auto;
 }
