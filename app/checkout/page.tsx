@@ -9,9 +9,11 @@ import {
   CardNumberElement,
   CardExpiryElement,
   CardCvcElement,
+  PaymentRequestButtonElement,
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type { PaymentRequest } from "@stripe/stripe-js";
 import SfHeader from "@/app/components/SfHeader";
 import SfFooter from "@/app/components/SfFooter";
 import SfStepper from "@/app/components/SfStepper";
@@ -36,6 +38,8 @@ function CheckoutPaymentForm({
   buyerPhone,
   buyerZip,
   payLabel,
+  walletLabel,
+  totalCents,
 }: {
   clientSecret: string;
   paymentIntentId: string;
@@ -45,6 +49,11 @@ function CheckoutPaymentForm({
   buyerZip: string;
   /** Mockup's CTA reads "Pay $29.01" rather than a generic label. */
   payLabel: string;
+  /** Line item shown in the Apple Pay / Google Pay sheet. */
+  walletLabel: string;
+  /** Authoritative total in cents, from the PaymentIntent the server created.
+   *  Never derived client-side — see the comment on the effect below. */
+  totalCents: number;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -54,6 +63,90 @@ function CheckoutPaymentForm({
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
+
+  const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
+
+  /* ── Apple Pay / Google Pay ────────────────────────────────────────────
+   * Wired against the PaymentIntent the server has ALREADY created, rather
+   * than against a total computed here.
+   *
+   * That is the whole design constraint. The wallet sheet shows the buyer an
+   * amount and then charges it, so the figure in `total` must be the figure
+   * Stripe settles. This route only fetches /api/events/{id}, which returns
+   * tax_method and fees_included_in_price but NOT the fee amounts — those live
+   * on the venue / event_venue rows. Recomputing the total from a partial fee
+   * picture is exactly how a wallet ends up displaying $40.00 and charging
+   * $57.72. So the button only appears once `clientSecret` exists, and its
+   * amount is `totalCents` straight off the server's breakdown.
+   *
+   * Consequence, stated rather than hidden: this sits in the payment step
+   * above the card fields, not above the buyer form where the mockup draws it.
+   * The mockup's placement assumes the wallet can autofill the form, which
+   * needs a trustworthy total before the form is filled — that needs a quote
+   * endpoint this codebase doesn't have.
+   *
+   * Because the intent already exists, this confirms it with the wallet's
+   * payment method instead of creating a second one — no orphan intents, and
+   * the metadata the server attached at creation is preserved intact.
+   */
+  useEffect(() => {
+    if (!stripe || !clientSecret || totalCents <= 0) return;
+    let cancelled = false;
+
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: { label: walletLabel, amount: totalCents },
+      requestPayerName: true,
+      requestPayerEmail: true,
+      requestPayerPhone: true,
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setIsProcessing(true);
+      setCardError("");
+      try {
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
+          clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+
+        if (confirmError) {
+          ev.complete("fail");
+          setCardError(confirmError.message || "Payment failed. Please try again.");
+          setIsProcessing(false);
+          return;
+        }
+
+        // Close the sheet before any 3DS step — Stripe requires the sheet be
+        // dismissed first, otherwise the authentication modal opens behind it.
+        ev.complete("success");
+
+        if (paymentIntent?.status === "requires_action") {
+          const { error: actionError } = await stripe.confirmCardPayment(clientSecret);
+          if (actionError) {
+            setCardError(actionError.message || "Authentication failed. Please try again.");
+            setIsProcessing(false);
+            return;
+          }
+        }
+
+        trackFbEvent("Purchase");
+        router.push(`/checkout/success?payment_intent_id=${paymentIntentId}`);
+      } catch {
+        ev.complete("fail");
+        setCardError("An unexpected error occurred. Please try again.");
+        setIsProcessing(false);
+      }
+    });
+
+    pr.canMakePayment().then((result) => {
+      if (result && !cancelled) setPaymentRequest(pr);
+    });
+
+    return () => { cancelled = true; setPaymentRequest(null); };
+  }, [stripe, clientSecret, totalCents, walletLabel, paymentIntentId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,6 +204,36 @@ function CheckoutPaymentForm({
        pairing is what keeps Stripe's iframes dark. Only the surrounding labels
        and the submit button move to sf-* classes. */
     <form className="sf-payment-form" onSubmit={handleSubmit} noValidate>
+      {/* Express checkout — mockup line 1556. Only rendered when
+          canMakePayment() says this visitor actually has a wallet, so exactly
+          one of Apple Pay / Google Pay appears and neither shows as a dead
+          button on an unsupported browser.
+
+          The mockup hand-draws two glyph buttons. Production uses Stripe's
+          PaymentRequestButtonElement instead: Apple's Human Interface
+          Guidelines require their own button asset for Apple Pay, and a custom
+          button is not a compliant substitute. Styling is therefore Stripe's,
+          themed dark to match. */}
+      {paymentRequest && (
+        <>
+          <div className="sf-express">
+            <div className="sf-eyebrow">Express checkout — fastest</div>
+            <PaymentRequestButtonElement
+              options={{
+                paymentRequest,
+                style: { paymentRequestButton: { theme: "dark", height: "48px", type: "buy" } },
+              }}
+            />
+            <p className="sf-express-note">
+              Only one shows per visitor — Apple Pay on Safari and iOS, Google Pay on
+              Chrome and Android. Pays the same total shown above.
+            </p>
+          </div>
+
+          <div className="sf-or"><span>Or pay with card</span></div>
+        </>
+      )}
+
       <div>
         <label className="sf-field-label">Card Number</label>
         <div className="ic-stripe-field">
@@ -672,6 +795,8 @@ function CheckoutContent() {
                 buyerPhone={buyerPhone.trim()}
                 buyerZip={buyerZip.trim()}
                 payLabel={payLabel}
+                walletLabel={eventSummary?.title ?? "Tickets"}
+                totalCents={orderDetails ? Math.round(orderDetails.total * 100) : 0}
               />
             </Elements>
           ) : (

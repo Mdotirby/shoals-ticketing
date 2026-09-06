@@ -217,7 +217,7 @@ function CheckoutForm({
         }
         setOrderDetails(data.orderDetails);
         setPaymentIntentId(data.paymentIntentId ?? null);
-        const { error: confirmError } = await stripe.confirmCardPayment(
+        const { error: confirmError, paymentIntent } = await stripe.confirmCardPayment(
           data.clientSecret,
           { payment_method: ev.paymentMethod.id },
           { handleActions: false }
@@ -228,7 +228,23 @@ function CheckoutForm({
           setIsProcessing(false);
           return;
         }
+        // Dismiss the wallet sheet BEFORE any 3DS step — Stripe requires the
+        // sheet be closed first, or the authentication modal opens behind it.
         ev.complete("success");
+
+        // handleActions:false means Stripe did NOT run the 3D Secure challenge
+        // for us. Without this branch a card that requires authentication left
+        // the sheet closing onto nothing: no charge, no error, no success
+        // screen. Re-confirm without the flag so Stripe presents the challenge,
+        // then carry on.
+        if (paymentIntent?.status === "requires_action") {
+          const { error: actionError } = await stripe.confirmCardPayment(data.clientSecret);
+          if (actionError) {
+            setPaymentError(actionError.message || "Authentication failed. Please try again.");
+            setIsProcessing(false);
+            return;
+          }
+        }
         trackFbEvent("Purchase", {
           content_name: eventTitle,
           content_ids: [eventId],
