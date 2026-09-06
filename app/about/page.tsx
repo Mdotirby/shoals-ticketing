@@ -4,7 +4,8 @@ import { useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
-import Footer from "../components/Footer";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
 import { useOperator } from "../components/OperatorContext";
 
 function AnimatedCard({ children, index }: { children: React.ReactNode; index: number }) {
@@ -342,10 +343,17 @@ function VenueCoreAbout() {
 export default function AboutPage() {
   const operator = useOperator();
 
+  /* Storefront glass rebuild (step 8/8). Shell only, deliberately.
+     STOREFRONT_SPEC.md §6 for this page says the existing .about-philosophy /
+     .about-philosophy-inner glass rules "are already in globals.css — reuse",
+     so the two operator variants keep their markup and class names and just
+     gain the storefront chrome. Rewriting them into sf-* would orphan exactly
+     the rules the spec points at. */
   return (
-    <>
+    <div className="sf-page">
+      <SfHeader />
       {operator.slug === "venuecore" ? <VenueCoreAbout /> : <West72About />}
-      <Footer />
-    </>
+      <SfFooter />
+    </div>
   );
 }
