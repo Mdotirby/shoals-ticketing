@@ -19864,42 +19864,47 @@ body[data-theme="liquid-glass"] .orb.white { bottom: calc(200px + 15vh); }
 
 /* ── Full-bleed background ──────────────────────────────────────
    .bg-field is position:fixed, so it only ever paints the visual viewport.
-   Anything outside that — the strips iOS Safari reserves for its own chrome,
-   and overscroll — fell through to <body>'s flat #08080a. Meanwhile the field
-   itself is LIGHT at the top (the big white orb sits just above the fold) and
-   fades to near-black at the bottom. So the top of the screen met a black bar
-   at a point where the page was a mid grey: that contrast is the "cut off"
-   edge, not a missing background.
+   Anything outside it — the strips iOS Safari reserves for its own chrome,
+   plus overscroll — falls through to the canvas. The field is also LIGHT at
+   the top (the big white orb sits just above the fold) and near-black at the
+   bottom, so a flat canvas can never match both ends.
 
-   Fixing it on the canvas rather than the field. An html background propagates
-   to the canvas, which always covers the whole painting area including behind
-   browser chrome. Sized 140% of the viewport and attachment:fixed so it tracks
-   the same way the field does, with stops sampled off the rendered field at
-   390x844 (top ~#5c5d67 through to ~#0c0b11 at the bottom).
+   FIRST ATTEMPT, REMOVED: a vertical gradient on <html> with
+   background-attachment:fixed. iOS Safari does not honour attachment:fixed on
+   the canvas — it behaves as `scroll`, which maps the gradient across the whole
+   DOCUMENT height instead of the viewport. The colour behind the chrome then
+   changed as you scrolled, which is exactly the "not consistent" that got
+   reported.
 
-   This is safe by construction: inside the viewport .bg-field paints over it
-   completely, so the gradient is only ever visible where the field cannot
-   reach. It cannot change how the page looks normally — only what fills the
-   gap. */
+   WHAT THIS DOES INSTEAD, deterministically:
+     1. One flat canvas colour. No gradient, no attachment, nothing that can be
+        interpreted differently — every area outside the field is identical.
+     2. The same colour on theme-color, so Safari's chrome matches the canvas.
+     3. A viewport-edge vignette that fades the FIELD to that same colour over
+        the top and bottom 90px. The page then meets the chrome at an identical
+        colour at both ends, by construction, rather than by my guessing at a
+        tone the gradient happens to land on.
+
+   The vignette is body::after, not a .bg-field child: .bg-field has
+   overflow:hidden and sits at z-index 0, and ::after is body's last child, so
+   at the same z-index it paints above the field. .sf-page is z-index 1, so all
+   real content still paints above the vignette — it only ever tints background
+   the user can actually see, never the cards or the hero. */
 html {
-  background-color: #2e2f3a;
+  background-color: #34353f;
 }
 body[data-theme="liquid-glass"] {
   background-color: transparent;
 }
-html:has(body[data-theme="liquid-glass"]) {
-  background-image: linear-gradient(
-    180deg,
-    #5c5d67 0%,
-    #46474f 22%,
-    #303140 45%,
-    #1b1a25 72%,
-    #0c0b11 100%
-  );
-  background-attachment: fixed;
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: 100% 140%;
+body[data-theme="liquid-glass"]::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, #34353f 0%, rgba(52, 53, 63, 0) 90px),
+    linear-gradient(0deg, #34353f 0%, rgba(52, 53, 63, 0) 90px);
 }
 
 /* ── Mobile: hero overlay + section head ────────────────────────

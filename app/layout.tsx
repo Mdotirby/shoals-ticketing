@@ -123,11 +123,12 @@ export async function generateViewport(): Promise<Viewport> {
     // grey page — which is the seam being reported, and setting it to the ink
     // made that worse rather than better.
     //
-    // #52535c is sampled off the rendered field at the top of a 390x844
-    // viewport. It is the one value here I could not verify locally: the
-    // browser pane has no iOS chrome to compare against. If it reads too light
-    // or too dark on the device, this is the single number to nudge.
-    themeColor: usesLiquidGlass(operatorSlug) ? "#52535c" : "#0b0d1d",
+    // #34353f is the flat canvas colour, and the page is faded to that same
+    // colour at the top and bottom edges by the vignette in globals.css. So
+    // this no longer has to GUESS a tone the background happens to land on —
+    // chrome, canvas and page edge are all one value by construction. Change
+    // all three together or not at all.
+    themeColor: usesLiquidGlass(operatorSlug) ? "#34353f" : "#0b0d1d",
   };
 }
 
