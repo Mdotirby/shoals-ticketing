@@ -19861,3 +19861,95 @@ body[data-theme="liquid-glass"] .orb.one   { top: calc(-260px + 15vh); }
 body[data-theme="liquid-glass"] .orb.blue  { top: calc(100px + 15vh); }
 body[data-theme="liquid-glass"] .orb.rose  { bottom: calc(-300px + 15vh); }
 body[data-theme="liquid-glass"] .orb.white { bottom: calc(200px + 15vh); }
+
+/* ── Full-bleed background ──────────────────────────────────────
+   .bg-field is position:fixed, so it only ever paints the visual viewport.
+   Anything outside that — the strips iOS Safari reserves for its own chrome,
+   and overscroll — fell through to <body>'s flat #08080a. Meanwhile the field
+   itself is LIGHT at the top (the big white orb sits just above the fold) and
+   fades to near-black at the bottom. So the top of the screen met a black bar
+   at a point where the page was a mid grey: that contrast is the "cut off"
+   edge, not a missing background.
+
+   Fixing it on the canvas rather than the field. An html background propagates
+   to the canvas, which always covers the whole painting area including behind
+   browser chrome. Sized 140% of the viewport and attachment:fixed so it tracks
+   the same way the field does, with stops sampled off the rendered field at
+   390x844 (top ~#5c5d67 through to ~#0c0b11 at the bottom).
+
+   This is safe by construction: inside the viewport .bg-field paints over it
+   completely, so the gradient is only ever visible where the field cannot
+   reach. It cannot change how the page looks normally — only what fills the
+   gap. */
+html {
+  background-color: #2e2f3a;
+}
+body[data-theme="liquid-glass"] {
+  background-color: transparent;
+}
+html:has(body[data-theme="liquid-glass"]) {
+  background-image: linear-gradient(
+    180deg,
+    #5c5d67 0%,
+    #46474f 22%,
+    #303140 45%,
+    #1b1a25 72%,
+    #0c0b11 100%
+  );
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 100% 140%;
+}
+
+/* ── Mobile: hero overlay + section head ────────────────────────
+   Both off the same iPhone screenshot. */
+@media (max-width: 640px) {
+  /* The hero overlay ran out of room. The kicker (uppercase, 0.2em tracking,
+     day + date + venue + doors) wrapped to two lines and collided with the
+     title, and the carousel dots sit absolutely at bottom:18px — the same
+     18px the overlay used as padding — so the buttons landed on top of them.
+     Tighter tracking pulls the kicker back to one or two clean lines, and the
+     extra bottom padding gives the dots their own space. */
+  body[data-theme="liquid-glass"] .sf-hero-overlay {
+    padding: 18px 18px 34px;
+  }
+  body[data-theme="liquid-glass"] .sf-hero-kicker {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    line-height: 1.5;
+  }
+  body[data-theme="liquid-glass"] .sf-hero-title {
+    font-size: 27px;
+    margin-top: 7px;
+  }
+  body[data-theme="liquid-glass"] .sf-hero-actions {
+    gap: 8px;
+    margin-top: 13px;
+  }
+  body[data-theme="liquid-glass"] .sf-hero-actions .sf-btn--lg {
+    padding: 10px 17px;
+    font-size: 12.5px;
+  }
+  body[data-theme="liquid-glass"] .featured-carousel-subtitle {
+    font-size: 12.5px;
+    margin: 5px 0 0;
+  }
+
+  /* .sf-section-head is one flex row of [h2][search][link]. The search box
+     carries a 260px basis, so on a 350px row the "All events →" link was
+     squeezed to about 40px and broke across three lines. Search drops to its
+     own full-width row underneath; the heading and the link share the first. */
+  body[data-theme="liquid-glass"] .sf-section-head {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 26px 0 14px;
+  }
+  body[data-theme="liquid-glass"] .sf-section-head h2 { flex: 0 0 auto; }
+  body[data-theme="liquid-glass"] .sf-section-head a { white-space: nowrap; }
+  body[data-theme="liquid-glass"] .sf-home-search {
+    order: 3;
+    flex: 1 0 100%;
+    margin-left: 0;
+  }
+}

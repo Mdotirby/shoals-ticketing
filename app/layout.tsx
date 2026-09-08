@@ -117,7 +117,17 @@ export async function generateViewport(): Promise<Viewport> {
   const cookieStore = await cookies();
   const operatorSlug = cookieStore.get("operatorSlug")?.value ?? "venuecore";
   return {
-    themeColor: usesLiquidGlass(operatorSlug) ? "#08080a" : "#0b0d1d",
+    // NOT --lg-ink. The ink is the field's BASE colour, but the big white orb
+    // sits just above the fold, so the top of the screen actually renders as a
+    // light blue-grey. Tinting the chrome #08080a put a black bar against a
+    // grey page — which is the seam being reported, and setting it to the ink
+    // made that worse rather than better.
+    //
+    // #52535c is sampled off the rendered field at the top of a 390x844
+    // viewport. It is the one value here I could not verify locally: the
+    // browser pane has no iOS chrome to compare against. If it reads too light
+    // or too dark on the device, this is the single number to nudge.
+    themeColor: usesLiquidGlass(operatorSlug) ? "#52535c" : "#0b0d1d",
   };
 }
 
