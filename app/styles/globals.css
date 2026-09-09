@@ -19985,3 +19985,39 @@ body[data-theme="liquid-glass"] .staff-login-hero-title {
   }
   body[data-theme="liquid-glass"] .staff-login-hero-title { font-size: 1.5rem; }
 }
+
+/* ── Orb field: put it behind content, not in front of it ───────
+   PRE-EXISTING BUG, found via a blank /boxoffice.
+
+   .bg-field is position:fixed with z-index:0 and an OPAQUE background
+   (var(--lg-ink)). A positioned element at z-index 0 paints above ALL
+   non-positioned in-flow content, so any page whose root is a plain unclassed
+   <div> was being painted over completely — rendered, laid out, invisible.
+
+   The theme compensated with an allow-list:
+
+     .site-header, .home-page, main, footer { position: relative; z-index: 1 }
+
+   which only works for pages that happen to use one of those. /boxoffice
+   renders a bare <div> and no <main>, so it matched nothing and the whole
+   screen — login gate included — sat under the field. Confirmed by hiding
+   .bg-field, which made it appear. Identical rules exist at 465d269, so this
+   predates the storefront rebuild; it just went unnoticed because the box
+   office is staff-only.
+
+   Fixing the cause rather than adding /boxoffice to the allow-list: the field
+   is decoration and belongs BEHIND the document, so it goes to a negative
+   layer. In-flow content then paints above it automatically and no page has to
+   opt in. The edge vignette follows it down, one layer above the field so it
+   still tints it, but still below content.
+
+   Several other pages render without a <main> — agent, auctions, pay, survey,
+   e/[slug], the layout builder — and were exposed to the same bug. They are
+   covered by this too.
+
+   backdrop-filter is unaffected: the backdrop of a glass panel includes
+   everything painted beneath it, negative layers included, so the panels still
+   refract the orbs. The z-index:1 allow-list above is left in place — it is now
+   redundant rather than wrong. */
+body[data-theme="liquid-glass"] .bg-field { z-index: -2; }
+body[data-theme="liquid-glass"]::after { z-index: -1; }
