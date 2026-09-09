@@ -19958,3 +19958,30 @@ body[data-theme="liquid-glass"]::after {
     margin-left: 0;
   }
 }
+
+/* ── Login: float the card ──────────────────────────────────────
+   The card sat flush under the header and ran nearly the full width of a
+   phone, which read as attached to the chrome rather than as its own surface.
+   .ticket-page is a full-height flex column shared with event detail and
+   checkout, so the centring goes on a login-only class rather than on it. */
+.login-page {
+  justify-content: center;
+}
+body[data-theme="liquid-glass"] .login-section {
+  max-width: 360px;
+  padding: clamp(24px, 3.2vw, 32px);
+  /* Floats it off the header and the footer at every height, while the flex
+     centring above keeps it optically mid-page on tall screens. */
+  margin: clamp(32px, 9vh, 80px) auto clamp(40px, 11vh, 96px);
+}
+body[data-theme="liquid-glass"] .staff-login-hero-title {
+  font-size: 1.7rem;
+  margin: 0 0 22px;
+}
+@media (max-width: 480px) {
+  body[data-theme="liquid-glass"] .login-section {
+    max-width: 340px;
+    padding: 24px 22px 26px;
+  }
+  body[data-theme="liquid-glass"] .staff-login-hero-title { font-size: 1.5rem; }
+}

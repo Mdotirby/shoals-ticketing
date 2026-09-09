@@ -298,7 +298,11 @@ export default function LoginPage() {
 
   return (
     <>
-      <main className="ticket-page">
+      {/* .login-page centres the card in the viewport rather than letting it
+          sit flush under the header. .ticket-page is shared with event detail
+          and checkout, so the centring goes on a login-only class instead of
+          on it. */}
+      <main className="ticket-page login-page">
         {/* login.png renders "LOG IN" as the first element inside the glass
             card, not as a page-level heading floating above it — moved in
             from the old standalone .ticket-hero wrapper (real restructuring,
@@ -309,9 +313,9 @@ export default function LoginPage() {
             <Image
               src="/West72_Logos/W72_tech_icon_white.png"
               alt="West 72 Entertainment"
-              width={80}
-              height={80}
-              style={{ display: "block", margin: "0 auto 24px", objectFit: "contain" }}
+              width={56}
+              height={56}
+              style={{ display: "block", margin: "0 auto 18px", objectFit: "contain" }}
               unoptimized
             />
           )}

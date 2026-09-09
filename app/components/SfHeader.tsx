@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useOperator } from "./OperatorContext";
 import { useVenueTheme } from "./VenueThemeProvider";
 import { logoFor } from "@/lib/operators";
+import { useThemeColorOverride, SCRIM_THEME_COLOR } from "./useThemeColorOverride";
 
 /**
  * Storefront header — the floating glass pill from the mockup (line 1252).
@@ -37,6 +38,10 @@ export default function SfHeader() {
   const operator = useOperator();
   const venueTheme = useVenueTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // The drawer scrim darkens the page but cannot darken Safari's chrome, which
+  // left a bright band at the top of the header while the menu was open.
+  useThemeColorOverride(isMenuOpen, SCRIM_THEME_COLOR);
   const [featuredEvent, setFeaturedEvent] = useState<{ id: string; title: string } | null>(null);
   const navRef = useRef<HTMLElement>(null);
   const hamburgerRef = useRef<HTMLButtonElement>(null);
