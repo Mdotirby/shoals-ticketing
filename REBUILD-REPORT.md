@@ -929,22 +929,28 @@ capacity check passes trivially on a show that barely sold. So it charged.
 
 ### The rule, one module
 
-`lib/salesWindow.ts`:
+`lib/salesWindow.ts`, show day in Central:
 
-| | |
-|---|---|
-| before noon Central, show day | storefront sells |
-| noon → midnight Central | **box office only** |
-| after midnight | nobody sells |
+| | storefront | box office |
+|---|---|---|
+| 00:00 → 12:00 | **sells** | closed |
+| 12:00 → 22:00 | **sells** | **sells** |
+| 22:00 → 24:00 | closed | **sells** |
+| after midnight | closed | closed |
+
+The two windows **overlap on purpose**. Selling to someone standing in your own
+parking lot at 8pm is not a problem to solve; selling a ticket to a show that
+finished last month is. The box office also sells **advance** tickets for
+future shows at any hour — the noon opening is about the day-of till, not the
+window clerk taking money for next Friday.
 
 Central via `Intl`, never a fixed offset. Verified at every boundary in **both**
-CDT and CST. The box office still sells **advance** tickets for future shows —
-the window governs who owns the show *on the day*, not the till in general.
+CDT and CST.
 
 Guarded: `checkout/create-intent`, `checkout`, `checkout/free`, `boxoffice`,
 `terminal/payment-intent`, `box-office/cash-sale`. `create-intent` picks its
 channel from `source`, so `/boxoffice`'s manual card entry keeps working after
-the web has closed.
+the web has closed at 10pm.
 
 `closeout.ts` now delegates its date logic here instead of computing cutoffs by
 hand as `midnightUTC + (startHour + 7)` and `midnightUTC + 30h` — both of which
@@ -953,22 +959,27 @@ admitted. The storefront UI already keys off `pastEventReason`, so it picks up
 the correct state and the right message ("available at the box office" vs "this
 event has already taken place") for free.
 
-### What this costs — measured, because it is not free
+### What it costs — measured
 
 | | |
 |---|---|
 | Genuinely late orders this stops | **1 paid** ($31.56, bought 2026-09-10 for a 2026-08-08 show) + 4 free RSVPs to a gone show |
-| Show-day orders at/after noon CT, historically | **81 inline-checkout orders, $3,099.28** |
+| Web orders at/after 10pm CT on show day | **0** |
+| Door orders before noon CT on show day | **0** |
 
-Most of those 81 landed between 7pm and 9pm — people buying on a phone at or
-near the venue. Under this rule every one is refused and has to become a
-box-office sale.
+**The hours are set where the sales are not.** For contrast, the first pass of
+this put the web cutoff at noon, which would have refused **81 orders worth
+$3,099.28** — most of them 7–9pm, people buying on a phone at the venue. Matt
+moved it to 10pm and separated the two channels, which costs nothing and still
+closes the hole.
 
-Blocking past events costs nothing. **Blocking show-day afternoons is the part
-with a price on it**, so the handover is a named constant,
-`DOOR_HANDOVER_HOUR`, overridable at runtime via
-`STOREFRONT_DOOR_HANDOVER_HOUR`. Moving it to doors (19) or removing it (24) is
-one line.
+Both hours are constants — `STOREFRONT_CLOSE_HOUR` and `BOX_OFFICE_OPEN_HOUR`,
+overridable at runtime — because they are venue policy, not a fact about the
+software.
+
+**One edge, flagged:** the till is closed before noon on show day, so a walk-up
+at 11am asking for tonight cannot be served. That is the rule as stated; if it
+bites, `BOX_OFFICE_OPEN_HOUR` is the one line.
 
 **A note on the first pass of this analysis:** counting "orders after the show
 date" in UTC returned 30 orders / $650.67. Nearly all were 7–9pm Central on the

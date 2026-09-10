@@ -13,17 +13,23 @@ import { VENUE_TZ, eventDayISO, localTodayISO } from "@/lib/dates";
  * sold. So it charged.
  *
  * ── THE RULE (Matt's, and it is a venue rule, not a technical one) ─────────
- *   Before noon on show day   the storefront sells.
- *   Noon → midnight, show day the BOX OFFICE sells, and only the box office.
- *   After midnight            nobody sells. The show has happened.
  *
- * The handover at noon is the point where the door takes over: from then on a
- * sale should be going through a channel that can hand someone a ticket and
- * check them in on the spot, not a web page that emails a QR code to somebody
- * already standing at the door.
+ *   SHOW DAY, Central:
+ *     00:00 → 12:00   storefront only        the till has not opened yet
+ *     12:00 → 22:00   storefront AND door    both sell, in parallel
+ *     22:00 → 24:00   door only              web closes at 10pm
+ *     after 24:00     nobody                 the show has happened
  *
- * The box office keeps selling ADVANCE tickets for future shows — the window
- * is about who owns the show *on the day*, not a restriction on the till.
+ * The two windows OVERLAP on purpose. An earlier version of this handed the
+ * whole afternoon to the box office, which would have refused 81 real
+ * inline-checkout orders worth $3,099.28 — most of them 7–9pm, people buying
+ * on a phone at or near the venue. Selling to someone standing in your own
+ * parking lot is not a problem to solve; selling a ticket to a show that
+ * finished last month is.
+ *
+ * The box office also sells ADVANCE tickets for FUTURE shows at any hour. The
+ * noon opening is about the day-of till, not a restriction on the window
+ * clerk taking money for next Friday.
  *
  * ── TIME ZONE ─────────────────────────────────────────────────────────────
  * Central, via Intl, never a fixed offset. The venues run Central and Vercel
@@ -32,29 +38,27 @@ import { VENUE_TZ, eventDayISO, localTodayISO } from "@/lib/dates";
  */
 
 /**
- * The hour, venue-local, when the door takes over from the web on show day.
+ * The two hours that bound show day, venue-local.
  *
- * ── WHAT THIS COSTS, MEASURED ──────────────────────────────────────────────
- * Set to 12 (noon) per Matt's instruction. It is worth knowing what that
- * closes off: across the whole order history, **81 inline-checkout orders
- * worth $3,099.28** were placed on a show day at or after noon Central — most
- * of them between 7pm and 9pm, i.e. people buying on their phone at or near
- * the venue. Under this rule every one of those is refused and has to become
- * a box-office sale instead.
+ * They are constants because they are a venue policy, not a fact about the
+ * software, and this is where the policy lives. Both are overridable at
+ * runtime so a change does not need a deploy.
  *
- * The bug this whole module exists to stop was, by contrast, ONE paid order:
- * $31.56 on 2026-09-10 for a show on 2026-08-08 (plus four free RSVPs to a
- * show already gone). Blocking past events costs nothing. Blocking show-day
- * afternoons is the part with a price on it.
+ * STOREFRONT_CLOSE_HOUR (22 — 10pm): when the web stops selling.
+ * BOX_OFFICE_OPEN_HOUR (12 — noon): when the day-of till opens.
  *
- * So it is a constant, deliberately. Moving the handover to doors (19) or
- * dropping it entirely (24, i.e. web sells until midnight alongside the box
- * office) is a one-line change here and nowhere else.
- *
- * Override without a deploy: STOREFRONT_DOOR_HANDOVER_HOUR.
+ * Measured against the whole order history, these two cost NOTHING: zero web
+ * orders were placed at or after 10pm on a show day, and zero door orders
+ * before noon. A noon web cutoff, by contrast, would have refused 81 orders
+ * worth $3,099.28. The hours are set where the sales are not.
  */
-export const DOOR_HANDOVER_HOUR = (() => {
-  const raw = Number(process.env.STOREFRONT_DOOR_HANDOVER_HOUR);
+export const STOREFRONT_CLOSE_HOUR = (() => {
+  const raw = Number(process.env.STOREFRONT_CLOSE_HOUR);
+  return Number.isInteger(raw) && raw >= 0 && raw <= 24 ? raw : 22;
+})();
+
+export const BOX_OFFICE_OPEN_HOUR = (() => {
+  const raw = Number(process.env.BOX_OFFICE_OPEN_HOUR);
   return Number.isInteger(raw) && raw >= 0 && raw <= 24 ? raw : 12;
 })();
 
@@ -65,10 +69,15 @@ export type SalesWindow = {
   storefrontOpen: boolean;
   /** The box office may sell — advance, or during the day-of window. */
   boxOfficeOpen: boolean;
-  /** advance = before show day noon · door = the box-office window · past = over. */
-  state: "advance" | "door" | "past";
-  /** Noon Central on show day — when the door takes over. */
+  /**
+   * advance — before the till opens · door — both channels · late — door only,
+   * after the web closes · past — over.
+   */
+  state: "advance" | "door" | "late" | "past";
+  /** Noon Central on show day — when the day-of till opens. */
   doorOpensAt: Date | null;
+  /** 10pm Central on show day — when the web stops. */
+  storefrontClosesAt: Date | null;
   /** Midnight Central ending show day — when selling stops entirely. */
   salesCloseAt: Date | null;
   /** Plain-language refusal, safe to show a buyer. */
@@ -119,37 +128,48 @@ export function salesWindowFor(
   if (!day) {
     return {
       storefrontOpen: true, boxOfficeOpen: true, state: "advance",
-      doorOpensAt: null, salesCloseAt: null, reason: null,
+      doorOpensAt: null, storefrontClosesAt: null, salesCloseAt: null, reason: null,
     };
   }
 
-  const doorOpensAt = venueLocalInstant(day, DOOR_HANDOVER_HOUR);
-  const salesCloseAt = venueLocalInstant(addDaysISO(day, 1), 0); // midnight after
+  const doorOpensAt = venueLocalInstant(day, BOX_OFFICE_OPEN_HOUR);
+  const storefrontClosesAt = venueLocalInstant(day, STOREFRONT_CLOSE_HOUR);
+  const salesCloseAt = venueLocalInstant(addDaysISO(day, 1), 0);
 
   const today = localTodayISO(now);
+  const base = { doorOpensAt, storefrontClosesAt, salesCloseAt };
 
+  // Over: the show's own day has ended.
   if (day < today || now >= salesCloseAt) {
     return {
-      storefrontOpen: false, boxOfficeOpen: false, state: "past",
-      doorOpensAt, salesCloseAt,
+      ...base, storefrontOpen: false, boxOfficeOpen: false, state: "past",
       reason: "This event has already taken place — tickets are no longer on sale.",
     };
   }
 
-  if (now >= doorOpensAt) {
+  // A future show. The web sells, and so does the box office — that is an
+  // advance sale at the window, which the day-of hours have no bearing on.
+  if (day > today) {
+    return { ...base, storefrontOpen: true, boxOfficeOpen: true, state: "advance", reason: null };
+  }
+
+  // Show day, before the till opens.
+  if (now < doorOpensAt) {
+    return { ...base, storefrontOpen: true, boxOfficeOpen: false, state: "advance", reason: null };
+  }
+
+  // Show day, web closed, door still running.
+  if (now >= storefrontClosesAt) {
     return {
-      storefrontOpen: false, boxOfficeOpen: true, state: "door",
-      doorOpensAt, salesCloseAt,
+      ...base, storefrontOpen: false, boxOfficeOpen: true, state: "late",
       reason:
-        "Online sales for this show have closed. Tickets are available at the " +
+        "Online sales for tonight have closed. Tickets are available at the " +
         "box office — come see us at the door.",
     };
   }
 
-  return {
-    storefrontOpen: true, boxOfficeOpen: true, state: "advance",
-    doorOpensAt, salesCloseAt, reason: null,
-  };
+  // Show day, both channels open.
+  return { ...base, storefrontOpen: true, boxOfficeOpen: true, state: "door", reason: null };
 }
 
 /** True when `channel` may take money for this event right now. */
