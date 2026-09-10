@@ -1176,3 +1176,71 @@ shrink-wrapped to 130px with no body to close it, and Financial Summary and
 Settlement have bodies narrower than the heading, so the lid overhung. It is a
 self-contained full-width band now, which is correct at every width and does
 not depend on what follows it. Verified: all nine headings at 1080px.
+
+---
+
+## Item 11 c/d — Offers and Calendar (2026-09-10)
+
+Both restyled to the mockup's glass language. **Item 11 is complete.**
+
+### Offer builder — restyled with ZERO page edits
+
+`app/admin/offers/[id]/page.tsx` is 1,387 lines and holds the gross-potential,
+splitpoint, backend and walkout arithmetic. It was **not opened**.
+
+It already renders through CSS classes — `.offer-potential-grid`,
+`.offer-potential-row`, `.offer-calc-cell`, `.admin-form-section-title` — so
+the entire screen restyles from `globals.css`. That is a stronger guarantee
+than a before/after diff: a file with no changes cannot have moved a number.
+
+Same treatment as the settlement: uppercase glass section bands, tabular
+figures throughout, and `.highlight` rows (gross if sold out, net, walkout)
+weighted a size up the way the mockup weights its totals.
+
+**Tab keys kept verbatim**, per Matt's instruction — *Offer Details*,
+*P&L / Breakeven*, *Deal Lab (Simulated)*. Verified in the DOM after the
+restyle.
+
+Verified rendering: Noah Hicks — gross potential $16,920.00, adjusted
+$12,600.00, tax $1,197.00, total expenses $4,061.18, P&L $2,561.65, breakeven
+573.62 tickets. Matches the stored offer.
+
+### Offers list — rebuilt
+
+112 lines of card list became a table that leads with the number an offer is
+actually argued over: **gross potential**, with the guarantee beside it for the
+comparison that gets made, then deal type and status.
+
+**Delete was nearly lost.** The first rewrite dropped it — the row became a
+`<Link>` and the button went with it. Restored as a sibling rather than nested,
+because a `<button>` inside an `<a>` is invalid and the row would navigate on
+the way to the button.
+
+### Calendar
+
+No money math — it is a scheduling grid. Its two shared style objects
+(`navBtnStyle`, `labelStyle`) carry the nav and every field label, so moving
+those to the glass language restyles the chrome without touching a line of
+scheduling logic.
+
+### The whole of item 11 c/d, verified
+
+| file | |
+|---|---|
+| `lib/settlement/model.ts` · `ledger.ts` · `fees/rates.ts` · `checkout-helpers.ts` | **unchanged** |
+| `app/admin/offers/[id]/page.tsx` · `offers/new/page.tsx` | **unchanged** |
+| `app/admin/settlements/[id]/page.tsx` | unchanged in this pass |
+| changed | `calendar/page.tsx` (33), `offers/page.tsx` (107), `globals.css` (+146) |
+
+### Item 11 complete
+
+| | |
+|---|---|
+| Ticketing | new screen on `/admin/orders/[id]` |
+| Settlements | restyled, 74 money values diffed identical |
+| Offers | list rebuilt, builder restyled with no page edits |
+| Calendar | chrome restyled |
+
+**Rebuild status: 9 of 71** admin screens touched — box office, Command
+Center, create a show, team, access control, ticketing, settlement, offers
+list, offer builder, calendar.

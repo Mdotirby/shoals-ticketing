@@ -1507,23 +1507,32 @@ export default function CalendarPage() {
   );
 }
 
+/**
+ * ── RESTYLE — PRESENTATION ONLY ────────────────────────────────────────────
+ * The calendar carries no money math; these two objects are its shared chrome
+ * and moving them to the glass language restyles the navigation and every
+ * field label at once, without touching a line of scheduling logic.
+ */
 const navBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 8,
-  color: "rgba(255,255,255,0.6)",
+  padding: "9px 16px",
+  minHeight: 40,
+  background:
+    "linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%), linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+  border: "1px solid rgba(255,255,255,0.18)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
+  borderRadius: 999,
+  color: "rgba(255,255,255,0.82)",
   cursor: "pointer",
-  fontSize: 16,
-  fontWeight: 600,
+  fontSize: 14,
+  fontWeight: 650,
 };
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 11,
-  fontWeight: 600,
-  color: "rgba(255,255,255,0.4)",
+  fontSize: 9.5,
+  fontWeight: 700,
+  color: "rgba(255,255,255,0.45)",
   textTransform: "uppercase",
-  letterSpacing: "0.5px",
-  marginBottom: 4,
+  letterSpacing: "0.13em",
+  marginBottom: 6,
 };

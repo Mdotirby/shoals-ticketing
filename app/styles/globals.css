@@ -21347,3 +21347,149 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .stl .stl-section { padding: 17px 16px 0; border-radius: 20px 20px 0 0; }
   .stl .stl-section + * { padding: 12px 16px 17px; border-radius: 0 0 20px 20px; }
 }
+
+/* ============================================================
+   OFFERS & CALENDAR — item 11 c/d
+   Restyled to the mockup's glass language.
+
+   ── PRESENTATION ONLY ────────────────────────────────────────
+   The offer builder's arithmetic (gross potential, adjusted gross, splitpoint,
+   artist backend, walkout) is untouched — this block does not edit
+   app/admin/offers/[id]/page.tsx at all. That page already renders through
+   .offer-* classes, so the whole screen restyles from here with zero changes
+   around a live figure.
+
+   Appended only; every rule below is additive and wins on source order.
+   ============================================================ */
+
+/* ── The offer builder's P&L rows ─────────────────────────────
+   Tabular figures, so a column of dollars aligns on the decimal — the same
+   change that mattered most on the settlement. */
+.offer-potential-grid {
+  border-radius: 20px;
+  padding: 18px 20px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.offer-potential-row {
+  font-variant-numeric: tabular-nums;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.offer-potential-row strong { font-variant-numeric: tabular-nums; }
+/* The rows that carry a decision — gross if sold out, net to venue, walkout —
+   read a size up, the way the mockup weights its totals. */
+.offer-potential-row.highlight {
+  font-size: 14.5px;
+  font-weight: 700;
+  padding-top: 11px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: none;
+}
+.offer-calc-cell { font-variant-numeric: tabular-nums; }
+
+/* Section headings become the same uppercase glass band the settlement uses,
+   so the two money screens read as one system. */
+.admin-form-section-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  padding: 13px 18px;
+  margin: 30px 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+}
+.offer-expenses-heading {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ── Offers list ──────────────────────────────────────────── */
+.ofr { color: #fff; display: flex; flex-direction: column; gap: 10px; }
+.ofr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) 116px 96px 104px 92px;
+  gap: 12px; align-items: center;
+  padding: 13px 16px; border-radius: 16px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  text-decoration: none; color: inherit;
+}
+.ofr-row:hover { border-color: rgba(255, 255, 255, 0.28); }
+.ofr-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) 116px 96px 104px 92px;
+  gap: 12px; padding: 0 16px 4px;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.34);
+}
+.ofr-head > :not(:first-child), .ofr-row > :not(:first-child) { text-align: right; }
+.ofr-artist { font-size: 13.5px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofr-meta   { font-size: 10.5px; color: rgba(255, 255, 255, 0.42); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ofr-num    { font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.78); }
+.ofr-num--strong { font-weight: 700; color: #fff; }
+.ofr-status {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 6px; justify-self: end;
+  border: 1px solid rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+}
+.ofr-status--accepted { background: rgba(143,214,168,0.16); border-color: rgba(143,214,168,0.4); color: #8fd6a8; }
+.ofr-status--declined, .ofr-status--expired { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.32); color: #f87171; }
+.ofr-status--draft { background: transparent; color: rgba(255, 255, 255, 0.42); }
+
+@media (max-width: 760px) {
+  .ofr-head, .ofr-row { grid-template-columns: minmax(0, 1fr) 92px 84px; }
+  .ofr-head > :nth-child(3), .ofr-row > :nth-child(3),
+  .ofr-head > :nth-child(4), .ofr-row > :nth-child(4) { display: none; }
+}
+
+/* ── Calendar ─────────────────────────────────────────────── */
+.cal-glass {
+  border-radius: 22px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* The offers row is a Link, so its Delete sits alongside rather than inside —
+   a button nested in an anchor is invalid, and the row would navigate on the
+   way to the button. */
+.ofr-line { display: flex; align-items: stretch; gap: 8px; }
+.ofr-line > .ofr-row { flex: 1; min-width: 0; }
+.ofr-delete {
+  flex: none; width: 40px; border-radius: 14px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.34);
+  font-family: inherit; font-size: 13px;
+}
+.ofr-delete:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #f87171;
+}
