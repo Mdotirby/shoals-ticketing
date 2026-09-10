@@ -16,6 +16,166 @@ const QRCode = require("qrcode");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 /**
+ * Write the settlement_ledger row for an order.
+ *
+ * EXTRACTED so the normal path and the repair path in processTicketOrder's
+ * idempotency guard share one implementation. Duplicating this math would give
+ * settlement two sources of truth for face value, which is the exact class of
+ * bug the facility-fee comment below describes.
+ *
+ * ORDERING MATTERS. The row is inserted FIRST with null actuals, and the Stripe
+ * balance-transaction lookup happens afterwards as an UPDATE. It used to run
+ * before the insert — an external API round-trip sitting between the order
+ * being created and the money being recorded. Between 2026-08-13 and
+ * 2026-09-10, 54 paid orders worth $3,643.23 ended up with tickets issued and
+ * no ledger row at all. Whatever killed those runs, nothing that reaches this
+ * function should be able to lose the ledger row to a network call for a value
+ * settlement already knows how to do without — the code downstream explicitly
+ * falls back to estimated card fees.
+ */
+async function writeSettlementLedger({
+  admin, orderId, eventId, venueId, stripeReferenceId, stripeWebhookEventId,
+  totalAmount, quantity, ticketingFee, facilityFee, venueRebate, taxRate,
+  taxMethod, feesIncludedInPrice, source, stripePaymentIntentId,
+}: {
+  admin: ReturnType<typeof createAdminClient>;
+  orderId: string;
+  eventId: string;
+  venueId: string | null;
+  stripeReferenceId: string;
+  stripeWebhookEventId: string;
+  totalAmount: number;
+  quantity: number;
+  ticketingFee: number;
+  facilityFee: number;
+  venueRebate: number;
+  taxRate: number;
+  taxMethod: string;
+  feesIncludedInPrice: boolean;
+  source: string;
+  stripePaymentIntentId?: string | null;
+}): Promise<void> {
+  // Compute and write the ledger row.
+  //
+  // ticket_revenue = face value only — the ticket price, with every other
+  // component of the charge backed out. The facility fee used to be missing
+  // from this subtraction entirely, so every facility fee ever collected was
+  // buried inside ticket_revenue and reported to artists as face value while
+  // settlement_ledger.facility_fee stayed $0.00 on all 757 rows.
+  //
+  // When feesIncludedInPrice, service + facility were never charged on top
+  // of totalAmount — they're already inside the ticket price — so they must
+  // not be subtracted again when backing out face value.
+  const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
+  const totalFacilityFee = Math.round(facilityFee * quantity * 100) / 100;
+  const ticketingFeeToSubtract = feesIncludedInPrice ? 0 : totalTicketingFee;
+  const facilityFeeToSubtract = feesIncludedInPrice ? 0 : totalFacilityFee;
+
+  // The surcharge we actually collected was computed on the SUBTOTAL, not on
+  // the grossed-up total. Deriving it from totalAmount (which already
+  // contains the surcharge) over-stated the fee on every order and left face
+  // value correspondingly short. Invert the checkout formula instead:
+  //   total = subtotal + (subtotal × pct + flat)
+  //   → subtotal = (total − flat) / (1 + pct)
+  // Card-present sales are surcharged at the Terminal rate (2.7% + $0.05),
+  // not the online one. Backing out the online rate on a reader sale would
+  // understate the artist's face value on every door transaction.
+  const captureMethod = source === "terminal" ? "terminal" : "online";
+  const { pct: surchargePct, flatCents: surchargeFlat } = ratesFor(captureMethod);
+  const surchargeCollected = feesIncludedInPrice
+    ? 0 // venue absorbed it — the buyer paid exactly the sticker price
+    : Math.round(
+        (totalAmount -
+          (totalAmount * 100 - surchargeFlat) / (1 + surchargePct) / 100) *
+          100
+      ) / 100;
+
+  const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
+  // Solve for face: gross = face×(1+taxRate) + svc + fac + surcharge
+  const preTax =
+    totalAmount -
+    ticketingFeeToSubtract -
+    facilityFeeToSubtract -
+    surchargeCollected;
+  const ticketRevenue =
+    effectiveTaxRate > 0
+      ? Math.round((preTax / (1 + effectiveTaxRate)) * 100) / 100
+      : Math.round(preTax * 100) / 100;
+  const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
+
+  const { error: ledgerError } = await admin.from("settlement_ledger").insert({
+    order_id: orderId,
+    event_id: eventId,
+    venue_id: venueId,
+    stripe_session_id: stripeReferenceId,
+    stripe_event_id: stripeWebhookEventId,
+    gross_amount: totalAmount,
+    ticket_revenue: ticketRevenue,
+    ticketing_fee: totalTicketingFee,
+    facility_fee: totalFacilityFee,
+    venue_rebate: venueRebate,
+    tax_collected: taxCollected,
+    // What we surcharged the buyer.
+    stripe_fee: surchargeCollected,
+    // What Stripe actually took, and what landed in the bank. Written null
+    // here and filled in by the enrichment UPDATE below — see the comment
+    // there for why the Stripe round-trip moved after the insert.
+    stripe_fee_actual: null,
+    stripe_net: null,
+    stripe_balance_transaction_id: null,
+    net_to_venue:
+      totalAmount -
+      ticketingFeeToSubtract -
+      facilityFeeToSubtract -
+      surchargeCollected +
+      venueRebate,
+    net_to_platform: totalTicketingFee - venueRebate,
+    type: "sale",
+  });
+
+  // A failed ledger write used to pass unnoticed: the result was never
+  // checked, so a missing column (or any other schema drift) meant the order
+  // and ticket went out fine while the settlement row silently vanished.
+  // The sale is already complete at this point, so this must not throw — but
+  // it must be loud, because the money record is what settlement runs on.
+  if (ledgerError) {
+    console.error(
+      `SETTLEMENT LEDGER WRITE FAILED for order ${orderId} (event ${eventId}). ` +
+        `The ticket sold correctly but has no ledger row — settlement will ` +
+        `fall back to estimated card fees until it is backfilled via ` +
+        `POST /api/events/${eventId}/revenue-summary/backfill. Cause: ${ledgerError.message}`
+    );
+  }
+
+  // Enrich with what Stripe actually deducted. Non-fatal and deliberately
+  // after the insert: if this call is slow, fails, or the function dies here,
+  // the ledger row already exists and settlement falls back to the estimated
+  // card fee rather than losing the sale entirely.
+  try {
+    const actual = await fetchActualStripeCost(stripePaymentIntentId);
+    if (actual) {
+      await admin
+        .from("settlement_ledger")
+        .update({
+          stripe_fee_actual: actual.fee,
+          stripe_net: actual.net,
+          stripe_balance_transaction_id: actual.id,
+          net_to_venue:
+            totalAmount -
+            (feesIncludedInPrice ? 0 : Math.round(ticketingFee * quantity * 100) / 100) -
+            (feesIncludedInPrice ? 0 : Math.round(facilityFee * quantity * 100) / 100) -
+            actual.fee +
+            venueRebate,
+        })
+        .eq("order_id", orderId);
+    }
+  } catch (e) {
+    console.error("Could not enrich ledger row with actual Stripe cost:", e);
+  }
+}
+
+
+/**
  * The processing fee Stripe actually deducted, from the charge's balance
  * transaction — the only independent record of what the payment cost.
  *
@@ -137,7 +297,69 @@ async function processTicketOrder({
     .maybeSingle();
 
   if (existing) {
-    console.log(`Order already exists for ${stripeReferenceId} — skipping`);
+    // IDEMPOTENCY IS PER-STEP, NOT ALL-OR-NOTHING.
+    //
+    // This used to return unconditionally, on the assumption that an existing
+    // order meant every downstream step had also succeeded. It does not: an
+    // order whose ledger write was lost could never be repaired, because every
+    // subsequent delivery of the same Stripe event bailed right here. That is
+    // how 54 orders worth $3,643.23 between 2026-08-13 and 2026-09-10 ended up
+    // with tickets issued and no ledger row — permanently, since the handler
+    // also returns 200 so Stripe stops retrying.
+    //
+    // Now the order's existence only skips order and ticket creation. The
+    // ledger is checked on its own and repaired if absent.
+    // NOT maybeSingle(): a refunded or disputed order legitimately has more
+    // than one row here (the sale, plus a negative reversal keyed to the same
+    // order_id), and maybeSingle() errors on multiple rows — which would read
+    // as "no ledger" and write a second sale row, double-counting the revenue.
+    // Anything that is not explicitly a reversal counts as the sale row, so a
+    // legacy row with a null type is treated as present. That direction is the
+    // safe one: at worst a repair is skipped, which is the status quo.
+    const { data: ledgerRows } = await admin
+      .from("settlement_ledger")
+      .select("id, type")
+      .eq("order_id", existing.id)
+      .limit(5);
+
+    const hasSaleRow = (ledgerRows ?? []).some(
+      (r) => r.type !== "refund" && r.type !== "dispute"
+    );
+
+    if (hasSaleRow) {
+      console.log(`Order and ledger already exist for ${stripeReferenceId} — skipping`);
+      return;
+    }
+
+    console.warn(
+      `Order ${existing.id} exists with NO settlement_ledger row — repairing ` +
+        `(event ${eventId}, ${stripeReferenceId}).`
+    );
+
+    const { data: repairEvent } = await admin
+      .from("events")
+      .select("venue_id")
+      .eq("id", eventId)
+      .single();
+
+    await writeSettlementLedger({
+      admin,
+      orderId: existing.id,
+      eventId,
+      venueId: repairEvent?.venue_id || null,
+      stripeReferenceId,
+      stripeWebhookEventId,
+      totalAmount,
+      quantity,
+      ticketingFee,
+      facilityFee,
+      venueRebate,
+      taxRate,
+      taxMethod,
+      feesIncludedInPrice: !!feesIncludedInPrice,
+      source,
+      stripePaymentIntentId,
+    });
     return;
   }
 
@@ -333,101 +555,25 @@ async function processTicketOrder({
       }
     }
 
-    // 4. Write settlement ledger entry
-    //
-    // ticket_revenue = face value only — the ticket price, with every other
-    // component of the charge backed out. The facility fee used to be missing
-    // from this subtraction entirely, so every facility fee ever collected was
-    // buried inside ticket_revenue and reported to artists as face value while
-    // settlement_ledger.facility_fee stayed $0.00 on all 757 rows.
-    //
-    // When feesIncludedInPrice, service + facility were never charged on top
-    // of totalAmount — they're already inside the ticket price — so they must
-    // not be subtracted again when backing out face value.
-    const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
-    const totalFacilityFee = Math.round(facilityFee * quantity * 100) / 100;
-    const ticketingFeeToSubtract = feesIncludedInPrice ? 0 : totalTicketingFee;
-    const facilityFeeToSubtract = feesIncludedInPrice ? 0 : totalFacilityFee;
-
-    // The surcharge we actually collected was computed on the SUBTOTAL, not on
-    // the grossed-up total. Deriving it from totalAmount (which already
-    // contains the surcharge) over-stated the fee on every order and left face
-    // value correspondingly short. Invert the checkout formula instead:
-    //   total = subtotal + (subtotal × pct + flat)
-    //   → subtotal = (total − flat) / (1 + pct)
-    // Card-present sales are surcharged at the Terminal rate (2.7% + $0.05),
-    // not the online one. Backing out the online rate on a reader sale would
-    // understate the artist's face value on every door transaction.
-    const captureMethod = source === "terminal" ? "terminal" : "online";
-    const { pct: surchargePct, flatCents: surchargeFlat } = ratesFor(captureMethod);
-    const surchargeCollected = feesIncludedInPrice
-      ? 0 // venue absorbed it — the buyer paid exactly the sticker price
-      : Math.round(
-          (totalAmount -
-            (totalAmount * 100 - surchargeFlat) / (1 + surchargePct) / 100) *
-            100
-        ) / 100;
-
-    // What Stripe ACTUALLY deducted, straight from the balance transaction.
-    // This is the only independent source of truth for processing cost — the
-    // surcharge above is merely what we billed the customer, and the two are
-    // not the same number. Non-fatal if unavailable.
-    const actual = await fetchActualStripeCost(stripePaymentIntentId);
-
-    const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
-    // Solve for face: gross = face×(1+taxRate) + svc + fac + surcharge
-    const preTax =
-      totalAmount -
-      ticketingFeeToSubtract -
-      facilityFeeToSubtract -
-      surchargeCollected;
-    const ticketRevenue =
-      effectiveTaxRate > 0
-        ? Math.round((preTax / (1 + effectiveTaxRate)) * 100) / 100
-        : Math.round(preTax * 100) / 100;
-    const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
-
-    const { error: ledgerError } = await admin.from("settlement_ledger").insert({
-      order_id: order.id,
-      event_id: eventId,
-      venue_id: eventData?.venue_id || null,
-      stripe_session_id: stripeReferenceId,
-      stripe_event_id: stripeWebhookEventId,
-      gross_amount: totalAmount,
-      ticket_revenue: ticketRevenue,
-      ticketing_fee: totalTicketingFee,
-      facility_fee: totalFacilityFee,
-      venue_rebate: venueRebate,
-      tax_collected: taxCollected,
-      // What we surcharged the buyer.
-      stripe_fee: surchargeCollected,
-      // What Stripe actually took, and what landed in the bank.
-      stripe_fee_actual: actual?.fee ?? null,
-      stripe_net: actual?.net ?? null,
-      stripe_balance_transaction_id: actual?.id ?? null,
-      net_to_venue:
-        totalAmount -
-        ticketingFeeToSubtract -
-        facilityFeeToSubtract -
-        (actual?.fee ?? surchargeCollected) +
-        venueRebate,
-      net_to_platform: totalTicketingFee - venueRebate,
-      type: "sale",
+    // 4. Write settlement ledger entry — see writeSettlementLedger above.
+    await writeSettlementLedger({
+      admin,
+      orderId: order.id,
+      eventId,
+      venueId: eventData?.venue_id || null,
+      stripeReferenceId,
+      stripeWebhookEventId,
+      totalAmount,
+      quantity,
+      ticketingFee,
+      facilityFee,
+      venueRebate,
+      taxRate,
+      taxMethod,
+      feesIncludedInPrice: !!feesIncludedInPrice,
+      source,
+      stripePaymentIntentId,
     });
-
-    // A failed ledger write used to pass unnoticed: the result was never
-    // checked, so a missing column (or any other schema drift) meant the order
-    // and ticket went out fine while the settlement row silently vanished.
-    // The sale is already complete at this point, so this must not throw — but
-    // it must be loud, because the money record is what settlement runs on.
-    if (ledgerError) {
-      console.error(
-        `SETTLEMENT LEDGER WRITE FAILED for order ${order.id} (event ${eventId}). ` +
-          `The ticket sold correctly but has no ledger row — settlement will ` +
-          `fall back to estimated card fees until it is backfilled via ` +
-          `POST /api/events/${eventId}/revenue-summary/backfill. Cause: ${ledgerError.message}`
-      );
-    }
 
     // Increment promo code usage if applicable
     if (promoCodeId && promoCode) {
