@@ -31,8 +31,10 @@
  * and names the reason only when an offer says so. Guessing would put an
  * invented comp count on a settlement screen.
  *
- * `event_holds` (quantity, hold_type, owner_label) reduces the sellable cap
- * further when rows exist — it is empty in production today.
+ * `event_holds` (quantity, hold_type, owner_label, and a `house_comp` type)
+ * records WHO the off-sale seats belong to. It does not reduce anything:
+ * `ticket_tiers.capacity` is what checkout enforces, so it is already the
+ * sellable number and the comps are already out of it.
  */
 
 export type CapacityInput = {
@@ -58,7 +60,8 @@ export type Capacity = {
   room: number | null;
   /** What is for sale: tier capacity less unreleased holds. */
   sellable: number;
-  /** Seats withheld by unreleased holds. */
+  /** Seats recorded as withheld. Attribution of the off-sale gap, NOT a
+   *  reduction — tier capacity is already net of them. */
   held: number;
   sold: number;
   /** sold / sellable, as a percentage to one decimal. 0 when unknown. */
@@ -89,7 +92,17 @@ export function resolveCapacity(input: CapacityInput): Capacity {
     0
   );
 
-  // A released hold is back on sale, so it stops reducing the sellable cap.
+  // Holds are ATTRIBUTION, not a further subtraction.
+  //
+  // I had this subtracting from the tier total, which is wrong and would have
+  // understated the sellable cap the moment anyone created a hold.
+  // `ticket_tiers.capacity` is what checkout actually enforces — see
+  // app/api/checkout/create-intent, which refuses a sale once
+  // soldCount + quantity exceeds it — so it IS the sellable number, and the
+  // comps have already been netted out of it upstream by the offer. Taking
+  // them off again counts them twice.
+  //
+  // What event_holds is for here is saying WHO the off-sale seats belong to.
   const held = (input.holds ?? [])
     .filter((h) => !h.released_at)
     .reduce((n, h) => n + (Number(h.quantity) || 0), 0);
@@ -98,8 +111,7 @@ export function resolveCapacity(input: CapacityInput): Capacity {
   // when no tier says otherwise — a show with no tiers has nothing for sale,
   // but reporting 0 there reads as an error rather than as a fact, and the
   // callers that care check `sellable === 0` explicitly.
-  const base = tierTotal > 0 ? tierTotal : room ?? 0;
-  const sellable = Math.max(0, base - held);
+  const sellable = tierTotal > 0 ? tierTotal : room ?? 0;
 
   const sold = input.sold ?? 0;
   const scaling = input.offerScaling ?? null;

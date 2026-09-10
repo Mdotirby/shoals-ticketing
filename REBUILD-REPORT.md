@@ -801,3 +801,56 @@ answers yes/no — it never hands one out), and `record-conversion` `POST`.
 
 Checked before guarding: no storefront, checkout or box-office caller touches
 a route that got a guard.
+
+---
+
+## Create a show — scaling, so the sellable cap stops being mental arithmetic
+
+The form asked for **capacity** and nothing else, so an operator working from
+an offer had to compute 750 − 30 comps in their head and type 720. Nothing
+recorded that the 30 existed.
+
+The tier row now carries the offer's own three fields and derives the fourth:
+
+```
+ROOM SEATS  −  COMPS  −  KILLS  =  SELLABLE
+    750          30        0         720
+```
+
+`capacity` — the only field that reaches `ticket_tiers`, and the number
+`app/api/checkout/create-intent` refuses a sale against — is **derived** from
+them. Typing directly into capacity still works and clears the derivation,
+because a tier that only knows its sellable number is a legitimate thing to
+have.
+
+**Verified against a real offer.** American Aquarium: 750 seats, 30 comps,
+720 sellable at $31. The rail computes face value **$22,320.00** — exactly the
+`gross_potential` stored on that offer. The create form and the offer builder
+now agree by construction rather than by whoever typed carefully.
+
+Full rail on that input: face $22,320.00 · service +$2,160.00 · tax
++$2,120.40 · **gross if sold out $27,372.11** · card −$771.71 · service
+retained −$2,160.00 · **net to venue $24,440.40**.
+
+### The allocation is recorded, not just subtracted
+
+On save, comps and kills are written to `event_holds` as `house_comp` and
+`production` rows with an owner label. They **do not reduce anything** — the
+tier is already net of them — they say *who the off-sale seats belong to*, so
+the workspace can print "30 comps" instead of "30 seats not on sale".
+Best-effort: a failure there never loses the show that was just created.
+
+### A bug this caught in `lib/capacity.ts`
+
+I had `resolveCapacity` subtracting unreleased holds from the tier total. That
+is wrong and would have **understated the sellable cap the moment anyone
+created a hold**: `ticket_tiers.capacity` is what checkout enforces, so it is
+already the sellable number and the comps are already out of it. Subtracting
+them again counts them twice. Holds are attribution now, not arithmetic.
+
+### And a CSS one
+
+`.admin-tier-row` is `display: flex; flex-wrap: nowrap`. Dropping a full-width
+row into it crushed the name, price and capacity inputs to 30px each. Wrapping
+is scoped to `.cshow` so the edit form — which has no scaling row — is
+untouched.

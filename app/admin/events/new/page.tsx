@@ -53,7 +53,20 @@ const fmtMoney = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function emptyTier(): TicketTierDraft {
-  return { tier_name: "General Admission", price: "", capacity: "" };
+  return { tier_name: "General Admission", price: "", capacity: "", seats: "", comps: "", kills: "" };
+}
+
+/**
+ * Sellable cap from the room's allocation, exactly as the offer computes it:
+ * seats − comps − kills. Returns null when no seats figure is given, which is
+ * how a tier that only knows its capacity keeps working unchanged.
+ */
+function sellableFrom(t: TicketTierDraft): number | null {
+  const seats = parseInt(t.seats ?? "");
+  if (isNaN(seats) || seats <= 0) return null;
+  const comps = parseInt(t.comps ?? "") || 0;
+  const kills = parseInt(t.kills ?? "") || 0;
+  return Math.max(0, seats - comps - kills);
 }
 
 export default function AdminCreateEventPage() {
@@ -199,7 +212,24 @@ export default function AdminCreateEventPage() {
     value: string
   ) => {
     setTiers((prev) =>
-      prev.map((t, i) => (i === index ? { ...t, [field]: value } : t))
+      prev.map((t, i) => {
+        if (i !== index) return t;
+        const next = { ...t, [field]: value };
+        // seats / comps / kills DERIVE capacity — the operator states the room
+        // and the allocation, the form does the subtraction. Typing directly
+        // into capacity still works and clears the derivation, because a tier
+        // that only knows its sellable number is a legitimate thing to have.
+        if (field === "seats" || field === "comps" || field === "kills") {
+          const derived = sellableFrom(next);
+          if (derived !== null) next.capacity = String(derived);
+        }
+        if (field === "capacity") {
+          next.seats = "";
+          next.comps = "";
+          next.kills = "";
+        }
+        return next;
+      })
     );
   };
 
@@ -207,7 +237,7 @@ export default function AdminCreateEventPage() {
     if (tiers.length >= MAX_TIERS) return;
     setTiers((prev) => [
       ...prev,
-      { tier_name: "", price: "", capacity: "" },
+      { tier_name: "", price: "", capacity: "", seats: "", comps: "", kills: "" },
     ]);
   };
 
@@ -366,6 +396,50 @@ export default function AdminCreateEventPage() {
 
       const event = await res.json();
 
+      // ── Record the comp / kill allocation ────────────────────────────────
+      // The tier already carries the SELLABLE cap, which is what checkout
+      // enforces — these rows do not reduce anything. They say WHO the
+      // off-sale seats belong to, so the event workspace can print
+      // "30 comps · 20 kills" instead of "50 seats not on sale". Best-effort:
+      // a failure here must never lose the show that was just created.
+      if (isHardTicket && event.id) {
+        for (const t of tiers) {
+          const comps = parseInt(t.comps ?? "") || 0;
+          const kills = parseInt(t.kills ?? "") || 0;
+          if (comps <= 0 && kills <= 0) continue;
+          const label = t.tier_name.trim() || "General Admission";
+          try {
+            if (comps > 0) {
+              await fetch(`/api/events/${event.id}/holds`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  quantity: comps,
+                  hold_type: "house_comp",
+                  owner_label: `${label} comps`,
+                  reason: "Allocated at creation — artist, marketing and house",
+                }),
+              });
+            }
+            if (kills > 0) {
+              await fetch(`/api/events/${event.id}/holds`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  quantity: kills,
+                  hold_type: "production",
+                  owner_label: `${label} kills`,
+                  reason: "Allocated at creation — production and sightline kills",
+                }),
+              });
+            }
+          } catch {
+            // The show exists and its tiers are right; only the attribution
+            // is missing, and it can be added from the Inventory tab.
+          }
+        }
+      }
+
       // Resolve the facility fee amount to persist on the event_venue row.
       // The checkbox toggles events.facility_fee_enabled; the $ amount lives
       // on event_venues.facility_fee and is read back at checkout + landing.
@@ -483,6 +557,11 @@ export default function AdminCreateEventPage() {
    * from the venue server-side at checkout, so a venue whose rates differ from
    * the platform defaults will settle at its own numbers.
    */
+  // The room's total allocation across tiers, when it has been stated. Gross
+  // is figured on the SELLABLE cap — the offer does the same — so this is
+  // context beside the number, not an input to it.
+  const roomSeats = tiers.reduce((n, t) => n + (parseInt(t.seats ?? "") || 0), 0);
+
   const projection = (() => {
     const seats = tiers.reduce((n, t) => n + (parseInt(t.capacity) || 0), 0);
     if (isFree || !isHardTicket || seats === 0) {
@@ -1099,8 +1178,59 @@ export default function AdminCreateEventPage() {
                       ✕
                     </button>
                   )}
+
+                  {/* ── Scaling ────────────────────────────────────────────
+                      The room, and what comes off it, in the same three
+                      fields the offer already uses. Capacity above is the
+                      SELLABLE cap — the number checkout enforces a sale
+                      against — so it is derived here rather than being a
+                      subtraction the operator does in their head and types
+                      the answer to. Leave seats blank to just state a
+                      capacity; typing into capacity clears these. */}
+                  <div className="cshow-scaling">
+                    <label className="cshow-scaling-field">
+                      <span>Room seats</span>
+                      <input
+                        type="number" min="0" step="1" placeholder="750"
+                        className="admin-form-input"
+                        value={tier.seats ?? ""}
+                        onChange={(e) => handleTierChange(i, "seats", e.target.value)}
+                      />
+                    </label>
+                    <span className="cshow-scaling-op">−</span>
+                    <label className="cshow-scaling-field">
+                      <span>Comps</span>
+                      <input
+                        type="number" min="0" step="1" placeholder="0"
+                        className="admin-form-input"
+                        value={tier.comps ?? ""}
+                        onChange={(e) => handleTierChange(i, "comps", e.target.value)}
+                      />
+                    </label>
+                    <span className="cshow-scaling-op">−</span>
+                    <label className="cshow-scaling-field">
+                      <span>Kills</span>
+                      <input
+                        type="number" min="0" step="1" placeholder="0"
+                        className="admin-form-input"
+                        value={tier.kills ?? ""}
+                        onChange={(e) => handleTierChange(i, "kills", e.target.value)}
+                      />
+                    </label>
+                    <span className="cshow-scaling-op">=</span>
+                    <div className="cshow-scaling-result">
+                      <span>Sellable</span>
+                      <strong>{sellableFrom(tier) ?? (parseInt(tier.capacity) || 0)}</strong>
+                    </div>
+                  </div>
                 </div>
               ))}
+            </div>
+            <div className="cshow-note" style={{ marginTop: 10 }}>
+              Comps are the artist, marketing and house allocation — the same
+              numbers the offer prices against. They come off the room before
+              anything goes on sale, so gross potential in the rail is figured
+              on the sellable cap, not the room.
             </div>
             {tiers.length < MAX_TIERS && (
               <button
@@ -1344,7 +1474,12 @@ export default function AdminCreateEventPage() {
               <div className="cshow-eyebrow">If it sells out</div>
               <div style={{ marginTop: 12 }}>
                 <div className="cshow-money-row">
-                  <span className="lbl">Face value · {projection.seats.toLocaleString()} ticket{projection.seats === 1 ? "" : "s"}</span>
+                  <span className="lbl">
+                    Face value · {projection.seats.toLocaleString()} sellable
+                    {roomSeats > projection.seats && (
+                      <span style={{ color: "var(--cshow-w32)" }}> of {roomSeats.toLocaleString()}</span>
+                    )}
+                  </span>
                   <span className="val">{fmtMoney(projection.face)}</span>
                 </div>
                 <div className="cshow-money-row">
