@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { requireCapability } from "@/lib/auth/can";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { NextResponse } from "next/server";
 
 /**
@@ -32,19 +33,23 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
 
-  const [ordersRes, scannedRes, totalTicketsRes] = await Promise.all([
-    admin
-      .from("orders")
-      .select("id, customer_name, total_amount, quantity, source, created_at")
-      .eq("event_id", eventId)
-      .eq("status", "paid")
-      .order("created_at", { ascending: false })
-      .limit(500),
+  // fetchAll, not .limit(): PostgREST caps a response at 1000 rows and ignores
+  // the limit you asked for. A sold-out night at a 1,400-cap room is one busy
+  // show away from that, and this is the number staff reconcile a drawer
+  // against — it must not quietly stop counting.
+  const [orders, scannedRes, totalTicketsRes] = await Promise.all([
+    fetchAll<{ id: string; customer_name: string | null; total_amount: number | null; quantity: number | null; source: string | null; created_at: string }>(
+      admin
+        .from("orders")
+        .select("id, customer_name, total_amount, quantity, source, created_at")
+        .eq("event_id", eventId)
+        .eq("status", "paid")
+        .order("created_at", { ascending: false })
+    ),
     admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("is_scanned", true),
     admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", eventId),
   ]);
 
-  const orders = ordersRes.data ?? [];
 
   // A door sale is one taken on this device tonight. Online presales are the
   // same event but not the same drawer, so they are counted separately rather

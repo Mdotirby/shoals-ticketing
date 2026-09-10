@@ -1,6 +1,7 @@
 import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { HARD_TICKET_TYPES_ARRAY } from "@/lib/eventClass";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { NextResponse } from "next/server";
 
 /**
@@ -36,6 +37,20 @@ import { NextResponse } from "next/server";
  * event, which is a regression, not a correction. So the filter governs the
  * band we derive; an explicit list is honoured verbatim.
  */
+type LedgerRow = {
+  event_id: string | null;
+  created_at: string;
+  type: string | null;
+  gross_amount: number | null;
+  ticket_revenue: number | null;
+  ticketing_fee: number | null;
+  facility_fee: number | null;
+  tax_collected: number | null;
+  stripe_fee: number | null;
+  stripe_fee_actual: number | null;
+  net_to_venue: number | null;
+};
+
 export async function GET(request: Request) {
   const guard = await requireStaff();
   if (!guard.ok) return guard.response;
@@ -111,24 +126,38 @@ export async function GET(request: Request) {
     // so the unscoped Command Center counted every ticket in the database
     // while its revenue figure was venue-scoped. The two headline numbers on
     // the same card were measuring different populations.
+    //
+    // EVERY ROW-LEVEL READ HERE GOES THROUGH fetchAll(). PostgREST caps a
+    // response at 1000 rows and ignores the `.limit()` you asked for, with no
+    // error and no truncation flag. These queries were written `.limit(50000)`
+    // and returned 1000: with 1,664 tickets in the band, Tyler Halverson —
+    // 42 sold — reported 15, because 15 was that show's share of the page it
+    // landed on. The settlement ledger is at 748 rows and would have started
+    // silently under-reporting GROSS at 1,001. See lib/supabase/fetchAll.ts.
     const [
-      ticketsRes, ledgerRes, tierBreakdownRes, dailySalesRes,
-      upcomingEventsRes, recentOrdersRes, paidOrdersRes,
+      tickets, ledgerRows, tierRows, dailyRows,
+      upcomingEventsRes, recentOrdersRes, paidOrders,
     ] = await Promise.all([
-      admin.from("tickets").select("id, event_id, created_at, order_id").in("event_id", eventIds).limit(50000),
-      admin
-        .from("settlement_ledger")
-        .select("event_id, created_at, type, gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, stripe_fee, stripe_fee_actual, net_to_venue")
-        .in("event_id", eventIds)
-        .limit(50000),
-      admin.from("tickets").select("ticket_type_id, ticket_tiers!inner(tier_name, event_id)").in("event_id", eventIds).limit(50000),
-      admin
-        .from("tickets")
-        .select("created_at, event_id, events!inner(title)")
-        .in("event_id", eventIds)
-        .gte("created_at", thirtyDaysAgo)
-        .order("created_at", { ascending: true })
-        .limit(50000),
+      fetchAll<{ id: string; event_id: string; created_at: string; order_id: string | null }>(
+        admin.from("tickets").select("id, event_id, created_at, order_id").in("event_id", eventIds)
+      ),
+      fetchAll<LedgerRow>(
+        admin
+          .from("settlement_ledger")
+          .select("event_id, created_at, type, gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, stripe_fee, stripe_fee_actual, net_to_venue")
+          .in("event_id", eventIds)
+      ),
+      fetchAll<{ ticket_type_id: string | null; ticket_tiers: unknown }>(
+        admin.from("tickets").select("ticket_type_id, ticket_tiers!inner(tier_name, event_id)").in("event_id", eventIds)
+      ),
+      fetchAll<{ created_at: string; event_id: string; events: unknown }>(
+        admin
+          .from("tickets")
+          .select("created_at, event_id, events!inner(title)")
+          .in("event_id", eventIds)
+          .gte("created_at", thirtyDaysAgo)
+          .order("created_at", { ascending: true })
+      ),
       admin
         .from("events")
         .select("id, title, date, venue, image_url")
@@ -145,7 +174,9 @@ export async function GET(request: Request) {
       // Comps and free tickets issue a ticket but are not a sale. Counting
       // them in "tickets sold" inflates it and drags the average ticket price
       // toward zero, so paid and comped are tracked apart.
-      admin.from("orders").select("id, total_amount").in("event_id", eventIds).eq("status", "paid").limit(50000),
+      fetchAll<{ id: string; total_amount: number | null }>(
+        admin.from("orders").select("id, total_amount").in("event_id", eventIds).eq("status", "paid")
+      ),
     ]);
 
     // ── Revenue, from the ledger ─────────────────────────────────────────────
@@ -157,7 +188,7 @@ export async function GET(request: Request) {
     const revenueByEventMap: Record<string, number> = {};
     const faceByEventMap: Record<string, number> = {};
 
-    for (const r of ledgerRes.data ?? []) {
+    for (const r of ledgerRows) {
       const gross = Number(r.gross_amount) || 0;
       totalRevenue += gross;
       if (r.created_at >= todayStart) revenueToday += gross;
@@ -181,9 +212,8 @@ export async function GET(request: Request) {
 
     // ── Tickets ──────────────────────────────────────────────────────────────
     const compOrderIds = new Set(
-      (paidOrdersRes.data ?? []).filter((o) => (Number(o.total_amount) || 0) === 0).map((o) => o.id)
+      paidOrders.filter((o) => (Number(o.total_amount) || 0) === 0).map((o) => o.id)
     );
-    const tickets = ticketsRes.data ?? [];
     const isComp = (t: { order_id: string | null }) => !!t.order_id && compOrderIds.has(t.order_id);
 
     const totalTicketsSold = tickets.length;
@@ -236,7 +266,7 @@ export async function GET(request: Request) {
 
     // ── Tier breakdown ───────────────────────────────────────────────────────
     const tierCounts: Record<string, number> = {};
-    for (const t of tierBreakdownRes.data ?? []) {
+    for (const t of tierRows) {
       const tierInfo = t.ticket_tiers as unknown as { tier_name: string } | null;
       const name = tierInfo?.tier_name || "Unknown";
       tierCounts[name] = (tierCounts[name] || 0) + 1;
@@ -248,7 +278,7 @@ export async function GET(request: Request) {
 
     // ── Daily sales ──────────────────────────────────────────────────────────
     const dailyMap: Record<string, Record<string, number>> = {};
-    for (const t of dailySalesRes.data ?? []) {
+    for (const t of dailyRows) {
       const date = new Date(t.created_at).toISOString().slice(0, 10);
       const eventInfo = t.events as unknown as { title: string } | null;
       const eventName = eventInfo?.title || "Unknown";

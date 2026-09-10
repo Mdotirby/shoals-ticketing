@@ -1,5 +1,6 @@
 import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 import { NextResponse } from "next/server";
 
 // GET /api/admin/reports?type=tickets|tiers|checkins&event_id=&start=&end=
@@ -23,15 +24,18 @@ export async function GET(request: Request) {
         .select(
           "id, customer_name, customer_email, qr_code, is_scanned, scanned_at, created_at, event_id, events!inner(title, venue, date)"
         )
-        .order("created_at", { ascending: false })
-        .limit(5000);
+        .order("created_at", { ascending: false });
 
       if (eventId) query = query.eq("event_id", eventId);
       if (startDate) query = query.gte("created_at", startDate);
       if (endDate) query = query.lte("created_at", endDate + "T23:59:59Z");
 
-      const { data, error } = await query;
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      // fetchAll, not .limit(): PostgREST caps a response at 1000 rows and
+      // ignores the limit you asked for, silently. `tickets` is at 2,026 rows,
+      // so an unfiltered run of this report was returning less than half of
+      // them with no error and no truncation flag — in a report used to
+      // reconcile a settlement. See lib/supabase/fetchAll.ts.
+      const data = await fetchAll<Record<string, unknown>>(query);
 
       const rows = (data ?? []).map((t) => {
         const ev = t.events as unknown as { title: string; venue: string; date: string } | null;
@@ -59,15 +63,18 @@ export async function GET(request: Request) {
         .select(
           "id, created_at, ticket_type_id, ticket_tiers!inner(tier_name, price, event_id), events!inner(title)"
         )
-        .order("created_at", { ascending: false })
-        .limit(10000);
+        .order("created_at", { ascending: false });
 
       if (eventId) query = query.eq("event_id", eventId);
       if (startDate) query = query.gte("created_at", startDate);
       if (endDate) query = query.lte("created_at", endDate + "T23:59:59Z");
 
-      const { data, error } = await query;
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      // fetchAll, not .limit(): PostgREST caps a response at 1000 rows and
+      // ignores the limit you asked for, silently. `tickets` is at 2,026 rows,
+      // so an unfiltered run of this report was returning less than half of
+      // them with no error and no truncation flag — in a report used to
+      // reconcile a settlement. See lib/supabase/fetchAll.ts.
+      const data = await fetchAll<Record<string, unknown>>(query);
 
       // Aggregate by tier
       const tierMap: Record<string, { tier_name: string; event_title: string; price: number; count: number; revenue: number }> = {};
@@ -102,15 +109,18 @@ export async function GET(request: Request) {
           "id, customer_name, customer_email, is_scanned, scanned_at, created_at, event_id, events!inner(title, venue)"
         )
         .eq("is_scanned", true)
-        .order("scanned_at", { ascending: false })
-        .limit(5000);
+        .order("scanned_at", { ascending: false });
 
       if (eventId) query = query.eq("event_id", eventId);
       if (startDate) query = query.gte("scanned_at", startDate);
       if (endDate) query = query.lte("scanned_at", endDate + "T23:59:59Z");
 
-      const { data, error } = await query;
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      // fetchAll, not .limit(): PostgREST caps a response at 1000 rows and
+      // ignores the limit you asked for, silently. `tickets` is at 2,026 rows,
+      // so an unfiltered run of this report was returning less than half of
+      // them with no error and no truncation flag — in a report used to
+      // reconcile a settlement. See lib/supabase/fetchAll.ts.
+      const data = await fetchAll<Record<string, unknown>>(query);
 
       const rows = (data ?? []).map((t) => {
         const ev = t.events as unknown as { title: string; venue: string } | null;
