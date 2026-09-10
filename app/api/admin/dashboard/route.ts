@@ -63,6 +63,12 @@ export async function GET(request: Request) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
+  // Calendar month, not a rolling 30 days. The mockup's hero reads
+  // "Hard ticket — this month" against "+612 vs. last month", and a venue
+  // closes its books on a month, not on a window that moves every time
+  // somebody loads the page.
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const emptyResponse = {
@@ -76,6 +82,15 @@ export async function GET(request: Request) {
     revenueThisWeek: 0,
     faceValue: 0,
     netToVenue: 0,
+    monthTicketsSold: 0,
+    monthGross: 0,
+    monthFaceValue: 0,
+    monthNetToVenue: 0,
+    monthAvgTicket: 0,
+    lastMonthTicketsSold: 0,
+    lastMonthGross: 0,
+    eventsWithSales: 0,
+    eventsTotal: 0,
     ticketingFees: 0,
     facilityFees: 0,
     taxCollected: 0,
@@ -185,6 +200,7 @@ export async function GET(request: Request) {
     let totalRevenue = 0, revenueToday = 0, revenueThisWeek = 0;
     let faceValue = 0, netToVenue = 0, ticketingFees = 0, facilityFees = 0;
     let taxCollected = 0, cardFees = 0, refunds = 0;
+    let monthGross = 0, monthFaceValue = 0, monthNetToVenue = 0, lastMonthGross = 0;
     const revenueByEventMap: Record<string, number> = {};
     const faceByEventMap: Record<string, number> = {};
 
@@ -193,6 +209,13 @@ export async function GET(request: Request) {
       totalRevenue += gross;
       if (r.created_at >= todayStart) revenueToday += gross;
       if (r.created_at >= weekStart) revenueThisWeek += gross;
+      if (r.created_at >= monthStart) {
+        monthGross += gross;
+        monthFaceValue += Number(r.ticket_revenue) || 0;
+        monthNetToVenue += Number(r.net_to_venue) || 0;
+      } else if (r.created_at >= lastMonthStart) {
+        lastMonthGross += gross;
+      }
       faceValue += Number(r.ticket_revenue) || 0;
       netToVenue += Number(r.net_to_venue) || 0;
       ticketingFees += Number(r.ticketing_fee) || 0;
@@ -222,6 +245,14 @@ export async function GET(request: Request) {
     const ticketsSoldToday = tickets.filter((t) => t.created_at >= todayStart).length;
     const ticketsSoldYesterday = tickets.filter((t) => t.created_at >= yesterdayStart && t.created_at < todayStart).length;
     const ticketsSoldThisWeek = tickets.filter((t) => t.created_at >= weekStart).length;
+    const monthTickets = tickets.filter((t) => t.created_at >= monthStart);
+    const monthTicketsSold = monthTickets.length;
+    const lastMonthTicketsSold = tickets.filter(
+      (t) => t.created_at >= lastMonthStart && t.created_at < monthStart
+    ).length;
+    // Face value over PAID tickets only — comps would drag the average toward
+    // zero, and gross would let fees and tax inflate it.
+    const monthPaidTickets = monthTickets.filter((t) => !isComp(t)).length;
 
     const soldByEvent: Record<string, number> = {};
     const paidByEvent: Record<string, number> = {};
@@ -305,6 +336,17 @@ export async function GET(request: Request) {
 
     const totalCapacity = Object.values(capacityByEvent).reduce((s, c) => s + c, 0);
 
+    // "9 of 14" in the hero: how many events in the band have actually sold
+    // something, against every event on the books — the second number includes
+    // the private rentals and free nights the band deliberately excludes, so
+    // the ratio says what share of the calendar this card is describing.
+    const eventsWithSales = Object.keys(revenueByEventMap).filter(
+      (id) => (revenueByEventMap[id] || 0) > 0
+    ).length;
+    const { count: eventsTotalCount } = await admin
+      .from("events")
+      .select("id", { count: "exact", head: true });
+
     return NextResponse.json({
       totalEvents: eventIds.length,
       ticketsSoldToday,
@@ -327,6 +369,16 @@ export async function GET(request: Request) {
       avgTicket: paidTickets > 0 ? round(faceValue / paidTickets) : 0,
       sellThrough: totalCapacity > 0 ? Math.round((Object.values(soldByEvent).reduce((s, n) => s + n, 0) / totalCapacity) * 1000) / 10 : 0,
       totalCapacity,
+      // The hero's window.
+      monthTicketsSold,
+      monthGross: round(monthGross),
+      monthFaceValue: round(monthFaceValue),
+      monthNetToVenue: round(monthNetToVenue),
+      monthAvgTicket: monthPaidTickets > 0 ? round(monthFaceValue / monthPaidTickets) : 0,
+      lastMonthTicketsSold,
+      lastMonthGross: round(lastMonthGross),
+      eventsWithSales,
+      eventsTotal: eventsTotalCount ?? eventIds.length,
       tierBreakdown,
       dailySales,
       eventNames: Array.from(eventNames),

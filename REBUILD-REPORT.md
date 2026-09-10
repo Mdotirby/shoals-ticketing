@@ -553,3 +553,74 @@ and dot lattice every panel reads as a dark box with a border. Reproduced at
 roughly half the mockup's alpha — that export is a hero shot on a bright
 monitor, and the same luminance washes out 9.5px eyebrow labels read at arm's
 length in a dark room beside a stage.
+
+---
+
+## Command Center — the second screen rebuilt (2026-09-10)
+
+`app/admin/page.tsx`, to the mockup's `dash` block. The **screen** this time —
+item 6 had only fixed the route feeding it.
+
+The mockup's shape is an argument about what an operator looks at first: one
+hard-ticket number for the month, the shows that made it, then everything that
+needs a decision. The old screen led with four "today" tiles — a number that is
+zero most mornings and says nothing about whether the month is working.
+
+### Built, all from real data
+
+| Panel | Source |
+|---|---|
+| **Hard ticket — this month** — tickets sold, gross, ± vs last month, net to venue, avg ticket, "13 of 43" | New month-window aggregates on the dashboard route, computed from rows already fetched — no extra queries |
+| **By event — sold & gross** with sell-through bars | `upcomingEvents`, bars on the mockup's thresholds (85% mint / 55% white / below dim) |
+| **Four money KPIs** — gross all-time, face value, net to venue, fees retained | `settlement_ledger` decomposition |
+| **Where the gross splits** — face → service → facility → tax → card, proportional bars | Same |
+| **Needs a decision** | **Derived**, not stored — see below |
+| **Latest sales** | `recentOrders` |
+| **Tickets sold, last 30 days** | `dailySales`, restyled |
+
+Calendar month, not a rolling 30 days: the hero reads "vs. last month", and a
+venue closes its books on a month, not on a window that moves every time
+somebody loads the page.
+
+### The queue is derived
+
+Every item is computed from data already on the page, so it can never disagree
+with the numbers above it. On live data it immediately surfaced three real
+things: tonight's show at 6% sold, a show 9 days out at 0%, and
+**"Julia Cole // The Team Hold has no ticket tiers"** — a show on the calendar
+the storefront has nothing to sell for.
+
+The mockup's version also lists offer expiries and unsigned settlements. Those
+live in tables this endpoint does not read; a half-populated attention list is
+worse than a short honest one.
+
+### Not built — and why
+
+The mockup also draws **cash position, deposits held in trust, receivables
+aging, money in motion, and merch/bar ancillary**. The underlying tables exist
+(`invoices`, `private_event_revenue`) but nothing aggregates them, and that is
+§ 5's job. Drawing those panels with invented numbers on a screen whose whole
+point is that its numbers reconcile would be the exact failure this rebuild has
+spent its time undoing. Left out.
+
+**Artist mode is untouched.** It is a different, simpler screen for an external
+identity and rebuilding it was not asked for.
+
+### Two bugs fixed in passing
+
+- **`daysOut` counted milliseconds, not calendar days.** `Math.ceil` on the raw
+  difference rounds any fraction of a day up, so tonight's 8pm show read
+  "1 day to go" on the one morning that number matters. Now compares calendar
+  dates. `daysUntil()` is left alone — it returns display text the artist
+  dashboard renders.
+- **`EMPTY_DASHBOARD` extracted.** The zero state was written inline where an
+  artist has no assigned events, listing the response's fields by hand — so
+  every field added to the endpoint silently left it behind. It is typed
+  `DashboardData` now, so the build fails when the two diverge instead of the
+  dashboard rendering `undefined`.
+
+### Rebuild status
+
+**2 of 71** admin screens. `AdminCard` and `AdminPageHeader` are still unused —
+this screen needed the mockup's specific hero and table geometry, not a generic
+card, so folding them in belongs with a screen that wants a plain card.
