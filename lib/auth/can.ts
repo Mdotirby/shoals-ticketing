@@ -52,6 +52,19 @@ export type AdminActor = {
   role: string;
   resolved: ResolvedRole;
   venueId: string | null;
+  /**
+   * This venue's capability overrides, keyed "role:capability".
+   *
+   * Loaded WITH the actor rather than fetched inside can(). can() is
+   * synchronous and called from dozens of handlers; making it async to read a
+   * table would have meant touching every one. The actor is already an async
+   * load, so the overrides ride along on it and can() stays a pure function of
+   * what it was handed.
+   *
+   * Empty when the table has not been migrated yet, which is the same thing as
+   * having no overrides — the compiled defaults answer either way.
+   */
+  capabilityOverrides: Record<string, CapabilityLevel>;
 };
 
 /** Reads the cookie session and the admin_users row. Null when either is absent. */
@@ -84,12 +97,31 @@ export async function getAdminActor(): Promise<AdminActor | null> {
 
   if (!record) return null;
 
+  const venueId = record.venue_id ?? null;
+
+  // Per-venue overrides (plans/role-capabilities-migration.sql). Missing table
+  // and no rows are the same answer, so the failure is swallowed: an
+  // un-migrated environment must resolve to the shipped defaults, not to a
+  // 500 on every guarded route in the app.
+  const capabilityOverrides: Record<string, CapabilityLevel> = {};
+  try {
+    let q = admin.from("role_capabilities").select("role, capability_key, level");
+    q = venueId ? q.eq("venue_id", venueId) : q.is("venue_id", null);
+    const { data: overrides } = await q;
+    for (const o of overrides ?? []) {
+      capabilityOverrides[`${o.role}:${o.capability_key}`] = o.level as CapabilityLevel;
+    }
+  } catch {
+    /* defaults */
+  }
+
   return {
     id: record.id,
     email: record.email ?? user.email ?? null,
     role: record.role,
     resolved: normalizeRole(record.role),
-    venueId: record.venue_id ?? null,
+    venueId,
+    capabilityOverrides,
   };
 }
 
@@ -106,7 +138,16 @@ export function can(
   if (!actor) return "none";
   // read_only is unresolved by design (§ 8) — no level, so no capabilities.
   if (!actor.resolved.level) return "none";
-  return defaultCapabilityLevel(actor.resolved.level, capability);
+
+  // Owner is not overridable. The database trigger says the same thing, and so
+  // does the API — an owner whose capabilities can be reduced by whoever holds
+  // assign_roles is one UPDATE away from not being the owner.
+  if (actor.resolved.level === "owner") {
+    return defaultCapabilityLevel("owner", capability);
+  }
+
+  const override = actor.capabilityOverrides?.[`${actor.resolved.level}:${capability}`];
+  return override ?? defaultCapabilityLevel(actor.resolved.level, capability);
 }
 
 type GuardFailure = { ok: false; response: NextResponse };

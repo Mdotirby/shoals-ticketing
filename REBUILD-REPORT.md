@@ -994,3 +994,72 @@ to the legacy `Header` — the only storefront page still doing so. Two navs, tw
 different mobile drawers, which is why the menu behaved differently there. It
 now renders `.sf-page` + `SfHeader` + `SfFooter` like `/events`, and is listed
 in `SF_HEADER_ROUTES` so the legacy header stands down.
+
+---
+
+## Item 10 — Access control (2026-09-10)
+
+`/admin/settings/permissions`, rebuilt to the mockup's `roles` screen: role
+cards, the **16 × 6 capability matrix** with its four states, and the audit log.
+
+### The strong half above the weak half
+
+`sidebar_permissions` — the thing this page used to be — only ever answered
+"can this role **see** this tab". That is worth having, but it is not access
+control: hiding Settlements in the nav never stopped a Box Office user
+deep-linking to `/admin/settlements/[id]`.
+
+Capabilities answer "can this role **do** this thing", and they are checked on
+the server. So the matrix is the page now, and the sidebar editor sits beneath
+it retitled **Sidebar visibility**, saying plainly that it is tidiness rather
+than security.
+
+### Four states, and they render as four
+
+Verified against live data: *Place & release holds* reads
+full · full · full · none · **scoped** · none, and *Build & send offers* reads
+full · full · full · **read** · none · none — matching the design's
+`[F,F,F,N,S,N]` and `[F,F,F,R,N,N]`. 16 rows × 6 columns = 96 cells. Role
+cards carry real seat counts (Owner 4, Venue Admin 5, Box Office 9).
+
+### Editable per venue — the plumbing, not yet the table
+
+`lib/auth/capabilities.ts` always said the live values belong in a
+`role_capabilities` table that did not exist. It does now, as
+**`plans/role-capabilities-migration.sql`** (hand-run, like every migration
+here). Until it is run the matrix shows the compiled defaults, every cell is
+disabled, and the page says which file to run — the same shape
+`/api/events/[id]/holds` already uses for its own pending table.
+
+`can()` reads overrides now without becoming async: they are loaded **with the
+actor** in `getAdminActor()` and ride along on it, so `can()` stays a pure
+function of what it was handed and no call site changed.
+
+**Safe to run while selling.** It creates one empty table; every
+(venue, role, capability) with no override resolves to the compiled default, so
+an empty table behaves exactly like today.
+
+### Three ways owner is protected
+
+An owner who can be demoted by whoever holds `assign_roles` is one `UPDATE`
+away from not being the owner. So:
+
+1. `can()` returns the default for `owner` and never consults an override
+2. `PUT /api/admin/capabilities` refuses `role: "owner"` with a 403
+3. a database trigger raises on any owner row that is not `full`
+
+Two more guards on that endpoint: you cannot grant a capability **you do not
+hold yourself** (otherwise a venue admin without `sign_payout` grants it to a
+role they hold and signs their own payouts), and every change writes to
+`audit_log`.
+
+### Audit log
+
+`GET /api/admin/audit`, gated on `read_audit` — Owner and Venue Admin full,
+Finance read, per the design. Real entries already showing, including this
+session's `settlement_ledger.backfill`.
+
+### Rebuild status
+
+**5 of 71** admin screens: box office, Command Center, create a show, team,
+access control.

@@ -21079,3 +21079,115 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .team-thead > :nth-child(3), .team-row > :nth-child(3),
   .team-thead > :nth-child(4), .team-row > :nth-child(4) { display: none; }
 }
+
+/* ============================================================
+   ACCESS CONTROL — /admin/settings/permissions
+   The mockup's `roles` screen: role cards, the 16 x 6 capability matrix with
+   its four states, and the audit log beneath.
+
+   Namespaced .acl-, checked against the file first. Appended only.
+   ============================================================ */
+
+.acl {
+  --acl-good: #8fd6a8;
+  --acl-w72: rgba(255, 255, 255, 0.72);
+  --acl-w50: rgba(255, 255, 255, 0.50);
+  --acl-w34: rgba(255, 255, 255, 0.34);
+  --acl-w26: rgba(255, 255, 255, 0.26);
+  --acl-sheen: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+  color: #fff;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.acl-card {
+  position: relative; border-radius: 24px; padding: 20px 21px;
+  background: var(--acl-sheen), linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+@supports not (backdrop-filter: blur(1px)) { .acl-card { background: rgba(20,20,22,0.94); } }
+
+.acl-eyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--acl-w50);
+}
+.acl-note { font-size: 10.5px; line-height: 1.5; color: rgba(255,255,255,0.42); text-wrap: pretty; }
+
+/* ── Role cards ───────────────────────────────────────────── */
+.acl-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 12px; }
+.acl-role {
+  padding: 14px 15px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.acl-role--owner {
+  background: linear-gradient(155deg, rgba(255,255,255,0.13), rgba(255,255,255,0.06));
+  border-color: rgba(255, 255, 255, 0.26);
+}
+.acl-role-level { font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--acl-w34); }
+.acl-role-name  { font-size: 14px; font-weight: 750; letter-spacing: -0.02em; margin-top: 4px; }
+.acl-role-seats { font-size: 19px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.acl-role-note  { font-size: 10px; line-height: 1.45; color: var(--acl-w50); margin-top: 6px; text-wrap: pretty; }
+
+/* ── Matrix ───────────────────────────────────────────────── */
+.acl-matrix-scroll { overflow-x: auto; margin-top: 14px; }
+.acl-mhead, .acl-mrow {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.4fr) repeat(6, minmax(76px, 1fr));
+  gap: 6px; align-items: center;
+  min-width: 720px;
+}
+.acl-mhead {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--acl-w34); padding: 0 4px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+.acl-mhead > :not(:first-child), .acl-mrow > :not(:first-child) { text-align: center; }
+.acl-mrow { padding: 6px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.acl-mrow:last-child { border-bottom: none; }
+.acl-cap   { font-size: 12px; font-weight: 600; }
+.acl-scope { font-size: 9.5px; color: var(--acl-w34); margin-top: 1px; }
+
+.acl-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 4px; border-radius: 10px; min-height: 46px;
+  background: transparent; border: 1px solid transparent;
+  color: inherit; font-family: inherit; cursor: pointer; position: relative;
+}
+.acl-cell:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); border-color: rgba(255,255,255,0.14); }
+.acl-cell:disabled { cursor: default; }
+.acl-mark { font-size: 15px; line-height: 1; }
+.acl-lvl  { font-size: 8.5px; letter-spacing: 0.04em; }
+
+.acl-full   { color: #ffffff; }
+.acl-scoped { color: rgba(255, 255, 255, 0.66); }
+.acl-read   { color: rgba(255, 255, 255, 0.52); }
+.acl-none   { color: var(--acl-w26); }
+.acl-full ~ .acl-lvl { color: var(--acl-w72); }
+
+/* A cell somebody changed, versus one that is just the shipped default. */
+.acl-cell-dot {
+  position: absolute; top: 5px; right: 6px;
+  width: 5px; height: 5px; border-radius: 999px;
+  background: var(--acl-good); box-shadow: 0 0 6px var(--acl-good);
+}
+
+.acl-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 10px; color: var(--acl-w50); }
+
+/* ── Audit ────────────────────────────────────────────────── */
+.acl-audit-row {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 9px 11px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(255, 255, 255, 0.22);
+}
+.acl-audit-when { font-size: 10px; color: var(--acl-w34); font-variant-numeric: tabular-nums; width: 108px; flex: none; }
+.acl-audit-what { flex: 1; min-width: 0; font-size: 11.5px; }
+.acl-audit-who  { font-size: 10px; color: var(--acl-w34); flex: none; }
+
+@media (max-width: 640px) {
+  .acl-card { padding: 17px 16px; border-radius: 20px; }
+  .acl-audit-when { width: 88px; }
+}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_TAB_ROLES } from "@/lib/admin/nav";
 import { getCookie } from "@/lib/cookies";
+import AccessControl from "./AccessControl";
 
 const TABS = [
   { key: "dashboard", label: "Dashboard" },
@@ -161,19 +162,44 @@ export default function PermissionsPage() {
     );
   }
 
+  // Capabilities are not venue-scoped for DISPLAY — the matrix is the same
+  // sixteen rows whoever is looking — so a missing venue only takes down the
+  // sidebar editor beneath it, not the whole screen. This used to return
+  // early and blank the page.
   if (!venueId) {
     return (
       <div className="admin-form-page">
-        <h1 className="admin-page-title">Sidebar Permissions</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>No venue assigned to your account.</p>
+        <h1 className="admin-page-title">Access control</h1>
+        <AccessControl />
+        <div className="admin-page-header" style={{ marginTop: 28 }}>
+          <h2 className="admin-page-title" style={{ fontSize: 20 }}>Sidebar visibility</h2>
+        </div>
+        <p style={{ color: "rgba(255,255,255,0.5)" }}>No venue assigned to your account, so per-venue tab visibility can&apos;t be edited here.</p>
       </div>
     );
   }
 
   return (
     <div className="admin-form-page">
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">Sidebar Permissions</h1>
+      <h1 className="admin-page-title">Access control</h1>
+
+      {/* The strong half: what a role can DO, checked on the server. */}
+      <AccessControl />
+
+      {/* ── The weak half, kept and reframed ─────────────────────────────
+          sidebar_permissions only ever answered "can this role SEE this tab".
+          That is worth having — a Box Office user does not need Settlements
+          cluttering their nav — but it is not access control: hiding the tab
+          never stopped anyone deep-linking to /admin/settlements/[id]. It sits
+          below the capability matrix, and says what it is. */}
+      <div className="admin-page-header" style={{ marginTop: 28 }}>
+        <div>
+          <h2 className="admin-page-title" style={{ fontSize: 20 }}>Sidebar visibility</h2>
+          <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.42)", margin: "4px 0 0", maxWidth: 560, lineHeight: 1.5 }}>
+            Which tabs each role sees. This is tidiness, not security — the capability
+            matrix above is what actually refuses an action.
+          </p>
+        </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {saveMsg && (
             <span style={{ fontSize: 13, color: saveMsg.includes("Failed") ? "#ff9a9a" : "#7ddb7d" }}>
