@@ -62,6 +62,26 @@ export function computeLedgerAmounts(basis: LedgerBasis): LedgerAmounts {
     taxRate, taxMethod, feesIncludedInPrice, source, at,
   } = basis;
 
+  // A $0 order is a comp or a free ticket, not a discounted sale. There are
+  // 185 of them in production. Running one through the arithmetic below
+  // subtracts a service and facility fee from a gross of zero and produces a
+  // NEGATIVE face value — the recomputation check that found this returned
+  // "$0 → -$22.18". Comps and free checkouts already write all-zero rows at
+  // the point of sale (app/api/admin/comps and app/api/checkout/free); this
+  // matches them, so anything reconstructing such a row agrees.
+  if (totalAmount <= 0) {
+    return {
+      ticketRevenue: 0,
+      taxCollected: 0,
+      totalTicketingFee: 0,
+      totalFacilityFee: 0,
+      totalVenueRebate: 0,
+      surchargeCollected: 0,
+      netToVenue: 0,
+      netToPlatform: 0,
+    };
+  }
+
   // Cash is not a variant of the card math — it is a different transaction
   // with genuinely zero fees. Running it through the inversion below would
   // manufacture a card surcharge and a ticketing fee nobody ever paid.
