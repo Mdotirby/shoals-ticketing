@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { earnBenefits } from "@/lib/fwb/earn";
-import { ratesFor } from "@/lib/fees/rates";
+import { computeLedgerAmounts, hasSaleRow } from "@/lib/settlement/ledger";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -55,53 +55,19 @@ async function writeSettlementLedger({
   source: string;
   stripePaymentIntentId?: string | null;
 }): Promise<void> {
-  // Compute and write the ledger row.
-  //
-  // ticket_revenue = face value only — the ticket price, with every other
-  // component of the charge backed out. The facility fee used to be missing
-  // from this subtraction entirely, so every facility fee ever collected was
-  // buried inside ticket_revenue and reported to artists as face value while
-  // settlement_ledger.facility_fee stayed $0.00 on all 757 rows.
-  //
-  // When feesIncludedInPrice, service + facility were never charged on top
-  // of totalAmount — they're already inside the ticket price — so they must
-  // not be subtracted again when backing out face value.
-  const totalTicketingFee = Math.round(ticketingFee * quantity * 100) / 100;
-  const totalFacilityFee = Math.round(facilityFee * quantity * 100) / 100;
-  const ticketingFeeToSubtract = feesIncludedInPrice ? 0 : totalTicketingFee;
-  const facilityFeeToSubtract = feesIncludedInPrice ? 0 : totalFacilityFee;
-
-  // The surcharge we actually collected was computed on the SUBTOTAL, not on
-  // the grossed-up total. Deriving it from totalAmount (which already
-  // contains the surcharge) over-stated the fee on every order and left face
-  // value correspondingly short. Invert the checkout formula instead:
-  //   total = subtotal + (subtotal × pct + flat)
-  //   → subtotal = (total − flat) / (1 + pct)
-  // Card-present sales are surcharged at the Terminal rate (2.7% + $0.05),
-  // not the online one. Backing out the online rate on a reader sale would
-  // understate the artist's face value on every door transaction.
-  const captureMethod = source === "terminal" ? "terminal" : "online";
-  const { pct: surchargePct, flatCents: surchargeFlat } = ratesFor(captureMethod);
-  const surchargeCollected = feesIncludedInPrice
-    ? 0 // venue absorbed it — the buyer paid exactly the sticker price
-    : Math.round(
-        (totalAmount -
-          (totalAmount * 100 - surchargeFlat) / (1 + surchargePct) / 100) *
-          100
-      ) / 100;
-
-  const effectiveTaxRate = taxMethod === "divisor" ? 0 : taxRate;
-  // Solve for face: gross = face×(1+taxRate) + svc + fac + surcharge
-  const preTax =
-    totalAmount -
-    ticketingFeeToSubtract -
-    facilityFeeToSubtract -
-    surchargeCollected;
-  const ticketRevenue =
-    effectiveTaxRate > 0
-      ? Math.round((preTax / (1 + effectiveTaxRate)) * 100) / 100
-      : Math.round(preTax * 100) / 100;
-  const taxCollected = Math.round(ticketRevenue * effectiveTaxRate * 100) / 100;
+  const {
+    ticketRevenue,
+    taxCollected,
+    totalTicketingFee,
+    totalFacilityFee,
+    totalVenueRebate,
+    surchargeCollected,
+    netToVenue,
+    netToPlatform,
+  } = computeLedgerAmounts({
+    totalAmount, quantity, ticketingFee, facilityFee, venueRebate,
+    taxRate, taxMethod, feesIncludedInPrice, source,
+  });
 
   const { error: ledgerError } = await admin.from("settlement_ledger").insert({
     order_id: orderId,
@@ -113,7 +79,7 @@ async function writeSettlementLedger({
     ticket_revenue: ticketRevenue,
     ticketing_fee: totalTicketingFee,
     facility_fee: totalFacilityFee,
-    venue_rebate: venueRebate,
+    venue_rebate: totalVenueRebate,
     tax_collected: taxCollected,
     // What we surcharged the buyer.
     stripe_fee: surchargeCollected,
@@ -123,13 +89,8 @@ async function writeSettlementLedger({
     stripe_fee_actual: null,
     stripe_net: null,
     stripe_balance_transaction_id: null,
-    net_to_venue:
-      totalAmount -
-      ticketingFeeToSubtract -
-      facilityFeeToSubtract -
-      surchargeCollected +
-      venueRebate,
-    net_to_platform: totalTicketingFee - venueRebate,
+    net_to_venue: netToVenue,
+    net_to_platform: netToPlatform,
     type: "sale",
   });
 
@@ -160,12 +121,12 @@ async function writeSettlementLedger({
           stripe_fee_actual: actual.fee,
           stripe_net: actual.net,
           stripe_balance_transaction_id: actual.id,
+          // netToVenue was computed with the SURCHARGE (what we billed the
+          // buyer). Now that Stripe's real cut is known, swap one for the
+          // other rather than re-deriving the whole figure — the two used to
+          // be separate expressions and drifted.
           net_to_venue:
-            totalAmount -
-            (feesIncludedInPrice ? 0 : Math.round(ticketingFee * quantity * 100) / 100) -
-            (feesIncludedInPrice ? 0 : Math.round(facilityFee * quantity * 100) / 100) -
-            actual.fee +
-            venueRebate,
+            Math.round((netToVenue + surchargeCollected - actual.fee) * 100) / 100,
         })
         .eq("order_id", orderId);
     }
@@ -309,24 +270,7 @@ async function processTicketOrder({
     //
     // Now the order's existence only skips order and ticket creation. The
     // ledger is checked on its own and repaired if absent.
-    // NOT maybeSingle(): a refunded or disputed order legitimately has more
-    // than one row here (the sale, plus a negative reversal keyed to the same
-    // order_id), and maybeSingle() errors on multiple rows — which would read
-    // as "no ledger" and write a second sale row, double-counting the revenue.
-    // Anything that is not explicitly a reversal counts as the sale row, so a
-    // legacy row with a null type is treated as present. That direction is the
-    // safe one: at worst a repair is skipped, which is the status quo.
-    const { data: ledgerRows } = await admin
-      .from("settlement_ledger")
-      .select("id, type")
-      .eq("order_id", existing.id)
-      .limit(5);
-
-    const hasSaleRow = (ledgerRows ?? []).some(
-      (r) => r.type !== "refund" && r.type !== "dispute"
-    );
-
-    if (hasSaleRow) {
+    if (await hasSaleRow(admin, existing.id)) {
       console.log(`Order and ledger already exist for ${stripeReferenceId} — skipping`);
       return;
     }
