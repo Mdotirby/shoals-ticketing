@@ -499,3 +499,57 @@ is a door count; the ledger stays authoritative at close.
 - **No visual rebuild to the mockup.** The page is still inline-styled and
   structurally as it was. Rebuilding the layout the night before a show trades
   a working till for a prettier one.
+
+---
+
+## Rebuild status — what is actually rebuilt to the mockup
+
+Asked directly, so answered directly. **Before the box office, nothing was.**
+
+| | |
+|---|---|
+| Admin `page.tsx` files in the repo | **71** |
+| Rebuilt to the mockup | **0** (now 1, counting `/boxoffice`) |
+| Files importing `AdminCard` / `AdminPageHeader` | **0** — both primitives shipped in item 5 and nothing consumes them |
+
+The admin pages touched so far were touched for **logic**, not design:
+
+- `events/new` and `events/[id]/edit` — the `isHardTicket` consolidation
+- `settings/permissions` — repointed at `lib/admin/nav.ts`
+- `app/admin/layout.tsx` — the sidebar **was** restructured, so the chrome is
+  partly done
+
+Item 6 was the dashboard **route** (`app/api/admin/dashboard`). `app/admin/page.tsx`
+— the screen — has not been touched at all. It still renders the old cards
+against the corrected numbers.
+
+So Phase 1 stands at: chrome partly done, **one** screen rebuilt, primitives
+built and unused. Items 8–12 are untouched.
+
+### Box office — the first screen rebuilt (2026-09-10)
+
+Layout, glass, ambient field, tile and keypad geometry, cart, tenders,
+progression panel, KPIs, feed, comps and drawer all taken from the mockup's
+`isBox` block.
+
+**Where the mockup outruns the schema, the schema wins and the page says so:**
+
+| Mockup | Reality | What shipped |
+|---|---|---|
+| Multi-tier cart | An order carries one tier + quantity; no line-item table | One tier line, in the mockup's cart shape. A basket the reader cannot charge is worse than no basket |
+| Comp tender + tile | No manager-PIN gate exists | Drawn, disabled, labelled "manager PIN" |
+| Itemised fee lines | Card-present fees are computed by `/api/terminal/payment-intent` | Lines say "at payment". A number the reader then contradicts is worse than naming where it is computed |
+| Drawer & reconcile | No drawer record exists | Over/short computed live from real card and cash totals, with the panel saying plainly that the count is not saved |
+| Close night → settlement | Not built | Omitted. Matt is settling this show by hand |
+
+The `.bo-*` stylesheet is **self-contained** rather than inheriting `--lg-*`.
+Every other glass surface is gated on `body[data-theme="liquid-glass"]`, which
+resolves from the operator; a till must not be able to render unstyled because
+of which brand cookie a door tablet is carrying.
+
+The ambient field is load-bearing, not decoration: `backdrop-filter` has
+nothing to blur against a flat `#08080a`, so without the mockup's blurred orbs
+and dot lattice every panel reads as a dark box with a border. Reproduced at
+roughly half the mockup's alpha — that export is a hero shot on a bright
+monitor, and the same luminance washes out 9.5px eyebrow labels read at arm's
+length in a dark room beside a stage.
