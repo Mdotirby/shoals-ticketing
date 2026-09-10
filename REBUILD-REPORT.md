@@ -424,3 +424,78 @@ buckets revenue by ledger `created_at`, so left alone they would have dumped
 $3,643.23 into "revenue today". 53 rows re-dated to their order's timestamp
 (the 54th genuinely is today), and the backfill endpoint now sets `created_at`
 from the order so a future run cannot repeat it.
+
+---
+
+## Item 7 — Box office POS, 2026-09-10
+
+Priority was stated as operational, not cosmetic: the box office has to take
+door money tomorrow. So this is the functional half of § "Box office — the
+POS" done properly, and the full visual rebuild to the mockup deliberately
+left until after the show.
+
+**The backend is untouched, as the spec instructs.** Verified rather than
+assumed: `NEXT_PUBLIC_STRIPE_TERMINAL_LOCATION_ID` is `tml_GhH9Qfm4j4Kt3t`,
+inlined in the deployed bundle, so S700 discovery is location-scoped in
+production; `/api/terminal/connection-token` returns a live `pst_live_…`.
+(Neither variable is in local `.env.local` — a local dev box cannot connect a
+reader. That is a local gap, not a production one.)
+
+### Fixed — door correctness
+
+| | |
+|---|---|
+| **Door card sales were not checked in** | `is_scanned: false` on every terminal/box_office ticket, so the drop count was wrong and staff were asked to scan a QR the buyer might not have received. Cash has always checked in on issue. Now both do. |
+| **Email was mandatory for card, optional for cash** | Same sale, same counter, two rules. A walk-up who would not give an address could not be sold a card ticket, so staff typed junk. Now optional — every webhook use was already `if (customerEmail)` guarded. |
+| **Storefront header sat above the till** | Events / Login / Get Tickets over a POS on a door tablet. One mis-tap leaves the till and drops the reader session mid-transaction. `/boxoffice` added to `HIDDEN_PREFIXES`. |
+
+### Fixed — the reader light was lying
+
+It had two states and lived at 12px between the logo and the sign-out button.
+A dot that is green whenever the page has loaded trains staff to ignore it.
+Now full width, mint **only** when genuinely connected, amber while
+discovering or connecting, red with a **Reconnect** action on disconnect,
+reader identity underneath, and — when it is down — an explicit note that cash
+and manual entry still work.
+
+### Added — the sale is verifiable at the door
+
+"Approved" means Stripe took the money. The order, ticket and ledger row are
+written by the webhook, out of band, and if that fails **nothing on the POS
+said so**. That is precisely how the 54-row gap happened, and at the door it
+is worse because there is a person standing there.
+
+- Progression checklist: created → sent to reader → waiting for the customer →
+  processing → **ticket issued & checked in**, with a live timer, Cancel
+  payment, and Enter manually.
+- `GET /api/box-office/order-status` — polled until the ticket exists.
+- The success screen does not appear until it does. If the poll gives up it
+  says plainly: let them in, flag the sale, **do not re-run the card**.
+- A missing ledger row is surfaced at the door without blocking the sale.
+
+### Added — tonight's door
+
+`GET /api/box-office/tonight`: card, cash and comp counted apart, drop count,
+and a recent-sales feed. **Reads `orders`, not `settlement_ledger`** — the
+ledger row lands a beat after the reader approves, and a door total that lags
+the card in the customer's hand would make a reconciled drawer look short. It
+is a door count; the ledger stays authoritative at close.
+
+### POS ergonomics
+
+92px tier tiles with the price at 22px (was 11px list rows), stepper plus a
+3×4 quantity pad, amount due at 38px, tender buttons carrying their cost
+("on the reader" / "no fees"), 44px minimum targets.
+
+### Not done — deliberately, the night before a show
+
+- **No Comp tender.** The spec wants "Comp — PIN required". An ungated comp
+  button at a door is worse than no button, and the PIN gate is not built.
+- **No drawer reconcile or Close night → settlement.** Matt is settling this
+  show by hand.
+- **No reader picker.** Discovery still auto-connects to the first reader at
+  the Location; `readers` is populated and unused. Fine for one reader, wrong
+  the day a second is registered.
+- **No visual rebuild to the mockup.** The page is still inline-styled and
+  structurally as it was. Rebuilding the layout the night before a show trades
+  a working till for a prettier one.
