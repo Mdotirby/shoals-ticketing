@@ -732,11 +732,43 @@ Both screens read the same function now. The workspace header shows
 shows the room underneath when the two differ, so the smaller number cannot
 read as an error.
 
-`event_holds` (quantity, hold_type, owner_label) is the proper home for kills
-and is wired in as a further reduction, but it is empty in production — today
-the 750→720 gap lives in the hand-set tier capacity. When holds start being
-used, sellable falls by their quantity on top of the tiers, which is why the
-two are not collapsed into one number.
+#### Corrected after Matt explained where the numbers come from
+
+The decomposition is **not** hand-set and it is **not** in `event_holds` — the
+**offer** already carries it, per tier:
+
+```
+artist_offers.ticket_scaling
+  [{ name: "General Admission", seats: 750, comps: 30, kills: 0,
+     sellable_cap: 720, price, net_price, facility_fee, ticketing_fee }]
+artist_offers.artist_comps / .marketing_comps   →  10 / 20 of those 30
+```
+
+Gross potential at the offer stage is computed off `sellable_cap`, not
+`seats` — which is exactly why the tier created later carries 720 and the
+venue record carries 750. **The two numbers were never in conflict.** Nothing
+on the admin screens said which was which.
+
+**The gap is not assumed to be comps.** Measured across the book: of 18
+hard-ticket shows with tiers and a recorded room, **16 have a room larger than
+their sellable cap** — but only sometimes because of comps. Shemekia Copeland
+is 2,000 against 500 and Food Truck Fright Fest 750 against 250; those are
+partial-house configurations, not 1,500 and 500 comps. So `hasKills` was a lie.
+It is `roomDiffers` + `offSale` now, and the reason is named **only when an
+offer supplies it**:
+
+| | |
+|---|---|
+| with a linked offer | "30 comps (10 artist, 20 marketing)" |
+| without one | "30 seats not on sale" |
+
+Guessing would have put an invented comp count on a settlement screen.
+
+The event workspace loads the linked offer's scaling for this. **Only 1 of 39
+offers currently carries an `event_id`**, so the sourced breakdown rarely fires
+yet — linking offers to their events is what turns it on, and is worth doing.
+
+`event_holds` reduces the sellable cap further when rows exist. Empty today.
 
 ### 2. A 401 no longer reads as $0.00
 
