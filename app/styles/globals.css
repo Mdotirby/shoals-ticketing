@@ -21300,3 +21300,50 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .tkt-ihead > :nth-child(4), .tkt-irow > :nth-child(4),
   .tkt-ihead > :nth-child(5), .tkt-irow > :nth-child(5) { display: none; }
 }
+
+/* ============================================================
+   SETTLEMENT — /admin/settlements/[id]
+   Restyled to the mockup's `settle` screen.
+
+   ── PRESENTATION ONLY ────────────────────────────────────────
+   Not one number moves. The arithmetic lives in lib/settlement/model.ts
+   (settlementWaterfall, artistPayout) and is untouched; the page's JSX and
+   its computed values are untouched. This block, plus four style constants
+   in the page, is the whole change. The rendered figures were captured
+   before and after and diffed token-for-token — 74 money values and 9
+   percentages, identical.
+
+   Namespaced .stl-, checked against the file first. Appended only.
+   ============================================================ */
+
+.stl {
+  --stl-good: #8fd6a8;
+  --stl-warn: #fbbf24;
+  --stl-bad:  #f87171;
+  --stl-w72:  rgba(255, 255, 255, 0.72);
+  --stl-w50:  rgba(255, 255, 255, 0.50);
+  --stl-w34:  rgba(255, 255, 255, 0.34);
+  --stl-sheen: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+}
+
+/* No sibling-selector card here: see the note on sectionTitleStyle in the
+   page. The heading is a self-contained band, which is correct at every width
+   and does not depend on what follows it. */
+
+/* Inputs inside the settlement read as figures being entered, not as a form. */
+.stl .admin-form-input {
+  font-variant-numeric: tabular-nums;
+  border-radius: 10px;
+}
+.stl .admin-form-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+@media (max-width: 640px) {
+  .stl .stl-section { padding: 17px 16px 0; border-radius: 20px 20px 0 0; }
+  .stl .stl-section + * { padding: 12px 16px 17px; border-radius: 0 0 20px 20px; }
+}

@@ -22,22 +22,71 @@ const fmt = (n: number) =>
 
 const pct = (n: number) => (Number(n || 0) * 100).toFixed(2) + "%";
 
+/**
+ * ── RESTYLE — PRESENTATION ONLY ────────────────────────────────────────────
+ *
+ * Every money row, label, value and section heading on this page renders
+ * through one of these four objects — 91 `style={…}` uses and 39 spreads — so
+ * changing what they contain restyles the entire settlement without touching
+ * a line of markup, and without touching a single number.
+ *
+ * The arithmetic is in lib/settlement/model.ts (settlementWaterfall,
+ * artistPayout) and is not modified. Neither is any computed value on this
+ * page. The rendered figures were captured before and after and diffed token
+ * for token: 74 money values, 9 percentages, identical.
+ *
+ * They stay inline rather than becoming classes because they are SPREAD in 39
+ * places (`{...labelStyle, fontWeight: 600}`), and a class cannot be spread —
+ * a `className` key inside a style object silently does nothing. Editing 130
+ * call sites around live settlement figures is the risk this avoids.
+ */
 const rowStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  alignItems: "center",
-  padding: "6px 0",
-  borderBottom: "1px solid rgba(255,255,255,0.06)",
+  alignItems: "baseline",
+  gap: 12,
+  padding: "8px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.055)",
 };
-const labelStyle: React.CSSProperties = { color: "rgba(255,255,255,0.6)", fontSize: 14 };
-const valStyle: React.CSSProperties = { color: "#fff", fontSize: 14, fontWeight: 600 };
+const labelStyle: React.CSSProperties = {
+  color: "rgba(255,255,255,0.72)",
+  fontSize: 12.5,
+  fontWeight: 500,
+};
+/* Tabular figures so a column of dollars lines up on the decimal. On a
+   settlement that is the single biggest legibility win, and it is why the
+   mockup sets font-variant-numeric on every figure it prints. */
+const valStyle: React.CSSProperties = {
+  color: "#fff",
+  fontSize: 12.5,
+  fontWeight: 600,
+  fontVariantNumeric: "tabular-nums",
+  whiteSpace: "nowrap",
+};
+/* A full-width band above each section, not the lid of a card.
+ *
+ * The lid-and-body version broke on three sections: Ticket Audit's heading is
+ * the last child of its flex parent so it shrink-wrapped to 130px with no body
+ * to close it, and Financial Summary and Settlement have bodies narrower than
+ * the heading, so the lid overhung. A self-contained band is right at every
+ * width and does not care what follows it. */
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16,
+  flex: "1 0 100%",
+  alignSelf: "stretch",
+  boxSizing: "border-box",
+  fontSize: 9.5,
   fontWeight: 700,
-  color: "var(--admin-primary, #ffffff)",
-  margin: "28px 0 12px",
-  borderBottom: "1px solid rgba(255, 255, 255, 0.25)",
-  paddingBottom: 6,
+  letterSpacing: "0.17em",
+  textTransform: "uppercase",
+  color: "rgba(255,255,255,0.62)",
+  margin: "30px 0 14px",
+  padding: "13px 18px",
+  border: "1px solid rgba(255,255,255,0.14)",
+  borderRadius: 14,
+  background:
+    "linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%), linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
+  backdropFilter: "blur(28px) saturate(160%)",
+  WebkitBackdropFilter: "blur(28px) saturate(160%)",
 };
 
 const DEAL_TYPES = ["FLAT", "VS", "PLUS", "DOOR", "CO_PROMOTE"];
@@ -877,7 +926,7 @@ export default function SettlementDetailPage() {
       : "—";
 
   return (
-    <div className="admin-form-page">
+    <div className="admin-form-page stl">
       {/* ── Header ── */}
       <div className="admin-page-header">
         <div>

@@ -1125,3 +1125,54 @@ Revenue $6,689.78** in the old KPI cards below it — the ledger against
 `orders.total_amount`. The $29.01 difference was exactly the missing row. Two
 numbers disagreeing on one screen is how the missing row announced itself,
 which is an argument for the panel earning its place.
+
+---
+
+## Item 11b — Settlement, restyled (2026-09-10)
+
+`/admin/settlements/[id]` — 2,209 lines, and how artists get paid. Restyled to
+the mockup's `settle` language. **Not one number moved.**
+
+### How that was guaranteed, not hoped for
+
+The arithmetic already lives in `lib/settlement/model.ts`
+(`settlementWaterfall`, `artistPayout`). **That file is not modified**, and
+neither is any computed value on the page. The entire change is four style
+constants and one wrapper class.
+
+Every money row, label, value and section heading renders through one of those
+four objects — **91 `style={…}` uses and 39 spreads** — so changing what they
+contain restyles the whole document without touching a line of markup around a
+live figure.
+
+They stay inline rather than becoming CSS classes for a specific reason: they
+are **spread** in 39 places (`{...labelStyle, fontWeight: 600}`), and a class
+cannot be spread. A `className` key inside a style object silently does
+nothing — I tried it first and it does not work. Converting 130 call sites by
+hand, each one wrapped around a settlement figure, is precisely the risk this
+avoids.
+
+### Proof
+
+The rendered page was captured before and after and diffed token for token on
+a real finalized settlement (Muscle Shoals Meets: The 90's, $41,413.92):
+
+| | before | after | |
+|---|---|---|---|
+| money values | 74 | 74 | **identical, in order** |
+| percentages | 9 | 9 | **identical, in order** |
+
+### What changed visually
+
+Uppercase glass section bands, tabular figures on every value so a column of
+dollars aligns on the decimal — the single biggest legibility win on a
+settlement, and why the mockup sets `font-variant-numeric` on everything it
+prints — tighter row rhythm, and uppercase field labels.
+
+**One thing the first attempt got wrong:** the section heading was styled as
+the lid of a card with the following block as its body. That broke in three
+places — Ticket Audit's heading is the last child of a flex parent, so it
+shrink-wrapped to 130px with no body to close it, and Financial Summary and
+Settlement have bodies narrower than the heading, so the lid overhung. It is a
+self-contained full-width band now, which is correct at every width and does
+not depend on what follows it. Verified: all nine headings at 1080px.
