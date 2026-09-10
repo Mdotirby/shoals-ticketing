@@ -1307,3 +1307,61 @@ says leave them.
 ### Rebuild status
 
 **11 of 71** admin screens. Items 1–12 are complete as far as the data allows.
+
+
+---
+
+## CORRECTION — the ledger gap's real cause (2026-09-10, later)
+
+**My earlier diagnosis was wrong, and the fix I shipped for it did not work.**
+
+I attributed the missing ledger rows to `fetchActualStripeCost()` running
+before the insert — an external API round-trip between creating the order and
+recording the money. It was a plausible story, it fitted the correlation with
+`485dbfd`, and it was not the cause. Moving that call was harmless and
+irrelevant.
+
+An order placed **an hour after that fix deployed** still had no ledger row.
+
+### The actual cause
+
+```
+settlement_ledger.stripe_event_id  TEXT REFERENCES stripe_events(id)
+```
+
+The webhook writes the ledger row in the **middle** of processing (line 515).
+It logged the event into `stripe_events` at the **end** (line 1157) —
+deliberately, so a failed event could be retried. So the foreign key pointed at
+a row that did not exist yet. Every insert was rejected with **23503**,
+`writeSettlementLedger` logged the failure and swallowed it — it must not
+throw, the sale is already complete — and the row was silently lost.
+
+**Proven, not inferred.** Reproduced against production twice:
+
+| | |
+|---|---|
+| Insert a ledger row with a `stripe_event_id` that has no event row | **HTTP 409** — `violates foreign key constraint settlement_ledger_stripe_event_id_fkey` |
+| Insert the `stripe_events` row **first**, then the same ledger row | **HTTP 201** |
+
+And the corroborating fact I should have looked for first: **of 932
+`settlement_ledger` rows, ZERO carry a `stripe_event_id`.** Not one, ever.
+Every row that exists came from a path that does not set one — cash sales,
+free checkouts, comps, or a backfill. Broken since `44f35e5`, in April.
+
+That single query would have found this in a minute. I went looking for a
+timing story instead, because one fitted the dates.
+
+### The fix
+
+`plans/stripe-events-processed-at-migration.sql` adds
+`stripe_events.processed_at`. The event row is written **first**, with
+`processed_at` NULL, so the foreign key is satisfiable from that moment. It is
+stamped at the end. The dedupe check tests `processed_at` rather than
+existence, so an event that dies half way is still retried — which is exactly
+what logging late was protecting, and it is preserved.
+
+The code tolerates the column not existing yet, so deploy order does not
+matter.
+
+**This migration is the thing that actually closes the gap.** Until it runs and
+the code ships, every card sale keeps losing its ledger row.

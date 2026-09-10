@@ -750,16 +750,68 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // ── Idempotent event check (log AFTER success so retries work) ──
-  const { data: existingEvent } = await admin
-    .from("stripe_events")
-    .select("id")
-    .eq("id", event.id)
-    .maybeSingle();
+  // ── Idempotency, and the foreign key that made the ledger impossible ──────
+  //
+  // settlement_ledger.stripe_event_id REFERENCES stripe_events(id). The ledger
+  // row is written in the MIDDLE of processing; this table was written at the
+  // END, deliberately, so a failed event could be retried. So the foreign key
+  // pointed at a row that did not exist yet, EVERY ledger insert from this
+  // webhook was rejected with 23503, writeSettlementLedger logged the failure
+  // and swallowed it — it must not throw, the sale is already complete — and
+  // the row was silently lost.
+  //
+  // Not a theory: of 932 settlement_ledger rows, ZERO carry a stripe_event_id.
+  // Every row that exists came from a path that does not set one — cash sales,
+  // free checkouts, comps, or a backfill. This has been broken since 44f35e5
+  // in April.
+  //
+  // The row is now written FIRST, with processed_at NULL, so the foreign key
+  // is satisfiable from here on. It is stamped at the end. The dedupe tests
+  // processed_at rather than existence, so an event that died half way is
+  // still retried — which is what logging late was protecting, and it is
+  // preserved.
+  // Tolerates processed_at not existing yet: the migration
+  // (plans/stripe-events-processed-at-migration.sql) is hand-run like every
+  // migration here, and this must not care whether it has. Without the column
+  // the behaviour is exactly what it was before — existence means processed.
+  let existingEvent: { id: string; processed_at?: string | null } | null = null;
+  let hasProcessedAt = true;
+  {
+    const withCol = await admin
+      .from("stripe_events")
+      .select("id, processed_at")
+      .eq("id", event.id)
+      .maybeSingle();
+    if (withCol.error && /processed_at|column .* does not exist/i.test(withCol.error.message)) {
+      hasProcessedAt = false;
+      const plain = await admin.from("stripe_events").select("id").eq("id", event.id).maybeSingle();
+      existingEvent = plain.data as { id: string } | null;
+    } else {
+      existingEvent = withCol.data as { id: string; processed_at?: string | null } | null;
+    }
+  }
 
-  if (existingEvent) {
+  if (existingEvent && (!hasProcessedAt || existingEvent.processed_at)) {
     console.log(`Stripe event ${event.id} already processed — skipping`);
     return NextResponse.json({ received: true });
+  }
+
+  if (!existingEvent) {
+    const { error: logErr } = await admin.from("stripe_events").insert({
+      id: event.id,
+      type: event.type,
+      payload: JSON.parse(JSON.stringify(event.data.object)),
+    });
+    // Losing this is not fatal on its own — the sale still processes — but the
+    // ledger row that depends on it will be refused, so it is loud.
+    if (logErr) {
+      console.error(
+        `Could not pre-log Stripe event ${event.id}: ${logErr.message}. ` +
+          `The settlement ledger write for this sale will fail its foreign key.`
+      );
+    }
+  } else {
+    console.log(`Stripe event ${event.id} was started but not finished — reprocessing`);
   }
 
   // ── checkout.session.completed ──
@@ -1153,12 +1205,17 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Log event AFTER successful processing (so failed events can be retried) ──
-  await admin.from("stripe_events").insert({
-    id: event.id,
-    type: event.type,
-    payload: JSON.parse(JSON.stringify(event.data.object)),
-  });
+  // ── Mark the event finished ──────────────────────────────────────────────
+  // The row itself went in before processing so the ledger's foreign key could
+  // resolve. This is what makes it count as done: until it is stamped, a
+  // redelivery reprocesses rather than skipping, and processTicketOrder's
+  // per-step guard repairs whatever is missing without duplicating what is not.
+  if (hasProcessedAt) {
+    await admin
+      .from("stripe_events")
+      .update({ processed_at: new Date().toISOString() })
+      .eq("id", event.id);
+  }
 
   return NextResponse.json({ received: true });
 }
