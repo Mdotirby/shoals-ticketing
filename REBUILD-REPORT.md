@@ -1063,3 +1063,65 @@ session's `settlement_ledger.backfill`.
 
 **5 of 71** admin screens: box office, Command Center, create a show, team,
 access control.
+
+---
+
+## Item 11a — Ticketing (2026-09-10)
+
+The mockup's `tickets` screen, mounted on `/admin/orders/[id]` above the order
+list — "how is this show selling" is what people open that page for; "who
+bought ticket 412" is what they scroll for.
+
+`GET /api/admin/ticketing/[eventId]` assembles it. Verified against
+The Dolly Parton Tribute: **232 sold · 30.9% of 750 sellable · gross
+$6,660.77 · face $4,620.00 · fees retained $1,386.00 · $19.91 avg ticket**.
+
+| Panel | Source |
+|---|---|
+| KPI strip | tickets, `settlement_ledger`, `resolveCapacity` |
+| Inventory & release | tiers (alloc), tickets per tier (sold), `event_holds` (held), sell-through on the mockup's 85/55 thresholds, gate from `event_presales` / `on_sale_at` |
+| Sales curve | daily units, venue-local, last 45 days |
+| Codes | `promo_codes` (Promo/Access, uses vs max, inactive dimmed) + enabled `event_presales` |
+
+Every read goes through `fetchAll` — a sold-out 1,400-cap room is one show
+away from the PostgREST 1000-row cap.
+
+### What the mockup asks for and does not get
+
+- **Add-ons in the same cart** — parking passes, merch bundles, coat check.
+  There are no add-on products in this schema. Omitted rather than mocked.
+- **"Pace vs. comparable +12%"** and the intervention estimates ("release
+  balcony as a $29 flex tier, +~180 est.") need a nominated comparable show
+  and a forecasting model. Neither exists. This is the screen used to decide
+  whether to release inventory, so a guessed pace figure on it is worse than a
+  blank space. The curve shows this show's own daily units — a fact — and says
+  so on the card.
+
+Item 11's other three (Settlements, Offers, Calendar) are untouched. The
+settlement detail page is 2,209 lines and is how artists get paid; the
+valuable work there is reconciliation, not a restyle — see below.
+
+## Ledger watch — the fix is deployed but NOT yet proven
+
+| | |
+|---|---|
+| Backfilled this morning | 54 rows, $3,643.23 |
+| Backfilled again at ~13:30 CDT | 6 rows, $291.45 |
+| Pushed to `main` | **13:51:20 CDT** |
+| One more gap, at **13:54:43 CDT** | 1 row, $29.01 — **3½ minutes after the push** |
+
+Vercel builds take a couple of minutes, so that order almost certainly hit the
+old function mid-deploy. **It is not evidence the fix failed, and it is not
+evidence it worked.** Backfilled; 930 paid orders, 0 gaps.
+
+**The real test is the next card sale after the deploy settled.** If the gap
+count is still 0 tomorrow after a day of Dolly Parton selling, the fix is
+proven. Until then this needs checking daily.
+
+### Also found
+
+`/admin/orders/[id]` showed **Gross $6,660.77** in the new panel and **Total
+Revenue $6,689.78** in the old KPI cards below it — the ledger against
+`orders.total_amount`. The $29.01 difference was exactly the missing row. Two
+numbers disagreeing on one screen is how the missing row announced itself,
+which is an argument for the panel earning its place.

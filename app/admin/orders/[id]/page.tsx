@@ -6,6 +6,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import Link from "next/link";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
 import { rateLabel } from "@/lib/fees/rates";
+import TicketingPanel from "./TicketingPanel";
 
 type Order = {
   id: string;
@@ -635,6 +636,12 @@ export default function EventSalesDetailPage() {
           <Link href="/admin/orders" className="admin-sponsor-edit-btn">← Back to Sales</Link>
         </div>
       </div>
+
+      {/* ── Ticketing — the mockup's `tickets` screen ────────────────────
+          Inventory, the sales curve and codes go above the order list because
+          "how is this show selling" is the question people open this page
+          with; "who bought ticket 412" is the one they scroll for. */}
+      <TicketingPanel eventId={id} />
 
       {/* ── KPI Cards ── */}
       <div className="dash-kpi-grid">

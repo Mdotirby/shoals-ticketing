@@ -21191,3 +21191,112 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .acl-card { padding: 17px 16px; border-radius: 20px; }
   .acl-audit-when { width: 88px; }
 }
+
+/* ============================================================
+   TICKETING — /admin/orders/[id]
+   The mockup's `tickets` screen: KPI strip, inventory & release with gates,
+   the sales curve, and codes.
+
+   Namespaced .tkt-, checked against the file first. Appended only.
+   ============================================================ */
+
+.tkt {
+  --tkt-good: #8fd6a8;
+  --tkt-warn: #fbbf24;
+  --tkt-w72: rgba(255, 255, 255, 0.72);
+  --tkt-w50: rgba(255, 255, 255, 0.50);
+  --tkt-w34: rgba(255, 255, 255, 0.34);
+  --tkt-sheen: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+  color: #fff;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.tkt-card {
+  position: relative; border-radius: 24px; padding: 20px 21px;
+  background: var(--tkt-sheen), linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+@supports not (backdrop-filter: blur(1px)) { .tkt-card { background: rgba(20,20,22,0.94); } }
+
+.tkt-eyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--tkt-w50);
+}
+.tkt-note { font-size: 10.5px; line-height: 1.5; color: rgba(255,255,255,0.42); text-wrap: pretty; }
+
+/* ── KPI strip ────────────────────────────────────────────── */
+.tkt-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tkt-kpi {
+  padding: 13px 15px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.tkt-kpi-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tkt-w34); }
+.tkt-kpi-value { font-size: 23px; font-weight: 800; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; margin-top: 5px; line-height: 1; }
+.tkt-kpi-sub   { font-size: 10px; color: var(--tkt-w50); margin-top: 4px; }
+
+/* ── Inventory table ──────────────────────────────────────── */
+.tkt-ihead, .tkt-irow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 66px 66px 60px minmax(96px, 1fr) 74px;
+  gap: 10px; align-items: center;
+}
+.tkt-ihead {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--tkt-w34); padding: 0 3px 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+.tkt-ihead > :not(:first-child), .tkt-irow > :not(:first-child) { text-align: right; }
+.tkt-ihead > :nth-child(5), .tkt-irow > :nth-child(5) { text-align: left; }
+.tkt-irow { padding: 11px 3px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.tkt-irow:last-child { border-bottom: none; }
+.tkt-iname { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tkt-iwhen { font-size: 9.5px; color: var(--tkt-w34); margin-top: 2px; }
+.tkt-inum  { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--tkt-w72); }
+.tkt-bar   { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.09); overflow: hidden; }
+.tkt-bar > span { display: block; height: 100%; border-radius: 999px; }
+.tkt-pct { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.tkt-gate {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 6px; display: inline-block;
+  border: 1px solid rgba(255, 255, 255, 0.14); color: var(--tkt-w34);
+}
+.tkt-gate--code { background: rgba(255,255,255,0.92); color: #000; border-color: transparent; }
+.tkt-gate--timed { background: rgba(255,255,255,0.10); color: var(--tkt-w72); border-color: rgba(255,255,255,0.18); }
+.tkt-gate--hold { background: transparent; color: rgba(255,255,255,0.30); border-color: rgba(255,255,255,0.10); }
+
+/* ── Curve ────────────────────────────────────────────────── */
+.tkt-curve {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 132px; margin-top: 16px;
+  padding-bottom: 2px; border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+.tkt-curve-bar {
+  flex: 1; min-width: 3px; border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(255,255,255,0.30));
+  position: relative;
+}
+.tkt-curve-bar--today { background: linear-gradient(180deg, #8fd6a8, rgba(143,214,168,0.35)); }
+.tkt-curve-axis { display: flex; justify-content: space-between; margin-top: 7px; font-size: 9.5px; color: var(--tkt-w34); }
+
+/* ── Codes ────────────────────────────────────────────────── */
+.tkt-code {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.tkt-code-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 700; flex: none; }
+.tkt-code-note { font-size: 10.5px; color: var(--tkt-w50); flex: 1; min-width: 0; }
+.tkt-code-used { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--tkt-w72); flex: none; }
+
+@media (max-width: 760px) {
+  .tkt-card { padding: 17px 16px; border-radius: 20px; }
+  .tkt-ihead, .tkt-irow { grid-template-columns: minmax(0, 1.4fr) 56px 56px 66px; }
+  .tkt-ihead > :nth-child(4), .tkt-irow > :nth-child(4),
+  .tkt-ihead > :nth-child(5), .tkt-irow > :nth-child(5) { display: none; }
+}
