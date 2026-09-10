@@ -1,8 +1,12 @@
+import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 // GET /api/admin/dashboard?venue_id=...&event_ids=id1,id2 (optional filters)
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");

@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
@@ -23,6 +24,9 @@ const QRCode = require("qrcode");
  *   }
  */
 export async function POST(request: Request) {
+  const guard = await requireCapability("door_sales_comps", { write: true });
+  if (!guard.ok) return guard.response;
+
   const body = await request.json();
   const {
     event_id,

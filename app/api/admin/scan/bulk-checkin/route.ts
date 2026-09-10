@@ -1,9 +1,13 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
 // POST /api/admin/scan/bulk-checkin
 // Body: { ticket_ids: string[] }
 export async function POST(request: Request) {
+  const guard = await requireCapability("scan_checkin", { write: true });
+  if (!guard.ok) return guard.response;
+
   const body = await request.json();
   const ticketIds: string[] = body.ticket_ids ?? [];
 

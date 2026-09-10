@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -14,6 +15,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireCapability("offers", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
 
   let body: { note?: string; cc?: string[] };

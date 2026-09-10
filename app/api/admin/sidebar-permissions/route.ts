@@ -1,3 +1,4 @@
+import { requireCapability, requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -5,6 +6,9 @@ import { NextResponse } from "next/server";
 // Returns sidebar permissions for a given venue + role (server-side, bypasses RLS)
 // For roles without a venue (like artist), searches across all venues for that role
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
   const role = searchParams.get("role");
@@ -53,6 +57,9 @@ export async function GET(request: Request) {
 
 // POST: save sidebar permissions (bypasses RLS)
 export async function POST(request: Request) {
+  const guard = await requireCapability("assign_roles", { write: true });
+  if (!guard.ok) return guard.response;
+
   const body = await request.json();
   const { rows } = body;
 

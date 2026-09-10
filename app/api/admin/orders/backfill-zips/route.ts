@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -21,6 +22,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
  * Safe to call multiple times — only touches orders still missing a zip.
  */
 export async function POST() {
+  const guard = await requireCapability("invoices_payments", { write: true });
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
 
   // Fetch all orders with no zip that have at least one Stripe reference

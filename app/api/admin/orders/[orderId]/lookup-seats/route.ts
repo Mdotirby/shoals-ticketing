@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,9 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { orderId } = await params;
   const { searchParams } = new URL(req.url);
   const sectionId = searchParams.get("section_id");

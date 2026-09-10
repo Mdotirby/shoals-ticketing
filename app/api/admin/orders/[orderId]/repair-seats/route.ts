@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
@@ -15,6 +16,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const guard = await requireCapability("inventory_release", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { orderId } = await params;
   const admin = createAdminClient();
 

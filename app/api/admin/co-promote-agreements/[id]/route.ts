@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -11,6 +12,9 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireCapability("offers");
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
@@ -31,6 +35,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireCapability("offers", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
 
   let body: Record<string, unknown>;
@@ -64,6 +71,9 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireCapability("offers", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 

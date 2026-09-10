@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { resolveVenueFees, calculateFees } from "@/lib/checkout-helpers";
@@ -17,6 +18,9 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const guard = await requireCapability("invoices_payments", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { orderId } = await params;
   const body = await req.json().catch(() => ({}));
   const { tier_id, quantity: rawQty, note } = body;

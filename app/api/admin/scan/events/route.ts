@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { localTodayISO } from "@/lib/dates";
 import { NextResponse } from "next/server";
@@ -6,6 +7,9 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/scan/events — returns upcoming events for the scanner event selector
 export async function GET() {
+  const guard = await requireCapability("scan_checkin");
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   // Venue-local today, not UTC today. On a UTC server the old
   // `toISOString().slice(0, 10)` rolled over at 7 PM CDT, dropping the show in

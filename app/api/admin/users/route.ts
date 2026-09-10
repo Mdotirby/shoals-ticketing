@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
@@ -5,6 +6,9 @@ import { roleLabel } from "@/lib/auth/roles";
 
 // GET: list all admin users
 export async function GET() {
+  const guard = await requireCapability("assign_roles");
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
 
   const { data, error } = await admin
@@ -21,6 +25,9 @@ export async function GET() {
 
 // POST: create a new admin user (creates auth user + admin_users row)
 export async function POST(request: Request) {
+  const guard = await requireCapability("assign_roles", { write: true });
+  if (!guard.ok) return guard.response;
+
   const body = await request.json();
   const { email, password, role, venue_id, first_name, last_name } = body;
 
@@ -164,6 +171,9 @@ export async function POST(request: Request) {
 
 // DELETE: remove a team member (admin_users row + auth user)
 export async function DELETE(request: Request) {
+  const guard = await requireCapability("assign_roles", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
 
@@ -219,6 +229,9 @@ export async function DELETE(request: Request) {
 
 // PUT: update an admin user's role or venue assignment
 export async function PUT(request: Request) {
+  const guard = await requireCapability("assign_roles", { write: true });
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const body = await request.json();
   const { id, ...fields } = body;

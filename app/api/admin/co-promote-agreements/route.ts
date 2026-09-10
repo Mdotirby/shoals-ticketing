@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -11,6 +12,9 @@ import { NextResponse } from "next/server";
 
 // ── GET (list) ───────────────────────────────────────────────────────────────
 export async function GET(request: Request) {
+  const guard = await requireCapability("offers");
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
@@ -37,6 +41,9 @@ export async function GET(request: Request) {
 
 // ── POST (create) ─────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
+  const guard = await requireCapability("offers", { write: true });
+  if (!guard.ok) return guard.response;
+
   let body: Record<string, unknown>;
   try {
     body = await request.json();

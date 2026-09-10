@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,9 @@ import { NextResponse } from "next/server";
  * - Tier breakdown: sold per tier with capacity
  */
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
 

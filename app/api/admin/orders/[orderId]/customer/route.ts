@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -8,6 +9,9 @@ export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const guard = await requireCapability("invoices_payments", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { orderId } = await params;
 
   let body: { customer_name?: string; customer_email?: string };

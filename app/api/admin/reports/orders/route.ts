@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -12,6 +13,9 @@ import { NextResponse } from "next/server";
  *   ?format=csv
  */
 export async function GET(request: Request) {
+  const guard = await requireCapability("export_ledger");
+  if (!guard.ok) return guard.response;
+
   const supabase = createAdminClient();
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");

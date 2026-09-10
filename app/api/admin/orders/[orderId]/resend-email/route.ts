@@ -1,3 +1,4 @@
+import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
@@ -13,6 +14,9 @@ export async function POST(
   _req: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { orderId } = await params;
   const admin = createAdminClient();
 

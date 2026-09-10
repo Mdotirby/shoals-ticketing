@@ -1,3 +1,4 @@
+import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -21,6 +22,9 @@ export type PersonResult = {
 
 // GET /api/admin/scan/search?event_id=X&q=Smith  (alias: last_name=Smith)
 export async function GET(request: Request) {
+  const guard = await requireCapability("scan_checkin");
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
   const term = (searchParams.get("q") ?? searchParams.get("last_name"))?.trim();
