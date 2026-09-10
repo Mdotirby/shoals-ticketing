@@ -135,6 +135,10 @@ export async function POST(
       net_to_venue: a.netToVenue,
       net_to_platform: a.netToPlatform,
       type: "sale",
+      // Dated when the money moved, NOT when this ran. The dashboard buckets
+      // revenue by ledger created_at, so letting these default to now() would
+      // dump the whole backfill into "revenue today".
+      created_at: order.created_at,
     };
   });
 

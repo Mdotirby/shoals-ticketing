@@ -47,7 +47,10 @@ export const EVENT_DEAL_TYPES = [
  * still allows it. Deal structure is irrelevant here — a co-promoted show is
  * still our box office; only the settlement differs.
  */
-const HARD_TICKET_TYPES: ReadonlySet<string> = new Set(["hard_ticket", "ticketed"]);
+export const HARD_TICKET_TYPES_ARRAY = ["hard_ticket", "ticketed"] as const;
+
+/** Array form for `.in()` clauses; Set form for membership tests. Same list. */
+const HARD_TICKET_TYPES: ReadonlySet<string> = new Set(HARD_TICKET_TYPES_ARRAY);
 
 export function isHardTicket(eventType: EventType | string | null | undefined): boolean {
   return HARD_TICKET_TYPES.has((eventType ?? "").trim());

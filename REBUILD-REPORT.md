@@ -345,3 +345,82 @@ diffing is how the negative-comp bug was found, and it is also why a blanket
 restatement is not safe: the recomputation disagrees with stored rows for
 several distinct reasons, only some of which are the stored row's fault.
 Per-event, after reading the diff, only.
+
+---
+
+## Item 6 — Dashboard (§ 4), 2026-09-10
+
+The **route**, not the page. `app/admin/events/[id]` reads its gross from
+`/api/admin/dashboard?event_ids=<id>`, so the event workspace and the Command
+Center were inheriting the same wrong number from the same endpoint. Fixing
+one and not the other is how they end up disagreeing about the same show.
+
+### (a) Class filter — `HARD_TICKET_TYPES` + not free
+
+Applied only when the route derives the event set. `event_ids` is a caller
+naming exact events; filtering that list would make the workspace read $0 for
+a free or private show, which is a regression, not a correction.
+
+Under § 9.1 the band reads **class**, not deal — `deal_type` has shipped
+(`events.deal_type` is live, all 43 rows `own_risk`), so a co-promoted show is
+in the band because it is our inventory, and an external promotion is out.
+
+`is_free` is filtered as `is_free.is.null,is_free.eq.false`, not
+`.neq("is_free", true)` — `is_free <> true` is NULL for a NULL, which would
+silently drop a real paid show whose column was never set.
+
+### (b) Revenue from `settlement_ledger`
+
+`totalRevenue` is `sum(gross_amount)` over every ledger row, so refunds and
+disputes net (their rows are negative). Card fees read `stripe_fee_actual`
+where it exists and fall back to the billed surcharge — never a re-derivation
+from the rate card.
+
+**Old vs new, live data:**
+
+| | old (`orders.total_amount`, no filter) | new (ledger, hard-ticket band) |
+|---|---|---|
+| totalEvents | 43 | **21** |
+| totalTicketsSold | 2,026 | **1,664** (1,639 paid + 25 comped) |
+| totalRevenue | $72,615.05 | **$72,615.05** |
+
+Revenue matching to the penny is the point, not a coincidence: it only
+reconciles because the 54-row gap was backfilled first. Before that, the
+dashboard showed Dolly Parton at $6,400.88 while settlements showed
+$3,345.04. Both now say $6,400.88. Refunds are $0.00 lifetime, which is the
+other reason the two sources happened to agree until now — the first refund
+would have split them.
+
+New decomposition the old shape could not express: face value $58,251.89,
+net to venue $63,733.34, ticketing fees $4,797.00, facility fees $1,977.00,
+tax $5,481.46, card fees $2,137.71.
+
+### (c) N+1 removed
+
+`upcomingEvents` ran two queries per event inside an `await` — five events was
+ten serial round trips after the ten parallel ones. Now one grouped capacity
+query, with ticket counts folded out of the single tickets read.
+
+Also fixed in passing: the ticket counts were scoped only when `event_ids` was
+passed, so the unscoped Command Center counted **every ticket in the
+database** against a venue-scoped revenue figure. Two headline numbers on the
+same card measuring different populations.
+
+### Added
+
+`sellThrough` (sold ÷ capacity — comps count, a comped seat is not available
+to sell) and `avgTicket` (**face value ÷ paid tickets** — gross would let fees
+and tax inflate it, and counting comps would drag it toward zero), per event
+and in aggregate. Plus `paidTickets` / `compedTickets`, kept apart because a
+comp issues a ticket but is not a sale.
+
+Every existing response key is preserved — both consumers depend on the
+current shape.
+
+### Ledger row dates
+
+The 54 backfilled rows were written with today's `created_at`. The dashboard
+buckets revenue by ledger `created_at`, so left alone they would have dumped
+$3,643.23 into "revenue today". 53 rows re-dated to their order's timestamp
+(the 54th genuinely is today), and the backfill endpoint now sets `created_at`
+from the order so a future run cannot repeat it.
