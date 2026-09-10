@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase-server";
+import { requireCapability } from "@/lib/auth/can";
 import { NextResponse } from "next/server";
 
 // GET: fetch guest list (bypasses RLS)
@@ -13,23 +14,77 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient();
-  let query = admin
-    .from("guest_list")
-    .select("id, first_name, last_name, quantity, artist_id")
-    .eq("event_id", eventId)
-    .order("created_at");
 
-  if (artistId) {
-    query = query.eq("artist_id", artistId);
+  // Tolerates the check-in columns not existing yet
+  // (plans/guest-list-checkin-migration.sql is hand-run like every migration
+  // here). Without them the list still loads and the door just cannot mark
+  // anyone in — the same shape /api/events/[id]/holds uses for its own
+  // pending table.
+  const build = (cols: string) => {
+    let q = admin.from("guest_list").select(cols).eq("event_id", eventId).order("created_at");
+    if (artistId) q = q.eq("artist_id", artistId);
+    return q;
+  };
+
+  let { data, error } = await build(
+    "id, first_name, last_name, quantity, notes, artist_id, checked_in_at"
+  );
+
+  if (error && /checked_in_at|column .* does not exist/i.test(error.message)) {
+    const fallback = await build("id, first_name, last_name, quantity, notes, artist_id");
+    data = fallback.data;
+    error = fallback.error;
   }
-
-  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data || []);
+}
+
+/**
+ * PATCH: check a guest in at the door, or undo it.
+ *
+ * Body: { id, checked_in: boolean }
+ *
+ * Gated on `door_sales_comps` — the same capability that lets someone sell at
+ * the door and issue comps, which is exactly who is standing at the list.
+ * Marking someone in is not a read.
+ */
+export async function PATCH(request: Request) {
+  const guard = await requireCapability("door_sales_comps", { write: true });
+  if (!guard.ok) return guard.response;
+
+  const body = await request.json();
+  const { id, checked_in } = body as { id?: string; checked_in?: boolean };
+
+  if (!id) {
+    return NextResponse.json({ error: "id is required" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("guest_list")
+    .update({
+      checked_in_at: checked_in === false ? null : new Date().toISOString(),
+      checked_in_by: checked_in === false ? null : guard.actor.id,
+    })
+    .eq("id", id)
+    .select("id, first_name, last_name, quantity, checked_in_at")
+    .single();
+
+  if (error) {
+    if (/checked_in_at|column .* does not exist/i.test(error.message)) {
+      return NextResponse.json(
+        { error: "Guest check-in isn't set up yet — run plans/guest-list-checkin-migration.sql first." },
+        { status: 503 }
+      );
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
 }
 
 // POST: add a guest (bypasses RLS)

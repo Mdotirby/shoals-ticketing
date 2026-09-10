@@ -1374,3 +1374,49 @@ matter.
 
 **This migration is the thing that actually closes the gap.** Until it runs and
 the code ships, every card sale keeps losing its ledger row.
+
+---
+
+## Box office guest list — real names, and check-in (2026-09-10)
+
+Two things Matt asked for, and the first was my bug.
+
+### The names were never going to show
+
+The panel rendered `g.guest_name || g.name || "Guest"` against a type I had
+**guessed**: `name`, `guest_name`, `checked_in`. None of those columns exist.
+`guest_list` is `first_name, last_name, quantity, notes` — so every single row
+fell through to the fallback string and the door saw a list of identical
+entries reading "Guest". The status badge was meaningless for the same reason.
+
+Verified against the real list for tonight's show: **Johnna Johnson +1**,
+**Kasey Kasmier +1** — both of which previously read "Guest".
+
+I also removed the `.slice(0, 8)`. Truncating a door list at eight silently
+turns away the ninth person.
+
+### Check-in
+
+`guest_list` had no way to record that somebody turned up — a comp looked
+identical before and after they walked through the door. That is not just
+untidy: comps occupy capacity and land in the drop count, so *"18 on the
+list"* and *"11 of them came"* are different numbers, and only the second one
+reconciles against a headcount.
+
+`plans/guest-list-checkin-migration.sql` adds `checked_in_at TIMESTAMPTZ` and
+`checked_in_by` (→ `admin_users`, `ON DELETE SET NULL`, so removing a staff
+member never deletes the record that a guest arrived). A **timestamp, not a
+boolean** — when someone arrived is worth knowing at the door, and a boolean
+throws it away.
+
+`PATCH /api/artists/guests` toggles it, gated on **`door_sales_comps`** — the
+same capability that lets someone sell at the door and issue comps, which is
+exactly who is standing at the list. The button is optimistic and reverts on
+failure; the door is no place to wait on a round trip.
+
+The panel footer now reads **Arrived — 3 of 18** instead of a comp count that
+came from a different source entirely.
+
+Both the GET and the PATCH tolerate the column not existing yet, so deploy
+order does not matter — but until the migration runs, check-in returns a 503
+naming the file.

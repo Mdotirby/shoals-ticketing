@@ -21573,3 +21573,12 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .inv-head > :nth-child(4), .inv-row > :nth-child(4),
   .inv-head > :nth-child(5), .inv-row > :nth-child(5) { display: none; }
 }
+
+/* Check-in is the affirmative action on the door's guest list, so it reads as
+   one until it has been used. */
+.bo-pill--checkin {
+  background: rgba(143, 214, 168, 0.12);
+  border-color: rgba(143, 214, 168, 0.34);
+  color: #8fd6a8;
+}
+.bo-pill--checkin:hover:not(:disabled) { background: rgba(143, 214, 168, 0.2); }

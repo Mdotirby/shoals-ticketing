@@ -90,7 +90,23 @@ type DoorTotals = {
   recent: { id: string; name: string; amount: number; quantity: number; tender: string; at: string }[];
 };
 
-type GuestRow = { id: string; name?: string; guest_name?: string; quantity?: number; notes?: string; checked_in?: boolean };
+/**
+ * A guest-list row, as `guest_list` actually stores it.
+ *
+ * This was written against guessed field names — `name`, `guest_name`,
+ * `checked_in` — none of which exist. The table is first_name / last_name /
+ * quantity / notes, so every row on the door's list rendered as the fallback
+ * string "Guest" and the status badge meant nothing.
+ */
+type GuestRow = {
+  id: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  quantity?: number | null;
+  notes?: string | null;
+  /** Null until someone at the door marks them in. */
+  checked_in_at?: string | null;
+};
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const clock = (iso: string) => {
@@ -324,6 +340,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   // Tonight
   const [door, setDoor]     = useState<DoorTotals | null>(null);
   const [guests, setGuests] = useState<GuestRow[]>([]);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [counted, setCounted] = useState("");
 
   // Manual card entry fallback
@@ -655,6 +672,37 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
       setFormError(err instanceof Error ? err.message : "Failed to record cash sale");
     } finally {
       setCashSubmitting(false);
+    }
+  };
+
+  /**
+   * Mark a guest arrived, or undo it.
+   *
+   * Optimistic: the door is not a place to wait on a round trip, so the row
+   * flips immediately and reverts if the write fails.
+   */
+  const toggleGuest = async (guestId: string, checkedIn: boolean) => {
+    setCheckingIn(guestId);
+    const before = guests;
+    setGuests((gs) =>
+      gs.map((g) => (g.id === guestId ? { ...g, checked_in_at: checkedIn ? new Date().toISOString() : null } : g))
+    );
+    try {
+      const res = await fetch("/api/artists/guests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: guestId, checked_in: checkedIn }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setGuests(before);
+        setFormError(d.error || "Could not update the guest list.");
+      }
+    } catch {
+      setGuests(before);
+      setFormError("Could not update the guest list.");
+    } finally {
+      setCheckingIn(null);
     }
   };
 
@@ -1196,21 +1244,47 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
               <div className="bo-eyebrow">Comps &amp; guest list</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
                 {guests.length === 0 && <div className="bo-note">Nobody on the guest list for this show.</div>}
-                {guests.slice(0, 8).map((g) => (
-                  <div key={g.id} className="bo-listrow">
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11.5, fontWeight: 550, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.guest_name || g.name || "Guest"}</div>
-                      {g.notes && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.34)" }}>{g.notes}</div>}
+                {guests.map((g) => {
+                  const name = [g.first_name, g.last_name].filter(Boolean).join(" ").trim();
+                  const inAt = g.checked_in_at;
+                  return (
+                    <div key={g.id} className="bo-listrow">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {name || "Unnamed guest"}
+                        </div>
+                        <div style={{ fontSize: 9.5, color: "rgba(255,255,255,0.34)" }}>
+                          {inAt ? `In at ${clock(inAt)}` : g.notes || "on the list"}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 12, fontVariantNumeric: "tabular-nums", flex: "none" }}>+{g.quantity ?? 1}</div>
+                      {/* Marking someone in is the point of showing the list at
+                          the door. Without it a comp looks identical before and
+                          after they walk through, and "18 on the list" never
+                          becomes "11 of them came" — which is the number that
+                          reconciles against a headcount. */}
+                      <button
+                        type="button"
+                        className={`bo-pill ${inAt ? "" : "bo-pill--checkin"}`}
+                        style={{ minHeight: 38, padding: "0 13px", fontSize: 11, flex: "none" }}
+                        disabled={checkingIn === g.id}
+                        onClick={() => toggleGuest(g.id, !inAt)}
+                        title={inAt ? "Checked in — tap to undo" : "Mark this guest as arrived"}
+                      >
+                        {checkingIn === g.id ? "…" : inAt ? "✓ In" : "Check in"}
+                      </button>
                     </div>
-                    <div style={{ fontSize: 11, fontVariantNumeric: "tabular-nums" }}>{g.quantity ?? 1}</div>
-                    <div className={`bo-tag ${g.checked_in ? "bo-tag--used" : ""}`}>{g.checked_in ? "Used" : "Unused"}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {door && door.comp.tickets > 0 && (
+              {guests.length > 0 && (
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.10)", fontSize: 12 }}>
-                  <span style={{ fontWeight: 650 }}>Comped tickets tonight</span>
-                  <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>{door.comp.tickets}</span>
+                  <span style={{ fontWeight: 650 }}>Arrived</span>
+                  <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 650 }}>
+                    {guests.filter((g) => g.checked_in_at).reduce((t, g) => t + (g.quantity ?? 1), 0)}
+                    {" of "}
+                    {guests.reduce((t, g) => t + (g.quantity ?? 1), 0)}
+                  </span>
                 </div>
               )}
             </div>
