@@ -624,3 +624,80 @@ identity and rebuilding it was not asked for.
 **2 of 71** admin screens. `AdminCard` and `AdminPageHeader` are still unused —
 this screen needed the mockup's specific hero and table geometry, not a generic
 card, so folding them in belongs with a screen that wants a plain card.
+
+---
+
+## Item 8 — Create a show (2026-09-10)
+
+`app/admin/events/new/page.tsx`, restructured to the mockup's `create` block:
+numbered **Setup / Tickets / On-sale & fees**, with the money rail and the
+publish gate persistent across all three.
+
+**Restructured, not rewritten.** Every field, every fetch, and every
+post-submit route (private events → `/admin/private-events/[id]`, co-promote
+and rental → `/admin/offers/new`) is the same code in a different container.
+This form creates the shows that sell tickets; a from-scratch rewrite would
+have been the wrong trade.
+
+### The publish gate — the real change
+
+The form POSTed `status: "published"` **unconditionally**. Creating a show put
+it on the storefront the same second: there was no draft state to work in, so
+you could not set a title and come back for the tiers without the show being
+live and unsellable in between.
+
+Now both rail buttons carry the intent — **Save as draft** and **Publish** —
+and Publish is disabled until the checklist clears. Checks are derived from the
+form as it stands: title and venue, date and show time, a tier with a price and
+a capacity, artwork, an on-sale date, and a room map if reserved seating is on.
+
+`/api/events` already filters public reads with
+`status.eq.published,status.is.null`, so drafts are genuinely hidden from both
+the storefront and the box office picker. The gate is real, not cosmetic.
+
+**The other half of the gate: a Publish / Unpublish button on the event
+workspace.** Until this, the only way to publish a draft was a status dropdown
+buried in the calendar's event panel — a gate you cannot open from the screen
+you land on is a trap, not a safeguard. Unpublishing warns and leaves orders,
+tickets and scans intact.
+
+### The money rail
+
+Recomputed on every keystroke from the tiers, using the **same rate card
+checkout bills against** (`lib/fees/rates`), so it cannot drift from what a
+buyer is charged. Verified live: 650 × $35 → face $22,750.00, service
++$1,950.00, tax +$2,161.25, **gross if sold out $27,640.53**, card −$779.28,
+**net to venue $24,911.25**.
+
+`selectedVenueFees` was widened to carry `ticketing_fee` and `tax_rate` — the
+venue query already selected both and only `facility_fee` was ever kept.
+
+**Named limitation, in the rail itself:** Stripe's flat fee is charged *per
+order*, and this models one. A 650-cap room sold across a few hundred orders
+costs more than the card line shows.
+
+### A collision worth recording
+
+`.cs-*` is already the **checkout-success** namespace in `globals.css`, and
+`body[data-theme="liquid-glass"] .cs-check` is a 64×64 circle. Reusing the
+prefix turned every publish-gate row into a bubble with its label wrapped
+inside — and the attribute selector on `body` outranks a bare class, so
+nothing new could have won. Renamed to `.cshow-*`. **Grep the prefix before
+claiming one.**
+
+### Flagged, not fixed
+
+- **The event workspace and the dashboard disagree about capacity.** The
+  workspace reads `venue.capacity ?? Σ tiers` and showed Tyler Halverson at
+  42/**750**; the dashboard sums tier capacity and shows 42/**720**. Two
+  screens, same show, different denominator — so sell-through differs too.
+- **A 401 from `/api/admin/dashboard` renders as `$0.00` gross** on the
+  workspace, not as an error. Staff without the capability see a wrong number
+  rather than a refusal.
+- **`PUT /api/events/[id]` is unauthenticated**, like the rest of
+  `/api/events/*`. The new publish button uses it. Pre-existing, and the same
+  class of hole as `8a4fa41` closed for `/api/admin/*`.
+
+### Rebuild status
+
+**3 of 71** admin screens: box office, Command Center, create a show.

@@ -20734,3 +20734,141 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   .cc-thead, .cc-trow { grid-template-columns: minmax(0, 1fr) 72px 74px; }
   .cc-thead > :nth-child(3), .cc-trow > :nth-child(3) { display: none; }
 }
+
+/* ============================================================
+   CREATE A SHOW — /admin/events/new
+   Rebuilt to the mockup's `create` block, numbered Setup / Tickets /
+   On-sale & fees with the money rail and the publish gate persistent
+   across all three.
+
+   NAMESPACED .cshow-, NOT .cs-. `.cs-` is already the checkout-success
+   namespace in this file, and body[data-theme="liquid-glass"] .cs-check is a
+   64x64 circle. Reusing the prefix silently turned every publish-gate row
+   into a bubble with the label wrapped inside it — the attribute selector on
+   body outranks a bare class, so nothing here could have won.
+
+   Self-contained, same reasoning as .bo-* and .cc-*. Appended only.
+   ============================================================ */
+
+.cshow {
+  --cshow-good: #8fd6a8;
+  --cshow-warn: #fbbf24;
+  --cshow-bad:  #f87171;
+  --cshow-w72:  rgba(255, 255, 255, 0.72);
+  --cshow-w62:  rgba(255, 255, 255, 0.62);
+  --cshow-w44:  rgba(255, 255, 255, 0.44);
+  --cshow-w32:  rgba(255, 255, 255, 0.32);
+  --cshow-sheen: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+}
+
+/* The rail is persistent — it is the whole point. Money and the publish gate
+   have to be visible while you are typing a price, not on a summary screen
+   after the decision is already made. Sticky so it stays put through a long
+   form; it drops below the form on a narrow screen rather than being cut off. */
+.cshow-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1000px) { .cshow-layout { grid-template-columns: 1fr; } }
+
+.cshow-rail { position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 1000px) { .cshow-rail { position: static; } }
+
+.cshow-card {
+  position: relative;
+  border-radius: 22px;
+  padding: 19px 20px;
+  background: var(--cshow-sheen), linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.cshow-card--gate {
+  background: var(--cshow-sheen), linear-gradient(155deg, rgba(143,214,168,0.10), rgba(255,255,255,0.04));
+  border-color: rgba(143, 214, 168, 0.26);
+}
+@supports not (backdrop-filter: blur(1px)) { .cshow-card { background: rgba(20, 20, 22, 0.94); } }
+
+.cshow-eyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.50);
+}
+.cshow-note { font-size: 10.5px; line-height: 1.5; color: var(--cshow-w44); text-wrap: pretty; }
+
+/* ── Step header ──────────────────────────────────────────── */
+.cshow-steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.cshow-step {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 15px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: var(--cshow-w62); font-family: inherit; font-size: 12.5px; font-weight: 650;
+  min-height: 44px;
+}
+.cshow-step:hover { background: rgba(255, 255, 255, 0.09); }
+.cshow-step[aria-current="true"] {
+  background: linear-gradient(155deg, rgba(255,255,255,0.15), rgba(255,255,255,0.07));
+  border-color: rgba(255, 255, 255, 0.30);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.cshow-step-num {
+  width: 20px; height: 20px; border-radius: 999px; flex: none;
+  display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  background: rgba(255, 255, 255, 0.10); color: var(--cshow-w72);
+}
+.cshow-step[aria-current="true"] .cshow-step-num { background: #fff; color: #0a0a0c; }
+.cshow-step-done .cshow-step-num { background: rgba(143, 214, 168, 0.25); color: var(--cshow-good); }
+
+/* ── Money rail ───────────────────────────────────────────── */
+.cshow-money-row {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.cshow-money-row:last-child { border-bottom: none; }
+.cshow-money-row > .lbl { flex: 1; font-size: 12.5px; font-weight: 500; color: var(--cshow-w62); }
+.cshow-money-row > .val { font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cshow-money-row--total > .lbl { font-size: 15px; font-weight: 800; color: #fff; }
+.cshow-money-row--total > .val { font-size: 15px; font-weight: 800; }
+
+/* ── Publish gate ─────────────────────────────────────────── */
+.cshow-check { display: flex; align-items: flex-start; gap: 9px; padding: 4px 0; }
+.cshow-check-mark {
+  width: 15px; height: 15px; flex: none; border-radius: 999px;
+  display: grid; place-items: center; font-size: 9px; font-weight: 800; margin-top: 1px;
+}
+.cshow-check-ok   { background: rgba(143,214,168,0.22); border: 1px solid rgba(143,214,168,0.55); color: var(--cshow-good); }
+.cshow-check-todo { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.16); color: transparent; }
+.cshow-check-text { font-size: 11px; line-height: 1.4; color: var(--cshow-w72); text-wrap: pretty; }
+.cshow-check-todo ~ .cshow-check-text { color: var(--cshow-w44); }
+
+.cshow-btn {
+  width: 100%; padding: 13px 16px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: #fff; min-height: 48px;
+}
+.cshow-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.cshow-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cshow-btn--publish {
+  background: linear-gradient(180deg, #ffffff, rgba(255,255,255,0.84));
+  color: #0a0a0c; border-color: transparent;
+  box-shadow: 0 0 24px rgba(255,255,255,0.22), inset 0 1px 0 #fff;
+}
+.cshow-btn--publish:hover:not(:disabled) { filter: brightness(1.06); background: linear-gradient(180deg, #ffffff, rgba(255,255,255,0.84)); }
+
+/* ── Step nav ─────────────────────────────────────────────── */
+.cshow-nav { display: flex; gap: 9px; margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.10); }
+.cshow-nav .cshow-btn { width: auto; flex: 1; }
+
+/* The form grid inside a step keeps the existing .admin-form-* fields intact —
+   they are the fields that write the event and were not worth re-plumbing for
+   a layout change. */
+.cshow-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cshow-panel > .admin-form-full { grid-column: 1 / -1; }
+@media (max-width: 700px) { .cshow-panel { grid-template-columns: 1fr; } }

@@ -1,6 +1,7 @@
 "use client";
 
 import { isHardTicket as isHardTicketType } from "@/lib/eventClass";
+import { surchargeCents, ratePctLabel, DEFAULT_SURCHARGE_MODE } from "@/lib/fees/rates";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -33,6 +34,24 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
   cancelled: "#ff6b6b",
 };
 
+/**
+ * The three steps, per ADMIN_MERGE_PLAN.md § 9.1.
+ *
+ * They answer, in order: what kind of show is this, what does it sell, and
+ * when does it go on sale and for how much. Steps 2 and 3 are meaningless for
+ * a class that does not sell through our ticketing, which is why the class
+ * picker lives in step 1 — it decides whether the other two exist at all.
+ */
+type StepNumber = 1 | 2 | 3;
+const STEPS: { n: StepNumber; label: string }[] = [
+  { n: 1, label: "Setup" },
+  { n: 2, label: "Tickets" },
+  { n: 3, label: "On-sale & fees" },
+];
+
+const fmtMoney = (n: number) =>
+  "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 function emptyTier(): TicketTierDraft {
   return { tier_name: "General Admission", price: "", capacity: "" };
 }
@@ -46,7 +65,15 @@ export default function AdminCreateEventPage() {
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
   const [facilityFeeEnabled, setFacilityFeeEnabled] = useState(true);
-  const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
+  // The venue query at line ~139 already selects ticketing_fee and tax_rate;
+  // only facility_fee was ever kept. The money rail needs all three to project
+  // anything true, so they are carried now. Nulls mean "use the platform
+  // default", exactly as resolveVenueFees() does server-side.
+  const [selectedVenueFees, setSelectedVenueFees] = useState<{
+    facility_fee: number | null;
+    ticketing_fee: number | null;
+    tax_rate: number | null;
+  }>({ facility_fee: null, ticketing_fee: null, tax_rate: null });
 
   // Resolved venue_id — from cookie or admin_users table
   const [resolvedVenueId, setResolvedVenueId] = useState<string | null>(null);
@@ -150,6 +177,12 @@ export default function AdminCreateEventPage() {
   }, []);
 
   // Cropper state
+  const formRef = useRef<HTMLFormElement>(null);
+  const [step, setStep] = useState<StepNumber>(1);
+  // Which button was pressed. Kept in state rather than passed through the
+  // submit event because the label has to say "Publishing…" vs "Saving…".
+  const [publishIntent, setPublishIntent] = useState<"draft" | "published">("draft");
+
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -289,7 +322,12 @@ export default function AdminCreateEventPage() {
           price: lowestPrice,
           description: isPrivate ? null : (form.description || null),
           image_url: isPrivate ? null : (form.image_url || null),
-          status: "published",
+          // WAS `"published"`, unconditionally. Creating a show put it on the
+          // storefront the same second, with no draft state to work in — you
+          // could not set a title and come back to the tiers without the show
+          // being live and unsellable in between. The rail's two buttons carry
+          // the intent now.
+          status: publishIntent,
           venue_id: resolvedVenueId || null,
           event_venue_id: selectedEventVenueId || null,
           facility_fee_enabled: isFree ? false : facilityFeeEnabled,
@@ -432,13 +470,141 @@ export default function AdminCreateEventPage() {
       : form.event_type;
   const isPrivate = form.event_type === "private";
 
+  /**
+   * What the room is worth at the prices currently typed.
+   *
+   * Recomputed on every keystroke rather than shown on a summary screen: the
+   * moment to know a $25 tier grosses less than the guarantee is while your
+   * hand is still on the number, not after the show is saved.
+   *
+   * Uses the SAME rate card checkout bills against (lib/fees/rates), so this
+   * cannot drift from what a buyer is actually charged. It is still an
+   * estimate in one respect and says so in the rail: fee and tax rates resolve
+   * from the venue server-side at checkout, so a venue whose rates differ from
+   * the platform defaults will settle at its own numbers.
+   */
+  const projection = (() => {
+    const seats = tiers.reduce((n, t) => n + (parseInt(t.capacity) || 0), 0);
+    if (isFree || !isHardTicket || seats === 0) {
+      return { seats, face: 0, service: 0, facility: 0, tax: 0, gross: 0, card: 0, net: 0 };
+    }
+    const svcRate = selectedVenueFees.ticketing_fee ?? 3.0;
+    const facRate = facilityFeeEnabled ? (selectedVenueFees.facility_fee ?? 0) : 0;
+    const taxRate = selectedVenueFees.tax_rate ?? 0.095;
+
+    let face = 0;
+    for (const t of tiers) {
+      face += (parseFloat(t.price) || 0) * (parseInt(t.capacity) || 0);
+    }
+    const service = Math.round(svcRate * seats * 100) / 100;
+    const facility = Math.round(facRate * seats * 100) / 100;
+    const tax = Math.round(face * taxRate * 100) / 100;
+
+    // The buyer's subtotal before the card surcharge, then the surcharge on
+    // top — the same order checkout applies it in.
+    const subtotalCents = Math.round((face + service + facility + tax) * 100);
+    const card = surchargeCents(subtotalCents, DEFAULT_SURCHARGE_MODE, "online") / 100;
+    const gross = Math.round((face + service + facility + tax + card) * 100) / 100;
+
+    // What the venue keeps: gross less the platform's service fee, less what
+    // the card cost. Facility fee and tax are collected on the venue's behalf,
+    // so they stay in.
+    const net = Math.round((gross - service - card) * 100) / 100;
+    return { seats, face, service, facility, tax, gross, card, net };
+  })();
+
+  /**
+   * The publish gate.
+   *
+   * The mockup is emphatic that publishing is its own action and checks a list
+   * first, and it is right for a reason this repo has already paid for: a show
+   * published without a tier has a Get Tickets button that leads nowhere, and
+   * a show published before its artwork exists is a grey box on the storefront.
+   * Every item is derived from the form as it stands.
+   */
+  const publishChecks: { label: string; ok: boolean }[] = [
+    { label: "Title and venue", ok: !!form.title.trim() && !!form.venue.trim() },
+    { label: "Date and show time", ok: !!form.date && !!form.time },
+    ...(isHardTicket && !isFree
+      ? [
+          {
+            label: "At least one tier with a price and a capacity",
+            ok:
+              tiers.length > 0 &&
+              tiers.every(
+                (t) =>
+                  t.tier_name.trim() !== "" &&
+                  parseFloat(t.price) >= 0 &&
+                  !isNaN(parseFloat(t.price)) &&
+                  (parseInt(t.capacity) || 0) >= 1
+              ),
+          },
+        ]
+      : []),
+    ...(!isPrivate ? [{ label: "Event artwork uploaded", ok: !!form.image_url }] : []),
+    ...(isHardTicket
+      ? [{ label: "On-sale date set", ok: !!onSaleDate }]
+      : []),
+    ...(reservedSeatingEnabled
+      ? [{ label: "Reserved seating is on — a room map is selected", ok: !!selectedLayoutId }]
+      : []),
+  ];
+  const outstanding = publishChecks.filter((c) => !c.ok).length;
+
+  /**
+   * Submit with an explicit visibility.
+   *
+   * This form used to POST `status: "published"` unconditionally, so creating
+   * a show put it on the storefront the same second — there was no draft state
+   * to work in. Both buttons go through here; the status is the argument.
+   */
+  const submitWith = (status: "draft" | "published") => {
+    setPublishIntent(status);
+    // Defer so the intent is in state before handleSubmit reads it.
+    requestAnimationFrame(() => {
+      formRef.current?.requestSubmit();
+    });
+  };
+
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">Create New Show</h1>
+    <div className="admin-form-page cshow">
+      <h1 className="admin-page-title">Create a show</h1>
+      <p className="cshow-note" style={{ marginTop: -4, marginBottom: 18, maxWidth: 640 }}>
+        Pick the class first — it decides the rest of the form. A private rental never
+        shows a tier editor; a non-ticketed night never asks for a price. Booking status
+        and the on-sale time are independent of each other, so a show can sit confirmed
+        on the calendar with its on-sale still weeks out.
+      </p>
 
-      <form className="admin-form" onSubmit={handleSubmit}>
-        {error && <div className="admin-form-error">{error}</div>}
+      {/* ── Numbered steps ────────────────────────────────────────────────
+          Three, per § 9.1: what the show is, what it sells, when and for how
+          much. They are buttons, not a locked sequence — an operator who
+          knows the form should not have to click through Setup to fix a
+          price. The publish gate is what enforces completeness, not the
+          step order. */}
+      <div className="cshow-steps">
+        {STEPS.map((s) => (
+          <button
+            key={s.n}
+            type="button"
+            className={`cshow-step ${step > s.n ? "cshow-step-done" : ""}`}
+            aria-current={step === s.n}
+            onClick={() => setStep(s.n)}
+            disabled={s.n > 1 && !isHardTicket}
+            title={s.n > 1 && !isHardTicket ? "Only ticketed shows have tiers and an on-sale" : undefined}
+          >
+            <span className="cshow-step-num">{step > s.n ? "\u2713" : s.n}</span>
+            {s.label}
+          </button>
+        ))}
+      </div>
 
+      <div className="cshow-layout">
+        <form ref={formRef} className="admin-form" onSubmit={handleSubmit}>
+          {error && <div className="admin-form-error">{error}</div>}
+
+          {/* ══ 1 · Setup ══════════════════════════════════════════════ */}
+          <div hidden={step !== 1} className="cshow-panel">
         {/* Show Type Selector */}
         <div className="admin-form-label admin-form-full">
           Show Type
@@ -568,10 +734,10 @@ export default function AdminCreateEventPage() {
                   if (v) {
                     setSelectedEventVenueId(v.id);
                     setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
-                    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+                    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null, ticketing_fee: v.ticketing_fee ?? null, tax_rate: v.tax_rate ?? null });
                   } else {
                     setSelectedEventVenueId(null);
-                    setSelectedVenueFees({ facility_fee: null });
+                    setSelectedVenueFees({ facility_fee: null, ticketing_fee: null, tax_rate: null });
                   }
                 }}
                 style={{ marginBottom: 6 }}
@@ -591,7 +757,7 @@ export default function AdminCreateEventPage() {
                 handleChange(e);
                 // Clear selected venue if user types manually
                 setSelectedEventVenueId(null);
-                setSelectedVenueFees({ facility_fee: null });
+                setSelectedVenueFees({ facility_fee: null, ticketing_fee: null, tax_rate: null });
               }}
               placeholder="e.g. Singin River Live"
               required
@@ -772,6 +938,79 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
+
+        {/* Image upload section — hidden for private events */}
+        {!isPrivate && <div className="admin-form-label admin-form-full">
+          Event Image
+          <div className="admin-image-upload-area">
+            {previewUrl ? (
+              <div className="admin-image-preview-wrapper">
+                <img
+                  src={previewUrl}
+                  alt="Event preview"
+                  className="admin-image-preview"
+                />
+                <button
+                  type="button"
+                  className="admin-image-remove-btn"
+                  onClick={handleRemoveImage}
+                >
+                  ✕ Remove
+                </button>
+              </div>
+            ) : (
+              <div
+                className="admin-image-dropzone"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? (
+                  <span className="admin-image-uploading">Uploading…</span>
+                ) : (
+                  <>
+                    <span className="admin-image-dropzone-icon"></span>
+                    <span className="admin-image-dropzone-text">
+                      Click to upload an image
+                    </span>
+                    <span className="admin-image-dropzone-hint">
+                      .jpg, .jpeg, .png, or .webp — max 45 MB
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES}
+              onChange={handleFileSelect}
+              className="admin-image-file-input"
+            />
+          </div>
+        </div>}
+
+        {!isPrivate && (
+          <label className="admin-form-label admin-form-full">
+            Description
+            <textarea
+              name="description"
+              className="admin-form-textarea"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Event description..."
+              rows={4}
+            />
+          </label>
+        )}
+          </div>
+
+          {/* ══ 2 · Tickets ════════════════════════════════════════════ */}
+          <div hidden={step !== 2} className="cshow-panel">
+            {!isHardTicket && (
+              <div className="admin-form-full cshow-note">
+                This class does not sell through our ticketing, so there is nothing to
+                price here. Go back to Setup, or save the show.
+              </div>
+            )}
         {/* ── Free Event Checkbox (only for hard ticket events) ── */}
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
@@ -805,6 +1044,7 @@ export default function AdminCreateEventPage() {
             </p>
           </div>
         )}
+
 
         {/* ── Ticket Tiers (only for hard ticket events) ── */}
         {isHardTicket && (
@@ -874,6 +1114,74 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
+
+        {/* ── Reserved Seating (only for hard ticket events) ── */}
+        {isHardTicket && (
+          <div className="admin-form-label admin-form-full" style={{
+            padding: 16, borderRadius: 10,
+            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
+            marginTop: 8,
+          }}>
+            <label style={{
+              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+              color: reservedSeatingEnabled ? "#818cf8" : "rgba(255,255,255,0.6)",
+              fontWeight: 700, fontSize: 13,
+            }}>
+              <input
+                type="checkbox"
+                checked={reservedSeatingEnabled}
+                onChange={(e) => {
+                  setReservedSeatingEnabled(e.target.checked);
+                  if (!e.target.checked) setSelectedChartId(null);
+                }}
+                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
+              />
+              Enable Reserved Seating
+            </label>
+            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+              When enabled, buyers will select specific seats from a seating chart instead of general admission tickets.
+            </p>
+
+            {reservedSeatingEnabled && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                  Seating Layout
+                </label>
+                {seatingLayouts.length > 0 ? (
+                  <select
+                    className="admin-form-input"
+                    value={selectedLayoutId || ""}
+                    onChange={(e) => setSelectedChartId(e.target.value || null)}
+                    style={{ maxWidth: 400 }}
+                  >
+                    <option value="">— Select a seating layout —</option>
+                    {seatingLayouts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                    No seating layouts yet.{" "}
+                    <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
+                      Create one in Seating Management
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+          </div>
+
+          {/* ══ 3 · On-sale & fees ═════════════════════════════════════ */}
+          <div hidden={step !== 3} className="cshow-panel">
+            {!isHardTicket && (
+              <div className="admin-form-full cshow-note">
+                No on-sale and no fees for this class. Go back to Setup, or save the show.
+              </div>
+            )}
         {/* ── On-Sale Date & Time (only for hard ticket events) ── */}
         {isHardTicket && (
           <div className="admin-form-label admin-form-full" style={{
@@ -935,6 +1243,7 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
+
         {/* ── Facility Fee Toggle + Amount (only for hard ticket events) ── */}
         {isHardTicket && !isFree && (
           <div className="admin-form-label admin-form-full" style={{
@@ -969,7 +1278,7 @@ export default function AdminCreateEventPage() {
                   value={selectedVenueFees.facility_fee ?? 0}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
-                    setSelectedVenueFees({ facility_fee: isNaN(v) ? 0 : v });
+                    setSelectedVenueFees((prev) => ({ ...prev, facility_fee: isNaN(v) ? 0 : v }));
                   }}
                   placeholder="0.00"
                 />
@@ -984,63 +1293,6 @@ export default function AdminCreateEventPage() {
           </div>
         )}
 
-        {/* ── Reserved Seating (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: reservedSeatingEnabled ? "#818cf8" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={reservedSeatingEnabled}
-                onChange={(e) => {
-                  setReservedSeatingEnabled(e.target.checked);
-                  if (!e.target.checked) setSelectedChartId(null);
-                }}
-                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
-              />
-              Enable Reserved Seating
-            </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, buyers will select specific seats from a seating chart instead of general admission tickets.
-            </p>
-
-            {reservedSeatingEnabled && (
-              <div style={{ marginTop: 12 }}>
-                <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                  Seating Layout
-                </label>
-                {seatingLayouts.length > 0 ? (
-                  <select
-                    className="admin-form-input"
-                    value={selectedLayoutId || ""}
-                    onChange={(e) => setSelectedChartId(e.target.value || null)}
-                    style={{ maxWidth: 400 }}
-                  >
-                    <option value="">— Select a seating layout —</option>
-                    {seatingLayouts.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    No seating layouts yet.{" "}
-                    <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
-                      Create one in Seating Management
-                    </a>
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* ── Promo Codes note (only for hard ticket events) ── */}
         {isHardTicket && (
@@ -1058,78 +1310,134 @@ export default function AdminCreateEventPage() {
             </p>
           </div>
         )}
-
-        {/* Image upload section — hidden for private events */}
-        {!isPrivate && <div className="admin-form-label admin-form-full">
-          Event Image
-          <div className="admin-image-upload-area">
-            {previewUrl ? (
-              <div className="admin-image-preview-wrapper">
-                <img
-                  src={previewUrl}
-                  alt="Event preview"
-                  className="admin-image-preview"
-                />
-                <button
-                  type="button"
-                  className="admin-image-remove-btn"
-                  onClick={handleRemoveImage}
-                >
-                  ✕ Remove
-                </button>
-              </div>
-            ) : (
-              <div
-                className="admin-image-dropzone"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {uploading ? (
-                  <span className="admin-image-uploading">Uploading…</span>
-                ) : (
-                  <>
-                    <span className="admin-image-dropzone-icon"></span>
-                    <span className="admin-image-dropzone-text">
-                      Click to upload an image
-                    </span>
-                    <span className="admin-image-dropzone-hint">
-                      .jpg, .jpeg, .png, or .webp — max 45 MB
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES}
-              onChange={handleFileSelect}
-              className="admin-image-file-input"
-            />
           </div>
-        </div>}
 
-        {!isPrivate && (
-          <label className="admin-form-label admin-form-full">
-            Description
-            <textarea
-              name="description"
-              className="admin-form-textarea"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Event description..."
-              rows={4}
-            />
-          </label>
-        )}
+          <div className="cshow-nav">
+            <button
+              type="button"
+              className="cshow-btn"
+              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as StepNumber) : s))}
+              disabled={step === 1}
+            >
+              ← Back
+            </button>
+            <button
+              type="button"
+              className="cshow-btn"
+              onClick={() => setStep((s) => (s < 3 ? ((s + 1) as StepNumber) : s))}
+              disabled={step === 3 || !isHardTicket}
+            >
+              Next →
+            </button>
+          </div>
+        </form>
 
-        <button
-          type="submit"
-          className="admin-form-submit"
-          disabled={loading || uploading}
-        >
-          {loading ? "Creating..." : (form.event_type === "co_promote" || form.event_type === "rental_box_office") ? "Create Show & Build Offer" : "Create Show"}
-        </button>
-      </form>
+        {/* ══ The rail — money and the publish gate, on every step ═════ */}
+        <aside className="cshow-rail">
+
+          {/* If it sells out. Recomputed live from the tiers as they are
+              typed, using the same rate card checkout bills against — an
+              operator setting a price should see what the room is worth at
+              that price while their hand is still on the number. */}
+          {isHardTicket && (
+            <div className="cshow-card">
+              <div className="cshow-eyebrow">If it sells out</div>
+              <div style={{ marginTop: 12 }}>
+                <div className="cshow-money-row">
+                  <span className="lbl">Face value · {projection.seats.toLocaleString()} ticket{projection.seats === 1 ? "" : "s"}</span>
+                  <span className="val">{fmtMoney(projection.face)}</span>
+                </div>
+                <div className="cshow-money-row">
+                  <span className="lbl">Service fee to buyer</span>
+                  <span className="val" style={{ color: "var(--cshow-good)" }}>+{fmtMoney(projection.service)}</span>
+                </div>
+                {projection.facility > 0 && (
+                  <div className="cshow-money-row">
+                    <span className="lbl">Facility fee to buyer</span>
+                    <span className="val" style={{ color: "var(--cshow-good)" }}>+{fmtMoney(projection.facility)}</span>
+                  </div>
+                )}
+                {projection.tax > 0 && (
+                  <div className="cshow-money-row">
+                    <span className="lbl">Tax collected</span>
+                    <span className="val" style={{ color: "var(--cshow-w72)" }}>+{fmtMoney(projection.tax)}</span>
+                  </div>
+                )}
+                <div className="cshow-money-row cshow-money-row--total">
+                  <span className="lbl">Gross if sold out</span>
+                  <span className="val" style={{ color: "var(--cshow-good)" }}>{fmtMoney(projection.gross)}</span>
+                </div>
+                <div className="cshow-money-row">
+                  <span className="lbl">Card processing (est.)</span>
+                  <span className="val" style={{ color: "var(--cshow-w72)" }}>−{fmtMoney(projection.card)}</span>
+                </div>
+                <div className="cshow-money-row">
+                  <span className="lbl">Service fee retained</span>
+                  <span className="val" style={{ color: "var(--cshow-w72)" }}>−{fmtMoney(projection.service)}</span>
+                </div>
+                <div className="cshow-money-row cshow-money-row--total">
+                  <span className="lbl">Net to venue</span>
+                  <span className="val">{fmtMoney(projection.net)}</span>
+                </div>
+              </div>
+              <div className="cshow-note" style={{ marginTop: 12 }}>
+                {isFree
+                  ? "Free show — no fees, no tax, no card."
+                  : `Card is estimated at ${ratePctLabel("online")} plus one flat fee. Stripe charges that flat fee PER ORDER, so a room this size sold in a few hundred orders costs more than this line — the real figure is Stripe's deduction at settlement. Fee and tax rates resolve from the venue at checkout, so these move if the venue's rates differ from the platform defaults.`}
+              </div>
+            </div>
+          )}
+
+          {/* The publish gate. Persistent because it is the thing that
+              decides whether any of this reaches a buyer. */}
+          <div className="cshow-card cshow-card--gate">
+            <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+              <div className="cshow-eyebrow">Publish to the storefront</div>
+              <span style={{ flex: 1 }} />
+              <span style={{ fontSize: 9.5, color: "var(--cshow-w32)" }}>separate action</span>
+            </div>
+            <div className="cshow-note" style={{ marginTop: 8 }}>
+              Saving as a draft keeps the show off the storefront. Publishing is its own
+              button and checks the list below first.
+            </div>
+            <div style={{ marginTop: 13 }}>
+              {publishChecks.map((c: { label: string; ok: boolean }) => (
+                <div key={c.label} className="cshow-check">
+                  <span className={`cshow-check-mark ${c.ok ? "cshow-check-ok" : "cshow-check-todo"}`}>{c.ok ? "\u2713" : ""}</span>
+                  <span className="cshow-check-text" style={{ color: c.ok ? "var(--cshow-w72)" : "var(--cshow-w44)" }}>{c.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 16 }}>
+              <button
+                type="button"
+                className="cshow-btn cshow-btn--publish"
+                disabled={loading || uploading || outstanding > 0}
+                onClick={() => submitWith("published")}
+              >
+                {loading && publishIntent === "published"
+                  ? "Publishing\u2026"
+                  : outstanding > 0
+                    ? `Publish — ${outstanding} item${outstanding === 1 ? "" : "s"} outstanding`
+                    : "Publish"}
+              </button>
+              <button
+                type="button"
+                className="cshow-btn"
+                disabled={loading || uploading}
+                onClick={() => submitWith("draft")}
+              >
+                {loading && publishIntent === "draft" ? "Saving\u2026" : "Save as draft"}
+              </button>
+            </div>
+            <div className="cshow-note" style={{ marginTop: 11 }}>
+              Unpublishing later pulls the listing and leaves orders, tickets and scans
+              intact. Sold tickets stay valid.
+            </div>
+          </div>
+        </aside>
+      </div>
 
       {/* Crop modal */}
       {rawImageSrc && (

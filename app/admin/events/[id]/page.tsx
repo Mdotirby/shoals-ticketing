@@ -91,6 +91,7 @@ export default function EventWorkspacePage() {
 
   const [tab, setTab] = useState("overview");
   const [event, setEvent] = useState<EventRecord | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [holds, setHolds] = useState<Hold[]>([]);
@@ -214,6 +215,47 @@ export default function EventWorkspacePage() {
             <span className="ev-header-stat-value">{daysOut(event.date)}</span>
             <span className="ev-header-stat-label">Days Out</span>
           </div>
+          {/* ── Publish / unpublish ──────────────────────────────────────
+              The other half of the create form's publish gate. Create-a-show
+              now saves a draft unless you deliberately publish, which is the
+              right default — but until this button existed, the ONLY way to
+              publish a draft was a status dropdown buried in the calendar's
+              event panel. A gate you cannot open from the screen you land on
+              is a trap, not a safeguard.
+
+              Unpublishing pulls the listing and leaves orders, tickets and
+              scans intact; sold tickets stay valid. */}
+          <button
+            type="button"
+            className="cshow-btn"
+            style={{ width: "auto", padding: "10px 18px", minHeight: 42, fontSize: 12 }}
+            disabled={publishing}
+            onClick={async () => {
+              const next = eventStatus === "published" ? "draft" : "published";
+              if (next === "draft" && !confirm(
+                `Unpublish "${event.title}"?\n\nThe listing comes off the storefront immediately. ` +
+                `Orders, tickets and scans are untouched and sold tickets stay valid.`
+              )) return;
+              setPublishing(true);
+              try {
+                const res = await fetch(`/api/events/${id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: next }),
+                });
+                if (!res.ok) throw new Error("failed");
+                setEvent((e) => (e ? { ...e, status: next } : e));
+              } catch {
+                alert("Could not change visibility. Try again.");
+              } finally {
+                setPublishing(false);
+              }
+            }}
+          >
+            {publishing
+              ? "Working…"
+              : eventStatus === "published" ? "Unpublish" : "Publish to storefront"}
+          </button>
         </div>
       </div>
 
