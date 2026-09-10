@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { roleLabel } from "@/lib/auth/roles";
 
 // GET: list all admin users
 export async function GET() {
@@ -127,18 +128,12 @@ export async function POST(request: Request) {
   // Send welcome email only if real credentials were provided
   const resendKey = process.env.RESEND_API_KEY;
   if (resendKey && hasCredentials && email) {
-    const ROLE_LABELS: Record<string, string> = {
-      owner: "Owner",
-      super_admin: "Super Admin",
-      venue_admin: "Venue Admin",
-      read_only: "Read Only",
-      box_office: "Box Office",
-      door_greeter: "Door Greeter",
-      artist: "Artist",
-      partner: "Partner",
-      agent: "Agent",
-    };
-    const roleLabel = ROLE_LABELS[role] || role;
+    // Was a fourth copy of the role taxonomy, and one that had drifted — it
+    // listed super_admin and door_greeter as their own labels and omitted
+    // full_admin and promoter entirely. roleLabel() in lib/auth/roles is the
+    // single source now, and it resolves legacy strings to their canonical
+    // label rather than echoing them back.
+    const roleLabelText = roleLabel(role);
     const displayName = first_name || "there";
     // Deep-links the email/temp password into the login form so there's
     // nothing to copy/retype — the login page reads these params, prefills,
@@ -157,7 +152,7 @@ export async function POST(request: Request) {
       to: email,
       ccEmail: CC_EMAIL,
       displayName,
-      roleLabel,
+      roleLabel: roleLabelText,
       tempPassword: authPassword,
       loginUrl,
       ctaLabel,
