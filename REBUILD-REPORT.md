@@ -1244,3 +1244,66 @@ scheduling logic.
 **Rebuild status: 9 of 71** admin screens touched — box office, Command
 Center, create a show, team, access control, ticketing, settlement, offers
 list, offer builder, calendar.
+
+---
+
+## Item 12 — Rental quotes, Event orders, Invoices, Expenses, Reporting, Relationships
+
+The last item, and the one where the honest answer is mostly about what has no
+data behind it. Two things were real and got built; four are flagged.
+
+### Built: Invoices — a screen that was simply missing
+
+`invoices` has a full API (`/api/invoices`, `[id]`, `/checkout`, `/payments`),
+a Stripe payment link, and a **customer-facing page at `/pay/[invoiceId]`**.
+Invoices could be raised from a private event and paid by a client — and there
+was **nowhere to see them all**. Receivables existed one event at a time.
+
+`/admin/invoices` now shows outstanding, collected, past-60, an aging ladder
+(current / 1–30 / 31–60 / 61–90 / 90+, the late buckets hatched), and the list.
+A row opens the client's own payment page — the same link they were sent.
+
+An invoice counts as outstanding when it has a **balance**, not when its status
+field says so: status is set by hand and drifts, the balance is arithmetic.
+
+Registered in `lib/admin/nav.ts` under tab key `invoices_payments`, matching
+the capability of the same name.
+
+### Fixed: another auth hole, and the split that matters
+
+`/api/invoices` was **entirely unauthenticated** on the service-role client —
+the third namespace in this shape, after `/api/admin/*` and `/api/events/*`.
+The LIST returns every client's name, email, phone, billing address and
+balance.
+
+- `GET /api/invoices` (list) and `POST` → **staff only**
+- `PUT` / `DELETE` on `[id]` → **staff only**
+- **`GET /api/invoices/[id]` stays public by design** — `/pay/[invoiceId]` is
+  what a client opens from an emailed link and it has no session. The UUID is
+  the bearer token for that one invoice, the same shape as a ticket QR.
+  Guarding it would break every outstanding payment link.
+
+### Fixed: the reports were 68 rows from silently truncating
+
+`settlement_ledger` is at **932 rows** and `orders` at **933**. The monthly
+revenue report read the ledger with no pagination; PostgREST caps at 1000 and
+ignores the limit. At 1,001 rows it would have started under-stating the month
+with no symptom at all — the same failure that made Tyler Halverson read 15
+instead of 42. `monthly-revenue`, `orders` and `expenses` now use `fetchAll`.
+
+### Flagged — no data model behind them
+
+| Mockup screen | Reality |
+|---|---|
+| **Rental quotes** | `private_event_proposals` exists and `/admin/private-events/[id]` is 1,752 lines of working proposal flow. The mockup's quote screen is a different shape; reconciling them is a design decision, not a restyle |
+| **Event orders (BEO)** | No `beos` table, no BEO document. The mockup draws line-by-line reconciliation of contracted vs actual — nothing stores it |
+| **Expenses** | `settlement_expenses` is per-settlement and `operational_expenses` exists, but there is no standalone expense ledger screen. The reports endpoint aggregates both, which is the useful half |
+| **Relationships (CRM)** | No `contacts` table at all. `/admin/agents` (529 lines) is the nearest thing and covers agents only. A CRM is a schema project, not a screen |
+
+Drawing any of those four would have meant inventing the data. The pattern
+this rebuild has followed throughout — build what is real, name what is not —
+says leave them.
+
+### Rebuild status
+
+**11 of 71** admin screens. Items 1–12 are complete as far as the data allows.

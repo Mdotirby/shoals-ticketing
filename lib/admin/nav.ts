@@ -62,6 +62,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { label: "Ticket Sales",  href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
       { label: "Offers",        href: "/admin/offers",       roles: ["owner","venue_admin"] },
       { label: "Settlements",   href: "/admin/settlements",  roles: ["owner","venue_admin"] },
+      { label: "Invoices",      href: "/admin/invoices",     roles: ["owner","venue_admin"] },
       { label: "Contracts",     href: "/admin/contracts",    roles: ["owner","venue_admin"] },
       { label: "Reports",       href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
     ],
@@ -137,6 +138,7 @@ export const TAB_KEY_MAP: Record<string, string> = {
   "Ticket Sales": "sales",     // was "Sales"
   "Offers": "booking",         // was "Booking"
   "Settlements": "settlements",
+  "Invoices": "invoices_payments",  // matches the capability key
   "Contracts": "contracts",
   "Reports": "reports",
   "Scanner": "scanner",

@@ -1,6 +1,7 @@
 import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 
 /**
  * Monthly Revenue Report API
@@ -52,8 +53,18 @@ export async function GET(request: Request) {
       ledgerQuery = ledgerQuery.in("event_id", eventIds);
     }
 
-    const { data: ledger, error: ledErr } = await ledgerQuery;
-    if (ledErr) throw ledErr;
+    // fetchAll, not a bare query: PostgREST caps a response at 1000 rows and
+    // IGNORES the limit you asked for, silently. settlement_ledger is at 932
+    // rows and orders at 933 — a revenue report that stops at 1000 would
+    // under-state the month with no symptom. See lib/supabase/fetchAll.ts.
+    const ledger = await fetchAll<{
+      event_id: string;
+      ticket_revenue: number | null;
+      ticketing_fee: number | null;
+      facility_fee: number | null;
+      tax_collected: number | null;
+      gross_amount: number | null;
+    }>(ledgerQuery);
 
     // 3. Aggregate revenue streams
     let totalTicketRevenue = 0;
@@ -184,7 +195,7 @@ export async function GET(request: Request) {
 
     // 6. Revenue Share Calculation
     const BASE_GUARANTEE = 3000;
-    let ownershipGuarantee = Math.min(BASE_GUARANTEE, netProfit > 0 ? BASE_GUARANTEE : 0);
+    const ownershipGuarantee = Math.min(BASE_GUARANTEE, netProfit > 0 ? BASE_GUARANTEE : 0);
     let remainingProfit = Math.max(0, netProfit - ownershipGuarantee);
 
     // Tiered split on remaining profit

@@ -1,10 +1,27 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * AUTH ON /api/invoices — the split matters.
+ *
+ * This whole namespace was unauthenticated on the service-role client. The
+ * LIST returns every client's name, email, phone, billing address and balance
+ * for the venue; that is staff-only and now says so.
+ *
+ * GET /api/invoices/[id] stays PUBLIC by design: /pay/[invoiceId] is the page
+ * a client opens from an emailed link to pay, and it has no session. The id is
+ * a UUID and functions as the bearer token for that one invoice — the same
+ * shape as a ticket QR. Guarding it would break every outstanding payment
+ * link.
+ */
 // GET: List invoices, filterable by event_id, status, venue_id
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
   const status = searchParams.get("status");
@@ -32,6 +49,9 @@ export async function GET(request: Request) {
 
 // POST: Create a new invoice
 export async function POST(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const body = await request.json();
 

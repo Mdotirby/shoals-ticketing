@@ -21493,3 +21493,83 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   border-color: rgba(248, 113, 113, 0.34);
   color: #f87171;
 }
+
+/* ============================================================
+   INVOICES — /admin/invoices  (item 12)
+   The mockup's `invoice` screen, as far as the data goes.
+
+   Namespaced .inv-, checked against the file first. Appended only.
+   ============================================================ */
+
+.inv { color: #fff; display: flex; flex-direction: column; gap: 14px; }
+
+.inv-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.inv-kpi {
+  padding: 14px 16px; border-radius: 16px;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.inv-kpi-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.34); }
+.inv-kpi-value { font-size: 23px; font-weight: 800; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; margin-top: 5px; line-height: 1; }
+.inv-kpi-sub   { font-size: 10px; color: rgba(255,255,255,0.46); margin-top: 4px; }
+
+.inv-head, .inv-row {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1.4fr) 104px 104px 104px 96px;
+  gap: 12px; align-items: center;
+}
+.inv-head {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.34); padding: 0 16px 4px;
+}
+.inv-head > :nth-child(n+3), .inv-row > :nth-child(n+3) { text-align: right; }
+.inv-row {
+  padding: 13px 16px; border-radius: 16px; text-decoration: none; color: inherit;
+  background:
+    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.inv-row:hover { border-color: rgba(255, 255, 255, 0.28); }
+.inv-no    { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.8); }
+.inv-who   { font-size: 13px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-meta  { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-num   { font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.78); }
+.inv-num--due { font-weight: 700; color: #fff; }
+.inv-status {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 6px; justify-self: end;
+  border: 1px solid rgba(255,255,255,0.16); color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.06);
+}
+.inv-status--paid    { background: rgba(143,214,168,0.16); border-color: rgba(143,214,168,0.4); color: #8fd6a8; }
+.inv-status--overdue { background: rgba(248,113,113,0.14); border-color: rgba(248,113,113,0.36); color: #f87171; }
+.inv-status--draft   { background: transparent; color: rgba(255,255,255,0.42); }
+
+/* Aging buckets — the mockup's collections panel. Past 60 days is hatched,
+   because "old" and "very old" are different conversations. */
+.inv-aging { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; }
+.inv-bucket {
+  padding: 12px 13px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.inv-bucket--late {
+  background: repeating-linear-gradient(45deg, rgba(248,113,113,0.16) 0 5px, rgba(248,113,113,0.06) 5px 10px);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+.inv-bucket-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+.inv-bucket-value { font-size: 17px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin-top: 5px; }
+
+@media (max-width: 820px) {
+  .inv-head, .inv-row { grid-template-columns: 104px minmax(0, 1fr) 92px; }
+  .inv-head > :nth-child(4), .inv-row > :nth-child(4),
+  .inv-head > :nth-child(5), .inv-row > :nth-child(5) { display: none; }
+}

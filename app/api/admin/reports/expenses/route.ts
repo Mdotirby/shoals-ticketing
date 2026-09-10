@@ -1,6 +1,19 @@
 import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
+
+/** Both expense tables share the shape this report reduces over. */
+type ExpenseRow = {
+  id?: string;
+  amount?: number | null;
+  category?: string | null;
+  event_id?: string | null;
+  description?: string | null;
+  expense_date?: string | null;
+  notes?: string | null;
+  [k: string]: unknown;
+};
 
 /**
  * Expense Report API
@@ -36,8 +49,9 @@ export async function GET(request: Request) {
     if (from) opQuery = opQuery.gte("expense_date", from);
     if (to) opQuery = opQuery.lte("expense_date", to);
 
-    const { data: opExpenses, error: opErr } = await opQuery;
-    if (opErr) throw opErr;
+    // fetchAll — settlement_expenses is at 129 rows today, but an expense
+    // ledger is the kind of table that only grows.
+    const opExpenses = await fetchAll<ExpenseRow>(opQuery);
 
     // 2. Settlement expenses (per-show)
     let settQuery = supabase
@@ -49,7 +63,7 @@ export async function GET(request: Request) {
       settQuery = settQuery.eq("settlements.event_id", eventId);
     }
 
-    const { data: settExpenses } = await settQuery;
+    const settExpenses = await fetchAll<ExpenseRow>(settQuery);
 
     // 3. Group operational expenses by category
     const byCategory: Record<string, number> = {};
@@ -69,25 +83,25 @@ export async function GET(request: Request) {
     for (const exp of opExpenses ?? []) {
       const amt = Number(exp.amount) || 0;
       grandTotal += amt;
-      const cat = exp.category || "other";
+      const cat = String(exp.category || "other");
       byCategory[cat] = (byCategory[cat] || 0) + amt;
 
       const eventTitle =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (exp as any).events?.title ?? "General / No Event";
-      const eid = exp.event_id || "general";
+      const eid = String(exp.event_id || "general");
       if (!byEvent[eid]) {
         byEvent[eid] = { event_title: eventTitle, total: 0, items: [] };
       }
       byEvent[eid].total += amt;
 
       rows.push({
-        id: exp.id,
+        id: String(exp.id ?? ""),
         source: "operational",
         category: cat,
-        description: exp.description,
+        description: String(exp.description ?? ""),
         amount: amt,
-        expense_date: exp.expense_date,
+        expense_date: String(exp.expense_date ?? ""),
         event_title: eventTitle,
       });
     }
@@ -109,12 +123,12 @@ export async function GET(request: Request) {
       byEvent[eid].total += amt;
 
       rows.push({
-        id: sExp.id,
+        id: String(sExp.id ?? ""),
         source: "settlement",
         category: cat,
-        description: sExp.name || sExp.description || "",
+        description: String(sExp.name ?? sExp.description ?? ""),
         amount: amt,
-        expense_date: sExp.created_at?.slice(0, 10) ?? "",
+        expense_date: String(sExp.created_at ?? "").slice(0, 10),
         event_title: eventTitle,
       });
     }

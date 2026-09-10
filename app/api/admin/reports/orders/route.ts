@@ -1,6 +1,7 @@
 import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { fetchAll } from "@/lib/supabase/fetchAll";
 
 /**
  * Orders Report API
@@ -29,15 +30,17 @@ export async function GET(request: Request) {
       .from("orders")
       .select("*, events!inner(title, date, venue, venue_id)")
       .order("created_at", { ascending: false })
-      .limit(5000);
+      ;
 
     if (eventId) query = query.eq("event_id", eventId);
     if (venueId) query = query.eq("events.venue_id", venueId);
     if (from) query = query.gte("created_at", from);
     if (to) query = query.lte("created_at", to);
 
-    const { data: orders, error } = await query;
-    if (error) throw error;
+    // fetchAll: PostgREST caps a response at 1000 rows and ignores the limit
+    // you asked for. `orders` is at 933 rows — this report is 67 sales from
+    // silently truncating. See lib/supabase/fetchAll.ts.
+    const orders = await fetchAll<Record<string, unknown>>(query);
 
     const rows = (orders ?? []).map((o) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,7 +53,7 @@ export async function GET(request: Request) {
         event_title: ev?.title ?? "",
         event_date: ev?.date ?? "",
         venue: ev?.venue ?? "",
-        quantity: o.quantity ?? 1,
+        quantity: Number(o.quantity) || 1,
         total_amount: Number(o.total_amount) || 0,
         stripe_session_id: o.stripe_session_id ?? "",
         status: o.status ?? "completed",

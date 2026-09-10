@@ -1,9 +1,14 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 export const dynamic = "force-dynamic";
 
 // GET: Get invoice detail with payments
+// GET IS PUBLIC BY DESIGN — /pay/[invoiceId] is the page a client opens from
+// an emailed link, with no session. The UUID is the bearer token for that one
+// invoice, the same shape as a ticket QR. Guarding it breaks every outstanding
+// payment link. PUT and DELETE below are staff-only.
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -39,6 +44,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Editing an invoice changes what a client is asked to pay.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();
@@ -84,6 +93,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Destructive, and was open to anyone with the id.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
