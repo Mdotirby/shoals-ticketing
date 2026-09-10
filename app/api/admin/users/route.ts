@@ -2,7 +2,8 @@ import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { roleLabel } from "@/lib/auth/roles";
+import { roleLabel, canEditRole } from "@/lib/auth/roles";
+import { writeAudit } from "@/lib/auth/audit";
 
 // GET: list all admin users
 export async function GET() {
@@ -246,6 +247,38 @@ export async function PUT(request: Request) {
   delete fields.new_password;
   delete fields.created_at;
 
+  // Seniority, not just capability. Holding `assign_roles` is not the same as
+  // outranking the person you are editing: without this any venue admin could
+  // set an owner's password and take the account. canEditRole is false at or
+  // above the actor's own rank, which also blocks self-elevation.
+  const { data: target } = await admin
+    .from("admin_users")
+    .select("role")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (target && !canEditRole(guard.actor.role, target.role)) {
+    return NextResponse.json(
+      { error: "That account is at or above your access level." },
+      { status: 403 }
+    );
+  }
+
+  // Assigning a level you do not outrank is the same problem from the other
+  // side — promoting someone to owner is promoting yourself by proxy.
+  if (typeof fields.role === "string" && !canEditRole(guard.actor.role, fields.role)) {
+    return NextResponse.json(
+      { error: "You cannot assign an access level at or above your own." },
+      { status: 403 }
+    );
+  }
+
+  // A password set here is set. It is NOT emailed to anyone — the onboarding
+  // mail is sent on CREATE, with credentials the admin chose to send. An
+  // override is a support action, usually with the person already on the
+  // phone, and a surprise credential email reads as a phishing attempt.
+  const overrodePassword = !!newPassword;
+
   if (newEmail || newPassword) {
     const authAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -280,6 +313,17 @@ export async function PUT(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  await writeAudit(guard.actor, {
+    action: overrodePassword ? "user.password_overridden" : "user.updated",
+    targetType: "admin_user",
+    targetId: id,
+    detail: {
+      fields: Object.keys(updates),
+      email_changed: !!newEmail,
+      password_overridden: overrodePassword,
+    },
+  });
 
   return NextResponse.json(data);
 }

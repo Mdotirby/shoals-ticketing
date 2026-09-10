@@ -854,3 +854,62 @@ them again counts them twice. Holds are attribution now, not arithmetic.
 row into it crushed the name, price and capacity inputs to 30px each. Wrapping
 is scoped to `.cshow` so the edit form — which has no scaling row — is
 untouched.
+
+---
+
+## Item 9 — Team & credentials (2026-09-10)
+
+New screen at `/admin/users`, to the mockup's `users` block: the roster on the
+left, **one panel** on the right for identity, contact, access level and
+credentials. Splitting those across screens is how an admin changes someone's
+role and forgets the login still points at an address they no longer use.
+
+Registered in `lib/admin/nav.ts` as **Team** → tab key `users`. That file's own
+comment warns a new screen needs a row there or it silently fails the
+visibility check.
+
+### The rule that shapes the credentials block
+
+**An override does not email the user.** Matt's instruction, and it is right:
+an unannounced credential email reads as phishing to the person receiving it,
+and the admin doing the override is normally already talking to them. The
+onboarding mail is sent on **create**, with credentials the admin chose to
+send.
+
+So everything on this screen is silent, and the screen says so:
+
+| | |
+|---|---|
+| **Override password** | Set directly. Nothing sent. Generate button, plus "force a change at next login" (`admin_users.must_change_password`, which already existed) |
+| **Generate a reset link** | Mints Supabase's own one-time recovery link and **hands it back** rather than emailing it. Returning it cannot fail silently the way a mail can |
+
+### Seniority is now enforced, not just displayed
+
+`requireCapability("assign_roles")` says you may manage users. It does **not**
+say you outrank the person you are managing — so before this, any venue admin
+holding that capability could set an **owner's** password and take the account.
+
+`PUT /api/admin/users` now checks `canEditRole(actor, target)` on two axes:
+
+- the person being edited must be **below** the actor's rank
+- the level being **assigned** must be below it too — promoting someone to your
+  own level is promoting yourself by proxy
+
+The UI mirrors it (levels lock with "above you", the panel goes read-only with
+a note), but the server is what refuses. Both password overrides and recovery
+links are written to `audit_log`.
+
+### Not built — and why
+
+The mockup also offers **"reset MFA enrolment"** and **"revoke all active
+sessions"**. There is no MFA in this app, and Supabase's admin `signOut` takes
+a JWT rather than a user id, so neither can be done honestly from here.
+Drawing a button that does nothing is worse than not drawing one.
+
+Verified against live data: 18 staff, 14 external. External identities —
+artist, partner, agent — are listed but carry no access level, per
+`lib/auth/roles.ts`.
+
+### Rebuild status
+
+**4 of 71** admin screens: box office, Command Center, create a show, team.

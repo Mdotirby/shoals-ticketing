@@ -105,6 +105,7 @@ export const sidebarGroups: SidebarGroup[] = [
       { label: "FAQ Content",   href: "/admin/faqs",                 roles: ["owner","venue_admin"] },
       { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
       { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
+      { label: "Team",          href: "/admin/users",                roles: ["owner","venue_admin"] },
       { label: "Venues",        href: "/admin/venues",               roles: ["owner"] },
       { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
       { label: "Onboarding",    href: "/admin/onboarding",           roles: ["owner"] },
@@ -150,6 +151,7 @@ export const TAB_KEY_MAP: Record<string, string> = {
   "Branding": "site_branding", // was "Site Branding"
   "Venue Portal": "venue_management", // was "Venue Management"
   "Procedures": "sops",        // was "SOPs"
+  "Team": "users",             // /admin/users — the mockup's Users screen
   "Permissions": "permissions",
   "Onboarding": "onboarding",
   "Partner Dashboard": "partner_dashboard",

@@ -20909,3 +20909,173 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   font-size: 19px; font-weight: 800; letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums; color: #8fd6a8; line-height: 1.15;
 }
+
+/* ============================================================
+   TEAM & CREDENTIALS — /admin/users
+   Rebuilt to the mockup's `users` block: the team table on the left, one
+   panel on the right for identity, contact, access level and credentials.
+
+   Namespaced .team-, checked against the file first — `.cs-` taught that
+   lesson. Self-contained, appended only.
+   ============================================================ */
+
+.team {
+  --team-good: #8fd6a8;
+  --team-bad:  #f87171;
+  --team-w72:  rgba(255, 255, 255, 0.72);
+  --team-w50:  rgba(255, 255, 255, 0.50);
+  --team-w34:  rgba(255, 255, 255, 0.34);
+  --team-sheen: linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+  color: #fff;
+}
+
+.team-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(330px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 1080px) { .team-layout { grid-template-columns: 1fr; } }
+
+.team-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 20px 21px;
+  background: var(--team-sheen), linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+@supports not (backdrop-filter: blur(1px)) { .team-card { background: rgba(20,20,22,0.94); } }
+
+.team-eyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--team-w50);
+}
+.team-note { font-size: 10.5px; line-height: 1.5; color: rgba(255,255,255,0.42); text-wrap: pretty; }
+
+/* ── Roster ───────────────────────────────────────────────── */
+.team-thead, .team-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 118px 116px 88px;
+  gap: 10px; align-items: center;
+}
+.team-thead {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--team-w34);
+  padding: 0 2px 9px; border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+.team-row {
+  width: 100%; text-align: left; padding: 10px 8px; border-radius: 12px;
+  background: transparent; border: 1px solid transparent;
+  color: inherit; font-family: inherit; cursor: pointer;
+}
+.team-row:hover { background: rgba(255, 255, 255, 0.04); }
+.team-row[aria-pressed="true"] {
+  background: linear-gradient(155deg, rgba(255,255,255,0.13), rgba(255,255,255,0.06));
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.team-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.team-avatar {
+  width: 32px; height: 32px; border-radius: 999px; flex: none;
+  display: grid; place-items: center; font-size: 11px; font-weight: 800;
+  background: rgba(255, 255, 255, 0.10); color: var(--team-w72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.team-name  { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-email { font-size: 10px; color: var(--team-w34); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-cell  { font-size: 11.5px; color: var(--team-w72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-state {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 6px; justify-self: start;
+  background: rgba(255, 255, 255, 0.07); color: var(--team-w72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.team-state--external { background: transparent; color: var(--team-w34); }
+.team-state--must-change { background: rgba(251,191,36,0.14); color: #fbbf24; border-color: rgba(251,191,36,0.32); }
+
+/* ── Access levels ────────────────────────────────────────── */
+.team-level {
+  width: 100%; text-align: left; display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 13px; border-radius: 13px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.82); font-family: inherit;
+}
+.team-level:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+.team-level[aria-pressed="true"] {
+  background: linear-gradient(155deg, rgba(255,255,255,0.13), rgba(255,255,255,0.06));
+  border-color: rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.team-level:disabled { color: var(--team-w34); cursor: not-allowed; opacity: 0.75; }
+.team-level-dot {
+  width: 15px; height: 15px; border-radius: 999px; flex: none; margin-top: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.28); background: transparent;
+  display: grid; place-items: center; font-size: 9px; color: transparent;
+}
+.team-level[aria-pressed="true"] .team-level-dot {
+  border-color: rgba(255,255,255,0.70); background: rgba(255,255,255,0.16); color: #fff;
+}
+.team-level-name { font-size: 12.5px; font-weight: 650; }
+.team-level-note { font-size: 10px; line-height: 1.45; color: var(--team-w50); margin-top: 2px; text-wrap: pretty; }
+.team-level-lock { font-size: 9px; color: var(--team-w34); white-space: nowrap; flex: none; margin-top: 3px; }
+
+/* ── Fields & buttons ─────────────────────────────────────── */
+.team-label {
+  display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); margin-bottom: 6px;
+}
+.team-field {
+  width: 100%; padding: 11px 13px; border-radius: 12px; box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff; font-size: 14px; font-family: inherit; min-height: 44px;
+}
+.team-field::placeholder { color: rgba(255, 255, 255, 0.26); }
+.team-field:focus { outline: none; border-color: rgba(255,255,255,0.34); background: rgba(255,255,255,0.07); }
+
+.team-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 16px; border-radius: 999px; cursor: pointer;
+  font-size: 12.5px; font-weight: 700; font-family: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: #fff; min-height: 44px;
+}
+.team-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.team-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.team-btn--primary {
+  background: linear-gradient(180deg, #ffffff, rgba(255,255,255,0.84));
+  color: #0a0a0c; border-color: transparent;
+  box-shadow: 0 0 24px rgba(255,255,255,0.22), inset 0 1px 0 #fff;
+}
+.team-btn--danger { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.36); color: var(--team-bad); }
+
+.team-cred {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 13px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.team-cred-title { font-size: 12px; font-weight: 650; }
+.team-cred-note  { font-size: 10px; line-height: 1.45; color: var(--team-w50); margin-top: 2px; text-wrap: pretty; }
+
+.team-linkout {
+  width: 100%; box-sizing: border-box; margin-top: 10px; padding: 10px 12px;
+  border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; word-break: break-all; line-height: 1.5;
+  background: rgba(143, 214, 168, 0.09);
+  border: 1px solid rgba(143, 214, 168, 0.28);
+  color: #8fd6a8;
+}
+
+@media (max-width: 640px) {
+  .team-card { padding: 17px 16px; border-radius: 20px; }
+  .team-thead, .team-row { grid-template-columns: minmax(0, 1fr) 92px; }
+  .team-thead > :nth-child(3), .team-row > :nth-child(3),
+  .team-thead > :nth-child(4), .team-row > :nth-child(4) { display: none; }
+}
