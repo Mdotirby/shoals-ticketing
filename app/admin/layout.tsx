@@ -8,102 +8,17 @@ import { getCookie } from "@/lib/cookies";
 import { useVenue } from "@/app/components/VenueContext";
 import SafeImage from "@/app/components/SafeImage";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
+import {
+  dashboardItem,
+  sidebarGroups,
+  partnerItem,
+  TAB_KEY_MAP,
+  type SidebarItem,
+} from "@/lib/admin/nav";
 
-type SidebarItem = {
-  label: string;
-  href: string;
-  roles: string[];
-};
-
-type SidebarGroup = {
-  groupLabel: string;
-  icon: string;
-  items: SidebarItem[];
-  roles: string[];
-};
-
-// Dashboard shown standalone above all groups
-const dashboardItem: SidebarItem = {
-  label: "Dashboard",
-  href: "/admin",
-  roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"],
-};
-
-const sidebarGroups: SidebarGroup[] = [
-  {
-    groupLabel: "Shows",
-    icon: "shows",
-    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
-    items: [
-      { label: "Events",        href: "/admin/events",       roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"] },
-      { label: "Calendar",      href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Seating",       href: "/admin/seating",      roles: ["owner","venue_admin"] },
-    ],
-  },
-  {
-    groupLabel: "Finance",
-    icon: "business",
-    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
-    items: [
-      { label: "Ticket Sales",  href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
-      { label: "Offers",        href: "/admin/offers",       roles: ["owner","venue_admin"] },
-      { label: "Settlements",   href: "/admin/settlements",  roles: ["owner","venue_admin"] },
-      { label: "Contracts",     href: "/admin/contracts",    roles: ["owner","venue_admin"] },
-      { label: "Reports",       href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
-    ],
-  },
-  {
-    groupLabel: "Day of Show",
-    icon: "dayofshow",
-    roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"],
-    items: [
-      { label: "Scanner",       href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
-      { label: "Guest Lists",   href: "/admin/guest-lists",  roles: ["owner","venue_admin","full_admin","artist"] },
-      { label: "Live Pulse",    href: "/admin/live",         roles: ["owner","venue_admin","full_admin"] },
-    ],
-  },
-  {
-    groupLabel: "Marketing",
-    icon: "growth",
-    roles: ["owner","venue_admin","full_admin"],
-    items: [
-      { label: "Campaigns",     href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
-      { label: "Broadcasts",    href: "/admin/broadcasts",   roles: ["owner","super_admin","venue_admin","full_admin"] },
-      { label: "Market Radar",  href: "/admin/market-radar", roles: ["owner","venue_admin"] },
-      { label: "Auctions",      href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Sponsors",      href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
-    ],
-  },
-  {
-    groupLabel: "Contacts",
-    icon: "contacts",
-    roles: ["owner","venue_admin"],
-    items: [
-      { label: "Agents",        href: "/admin/agents",       roles: ["owner","venue_admin"] },
-    ],
-  },
-  {
-    groupLabel: "Settings",
-    icon: "settings",
-    roles: ["owner","venue_admin"],
-    items: [
-      { label: "Branding",      href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
-      { label: "FAQ Content",   href: "/admin/faqs",                 roles: ["owner","venue_admin"] },
-      { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
-      { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
-      { label: "Venues",        href: "/admin/venues",               roles: ["owner"] },
-      { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
-      { label: "Onboarding",    href: "/admin/onboarding",           roles: ["owner"] },
-    ],
-  },
-];
-
-// Partner-only standalone item
-const partnerItem: SidebarItem = { label: "Partner Dashboard", href: "/admin/partner-dashboard", roles: ["partner"] };
-
-// Flatten for permission lookups
-const allSidebarItems = sidebarGroups.flatMap((g) => g.items).concat([partnerItem, dashboardItem]);
-void allSidebarItems; // used by isItemVisible via closure
+/* Nav definition moved to lib/admin/nav.ts — it was duplicated in
+   settings/permissions/page.tsx and the two had already drifted. See the
+   comment there. */
 
 /** Minimal frosted-glass SVG icons for sidebar groups */
 function SidebarIcon({ name }: { name: string }) {
@@ -125,35 +40,6 @@ function SidebarIcon({ name }: { name: string }) {
       return <svg {...s}><circle cx="12" cy="12" r="10" /></svg>;
   }
 }
-
-// Map sidebar labels to tab_key used in sidebar_permissions table.
-// New label names map to the same underlying tab_key so DB permissions are unchanged.
-const TAB_KEY_MAP: Record<string, string> = {
-  "Dashboard": "dashboard",
-  "Calendar": "calendar",
-  "Shows": "events",           // was "Events"
-  "Seating": "seating",
-  "Ticket Sales": "sales",     // was "Sales"
-  "Offers": "booking",         // was "Booking"
-  "Settlements": "settlements",
-  "Contracts": "contracts",
-  "Reports": "reports",
-  "Scanner": "scanner",
-  "Guest Lists": "guest_lists",
-  "Live Pulse": "live_pulse",
-  "Campaigns": "marketing",    // was "Marketing"
-  "Broadcasts": "email_engine", // was "Email" — same permission slot, new dashboard
-  "Market Radar": "market_radar",
-  "Auctions": "auctions",
-  "Sponsors": "partners",      // was "Partners"
-  "Agents": "agents",
-  "Branding": "site_branding", // was "Site Branding"
-  "Venue Portal": "venue_management", // was "Venue Management"
-  "Procedures": "sops",        // was "SOPs"
-  "Permissions": "permissions",
-  "Onboarding": "onboarding",
-  "Partner Dashboard": "partner_dashboard",
-};
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -440,7 +326,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 {item.label}
               </Link>
             ))}
-            <div style={{ height: 1, background: "var(--vc-border-subtle)", margin: "6px 0" }} />
+            <div className="admin-sidebar-divider admin-sidebar-divider--tight" />
             <button
               className="admin-mobile-dropdown-link"
               onClick={async () => {
@@ -453,7 +339,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 document.cookie = "venue-name=; path=/; max-age=0";
                 window.location.href = "/";
               }}
-              style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", color: "var(--vc-danger)" }}
+              style={{ textAlign: "left", color: "var(--vc-danger)" }}
             >
               Sign Out
             </button>
@@ -507,17 +393,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {isItemVisible(dashboardItem) && (
             <Link
               href={dashboardItem.href}
-              className={`admin-sidebar-link ${pathname === dashboardItem.href ? "active" : ""}`}
+              className={`admin-sidebar-link admin-sidebar-link--dashboard ${pathname === dashboardItem.href ? "active" : ""}`}
               onClick={() => setSidebarOpen(false)}
-              style={{
-                fontSize: 13,
-                padding: "7px 14px",
-                marginBottom: 6,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                borderRadius: "var(--vc-radius-sm)",
-              }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
@@ -530,32 +407,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const isExpanded = expandedGroups.has(group.groupLabel);
             const hasActivePage = group.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)));
             return (
-              <div key={group.groupLabel} style={{ marginBottom: 2 }}>
+              <div key={group.groupLabel} className="admin-sidebar-group">
                 <button
                   onClick={() => toggleGroup(group.groupLabel)}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 8,
-                    padding: "8px 14px", border: "none", borderRadius: "var(--vc-radius-sm)",
-                    background: isExpanded ? "rgba(255,255,255,0.03)" : "transparent",
-                    color: hasActivePage ? "#ffffff" : "var(--vc-text-muted)",
-                    fontFamily: "var(--font-archivo), sans-serif", fontSize: 13, fontWeight: 700,
-                    cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.04em",
-                    transition: "background 150ms, color 150ms",
-                  }}
+                  className={`admin-sidebar-group-btn${isExpanded ? " is-expanded" : ""}${hasActivePage ? " has-active" : ""}`}
+                  aria-expanded={isExpanded}
                 >
                   <SidebarIcon name={group.icon} />
-                  <span style={{ flex: 1, textAlign: "left" }}>{group.groupLabel}</span>
-                  <span style={{ fontSize: 10, opacity: 0.5, transition: "transform 150ms", transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                  <span className="admin-sidebar-group-label">{group.groupLabel}</span>
+                  <span className="admin-sidebar-group-caret" aria-hidden="true">▾</span>
                 </button>
                 {isExpanded && (
-                  <div style={{ paddingLeft: 12, marginTop: 2 }}>
+                  <div className="admin-sidebar-group-items">
                     {group.items.map((item) => (
                       <Link
                         key={item.href + item.label}
                         href={item.href}
-                        className={`admin-sidebar-link ${pathname === item.href ? "active" : ""}`}
+                        className={`admin-sidebar-link admin-sidebar-link--sub ${pathname === item.href ? "active" : ""}`}
                         onClick={() => setSidebarOpen(false)}
-                        style={{ fontSize: 13, padding: "6px 14px" }}
                       >
                         {item.label}
                       </Link>
@@ -577,8 +446,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </nav>
 
         {/* Sign Out — pinned to bottom */}
-        <div style={{ marginTop: "auto", paddingTop: 16 }}>
-          <div style={{ height: 1, background: "var(--vc-border-subtle)", marginBottom: 12 }} />
+        <div className="admin-sidebar-footer">
+          <div className="admin-sidebar-divider" />
           <button
             onClick={async () => {
               const supabase = getSupabaseBrowser();
@@ -590,30 +459,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               document.cookie = "venue-name=; path=/; max-age=0";
               window.location.href = "/";
             }}
-            style={{
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "10px 14px",
-              borderRadius: "var(--vc-radius-sm)",
-              background: "transparent",
-              border: "none",
-              color: "var(--vc-text-muted)",
-              fontFamily: "var(--font-archivo), sans-serif",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-              transition: "background 180ms ease, color 180ms ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239, 68, 68, 0.08)";
-              e.currentTarget.style.color = "#f87171";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--vc-text-muted)";
-            }}
+            className="admin-signout-btn"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

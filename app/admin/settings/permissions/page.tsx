@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DEFAULT_TAB_ROLES } from "@/lib/admin/nav";
 import { getCookie } from "@/lib/cookies";
 
 const TABS = [
@@ -30,21 +31,12 @@ const ROLES = [
 
 type Role = (typeof ROLES)[number];
 
-// Default visibility per tab → roles (mirrors sidebarItems in admin/layout.tsx)
-const DEFAULTS: Record<string, Role[]> = {
-  dashboard: ["owner", "venue_admin", "full_admin", "read_only", "box_office", "door_greeter", "artist"],
-  events: ["owner", "venue_admin", "full_admin"],
-  booking: ["owner", "venue_admin"],
-  partners: ["owner", "venue_admin"],
-  reports: ["owner", "venue_admin", "full_admin", "read_only", "box_office"],
-  sales: ["owner", "venue_admin", "full_admin", "box_office", "door_greeter", "artist"],
-  scanner: ["owner", "venue_admin", "full_admin", "box_office", "door_greeter"],
-  guest_lists: ["owner", "venue_admin", "full_admin", "artist"],
-  settlements: ["owner", "venue_admin"],
-  contracts: ["owner", "venue_admin"],
-  venue_management: ["owner", "venue_admin"],
-  onboarding: ["owner"],
-};
+/* Defaults are DERIVED from lib/admin/nav.ts now, not restated here.
+   The hand-maintained map this replaces had already drifted from the sidebar it
+   claimed to mirror — it gave `events` three roles where the nav gives seven,
+   and covered 12 tab keys against roughly two dozen nav entries. So this screen
+   was seeding defaults that did not match what the sidebar actually did. */
+const DEFAULTS: Record<string, readonly string[]> = DEFAULT_TAB_ROLES;
 
 type PermState = Record<string, Record<Role, boolean>>;
 

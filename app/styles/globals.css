@@ -20021,3 +20021,142 @@ body[data-theme="liquid-glass"] .staff-login-hero-title {
    redundant rather than wrong. */
 body[data-theme="liquid-glass"] .bg-field { z-index: -2; }
 body[data-theme="liquid-glass"]::after { z-index: -1; }
+
+/* ── Admin chrome: primitives + sidebar classes ─────────────────
+   Item 5 of the admin rebuild. APPENDED, nothing removed.
+
+   The chrome was already themed and themed well: .admin-shell re-points the
+   --vc-* tokens at the --lg-* liquid-glass values (~line 17205), so roughly
+   forty existing admin rules inherit the real glass surface without restating
+   it. Everything below builds on those same tokens for exactly that reason —
+   hardcoding rgba() here would opt out of the theme.
+
+   Two genuinely missing pieces, plus the classes replacing inline styles that
+   were hand-written into app/admin/layout.tsx. */
+
+/* Card primitive — admin had none. .dash-panel and .dash-kpi-card exist but are
+   dashboard-specific, so every other screen hand-rolled its own box. */
+.admin-card {
+  background: var(--vc-surface);
+  backdrop-filter: var(--vc-blur);
+  -webkit-backdrop-filter: var(--vc-blur);
+  border: 1px solid var(--vc-border);
+  border-radius: var(--vc-radius-lg);
+  box-shadow: var(--vc-shadow-glass);
+  padding: 20px 22px;
+}
+.admin-card--flush { padding: 0; }
+
+/* Page header primitive — 53 admin pages hand-roll a title block today, which
+   is why the type scale and the gap above the first panel drift per screen. */
+.admin-page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 20px;
+}
+.admin-page-header-text { flex: 1 1 320px; min-width: 0; }
+.admin-page-eyebrow {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  margin: 0 0 6px;
+}
+.admin-page-title {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: var(--vc-text, #fff);
+}
+.admin-page-sub {
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--vc-text-muted);
+  margin: 6px 0 0;
+  max-width: 68ch;
+}
+.admin-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Sidebar — these replace inline style props that were written directly into
+   layout.tsx. Same values, moved so the chrome is styled in one place and the
+   sign-out hover is CSS rather than onMouseEnter/onMouseLeave handlers. */
+.admin-sidebar-link--dashboard {
+  font-size: 13px;
+  padding: 7px 14px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--vc-radius-sm);
+}
+.admin-sidebar-link--sub { font-size: 13px; padding: 6px 14px; }
+.admin-sidebar-group { margin-bottom: 2px; }
+.admin-sidebar-group-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--vc-radius-sm);
+  background: transparent;
+  color: var(--vc-text-muted);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: background 150ms, color 150ms;
+}
+.admin-sidebar-group-btn.is-expanded { background: rgba(255, 255, 255, 0.03); }
+.admin-sidebar-group-btn.has-active { color: #fff; }
+.admin-sidebar-group-btn:hover { color: #fff; }
+.admin-sidebar-group-label { flex: 1; text-align: left; }
+.admin-sidebar-group-caret {
+  font-size: 10px;
+  opacity: 0.5;
+  transition: transform 150ms;
+  transform: rotate(0deg);
+}
+.admin-sidebar-group-btn.is-expanded .admin-sidebar-group-caret { transform: rotate(180deg); }
+.admin-sidebar-group-items { padding-left: 12px; margin-top: 2px; }
+.admin-sidebar-footer { margin-top: auto; padding-top: 16px; }
+.admin-sidebar-divider {
+  height: 1px;
+  background: var(--vc-border-subtle);
+  margin-bottom: 12px;
+}
+.admin-sidebar-divider--tight { margin: 6px 0; }
+.admin-signout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--vc-radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--vc-text-muted);
+  font-family: var(--font-archivo), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease;
+}
+.admin-signout-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #f87171;
+}
