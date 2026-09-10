@@ -1,5 +1,7 @@
 "use client";
 
+import { isHardTicket as isHardTicketType } from "@/lib/eventClass";
+
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ImageCropper from "@/app/components/ImageCropper";
@@ -243,7 +245,7 @@ export default function AdminCreateEventPage() {
     e.preventDefault();
     setError("");
 
-    const isHardTicket = ["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type);
+    const isHardTicket = isHardTicketType(form.event_type);
 
     // Validate tiers only for hard ticket events
     if (isHardTicket) {
@@ -418,7 +420,7 @@ export default function AdminCreateEventPage() {
     }
   };
 
-  const isHardTicket = ["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type);
+  const isHardTicket = isHardTicketType(form.event_type);
   const isPrivate = form.event_type === "private";
 
   return (

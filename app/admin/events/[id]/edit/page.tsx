@@ -1,5 +1,7 @@
 "use client";
 
+import { isHardTicket as isHardTicketType } from "@/lib/eventClass";
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -624,7 +626,7 @@ export default function AdminEditEventPage() {
     e.preventDefault();
     setError("");
 
-    const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+    const isHardTicket = isHardTicketType(form.event_type);
     const isPrivate = form.event_type === "private";
 
     // Validate tiers only for hard ticket
@@ -829,7 +831,7 @@ export default function AdminEditEventPage() {
     }
   };
 
-  const isHardTicket = form.event_type === "hard_ticket" || form.event_type === "ticketed";
+  const isHardTicket = isHardTicketType(form.event_type);
   const isPrivate = form.event_type === "private";
 
   if (loading) {
