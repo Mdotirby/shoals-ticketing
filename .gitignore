@@ -42,3 +42,6 @@ next-env.d.ts
 
 # claude code local settings (personal permissions, may contain tokens pasted into allowlisted commands)
 .claude/settings.local.json
+
+# Working handoff docs and design mockups — reference material, not source.
+handoff/
