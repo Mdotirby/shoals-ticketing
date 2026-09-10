@@ -17,9 +17,16 @@ export async function POST(request: Request) {
       buyer_zip,
     } = body;
 
-    if (!event_id || !buyer_name || !buyer_email) {
+    // Email is OPTIONAL at the door, deliberately. This used to 400 without
+    // one, which meant a walk-up who did not want to give an address could not
+    // be sold a ticket on the reader — while the cash path next to it took the
+    // same sale with a first and last name. The card buyer is standing at the
+    // door and walks in on the spot; the email is a receipt, not the entry
+    // pass. Every downstream use of it in the webhook is already guarded by
+    // `if (customerEmail)`.
+    if (!event_id || !buyer_name) {
       return NextResponse.json(
-        { error: "event_id, buyer_name, and buyer_email are required" },
+        { error: "event_id and buyer_name are required" },
         { status: 400 }
       );
     }

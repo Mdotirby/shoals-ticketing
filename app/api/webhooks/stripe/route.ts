@@ -406,6 +406,17 @@ async function processTicketOrder({
     }
 
     // 3. Create ticket records with unique QR codes
+    //
+    // A DOOR SALE IS ALREADY INSIDE. The buyer paid at the door and walked
+    // past the person who sold them the ticket — there is nobody left to scan
+    // them. Leaving these unscanned put the drop count wrong for every card
+    // sale at the door and asked staff to scan a QR code the buyer might not
+    // have received yet (email is optional at the door). The cash path has
+    // always done this; the reader path had not, for the same physical
+    // situation. See app/api/box-office/cash-sale/route.ts.
+    const isDoorSale = source === "terminal" || source === "box_office";
+    const doorScanAt = isDoorSale ? new Date().toISOString() : null;
+
     const tickets = [];
     for (let i = 0; i < quantity; i++) {
       const qrCode = uuidv4();
@@ -421,7 +432,8 @@ async function processTicketOrder({
         customer_email: customerEmail,
         qr_code: qrCode,
         qr_data_url: qrDataUrl,
-        is_scanned: false,
+        is_scanned: isDoorSale,
+        scanned_at: doorScanAt,
       });
     }
 

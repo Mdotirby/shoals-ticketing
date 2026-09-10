@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { loadStripe } from "@stripe/stripe-js";
@@ -25,7 +25,45 @@ const ALLOWED_ROLES = ["owner", "venue_admin", "box_office"];
 type EventOption  = { id: string; title: string; date: string; price: number; event_type: string };
 type TierOption   = { id: string; tier_name: string; price: number };
 type PaymentMode  = "idle" | "terminal" | "manual";
-type TerminalStatus = "init" | "discovering" | "no_readers" | "connecting" | "ready" | "collecting" | "success" | "error";
+/**
+ * The reader's real states, not a proxy for them.
+ *
+ * This used to collapse the Terminal SDK's lifecycle into "ready" and
+ * "collecting". A dot that is green whenever the page has loaded is worse than
+ * no dot: staff learn to ignore it, and the first time they find out the
+ * reader dropped is with a customer's card already in their hand. Each of
+ * these maps to something the SDK actually told us.
+ */
+type TerminalStatus =
+  | "init"          // SDK loading
+  | "discovering"   // scanning the Location for readers
+  | "no_readers"    // nothing found, or we lost the one we had
+  | "connecting"    // handshaking with a specific reader
+  | "ready"         // genuinely connected and idle
+  | "collecting"    // intent is on the reader, customer has not tapped yet
+  | "processing"    // card read, Stripe deciding
+  | "success"
+  | "error";
+
+/**
+ * The payment progression, shown to staff as a checklist. Separate from the
+ * reader state because they move independently — the reader can be ready
+ * while no payment is running, and a payment can be mid-flight while the
+ * reader is momentarily unreachable.
+ */
+type PayStage = null | "intent" | "sent" | "waiting" | "processing" | "issued";
+
+type DoorTotals = {
+  cash: { orders: number; amount: number; tickets: number };
+  card: { orders: number; amount: number; tickets: number };
+  comp: { orders: number; tickets: number };
+  online: { orders: number; amount: number; tickets: number };
+  doorTotal: number;
+  doorTickets: number;
+  scannedIn: number;
+  ticketsIssued: number;
+  recent: { id: string; name: string; amount: number; quantity: number; tender: string; at: string }[];
+};
 type SaleType = "card" | "cash";
 
 // ── Login Gate ────────────────────────────────────────────────────────────────
@@ -249,6 +287,16 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const [terminalError, setTerminalError]     = useState("");
   const [paymentMode, setPaymentMode]         = useState<PaymentMode>("idle");
 
+  // Payment progression + the live timer beside it. A door sale that has been
+  // "waiting for tap" for 40 seconds is a stuck sale, and the only way staff
+  // can tell is by being shown how long it has been.
+  const [payStage, setPayStage]     = useState<PayStage>(null);
+  const [payElapsed, setPayElapsed] = useState(0);
+  const [issueWarning, setIssueWarning] = useState("");
+
+  // Tonight's drawer.
+  const [door, setDoor] = useState<DoorTotals | null>(null);
+
   // Manual card-entry fallback (raw Elements + PaymentIntent)
   const [showManual, setShowManual] = useState(false);
   const [creatingManualIntent, setCreatingManualIntent] = useState(false);
@@ -351,24 +399,102 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
       .finally(() => setLoadingTiers(false));
   }, [selectedEventId]);
 
+  // Live timer beside the progression. Runs only while a payment is in flight.
+  useEffect(() => {
+    if (!payStage || payStage === "issued") { setPayElapsed(0); return; }
+    const started = Date.now();
+    const id = setInterval(() => setPayElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [payStage]);
+
+  // Tonight's drawer. Refreshed on event change and after every completed sale
+  // — the number staff reconcile against has to include the one they just took.
+  const refreshDoor = useCallback(async () => {
+    if (!selectedEventId) { setDoor(null); return; }
+    try {
+      const r = await fetch(`/api/box-office/tonight?event_id=${selectedEventId}`);
+      if (r.ok) setDoor(await r.json());
+    } catch { /* the totals strip is informational; never block a sale on it */ }
+  }, [selectedEventId]);
+
+  useEffect(() => { refreshDoor(); }, [refreshDoor]);
+  useEffect(() => {
+    if (payStage === "issued" || cashSuccess) refreshDoor();
+  }, [payStage, cashSuccess, refreshDoor]);
+
   const selectedEvent = events.find((e) => e.id === selectedEventId);
   const selectedTier  = tiers.find((t) => t.id === selectedTierId);
   const ticketPrice   = selectedTier?.price ?? selectedEvent?.price ?? 0;
 
   // ── Validate form ─────────────────────────────────────────────────────────
+  // Email is OPTIONAL, matching the cash path beside it. Requiring one meant a
+  // walk-up who did not want to give an address could not be sold a card
+  // ticket at all — and in practice staff type junk to get past the field,
+  // which is worse than no address. The buyer walks in on the spot (door sales
+  // are checked in on issue), so the email is a receipt, not the entry pass.
   const validateForm = () => {
     if (!selectedEventId) { setFormError("Please select an event"); return false; }
-    if (!buyerName.trim() || !buyerEmail.trim()) { setFormError("Name and email are required"); return false; }
+    if (!buyerName.trim()) { setFormError("Buyer name is required"); return false; }
     setFormError(null);
     return true;
   };
 
   // ── Terminal payment ──────────────────────────────────────────────────────
+  /**
+   * Cancel a payment that is sitting on the reader.
+   *
+   * Without this the only way out of a stuck "waiting for tap" was to reload
+   * the page, which leaves the intent live on the reader and the next customer
+   * tapping into the previous sale.
+   */
+  const cancelTerminalPay = async () => {
+    try { await terminalRef.current?.cancelCollectPaymentMethod(); } catch { /* already gone */ }
+    setPayStage(null);
+    setPaymentMode("idle");
+    setTerminalStatus("ready");
+    setTerminalError("");
+  };
+
+  /**
+   * Poll until the ticket exists.
+   *
+   * "Approved" on the reader means Stripe took the money, nothing more. The
+   * order, ticket and ledger row are written by the webhook, out of band. If
+   * that fails, the card is charged and nothing on this screen says otherwise
+   * — which is exactly how 54 sales ended up with no ledger row. There is a
+   * person standing at the door; they deserve to be told.
+   */
+  const confirmIssued = async (paymentIntentId: string) => {
+    if (!paymentIntentId) return;
+    for (let i = 0; i < 12; i++) {
+      try {
+        const r = await fetch(`/api/box-office/order-status?payment_intent=${paymentIntentId}`);
+        const d = await r.json();
+        if (d.issued) {
+          setPayStage("issued");
+          if (d.ledgerWritten === false) {
+            setIssueWarning("Ticket is valid, but the settlement row did not write. Note this sale for reconciliation.");
+          }
+          return;
+        }
+      } catch { /* keep waiting */ }
+      await new Promise((res) => setTimeout(res, 1000));
+    }
+    // 12 seconds is well beyond a healthy webhook. Say so plainly rather than
+    // spinning: the money is taken either way and staff need to know to check.
+    setIssueWarning(
+      "Payment went through, but the ticket has not appeared after 12 seconds. " +
+      "Let them in and flag this sale — do not re-run the card."
+    );
+  };
+
   const handleTerminalPay = async () => {
     if (!validateForm() || !terminalRef.current) return;
     setPaymentMode("terminal");
     setTerminalStatus("collecting");
     setTerminalError("");
+    setIssueWarning("");
+    setPayStage("intent");
 
     try {
       // 1. Create PaymentIntent on backend (uses card-present fee math)
@@ -387,20 +513,27 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
       });
       const intentData = await intentRes.json();
       if (!intentRes.ok) throw new Error(intentData.error || "Failed to create payment");
+      setPayStage("sent");
 
-      // 2. Collect payment method — customer taps card/phone to reader
+      // 2. Collect payment method — customer taps card/phone to reader.
+      //    This is the step that blocks on a human, so it gets its own state.
+      setPayStage("waiting");
       const collectResult = await terminalRef.current.collectPaymentMethod(intentData.clientSecret);
       if ("error" in collectResult) throw new Error(collectResult.error.message);
 
       // 3. Process payment
+      setPayStage("processing");
+      setTerminalStatus("processing");
       const processResult = await terminalRef.current.processPayment(collectResult.paymentIntent);
       if ("error" in processResult) throw new Error(processResult.error.message);
 
       setTerminalStatus("success");
+      await confirmIssued(intentData.paymentIntentId);
     } catch (err: unknown) {
       setTerminalError(err instanceof Error ? err.message : "Payment failed");
       setTerminalStatus("ready");
       setPaymentMode("idle");
+      setPayStage(null);
     }
   };
 
@@ -480,6 +613,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     setCashFirstName(""); setCashLastName(""); setCashSuccess(null);
     setQuantity(1); setSelectedTierId(""); setFormError(null); setTerminalError("");
     setManualClientSecret(""); setManualPaymentIntentId("");
+    setPayStage(null); setPayElapsed(0); setIssueWarning("");
     if (terminalStatus === "success") setTerminalStatus("ready");
   };
 
@@ -487,28 +621,70 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const fieldStyle: React.CSSProperties = { width: "100%", padding: "12px 14px", borderRadius: 8, border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 16, boxSizing: "border-box" };
   const labelStyle: React.CSSProperties = { display: "block", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.45)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" };
 
-  // ── Reader status indicator ───────────────────────────────────────────────
-  const readerDot = {
-    init:        { color: "rgba(255,255,255,0.3)", label: "Initializing…" },
-    discovering: { color: "#fbbf24", label: "Looking for reader…" },
-    no_readers:  { color: "#f87171", label: "No reader found" },
-    connecting:  { color: "#fbbf24", label: "Connecting…" },
-    ready:       { color: "#4ade80", label: `Ready · ${connectedReader?.label ?? "Reader connected"}` },
-    collecting:  { color: "#60a5fa", label: "Waiting for tap…" },
-    success:     { color: "#4ade80", label: "Payment accepted" },
-    error:       { color: "#f87171", label: "Error — try again" },
-  }[terminalStatus];
+  // ── Reader status ─────────────────────────────────────────────────────────
+  // Amber while discovering or connecting, red on disconnect with a Reconnect
+  // action, mint ONLY when genuinely connected. `glow` is what makes the dot
+  // readable across a dark room at arm's length.
+  const READER_STATES: Record<TerminalStatus, { color: string; label: string; glow: boolean }> = {
+    init:        { color: "rgba(255,255,255,0.35)", label: "Starting reader…",        glow: false },
+    discovering: { color: "#fbbf24", label: "Looking for the reader…",                glow: false },
+    no_readers:  { color: "#f87171", label: "No reader — card sales unavailable",     glow: true  },
+    connecting:  { color: "#fbbf24", label: "Connecting to reader…",                  glow: false },
+    ready:       { color: "#8fd6a8", label: "Connected to reader",                    glow: true  },
+    collecting:  { color: "#60a5fa", label: "Waiting for the customer to tap",        glow: true  },
+    processing:  { color: "#60a5fa", label: "Processing payment…",                    glow: true  },
+    success:     { color: "#8fd6a8", label: "Payment accepted",                       glow: true  },
+    error:       { color: "#f87171", label: "Reader error",                           glow: true  },
+  };
+  const readerDot = READER_STATES[terminalStatus];
+
+  // The reader's identity, beneath the light. Staff at a venue with more than
+  // one reader need to know WHICH one is armed before they send a payment to it.
+  const readerIdentity = connectedReader
+    ? [
+        connectedReader.device_type === "stripe_s700" ? "Stripe Reader S700" : connectedReader.device_type,
+        connectedReader.label ? `"${connectedReader.label}"` : null,
+        "tap, chip & swipe ready",
+      ].filter(Boolean).join(" · ")
+    : null;
+
+  // ── Payment progression ───────────────────────────────────────────────────
+  const PAY_STEPS: { key: Exclude<PayStage, null>; label: string }[] = [
+    { key: "intent",     label: "Payment created" },
+    { key: "sent",       label: "Sent to reader" },
+    { key: "waiting",    label: "Waiting for the customer" },
+    { key: "processing", label: "Processing" },
+    { key: "issued",     label: "Ticket issued & checked in" },
+  ];
+  const payStepIndex = payStage ? PAY_STEPS.findIndex((s) => s.key === payStage) : -1;
 
   // ── Success screen ────────────────────────────────────────────────────────
-  if (terminalStatus === "success") {
+  // NOT shown the instant the reader approves. "Approved" means Stripe took
+  // the money; the ticket is written by the webhook a beat later. Showing
+  // "Payment Complete" before the ticket exists is how a failed webhook
+  // becomes invisible at the door — so this waits for the ticket to be
+  // confirmed, or for the confirmation to give up and say so. Until then the
+  // progression checklist stays on screen with its timer running.
+  if (terminalStatus === "success" && (payStage === "issued" || issueWarning)) {
+    const ok = payStage === "issued";
     return (
       <div style={{ minHeight: "100vh", background: "var(--vc-bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "var(--font-urbanist), sans-serif", textAlign: "center" }}>
-        <div style={{ fontSize: 56, marginBottom: 16 }}>✓</div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#4ade80", margin: "0 0 8px" }}>Payment Complete</h2>
-        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 32 }}>
-          Ticket confirmed for {buyerName}. Confirmation email sent to {buyerEmail}.
+        <div style={{ fontSize: 56, marginBottom: 16 }}>{ok ? "✓" : "!"}</div>
+        <h2 style={{ fontSize: 24, fontWeight: 800, color: ok ? "#8fd6a8" : "#fbbf24", margin: "0 0 8px" }}>
+          {ok ? "Paid — let them in" : "Paid, needs a look"}
+        </h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 8, maxWidth: 340, lineHeight: 1.5 }}>
+          {quantity} ticket{quantity === 1 ? "" : "s"} for {buyerName} — already checked in, no scan needed at the door.
         </p>
-        <button onClick={resetSale} style={{ padding: "13px 32px", borderRadius: 10, border: "none", background: "var(--vc-gold)", color: "#0b0a08", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+        {buyerEmail.trim() && (
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 0 }}>
+            Confirmation sent to {buyerEmail.trim()}.
+          </p>
+        )}
+        {issueWarning && (
+          <p style={{ color: "#fbbf24", fontSize: 13, margin: "16px 0 0", maxWidth: 340, lineHeight: 1.5 }}>{issueWarning}</p>
+        )}
+        <button onClick={resetSale} style={{ marginTop: 32, minHeight: 56, padding: "13px 40px", borderRadius: 12, border: "none", background: "var(--vc-gold)", color: "#0b0a08", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
           New Sale
         </button>
       </div>
@@ -573,19 +749,74 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 20px", borderBottom: "1px solid rgba(208,194,144,0.1)", background: "rgba(255,255,255,0.02)", position: "sticky", top: 0, zIndex: 10 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={isWest72 ? "/West72_Logos/W72_tech_wordmark_white.png" : "/VenueCore_Logos/VenueCore_Wordmark_White.png"} alt="" style={{ height: 20, objectFit: "contain" }} />
-        {/* Reader status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, justifyContent: "center" }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: readerDot.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{readerDot.label}</span>
-          {terminalStatus === "no_readers" && (
-            <button onClick={() => terminalRef.current && discoverReaders(terminalRef.current)} style={{ fontSize: 11, color: "var(--vc-gold)", background: "transparent", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline" }}>Retry</button>
-          )}
-        </div>
+        <div style={{ flex: 1 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{staffName}</span>
           <button onClick={onSignOut} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.4)", padding: "4px 10px", borderRadius: 7, fontSize: 12, cursor: "pointer" }}>Out</button>
         </div>
       </div>
+
+      {/* ── Reader state — full width, always visible ──────────────────────────
+          It used to sit squeezed between the logo and the sign-out button at
+          12px. The reader's state is the single most important thing on this
+          screen: every card sale depends on it, and staff need to read it from
+          arm's length in a dark room. */}
+      <div style={{
+        padding: "12px 20px",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        background: terminalStatus === "no_readers" ? "rgba(248,113,113,0.08)"
+          : terminalStatus === "ready" ? "rgba(143,214,168,0.07)"
+          : "rgba(255,255,255,0.02)",
+        display: "flex", alignItems: "center", gap: 12,
+      }}>
+        <span style={{
+          width: 10, height: 10, borderRadius: "50%", background: readerDot.color, flexShrink: 0,
+          boxShadow: readerDot.glow
+            ? `0 0 12px ${readerDot.color}, 0 0 24px ${readerDot.color}80`
+            : "none",
+        }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: readerDot.color, letterSpacing: "-0.01em" }}>
+            {readerDot.label}
+          </div>
+          {readerIdentity && (
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {readerIdentity}
+            </div>
+          )}
+          {terminalStatus === "no_readers" && (
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+              Cash sales still work. Manual card entry still works.
+            </div>
+          )}
+        </div>
+        {(terminalStatus === "no_readers" || terminalStatus === "error") && (
+          <button
+            onClick={() => terminalRef.current && discoverReaders(terminalRef.current)}
+            style={{ minHeight: 44, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.12)", color: "#f87171", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}
+          >
+            Reconnect
+          </button>
+        )}
+      </div>
+
+      {/* ── Tonight's door ─────────────────────────────────────────────────── */}
+      {door && (
+        <div style={{ display: "flex", gap: 1, background: "rgba(255,255,255,0.07)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          {[
+            { label: "Card", value: `$${door.card.amount.toFixed(2)}`, sub: `${door.card.tickets} tix` },
+            { label: "Cash", value: `$${door.cash.amount.toFixed(2)}`, sub: `${door.cash.tickets} tix` },
+            { label: "Door total", value: `$${door.doorTotal.toFixed(2)}`, sub: `${door.doorTickets} tix` },
+            { label: "Checked in", value: String(door.scannedIn), sub: `of ${door.ticketsIssued}` },
+          ].map((c) => (
+            <div key={c.label} style={{ flex: 1, background: "var(--vc-bg)", padding: "10px 8px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{c.label}</div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#fff", marginTop: 2, letterSpacing: "-0.02em" }}>{c.value}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>{c.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ padding: "20px 16px 60px", maxWidth: 480, margin: "0 auto" }}>
 
@@ -614,13 +845,32 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Ticket Type</label>
             {loadingTiers ? <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 14 }}>Loading…</div> : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {tiers.map((tier) => (
-                  <button key={tier.id} type="button" onClick={() => setSelectedTierId(tier.id)} style={{ padding: "11px 14px", borderRadius: 8, border: `1px solid ${selectedTierId === tier.id ? "var(--vc-gold)" : "rgba(255,255,255,0.1)"}`, background: selectedTierId === tier.id ? "rgba(208,194,144,0.1)" : "rgba(255,255,255,0.03)", color: selectedTierId === tier.id ? "var(--vc-gold)" : "rgba(255,255,255,0.7)", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span>{tier.tier_name}</span>
-                    <span>${tier.price.toFixed(2)}</span>
-                  </button>
-                ))}
+              /* Tiles, not list rows. 92px tall with the price at 22px, because
+                 this is a till operated at speed with a queue in front of it —
+                 the previous 11px rows were a form, and a form is the wrong
+                 shape for picking a price under pressure. */
+              <div style={{ display: "grid", gridTemplateColumns: tiers.length > 1 ? "1fr 1fr" : "1fr", gap: 8 }}>
+                {tiers.map((tier) => {
+                  const on = selectedTierId === tier.id;
+                  return (
+                    <button
+                      key={tier.id}
+                      type="button"
+                      onClick={() => setSelectedTierId(tier.id)}
+                      style={{
+                        minHeight: 92, padding: "12px 14px", borderRadius: 12,
+                        border: `1.5px solid ${on ? "var(--vc-gold)" : "rgba(255,255,255,0.1)"}`,
+                        background: on ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
+                        color: on ? "var(--vc-gold)" : "rgba(255,255,255,0.75)",
+                        cursor: "pointer", display: "flex", flexDirection: "column",
+                        justifyContent: "space-between", alignItems: "flex-start", textAlign: "left",
+                      }}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{tier.tier_name}</span>
+                      <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>${tier.price.toFixed(2)}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -630,10 +880,27 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         {selectedEventId && (
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>Quantity</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ width: 38, height: 38, borderRadius: 8, border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)", color: "var(--vc-gold)", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-              <span style={{ fontSize: 20, fontWeight: 700, minWidth: 28, textAlign: "center" }}>{quantity}</span>
-              <button type="button" onClick={() => setQuantity(Math.min(20, quantity + 1))} style={{ width: 38, height: 38, borderRadius: 8, border: "1px solid rgba(208,194,144,0.2)", background: "rgba(255,255,255,0.05)", color: "var(--vc-gold)", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            {/* Stepper for one or two, keypad for a group of nine. Tapping "+"
+                eight times with a line behind you is the kind of thing that
+                makes staff give up and sell two orders of four. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <button type="button" onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                style={{ width: 52, height: 52, borderRadius: 12, border: "1px solid rgba(208,194,144,0.25)", background: "rgba(255,255,255,0.05)", color: "var(--vc-gold)", fontSize: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+              <span style={{ fontSize: 30, fontWeight: 800, minWidth: 48, textAlign: "center", letterSpacing: "-0.02em" }}>{quantity}</span>
+              <button type="button" onClick={() => setQuantity(Math.min(20, quantity + 1))}
+                style={{ width: 52, height: 52, borderRadius: 12, border: "1px solid rgba(208,194,144,0.25)", background: "rgba(255,255,255,0.05)", color: "var(--vc-gold)", fontSize: 26, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 20].map((n) => (
+                <button key={n} type="button" onClick={() => setQuantity(n)}
+                  style={{
+                    minHeight: 44, borderRadius: 10,
+                    border: `1px solid ${quantity === n ? "var(--vc-gold)" : "rgba(255,255,255,0.08)"}`,
+                    background: quantity === n ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
+                    color: quantity === n ? "var(--vc-gold)" : "rgba(255,255,255,0.55)",
+                    fontSize: 16, fontWeight: 700, cursor: "pointer",
+                  }}>{n}</button>
+              ))}
             </div>
           </div>
         )}
@@ -644,23 +911,37 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         {selectedEventId && (
           <div style={{ marginBottom: 16 }}>
             <label style={labelStyle}>Payment</label>
+            {/* The tender buttons name their cost. The difference between these
+                two is real money — a card sale carries the service fee, the
+                facility fee, tax and a 2.7% + $0.05 card-present surcharge;
+                cash carries none of them and the face value IS the money. Door
+                staff make that choice dozens of times a night and should not
+                have to have been told once in training what it means. */}
             <div style={{ display: "flex", gap: 8 }}>
-              {(["card", "cash"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => { setSaleType(t); setFormError(null); }}
-                  style={{
-                    flex: 1, padding: "11px 14px", borderRadius: 8,
-                    border: `1px solid ${saleType === t ? "var(--vc-gold)" : "rgba(255,255,255,0.1)"}`,
-                    background: saleType === t ? "rgba(208,194,144,0.1)" : "rgba(255,255,255,0.03)",
-                    color: saleType === t ? "var(--vc-gold)" : "rgba(255,255,255,0.6)",
-                    fontSize: 14, fontWeight: 700, cursor: "pointer",
-                  }}
-                >
-                  {t === "card" ? "Card" : "Cash"}
-                </button>
-              ))}
+              {([
+                { key: "card" as const, label: "Card", cost: terminalStatus === "ready" ? "on the reader" : "reader offline" },
+                { key: "cash" as const, label: "Cash", cost: "no fees" },
+              ]).map((t) => {
+                const on = saleType === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => { setSaleType(t.key); setFormError(null); }}
+                    style={{
+                      flex: 1, minHeight: 60, padding: "10px 14px", borderRadius: 12,
+                      border: `1.5px solid ${on ? "var(--vc-gold)" : "rgba(255,255,255,0.1)"}`,
+                      background: on ? "rgba(208,194,144,0.14)" : "rgba(255,255,255,0.03)",
+                      color: on ? "var(--vc-gold)" : "rgba(255,255,255,0.6)",
+                      cursor: "pointer", display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center", gap: 2,
+                    }}
+                  >
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>{t.label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, opacity: 0.7 }}>{t.cost}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -669,21 +950,87 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         {selectedEventId && saleType === "card" && (
           <>
             <div style={{ marginBottom: 12 }}><label style={labelStyle}>Buyer Name *</label><input type="text" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Full name" style={fieldStyle} /></div>
-            <div style={{ marginBottom: 12 }}><label style={labelStyle}>Email *</label><input type="email" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="email@example.com" style={fieldStyle} /></div>
+            <div style={{ marginBottom: 12 }}><label style={labelStyle}>Email <span style={{ fontWeight: 400, opacity: 0.55, textTransform: "none", letterSpacing: 0 }}>(optional — receipt only)</span></label><input type="email" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="email@example.com" style={fieldStyle} /></div>
             <div style={{ marginBottom: 12 }}><label style={labelStyle}>Phone</label><input type="tel" value={buyerPhone} onChange={(e) => setBuyerPhone(formatPhoneNumber(e.target.value))} placeholder="(555) 555-1234" style={fieldStyle} /></div>
             <div style={{ marginBottom: 20 }}>
               <label style={labelStyle}>ZIP Code <span style={{ fontWeight: 400, opacity: 0.55, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
               <input type="text" inputMode="numeric" value={buyerZip} onChange={(e) => setBuyerZip(e.target.value.replace(/\D/g, "").slice(0, 5))} placeholder="35630" autoComplete="postal-code" style={fieldStyle} />
             </div>
 
-            {/* Price summary */}
+            {/* Amount due — the number the customer is about to be charged, at
+                the size you can read while handing over a card. */}
             {ticketPrice > 0 && (
-              <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 10, padding: "13px 16px", marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>
-                  <span>{quantity}× ${ticketPrice.toFixed(2)}</span>
-                  <span>${(ticketPrice * quantity).toFixed(2)}</span>
+              <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Amount due</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{quantity}× ${ticketPrice.toFixed(2)} {selectedTier?.tier_name ? `· ${selectedTier.tier_name}` : ""}</div>
+                  </div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: "var(--vc-gold)", letterSpacing: "-0.03em", lineHeight: 1 }}>
+                    ${(ticketPrice * quantity).toFixed(2)}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>+ fees &amp; tax calculated at payment</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>+ fees &amp; tax calculated at payment</div>
+              </div>
+            )}
+
+            {/* ── Payment progression ────────────────────────────────────────
+                A checklist, not a spinner. When a card sale stalls, staff need
+                to know WHERE it stalled — an intent that never reached the
+                reader is a different problem from a customer who has not
+                tapped, and the fix is different too. */}
+            {payStage && (
+              <div style={{ background: "rgba(143,214,168,0.07)", border: "1px solid rgba(143,214,168,0.2)", borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#8fd6a8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Taking payment</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: payElapsed > 40 ? "#fbbf24" : "rgba(255,255,255,0.45)", fontVariantNumeric: "tabular-nums" }}>
+                    {Math.floor(payElapsed / 60)}:{String(payElapsed % 60).padStart(2, "0")}
+                  </span>
+                </div>
+                {PAY_STEPS.map((step, i) => {
+                  const done = i < payStepIndex;
+                  const current = i === payStepIndex;
+                  return (
+                    <div key={step.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
+                      <span style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, fontWeight: 800,
+                        background: done ? "#8fd6a8" : current ? "rgba(143,214,168,0.25)" : "rgba(255,255,255,0.07)",
+                        color: done ? "#0b0a08" : "#8fd6a8",
+                        border: current ? "1.5px solid #8fd6a8" : "none",
+                      }}>{done ? "✓" : ""}</span>
+                      <span style={{
+                        fontSize: 13,
+                        fontWeight: current ? 700 : 500,
+                        color: done ? "rgba(255,255,255,0.45)" : current ? "#fff" : "rgba(255,255,255,0.28)",
+                      }}>{step.label}</span>
+                    </div>
+                  );
+                })}
+                {payElapsed > 40 && payStage === "waiting" && (
+                  <div style={{ fontSize: 12, color: "#fbbf24", marginTop: 8 }}>
+                    Still waiting on the customer. Cancel and retry, or take it manually.
+                  </div>
+                )}
+                {payStage !== "issued" && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button type="button" onClick={cancelTerminalPay}
+                      style={{ flex: 1, minHeight: 44, borderRadius: 10, border: "1px solid rgba(248,113,113,0.35)", background: "rgba(248,113,113,0.1)", color: "#f87171", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      Cancel payment
+                    </button>
+                    <button type="button" onClick={async () => { await cancelTerminalPay(); handleManualPay(); }}
+                      style={{ flex: 1, minHeight: 44, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      Enter manually
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {issueWarning && (
+              <div style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.35)", borderRadius: 10, padding: "12px 14px", color: "#fbbf24", fontSize: 13, marginBottom: 16, lineHeight: 1.45 }}>
+                {issueWarning}
               </div>
             )}
 
@@ -693,24 +1040,29 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
               <button
                 type="button"
                 onClick={handleTerminalPay}
-                disabled={terminalStatus !== "ready" || terminalStatus === ("collecting" as TerminalStatus) || !buyerName.trim() || !buyerEmail.trim()}
+                disabled={terminalStatus !== "ready" || !buyerName.trim()}
                 style={{
-                  width: "100%", padding: "14px 20px", borderRadius: 10, border: "none",
-                  background: terminalStatus === "ready" && buyerName.trim() && buyerEmail.trim() ? "var(--vc-gold)" : "rgba(208,194,144,0.15)",
-                  color: terminalStatus === "ready" && buyerName.trim() && buyerEmail.trim() ? "#0b0a08" : "rgba(255,255,255,0.25)",
-                  fontSize: 15, fontWeight: 700,
-                  cursor: terminalStatus === "ready" && buyerName.trim() && buyerEmail.trim() ? "pointer" : "not-allowed",
+                  width: "100%", minHeight: 56, padding: "14px 20px", borderRadius: 12, border: "none",
+                  background: terminalStatus === "ready" && buyerName.trim() ? "var(--vc-gold)" : "rgba(208,194,144,0.15)",
+                  color: terminalStatus === "ready" && buyerName.trim() ? "#0b0a08" : "rgba(255,255,255,0.25)",
+                  fontSize: 16, fontWeight: 800,
+                  cursor: terminalStatus === "ready" && buyerName.trim() ? "pointer" : "not-allowed",
                 }}
               >
-                {terminalStatus === "collecting" ? "Waiting for tap…" : terminalStatus === "ready" ? "Collect via Reader →" : terminalStatus === "connecting" ? "Connecting to reader…" : "Reader not connected"}
+                {terminalStatus === "collecting" ? "Waiting for tap…"
+                  : terminalStatus === "processing" ? "Processing…"
+                  : terminalStatus === "ready" ? `Charge $${(ticketPrice * quantity).toFixed(2)} on the reader`
+                  : terminalStatus === "connecting" ? "Connecting to reader…"
+                  : terminalStatus === "discovering" ? "Looking for the reader…"
+                  : "Reader not connected"}
               </button>
 
               {/* Secondary — manual card entry */}
               <button
                 type="button"
                 onClick={handleManualPay}
-                disabled={!buyerName.trim() || !buyerEmail.trim() || creatingManualIntent}
-                style={{ width: "100%", padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: buyerName.trim() && buyerEmail.trim() && !creatingManualIntent ? "pointer" : "not-allowed" }}
+                disabled={!buyerName.trim() || creatingManualIntent}
+                style={{ width: "100%", minHeight: 48, padding: "12px 20px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 14, fontWeight: 600, cursor: buyerName.trim() && !creatingManualIntent ? "pointer" : "not-allowed" }}
               >
                 {creatingManualIntent ? "Loading…" : "Manual Card Entry"}
               </button>
@@ -726,12 +1078,17 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
 
             {/* Price summary */}
             {ticketPrice > 0 && (
-              <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 10, padding: "13px 16px", marginBottom: 20 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 3 }}>
-                  <span>{quantity}× ${ticketPrice.toFixed(2)}</span>
-                  <span>${(ticketPrice * quantity).toFixed(2)}</span>
+              <div style={{ background: "rgba(208,194,144,0.06)", border: "1px solid rgba(208,194,144,0.12)", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Collect</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{quantity}× ${ticketPrice.toFixed(2)} {selectedTier?.tier_name ? `· ${selectedTier.tier_name}` : ""}</div>
+                  </div>
+                  <div style={{ fontSize: 38, fontWeight: 800, color: "var(--vc-gold)", letterSpacing: "-0.03em", lineHeight: 1 }}>
+                    ${(ticketPrice * quantity).toFixed(2)}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>no fees, no tax — cash is face value only</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>no fees, no tax — cash is face value only</div>
               </div>
             )}
 
@@ -740,16 +1097,44 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
               onClick={handleCashSale}
               disabled={cashSubmitting || !cashFirstName.trim() || !cashLastName.trim()}
               style={{
-                width: "100%", padding: "14px 20px", borderRadius: 10, border: "none",
+                width: "100%", minHeight: 56, padding: "14px 20px", borderRadius: 12, border: "none",
                 background: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "var(--vc-gold)" : "rgba(208,194,144,0.15)",
                 color: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "#0b0a08" : "rgba(255,255,255,0.25)",
-                fontSize: 15, fontWeight: 700,
+                fontSize: 16, fontWeight: 800,
                 cursor: !cashSubmitting && cashFirstName.trim() && cashLastName.trim() ? "pointer" : "not-allowed",
               }}
             >
               {cashSubmitting ? "Recording…" : "Record Cash Sale"}
             </button>
           </>
+        )}
+
+        {/* ── Recent sales ───────────────────────────────────────────────────
+            Staff need to see the sale they just took land, and to answer "did
+            that go through?" without leaving the till. Card / cash / comp are
+            marked because the answer to "how much cash should be in the
+            drawer" is the cash column alone. */}
+        {door && door.recent.length > 0 && (
+          <div style={{ marginTop: 32 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
+              Recent sales
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflow: "hidden" }}>
+              {door.recent.map((r) => {
+                const tint = r.tender === "cash" ? "#8fd6a8" : r.tender === "card" ? "#60a5fa" : r.tender === "comp" ? "#c4b5fd" : "rgba(255,255,255,0.35)";
+                return (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--vc-bg)" }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: tint, border: `1px solid ${tint}55`, borderRadius: 5, padding: "2px 6px", textTransform: "uppercase", letterSpacing: "0.4px", flexShrink: 0 }}>
+                      {r.tender}
+                    </span>
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.75)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", flexShrink: 0 }}>×{r.quantity}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0, fontVariantNumeric: "tabular-nums" }}>${r.amount.toFixed(2)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>
