@@ -1,14 +1,13 @@
 /**
  * Shared helpers for the event close-out workflow.
  *
- * An event is considered PAST (and locked from public ticket sales) when:
+ * An event is locked from PUBLIC ticket sales when:
  *   • `closed_out_at` is set (admin manually closed the show), OR
- *   • it is more than 2 hours past the show's start_time on the show date, OR
- *   • (no start_time) the show date has fully passed (next day 06:00 UTC)
+ *   • the storefront's sales window has closed — noon Central on show day.
  *
- * The 2-hour grace window means walk-up / late-arrival sales stay open until
- * roughly 2 hours after doors. The +7h UTC offset converts US Central local
- * show times (CDT = UTC−5) to UTC correctly; CST (UTC−6) events get ~1h grace.
+ * The window itself lives in lib/salesWindow.ts, which also knows that the
+ * BOX OFFICE keeps selling until midnight Central. This file is only ever
+ * asked about the public side, so it delegates and does not re-derive.
  *
  * Used by:
  *   • /api/checkout/create-intent  — to block paid ticket purchases
@@ -18,6 +17,8 @@
  *   • app/events/[id]/EventDetailClient.tsx — to swap the buy UI for an
  *     archive-style "past show" message
  */
+
+import { salesWindowFor } from "@/lib/salesWindow";
 
 export type EventLikeForCloseout = {
   date?: string | null;
@@ -31,39 +32,32 @@ export function isClosedOut(event: EventLikeForCloseout | null | undefined): boo
 }
 
 /**
- * True if the sales window for this event has passed.
+ * True if the storefront's sales window for this event has passed.
  *
- * With start_time (e.g. "19:00"):  sales close 2 hours after show start in
- *   US Central time (CDT/CST). Implemented as: midnight UTC of show date +
- *   start_time hours + 7h (= 5h CDT offset + 2h grace).
+ * ── REWRITTEN, AND THE OLD MATH IS WHY ─────────────────────────────────────
+ * This used to compute the cutoff by hand from UTC midnight:
  *
- * Without start_time: sales close at 06:00 UTC the next day
- *   (≈ midnight–1am Central), preventing midnight-UTC rollover from
- *   cutting off same-day shows.
+ *     midnightUTC + (startHour + 7) * 3_600_000     // "5h CDT + 2h grace"
+ *     midnightUTC + 30 * 3_600_000                  // "≈ midnight–1am Central"
+ *
+ * The 7 and the 30 hardcode CDT. For the four winter months the venues are on
+ * CST and every cutoff landed an hour off, and the file's own comment admitted
+ * it ("CST events get ~1h grace"). It also had nothing to say about WHO was
+ * selling, so there was no way to keep the box office open after the web had
+ * closed.
+ *
+ * lib/salesWindow.ts owns that now: noon Central on show day for the
+ * storefront, midnight Central for the box office, resolved through Intl so
+ * the offset is whatever Central actually is that week.
+ *
+ * `start_time` no longer participates. The storefront closes at noon on show
+ * day regardless of doors, which is earlier than every cutoff this function
+ * used to compute, so nothing that was sellable before is sellable now by
+ * accident.
  */
 export function isPastByDate(event: EventLikeForCloseout | null | undefined): boolean {
   if (!event?.date) return false;
-
-  const now = Date.now();
-
-  // UTC midnight of the show date
-  const [y, mo, d] = event.date.split("-").map(Number);
-  const midnightUTC = Date.UTC(y, mo - 1, d);
-
-  if (event.start_time) {
-    const [hStr, mStr] = event.start_time.split(":");
-    const h = parseInt(hStr, 10);
-    const m = parseInt(mStr ?? "0", 10);
-    if (!Number.isNaN(h) && !Number.isNaN(m)) {
-      // start_time is US Central local. Add 7h (CDT offset 5 + 2h grace)
-      // so the cutoff lands ~2 hours after the show starts in Central time.
-      const cutoff = midnightUTC + (h + 7) * 3_600_000 + m * 60_000;
-      return now > cutoff;
-    }
-  }
-
-  // No start_time: close at 06:00 UTC the next day (≈ midnight–1am Central)
-  return now > midnightUTC + 30 * 3_600_000;
+  return !salesWindowFor(event.date).storefrontOpen;
 }
 
 /**
@@ -82,6 +76,12 @@ export function pastEventReason(
   event: EventLikeForCloseout | null | undefined
 ): string | null {
   if (isClosedOut(event)) return "This show has been closed out and is no longer on sale.";
-  if (isPastByDate(event)) return "This show has already happened.";
+  if (event?.date) {
+    const w = salesWindowFor(event.date);
+    // "Buy at the door" and "you have missed it" are different messages and
+    // the buyer deserves the right one — between noon and midnight there is
+    // still a way to get in.
+    if (!w.storefrontOpen) return w.reason;
+  }
   return null;
 }

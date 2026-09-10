@@ -40,6 +40,11 @@ const SF_HEADER_ROUTES = [
   "/checkout/success",
   "/about",
   "/contact",
+  // Was deliberately excluded as "separate page, not rebuilt". It now renders
+  // SfHeader itself, and leaving it here meant BOTH headers mounted — which is
+  // what made the mobile menu on this page behave differently from every other
+  // storefront page.
+  "/events/past",
 ];
 
 /**
@@ -48,7 +53,7 @@ const SF_HEADER_ROUTES = [
  *
  *   /events/abc123          → hidden (event detail, has SfHeader)
  *   /events/abc123/seating  → shown  (out of scope, still needs this header)
- *   /events/past            → shown  (separate page, not rebuilt)
+ *   /events/past            → hidden (rebuilt; also in SF_HEADER_ROUTES)
  */
 function isSfEventDetail(pathname: string): boolean {
   return /^\/events\/[^/]+$/.test(pathname) && pathname !== "/events/past";

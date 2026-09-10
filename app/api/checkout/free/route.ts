@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
 import { validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
+import { salesWindowFor, canSell } from "@/lib/salesWindow";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -57,6 +58,20 @@ export async function POST(request: Request) {
   }
   if (!event)
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
+
+  // ── Has this show already happened? ────────────────────────────────
+  // A past event is still reachable and its tiers still exist, so every
+  // path here would happily charge for a show that was over. A free RSVP is not
+  // a charge, but it still issues a ticket for a night that has passed.
+  // See lib/salesWindow.ts — the storefront closes at noon Central on show
+  // day, the box office runs to midnight, then nobody sells.
+  const salesWindow = salesWindowFor(event.date);
+  if (!canSell(event.date, "storefront")) {
+    return NextResponse.json(
+      { error: salesWindow.reason ?? "Tickets are no longer on sale for this event." },
+      { status: 403 }
+    );
+  }
 
   // Guard: reject if tickets are not yet on sale, unless a valid presale code was supplied
   if (event.on_sale_at && new Date(event.on_sale_at) > new Date()) {

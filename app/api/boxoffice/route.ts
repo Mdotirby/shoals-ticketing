@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { resolveVenueFees, calculateFees } from "@/lib/checkout-helpers";
 import Stripe from "stripe";
+import { salesWindowFor, canSell } from "@/lib/salesWindow";
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,19 @@ export async function POST(request: Request) {
 
     if (eventError || !event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // ── The box-office window ──────────────────────────────────────────
+    // Opens at noon Central on show day and closes at midnight — after that
+    // the show has happened and the till stops too. Advance sales for future
+    // shows are unaffected; the window governs who owns the show ON THE DAY.
+    // See lib/salesWindow.ts.
+    const salesWindow = salesWindowFor(event.date);
+    if (!canSell(event.date, "box_office")) {
+      return NextResponse.json(
+        { error: salesWindow.reason ?? "This event is no longer on sale." },
+        { status: 403 }
+      );
     }
 
     // Determine ticket price from tier or event default

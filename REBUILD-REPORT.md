@@ -913,3 +913,73 @@ artist, partner, agent — are listed but carry no access level, per
 ### Rebuild status
 
 **4 of 71** admin screens: box office, Command Center, create a show, team.
+
+---
+
+## Sales window — a past show can no longer be sold (2026-09-10)
+
+Someone bought and paid for a ticket to a show that had already happened.
+
+**How it got through:** nothing in checkout ever asked whether the event was in
+the future. `lib/events/closeout.ts` had the check, and
+`/api/checkout` and `/api/checkout/free` imported it — but
+**`/api/checkout/create-intent`, the path the storefront actually uses, did
+not.** A past event's page is still reachable, its tiers still exist, and the
+capacity check passes trivially on a show that barely sold. So it charged.
+
+### The rule, one module
+
+`lib/salesWindow.ts`:
+
+| | |
+|---|---|
+| before noon Central, show day | storefront sells |
+| noon → midnight Central | **box office only** |
+| after midnight | nobody sells |
+
+Central via `Intl`, never a fixed offset. Verified at every boundary in **both**
+CDT and CST. The box office still sells **advance** tickets for future shows —
+the window governs who owns the show *on the day*, not the till in general.
+
+Guarded: `checkout/create-intent`, `checkout`, `checkout/free`, `boxoffice`,
+`terminal/payment-intent`, `box-office/cash-sale`. `create-intent` picks its
+channel from `source`, so `/boxoffice`'s manual card entry keeps working after
+the web has closed.
+
+`closeout.ts` now delegates its date logic here instead of computing cutoffs by
+hand as `midnightUTC + (startHour + 7)` and `midnightUTC + 30h` — both of which
+hardcode CDT and were an hour wrong all winter, as that file's own comment
+admitted. The storefront UI already keys off `pastEventReason`, so it picks up
+the correct state and the right message ("available at the box office" vs "this
+event has already taken place") for free.
+
+### What this costs — measured, because it is not free
+
+| | |
+|---|---|
+| Genuinely late orders this stops | **1 paid** ($31.56, bought 2026-09-10 for a 2026-08-08 show) + 4 free RSVPs to a gone show |
+| Show-day orders at/after noon CT, historically | **81 inline-checkout orders, $3,099.28** |
+
+Most of those 81 landed between 7pm and 9pm — people buying on a phone at or
+near the venue. Under this rule every one is refused and has to become a
+box-office sale.
+
+Blocking past events costs nothing. **Blocking show-day afternoons is the part
+with a price on it**, so the handover is a named constant,
+`DOOR_HANDOVER_HOUR`, overridable at runtime via
+`STOREFRONT_DOOR_HANDOVER_HOUR`. Moving it to doors (19) or removing it (24) is
+one line.
+
+**A note on the first pass of this analysis:** counting "orders after the show
+date" in UTC returned 30 orders / $650.67. Nearly all were 7–9pm Central on the
+show day itself — 7pm CDT is already the next day in UTC. That is precisely the
+bug `lib/dates.ts` exists to prevent, and I made it in my own query before
+redoing it in Central. The real figure is 5.
+
+## Past events page — one nav, not two
+
+`/events/past` rendered a bare fragment with no `SfHeader`, so it fell through
+to the legacy `Header` — the only storefront page still doing so. Two navs, two
+different mobile drawers, which is why the menu behaved differently there. It
+now renders `.sf-page` + `SfHeader` + `SfFooter` like `/events`, and is listed
+in `SF_HEADER_ROUTES` so the legacy header stands down.

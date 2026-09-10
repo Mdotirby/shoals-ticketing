@@ -14,7 +14,8 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
 import { useVenue } from "@/app/components/VenueContext";
-import Footer from "@/app/components/Footer";
+import SfHeader from "@/app/components/SfHeader";
+import SfFooter from "@/app/components/SfFooter";
 import { formatEventDateShort } from "@/lib/dates";
 
 export default function PastEventsPage() {
@@ -48,7 +49,17 @@ export default function PastEventsPage() {
   }, [events, query]);
 
   return (
-    <>
+    // Storefront chrome, same as /events.
+    //
+    // This page was rendering a bare fragment, so it fell through to the
+    // legacy Header — the only storefront page still doing so. Two different
+    // navs on one site is confusing on desktop and broken on a phone: the old
+    // header's drawer is a different component with different geometry, which
+    // is the "wonky mobile menu" on this page specifically. `/events/past` is
+    // added to SF_HEADER_ROUTES so the legacy header stands down.
+    <div className="sf-page">
+      <SfHeader />
+
       <main className="events-list-page">
         <div style={{ marginBottom: 24 }}>
           <div className="events-eyebrow" style={{ marginBottom: 8 }}>
@@ -181,7 +192,7 @@ export default function PastEventsPage() {
           </div>
         )}
       </main>
-      <Footer />
-    </>
+      <SfFooter />
+    </div>
   );
 }

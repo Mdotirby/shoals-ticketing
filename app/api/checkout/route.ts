@@ -7,6 +7,7 @@ import { pastEventReason } from "@/lib/events/closeout";
 import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 import { surchargeCents } from "@/lib/fees/rates";
+import { salesWindowFor, canSell } from "@/lib/salesWindow";
 
 export async function POST(request: Request) {
   try {
@@ -45,6 +46,19 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Event not found" },
         { status: 404 }
+      );
+    }
+
+    // ── Has this show already happened? ────────────────────────────────
+    // A past event is still reachable and its tiers still exist, so every
+    // path here would happily charge for a show that was over.
+    // See lib/salesWindow.ts — the storefront closes at noon Central on show
+    // day, the box office runs to midnight, then nobody sells.
+    const salesWindow = salesWindowFor(event.date);
+    if (!canSell(event.date, "storefront")) {
+      return NextResponse.json(
+        { error: salesWindow.reason ?? "Tickets are no longer on sale for this event." },
+        { status: 403 }
       );
     }
 

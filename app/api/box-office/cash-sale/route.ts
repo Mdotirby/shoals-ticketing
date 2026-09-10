@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import { v4 as uuidv4 } from "uuid";
+import { salesWindowFor, canSell } from "@/lib/salesWindow";
 const QRCode = require("qrcode");
 
 /**
@@ -61,11 +62,24 @@ export async function POST(request: Request) {
 
     const { data: event } = await admin
       .from("events")
-      .select("id, title, price, venue_id")
+      .select("id, title, price, venue_id, date")
       .eq("id", event_id)
       .single();
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // ── The box-office window ──────────────────────────────────────────
+    // Opens at noon Central on show day and closes at midnight — after that
+    // the show has happened and the till stops too. Advance sales for future
+    // shows are unaffected; the window governs who owns the show ON THE DAY.
+    // See lib/salesWindow.ts.
+    const salesWindow = salesWindowFor(event.date);
+    if (!canSell(event.date, "box_office")) {
+      return NextResponse.json(
+        { error: salesWindow.reason ?? "This event is no longer on sale." },
+        { status: 403 }
+      );
     }
 
     // Resolve face price — same lookup order as terminal: tier if specified,

@@ -12,6 +12,7 @@ import {
 } from "@/lib/checkout-helpers";
 import { pastEventReason } from "@/lib/events/closeout";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
+import { salesWindowFor, canSell } from "@/lib/salesWindow";
 
 /**
  * POST /api/checkout/create-intent
@@ -104,6 +105,24 @@ export async function POST(request: Request) {
 
     if (eventError || !event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // ── Has this show already happened? ─────────────────────────────────────
+    // Nothing here ever asked. A past event's page is still reachable, its
+    // tiers still exist, and the capacity check passes trivially on a show
+    // that barely sold — so checkout charged a card for a show that was over.
+    //
+    // The channel matters: /boxoffice posts here with source "box_office" for
+    // manual card entry, and the box office keeps selling through the door
+    // window after the storefront has closed at noon. See lib/salesWindow.ts.
+    const sellingChannel =
+      source === "box_office" || source === "terminal" ? "box_office" : "storefront";
+    const salesWindow = salesWindowFor(event.date);
+    if (!canSell(event.date, sellingChannel)) {
+      return NextResponse.json(
+        { error: salesWindow.reason ?? "Tickets are no longer on sale for this event." },
+        { status: 403 }
+      );
     }
 
     // Guard: reject if tickets are not yet on sale, unless a valid presale code was supplied
