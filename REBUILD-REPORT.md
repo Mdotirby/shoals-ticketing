@@ -248,3 +248,79 @@ Untouched. Not restyled, not refactored, not deleted.
 ### Forced edits
 
 None so far. No untouched page has needed a change to keep compiling.
+
+---
+
+## Settlement ledger — the gap, closed (2026-09-10)
+
+**Before:** 54 paid orders, $3,643.23, had tickets issued and no
+`settlement_ledger` row. 2026-08-13 → 2026-09-10, all `inline_checkout`,
+across five events. No customer was affected — every one of the 54 has valid
+tickets — but settlement, the dashboard and the event workspace all read that
+table, so those five shows under-reported their gross.
+
+**After:** 922 of 922 paid orders have a sale row. 0 gaps, 0 orphans.
+
+### Root cause — two failures that had to coincide
+
+1. `fetchActualStripeCost()` ran **before** the ledger insert: an external API
+   round-trip sitting between creating the order and recording the money, for
+   a value settlement explicitly knows how to do without (it falls back to the
+   estimated card fee when `stripe_fee_actual` is null). Corroborating
+   evidence: **0 of 77 pre-existing rows on these five events had
+   `stripe_fee_actual` set** — the call was never succeeding anyway.
+2. The idempotency guard returned unconditionally on finding an existing
+   order, so a lost ledger write could never be repaired: every redelivery
+   bailed at the guard, and the handler returns 200 regardless, so Stripe
+   stopped retrying.
+
+Correlates with `485dbfd` (2026-08-12), which introduced the pre-insert Stripe
+round-trip. The gap opens the next day.
+
+### Fixed
+
+| | |
+|---|---|
+| `lib/settlement/ledger.ts` | **New.** One definition of the ledger arithmetic. It existed in three drifted copies (webhook, backfill, cash-sale-as-zeros) |
+| `api/webhooks/stripe` | Stripe lookup is an UPDATE **after** the insert. Guard is per-step: an existing order skips order/ticket creation only; the ledger is checked and repaired on its own |
+| `api/events/[id]/revenue-summary/backfill` | Rewritten additive. Also **required a capability** — it was an unauthenticated POST that wrote financial rows |
+
+The backfill had to be rewritten before it could be run at all. Its docstring
+said "only inserts rows for orders with no ledger entry"; it actually ran
+`DELETE FROM settlement_ledger WHERE event_id = $1 AND type = 'sale'` and
+rebuilt everything. On live data that would have (a) destroyed
+`stripe_fee_actual` / `stripe_net` / `stripe_balance_transaction_id` on every
+correct row without recomputing them, (b) priced every order at the ONLINE
+card rate — it selected `orders.source` and never read it, and ignored the
+2026-08-14 cutover — restating Terminal door sales and everything sold before
+the cutover, and (c) rebuilt cash sales as if they were Stripe orders,
+inventing a surcharge and a service fee the buyer never paid.
+
+`mode=recalculate` keeps the original purpose as an in-place UPDATE that
+leaves the Stripe actuals alone.
+
+### Open — NOT fixed, needs a decision
+
+**152 ledger rows carry a negative `ticket_revenue`, totalling −$978.10.**
+Every one has `gross_amount = 0` — they are comps and free tickets. The old
+arithmetic subtracted a service and facility fee from a gross of zero, so a
+$0 comp was recorded as −$22.18 of face value. `computeLedgerAmounts` now
+returns zeros for a $0 order (matching what `api/admin/comps` and
+`api/checkout/free` write at the point of sale), so no new ones can appear —
+but the 152 existing rows are unchanged, and they net −$978.10 off any report
+that sums `ticket_revenue`. **This lands squarely on item 6**, which repoints
+the dashboard at `settlement_ledger`. The correction is a targeted UPDATE of
+those 152 rows to zeros; it writes financial records, so it is being left for
+an explicit go-ahead.
+
+**~$19 of cents-level variance on 4 rows of one 2026-06 event**
+(`Muscle Shoals Meets: The 90's`) and a few cents each across ~200 others,
+from ledger rows written at the current card rate rather than the rate in
+force when the card was charged. Real but immaterial; a `mode=recalculate`
+pass would clear it. Not run — see below.
+
+**Do not run `mode=recalculate` as a sweep.** Recomputing all 922 rows and
+diffing is how the negative-comp bug was found, and it is also why a blanket
+restatement is not safe: the recomputation disagrees with stored rows for
+several distinct reasons, only some of which are the stored row's fault.
+Per-event, after reading the diff, only.
