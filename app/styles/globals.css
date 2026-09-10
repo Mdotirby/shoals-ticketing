@@ -20160,3 +20160,388 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   background: rgba(239, 68, 68, 0.08);
   color: #f87171;
 }
+
+/* ============================================================
+   BOX OFFICE POS — /boxoffice
+   Rebuilt to the mockup's Box office screen (handoff/mockup, isBox block).
+
+   SELF-CONTAINED ON PURPOSE. Every other glass surface in this file is
+   gated on body[data-theme="liquid-glass"], which resolves from the
+   operator. The till must not be able to render unstyled because of which
+   brand cookie a door tablet happens to be carrying, so these rules carry
+   their own surface values rather than inheriting --lg-*.
+
+   Appended, nothing above is modified.
+   ============================================================ */
+
+.bo-root {
+  --bo-ink:      #08080a;
+  --bo-good:     #8fd6a8;
+  --bo-warn:     #fbbf24;
+  --bo-bad:      #f87171;
+  --bo-w:        #ffffff;
+  --bo-w72:      rgba(255, 255, 255, 0.72);
+  --bo-w52:      rgba(255, 255, 255, 0.52);
+  --bo-w44:      rgba(255, 255, 255, 0.44);
+  --bo-w34:      rgba(255, 255, 255, 0.34);
+  --bo-sheen:    linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%);
+  --bo-shadow:   0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bo-ink);
+  color: var(--bo-w);
+  font-family: var(--font-urbanist), "Helvetica Neue", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ── Surfaces ─────────────────────────────────────────────── */
+.bo-glass {
+  position: relative;
+  border-radius: 24px;
+  background:
+    var(--bo-sheen),
+    linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04));
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: var(--bo-shadow);
+  padding: 21px 22px;
+}
+/* The sale card sits a step brighter than the panels around it — it is the
+   one surface a person is looking at while money moves. */
+.bo-glass--lift {
+  background:
+    var(--bo-sheen),
+    linear-gradient(155deg, rgba(255,255,255,0.10), rgba(255,255,255,0.05));
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+.bo-glass--good {
+  background:
+    var(--bo-sheen),
+    linear-gradient(155deg, rgba(143,214,168,0.12), rgba(255,255,255,0.035));
+  border-color: rgba(143, 214, 168, 0.28);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.bo-glass--bad {
+  background:
+    var(--bo-sheen),
+    linear-gradient(155deg, rgba(248,113,113,0.12), rgba(255,255,255,0.035));
+  border-color: rgba(248, 113, 113, 0.30);
+}
+.bo-glass--warn {
+  background:
+    var(--bo-sheen),
+    linear-gradient(155deg, rgba(251,191,36,0.12), rgba(255,255,255,0.035));
+  border-color: rgba(251, 191, 36, 0.30);
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .bo-glass { background: rgba(20, 20, 22, 0.94); }
+}
+
+/* ── Layout ───────────────────────────────────────────────── */
+.bo-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* auto-fit at 330px, per the mockup. A door tablet in portrait lands on one
+   column and the sale card is what you see first; a laptop at the office gets
+   all three. */
+.bo-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.bo-col { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Reader bar ───────────────────────────────────────────── */
+.bo-readerbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 15px 20px;
+  border-radius: 20px;
+}
+.bo-dot {
+  width: 10px; height: 10px; border-radius: 999px; flex: none;
+  background: var(--bo-good);
+  box-shadow: 0 0 12px var(--bo-good), 0 0 24px rgba(143, 214, 168, 0.5);
+}
+.bo-dot--idle  { background: rgba(255,255,255,0.35); box-shadow: none; }
+.bo-dot--warn  { background: var(--bo-warn); box-shadow: 0 0 12px var(--bo-warn), 0 0 24px rgba(251,191,36,0.45); }
+.bo-dot--bad   { background: var(--bo-bad);  box-shadow: 0 0 12px var(--bo-bad),  0 0 24px rgba(248,113,113,0.45); }
+.bo-dot--busy  { background: #60a5fa;        box-shadow: 0 0 12px #60a5fa,        0 0 24px rgba(96,165,250,0.45); }
+
+.bo-reader-title { font-size: 13px; font-weight: 700; letter-spacing: -0.015em; }
+.bo-reader-sub   { font-size: 10.5px; color: var(--bo-w52); margin-top: 2px; }
+.bo-meta-label {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.40);
+}
+.bo-meta-value {
+  font-size: 12px; font-weight: 600; margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Typographic furniture ────────────────────────────────── */
+.bo-eyebrow {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em;
+  text-transform: uppercase; color: var(--bo-w52);
+}
+.bo-note { font-size: 10.5px; line-height: 1.5; color: rgba(255,255,255,0.40); text-wrap: pretty; }
+.bo-sub  { font-size: 11px; color: rgba(255,255,255,0.36); }
+
+/* ── Pills & buttons ──────────────────────────────────────── */
+.bo-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 999px; cursor: pointer;
+  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  color: inherit; font-family: inherit;
+  min-height: 44px;
+}
+.bo-pill:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.bo-pill:disabled { opacity: 0.45; cursor: not-allowed; }
+.bo-pill--bad { background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.40); color: var(--bo-bad); }
+
+/* ── Tier tiles ───────────────────────────────────────────── */
+.bo-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+.bo-tile {
+  padding: 15px 14px 14px; border-radius: 16px; cursor: pointer;
+  min-height: 92px; display: flex; flex-direction: column; text-align: left;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  color: var(--bo-w); font-family: inherit;
+}
+.bo-tile:hover:not(:disabled) { background: rgba(255, 255, 255, 0.11); }
+.bo-tile[aria-pressed="true"] {
+  background: linear-gradient(155deg, rgba(255,255,255,0.15), rgba(255,255,255,0.07));
+  border-color: rgba(255, 255, 255, 0.30);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.bo-tile:disabled { background: rgba(255,255,255,0.025); border-color: rgba(255,255,255,0.10); box-shadow: none; color: rgba(255,255,255,0.62); cursor: not-allowed; }
+.bo-tile-name  { font-size: 13px; font-weight: 700; letter-spacing: -0.015em; text-wrap: pretty; }
+.bo-tile-price { font-size: 22px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; margin-top: 10px; }
+.bo-tile-avail { font-size: 9.5px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.44); margin-top: 3px; }
+.bo-tile[aria-pressed="true"] .bo-tile-avail { color: rgba(255,255,255,0.56); }
+
+/* ── Keypad ───────────────────────────────────────────────── */
+.bo-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.bo-key {
+  padding: 15px 0; border-radius: 13px; text-align: center; cursor: pointer;
+  font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: var(--bo-w); font-family: inherit; min-height: 52px;
+}
+.bo-key:hover { background: rgba(255, 255, 255, 0.12); }
+.bo-key--act { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.11); color: var(--bo-w52); }
+
+/* ── Cart ─────────────────────────────────────────────────── */
+.bo-cartline {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 12px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.bo-stepper {
+  display: flex; align-items: center; gap: 2px; padding: 3px;
+  border-radius: 999px; flex: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.bo-step {
+  width: 32px; height: 32px; border-radius: 999px;
+  display: grid; place-items: center; cursor: pointer;
+  font-size: 16px; font-weight: 700; background: transparent; border: none;
+  color: var(--bo-w); font-family: inherit;
+}
+.bo-step:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.bo-step:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.bo-totalrow { display: flex; align-items: baseline; gap: 10px; }
+.bo-totalrow > .lbl   { font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.62); flex: 1; }
+.bo-totalrow > .basis { font-size: 9.5px; color: rgba(255,255,255,0.32); font-variant-numeric: tabular-nums; }
+.bo-totalrow > .val   { font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.bo-due-label { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bo-w52); flex: 1; }
+.bo-due-value { font-size: 38px; font-weight: 800; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* ── Tenders ──────────────────────────────────────────────── */
+.bo-tenders { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 9px; }
+.bo-tender {
+  padding: 16px 8px; border-radius: 14px; text-align: center; cursor: pointer;
+  background: rgba(255, 255, 255, 0.06); color: var(--bo-w);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  font-family: inherit; min-height: 60px;
+}
+.bo-tender:hover:not(:disabled) { filter: brightness(1.08); }
+/* Card is the primary tender — solid white, the way the mockup weights it. */
+.bo-tender--primary {
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
+  color: #0a0a0c; border-color: transparent;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.30), inset 0 1px 0 #fff;
+}
+.bo-tender--muted { background: rgba(255,255,255,0.035); color: rgba(255,255,255,0.72); border-color: rgba(255,255,255,0.13); box-shadow: none; }
+.bo-tender:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
+.bo-tender-label { font-size: 13.5px; font-weight: 800; letter-spacing: -0.015em; }
+.bo-tender-note  { font-size: 9.5px; margin-top: 3px; opacity: 0.62; }
+
+/* ── Payment progression ──────────────────────────────────── */
+.bo-paystep { display: flex; align-items: center; gap: 11px; }
+.bo-paydot {
+  width: 16px; height: 16px; border-radius: 999px; flex: none;
+  display: grid; place-items: center; font-size: 9px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: transparent;
+}
+.bo-paydot--now  { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.60); color: var(--bo-w); }
+.bo-paydot--done { background: rgba(143,214,168,0.22); border-color: rgba(143,214,168,0.55); color: var(--bo-good); }
+.bo-paylabel      { font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,0.40); flex: 1; }
+.bo-paylabel--now  { font-weight: 700; color: var(--bo-w); }
+.bo-paylabel--done { color: rgba(255,255,255,0.72); }
+.bo-paymeta { font-size: 10px; color: var(--bo-w34); font-variant-numeric: tabular-nums; }
+
+/* ── KPIs, feeds, lists ───────────────────────────────────── */
+.bo-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+.bo-kpi {
+  padding: 13px 14px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.bo-kpi-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.40); }
+.bo-kpi-value { font-size: 21px; font-weight: 800; letter-spacing: -0.035em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+.bo-feedrow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px; border-radius: 11px;
+  background: rgba(255, 255, 255, 0.035);
+  border-left: 2px solid rgba(255, 255, 255, 0.44);
+}
+.bo-feedrow--card { border-left-color: var(--bo-good); }
+.bo-feedrow--cash { border-left-color: rgba(255, 255, 255, 0.70); }
+.bo-feedrow--comp { border-left-color: rgba(255, 255, 255, 0.44); }
+.bo-feed-time   { font-size: 10px; color: rgba(255,255,255,0.42); font-variant-numeric: tabular-nums; width: 46px; flex: none; }
+.bo-feed-what   { min-width: 0; flex: 1; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-feed-how    { font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; flex: none; }
+.bo-feed-amount { font-size: 11.5px; font-weight: 650; font-variant-numeric: tabular-nums; width: 62px; text-align: right; flex: none; }
+
+.bo-listrow {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.bo-tag {
+  font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--bo-w44); font-variant-numeric: tabular-nums;
+}
+.bo-tag--used { background: rgba(255,255,255,0.92); color: #000; border-color: transparent; }
+
+.bo-drawerrow { display: flex; align-items: baseline; gap: 10px; }
+.bo-drawerrow > .lbl { flex: 1; font-size: 12px; color: var(--bo-w44); }
+.bo-drawerrow > .val { font-size: 12px; color: var(--bo-w72); font-variant-numeric: tabular-nums; }
+.bo-drawerrow--total { padding-top: 11px; border-top: 1px solid rgba(255,255,255,0.10); }
+.bo-drawerrow--total > .lbl { color: var(--bo-w); font-weight: 650; }
+.bo-drawerrow--total > .val { font-weight: 650; }
+
+/* ── Fields ───────────────────────────────────────────────── */
+.bo-field {
+  width: 100%; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--bo-w); font-size: 16px; box-sizing: border-box;
+  font-family: inherit; min-height: 46px;
+}
+.bo-field::placeholder { color: rgba(255, 255, 255, 0.28); }
+.bo-field:focus { outline: none; border-color: rgba(255, 255, 255, 0.34); background: rgba(255, 255, 255, 0.07); }
+.bo-label {
+  display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.45); margin-bottom: 6px;
+}
+
+/* ── Top bar ──────────────────────────────────────────────── */
+.bo-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(8, 8, 10, 0.82);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* A door tablet is held, not placed. Tighten the frame on small screens so
+   the sale card and the reader light are both above the fold. */
+@media (max-width: 640px) {
+  .bo-page { padding: 12px; gap: 12px; }
+  .bo-cols { gap: 12px; }
+  .bo-col  { gap: 12px; }
+  .bo-glass { padding: 17px 16px; border-radius: 20px; }
+  .bo-readerbar { padding: 13px 15px; gap: 12px; }
+  .bo-due-value { font-size: 34px; }
+}
+
+/* ── Ambient field ────────────────────────────────────────────
+   The glass panels above use backdrop-filter, which has nothing to blur
+   against a flat #08080a. In the mockup they sit over four blurred colour
+   orbs and a fine dot grid; without them the till reads as dark boxes with
+   borders rather than as glass. Fixed to the viewport so scrolling the page
+   does not drag the light with it, and pinned behind everything.
+
+   Values taken from the mockup's ambient layer (lines 28-32 of the export).
+   `pointer-events: none` throughout — none of this may ever eat a tap on a
+   till.
+   ============================================================ */
+.bo-root { position: relative; isolation: isolate; overflow-x: hidden; }
+.bo-root::before,
+.bo-root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.bo-root::before {
+  background:
+    radial-gradient(900px 900px at -100px -260px, rgba(255,255,255,0.20), rgba(255,255,255,0) 66%),
+    radial-gradient(820px 820px at calc(100% + 220px) 100px, rgba(120,150,255,0.20), rgba(120,150,255,0) 66%),
+    radial-gradient(760px 760px at 35% calc(100% + 300px), rgba(255,140,170,0.15), rgba(255,140,170,0) 66%),
+    radial-gradient(560px 560px at calc(100% - 200px) calc(100% - 200px), rgba(255,255,255,0.12), rgba(255,255,255,0) 66%);
+  /* Dimmer than the mockup's ambientGlow: 1. That export is a hero shot on a
+     bright monitor; this is read at arm's length in a dark room next to a
+     stage, where the same luminance washes out the 9.5px eyebrow labels and
+     the tier prices. Roughly half the mockup's alpha keeps the glass reading
+     as glass without costing legibility at the door. */
+}
+/* The dot grid. 0.30 opacity over 3px/5px lattices, as the mockup has it —
+   it is what keeps the large dark areas from banding on an OLED tablet. */
+.bo-root::after {
+  opacity: 0.30;
+  background-image:
+    radial-gradient(rgba(255,255,255,0.10) 0.5px, transparent 0.5px),
+    radial-gradient(rgba(255,255,255,0.07) 0.5px, transparent 0.5px);
+  background-size: 3px 3px, 5px 5px;
+  background-position: 0 0, 1px 2px;
+}
+/* Everything the staff touch sits above the field. */
+.bo-root > * { position: relative; z-index: 1; }
