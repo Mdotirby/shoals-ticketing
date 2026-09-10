@@ -1353,10 +1353,19 @@ timing story instead, because one fitted the dates.
 
 ### The fix
 
-`plans/stripe-events-processed-at-migration.sql` adds
-`stripe_events.processed_at`. The event row is written **first**, with
-`processed_at` NULL, so the foreign key is satisfiable from that moment. It is
-stamped at the end. The dedupe check tests `processed_at` rather than
+`plans/stripe-events-processed-at-migration.sql`. The event row is written
+**first**, with `processed_at` NULL, so the foreign key is satisfiable from
+that moment. It is stamped at the end.
+
+**The migration turned out to be one line, and my first draft of it was
+wrong twice.** It assumed the column needed adding and that there was a
+`created_at` to backfill from. There isn't — `stripe_events` is
+`id, type, processed_at, payload` — so it failed with `42703`. And
+`processed_at` **already existed, carrying `DEFAULT now()`**, which is the
+actual thing that had to change: a column that stamps itself on insert makes
+every event look finished the moment it starts, so a handler that dies half
+way would be skipped on redelivery rather than retried. The migration is now
+`ALTER COLUMN processed_at DROP DEFAULT` and nothing else. The dedupe check tests `processed_at` rather than
 existence, so an event that dies half way is still retried — which is exactly
 what logging late was protecting, and it is preserved.
 

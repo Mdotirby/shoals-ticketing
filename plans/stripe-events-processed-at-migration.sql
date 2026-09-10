@@ -7,41 +7,44 @@
 --   settlement_ledger.stripe_event_id TEXT REFERENCES stripe_events(id)
 --
 -- The Stripe webhook writes the ledger row in the MIDDLE of processing an
--- event, and logs that event into stripe_events at the END — deliberately,
--- so a failed event could be retried. The foreign key therefore points at a
--- row that does not exist yet. Every insert is rejected with 23503, the
--- handler logs the failure and swallows it (the sale is already complete, so
--- it must not throw), and the ledger row is silently lost.
+-- event, and logged that event into stripe_events at the END — deliberately,
+-- so a failed event could be retried. The foreign key therefore pointed at a
+-- row that did not exist yet. Every insert was rejected with 23503, the
+-- handler logged the failure and swallowed it (the sale is already complete,
+-- so it must not throw), and the ledger row was silently lost.
 --
--- Evidence: of 932 settlement_ledger rows, ZERO carry a stripe_event_id.
--- Not one, ever. Every row that exists came from a path that does not set it
--- — cash sales, free checkouts, comps, or a backfill.
+-- Evidence: of 932 settlement_ledger rows, ZERO carry a stripe_event_id. Not
+-- one, ever. Every row that exists came from a path that does not set one —
+-- cash sales, free checkouts, comps, or a backfill. Broken since April.
 --
--- WHY THIS IS NOT SOLVED BY LOGGING THE EVENT FIRST, ALONE. The late logging
--- is what makes a retry work: if the row is absent, Stripe's redelivery is
--- processed rather than skipped. Move the insert earlier without more, and a
--- handler that dies mid-way marks the event done and the retry is skipped.
+-- ── WHAT THIS MIGRATION ACTUALLY HAS TO DO ─────────────────────────────────
+-- `processed_at` ALREADY EXISTS on stripe_events — and carries DEFAULT now(),
+-- which is the problem. The fix writes the event row FIRST so the foreign key
+-- resolves, then stamps it when processing finishes. A column that stamps
+-- itself on insert makes every event look finished the moment it starts, so a
+-- handler that dies half way would be skipped on redelivery instead of
+-- retried. That is exactly what logging late was protecting.
 --
--- So the event row gains a `processed_at`. It is written at the START (the
--- foreign key is satisfiable from then on) with processed_at NULL, and
--- stamped at the END. The dedupe check tests processed_at, not existence, so
--- a half-finished event is still retried.
+-- So: drop the default. Nothing else. The column is there, every existing row
+-- is already stamped, and there is no created_at on this table to backfill
+-- from — an earlier draft of this file assumed one and failed with 42703.
 --
--- SAFE TO RUN WHILE SELLING: one nullable column and one index. Existing rows
--- are backfilled to their created_at, which is correct — they were all
--- processed to completion.
+-- SAFE TO RUN WHILE SELLING. Dropping a default changes nothing about rows
+-- that exist and nothing about reads. Writers that supply a value are
+-- unaffected; the only writer that omits it is the webhook, which is the
+-- caller this is for.
 -- ============================================================
 
 BEGIN;
 
+-- The column exists already on this database; kept for a fresh environment.
 ALTER TABLE stripe_events
   ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ;
 
--- Every row that already exists got there by the old path, which only ever
--- inserted AFTER processing finished. So they are all complete.
-UPDATE stripe_events
-   SET processed_at = COALESCE(processed_at, created_at)
- WHERE processed_at IS NULL;
+-- The whole point. With DEFAULT now() the row stamps itself on insert, and
+-- "started" becomes indistinguishable from "finished".
+ALTER TABLE stripe_events
+  ALTER COLUMN processed_at DROP DEFAULT;
 
 CREATE INDEX IF NOT EXISTS idx_stripe_events_processed_at
   ON stripe_events (processed_at);
@@ -49,16 +52,26 @@ CREATE INDEX IF NOT EXISTS idx_stripe_events_processed_at
 COMMIT;
 
 -- ── Verify ──────────────────────────────────────────────────
---   SELECT count(*) FILTER (WHERE processed_at IS NULL)  AS unfinished,
---          count(*) FILTER (WHERE processed_at IS NOT NULL) AS done
---     FROM stripe_events;
+-- 1) The default is gone:
 --
--- Expected immediately after running: unfinished 0, done = every row.
+--      SELECT column_name, column_default
+--        FROM information_schema.columns
+--       WHERE table_name = 'stripe_events' AND column_name = 'processed_at';
 --
--- Then, after the next card sale, this should return a row WITH an event id
--- for the first time since April:
+--    Expected: column_default IS NULL.
 --
---   SELECT id, order_id, stripe_event_id, gross_amount
---     FROM settlement_ledger
---    WHERE stripe_event_id IS NOT NULL
---    ORDER BY created_at DESC LIMIT 5;
+-- 2) Nothing was disturbed — every existing event is still marked finished:
+--
+--      SELECT count(*) FILTER (WHERE processed_at IS NULL)     AS unfinished,
+--             count(*) FILTER (WHERE processed_at IS NOT NULL) AS done
+--        FROM stripe_events;
+--
+--    Expected: unfinished 0, done 775.
+--
+-- 3) THE ONE THAT MATTERS. After the next card sale, this should return a row
+--    for the first time since April:
+--
+--      SELECT id, order_id, stripe_event_id, gross_amount
+--        FROM settlement_ledger
+--       WHERE stripe_event_id IS NOT NULL
+--       ORDER BY id DESC LIMIT 5;
