@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { resolveCapacity, capacityLabel } from "@/lib/capacity";
+import { resolveCapacity, capacityLabel, offSaleLabel } from "@/lib/capacity";
 import {
   StatusBadge,
   Tag,
@@ -93,6 +93,13 @@ export default function EventWorkspacePage() {
   const [tab, setTab] = useState("overview");
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [publishing, setPublishing] = useState(false);
+  // The offer is the only thing that knows WHY the room and the sellable cap
+  // differ — artist_offers.ticket_scaling carries seats / comps / kills /
+  // sellable_cap per tier, and gross potential at the offer stage is computed
+  // off sellable_cap. Without it the difference is reported as "not on sale"
+  // rather than invented as comps.
+  const [offerScaling, setOfferScaling] = useState<{ comps?: number | null; kills?: number | null }[] | null>(null);
+  const [offerComps, setOfferComps] = useState<{ artist: number | null; marketing: number | null }>({ artist: null, marketing: null });
   const [venue, setVenue] = useState<Venue | null>(null);
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [holds, setHolds] = useState<Hold[]>([]);
@@ -140,6 +147,24 @@ export default function EventWorkspacePage() {
           }).catch(() => {});
         }).catch(() => {});
       }
+
+      // Linked offer — for the comp / kill decomposition.
+      import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
+        const supabase = getSupabaseBrowser();
+        const { data: offer } = await supabase
+          .from("artist_offers")
+          .select("ticket_scaling, artist_comps, marketing_comps")
+          .eq("event_id", id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (cancelled || !offer) return;
+        if (Array.isArray(offer.ticket_scaling)) setOfferScaling(offer.ticket_scaling);
+        setOfferComps({
+          artist: offer.artist_comps ?? null,
+          marketing: offer.marketing_comps ?? null,
+        });
+      }).catch(() => {});
 
       // Guest list
       fetch(`/api/artists/guests?event_id=${id}`).then((r) => r.json()).then((g) => {
@@ -207,6 +232,9 @@ export default function EventWorkspacePage() {
     tiers,
     holds,
     sold: tiers.reduce((s, t) => s + (t.quantity_sold || 0), 0),
+    offerScaling,
+    offerArtistComps: offerComps.artist,
+    offerMarketingComps: offerComps.marketing,
   });
   const totalCapacity = capacity.sellable;
   const totalSold = tiers.reduce((s, t) => s + (t.quantity_sold || 0), 0);
@@ -236,7 +264,9 @@ export default function EventWorkspacePage() {
           <div className="ev-header-stat">
             <span className="ev-header-stat-value">{capacityLabel({ ...capacity, sold: totalSold })}</span>
             <span className="ev-header-stat-label">
-              {capacity.hasKills ? "Sold / sellable of room" : "Sold"}
+              {capacity.roomDiffers
+                ? offSaleLabel({ ...capacity, sold: totalSold }) ?? "Sold / sellable of room"
+                : "Sold"}
             </span>
           </div>
           <div className="ev-header-stat">

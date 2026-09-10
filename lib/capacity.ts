@@ -2,35 +2,37 @@
  * Capacity, in the two senses a venue actually uses.
  *
  * ── THE DISTINCTION ────────────────────────────────────────────────────────
- *   room      — what the fire marshal says. The physical capacity of the room.
- *   sellable  — room, less kills and comps. What is actually for sale.
+ *   room      — what the fire marshal says. The physical capacity.
+ *   sellable  — what is actually loaded for sale.
  *
- * A 750-cap room with 30 comps has a sellable cap of 720. Both numbers are
- * real and neither is a correction of the other; they answer different
- * questions. Sell-through is measured against SELLABLE, because measuring it
- * against the room counts seats nobody was ever allowed to sell as unsold
- * inventory and makes every show look softer than it is.
+ * Sell-through is measured against SELLABLE. Dividing by the room counts
+ * seats that were never for sale as unsold inventory and makes every show look
+ * softer than it is. Tyler Halverson reads 5.6% against a 750 room and 5.8%
+ * against the 720 that were on sale.
  *
- * ── WHY THIS MODULE EXISTS ─────────────────────────────────────────────────
- * Two screens had already picked different answers without knowing there was
- * a question. The event workspace read `venue.capacity ?? Σ tiers` and showed
- * Tyler Halverson at 42/750; the dashboard summed tier capacity and showed
- * 42/720 for the same show on the same afternoon. Sell-through therefore
- * differed between two screens an operator flips between — 5.6% against 5.8%
- * — with nothing on either to say why.
+ * ── WHERE THE DECOMPOSITION ACTUALLY LIVES ────────────────────────────────
+ * The offer is the source of truth, and it already carries it per tier:
  *
- * ── WHERE THE NUMBERS LIVE TODAY ───────────────────────────────────────────
- * `event_venues.capacity` (and `venues.capacity`) hold the room.
- * `ticket_tiers.capacity` holds what was loaded for sale, which is where the
- * kills and comps have been subtracted BY HAND up to now — Tyler Halverson's
- * single tier is set to 720 against a 750 room.
+ *   artist_offers.ticket_scaling
+ *     [{ name, seats: 750, comps: 30, kills: 0, sellable_cap: 720, price, … }]
+ *   artist_offers.artist_comps / .marketing_comps   → 10 / 20 of those 30
  *
- * `event_holds` exists (quantity, hold_type, owner_label) and is the proper
- * home for kills, but it is empty in production, so it is read here as an
- * ADDITIONAL reduction rather than the source of the 750→720 gap. When holds
- * start being used, `sellable` falls by their quantity on top of whatever the
- * tiers already carry — which is correct, and is why the two are not summed
- * into one number here.
+ * Gross potential at the offer stage is computed off `sellable_cap`, not
+ * `seats` — which is why the tier that later gets created carries 720 and the
+ * venue record carries 750. The two numbers were never in conflict; nothing
+ * on the admin screens said which was which.
+ *
+ * ── WHY THE GAP IS NOT ASSUMED TO BE COMPS ─────────────────────────────────
+ * Measured across the book: of 18 hard-ticket shows with tiers and a recorded
+ * room, 16 have a room larger than their sellable cap — but the gap is only
+ * sometimes comps. Shemekia Copeland is 2000 against 500 and Food Truck Fright
+ * Fest is 750 against 250; those are partial-house configurations, not 1,500
+ * and 500 comps. So this module reports THAT the two differ and by how much,
+ * and names the reason only when an offer says so. Guessing would put an
+ * invented comp count on a settlement screen.
+ *
+ * `event_holds` (quantity, hold_type, owner_label) reduces the sellable cap
+ * further when rows exist — it is empty in production today.
  */
 
 export type CapacityInput = {
@@ -42,6 +44,13 @@ export type CapacityInput = {
   holds?: { quantity?: number | null; released_at?: string | null }[] | null;
   /** Tickets issued, comps included — a comped seat is still gone. */
   sold?: number;
+  /**
+   * The linked offer's scaling, when the event has one. This is the ONLY
+   * source that can say what the off-sale seats are; nothing else knows.
+   */
+  offerScaling?: { comps?: number | null; kills?: number | null }[] | null;
+  offerArtistComps?: number | null;
+  offerMarketingComps?: number | null;
 };
 
 export type Capacity = {
@@ -54,8 +63,19 @@ export type Capacity = {
   sold: number;
   /** sold / sellable, as a percentage to one decimal. 0 when unknown. */
   sellThrough: number;
-  /** True when the room and the sellable cap disagree — worth showing both. */
-  hasKills: boolean;
+  /**
+   * True when the room is bigger than what is on sale. Says nothing about WHY
+   * — comps, kills, a partial house and a staged release all look like this.
+   */
+  roomDiffers: boolean;
+  /** Seats in the room that are not on sale. Unattributed unless an offer says. */
+  offSale: number;
+  /** From the linked offer's ticket_scaling, when there is one. Never guessed. */
+  comps: number | null;
+  kills: number | null;
+  /** artist_offers.artist_comps / .marketing_comps — who the comps are for. */
+  artistComps: number | null;
+  marketingComps: number | null;
 };
 
 export function resolveCapacity(input: CapacityInput): Capacity {
@@ -82,6 +102,9 @@ export function resolveCapacity(input: CapacityInput): Capacity {
   const sellable = Math.max(0, base - held);
 
   const sold = input.sold ?? 0;
+  const scaling = input.offerScaling ?? null;
+  const sum = (k: "comps" | "kills") =>
+    scaling ? scaling.reduce((n, r) => n + (Number(r[k]) || 0), 0) : null;
 
   return {
     room,
@@ -89,13 +112,39 @@ export function resolveCapacity(input: CapacityInput): Capacity {
     held,
     sold,
     sellThrough: sellable > 0 ? Math.round((sold / sellable) * 1000) / 10 : 0,
-    hasKills: room !== null && sellable > 0 && sellable < room,
+    roomDiffers: room !== null && sellable > 0 && sellable < room,
+    offSale: room !== null && sellable > 0 ? Math.max(0, room - sellable) : 0,
+    comps: sum("comps"),
+    kills: sum("kills"),
+    artistComps: input.offerArtistComps ?? null,
+    marketingComps: input.offerMarketingComps ?? null,
   };
 }
 
-/** "42 / 720" — or "42 / 720 of 750" when kills mean the two differ. */
+/** "42 / 720" — or "42 / 720 of 750" when the room is bigger. */
 export function capacityLabel(c: Capacity): string {
   if (c.sellable === 0) return `${c.sold.toLocaleString()} / —`;
   const base = `${c.sold.toLocaleString()} / ${c.sellable.toLocaleString()}`;
-  return c.hasKills ? `${base} of ${c.room!.toLocaleString()}` : base;
+  return c.roomDiffers ? `${base} of ${c.room!.toLocaleString()}` : base;
+}
+
+/**
+ * Why the room and the sellable cap differ, in one line — but only as far as
+ * the data actually knows. With an offer: "30 comps (10 artist, 20 marketing)".
+ * Without one: "30 seats not on sale", which is the truthful limit.
+ */
+export function offSaleLabel(c: Capacity): string | null {
+  if (!c.roomDiffers) return null;
+  const parts: string[] = [];
+  if (c.comps) {
+    const who = [
+      c.artistComps ? `${c.artistComps} artist` : null,
+      c.marketingComps ? `${c.marketingComps} marketing` : null,
+    ].filter(Boolean).join(", ");
+    parts.push(who ? `${c.comps} comps (${who})` : `${c.comps} comps`);
+  }
+  if (c.kills) parts.push(`${c.kills} kills`);
+  if (c.held) parts.push(`${c.held} held`);
+  if (parts.length === 0) return `${c.offSale.toLocaleString()} seats not on sale`;
+  return parts.join(" · ");
 }
