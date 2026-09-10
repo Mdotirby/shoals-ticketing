@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+// PUBLIC BY DESIGN — a buyer submits a code and is told yes or no. It
+// never hands a code out; GET /presale, which does, is staff-only.
+
 export const dynamic = "force-dynamic";
 
 // Simple in-memory rate limiter — resets per cold start, good enough for this

@@ -1,6 +1,10 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { getEventSeatInventoryBySection } from "@/lib/checkout-helpers";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
+
+// GET IS PUBLIC BY DESIGN — the storefront and the box office both read it
+// to show what is on sale. POST and PUT are guarded below.
 
 // GET: fetch ticket tiers for an event (public)
 export async function GET(
@@ -98,6 +102,11 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Tiers and prices. GET stays open — the storefront and the box office
+  // both read it to show what is on sale.
+  const guard = await requireCapability("ticket_scaling", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();
@@ -128,6 +137,11 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // This is the PUT that silently dropped tiers and zeroed events.price when
+  // the edit form's isHardTicket predicate was wrong (07a07fd).
+  const guard = await requireCapability("ticket_scaling", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();

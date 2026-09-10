@@ -1,11 +1,16 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET: fetch all trackable links for an event
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Marketing attribution — staff only.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id } = await params;
     const admin = createAdminClient();
@@ -34,6 +39,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id } = await params;
     const admin = createAdminClient();
@@ -103,6 +112,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id } = await params;
     const admin = createAdminClient();

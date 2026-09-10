@@ -23,7 +23,12 @@ type UpcomingEvent = {
   image_url: string | null;
   ticketsSold: number;
   revenue: number;
+  /** The SELLABLE cap — room less kills and comps. What sell-through divides by. */
   totalCapacity: number;
+  /** The room itself. Null when nothing records it. Differs from the sellable
+   *  cap whenever seats are killed or comped — see lib/capacity.ts. */
+  roomCapacity: number | null;
+  heldSeats: number;
   sellThrough: number;
   avgTicket: number;
 };
@@ -515,7 +520,7 @@ export default function AdminDashboardPage() {
   const queue: { title: string; body: string; age: string; tone: string; href: string }[] = [];
   for (const ev of data.upcomingEvents) {
     const days = daysOut(ev.date);
-    const pct = ev.totalCapacity > 0 ? Math.round((ev.ticketsSold / ev.totalCapacity) * 100) : 0;
+    const pct = Math.round(ev.sellThrough);
     if (ev.totalCapacity > 0 && days >= 0 && days <= 14 && pct < 50) {
       queue.push({
         title: `${ev.title} is ${pct}% sold with ${days === 0 ? "doors tonight" : `${days} day${days === 1 ? "" : "s"} to go`}`,
@@ -635,7 +640,9 @@ export default function AdminDashboardPage() {
           )}
 
           {data.upcomingEvents.map((ev) => {
-            const pct = ev.totalCapacity > 0 ? Math.round((ev.ticketsSold / ev.totalCapacity) * 100) : 0;
+            // Comes from resolveCapacity() server-side; recomputing it here is
+            // how the two screens drifted apart in the first place.
+            const pct = Math.round(ev.sellThrough);
             return (
               <Link key={ev.id} href={`/admin/events/${ev.id}`} className="cc-trow">
                 <div style={{ minWidth: 0 }}>
@@ -647,6 +654,13 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="cc-tnum">
                   {ev.ticketsSold.toLocaleString()}{ev.totalCapacity > 0 ? ` / ${ev.totalCapacity.toLocaleString()}` : ""}
+                  {/* The room, when kills or comps make it differ from what is
+                      actually for sale. Sell-through divides by the sellable
+                      cap; showing the room beside it stops the smaller number
+                      reading as an error. */}
+                  {ev.roomCapacity != null && ev.totalCapacity > 0 && ev.roomCapacity !== ev.totalCapacity && (
+                    <div style={{ fontSize: 9.5, color: "var(--cc-w32)" }}>of {ev.roomCapacity.toLocaleString()} room</div>
+                  )}
                 </div>
                 <div>
                   <div className="cc-tnum" style={{ color: pct >= 85 ? "var(--cc-good)" : "var(--cc-w62)" }}>

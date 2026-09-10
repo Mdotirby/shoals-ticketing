@@ -1,11 +1,16 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET: fetch a single trackable link with analytics
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string; linkId: string }> }
 ) {
+  // 
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id, linkId } = await params;
     const admin = createAdminClient();
@@ -112,6 +117,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; linkId: string }> }
 ) {
+  // 
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id, linkId } = await params;
     const admin = createAdminClient();

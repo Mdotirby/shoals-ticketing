@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
 
 /**
  * GET /api/events/[id]/revenue-summary
@@ -13,6 +14,11 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Face value, fees, tax and net to venue for one show. This was readable by
+  // anyone with the event id.
+  const guard = await requireCapability("view_settlement");
+  if (!guard.ok) return guard.response;
+
   const { id: eventId } = await params;
   const admin = createAdminClient();
 

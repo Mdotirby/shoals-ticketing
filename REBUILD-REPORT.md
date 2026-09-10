@@ -701,3 +701,71 @@ claiming one.**
 ### Rebuild status
 
 **3 of 71** admin screens: box office, Command Center, create a show.
+
+---
+
+## The three flags, fixed (2026-09-10)
+
+### 1. Capacity vs sellable cap — two numbers, not a bug
+
+Matt's model, confirmed:
+
+> **capacity** is the room. **Sellable cap** is capacity less kills and comps.
+> A 750-cap room with 30 comps has a sellable cap of 720.
+
+So the workspace's 42/**750** and the dashboard's 42/**720** were both right
+and neither was labelled. `lib/capacity.ts` is now the single definition:
+
+| | |
+|---|---|
+| `room` | `event_venues.capacity` / `venues.capacity` — the fire marshal's number |
+| `sellable` | Σ `ticket_tiers.capacity`, less unreleased `event_holds` |
+| `sellThrough` | sold ÷ **sellable** |
+
+**Sell-through divides by sellable**, because dividing by the room counts
+seats nobody was ever allowed to sell as unsold inventory and makes every show
+look softer than it is. Tyler Halverson: 5.6% against the room, **5.8%**
+against what was for sale.
+
+Both screens read the same function now. The workspace header shows
+`42 / 720 of 750` and labels it "Sold / sellable of room"; the dashboard row
+shows the room underneath when the two differ, so the smaller number cannot
+read as an error.
+
+`event_holds` (quantity, hold_type, owner_label) is the proper home for kills
+and is wired in as a further reduction, but it is empty in production — today
+the 750→720 gap lives in the hand-set tier capacity. When holds start being
+used, sellable falls by their quantity on top of the tiers, which is why the
+two are not collapsed into one number.
+
+### 2. A 401 no longer reads as $0.00
+
+The event workspace fetched gross with `.catch(() => {})` onto a state that
+started at `0`, so a 401 — staff without `view_settlement`, or an expired
+session — rendered a confident **$0.00 gross on a sold-out show**. It now
+distinguishes loading / ok / denied / error and shows "Hidden — no access"
+rather than a number. A wrong number is worse than no number.
+
+### 3. `/api/events/*` is no longer open
+
+Every route under `/api/events` was unauthenticated on the service-role
+client, which bypasses RLS — the same hole `8a4fa41` closed for `/api/admin/*`,
+in the namespace that hosts the `PUT` the new publish button calls.
+
+**Guarded** — 17 handlers across 12 files:
+
+| | |
+|---|---|
+| `requireStaff()` | event `PUT` / `DELETE`, event `POST`, closeout, presale read/write, trackable links, views analytics, drop count, holds read |
+| `requireCapability("ticket_scaling", write)` | ticket-types `POST` / `PUT` — the PUT that silently dropped tiers and zeroed `events.price` in `07a07fd` |
+| `requireCapability("holds", write)` | hold create and release |
+| `requireCapability("view_settlement")` | `revenue-summary` — face value, fees, tax and net to venue for one show, previously readable by anyone with the event id |
+
+**Left public, and now commented as such** so the next audit does not have to
+re-derive it: the storefront listing and event detail `GET`, `ticket-types`
+`GET` (the storefront and the box office both read it), `artists` `GET`,
+`featured` `GET`, `views` `POST`, `presale/validate` `POST` (takes a code and
+answers yes/no — it never hands one out), and `record-conversion` `POST`.
+
+Checked before guarding: no storefront, checkout or box-office caller touches
+a route that got a guard.

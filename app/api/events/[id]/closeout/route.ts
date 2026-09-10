@@ -14,6 +14,7 @@
  */
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Closing a show out ends its sales.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
@@ -81,6 +86,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 

@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+// PUBLIC BY DESIGN — the lineup on the storefront's event page.
+
 // GET: list featured artists assigned to an event
 export async function GET(
   request: Request,

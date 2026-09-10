@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { resolveCapacity, capacityLabel } from "@/lib/capacity";
 import {
   StatusBadge,
   Tag,
@@ -99,6 +100,11 @@ export default function EventWorkspacePage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [grossRevenue, setGrossRevenue] = useState(0);
+  // "Not loaded" and "zero" are different facts. This used to be one number
+  // starting at 0, so a 401 from /api/admin/dashboard — staff without the
+  // capability, or an expired session — rendered as a confident $0.00 gross
+  // on a show that had sold out. A wrong number is worse than no number.
+  const [grossState, setGrossState] = useState<"loading" | "ok" | "denied" | "error">("loading");
   const [loading, setLoading] = useState(true);
 
   const loadHolds = useCallback(() => {
@@ -140,10 +146,23 @@ export default function EventWorkspacePage() {
         if (!cancelled && Array.isArray(g)) setGuests(g);
       }).catch(() => {});
 
-      // Gross revenue — paid orders for this event
-      fetch(`/api/admin/dashboard?event_ids=${id}`).then((r) => r.json()).then((d) => {
-        if (!cancelled && typeof d?.totalRevenue === "number") setGrossRevenue(d.totalRevenue);
-      }).catch(() => {});
+      // Gross revenue — settlement_ledger for this event, via the same
+      // endpoint the Command Center uses so the two cannot disagree.
+      fetch(`/api/admin/dashboard?event_ids=${id}`)
+        .then(async (r) => {
+          if (cancelled) return;
+          if (r.status === 401 || r.status === 403) { setGrossState("denied"); return; }
+          if (!r.ok) { setGrossState("error"); return; }
+          const d = await r.json();
+          if (cancelled) return;
+          if (typeof d?.totalRevenue === "number") {
+            setGrossRevenue(d.totalRevenue);
+            setGrossState("ok");
+          } else {
+            setGrossState("error");
+          }
+        })
+        .catch(() => { if (!cancelled) setGrossState("error"); });
 
       setLoading(false);
     }
@@ -178,7 +197,18 @@ export default function EventWorkspacePage() {
     );
   }
 
-  const totalCapacity = venue?.capacity ?? tiers.reduce((s, t) => s + (t.capacity || 0), 0);
+  // Room and sellable are two different numbers — a 750-cap room with 30 kills
+  // or comps has a sellable cap of 720. This read `venue?.capacity ?? Σ tiers`,
+  // which took the ROOM when one existed, so this screen showed 42/750 while
+  // the dashboard showed 42/720 for the same show. Both now come from
+  // lib/capacity.ts, and sell-through divides by sellable.
+  const capacity = resolveCapacity({
+    roomCapacity: venue?.capacity ?? null,
+    tiers,
+    holds,
+    sold: tiers.reduce((s, t) => s + (t.quantity_sold || 0), 0),
+  });
+  const totalCapacity = capacity.sellable;
   const totalSold = tiers.reduce((s, t) => s + (t.quantity_sold || 0), 0);
   const eventStatus = event.status || "published";
 
@@ -204,12 +234,24 @@ export default function EventWorkspacePage() {
         </div>
         <div className="ev-header-stats">
           <div className="ev-header-stat">
-            <span className="ev-header-stat-value">{totalSold}/{totalCapacity || "—"}</span>
-            <span className="ev-header-stat-label">Sold</span>
+            <span className="ev-header-stat-value">{capacityLabel({ ...capacity, sold: totalSold })}</span>
+            <span className="ev-header-stat-label">
+              {capacity.hasKills ? "Sold / sellable of room" : "Sold"}
+            </span>
           </div>
           <div className="ev-header-stat">
-            <span className="ev-header-stat-value">{formatCurrency(grossRevenue)}</span>
-            <span className="ev-header-stat-label">Gross</span>
+            <span
+              className="ev-header-stat-value"
+              style={grossState === "ok" ? undefined : { color: "rgba(255,255,255,0.35)" }}
+            >
+              {grossState === "ok" ? formatCurrency(grossRevenue)
+                : grossState === "loading" ? "…"
+                : grossState === "denied" ? "Hidden"
+                : "Unavailable"}
+            </span>
+            <span className="ev-header-stat-label">
+              {grossState === "denied" ? "Gross — no access" : "Gross"}
+            </span>
           </div>
           <div className="ev-header-stat">
             <span className="ev-header-stat-value">{daysOut(event.date)}</span>

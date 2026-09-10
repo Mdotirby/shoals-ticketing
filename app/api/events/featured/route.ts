@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 
+// PUBLIC BY DESIGN — the storefront's featured show.
+
 // GET /api/events/featured
 // Returns the site-wide "featured" event for the header CTA — always a
 // published, upcoming, paid hard-ticket event. No stored flag and no cron:

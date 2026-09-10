@@ -1,5 +1,9 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
+
+// POST IS PUBLIC BY DESIGN — the storefront recording a page view. The GET
+// beside it returns the analytics and is staff-only.
 
 // POST: track a page view for an event (public, anonymous)
 export async function POST(
@@ -28,6 +32,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Page-view analytics. The POST beside it is the storefront recording a
+  // view and stays open.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   try {
     const { id } = await params;
     const admin = createAdminClient();

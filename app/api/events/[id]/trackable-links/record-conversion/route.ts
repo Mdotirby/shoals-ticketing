@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
+// PUBLIC BY DESIGN — the storefront recording that a tracked link
+// converted. Write-only and attributable to nothing but the link.
+
 // POST: record a conversion for a trackable link (called during checkout)
 export async function POST(
   request: Request,

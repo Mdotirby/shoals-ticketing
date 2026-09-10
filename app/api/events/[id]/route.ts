@@ -1,5 +1,19 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
+
+// GET IS PUBLIC BY DESIGN — the storefront's event detail. PUT and DELETE
+// are guarded below.
+
+/**
+ * AUTH ON /api/events/* — see the note on each handler.
+ *
+ * Every route under /api/events was unauthenticated and used the service-role
+ * client, which bypasses RLS. Reads the storefront genuinely needs stay open
+ * and say so; everything that writes, or that exposes money or inventory, is
+ * guarded. This is the same hole 8a4fa41 closed for /api/admin/*, in the
+ * namespace that hosts the PUT the publish button calls.
+ */
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +75,11 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Anyone could edit any event, including its price, its status and its
+  // on-sale time. The publish button on the event workspace calls this.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();
@@ -153,6 +172,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Destructive and was open to the world.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 

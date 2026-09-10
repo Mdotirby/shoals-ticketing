@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
+import { requireCapability } from "@/lib/auth/can";
 
 // GET /api/events/[id]/holds — list active (unreleased) holds for an event.
 // Manual bookkeeping only: these rows record that someone set tickets aside
@@ -8,6 +10,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Inventory withheld from sale — staff only.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
@@ -35,6 +41,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 
+  const guard = await requireCapability("holds", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();

@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { slugify } from "@/lib/slugify";
 import { isEventPast, eventDayISO } from "@/lib/dates";
+import { requireStaff } from "@/lib/auth/can";
+
+// GET IS PUBLIC BY DESIGN — the storefront listing. POST is guarded below.
 
 export async function GET(request) {
   const admin = createAdminClient();
@@ -147,6 +150,12 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  // Creating an event was open to the world: anyone could POST a show onto the
+  // calendar and, until item 8, straight onto the storefront. GET stays open —
+  // it is the storefront listing.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const body = await request.json();
 

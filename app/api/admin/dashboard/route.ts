@@ -2,6 +2,7 @@ import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { HARD_TICKET_TYPES_ARRAY } from "@/lib/eventClass";
 import { fetchAll } from "@/lib/supabase/fetchAll";
+import { resolveCapacity } from "@/lib/capacity";
 import { NextResponse } from "next/server";
 
 /**
@@ -265,18 +266,48 @@ export async function GET(request: Request) {
     // This was an N+1 inside an `await`: five events meant ten serial round
     // trips after the ten parallel ones above.
     const upcomingIds = (upcomingEventsRes.data ?? []).map((e) => e.id);
-    const { data: capacityRows } = upcomingIds.length
-      ? await admin.from("ticket_tiers").select("event_id, capacity").in("event_id", upcomingIds)
-      : { data: [] };
-    const capacityByEvent: Record<string, number> = {};
-    for (const t of capacityRows ?? []) {
-      capacityByEvent[t.event_id] = (capacityByEvent[t.event_id] || 0) + (Number(t.capacity) || 0);
+    // Room capacity and holds travel with the tiers now — see lib/capacity.ts
+    // for why the room and the sellable cap are two numbers, not one.
+    const [capacityRes, holdsRes, roomRes] = upcomingIds.length
+      ? await Promise.all([
+          admin.from("ticket_tiers").select("event_id, capacity").in("event_id", upcomingIds),
+          admin.from("event_holds").select("event_id, quantity, released_at").in("event_id", upcomingIds),
+          admin.from("events").select("id, event_venue_id, event_venues(capacity)").in("id", upcomingIds),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+    const tiersByEvent: Record<string, { capacity: number }[]> = {};
+    for (const t of capacityRes.data ?? []) {
+      (tiersByEvent[t.event_id] ??= []).push({ capacity: Number(t.capacity) || 0 });
+    }
+    const holdsByEvent: Record<string, { quantity: number; released_at: string | null }[]> = {};
+    // event_holds is empty in production and the table may not exist on every
+    // environment; a failure here must not take the dashboard down.
+    for (const h of holdsRes.data ?? []) {
+      (holdsByEvent[h.event_id] ??= []).push({
+        quantity: Number(h.quantity) || 0,
+        released_at: h.released_at ?? null,
+      });
+    }
+    const roomByEvent: Record<string, number | null> = {};
+    // PostgREST types an embedded to-one join as an array, so it is read
+    // defensively rather than asserted into the shape we expect.
+    for (const row of roomRes.data ?? []) {
+      const e = row as { id: string; event_venues?: unknown };
+      const joined = Array.isArray(e.event_venues) ? e.event_venues[0] : e.event_venues;
+      const cap = (joined as { capacity?: number | null } | null | undefined)?.capacity;
+      roomByEvent[e.id] = typeof cap === "number" ? cap : null;
     }
 
     const upcomingEvents = (upcomingEventsRes.data ?? []).map((ev) => {
       const sold = soldByEvent[ev.id] || 0;
       const paid = paidByEvent[ev.id] || 0;
-      const totalCapacity = capacityByEvent[ev.id] || 0;
+      const cap = resolveCapacity({
+        roomCapacity: roomByEvent[ev.id],
+        tiers: tiersByEvent[ev.id],
+        holds: holdsByEvent[ev.id],
+        sold,
+      });
       return {
         id: ev.id,
         title: ev.title,
@@ -285,12 +316,19 @@ export async function GET(request: Request) {
         image_url: ev.image_url,
         ticketsSold: sold,
         revenue: round(revenueByEventMap[ev.id] || 0),
-        totalCapacity,
+        // `totalCapacity` keeps its name and its meaning — the SELLABLE cap —
+        // because that is what it has always been here and what sell-through
+        // divides by. `roomCapacity` is the new, separate number.
+        totalCapacity: cap.sellable,
+        roomCapacity: cap.room,
+        heldSeats: cap.held,
         // Sell-through counts every seat that is gone, comps included — a
-        // comped seat is not available to sell. Average ticket divides FACE
-        // VALUE by PAID tickets: gross would let fees and tax inflate it, and
-        // including comps would drag it toward zero.
-        sellThrough: totalCapacity > 0 ? Math.round((sold / totalCapacity) * 1000) / 10 : 0,
+        // comped seat is not available to sell — against the SELLABLE cap.
+        // Measuring it against the room counts seats nobody was allowed to
+        // sell as unsold inventory. Average ticket divides FACE VALUE by PAID
+        // tickets: gross would let fees and tax inflate it, and including
+        // comps would drag it toward zero.
+        sellThrough: cap.sellThrough,
         avgTicket: paid > 0 ? round((faceByEventMap[ev.id] || 0) / paid) : 0,
       };
     });
@@ -334,7 +372,7 @@ export async function GET(request: Request) {
       eventTitle: ((o.events as { title: string }) || {}).title || "Unknown",
     }));
 
-    const totalCapacity = Object.values(capacityByEvent).reduce((s, c) => s + c, 0);
+    const totalCapacity = upcomingEvents.reduce((s, e) => s + e.totalCapacity, 0);
 
     // "9 of 14" in the hero: how many events in the band have actually sold
     // something, against every event on the books — the second number includes

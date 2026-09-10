@@ -1,11 +1,16 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
 
 // PATCH /api/events/[id]/holds/[holdId] — release a hold (sets released_at).
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; holdId: string }> }
 ) {
+  // Releasing a hold puts seats back on sale.
+  const guard = await requireCapability("holds", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { holdId } = await params;
   const admin = createAdminClient();
 
