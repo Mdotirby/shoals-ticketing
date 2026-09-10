@@ -225,12 +225,21 @@ export async function POST(request: Request) {
       order_id: order.id,
       event_id,
       venue_id: event.venue_id || null,
+      // A free ticket has no money in it at all: no face value, no service or
+      // facility fee, and no processing fee, because there was no charge.
+      // Every column is a real, written zero rather than a gap — 152 rows
+      // predating this recorded a NEGATIVE face value (-$978.10 in total) and
+      // $1,002 of platform fee revenue nobody ever paid, because the fee was
+      // subtracted from a gross of zero. See lib/settlement/ledger.ts.
       gross_amount: 0,
       ticket_revenue: 0,
       ticketing_fee: 0,
+      facility_fee: 0,
       venue_rebate: 0,
       tax_collected: 0,
       stripe_fee: 0,
+      stripe_fee_actual: 0,
+      stripe_net: 0,
       net_to_venue: 0,
       net_to_platform: 0,
       type: "sale",

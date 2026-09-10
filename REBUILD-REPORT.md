@@ -299,19 +299,40 @@ inventing a surcharge and a service fee the buyer never paid.
 `mode=recalculate` keeps the original purpose as an in-place UPDATE that
 leaves the Stripe actuals alone.
 
+### Comps and free tickets — corrected 2026-09-10
+
+Matt's rule, confirmed: **a comp or free ticket is $0 gross, no fees, no
+processing fee.** 152 ledger rows disagreed. Every one had `gross_amount = 0`,
+and the old arithmetic subtracted a service and facility fee from that zero:
+
+| column | was | now |
+|---|---|---|
+| `ticket_revenue` | −$978.10 | $0.00 |
+| `ticketing_fee` | $1,002.00 | $0.00 |
+| `facility_fee` | $24.00 | $0.00 |
+| `tax_collected` | −$93.48 | $0.00 |
+| `stripe_fee` | $45.58 | $0.00 |
+| `net_to_venue` | −$1,071.58 | $0.00 |
+| `net_to_platform` | $1,002.00 | $0.00 |
+
+The headline was the negative face value, but `net_to_platform` was the worse
+number: **$1,002 of platform fee revenue booked against tickets the buyer paid
+nothing for.** All 152 rows updated; 0 rows with a negative `ticket_revenue`
+remain, 0 $0-gross rows carry a non-zero component.
+
+Enforced in three places now so it cannot recur: `computeLedgerAmounts()`
+short-circuits at `totalAmount <= 0`, and `api/checkout/free` and
+`api/admin/comps` write every column as an explicit zero rather than omitting
+it.
+
 ### Open — NOT fixed, needs a decision
 
-**152 ledger rows carry a negative `ticket_revenue`, totalling −$978.10.**
+~~**152 ledger rows carry a negative `ticket_revenue`, totalling −$978.10.**~~
 Every one has `gross_amount = 0` — they are comps and free tickets. The old
 arithmetic subtracted a service and facility fee from a gross of zero, so a
 $0 comp was recorded as −$22.18 of face value. `computeLedgerAmounts` now
 returns zeros for a $0 order (matching what `api/admin/comps` and
-`api/checkout/free` write at the point of sale), so no new ones can appear —
-but the 152 existing rows are unchanged, and they net −$978.10 off any report
-that sums `ticket_revenue`. **This lands squarely on item 6**, which repoints
-the dashboard at `settlement_ledger`. The correction is a targeted UPDATE of
-those 152 rows to zeros; it writes financial records, so it is being left for
-an explicit go-ahead.
+`api/checkout/free` write at the point of sale). **Done — see above.**
 
 **~$19 of cents-level variance on 4 rows of one 2026-06 event**
 (`Muscle Shoals Meets: The 90's`) and a few cents each across ~200 others,
