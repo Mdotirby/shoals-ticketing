@@ -60,6 +60,7 @@ export default function AdminCreateEventPage() {
     description: "",
     image_url: "",
     event_type: "hard_ticket",
+    deal_type: "own_risk",
     booking_status: "confirmed",
     contact_name: "",
     contact_phone: "",
@@ -295,6 +296,7 @@ export default function AdminCreateEventPage() {
           is_free: isFree,
           on_sale_at: onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}:00` : null,
           event_type: form.event_type,
+          deal_type: form.deal_type,
           booking_status: form.booking_status,
           contact_name: form.contact_name || null,
           contact_phone: form.contact_phone || null,
@@ -404,10 +406,10 @@ export default function AdminCreateEventPage() {
       if (form.event_type === "private") {
         // Private events → management hub (billing, client details, attachments)
         router.push(`/admin/private-events/${event.id}`);
-      } else if (form.event_type === "co_promote") {
+      } else if (form.deal_type === "co_promote") {
         // Co-promote → offer creation pre-linked to this event (VS deal)
         router.push(`/admin/offers/new?event_id=${event.id}&event_date=${form.date}&deal_type=VS`);
-      } else if (form.event_type === "rental_box_office") {
+      } else if (form.deal_type === "rental_box_office") {
         // Rental / Box Office → offer creation pre-linked (FLAT fee deal)
         router.push(`/admin/offers/new?event_id=${event.id}&event_date=${form.date}&deal_type=FLAT`);
       } else {
@@ -421,6 +423,13 @@ export default function AdminCreateEventPage() {
   };
 
   const isHardTicket = isHardTicketType(form.event_type);
+  /* The picker shows five buttons across two axes now: three classes, plus
+     Co-Promote and Rental which are deal structures on a hard_ticket show.
+     This is which button reads as selected. */
+  const selectedTypeValue =
+    form.deal_type === "co_promote" || form.deal_type === "rental_box_office"
+      ? form.deal_type
+      : form.event_type;
   const isPrivate = form.event_type === "private";
 
   return (
@@ -438,20 +447,32 @@ export default function AdminCreateEventPage() {
               { value: "hard_ticket",        label: "Hard Ticket",        color: "#ffffff",           bg: "rgba(255, 255, 255, 0.1)" },
               { value: "non_ticketed",        label: "Non-Ticketed",       color: "rgba(100,149,237,0.9)", bg: "rgba(100,149,237,0.1)" },
               { value: "private",             label: "Private Event",      color: "rgba(180,100,200,0.9)", bg: "rgba(180,100,200,0.1)" },
+              // Co-Promote and Rental keep their own buttons — the operator
+              // still picks "what kind of show is this" in one place — but they
+              // now set event_type + deal_type rather than a class of their own
+              // (ADMIN_MERGE_PLAN.md § 9.1). Same UX, correct data. The numbered
+              // Setup / Tickets / On-sale rebuild of this form is item 8.
               { value: "co_promote",          label: "Co-Promote",         color: "rgba(255,140,0,0.9)",   bg: "rgba(255,140,0,0.1)" },
               { value: "rental_box_office",   label: "Rental / Box Office", color: "rgba(80,200,220,0.9)", bg: "rgba(80,200,220,0.1)" },
             ].map((opt) => (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setForm({ ...form, event_type: opt.value })}
+                onClick={() => {
+                  const isDeal = opt.value === "co_promote" || opt.value === "rental_box_office";
+                  setForm({
+                    ...form,
+                    event_type: isDeal ? "hard_ticket" : opt.value,
+                    deal_type: isDeal ? opt.value : "own_risk",
+                  });
+                }}
                 style={{
                   flex: "1 1 auto",
                   padding: "10px 14px",
                   borderRadius: 8,
-                  border: `1px solid ${form.event_type === opt.value ? opt.color : "rgba(255,255,255,0.1)"}`,
-                  background: form.event_type === opt.value ? opt.bg : "transparent",
-                  color: form.event_type === opt.value ? opt.color : "rgba(255,255,255,0.5)",
+                  border: `1px solid ${selectedTypeValue === opt.value ? opt.color : "rgba(255,255,255,0.1)"}`,
+                  background: selectedTypeValue === opt.value ? opt.bg : "transparent",
+                  color: selectedTypeValue === opt.value ? opt.color : "rgba(255,255,255,0.5)",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -463,9 +484,9 @@ export default function AdminCreateEventPage() {
               </button>
             ))}
           </div>
-          {(form.event_type === "co_promote" || form.event_type === "rental_box_office") && (
+          {(form.deal_type === "co_promote" || form.deal_type === "rental_box_office") && (
             <p style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-              {form.event_type === "co_promote"
+              {form.deal_type === "co_promote"
                 ? "After creating this event you'll be taken to the offer builder to set deal terms (split %, guarantee, expenses)."
                 : "After creating this event you'll be taken to the offer builder to set the flat rental fee and deal terms."}
             </p>

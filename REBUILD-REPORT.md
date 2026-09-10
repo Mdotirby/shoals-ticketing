@@ -59,21 +59,105 @@ thing not verifiable locally is that the guards still admit real staff.
 
 ---
 
-## Event model — a window that closes
+## Decisions taken
+
+| Question | Answer |
+|---|---|
+| § 8.1 `read_only` as a scope | Moot — zero such users in production. Decide at leisure or retire the role |
+| § 8.2 password override emails the user | **No** |
+| § 8.3 gross revenue definition | **`settlement_ledger`** |
+| § 8.4 co-promote in the hard-ticket band | **Yes** — and § 9.1 reaches it by construction, see below |
+| Nav grouping | **Keep the repo's**, by workflow moment. At 6pm you are in Day of Show; on Monday you are in Finance. Object-type grouping is how a developer thinks about the schema, not how a venue runs. The mockup's *Storefront* and *Reference* groups are document artefacts and are dropped entirely |
+| § 9.1 event model | **Taken now**, while the backfill matches zero rows |
+
+### Standing instructions
+
+- **Offer tab keys stay verbatim** — `details` / `pnl` / `deal_lab`. They are in
+  `useState` at `offers/[id]/page.tsx:60` and likely in URL state. Do not rename
+  them to display labels when that screen is rebuilt.
+- **Deal lab** exists in production as a tab with no mockup counterpart; the
+  design for it is four levers with a live venue-net readout, explicitly
+  non-writing until a scenario is copied across.
+- **Create a show** becomes numbered Setup / Tickets / On-sale & fees, with the
+  money rail and the Publish gate persistent across all three — deliberately not
+  a tab you can skip, because the sellout math and the publish precondition live
+  there.
+
+---
+
+## Item 6 prerequisite — gross is computed from the wrong table, in two places
+
+`/api/admin/dashboard` computes revenue as `sum(orders.total_amount)` where
+`status = 'paid'` (route.ts:74). § 8.3 says it should be `settlement_ledger`.
+
+The catch: **the event workspace reads the same endpoint.**
+`app/admin/events/[id]/page.tsx:143` calls
+`/api/admin/dashboard?event_ids=${id}` and takes `totalRevenue` as that show's
+gross. So the dashboard and the workspace share one code path.
+
+That is good news if the fix goes in `app/api/admin/dashboard/route.ts` — both
+move together. It becomes a bug the moment somebody repoints the dashboard
+*page* at `settlement_ledger`, or adds a second endpoint for it, and leaves the
+route alone: the same show would then report two different grosses depending on
+which screen you were looking at. **Fix the route, not the page.**
+
+---
+
+## Event workspace — a screen the mockup does not have
+
+`app/admin/events/[id]/page.tsx` has seven tabs — overview, inventory, orders,
+settlement, marketing, guestlist, access — four of which are thin panels that
+link out to dedicated pages. That is a good pattern: one place per show that
+gathers everything without duplicating it.
+
+**The mockup has no equivalent screen.** Create a show and the Ticket builder
+are not substitutes — they are creation and configuration surfaces, not a place
+to stand while a show is live.
+
+**Proposal:** flag it, restyle it onto the shared vocabulary when Phase 1
+reaches it, and leave the tab structure alone. Redesigning it deserves its own
+pass with a design behind it, not an inference from screens built for other
+jobs.
+
+---
+
+## Event model — taken (§ 9.1)
 
 `ADMIN_MERGE_PLAN.md` § 9.1 proposes dropping `co_promote` and
 `rental_box_office` as event *classes*, making them `deal_type` on a ticketed
 show, and adding one genuinely new class, `external_promotion`, for shows
 promoted off-platform.
 
-**Production has zero rows of either type**, so that restructure has nothing to
-migrate today. It will never be cheaper. It gets expensive the moment someone
-creates the first co-promote show.
+**Done.** `plans/event-deal-type-migration.sql` — not yet run.
 
-Worth doing **before item 6**, because the Dashboard's hard-ticket band
-definition depends on which model is in place, and building the band twice is
-the waste. `lib/eventClass.ts` already separates `isHardTicket()` from
-`settlesToThirdParty()` so the two questions can't be answered by accident.
+`event_type` is now five classes (co_promote and rental_box_office removed,
+`external_promotion` added); `deal_type` is four values on the show. The band
+filters on class, so a co-promoted show is in — it is our inventory and our box
+office — and an external promotion is out.
+
+The create form keeps its five buttons, so the operator still picks "what kind
+of show is this" in one place, but Co-Promote and Rental now set
+`event_type: hard_ticket` + `deal_type`, rather than a class of their own.
+Routing to the offer builder reads `deal_type` now. Call counts unchanged.
+
+**Two things flagged, not decided:**
+
+- **Naming collision.** `artist_offers.deal_type` already exists and means
+  something else — `VS` / `FLAT` / `PLUS` / `BONUS`, the artist *payment*
+  structure. The new column is the venue-side risk model. Two axes, one name,
+  on related tables — the same conflation § 9.1 untangles, one level up. Named
+  per the plan; `promotion_model` would read less ambiguously if it is ever
+  revisited. The TypeScript types are named apart (`EventDealType`) so a file
+  importing both can tell them apart.
+- **`guarantee` as a value.** own_risk / co_promote / rental_box_office all
+  describe whose money is at stake. A guarantee describes how the artist is
+  paid — which is what `artist_offers.deal_type` already records. Kept because
+  § 9.1 lists it, but worth deciding whether it belongs on this axis before
+  anything writes it.
+
+No UI for `external_promotion`. Creating one needs a Create-a-show branch that
+skips tiers, fees and on-sale entirely — that belongs with item 8. The class and
+its columns exist so that screen has something to write to.
 
 ---
 
