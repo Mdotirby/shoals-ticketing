@@ -1,9 +1,28 @@
 "use client";
 
+/**
+ * Guest Lists — rebuilt on the shared primitives (app/components/admin/ui.tsx)
+ * against design/liquid-glass/admin_guestlists.png and its mobile variant.
+ *
+ * Restyle only, both views intact: the artist view (own allocation, remaining-
+ * comp guard, multi-row add) and the organizer view (event picker, guest CRUD,
+ * artist assignments, PDF preview). Every Supabase call, the comp-limit checks
+ * and the print flow are unchanged.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
 import PDFPreviewModal from "@/app/components/admin/PDFPreviewModal";
+import {
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  Field,
+  PageHeader,
+  Pill,
+} from "@/app/components/admin/ui";
 
 /* ── Types ── */
 type EventRow = { id: string; title: string; date: string; venue: string };
@@ -26,7 +45,7 @@ type PreviewState = {
   rows: Array<{ name: string; quantity: number }>;
 };
 
-import { safeDate, formatEventDateShort } from "@/lib/dates";
+import { formatEventDateShort } from "@/lib/dates";
 
 function slugDate(d: string) {
   return formatEventDateShort(d);
@@ -144,10 +163,10 @@ export default function GuestListsPage() {
 
   if (loading) {
     return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Guest Lists</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>
-      </div>
+      <>
+        <PageHeader title="Guest Lists" />
+        <p className="ui-intro">Loading…</p>
+      </>
     );
   }
 
@@ -160,10 +179,10 @@ export default function GuestListsPage() {
   }
 
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">Guest Lists</h1>
-      <p style={{ color: "rgba(255,255,255,0.5)" }}>Not authenticated.</p>
-    </div>
+    <>
+      <PageHeader title="Guest Lists" />
+      <p className="ui-intro">Not authenticated.</p>
+    </>
   );
 }
 
@@ -289,177 +308,149 @@ function ArtistGuestListView({ artistId }: { artistId: string }) {
 
   if (!tablesExist) {
     return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Guest Lists</h1>
-        <div style={{ padding: "20px", background: "rgba(255,200,50,0.08)", border: "1px solid rgba(255,200,50,0.2)", borderRadius: 8 }}>
-          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>Guest list tables not found.</p>
-          <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
+      <>
+        <PageHeader title="Guest Lists" />
+        <Card>
+          <p style={{ color: "#ffc832", margin: 0, fontWeight: 700 }}>Guest list tables not found.</p>
+          <p style={{ color: "rgba(255,255,255,0.5)", margin: "8px 0 0", fontSize: 12.5 }}>
             Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.
           </p>
-        </div>
-      </div>
+        </Card>
+      </>
     );
   }
 
   if (assignments.length === 0) {
     return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Guest Lists</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>
-          You have no events assigned. Contact the venue admin to be assigned to an event.
-        </p>
-      </div>
+      <>
+        <PageHeader title="Guest Lists" />
+        <Card>
+          <EmptyState
+            title="No events assigned"
+            description="Contact the venue admin to be assigned to an event."
+          />
+        </Card>
+      </>
     );
   }
 
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">My Guest List</h1>
+    <>
+      <PageHeader title="My Guest List" />
 
       {assignments.length > 1 && (
-        <div style={{ marginBottom: 24 }}>
-          <label className="admin-form-label">
-            Select Event
-            <select
-              className="admin-form-input"
-              value={selectedEventId ?? ""}
-              onChange={(e) => setSelectedEventId(e.target.value)}
-            >
+        <div style={{ maxWidth: 420, marginBottom: 16 }}>
+          <Field label="Select event">
+            <select value={selectedEventId ?? ""} onChange={(e) => setSelectedEventId(e.target.value)}>
               {assignments.map((a) => (
                 <option key={a.event_id} value={a.event_id}>
                   {a.events.title} — {slugDate(a.events.date)}
                 </option>
               ))}
             </select>
-          </label>
+          </Field>
         </div>
       )}
 
       {selectedAssignment && (
-        <div
-          style={{
-            marginBottom: 20,
-            padding: "12px 16px",
-            background: "rgba(255, 255, 255, 0.08)",
-            borderRadius: 8,
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-          }}
-        >
-          <strong style={{ color: "#ffffff" }}>{selectedAssignment.events.title}</strong>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
+        <Card>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>
+            {selectedAssignment.events.title}
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.44)", marginTop: 4 }}>
             {slugDate(selectedAssignment.events.date)} · {selectedAssignment.events.venue}
-          </span>
-          <div style={{ marginTop: 6, fontSize: 13 }}>
-            <span style={{ color: remaining > 0 ? "#ffffff" : "#ff6b6b" }}>
+          </div>
+          <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+            <Pill tone={remaining > 0 ? "good" : "bad"}>
               {remaining} comp{remaining !== 1 ? "s" : ""} remaining
-            </span>
-            <span style={{ color: "rgba(255,255,255,0.35)", marginLeft: 8 }}>
+            </Pill>
+            <span className="ui-rowstat">
               ({usedComps} of {selectedAssignment.comp_limit} used)
             </span>
           </div>
-        </div>
+        </Card>
       )}
 
       {remaining > 0 && (
-        <div className="admin-form" style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>Add Guests</h2>
-          {error && <div className="admin-form-error">{error}</div>}
-          <div className="admin-tiers-list" style={{ marginTop: 8 }}>
+        <div style={{ marginTop: 16 }}>
+          <Card title="Add guests">
+            {error && <p style={{ color: "var(--lg-bad)", fontSize: 12.5, marginBottom: 10 }}>{error}</p>}
             {newGuests.map((g, i) => (
-              <div key={i} className="admin-tier-row" style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+              <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
                 <input
                   type="text"
-                  className="admin-form-input"
                   value={g.first_name}
                   onChange={(e) => updateNewGuest(i, "first_name", e.target.value)}
-                  placeholder="First Name"
-                  style={{ flex: 2 }}
+                  placeholder="First name"
+                  style={{ flex: 2, minWidth: 130 }}
                 />
                 <input
                   type="text"
-                  className="admin-form-input"
                   value={g.last_name}
                   onChange={(e) => updateNewGuest(i, "last_name", e.target.value)}
-                  placeholder="Last Name"
-                  style={{ flex: 2 }}
+                  placeholder="Last name"
+                  style={{ flex: 2, minWidth: 130 }}
                 />
                 <input
                   type="number"
-                  className="admin-form-input"
                   value={g.quantity}
                   min={1}
                   max={remaining}
                   onChange={(e) => updateNewGuest(i, "quantity", Math.max(1, parseInt(e.target.value) || 1))}
-                  style={{ width: 60, flex: "none" }}
                   placeholder="Qty"
+                  style={{ width: 72, flex: "none" }}
                 />
                 {newGuests.length > 1 && (
-                  <button type="button" className="admin-tier-remove-btn" onClick={() => removeGuestRow(i)}>✕</button>
+                  <Button variant="ghost" size="sm" onClick={() => removeGuestRow(i)}>
+                    Remove
+                  </Button>
                 )}
               </div>
             ))}
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button type="button" className="admin-tier-add-btn" onClick={addGuestRow} style={{ fontSize: 12 }}>
-              + add guest
-            </button>
-            <button className="admin-form-submit" onClick={addGuests} disabled={saving} style={{ padding: "8px 20px" }}>
-              {saving ? "Saving…" : "Save All"}
-            </button>
-          </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              <Button variant="outline" size="sm" onClick={addGuestRow}>
+                + Add row
+              </Button>
+              <Button variant="primary" size="sm" onClick={addGuests} disabled={saving}>
+                {saving ? "Saving…" : "Save All"}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 
       {guests.length > 0 && (
-        <div>
-          <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600, color: "#fff" }}>
-            Current Guest List ({guests.length} {guests.length === 1 ? "entry" : "entries"})
-          </h2>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <th style={{ textAlign: "left", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>Name</th>
-                <th style={{ textAlign: "center", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>Qty</th>
-                <th style={{ width: 40 }} />
-              </tr>
-            </thead>
-            <tbody>
+        <div style={{ marginTop: 16 }}>
+          <Card
+            title="Current guest list"
+            count={`${guests.length} ${guests.length === 1 ? "entry" : "entries"}`}
+            flush
+          >
+            <DataTable columns={["Name", "Qty", ""]}>
               {guests.map((g) => (
-                <tr key={g.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <td style={{ padding: "10px 12px", color: "#fff" }}>
+                <tr key={g.id}>
+                  <td>
                     {g.first_name} {g.last_name}
                   </td>
-                  <td style={{ padding: "10px 12px", textAlign: "center", color: "#ffffff" }}>
-                    {g.quantity}
-                  </td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <button
-                      onClick={() => removeGuest(g.id)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "rgba(255,100,100,0.7)",
-                        cursor: "pointer",
-                        fontSize: 16,
-                      }}
-                      aria-label="Remove guest"
-                    >
-                      ✕
-                    </button>
+                  <td>{g.quantity}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <Button variant="danger" size="sm" onClick={() => removeGuest(g.id)}>
+                      Remove
+                    </Button>
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+            </DataTable>
+          </Card>
         </div>
       )}
 
       {guests.length === 0 && remaining <= 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>
-          No comps remaining for this event.
-        </p>
+        <Card>
+          <EmptyState title="No comps remaining" description="This event's allocation is used up." />
+        </Card>
       )}
-    </div>
+    </>
   );
 }
 
@@ -672,266 +663,148 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
 
   if (!tablesExist) {
     return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Guest Lists</h1>
-        <div
-          style={{
-            padding: "20px",
-            background: "rgba(255,200,50,0.08)",
-            border: "1px solid rgba(255,200,50,0.2)",
-            borderRadius: 8,
-          }}
-        >
-          <p style={{ color: "#ffc832", margin: 0, fontWeight: 600 }}>
-            Guest list tables not found.
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.6)", margin: "8px 0 0", fontSize: 13 }}>
+      <>
+        <PageHeader title="Guest Lists" />
+        <Card>
+          <p style={{ color: "#ffc832", margin: 0, fontWeight: 700 }}>Guest list tables not found.</p>
+          <p style={{ color: "rgba(255,255,255,0.5)", margin: "8px 0 0", fontSize: 12.5 }}>
             Please run the <code>artist-role-guest-list-migration.sql</code> migration in Supabase.
           </p>
-        </div>
-      </div>
+        </Card>
+      </>
     );
   }
 
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">Guest Lists</h1>
+    <>
+      <PageHeader title="Guest Lists" />
 
-      {loading && <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>}
+      {loading && <p className="ui-intro">Loading…</p>}
 
       {!loading && events.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>No events found.</p>
+        <Card>
+          <EmptyState title="No events found" />
+        </Card>
       )}
 
       {!loading && events.length > 0 && (
         <>
-          {/* ── Event Selector ── */}
-          <div style={{ marginBottom: 24 }}>
-            <label className="admin-form-label">
-              Select Event
-              <select
-                className="admin-form-input"
-                value={selectedEventId}
-                onChange={(e) => setSelectedEventId(e.target.value)}
-              >
+          <div style={{ maxWidth: 420, marginBottom: 16 }}>
+            <Field label="Select event">
+              <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)}>
                 {events.map((ev) => (
                   <option key={ev.id} value={ev.id}>
                     {ev.title} — {slugDate(ev.date)}
                   </option>
                 ))}
               </select>
-            </label>
+            </Field>
           </div>
 
-          {/* ── Event Info Bar ── */}
           {selectedEvent && (
-            <div
-              style={{
-                marginBottom: 20,
-                padding: "12px 16px",
-                background: "rgba(255, 255, 255, 0.08)",
-                borderRadius: 8,
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flexWrap: "wrap",
-                gap: 10,
-              }}
-            >
-              <div>
-                <strong style={{ color: "#ffffff" }}>{selectedEvent.title}</strong>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, marginLeft: 12 }}>
-                  {slugDate(selectedEvent.date)} · {selectedEvent.venue}
-                </span>
-                <div style={{ marginTop: 4, fontSize: 13, color: "#ffffff" }}>
-                  {totalGuests} guest{totalGuests !== 1 ? "s" : ""} on list
+            <Card>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{selectedEvent.title}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.44)", marginTop: 4 }}>
+                    {slugDate(selectedEvent.date)} · {selectedEvent.venue} · {totalGuests} guest
+                    {totalGuests !== 1 ? "s" : ""} on list
+                  </div>
                 </div>
+                <Button variant="primary" onClick={openPreview} disabled={totalGuests === 0}>
+                  Print Guest List
+                </Button>
               </div>
-              <button
-                className="admin-header-btn"
-                onClick={openPreview}
-                disabled={totalGuests === 0}
-                style={{ opacity: totalGuests === 0 ? 0.4 : 1 }}
-              >
-                Print Guest List
-              </button>
-            </div>
+            </Card>
           )}
 
-          {/* ── Add Guest Form ── */}
-          <div className="admin-form" style={{ marginBottom: 24 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>Add Guest</h2>
-            {guestError && <div className="admin-form-error">{guestError}</div>}
-            <div className="admin-form-grid">
-              <label className="admin-form-label">
-                First Name
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newGuest.first_name}
-                  onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
-                  placeholder="Jane"
-                />
-              </label>
-              <label className="admin-form-label">
-                Last Name
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newGuest.last_name}
-                  onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
-                  placeholder="Smith"
-                />
-              </label>
-              <label className="admin-form-label">
-                Quantity
-                <input
-                  type="number"
-                  className="admin-form-input"
-                  value={newGuest.quantity}
-                  min={1}
-                  max={50}
-                  onChange={(e) =>
-                    setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })
-                  }
-                />
-              </label>
-            </div>
-            <button className="admin-form-submit" onClick={addGuest} disabled={saving}>
-              {saving ? "Adding…" : "+ Add Guest"}
-            </button>
-          </div>
+          <div className="ui-grid ui-grid-2" style={{ marginTop: 16, alignItems: "start" }}>
+            <Card title="Add guest">
+              {guestError && (
+                <p style={{ color: "var(--lg-bad)", fontSize: 12.5, marginBottom: 10 }}>{guestError}</p>
+              )}
+              <div className="ui-grid ui-grid-2">
+                <Field label="First name">
+                  <input
+                    type="text"
+                    value={newGuest.first_name}
+                    onChange={(e) => setNewGuest({ ...newGuest, first_name: e.target.value })}
+                    placeholder="Jane"
+                  />
+                </Field>
+                <Field label="Last name">
+                  <input
+                    type="text"
+                    value={newGuest.last_name}
+                    onChange={(e) => setNewGuest({ ...newGuest, last_name: e.target.value })}
+                    placeholder="Smith"
+                  />
+                </Field>
+              </div>
+              <div style={{ maxWidth: 160 }}>
+                <Field label="Quantity">
+                  <input
+                    type="number"
+                    value={newGuest.quantity}
+                    min={1}
+                    max={50}
+                    onChange={(e) =>
+                      setNewGuest({ ...newGuest, quantity: Math.max(1, parseInt(e.target.value) || 1) })
+                    }
+                  />
+                </Field>
+              </div>
+              <Button variant="primary" onClick={addGuest} disabled={saving}>
+                {saving ? "Adding…" : "+ Add Guest"}
+              </Button>
+            </Card>
 
-          {/* ── Guest List Table ── */}
-          {guests.length > 0 && (
-            <div style={{ marginBottom: 32 }}>
-              <h2 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600, color: "#fff" }}>
-                Guest List ({guests.length} {guests.length === 1 ? "entry" : "entries"})
-              </h2>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                    <th style={{ textAlign: "left", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                      Name
-                    </th>
-                    <th style={{ textAlign: "center", padding: "8px 12px", color: "rgba(255,255,255,0.5)", fontWeight: 500 }}>
-                      Qty
-                    </th>
-                    <th style={{ width: 40 }} />
-                  </tr>
-                </thead>
-                <tbody>
-                  {guests.map((g) => (
-                    <tr key={g.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                      <td style={{ padding: "10px 12px", color: "#fff" }}>
-                        {g.first_name} {g.last_name}
-                      </td>
-                      <td style={{ padding: "10px 12px", textAlign: "center", color: "#ffffff" }}>
-                        {g.quantity}
-                      </td>
-                      <td style={{ padding: "10px 12px" }}>
-                        <button
-                          onClick={() => removeGuest(g.id)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "rgba(255,100,100,0.7)",
-                            cursor: "pointer",
-                            fontSize: 16,
-                          }}
-                          aria-label="Remove guest"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ── Artist Assignments for this Event ── */}
-          <div style={{ marginBottom: 40 }}>
-            <h2
-              style={{
-                margin: "0 0 16px",
-                fontFamily: "var(--font-archivo), sans-serif",
-                fontSize: "1.4rem",
-                color: "#ffffff",
-              }}
-            >
-              Artist Assignments
-            </h2>
-
-            {/* Current assignments */}
-            {artistAssignments.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-                {artistAssignments.map((a) => (
-                  <div
-                    key={a.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "10px 14px",
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      borderRadius: 8,
-                      gap: 12,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ color: "#fff", fontWeight: 500 }}>{a.artist_name}</span>
-                      {a.artist_email && (
-                        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginLeft: 8 }}>
-                          ({a.artist_email})
-                        </span>
-                      )}
-                      <span style={{ color: "#ffffff", fontSize: 12, marginLeft: 12 }}>
-                        {a.comp_limit} comps
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => removeAssignment(a.id)}
+            <Card title="Artist assignments">
+              {artistAssignments.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  {artistAssignments.map((a) => (
+                    <div
+                      key={a.id}
                       style={{
-                        background: "rgba(255,100,100,0.08)",
-                        border: "1px solid rgba(255,100,100,0.2)",
-                        borderRadius: 6,
-                        color: "rgba(255,100,100,0.8)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: "4px 12px",
-                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        padding: "10px 12px",
+                        borderRadius: "var(--lg-radius-sm)",
+                        background: "rgba(255,255,255,0.045)",
+                        border: "1px solid rgba(255,255,255,0.14)",
                       }}
                     >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ color: "#fff", fontWeight: 650, fontSize: 13 }}>{a.artist_name}</span>
+                        {a.artist_email && (
+                          <span style={{ color: "rgba(255,255,255,0.34)", fontSize: 11, marginLeft: 8 }}>
+                            ({a.artist_email})
+                          </span>
+                        )}
+                        <span className="ui-rowstat" style={{ marginLeft: 10 }}>{a.comp_limit} comps</span>
+                      </div>
+                      <Button variant="danger" size="sm" onClick={() => removeAssignment(a.id)}>
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {artistAssignments.length === 0 && (
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 16 }}>
-                No artists assigned to this event yet.
-              </p>
-            )}
+              {artistAssignments.length === 0 && (
+                <p className="ui-intro" style={{ marginTop: 0 }}>No artists assigned to this event yet.</p>
+              )}
 
-            {/* Assign artist form */}
-            {allArtists.length > 0 ? (
-              <>
-                {assignError && <div className="admin-form-error" style={{ marginBottom: 12 }}>{assignError}</div>}
-                <div className="admin-form-grid" style={{ marginBottom: 12 }}>
-                  <label className="admin-form-label">
-                    Artist
-                    <select
-                      className="admin-form-input"
-                      value={assignArtistId}
-                      onChange={(e) => setAssignArtistId(e.target.value)}
-                    >
+              {allArtists.length > 0 ? (
+                <>
+                  {assignError && (
+                    <p style={{ color: "var(--lg-bad)", fontSize: 12.5, marginBottom: 10 }}>{assignError}</p>
+                  )}
+                  <Field label="Artist">
+                    <select value={assignArtistId} onChange={(e) => setAssignArtistId(e.target.value)}>
                       <option value="">Select artist…</option>
                       {allArtists.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -939,35 +812,51 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
                         </option>
                       ))}
                     </select>
-                  </label>
-                  <label className="admin-form-label">
-                    Comp Limit
-                    <input
-                      type="number"
-                      className="admin-form-input"
-                      value={assignCompLimit}
-                      min={1}
-                      max={50}
-                      onChange={(e) =>
-                        setAssignCompLimit(Math.max(1, parseInt(e.target.value) || 4))
-                      }
-                    />
-                  </label>
-                </div>
-                <button className="admin-form-submit" onClick={handleAssign} disabled={assignSaving}>
-                  {assignSaving ? "Assigning…" : "Assign Artist"}
-                </button>
-              </>
-            ) : (
-              <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
-                No artist users found. Create artists from the{" "}
-                <a href="/portal" style={{ color: "#ffffff" }}>
-                  Portal
-                </a>{" "}
-                page first.
-              </p>
-            )}
+                  </Field>
+                  <div style={{ maxWidth: 160 }}>
+                    <Field label="Comp limit">
+                      <input
+                        type="number"
+                        value={assignCompLimit}
+                        min={1}
+                        max={50}
+                        onChange={(e) => setAssignCompLimit(Math.max(1, parseInt(e.target.value) || 4))}
+                      />
+                    </Field>
+                  </div>
+                  <Button variant="primary" onClick={handleAssign} disabled={assignSaving}>
+                    {assignSaving ? "Assigning…" : "Assign Artist"}
+                  </Button>
+                </>
+              ) : (
+                <p className="ui-intro" style={{ marginTop: 0 }}>
+                  No artist users found. Create artists from the <a href="/portal">Portal</a> page first.
+                </p>
+              )}
+            </Card>
           </div>
+
+          {guests.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <Card title="Guest list" count={`${guests.length} ${guests.length === 1 ? "entry" : "entries"}`} flush>
+                <DataTable columns={["Name", "Qty", ""]}>
+                  {guests.map((g) => (
+                    <tr key={g.id}>
+                      <td>
+                        {g.first_name} {g.last_name}
+                      </td>
+                      <td>{g.quantity}</td>
+                      <td style={{ textAlign: "right" }}>
+                        <Button variant="danger" size="sm" onClick={() => removeGuest(g.id)}>
+                          Remove
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </DataTable>
+              </Card>
+            </div>
+          )}
         </>
       )}
 
@@ -979,6 +868,6 @@ function OrganizerGuestListView({ userId }: { userId: string }) {
           onClose={() => setPreview(null)}
         />
       )}
-    </div>
+    </>
   );
 }
