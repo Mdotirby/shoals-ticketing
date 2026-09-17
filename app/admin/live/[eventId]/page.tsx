@@ -1,7 +1,20 @@
 "use client";
 
+/**
+ * Live Show Pulse (per event) — restyled onto the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_live_detail.png
+ * and admin_live_detail_mobile.png.
+ *
+ * Restyle only: the 30-second auto-refresh, the fetch, the gauges and both
+ * Recharts charts keep their existing behaviour and data. The page already
+ * borrowed the dashboard's dash-* classes, which were rebuilt in September —
+ * so this pass is the page header, the two action buttons and the chart
+ * tooltips, which were still on the old navy (#12122e).
+ */
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
+import { Button, PageHeader, StatusBadge } from "@/app/components/admin/ui";
 import Link from "next/link";
 import {
   AreaChart,
@@ -198,9 +211,7 @@ export default function LivePulsePage() {
   if (loading) {
     return (
       <div className="admin-dashboard">
-        <div className="dash-header">
-          <h1 className="admin-page-title">Live Show Pulse</h1>
-        </div>
+        <PageHeader title="Live Show Pulse" />
         <div className="dash-loading-state">
           <div className="dash-spinner" />
           <p>Connecting to live data...</p>
@@ -212,9 +223,7 @@ export default function LivePulsePage() {
   if (error || !data) {
     return (
       <div className="admin-dashboard">
-        <div className="dash-header">
-          <h1 className="admin-page-title">Live Show Pulse</h1>
-        </div>
+        <PageHeader title="Live Show Pulse" />
         <div className="dash-loading-state">
           <p>{error || "Event not found"}</p>
           <Link href="/admin" style={{ color: GOLD, textDecoration: "underline", marginTop: 12 }}>
@@ -240,36 +249,30 @@ export default function LivePulsePage() {
       `}</style>
 
       {/* ── HEADER ── */}
-      <div className="dash-header">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+      <PageHeader
+        title={
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
             <PulseDot active={autoRefresh} />
-            <h1 className="admin-page-title" style={{ margin: 0 }}>Live Show Pulse</h1>
-            {isShowDay && (
-              <span style={{
-                background: "rgba(34,197,94,0.15)", color: GREEN, fontSize: 11, fontWeight: 700,
-                padding: "3px 10px", borderRadius: 20, border: `1px solid rgba(34,197,94,0.3)`,
-                textTransform: "uppercase",
-              }}>
-                SHOW DAY
-              </span>
-            )}
-          </div>
-          <p className="dash-subtitle">{event.title} — {event.venue}</p>
-        </div>
-        <div className="dash-header-actions">
-          <button
-            type="button"
-            className={`dash-action-btn ${autoRefresh ? "dash-action-primary" : ""}`}
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
-          </button>
-          <button type="button" className="dash-action-btn" onClick={fetchData}>
-            Refresh Now
-          </button>
-        </div>
-      </div>
+            Live Show Pulse
+            {isShowDay && <StatusBadge variant="good">Show day</StatusBadge>}
+          </span>
+        }
+        sub={`${event.title} — ${event.venue}`}
+        actions={
+          <>
+            <Button
+              variant={autoRefresh ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+            >
+              {autoRefresh ? "Auto-Refresh ON" : "Auto-Refresh OFF"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={fetchData}>
+              Refresh Now
+            </Button>
+          </>
+        }
+      />
 
       {/* ── CAPACITY GAUGES ── */}
       <div className="dash-kpi-grid">
@@ -367,9 +370,9 @@ export default function LivePulsePage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#12122e",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      borderRadius: 10,
+                      background: "rgba(22,22,26,0.94)",
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      borderRadius: 14,
                       color: "#fff",
                       fontSize: 12,
                     }}
@@ -414,9 +417,9 @@ export default function LivePulsePage() {
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "#12122e",
-                      border: "1px solid rgba(255, 255, 255, 0.2)",
-                      borderRadius: 10,
+                      background: "rgba(22,22,26,0.94)",
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      borderRadius: 14,
                       color: "#fff",
                       fontSize: 12,
                     }}
