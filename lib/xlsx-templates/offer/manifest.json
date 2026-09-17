@@ -6,7 +6,7 @@
     "Multi-tier fix (confirmed with Matt): Service/Facility/CC Fees and Taxes in FINANCIAL SUMMARY now sum across ALL ticket_scaling tiers, not just tier 1 like the source sheet's own formulas did.",
     "Average ticket price (confirmed with Matt): TOTALS row PRICE = sum of tier prices / tier count, not a raw sum -- BREAKEVEN/BARE MINIMUM formulas below it read as 'tickets needed to sell', which only works with a true average price.",
     "No ORDERS column exists here at all (pre-sale projection, no real order data yet) -- the CC fee model matches the source sheet's own flat per-tier assumption (2.9% + $0.30), since ArtistOffer has no per-offer CC-rate field to bind to instead.",
-    "Backend chain matches app/admin/offers/new/page.tsx exactly: Backend = Splitpoint x Backend%; Overage = Backend - Guarantee; Artist Total Potential = max(Guarantee, Backend) for VS, Guarantee+Backend for PLUS/BONUS. This is the SAME formula shape as the Settlement fix Matt confirmed, just expressed via max() instead of floor-then-add -- mathematically identical.",
+    "Backend chain is lib/settlement/model.ts artistPayout(), the one implementation the offer builder, the offer PDF and settlements all use: Backend = Splitpoint (net potential - expenses) x Backend%; Overage = Backend - Guarantee, floored at zero; Artist Total Potential = Guarantee + Overage, i.e. the greater of the guarantee and the percentage share. Same for VS, PLUS and BONUS; FLAT is guarantee only. Derived from net potential and expenses every time -- never read from the stored artist_backend, which is the overage, and was misread here as the percentage share.",
     "pot_walkout (real ArtistOffer field) is the VENUE's potential, not the artist's -- binds to REVENUE TO VENUE / VENUE TOTAL, not anything artist-facing."
   ],
   "scalar_fields": [
@@ -69,6 +69,7 @@
 
     { "cell": "L63", "field": "artist_guarantee", "type": "currency" },
     { "cell": "L64", "field": "splitpoint", "type": "currency" },
+    { "cell": "K65", "field": "backend_percentage", "type": "percent", "note": "The deal's own rate. Was never mapped, so the template's literal 0.8 printed on every export." },
     { "cell": "L65", "field": "backend", "type": "currency" },
     { "cell": "L66", "field": "overage", "type": "currency" },
     { "cell": "L67", "field": "artist_total_potential", "type": "currency" },

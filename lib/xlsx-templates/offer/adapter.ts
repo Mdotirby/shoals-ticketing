@@ -1,15 +1,23 @@
 import type { ArtistOffer } from "@/lib/types/offer";
 import { offerSurchargePerTicket } from "@/lib/fees/rates";
+import { artistPayout } from "@/lib/settlement/model";
 
 /**
  * ArtistOffer -> the flat field map offer/manifest.json's cells expect.
  *
  * Unlike the settlement adapters, this one has no external record to look
  * up -- an Offer export IS the ArtistOffer record. Pre-computed fields
- * (gross_potential, net_potential, splitpoint, artist_backend, total_fixed/
- * variable/expenses, pot_walkout) are read directly off `offer`, matching
- * exactly how app/admin/offers/[id]/page.tsx and .../new/page.tsx already
- * compute and save them -- this function does not re-derive that math.
+ * (gross_potential, net_potential, total_fixed/variable/expenses) are read
+ * directly off `offer`, matching how app/admin/offers/[id]/page.tsx and
+ * .../new/page.tsx compute and save them.
+ *
+ * The artist walkout is the exception: splitpoint, backend, overage, artist
+ * total and revenue to venue are DERIVED here from net potential and
+ * expenses through lib/settlement/model.ts artistPayout() -- the same
+ * function the offer builder, the offer PDF and settlements rely on. The
+ * stored artist_backend / splitpoint / pot_walkout are deliberately ignored:
+ * older offers were saved under earlier versions of the model and carry
+ * values that no longer match it.
  *
  * Two things this DOES compute itself, both confirmed with Matt and NOT
  * present correctly in the source design's own formulas:
@@ -178,31 +186,39 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
 
   const guarantee = offer.guarantee || 0;
   const backendPct = (Number(offer.backend_percentage) || 0) / 100;
-  // "Splitpoint" on this document means the pool the backend % applies to
-  // (net potential minus expenses) -- NOT offer.splitpoint, which
-  // app/admin/offers/new/page.tsx deliberately defines as just the
-  // guarantee (the threshold the show must clear, unified with the
-  // settlement page's terminology), a different, real concept that
-  // happens to share the same field name. net_potential and total_expenses
-  // are both already real, correct values -- this is just their
-  // difference, not new business logic.
+  const dealType = String(offer.deal_type || "FLAT").toUpperCase();
+
+  // Splitpoint on this document is the pool the backend % applies to: net
+  // potential minus expenses. That is the offer builder's definition too.
   const netAfterExpenses = net_potential - total_expenses;
-  // Matches app/admin/offers/new/page.tsx exactly: Backend = (pool) x
-  // Backend% (no guarantee subtracted here -- that happens in the next
-  // line, "Overage"). Same formula shape as the Settlement fix Matt
-  // confirmed, just split across two display rows instead of one.
-  const backend = offer.artist_backend ?? (netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0);
-  const overage = backend - guarantee;
-  const artist_total_potential =
-    offer.deal_type === "VS"
-      ? Math.max(guarantee, backend)
-      : guarantee + backend; // PLUS / BONUS
+
+  // One implementation, shared with the builder, the PDF and settlements:
+  //   backend = pool x backend%
+  //   overage = backend - guarantee, and nothing if that is not positive
+  //   artist  = guarantee + overage -- the greater of the guarantee and the
+  //             percentage share, never both
+  //
+  // This used to read offer.artist_backend as "backend". But the builder
+  // saves the OVERAGE into artist_backend, so the sheet printed the overage
+  // on the Backend row, subtracted the guarantee from it a second time for
+  // Overage, and took max(guarantee, overage) as the VS total -- understating
+  // the artist by exactly the guarantee on every VS offer.
+  const payout = artistPayout({
+    netReceipts: net_potential,
+    totalExpenses: total_expenses,
+    guarantee,
+    backendPct,
+    dealType,
+  });
+  const hasBackend = dealType !== "FLAT";
+  const backend = hasBackend && netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0;
+  const overage = hasBackend ? payout.artistBackend : 0;
+  const artist_total_potential = payout.dealTotal;
 
   const expenses_incl_artist = total_expenses + artist_total_potential;
-  // offer.pot_walkout is the VENUE's potential (pool - artistPAS), matching
-  // REVENUE TO VENUE / VENUE TOTAL in the source design -- not anything
-  // artist-facing despite the field name.
-  const revenue_to_venue = offer.pot_walkout ?? netAfterExpenses - artist_total_potential;
+  // The VENUE's potential. Derived rather than read from offer.pot_walkout for
+  // the same stale-row reason as above; on a current offer the two agree.
+  const revenue_to_venue = netAfterExpenses - artist_total_potential;
 
   const totalCapacity = tCap || 1;
   const breakeven_tickets = avgPrice > 0 ? expenses_incl_artist / avgPrice : 0;
