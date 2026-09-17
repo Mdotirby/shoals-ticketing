@@ -1,6 +1,20 @@
 "use client";
 
+/**
+ * Reports — rebuilt on the shared primitives (app/components/admin/ui.tsx)
+ * against design/liquid-glass/admin_reports.png and admin_reports_mobile.png.
+ *
+ * Restyle only: the four report configs, the generate/CSV/PDF handlers and
+ * every preview table below are unchanged. This page had not been touched
+ * since April, so it was the last one still on the pre-de-gold styling.
+ *
+ * NOTE: this is the four-card generator as designed. The date-range reporting
+ * feature (P&L, revenue-only, expense-only, artist earnings) is a separate
+ * piece of work and will need its own design.
+ */
+
 import { useEffect, useState, useCallback } from "react";
+import { Button, Card, Field, PageHeader } from "@/app/components/admin/ui";
 
 // ── Types ────────────────────────────────────────────────────────────
 type EventOption = { id: string; title: string; venue_id?: string };
@@ -224,33 +238,21 @@ export default function AdminReportsPage() {
   );
 
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">Reports</h1>
-      <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 24, fontSize: 14 }}>
-        Generate, preview, and export financial reports. Select filters and click Generate.
-      </p>
+    <>
+      <PageHeader
+        title="Reports"
+        sub="Generate, preview, and export financial reports. Select filters and click Generate."
+      />
 
-      <div className="report-cards-grid">
-        {REPORT_CARDS.map((config) => {
-          const state = cardState[config.key];
-          return (
-            <div key={config.key} className="report-card">
-              {/* Card Header */}
-              <div className="report-card-header">
-                <span className="report-card-icon">{config.icon}</span>
-                <div>
-                  <h2 className="report-card-title">{config.title}</h2>
-                  <p className="report-card-desc">{config.description}</p>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="report-card-filters">
+      {REPORT_CARDS.map((config) => {
+        const state = cardState[config.key];
+        return (
+          <div key={config.key} style={{ marginBottom: 16 }}>
+            <Card title={config.title} sub={config.description}>
+              <div className="ui-grid ui-grid-4">
                 {config.filters.includes("event") && (
-                  <label className="report-card-filter-label">
-                    <span>Event</span>
+                  <Field label="Event">
                     <select
-                      className="admin-form-input"
                       value={state.eventId}
                       onChange={(e) => updateCard(config.key, { eventId: e.target.value })}
                     >
@@ -261,14 +263,12 @@ export default function AdminReportsPage() {
                         </option>
                       ))}
                     </select>
-                  </label>
+                  </Field>
                 )}
 
                 {config.filters.includes("venue") && (
-                  <label className="report-card-filter-label">
-                    <span>Venue</span>
+                  <Field label="Venue">
                     <select
-                      className="admin-form-input"
                       value={state.venueId}
                       onChange={(e) => updateCard(config.key, { venueId: e.target.value })}
                     >
@@ -279,76 +279,69 @@ export default function AdminReportsPage() {
                         </option>
                       ))}
                     </select>
-                  </label>
+                  </Field>
                 )}
 
                 {config.filters.includes("dateRange") && (
                   <>
-                    <label className="report-card-filter-label">
-                      <span>From</span>
+                    <Field label="From">
                       <input
                         type="date"
-                        className="admin-form-input"
                         value={state.from}
                         onChange={(e) => updateCard(config.key, { from: e.target.value })}
                       />
-                    </label>
-                    <label className="report-card-filter-label">
-                      <span>To</span>
+                    </Field>
+                    <Field label="To">
                       <input
                         type="date"
-                        className="admin-form-input"
                         value={state.to}
                         onChange={(e) => updateCard(config.key, { to: e.target.value })}
                       />
-                    </label>
+                    </Field>
                   </>
                 )}
               </div>
 
-              {/* Action buttons */}
-              <div className="report-card-actions">
-                <button
-                  className="report-card-btn report-card-btn-generate"
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Button
+                  variant="primary"
                   onClick={() => generateReport(config.key)}
                   disabled={state.loading}
                 >
                   {state.loading ? "Generating…" : "Generate Report"}
-                </button>
-                <button
-                  className="report-card-btn report-card-btn-csv"
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => exportCSV(config.key)}
                   disabled={!!state.exporting}
                 >
                   {state.exporting === "csv" ? "Exporting…" : "Export CSV"}
-                </button>
+                </Button>
                 {config.hasPDF && (
-                  <button
-                    className="report-card-btn report-card-btn-pdf"
+                  <Button
+                    variant="outline"
                     onClick={() => exportPDF(config.key)}
                     disabled={!!state.exporting}
                   >
                     {state.exporting === "pdf" ? "Exporting…" : "Export PDF"}
-                  </button>
+                  </Button>
                 )}
               </div>
 
-              {/* Error */}
               {state.error && (
-                <div className="report-card-error">{state.error}</div>
+                <p style={{ color: "var(--lg-bad)", fontSize: 12.5, marginTop: 12 }}>{state.error}</p>
               )}
 
-              {/* Preview data table */}
-              {state.data != null ? (
-                <div className="report-card-preview">
+              {state.data != null && (
+                <div className="ui-table-scroll" style={{ marginTop: 16 }}>
                   <ReportPreview reportKey={config.key} data={state.data} />
                 </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+              )}
+            </Card>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
