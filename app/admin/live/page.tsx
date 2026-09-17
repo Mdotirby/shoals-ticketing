@@ -1,9 +1,20 @@
 "use client";
 
+/**
+ * Live Show Pulse picker — rebuilt on the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_live_list.png
+ * and admin_live_list_mobile.png.
+ *
+ * Restyle only: the event fetch, the "upcoming since yesterday" filter and the
+ * date sort are unchanged. The mockup's card grid is the shared Grid + Card,
+ * which drops to two columns at 900px and one at 680px.
+ */
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import { formatEventDateShort } from "@/lib/dates";
+import { Card, EmptyState, Grid, PageHeader, StatusBadge } from "@/app/components/admin/ui";
 
 type EventOption = {
   id: string;
@@ -12,8 +23,6 @@ type EventOption = {
   date: string;
   image_url: string | null;
 };
-
-const GOLD = "#ffffff";
 
 export default function LivePulsePickerPage() {
   const [events, setEvents] = useState<EventOption[]>([]);
@@ -38,84 +47,52 @@ export default function LivePulsePickerPage() {
   }, []);
 
   return (
-    <div className="admin-dashboard">
-      <div className="dash-header">
-        <div>
-          <h1 className="admin-page-title">Live Show Pulse</h1>
-          <p className="dash-subtitle">Select an event to view real-time show day analytics</p>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        title="Live Show Pulse"
+        sub="Select an event to view real-time show day analytics."
+      />
 
-      {loading && (
-        <div className="dash-loading-state">
-          <div className="dash-spinner" />
-          <p>Loading events...</p>
-        </div>
-      )}
+      {loading && <p className="ui-intro">Loading events…</p>}
 
       {!loading && events.length === 0 && (
-        <div className="dash-empty-state" style={{ padding: 40 }}>
-          <p>No upcoming events found. Create an event first.</p>
-        </div>
+        <Card>
+          <EmptyState title="No upcoming events" description="Create an event first." />
+        </Card>
       )}
 
       {!loading && events.length > 0 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: 16,
-        }}>
+        <Grid cols={3}>
           {events.map((event) => {
             const isToday = new Date(event.date).toDateString() === new Date().toDateString();
             return (
               <Link
                 key={event.id}
                 href={`/admin/live/${event.id}`}
-                style={{
-                  display: "block",
-                  background: "rgba(255,255,255,0.03)",
-                  border: isToday ? `1px solid rgba(34,197,94,0.4)` : "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 12,
-                  padding: 20,
-                  textDecoration: "none",
-                  transition: "border-color 0.2s, background 0.2s",
-                }}
+                className="card"
+                style={{ textDecoration: "none", color: "inherit", display: "block" }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                   <div>
-                    <h3 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: 0 }}>
-                      {event.title}
-                    </h3>
-                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, margin: "6px 0 0" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{event.title}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.44)", marginTop: 5 }}>
                       {event.venue} · {formatEventDateShort(event.date)}
-                    </p>
+                    </div>
                   </div>
-                  {isToday && (
-                    <span style={{
-                      background: "rgba(34,197,94,0.15)",
-                      color: "#22c55e",
-                      fontSize: 10,
-                      fontWeight: 700,
-                      padding: "3px 10px",
-                      borderRadius: 20,
-                      border: "1px solid rgba(34,197,94,0.3)",
-                      textTransform: "uppercase",
-                      whiteSpace: "nowrap",
-                    }}>
-                      TODAY
-                    </span>
-                  )}
+                  {isToday && <StatusBadge variant="live">Today</StatusBadge>}
                 </div>
-                <div style={{
-                  marginTop: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  color: GOLD,
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div
+                  style={{
+                    marginTop: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 12,
+                    fontWeight: 650,
+                    color: "#fff",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
                     <polyline points="17 6 23 6 23 12" />
                   </svg>
@@ -124,8 +101,8 @@ export default function LivePulsePickerPage() {
               </Link>
             );
           })}
-        </div>
+        </Grid>
       )}
-    </div>
+    </>
   );
 }
