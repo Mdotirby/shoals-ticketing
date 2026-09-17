@@ -21,7 +21,9 @@ const navItems = [
 // and a Get Tickets button directly above the POS on a door tablet: one
 // mis-tap during a sale navigates staff out of the till and drops the Terminal
 // reader session, mid-transaction, with a customer's card in the machine.
-const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent", "/boxoffice"];
+/* /ui-kit is the development-only admin primitive gallery (app/ui-kit) — it
+   renders the admin shell, so the storefront header does not belong on it. */
+const HIDDEN_PREFIXES = ["/admin", "/portal", "/agent", "/boxoffice", "/ui-kit"];
 
 /**
  * Storefront routes that render <SfHeader> themselves — the floating glass
