@@ -1,6 +1,19 @@
 "use client";
 
+/**
+ * Ticket Scanner — restyled onto the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_scanner.png
+ * and admin_scanner_mobile.png.
+ *
+ * Restyle only, and deliberately conservative: the camera lifecycle
+ * (html5-qrcode start/stop), the scan debounce, the file-scan path, the
+ * validation POST, the bulk/single check-in calls and the full-screen result
+ * overlay with its countdown are all untouched. Only the page header, the
+ * buttons and a leftover indigo seat-assignment box moved to the shared layer.
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Button, PageHeader } from "@/app/components/admin/ui";
 import { isEventToday } from "@/lib/dates";
 
 type ScanResult = {
@@ -364,11 +377,11 @@ export default function AdminScanPage() {
                 <p style={{ fontSize: 16, opacity: 0.8, margin: "4px 0" }}>{result.event_title}</p>
                 {result.seat_assignments && result.seat_assignments.length > 0 && (
                   <div style={{
-                    marginTop: 10, padding: "8px 14px", borderRadius: 8,
-                    background: "rgba(99,102,241,0.15)",
-                    border: "1px solid rgba(99,102,241,0.3)",
+                    marginTop: 10, padding: "8px 14px", borderRadius: "var(--lg-radius-sm)",
+                    background: "rgba(255,255,255,0.10)",
+                    border: "1px solid rgba(255,255,255,0.22)",
                   }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#818cf8", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: 1 }}>
+                    <p style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.60)", margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.17em" }}>
                       Assigned Seats
                     </p>
                     {result.seat_assignments.map((s, i) => (
@@ -398,11 +411,12 @@ export default function AdminScanPage() {
       </div>
 
       {/* ── PAGE HEADER + EVENT SELECTOR ── */}
-      <div className="scan-page-header">
-        <h1 className="admin-page-title" style={{ marginBottom: 0 }}>Ticket Scanner</h1>
-        {events.length > 0 && (
+      <PageHeader
+        title="Ticket Scanner"
+        actions={
+          events.length > 0 ? (
           <select
-            className="admin-form-input scan-event-select"
+            className="scan-event-select"
             value={selectedEventId}
             onChange={(e) => {
               setSelectedEventId(e.target.value);
@@ -416,8 +430,9 @@ export default function AdminScanPage() {
               </option>
             ))}
           </select>
-        )}
-      </div>
+          ) : null
+        }
+      />
 
       {processing && (
         <div style={{ textAlign: "center", padding: 12, color: "#ffffff", fontSize: 14 }}>
@@ -432,8 +447,10 @@ export default function AdminScanPage() {
           ref={scannerRef}
           className="scan-camera-view"
           style={{
-            borderRadius: 12, overflow: "hidden",
-            border: scanning ? "2px solid rgba(255, 255, 255, 0.3)" : "2px dashed rgba(255,255,255,0.1)",
+            borderRadius: "var(--lg-radius-sm)", overflow: "hidden",
+            border: scanning
+              ? "1px solid rgba(255,255,255,0.30)"
+              : "1px dashed rgba(255,255,255,0.16)",
             minHeight: scanning ? 300 : 80,
             display: "flex", alignItems: "center", justifyContent: "center",
             transition: "min-height 300ms ease",
@@ -444,14 +461,13 @@ export default function AdminScanPage() {
 
         <div className="scan-controls" style={{ display: "flex", gap: 10, marginTop: 12, justifyContent: "center", flexWrap: "wrap" }}>
           {!scanning ? (
-            <button className="admin-form-submit" onClick={startScanner} style={{ minWidth: 160 }}>
+            <Button variant="primary" onClick={startScanner}>
               Start Camera
-            </button>
+            </Button>
           ) : (
-            <button className="portal-signout-btn" onClick={stopScanner} style={{ minWidth: 160, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+            <Button variant="danger" onClick={stopScanner}>
               Stop Camera
-            </button>
+            </Button>
           )}
           <label className="scan-file-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginRight: 6, verticalAlign: -2 }}>
@@ -480,7 +496,7 @@ export default function AdminScanPage() {
           </svg>
           <input
             type="text"
-            className="admin-form-input scan-search-input"
+            className="scan-search-input"
             placeholder="Name or email…"
             value={lastName}
             onChange={(e) => setLastName(e.target.value)}
@@ -580,13 +596,12 @@ export default function AdminScanPage() {
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
             <input
               type="text"
-              className="admin-form-input"
               placeholder="Paste ticket code or URL"
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleManualScan()}
             />
-            <button className="admin-form-submit" onClick={handleManualScan}>Validate</button>
+            <Button variant="primary" onClick={handleManualScan}>Validate</Button>
           </div>
         )}
       </div>
