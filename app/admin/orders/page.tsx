@@ -1,5 +1,20 @@
 "use client";
 
+/**
+ * Ticket Sales list — rebuilt on the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_sales.png
+ * and admin_sales_mobile.png.
+ *
+ * Restyle only: the artist-assignment gate, the private-event exclusion, the
+ * event-performance enrichment (real seat counts, not ticket_tiers.capacity),
+ * the venue filter and the past/upcoming split are all unchanged.
+ *
+ * The two hand-rolled SVG donuts stay as local components — the shared
+ * GaugeRing is a conic-gradient ring sized for dashboards, while these are
+ * 48px SVG rings that carry a value in the middle and colour the sold-out
+ * case red. Same shape, different job; folding them together would lose that.
+ */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
@@ -10,6 +25,17 @@ import {
   isEventPast,
   isEventToday,
 } from "@/lib/dates";
+import {
+  Button,
+  Card,
+  EmptyState,
+  ListRow,
+  ListStat,
+  PageHeader,
+  Spacer,
+  StatusBadge,
+  Toolbar,
+} from "@/app/components/admin/ui";
 
 type EventSales = {
   id: string;
@@ -81,7 +107,9 @@ export default function AdminSalesPage() {
         // Filter to artist's assigned events if applicable, and always exclude private events from sales
         const filteredEventsData = eventsData
           .filter((ev: Record<string, unknown>) => ev.event_type !== "private")
-          .filter((ev: Record<string, unknown>) => artistEventIds ? artistEventIds!.includes(ev.id as string) : true);
+          .filter((ev: Record<string, unknown>) =>
+            artistEventIds ? artistEventIds!.includes(ev.id as string) : true
+          );
 
         // Pull real sold/capacity/scanned numbers from the shared performance
         // endpoint — for reserved-seating events this counts the seats table
@@ -119,9 +147,7 @@ export default function AdminSalesPage() {
     loadSales();
   }, [isOwner, isArtist]);
 
-  const venueScoped = venueFilter
-    ? events.filter((e) => e.venue_id === venueFilter)
-    : events;
+  const venueScoped = venueFilter ? events.filter((e) => e.venue_id === venueFilter) : events;
 
   // Same story as the Events page: `all=1` pulls past shows back in, ascending,
   // so the oldest dead show sat at the top. Today's show leads now.
@@ -131,102 +157,78 @@ export default function AdminSalesPage() {
     .sort(compareEventsForDisplay);
 
   return (
-    <div className="admin-form-page">
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">Sales</h1>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+    <>
+      <PageHeader title="Ticket Sales" sub="Every show's inventory, drop count and sell-through." />
+
+      {((isOwner && venues.length > 1) || pastCount > 0) && (
+        <Toolbar>
           {isOwner && venues.length > 1 && (
-            <select
-              className="admin-form-input admin-venue-filter-select"
-              value={venueFilter}
-              onChange={(e) => setVenueFilter(e.target.value)}
-            >
+            <select value={venueFilter} onChange={(e) => setVenueFilter(e.target.value)}>
               <option value="">All Venues</option>
               {venues.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
               ))}
             </select>
           )}
+          <Spacer />
           {pastCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setShowPast((v) => !v)}
-              className="admin-header-btn admin-header-btn-outline"
-              style={{ whiteSpace: "nowrap" }}
-            >
+            <Button variant="outline" size="sm" onClick={() => setShowPast((v) => !v)}>
               {showPast ? "Hide past shows" : `Show past shows (${pastCount})`}
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
-
-      {loading && <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>}
-
-      {!loading && filteredEvents.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          {pastCount > 0 && !showPast
-            ? "No active or upcoming shows. Use “Show past shows” to see the archive."
-            : "No events found."}
-        </p>
+        </Toolbar>
       )}
 
-      {!loading && filteredEvents.map((ev) => {
-        const pct = ev.total_capacity > 0
-          ? Math.min(100, Math.round((ev.tickets_sold / ev.total_capacity) * 100))
-          : 0;
-        const available = ev.total_capacity - ev.tickets_sold;
+      {loading && <p className="ui-intro">Loading…</p>}
 
-        return (
-          <Link
-            key={ev.id}
-            href={`/admin/orders/${ev.id}`}
-            className="sales-event-card"
-          >
-            <div className="sales-event-info">
-              <h3 className="sales-event-name">
-                {ev.title}
-                {isEventToday(ev.date) && (
-                  <span style={{
-                    marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                    background: "rgba(255, 255, 255, 0.18)", color: "#ffffff",
-                    fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
-                    verticalAlign: "middle",
-                  }}>
-                    Tonight
-                  </span>
-                )}
-              </h3>
-              <span className="sales-event-meta">
-                {ev.venue} · {formatEventDateShort(ev.date)}
-              </span>
-            </div>
-            <div className="sales-event-stats">
-              <div className="sales-stat">
-                <span className="sales-stat-value">{ev.tickets_sold}</span>
-                <span className="sales-stat-label">Sold</span>
-              </div>
-              <div className="sales-stat">
-                <span className="sales-stat-value">{available}</span>
-                <span className="sales-stat-label">Available</span>
-              </div>
-              {/* Drop Count Donut */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 56 }}>
-                <DropCountDonut sold={ev.tickets_sold} scanned={ev.tickets_scanned} />
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Drop</span>
-              </div>
-              {/* Sold Percentage Donut */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 56 }}>
-                <SoldDonut sold={ev.tickets_sold} capacity={ev.total_capacity} />
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
+      {!loading && filteredEvents.length === 0 && (
+        <Card>
+          <EmptyState
+            title={pastCount > 0 && !showPast ? "No active or upcoming shows" : "No events found"}
+            description={
+              pastCount > 0 && !showPast ? "Use “Show past shows” to see the archive." : undefined
+            }
+          />
+        </Card>
+      )}
+
+      {!loading && filteredEvents.length > 0 && (
+        <Card flush>
+          {filteredEvents.map((ev) => (
+            <ListRow
+              key={ev.id}
+              link={Link}
+              href={`/admin/orders/${ev.id}`}
+              thumb={false}
+              title={
+                <>
+                  {ev.title}
+                  {isEventToday(ev.date) && <StatusBadge variant="live">Tonight</StatusBadge>}
+                </>
+              }
+              meta={`${ev.venue} · ${formatEventDateShort(ev.date)}`}
+              stats={
+                <>
+                  <ListStat n={ev.tickets_sold} label="Sold" />
+                  <ListStat n={Math.max(0, ev.total_capacity - ev.tickets_sold)} label="Available" />
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 56 }}>
+                    <DropCountDonut sold={ev.tickets_sold} scanned={ev.tickets_scanned} />
+                    <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.34)", marginTop: 2 }}>Drop</span>
+                  </div>
+                  <SoldDonut sold={ev.tickets_sold} capacity={ev.total_capacity} />
+                </>
+              }
+            />
+          ))}
+        </Card>
+      )}
+    </>
   );
 }
 
-/** SVG donut chart: gold ring = drop count (scanned), white number in center */
+/** Ring = share of sold tickets scanned at the door; centre shows the count. */
 function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
   const size = 48;
   const stroke = 5;
@@ -236,26 +238,27 @@ function DropCountDonut({ sold, scanned }: { sold: number; scanned: number }) {
   const offset = circ * (1 - pct) + circ * 0.25;
 
   return (
-    <svg width={size} height={size}>
+    <svg width={size} height={size} style={{ flexShrink: 0 }}>
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
-        cx={size / 2} cy={size / 2} r={radius} fill="none"
-        stroke="#ffffff" strokeWidth={stroke}
-        strokeDasharray={circ} strokeDashoffset={offset}
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth={stroke}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
         strokeLinecap="round"
       />
-      <text
-        x={size / 2} y={size / 2}
-        textAnchor="middle" dominantBaseline="central"
-        fill="#ffffff" fontSize="12" fontWeight="700"
-      >
+      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontSize="12" fontWeight="700">
         {scanned}
       </text>
     </svg>
   );
 }
 
-/** SVG donut chart: sold percentage with white % in center */
+/** Ring = sell-through; turns red at 100% so a sold-out show is obvious. */
 function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
   const size = 48;
   const stroke = 5;
@@ -267,19 +270,20 @@ function SoldDonut({ sold, capacity }: { sold: number; capacity: number }) {
   const isSoldOut = pctDisplay >= 100;
 
   return (
-    <svg width={size} height={size}>
+    <svg width={size} height={size} style={{ flexShrink: 0 }}>
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
       <circle
-        cx={size / 2} cy={size / 2} r={radius} fill="none"
-        stroke={isSoldOut ? "#ff6b6b" : "#ffffff"} strokeWidth={stroke}
-        strokeDasharray={circ} strokeDashoffset={offset}
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={isSoldOut ? "var(--lg-bad)" : "#ffffff"}
+        strokeWidth={stroke}
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
         strokeLinecap="round"
       />
-      <text
-        x={size / 2} y={size / 2}
-        textAnchor="middle" dominantBaseline="central"
-        fill="#ffffff" fontSize="11" fontWeight="700"
-      >
+      <text x={size / 2} y={size / 2} textAnchor="middle" dominantBaseline="central" fill="#ffffff" fontSize="11" fontWeight="700">
         {pctDisplay}%
       </text>
     </svg>
