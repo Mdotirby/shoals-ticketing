@@ -1,5 +1,16 @@
 "use client";
 
+/**
+ * Events list — rebuilt on the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_events.png
+ * and admin_events_mobile.png.
+ *
+ * Restyle only: the filter params (including the exclude_holds default), the
+ * past/upcoming split, the today-first sort and the delete confirmation are
+ * unchanged. The booking-status dot keeps its three colours — they carry
+ * meaning (confirmed / hold / cancelled) rather than decoration.
+ */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Event } from "@/lib/types/event";
@@ -10,6 +21,18 @@ import {
   isEventPast,
   isEventToday,
 } from "@/lib/dates";
+import {
+  Button,
+  Card,
+  EmptyState,
+  ListRow,
+  PageHeader,
+  Spacer,
+  StatusBadge,
+  Tag,
+  Toolbar,
+  fmtUSD,
+} from "@/app/components/admin/ui";
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   hard_ticket: "Hard Ticket",
@@ -19,9 +42,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 };
 
 const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: "#50c878",
+  confirmed: "var(--lg-good)",
   hold: "#ffc832",
-  cancelled: "#ff6b6b",
+  cancelled: "var(--lg-bad)",
 };
 
 export default function AdminEventsPage() {
@@ -75,172 +98,118 @@ export default function AdminEventsPage() {
   };
 
   return (
-    <div className="admin-form-page">
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">Events</h1>
-        <div className="admin-page-header-actions">
-          <Link href="/admin/calendar" className="admin-header-btn admin-header-btn-outline">
-            Calendar View
-          </Link>
-          <Link href="/admin/events/new" className="admin-header-btn">
-            + Create Event
-          </Link>
-        </div>
-      </div>
+    <>
+      <PageHeader
+        title="Events"
+        actions={
+          <>
+            <Link href="/admin/calendar" className="btn btn-outline btn-sm">
+              Calendar View
+            </Link>
+            <Link href="/admin/events/new" className="btn btn-primary btn-sm">
+              + Create Event
+            </Link>
+          </>
+        }
+      />
 
-      {/* Event Type / Booking Status Filters */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-        <select
-          className="admin-form-input"
-          value={eventTypeFilter}
-          onChange={(e) => setEventTypeFilter(e.target.value)}
-          style={{ maxWidth: 200 }}
-        >
+      <Toolbar>
+        <select value={eventTypeFilter} onChange={(e) => setEventTypeFilter(e.target.value)}>
           <option value="all">All Events</option>
           <option value="hard_ticket">Hard Ticket</option>
           <option value="private">Private</option>
           <option value="non_ticketed">Non-Ticketed</option>
         </select>
-        <select
-          className="admin-form-input"
-          value={bookingStatusFilter}
-          onChange={(e) => setBookingStatusFilter(e.target.value)}
-          style={{ maxWidth: 200 }}
-        >
+        <select value={bookingStatusFilter} onChange={(e) => setBookingStatusFilter(e.target.value)}>
           <option value="all">All Statuses</option>
           <option value="confirmed">Confirmed</option>
           <option value="hold">Hold</option>
           <option value="cancelled">Cancelled</option>
         </select>
+        <Spacer />
         {pastCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setShowPast((v) => !v)}
-            className="admin-header-btn admin-header-btn-outline"
-            style={{ whiteSpace: "nowrap" }}
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowPast((v) => !v)}>
             {showPast ? "Hide past events" : `Show past events (${pastCount})`}
-          </button>
+          </Button>
         )}
-      </div>
+      </Toolbar>
 
-      {loading && (
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading events…</p>
-      )}
+      {loading && <p className="ui-intro">Loading events…</p>}
 
       {!loading && visibleEvents.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          {pastCount > 0 && !showPast
-            ? "No active or upcoming events. Use “Show past events” to see the archive."
-            : "No events found. Click “+ Create Event” to add one."}
-        </p>
+        <Card>
+          <EmptyState
+            title={pastCount > 0 && !showPast ? "No active or upcoming events" : "No events found"}
+            description={
+              pastCount > 0 && !showPast
+                ? "Use “Show past events” to see the archive."
+                : "Click “+ Create Event” to add one."
+            }
+          />
+        </Card>
       )}
 
       {!loading && visibleEvents.length > 0 && (
-        <div className="admin-events-list">
+        <Card flush>
           {visibleEvents.map((ev) => {
-            const eventType = (ev as Record<string, unknown>).event_type as string || "hard_ticket";
-            const bookingStatus = (ev as Record<string, unknown>).booking_status as string || "confirmed";
+            const eventType = ((ev as Record<string, unknown>).event_type as string) || "hard_ticket";
+            const bookingStatus =
+              ((ev as Record<string, unknown>).booking_status as string) || "confirmed";
             const statusColor = BOOKING_STATUS_COLORS[bookingStatus] || BOOKING_STATUS_COLORS.confirmed;
-            const closedOutAt = (ev as Record<string, unknown>).closed_out_at as string | null | undefined;
-            const isClosedOut = !!closedOutAt;
+            const isClosedOut = !!((ev as Record<string, unknown>).closed_out_at as string | null);
+            const isPrivate = eventType === "private";
 
             return (
-              <div key={ev.id} className="admin-event-card">
-                <div className="admin-event-info">
-                  {/* Booking status indicator dot */}
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: statusColor, flexShrink: 0,
-                    marginTop: 6,
-                  }} />
-                  {ev.image_url && (
-                    <div
-                      className="admin-event-thumb"
-                      style={{ backgroundImage: `url(${ev.image_url})` }}
-                    />
-                  )}
-                  <div>
-                    <h3 className="admin-event-name">
-                      {ev.title}
-                      {isEventToday(ev.date) && (
-                        <span style={{
-                          marginLeft: 8, fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                          background: "rgba(255, 255, 255, 0.18)", color: "#ffffff",
-                          fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
-                          verticalAlign: "middle",
-                        }}>
-                          Tonight
-                        </span>
-                      )}
-                    </h3>
-                    <span className="admin-event-meta">
-                      {ev.venue} · {formatDate(ev.date)}
+              <ListRow
+                key={ev.id}
+                thumbUrl={ev.image_url || undefined}
+                title={
+                  <>
+                    {ev.title}
+                    {isEventToday(ev.date) && <StatusBadge variant="live">Tonight</StatusBadge>}
+                  </>
+                }
+                meta={`${ev.venue} · ${formatDate(ev.date)}`}
+                badges={
+                  <>
+                    <Tag>{EVENT_TYPE_LABELS[eventType] || eventType}</Tag>
+                    <span className="ui-rowstat" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: "50%",
+                          background: statusColor,
+                          display: "inline-block",
+                        }}
+                      />
+                      {bookingStatus}
                     </span>
-                    <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
-                      <span style={{
-                        fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                        background: "rgba(255,255,255,0.06)",
-                        color: "rgba(255,255,255,0.5)",
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        lineHeight: "1.4",
-                      }}>
-                        {EVENT_TYPE_LABELS[eventType] || eventType}
-                      </span>
-                      <span style={{
-                        fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                        background: statusColor + "18",
-                        color: statusColor,
-                        fontWeight: 600,
-                        display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        lineHeight: "1.4",
-                      }}>
-                        {bookingStatus}
-                      </span>
-                      <span className={`admin-event-status status-${ev.status || "published"}`}>
-                        {ev.status || "published"}
-                      </span>
-                      {isClosedOut && (
-                        <span style={{
-                          fontSize: 9, padding: "1px 6px", borderRadius: 3,
-                          background: "rgba(239,68,68,0.18)",
-                          color: "#f87171",
-                          fontWeight: 700,
-                          letterSpacing: 0.5,
-                          textTransform: "uppercase",
-                          display: "inline-flex", alignItems: "center", justifyContent: "center",
-                          lineHeight: "1.4",
-                        }}>
-                          Closed Out
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="admin-event-actions">
-                  {eventType !== 'private' && (
-                    <span className="admin-event-price">
-                      ${ev.price?.toFixed(2)}
-                    </span>
-                  )}
-                  <Link
-                    href={eventType === 'private' ? `/admin/private-events/${ev.id}` : `/admin/events/${ev.id}/edit`}
-                    className="admin-sponsor-edit-btn"
-                  >
-                    {eventType === 'private' ? 'Manage' : 'Edit'}
-                  </Link>
-                  <button
-                    className="admin-sponsor-delete-btn"
-                    onClick={() => handleDelete(ev.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+                    <StatusBadge variant={ev.status === "draft" ? "draft" : "live"}>
+                      {ev.status || "published"}
+                    </StatusBadge>
+                    {isClosedOut && <StatusBadge variant="bad">Closed Out</StatusBadge>}
+                  </>
+                }
+                price={isPrivate ? "—" : fmtUSD(ev.price)}
+                actions={
+                  <>
+                    <Link
+                      href={isPrivate ? `/admin/private-events/${ev.id}` : `/admin/events/${ev.id}/edit`}
+                      className="btn btn-outline btn-sm"
+                    >
+                      {isPrivate ? "Manage" : "Edit"}
+                    </Link>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(ev.id)}>
+                      Delete
+                    </Button>
+                  </>
+                }
+              />
             );
           })}
-        </div>
+        </Card>
       )}
-    </div>
+    </>
   );
 }
