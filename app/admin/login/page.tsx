@@ -17,7 +17,7 @@ const ROLE_ROUTES: Record<UserRole, string> = {
   box_office: "/admin/scan",
   read_only: "/admin",
   door_greeter: "/admin/scan",
-  artist: "/admin/guest-list",
+  artist: "/admin/guest-lists",
 };
 
 export default function AdminLoginPage() {
