@@ -1,15 +1,32 @@
 "use client";
 
+/**
+ * Settlements list — rebuilt on the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_settlements.png
+ * and admin_settlements_mobile.png.
+ *
+ * Restyle only: the fetch, the draft/finalized split, the ticket-stat
+ * derivation and the manual-settlement POST are unchanged from the previous
+ * version — only the markup around them moved to the shared layer.
+ */
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import { formatEventDateShort } from "@/lib/dates";
 import type { Settlement } from "@/lib/types/settlement";
-
-const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
-  draft: { label: "Draft", cls: "status-draft" },
-  finalized: { label: "Finalized", cls: "status-published" },
-};
+import {
+  Button,
+  Card,
+  Eyebrow,
+  Field,
+  ListRow,
+  Modal,
+  PageHeader,
+  StatusBadge,
+  Tag,
+  fmtUSD,
+} from "@/app/components/admin/ui";
 
 type NewManualForm = {
   event_title: string;
@@ -52,7 +69,9 @@ export default function AdminSettlementsPage() {
     const params = venueId ? `?venue_id=${venueId}` : "";
     fetch(`/api/settlements${params}`)
       .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setSettlements(data); })
+      .then((data) => {
+        if (Array.isArray(data)) setSettlements(data);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -108,221 +127,171 @@ export default function AdminSettlementsPage() {
     }
   };
 
+  const set = (k: keyof NewManualForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
   const renderRow = (s: Settlement) => {
     const stats = ticketStats(s);
-    const status = STATUS_LABELS[s.status] ?? { label: s.status, cls: "status-draft" };
     const eventLabel = s.event_title || s.artist_name || "Untitled Event";
     const dateLabel = s.event_date
       ? formatEventDateShort(s.event_date)
       : new Date(s.created_at).toLocaleDateString();
     const isExternal = s.source === "external";
     return (
-      <Link
+      <ListRow
         key={s.id}
+        link={Link}
         href={`/admin/settlements/${s.id}`}
-        className="admin-event-card"
-        style={{ textDecoration: "none" }}
-      >
-        <div className="admin-event-info">
-          <div>
-            <h3 className="admin-event-name">
-              {eventLabel}
-              {isExternal && (
-                <span style={{
-                  marginLeft: 8, fontSize: 10, fontWeight: 700,
-                  letterSpacing: 0.8, textTransform: "uppercase",
-                  background: "rgba(245,158,11,0.12)", color: "#f59e0b",
-                  padding: "2px 6px", borderRadius: 3,
-                }}>
-                  External
-                </span>
-              )}
-            </h3>
-            <span className="admin-event-meta">
-              {s.artist_name && s.event_title ? `${s.artist_name} · ` : ""}
-              {dateLabel}
-            </span>
-            <span className={`admin-event-status ${status.cls}`}>{status.label}</span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginLeft: 12 }}>
+        thumb={false}
+        title={
+          <>
+            {eventLabel}
+            {isExternal && <Tag>External</Tag>}
+          </>
+        }
+        meta={
+          <>
+            {s.artist_name && s.event_title ? `${s.artist_name} · ` : ""}
+            {dateLabel}
+          </>
+        }
+        badges={
+          <>
+            <StatusBadge variant={s.status === "finalized" ? "good" : "draft"}>
+              {s.status === "finalized" ? "Finalized" : "Draft"}
+            </StatusBadge>
+            <span className="ui-rowstat">
               {stats.sold} sold
-              {!isExternal && ` · ${stats.comps} comps`}
-              {" · gross "}
-              {Number(s.total_gross || 0).toLocaleString("en-US", { style: "currency", currency: "USD" })}
+              {!isExternal && ` · ${stats.comps} comps`} · gross {fmtUSD(s.total_gross)}
             </span>
-          </div>
-        </div>
-        <div className="admin-event-actions">
-          <span className="admin-sponsor-edit-btn">Open →</span>
-        </div>
-      </Link>
+          </>
+        }
+        actions={<span className="btn btn-outline btn-sm">Open →</span>}
+      />
     );
   };
 
   return (
-    <div className="admin-form-page">
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">Settlements</h1>
-        <button
-          className="admin-header-btn"
-          onClick={() => { setShowModal(true); setCreateError(""); setForm(emptyForm()); }}
-        >
-          + Manual Settlement
-        </button>
-      </div>
+    <>
+      <PageHeader
+        title="Settlements"
+        actions={
+          <Button
+            variant="primary"
+            onClick={() => {
+              setShowModal(true);
+              setCreateError("");
+              setForm(emptyForm());
+            }}
+          >
+            + Manual Settlement
+          </Button>
+        }
+      />
 
-      <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginTop: -8, marginBottom: 24 }}>
+      <p className="ui-intro">
         To create a settlement from VenueCore ticket sales, open the event in{" "}
-        <Link href="/admin/orders" style={{ color: "var(--admin-primary, #ffffff)" }}>
-          Sales
-        </Link>{" "}
-        and click <strong>+ Create Settlement</strong>. Use <strong>+ Manual Settlement</strong> above
-        for shows ticketed on a different platform.
+        <Link href="/admin/orders">Sales</Link> and click <strong>+ Create Settlement</strong>. Use{" "}
+        <strong>+ Manual Settlement</strong> above for shows ticketed on a different platform.
       </p>
 
-      {loading && <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>}
+      {loading && <p className="ui-intro">Loading…</p>}
 
       {!loading && settlements.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.4)" }}>
-          No settlements yet. Head to{" "}
-          <Link href="/admin/orders" style={{ color: "var(--admin-primary, #ffffff)" }}>Sales</Link>
-          {" "}and create one, or use <strong>+ Manual Settlement</strong> above.
-        </p>
+        <Card>
+          <p className="ui-intro" style={{ margin: 0 }}>
+            No settlements yet. Head to <Link href="/admin/orders">Sales</Link> and create one, or use{" "}
+            <strong>+ Manual Settlement</strong> above.
+          </p>
+        </Card>
       )}
 
       {!loading && drafts.length > 0 && (
         <>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #ffffff)", marginTop: 12, marginBottom: 12 }}>
-            Drafts ({drafts.length})
-          </h2>
-          <div className="admin-events-list">{drafts.map(renderRow)}</div>
+          <div className="ui-section-head">
+            <Eyebrow>Drafts</Eyebrow>
+            <span className="n">({drafts.length})</span>
+          </div>
+          <Card flush>{drafts.map(renderRow)}</Card>
         </>
       )}
 
       {!loading && finalized.length > 0 && (
         <>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--admin-primary, #ffffff)", marginTop: 28, marginBottom: 12 }}>
-            Finalized ({finalized.length})
-          </h2>
-          <div className="admin-events-list">{finalized.map(renderRow)}</div>
+          <div className="ui-section-head">
+            <Eyebrow>Finalized</Eyebrow>
+            <span className="n">({finalized.length})</span>
+          </div>
+          <Card flush>{finalized.map(renderRow)}</Card>
         </>
       )}
 
-      {/* ── New Manual Settlement Modal ── */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: 1000,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 16,
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
-        >
-          <div style={{
-            background: "#12122e", border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: 14, padding: 28, width: "100%", maxWidth: 580,
-            maxHeight: "90vh", overflowY: "auto",
-          }}>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>
-              New Manual Settlement
-            </h2>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>
-              For shows not ticketed through VenueCore. Enter the actual figures from your box office or third-party platform.
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label className="admin-form-label">Event / Show Name</label>
-                <input className="admin-form-input" placeholder="Artist Name @ Venue" value={form.event_title}
-                  onChange={(e) => setForm((f) => ({ ...f, event_title: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Show Date</label>
-                <input type="date" className="admin-form-input" value={form.event_date}
-                  onChange={(e) => setForm((f) => ({ ...f, event_date: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Artist Name</label>
-                <input className="admin-form-input" placeholder="e.g. Josh Harrelson" value={form.artist_name}
-                  onChange={(e) => setForm((f) => ({ ...f, artist_name: e.target.value }))} />
-              </div>
-
-              <div style={{ gridColumn: "1 / -1", height: 1, background: "rgba(255,255,255,0.07)", margin: "4px 0" }} />
-
-              <div>
-                <label className="admin-form-label">Gross Revenue ($)</label>
-                <input type="number" step="0.01" min="0" className="admin-form-input" placeholder="0.00"
-                  value={form.manual_gross}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_gross: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Tickets Sold</label>
-                <input type="number" min="0" className="admin-form-input" placeholder="0"
-                  value={form.manual_tickets_sold}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_tickets_sold: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Ticket Price (face value, $)</label>
-                <input type="number" step="0.01" min="0" className="admin-form-input" placeholder="0.00"
-                  value={form.manual_ticket_price}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_ticket_price: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Processing Fee ($, total)</label>
-                <input type="number" step="0.01" min="0" className="admin-form-input" placeholder="0.00"
-                  value={form.manual_processing_fee}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_processing_fee: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Ticketing Fee ($ per ticket)</label>
-                <input type="number" step="0.01" min="0" className="admin-form-input" placeholder="0.00"
-                  value={form.manual_ticketing_fee}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_ticketing_fee: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Facility Fee ($ per ticket)</label>
-                <input type="number" step="0.01" min="0" className="admin-form-input" placeholder="0.00"
-                  value={form.manual_facility_fee}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_facility_fee: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Tax Rate (%)</label>
-                <input type="number" step="0.01" min="0" max="100" className="admin-form-input" placeholder="e.g. 9.75"
-                  value={form.manual_tax_rate}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_tax_rate: e.target.value }))} />
-              </div>
-              <div>
-                <label className="admin-form-label">Tax Method</label>
-                <select className="admin-form-input" value={form.manual_tax_method}
-                  onChange={(e) => setForm((f) => ({ ...f, manual_tax_method: e.target.value as "multiplier" | "divisor" }))}>
-                  <option value="multiplier">Added on top (multiplier)</option>
-                  <option value="divisor">Included in price (divisor)</option>
-                </select>
-              </div>
-            </div>
-
-            {createError && (
-              <p style={{ color: "#f87171", fontSize: 13, marginTop: 14 }}>{createError}</p>
-            )}
-
-            <div style={{ display: "flex", gap: 10, marginTop: 22, justifyContent: "flex-end" }}>
-              <button
-                className="admin-sponsor-edit-btn"
-                onClick={() => setShowModal(false)}
-                disabled={creating}
-              >
+        <Modal
+          title="New Manual Settlement"
+          sub="For shows not ticketed through VenueCore. Enter the actual figures from your box office or third-party platform."
+          onClose={() => setShowModal(false)}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowModal(false)} disabled={creating}>
                 Cancel
-              </button>
-              <button
-                className="admin-header-btn"
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleCreate}
                 disabled={creating || !form.manual_gross}
               >
                 {creating ? "Creating…" : "Create Settlement"}
-              </button>
+              </Button>
+            </>
+          }
+        >
+          <div className="ui-grid ui-grid-2">
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Field label="Event / show name">
+                <input placeholder="Artist Name @ Venue" value={form.event_title} onChange={set("event_title")} />
+              </Field>
             </div>
+            <Field label="Show date">
+              <input type="date" value={form.event_date} onChange={set("event_date")} />
+            </Field>
+            <Field label="Artist name">
+              <input placeholder="e.g. Josh Harrelson" value={form.artist_name} onChange={set("artist_name")} />
+            </Field>
+            <Field label="Gross revenue ($)">
+              <input type="number" step="0.01" min="0" placeholder="0.00" value={form.manual_gross} onChange={set("manual_gross")} />
+            </Field>
+            <Field label="Tickets sold">
+              <input type="number" min="0" placeholder="0" value={form.manual_tickets_sold} onChange={set("manual_tickets_sold")} />
+            </Field>
+            <Field label="Ticket price (face value, $)">
+              <input type="number" step="0.01" min="0" placeholder="0.00" value={form.manual_ticket_price} onChange={set("manual_ticket_price")} />
+            </Field>
+            <Field label="Processing fee ($ total)">
+              <input type="number" step="0.01" min="0" placeholder="0.00" value={form.manual_processing_fee} onChange={set("manual_processing_fee")} />
+            </Field>
+            <Field label="Ticketing fee ($ per ticket)">
+              <input type="number" step="0.01" min="0" placeholder="0.00" value={form.manual_ticketing_fee} onChange={set("manual_ticketing_fee")} />
+            </Field>
+            <Field label="Facility fee ($ per ticket)">
+              <input type="number" step="0.01" min="0" placeholder="0.00" value={form.manual_facility_fee} onChange={set("manual_facility_fee")} />
+            </Field>
+            <Field label="Tax rate (%)">
+              <input type="number" step="0.01" min="0" max="100" placeholder="e.g. 9.75" value={form.manual_tax_rate} onChange={set("manual_tax_rate")} />
+            </Field>
+            <Field label="Tax method">
+              <select value={form.manual_tax_method} onChange={set("manual_tax_method")}>
+                <option value="multiplier">Added on top (multiplier)</option>
+                <option value="divisor">Included in price (divisor)</option>
+              </select>
+            </Field>
           </div>
-        </div>
+
+          {createError && (
+            <p style={{ color: "var(--lg-bad)", fontSize: 12.5, marginTop: 12 }}>{createError}</p>
+          )}
+        </Modal>
       )}
-    </div>
+    </>
   );
 }
