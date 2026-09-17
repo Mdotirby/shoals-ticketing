@@ -14,13 +14,13 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { Button, Card, Field, PageHeader } from "@/app/components/admin/ui";
+import { Button, Card, DataTable, Field, PageHeader } from "@/app/components/admin/ui";
 
 // ── Types ────────────────────────────────────────────────────────────
 type EventOption = { id: string; title: string; venue_id?: string };
 type VenueOption = { id: string; name: string };
 
-type ReportCardType = "ticket-audit" | "monthly-revenue" | "expenses" | "orders";
+type ReportCardType = "ticket-audit" | "monthly-revenue" | "venue-pnl" | "expenses" | "orders";
 
 type ReportCardConfig = {
   key: ReportCardType;
@@ -48,6 +48,15 @@ const REPORT_CARDS: ReportCardConfig[] = [
       "Cross-event revenue summary with profit split calculations, ticketing rebates, and facility fee splits per the management agreement.",
     icon: "",
     filters: ["venue", "dateRange"],
+    hasPDF: false,
+  },
+  {
+    key: "venue-pnl",
+    title: "Venue P&L",
+    description:
+      "Every show at a venue over a date range: ticket revenue, fees, tax and merch against artist payouts, card processing and settlement expenses. Exports the branded workbook, one venue per file.",
+    icon: "",
+    filters: ["dateRange"],
     hasPDF: false,
   },
   {
@@ -102,6 +111,7 @@ export default function AdminReportsPage() {
   >({
     "ticket-audit": initCardState(),
     "monthly-revenue": initCardState(),
+    "venue-pnl": initCardState(),
     expenses: initCardState(),
     orders: initCardState(),
   });
@@ -366,6 +376,8 @@ function ReportPreview({ reportKey, data }: { reportKey: ReportCardType; data: u
       return <TicketAuditPreview data={data} />;
     case "monthly-revenue":
       return <MonthlyRevenuePreview data={data} />;
+    case "venue-pnl":
+      return <VenuePnlPreview data={data} />;
     case "expenses":
       return <ExpensePreview data={data} />;
     case "orders":
@@ -373,6 +385,97 @@ function ReportPreview({ reportKey, data }: { reportKey: ReportCardType; data: u
     default:
       return null;
   }
+}
+
+// ── Venue P&L Preview ────────────────────────────────────────────────
+/**
+ * One block per event venue, each with its own Export button — the workbook
+ * is per venue (its header names a single room), so exporting is a per-block
+ * action rather than one button for the whole preview.
+ */
+function VenuePnlPreview({ data }: { data: unknown }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = data as any;
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  if (!d?.venues?.length) {
+    return <p className="ui-intro">No shows found for the selected dates.</p>;
+  }
+
+  const exportVenue = async (venueId: string, venueName: string, from: string, to: string) => {
+    setDownloading(venueId);
+    try {
+      const params = new URLSearchParams({ format: "xlsx", event_venue_id: venueId });
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const res = await fetch(`/api/admin/reports/venue-pnl?${params}`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${venueName.replace(/[^a-z0-9]+/gi, "-")}-P-and-L.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // surfaced by the empty download; the card's own error line covers fetch failures
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+      {d.venues.map((v: any) => (
+        <Card
+          key={v.event_venue_id ?? v.event_venue_name}
+          title={v.event_venue_name}
+          sub={`${v.shows.length} show${v.shows.length === 1 ? "" : "s"} · revenue ${fmt(v.totals.revenue_total)} · expenses ${fmt(v.totals.expenses_total)} · net ${fmt(v.totals.net)}`}
+          actions={
+            v.event_venue_id ? (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={downloading === v.event_venue_id}
+                onClick={() => exportVenue(v.event_venue_id, v.event_venue_name, d.from ?? "", d.to ?? "")}
+              >
+                {downloading === v.event_venue_id ? "Exporting…" : "Export XLSX"}
+              </Button>
+            ) : undefined
+          }
+        >
+          <DataTable columns={["Date", "Show", "Tix", "Revenue", "Artist", "Expenses", "Net"]}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {v.shows.map((s: any) => (
+              <tr key={s.event_id}>
+                <td>{new Date(s.date).toLocaleDateString()}</td>
+                <td>
+                  {s.title}
+                  {!s.has_settlement && <span className="ui-rowstat"> · no settlement</span>}
+                </td>
+                <td>{s.tickets_sold}</td>
+                <td>{fmt(s.revenue_total)}</td>
+                <td>{fmt(s.artist_payout)}</td>
+                <td>{fmt(s.expenses_total)}</td>
+                <td style={{ color: s.net < 0 ? "var(--lg-bad)" : "var(--lg-good)" }}>{fmt(s.net)}</td>
+              </tr>
+            ))}
+            <tr>
+              <td colSpan={2} style={{ fontWeight: 700 }}>TOTAL</td>
+              <td style={{ fontWeight: 700 }}>{v.totals.tickets_sold}</td>
+              <td style={{ fontWeight: 700 }}>{fmt(v.totals.revenue_total)}</td>
+              <td style={{ fontWeight: 700 }}>{fmt(v.totals.artist_payout)}</td>
+              <td style={{ fontWeight: 700 }}>{fmt(v.totals.expenses_total)}</td>
+              <td style={{ fontWeight: 700, color: v.totals.net < 0 ? "var(--lg-bad)" : "var(--lg-good)" }}>
+                {fmt(v.totals.net)}
+              </td>
+            </tr>
+          </DataTable>
+        </Card>
+      ))}
+    </>
+  );
 }
 
 // ── Ticket Audit Preview ─────────────────────────────────────────────

@@ -1,0 +1,244 @@
+{
+  "type_slug": "venue-pnl",
+  "source_sheet": "VENUE_PNL",
+  "notes": [
+    "One event venue, every show in a date range. Rows repeat, not columns -- lib/xlsx-templates/render.ts grows and shrinks row blocks only, so shows are rows and the P&L categories sit in their own block underneath.",
+    "Revenue comes from computeEventAudit() (per-order settlement_ledger figures); expenses come from each show's settlement. Same numbers the settlement and ticket audit report show -- this adapter does no money math of its own beyond adding them up.",
+    "Sales tax is listed as revenue collected AND as an expense remitted, so it nets to zero while the gross figures still tie to the bank. The card surcharge is revenue and Stripe's actual cut is an expense; the gap is the processing cost the venue absorbs.",
+    "expense_categories repeats whatever settlement_expenses lines actually carry an actual_amount across the shows in range -- budget-only lines are not costs and never appear."
+  ],
+  "scalar_fields": [
+    {
+      "cell": "B8",
+      "field": "venue_name",
+      "type": "text"
+    },
+    {
+      "cell": "G8",
+      "field": "period_label",
+      "type": "text"
+    },
+    {
+      "cell": "K8",
+      "field": "show_count",
+      "type": "number"
+    },
+    {
+      "cell": "B9",
+      "field": "generated_label",
+      "type": "text"
+    },
+    {
+      "cell": "C16",
+      "field": "totals_tickets",
+      "type": "number"
+    },
+    {
+      "cell": "D16",
+      "field": "totals_face_value",
+      "type": "currency"
+    },
+    {
+      "cell": "E16",
+      "field": "totals_service_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "F16",
+      "field": "totals_facility_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "G16",
+      "field": "totals_card_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "H16",
+      "field": "totals_sales_tax",
+      "type": "currency"
+    },
+    {
+      "cell": "I16",
+      "field": "totals_revenue",
+      "type": "currency"
+    },
+    {
+      "cell": "J16",
+      "field": "totals_artist",
+      "type": "currency"
+    },
+    {
+      "cell": "K16",
+      "field": "totals_expenses",
+      "type": "currency"
+    },
+    {
+      "cell": "L20",
+      "field": "rev_face_value",
+      "type": "currency"
+    },
+    {
+      "cell": "L21",
+      "field": "rev_door_cash",
+      "type": "currency"
+    },
+    {
+      "cell": "L22",
+      "field": "rev_service_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "L23",
+      "field": "rev_facility_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "L24",
+      "field": "rev_card_fees",
+      "type": "currency"
+    },
+    {
+      "cell": "L25",
+      "field": "rev_sales_tax",
+      "type": "currency"
+    },
+    {
+      "cell": "L26",
+      "field": "rev_merch",
+      "type": "currency"
+    },
+    {
+      "cell": "L27",
+      "field": "rev_total",
+      "type": "currency"
+    },
+    {
+      "cell": "L30",
+      "field": "exp_artist",
+      "type": "currency"
+    },
+    {
+      "cell": "L31",
+      "field": "exp_sales_tax",
+      "type": "currency"
+    },
+    {
+      "cell": "L32",
+      "field": "exp_card_processing",
+      "type": "currency"
+    },
+    {
+      "cell": "L36",
+      "field": "exp_unitemized",
+      "type": "currency"
+    },
+    {
+      "cell": "L37",
+      "field": "exp_total",
+      "type": "currency"
+    },
+    {
+      "cell": "L39",
+      "field": "net_profit",
+      "type": "currency"
+    },
+    {
+      "cell": "L16",
+      "field": "totals_net",
+      "type": "currency"
+    }
+  ],
+  "repeating_sections": [
+    {
+      "id": "shows",
+      "data_path": "shows",
+      "anchor_rows": [
+        13
+      ],
+      "row_fields": [
+        {
+          "col": "A",
+          "field": "date_label",
+          "type": "text"
+        },
+        {
+          "col": "B",
+          "field": "title",
+          "type": "text"
+        },
+        {
+          "col": "C",
+          "field": "tickets_sold",
+          "type": "number"
+        },
+        {
+          "col": "D",
+          "field": "face_value",
+          "type": "currency"
+        },
+        {
+          "col": "E",
+          "field": "service_fees",
+          "type": "currency"
+        },
+        {
+          "col": "F",
+          "field": "facility_fees",
+          "type": "currency"
+        },
+        {
+          "col": "G",
+          "field": "card_fees_collected",
+          "type": "currency"
+        },
+        {
+          "col": "H",
+          "field": "sales_tax_collected",
+          "type": "currency"
+        },
+        {
+          "col": "I",
+          "field": "revenue_total",
+          "type": "currency"
+        },
+        {
+          "col": "J",
+          "field": "artist_payout",
+          "type": "currency"
+        },
+        {
+          "col": "K",
+          "field": "expenses_total",
+          "type": "currency"
+        },
+        {
+          "col": "L",
+          "field": "net",
+          "type": "currency"
+        }
+      ],
+      "example_row_count": 3
+    },
+    {
+      "id": "expense_categories",
+      "data_path": "expense_lines",
+      "anchor_rows": [
+        33
+      ],
+      "row_fields": [
+        {
+          "col": "A",
+          "field": "name",
+          "type": "text"
+        },
+        {
+          "col": "L",
+          "field": "amount",
+          "type": "currency"
+        }
+      ],
+      "example_row_count": 3
+    }
+  ]
+}

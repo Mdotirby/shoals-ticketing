@@ -134,11 +134,24 @@ export async function renderXlsxTemplate(
   }
 
   // 3. Reapply merges at their shifted positions.
+  //
+  // Two template merges can land on the same rows once a section shrinks --
+  // a summary block whose label cells are merged collapses onto the block
+  // above it when its stencil rows are spliced out. exceljs throws "Cannot
+  // merge already merged cells" on the second one, which killed the whole
+  // render. Skipping the duplicate keeps the first (topmost) merge, which is
+  // the one whose row the shift was computed from.
+  const applied = new Set<string>();
   for (const m of originalMerges) {
     const shift = shiftForOriginalRow(m.r1);
-    const r1 = m.r1 + shift;
-    const r2 = m.r2 + shift;
-    sheet.mergeCells(`${m.c1}${r1}:${m.c2}${r2}`);
+    const range = `${m.c1}${m.r1 + shift}:${m.c2}${m.r2 + shift}`;
+    if (applied.has(range)) continue;
+    try {
+      sheet.mergeCells(range);
+      applied.add(range);
+    } catch {
+      // Already merged by an overlapping range -- see above.
+    }
   }
 
   // 4. Scalar fields, positioned at their shifted row.
