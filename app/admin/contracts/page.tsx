@@ -1,27 +1,53 @@
 "use client";
 
+/**
+ * Contracts list — rebuilt on the shared primitives
+ * (app/components/admin/ui.tsx) against design/liquid-glass/admin_contracts.png
+ * and admin_contracts_mobile.png.
+ *
+ * Restyle only: the fetch, the per-contract offer enrichment and the
+ * row-click/View Offer navigation are unchanged. The hand-rolled <table> with
+ * inline styles became the shared DataTable, which scrolls horizontally on
+ * mobile rather than crushing its columns.
+ */
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import type { Contract } from "@/lib/types/contract";
+import {
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  PageHeader,
+  StatusBadge,
+  Tag,
+  type BadgeVariant,
+} from "@/app/components/admin/ui";
 
-const statusColors: Record<string, { bg: string; color: string }> = {
-  draft:  { bg: "rgba(255,200,50,0.12)", color: "#e8c94a" },
-  sent:   { bg: "rgba(100,180,255,0.12)", color: "#6ab4ff" },
-  signed: { bg: "rgba(100,200,100,0.15)", color: "#7ddb7d" },
-  void:   { bg: "rgba(255,100,100,0.12)", color: "#ff9a9a" },
-};
-
-const sourceColors: Record<string, { bg: string; color: string }> = {
-  generated: { bg: "rgba(255, 255, 255, 0.15)", color: "#ffffff" },
-  uploaded:  { bg: "rgba(180,180,255,0.12)", color: "#b4b4ff" },
+/** Contract status → the shared badge vocabulary. */
+const STATUS_VARIANT: Record<string, BadgeVariant> = {
+  draft: "draft",
+  sent: "info",
+  signed: "good",
+  void: "bad",
 };
 
 type ContractWithOffer = Contract & {
   artist_name?: string;
   event_date?: string;
 };
+
+/** Date-only strings need noon local so they don't slip a day in US zones. */
+function showDate(d: string) {
+  const parsed =
+    d.length === 10 && d[4] === "-"
+      ? new Date(`${d}T12:00:00`)
+      : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
+  return parsed.toLocaleDateString();
+}
 
 export default function ContractsListPage() {
   const router = useRouter();
@@ -31,9 +57,7 @@ export default function ContractsListPage() {
 
   useEffect(() => {
     const venueId = getCookie("venue-id");
-    const url = venueId
-      ? `/api/contracts?venue_id=${venueId}`
-      : "/api/contracts";
+    const url = venueId ? `/api/contracts?venue_id=${venueId}` : "/api/contracts";
 
     fetch(url)
       .then((r) => r.json())
@@ -68,153 +92,75 @@ export default function ContractsListPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Loading…</h1>
-      </div>
-    );
-  }
-
   return (
-    <div className="admin-form-page">
-      <div className="admin-page-header">
-        <div>
-          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
-            <span
-              style={{
-                padding: "4px 12px", fontSize: 12, fontWeight: 600,
-                background: "rgba(255, 255, 255, 0.15)", color: "#ffffff",
-                border: "1px solid rgba(255, 255, 255, 0.3)", borderRadius: 6,
-              }}
-            >
-              Artist Contracts
-            </span>
-            <Link
-              href="/admin/co-promote-agreements"
-              style={{
-                padding: "4px 12px", fontSize: 12, fontWeight: 600,
-                background: "transparent", color: "rgba(255,255,255,0.4)",
-                border: "1px solid rgba(255,255,255,0.1)", borderRadius: 6,
-                textDecoration: "none",
-              }}
-            >
+    <>
+      <PageHeader
+        title="Contracts"
+        actions={
+          <>
+            <span className="btn btn-primary btn-sm">Artist Contracts</span>
+            <Link href="/admin/co-promote-agreements" className="btn btn-ghost btn-sm">
               Co-Promote Agreements
             </Link>
-          </div>
-          <h1 className="admin-page-title">Contracts</h1>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {error && <div className="admin-form-error">{error}</div>}
-
-      {contracts.length === 0 && !error && (
-        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14, marginTop: 16 }}>
-          No contracts yet. Generate or upload a contract from the Booking detail page.
-        </p>
+      {error && (
+        <Card>
+          <p style={{ color: "var(--lg-bad)", fontSize: 12.5, margin: 0 }}>{error}</p>
+        </Card>
       )}
 
-      {contracts.length > 0 && (
-        <div style={{ overflowX: "auto", marginTop: 16 }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13,
-              color: "#fff",
-            }}
-          >
-            <thead>
+      {loading && <p className="ui-intro">Loading…</p>}
+
+      {!loading && contracts.length === 0 && !error && (
+        <Card>
+          <EmptyState
+            title="No contracts yet"
+            description="Generate or upload a contract from the booking detail page."
+          />
+        </Card>
+      )}
+
+      {!loading && contracts.length > 0 && (
+        <Card flush>
+          <DataTable columns={["Artist", "Event date", "Status", "Source", "Created", ""]}>
+            {contracts.map((c) => (
               <tr
-                style={{
-                  borderBottom: "2px solid rgba(255, 255, 255, 0.3)",
-                  textAlign: "left",
+                key={c.id}
+                style={{ cursor: c.offer_id ? "pointer" : "default" }}
+                onClick={() => {
+                  if (c.offer_id) router.push(`/admin/offers/${c.offer_id}`);
                 }}
               >
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Artist</th>
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Event Date</th>
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Status</th>
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Source</th>
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Created</th>
-                <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}></th>
+                <td style={{ fontWeight: 700 }}>{c.artist_name || "—"}</td>
+                <td>{c.event_date ? showDate(c.event_date) : "—"}</td>
+                <td>
+                  <StatusBadge variant={STATUS_VARIANT[c.status] ?? "draft"}>{c.status}</StatusBadge>
+                </td>
+                <td>
+                  <Tag>{c.source}</Tag>
+                </td>
+                <td style={{ color: "rgba(255,255,255,0.44)" }}>
+                  {new Date(c.created_at).toLocaleDateString()}
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  {c.offer_id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => router.push(`/admin/offers/${c.offer_id}`)}
+                    >
+                      View Offer →
+                    </Button>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {contracts.map((c) => {
-                const sc = statusColors[c.status] || statusColors.draft;
-                const src = sourceColors[c.source] || sourceColors.generated;
-                return (
-                  <tr
-                    key={c.id}
-                    style={{
-                      borderBottom: "1px solid rgba(255,255,255,0.06)",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      if (c.offer_id) router.push(`/admin/offers/${c.offer_id}`);
-                    }}
-                  >
-                    <td style={{ padding: "10px 6px", fontWeight: 600 }}>
-                      {c.artist_name || "—"}
-                    </td>
-                    <td style={{ padding: "10px 6px" }}>
-                      {c.event_date
-                        ? ((d: string) => (d && d.length === 10 && d[4] === "-") ? new Date(d + "T12:00:00") : new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, "")))(c.event_date).toLocaleDateString()
-                        : "—"}
-                    </td>
-                    <td style={{ padding: "10px 6px" }}>
-                      <span
-                        style={{
-                          background: sc.bg,
-                          color: sc.color,
-                          padding: "3px 10px",
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {c.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 6px" }}>
-                      <span
-                        style={{
-                          background: src.bg,
-                          color: src.color,
-                          padding: "3px 10px",
-                          borderRadius: 4,
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {c.source}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 6px", color: "rgba(255,255,255,0.5)" }}>
-                      {new Date(c.created_at).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: "10px 6px" }}>
-                      {c.offer_id && (
-                        <button
-                          className="admin-sponsor-edit-btn"
-                          style={{ fontSize: 12, padding: "4px 10px" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/admin/offers/${c.offer_id}`);
-                          }}
-                        >
-                          View Offer →
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </DataTable>
+        </Card>
       )}
-    </div>
+    </>
   );
 }
