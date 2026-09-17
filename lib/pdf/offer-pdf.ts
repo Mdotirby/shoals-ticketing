@@ -4,6 +4,7 @@
  * Uses ensureSpace() for automatic page breaks.
  */
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem } from "../types/offer";
+import { artistPayout } from "@/lib/settlement/model";
 import type { Venue } from "../types/venue";
 import { offerSurchargePerTicket } from "@/lib/fees/rates";
 import {
@@ -442,10 +443,12 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     return yPos + RH;
   };
 
-  // Splitpoint is the THRESHOLD (the guarantee); the pool it's measured
-  // against is netAfterExpenses. Computed here rather than read from
-  // data.splitpoint so a PDF regenerated from an older stored offer still
-  // prints the current model instead of a stale pool figure.
+  // Splitpoint is the POOL the backend % applies to -- net potential minus
+  // expenses -- the same definition the offer builder, the XLSX export and
+  // settlements use. This row used to print the guarantee under that label,
+  // so one offer showed two different splitpoints depending on the document.
+  // Computed here rather than read from data.splitpoint so a PDF regenerated
+  // from an older stored offer still prints the current model.
   const totalExpensesPDF = Number(data.total_expenses || 0);
   const netAfterExpensesPDF = netPotential - totalExpensesPDF;
   const hasSplipoint = data.deal_type !== "FLAT";
@@ -459,7 +462,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     potY, true,
   );
   if (hasSplipoint) {
-    potY = potRow("", "", "Splitpoint (guarantee)", f2(Number(data.guarantee || 0)), potY);
+    potY = potRow("", "", "Splitpoint", f2(netAfterExpensesPDF), potY);
   }
   y = potY + 1;
 
@@ -478,12 +481,19 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   doc.setFontSize(M);
   doc.setTextColor(0, 0, 0);
 
-  // Same model as the offer builder and the settlement:
+  // lib/settlement/model.ts artistPayout() -- the one implementation, shared
+  // with the offer builder, the XLSX export and settlements:
   //   overage = (net after expenses × backend%) − guarantee
-  //   artist  = guarantee + overage, when positive
-  const overagePDF = netAfterExpensesPDF * backendPct - guarantee;
-  const backendAmt = dealType === "FLAT" || overagePDF <= 0 ? 0 : overagePDF;
-  const artistTotal = guarantee + backendAmt;
+  //   artist  = guarantee + overage, when positive (the greater of the two)
+  const payoutPDF = artistPayout({
+    netReceipts: netPotential,
+    totalExpenses: totalExpensesPDF,
+    guarantee,
+    backendPct,
+    dealType,
+  });
+  const backendAmt = dealType === "FLAT" ? 0 : payoutPDF.artistBackend;
+  const artistTotal = payoutPDF.dealTotal;
   const backendLabel =
     dealType === "FLAT" ? "" : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
 

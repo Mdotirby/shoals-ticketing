@@ -334,8 +334,12 @@ export default function SettlementDetailPage() {
   //   adjusted gross  = gross − service − facility        ← the artist's face
   //   net receipts    = adjusted gross − sales tax
   //   net after exp.  = net receipts − expenses           ← the pool
-  //   overage         = net after expenses − guarantee
-  //   artist          = guarantee + (overage × backend%)
+  //   overage         = (net after expenses × backend%) − guarantee
+  //   artist          = guarantee + overage, when positive — the greater of
+  //                     the guarantee and the percentage share
+  //                     (lib/settlement/model.ts artistPayout; this comment
+  //                     used to describe the (pool − guarantee) × % model that
+  //                     function explicitly rejects)
   //
   // This used to add every fee and then subtract the identical set, so
   // netReceipts was algebraically just totalGross and sales tax never came
