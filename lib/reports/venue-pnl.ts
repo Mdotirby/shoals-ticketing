@@ -199,11 +199,17 @@ export async function buildVenuePnl(
       itemised += line.actual;
     }
 
-    // Cash taken at the door never touches Stripe and has no order behind it
-    // on older shows, so it lives on the settlement as a manual figure. The
-    // audit cannot see it; without this the night is short by exactly the
-    // cash drawer (Twin Fin $240, Drivin' N Cryin' $450).
-    const door_cash = r2(settlement?.cash_gross ?? 0);
+    // Door cash is a real order (source='cash') written by the box office, so
+    // the audit already counts its tickets and folds its money into
+    // face_gross. Split it back out so the P&L shows it on its own line.
+    // Only a show with no cash orders at all falls back to the settlement's
+    // manual cash figure — using both would count the drawer twice.
+    const cashOrderFace = r2(
+      audit.audit.filter((row) => row.source === "cash").reduce((s, row) => s + row.gross, 0)
+    );
+    const hasCashOrders = audit.audit.some((row) => row.source === "cash" && row.sold > 0);
+    const door_cash = hasCashOrders ? cashOrderFace : r2(settlement?.cash_gross ?? 0);
+    const face_value = r2(audit.face_gross - cashOrderFace);
     const artist_payout = r2(settlement?.artist_total ?? 0);
     const sales_tax_collected = r2(audit.taxes);
     const card_processing = r2(audit.cc_fees_actual || audit.cc_fees);
@@ -213,7 +219,7 @@ export async function buildVenuePnl(
     const expenses_unitemized = r2(Math.max(0, (settlement?.total_expenses ?? 0) - itemised));
 
     const revenue_total = r2(
-      audit.face_gross +
+      face_value +
         door_cash +
         audit.ticketing_fees +
         audit.facility_fees +
@@ -236,7 +242,7 @@ export async function buildVenuePnl(
       tickets_sold: audit.tickets_sold_count,
       comps: audit.comp_count,
 
-      face_value: r2(audit.face_gross),
+      face_value,
       door_cash,
       service_fees: r2(audit.ticketing_fees),
       facility_fees: r2(audit.facility_fees),
