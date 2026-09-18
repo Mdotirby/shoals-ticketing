@@ -20,26 +20,12 @@ import {
    settings/permissions/page.tsx and the two had already drifted. See the
    comment there. */
 
-/** Minimal frosted-glass SVG icons for sidebar groups */
-function SidebarIcon({ name }: { name: string }) {
-  const s = { width: 16, height: 16, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, style: { opacity: 0.7 } };
-  switch (name) {
-    case "shows":
-      return <svg {...s}><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 2v4M16 2v4M3 10h18" /></svg>;
-    case "business":
-      return <svg {...s}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>;
-    case "dayofshow":
-      return <svg {...s}><path d="M15 5v2M9 5v2" /><rect x="3" y="4" width="18" height="6" rx="2" /><path d="M3 10v8a2 2 0 002 2h14a2 2 0 002-2v-8" /><path d="M9 14h6" /></svg>;
-    case "growth":
-      return <svg {...s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>;
-    case "contacts":
-      return <svg {...s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>;
-    case "settings":
-      return <svg {...s}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>;
-    default:
-      return <svg {...s}><circle cx="12" cy="12" r="10" /></svg>;
-  }
-}
+/* The design system's sidebar groups are a label and a caret, nothing else
+   (design/liquid-glass/admin-globals.css.snippet.css, .nav-section). The
+   frosted SVG icons that used to sit left of each label were an addition
+   this portal made on its own and are not in any mockup, so they are gone;
+   SidebarGroup.icon stays in lib/admin/nav.ts, unused for now, rather than
+   churning that file's shape. */
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -413,7 +399,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   className={`admin-sidebar-group-btn${isExpanded ? " is-expanded" : ""}${hasActivePage ? " has-active" : ""}`}
                   aria-expanded={isExpanded}
                 >
-                  <SidebarIcon name={group.icon} />
                   <span className="admin-sidebar-group-label">{group.groupLabel}</span>
                   <span className="admin-sidebar-group-caret" aria-hidden="true">▾</span>
                 </button>

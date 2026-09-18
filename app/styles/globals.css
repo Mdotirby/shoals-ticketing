@@ -21882,3 +21882,124 @@ body[data-theme="liquid-glass"] .admin-shell .ui-rowstat {
   color: rgba(255, 255, 255, 0.44);
   font-variant-numeric: tabular-nums;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN SIDEBAR — the design system's own values
+   ══════════════════════════════════════════════════════════════════════
+   The September pass restyled the sidebar "in place" and only ever gave
+   three of its elements liquid-glass rules: the link colour, the header
+   border and the welcome text. Sub-links, group buttons, group labels, the
+   caret and the footer got none, so they kept the pre-redesign sizes and
+   spacing while every page beside them was rebuilt — which is why the
+   sidebar reads as a different generation of the design from the pages.
+
+   These are the values from design/liquid-glass/admin-globals.css.snippet.css
+   (.sidebar, .logo, .welcome, .nav-item, .nav-section, .nav-sub,
+   .sidebar-foot), applied to the class names the real markup already uses
+   rather than renaming anything in app/admin/layout.tsx. Restyle only: no
+   markup, no behaviour, no change to which items a role can see.
+
+   One deliberate departure: the spec draws the logo as a bordered "72" mark
+   plus a WEST-72 wordmark. The real header renders the operator's own logo
+   image, because the portal is white-labelled — VenueCore must not show
+   West 72's mark. Sizing and spacing follow the spec; the artwork stays
+   per-operator.
+   ══════════════════════════════════════════════════════════════════════ */
+
+body[data-theme="liquid-glass"] .admin-sidebar {
+  width: 250px;
+  padding: 32px 24px;
+}
+
+/* Logo block: left-aligned, no rule under it (the spec separates with space). */
+body[data-theme="liquid-glass"] .admin-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-start;
+  padding: 0;
+  margin-bottom: 36px;
+  border-bottom: none;
+}
+
+body[data-theme="liquid-glass"] .admin-sidebar-welcome {
+  margin: 0 0 34px;
+  text-align: left;
+  font-size: 12px;
+}
+
+body[data-theme="liquid-glass"] .admin-sidebar-nav { gap: 2px; }
+
+/* Top-level items */
+body[data-theme="liquid-glass"] .admin-sidebar-link,
+body[data-theme="liquid-glass"] .admin-sidebar-link--dashboard {
+  font-size: 13px;
+  font-weight: 500;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid transparent;
+}
+body[data-theme="liquid-glass"] .admin-sidebar-link.active,
+body[data-theme="liquid-glass"] .admin-sidebar-link--dashboard.active {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--lg-white);
+  font-weight: 700;
+}
+
+/* Group headings — small, wide-tracked, quiet. The old rule was a 13px
+   uppercase button that read as loud as the items underneath it. */
+body[data-theme="liquid-glass"] .admin-sidebar-group-btn {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: rgba(255, 255, 255, 0.34);
+  padding: 0 12px 0 12px;
+  margin: 20px 0 4px;
+  background: transparent;
+}
+body[data-theme="liquid-glass"] .admin-sidebar-group-btn.is-expanded {
+  background: transparent;
+}
+body[data-theme="liquid-glass"] .admin-sidebar-group-btn.has-active,
+body[data-theme="liquid-glass"] .admin-sidebar-group-btn:hover {
+  color: rgba(255, 255, 255, 0.72);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-group-caret {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.28);
+  opacity: 1;
+}
+
+/* Sub-items carry their own indent, so the container adds none. */
+body[data-theme="liquid-glass"] .admin-sidebar-group-items { padding-left: 0; }
+body[data-theme="liquid-glass"] .admin-sidebar-link--sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 9px 12px 9px 26px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  border: none;
+}
+body[data-theme="liquid-glass"] .admin-sidebar-link--sub.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--lg-white);
+  font-weight: 700;
+}
+
+/* Footer: a rule above it, quieter type. */
+body[data-theme="liquid-glass"] .admin-sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+body[data-theme="liquid-glass"] .admin-sidebar-divider { display: none; }
+body[data-theme="liquid-glass"] .admin-signout-btn {
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 11px 12px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.55);
+}
