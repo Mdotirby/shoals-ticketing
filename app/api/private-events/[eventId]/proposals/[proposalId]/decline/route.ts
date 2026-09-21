@@ -1,11 +1,14 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
 
 // POST: manually mark a quote as declined
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ eventId: string; proposalId: string }> }
 ) {
+  const guard = await requireCapability("quote_contract_rentals", { write: true });
+  if (!guard.ok) return guard.response;
   const { eventId, proposalId } = await params;
   const admin = createAdminClient();
   const body = await req.json().catch(() => ({}));

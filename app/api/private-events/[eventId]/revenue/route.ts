@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { eventId } = await params;
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");

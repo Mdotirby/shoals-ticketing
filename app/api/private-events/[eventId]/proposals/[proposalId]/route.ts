@@ -1,10 +1,13 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability, requireStaff } from "@/lib/auth/can";
 
 type Params = { params: Promise<{ eventId: string; proposalId: string }> };
 
 // GET: single quote
 export async function GET(_req: Request, { params }: Params) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { eventId, proposalId } = await params;
   const admin = createAdminClient();
 
@@ -21,6 +24,8 @@ export async function GET(_req: Request, { params }: Params) {
 
 // PUT: update quote (line items, terms, status)
 export async function PUT(req: Request, { params }: Params) {
+  const guard = await requireCapability("quote_contract_rentals", { write: true });
+  if (!guard.ok) return guard.response;
   const { eventId, proposalId } = await params;
   const admin = createAdminClient();
   const body = await req.json();
@@ -53,6 +58,8 @@ export async function PUT(req: Request, { params }: Params) {
 
 // DELETE: remove quote
 export async function DELETE(_req: Request, { params }: Params) {
+  const guard = await requireCapability("quote_contract_rentals", { write: true });
+  if (!guard.ok) return guard.response;
   const { eventId, proposalId } = await params;
   const admin = createAdminClient();
 

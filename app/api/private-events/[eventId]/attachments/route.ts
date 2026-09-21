@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability, requireStaff } from "@/lib/auth/can";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { eventId } = await params;
   const admin = createAdminClient();
 
@@ -29,6 +32,8 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const guard = await requireCapability("quote_contract_rentals", { write: true });
+  if (!guard.ok) return guard.response;
   const { eventId } = await params;
   const admin = createAdminClient();
   const body = await request.json();
@@ -57,6 +62,8 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ eventId: string }> }
 ) {
+  const guard = await requireCapability("quote_contract_rentals", { write: true });
+  if (!guard.ok) return guard.response;
   await params; // consume params
   const { searchParams } = new URL(request.url);
   const attachmentId = searchParams.get("id");
