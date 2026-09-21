@@ -8,6 +8,8 @@ import { allNavLinks, DEFAULT_TAB_ROLES, resolveActive, visibleNav } from "@/lib
 const MOVED: Record<string, string> = {
   "/admin/calendar": "/admin/calendar?tab=month",
   "/admin/events": "/admin/calendar?tab=list",
+  "/admin/live": "/admin/live?tab=pulse",
+  "/admin/guest-lists": "/admin/live?tab=guests",
   "/admin/marketing": "/admin/marketing?tab=campaigns",
   "/admin/broadcasts": "/admin/marketing?tab=broadcasts",
   "/admin/auctions": "/admin/marketing?tab=auctions",
@@ -90,7 +92,7 @@ describe("visibleNav", () => {
     );
     expect(pages).toEqual([
       ["dash", "/admin", []],
-      ["dayof", null, ["/admin/guest-lists"]],
+      ["dayof", null, ["/admin/live?tab=guests"]],
       ["orders", "/admin/orders", []],
     ]);
   });

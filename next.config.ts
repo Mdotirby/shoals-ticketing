@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const MERGED_ROUTES: [string, string][] = [
   ["/admin/events", "/admin/calendar?tab=list"],
+  ["/admin/guest-lists", "/admin/live?tab=guests"],
   ["/admin/broadcasts", "/admin/marketing?tab=broadcasts"],
   ["/admin/auctions", "/admin/marketing?tab=auctions"],
   ["/admin/market-radar", "/admin/marketing?tab=radar"],

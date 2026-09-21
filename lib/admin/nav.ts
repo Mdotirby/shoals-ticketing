@@ -185,8 +185,8 @@ export const navGroups: NavGroup[] = [
         id: "dayof",
         label: "Tonight",
         routeTabs: [
-          { label: "Pulse", href: "/admin/live", tabKey: "live_pulse", roles: R.exec },
-          { label: "Guest check-in", href: "/admin/guest-lists", tabKey: "guest_lists", roles: ["owner","venue_admin","full_admin","artist"] },
+          { label: "Pulse", href: "/admin/live?tab=pulse", tabKey: "live_pulse", roles: R.exec },
+          { label: "Guest check-in", href: "/admin/live?tab=guests", tabKey: "guest_lists", roles: ["owner","venue_admin","full_admin","artist"] },
         ],
       },
       { id: "boxoffice", label: "Box office POS", link: { label: "Box office POS", href: "/boxoffice", roles: ["owner","venue_admin","full_admin","box_office"] } },
