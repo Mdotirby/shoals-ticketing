@@ -1,9 +1,14 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireCapability, requireStaff } from "@/lib/auth/can";
 
 // GET /api/calendar?month=2026-03&venue_id=xxx
 // Returns all events for the given month (or ±1 month for calendar edge days)
 export async function GET(req: NextRequest) {
+  // Every hold and every private client's name, phone and email, to anyone who
+  // asked. Staff only — the admin calendar is the only caller.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const month = req.nextUrl.searchParams.get("month"); // YYYY-MM
   const venueId = req.nextUrl.searchParams.get("venue_id");
@@ -99,6 +104,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/calendar — Create a calendar event (non-ticketed, private, or hard_ticket)
 export async function POST(req: NextRequest) {
+  const guard = await requireCapability("holds", { write: true });
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const body = await req.json();
 
@@ -151,6 +158,8 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/calendar — Update a calendar event
 export async function PUT(req: NextRequest) {
+  const guard = await requireCapability("holds", { write: true });
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const body = await req.json();
 
@@ -201,6 +210,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/calendar?id=xxx
 export async function DELETE(req: NextRequest) {
+  const guard = await requireCapability("holds", { write: true });
+  if (!guard.ok) return guard.response;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
