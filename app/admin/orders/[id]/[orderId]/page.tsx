@@ -350,7 +350,10 @@ export default function OrderDetailPage() {
       const res = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ note }),
+        // This button is for wrong-event / wrong-ticket mistakes — the
+        // "glitch" case of the refund policy. Cancelled-show refunds are
+        // issued from the order book.
+        body: JSON.stringify({ note, reason: "glitch" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Refund failed");

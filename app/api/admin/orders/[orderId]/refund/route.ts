@@ -2,6 +2,8 @@ import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
+import { writeAudit } from "@/lib/auth/audit";
+import { REFUND_REASONS, refundBlocker } from "@/lib/orders/refundPolicy";
 
 /**
  * POST /api/admin/orders/[orderId]/refund
@@ -13,7 +15,11 @@ import { NextResponse } from "next/server";
  * corrections, where the seats should stay reserved (see Request Correct
  * Payment / Reinstate as Comp instead).
  *
- * Body: { note?: string }
+ * Policy (lib/orders/refundPolicy.ts): only for a cancelled show or a glitch
+ * on our side, always the full all-in amount, never for cash. The reason is
+ * required and recorded on the order and in the audit log.
+ *
+ * Body: { reason: "show_cancelled" | "glitch", note?: string }
  */
 export async function POST(
   req: Request,
@@ -25,12 +31,13 @@ export async function POST(
   const { orderId } = await params;
   const body = await req.json().catch(() => ({}));
   const note: string | undefined = body?.note;
+  const reason: unknown = body?.reason;
 
   const admin = createAdminClient();
 
   const { data: order, error: findError } = await admin
     .from("orders")
-    .select("id, status, notes, total_amount, stripe_payment_intent_id")
+    .select("id, status, source, notes, total_amount, stripe_payment_intent_id, event_id, events(booking_status, venue_id)")
     .eq("id", orderId)
     .single();
 
@@ -38,9 +45,14 @@ export async function POST(
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  if (order.status === "refunded") {
-    return NextResponse.json({ error: "Order is already refunded" }, { status: 400 });
+  const event = (Array.isArray(order.events) ? order.events[0] : order.events) as
+    | { booking_status: string | null; venue_id: string | null }
+    | null;
+  const blocked = refundBlocker(order, event, reason);
+  if (blocked) {
+    return NextResponse.json({ error: blocked }, { status: 400 });
   }
+  const reasonLabel = REFUND_REASONS[reason as keyof typeof REFUND_REASONS];
 
   // Issue the actual refund via Stripe when there's a real payment to reverse.
   // Zero-dollar comp orders have nothing to refund — just release seats below.
@@ -80,10 +92,11 @@ export async function POST(
   const refundNote = note?.trim()
     ? note.trim()
     : `Refunded in full on ${new Date().toLocaleDateString("en-US")}. Seats released for resale.`;
+  const reasonLine = `Refund reason: ${reasonLabel}.`;
 
   const { error: updateError } = await admin
     .from("orders")
-    .update({ status: "refunded", notes: `${existingNote}${refundNote}` })
+    .update({ status: "refunded", notes: `${existingNote}${reasonLine} ${refundNote}` })
     .eq("id", orderId);
 
   if (updateError) {
@@ -92,6 +105,14 @@ export async function POST(
       { status: 500 }
     );
   }
+
+  await writeAudit(guard.actor, {
+    action: "order.refunded",
+    targetType: "order",
+    targetId: orderId,
+    venueId: event?.venue_id ?? null,
+    detail: { reason, amount: Number(order.total_amount) || 0, event_id: order.event_id, note: note?.trim() || null },
+  });
 
   return NextResponse.json({
     success: true,

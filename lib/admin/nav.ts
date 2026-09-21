@@ -215,7 +215,16 @@ export const navGroups: NavGroup[] = [
     label: "Money",
     icon: "▤",
     pages: [
-      { id: "orders", label: "Orders & refunds", link: { label: "Orders & refunds", href: "/admin/orders", tabKey: "sales", roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] } },
+      {
+        id: "orders",
+        label: "Orders & refunds",
+        link: { label: "Orders & refunds", href: "/admin/orders", tabKey: "sales", roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
+        paramTabs: [
+          { label: "Order book", key: "book" },
+          { label: "By show", key: "shows" },
+        ],
+        paramTabsOn: /^\/admin\/orders$/,
+      },
       { id: "settle", label: "Settlements", link: { label: "Settlements", href: "/admin/settlements", tabKey: "settlements", roles: R.mgmt } },
       { id: "invoice", label: "Invoices", link: { label: "Invoices", href: "/admin/invoices", tabKey: "invoices_payments", roles: R.mgmt } },
       { id: "reporting", label: "Reporting", link: { label: "Reporting", href: "/admin/reports", tabKey: "reports", roles: ["owner","venue_admin","full_admin","read_only","box_office"] } },

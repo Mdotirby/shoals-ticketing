@@ -24,7 +24,8 @@ export async function GET(
         title,
         date,
         venue,
-        venue_id
+        venue_id,
+        booking_status
       ),
       promo_codes(code, discount_type, discount_value)
     `)
@@ -60,10 +61,19 @@ export async function GET(
     return NextResponse.json({ error: ticketsError.message }, { status: 500 });
   }
 
+  // The order's money as the ledger recorded it — sale and any refund rows
+  // — so the order book can show face, fees and tax without re-deriving them.
+  const { data: ledger } = await admin
+    .from("settlement_ledger")
+    .select("type, gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, stripe_fee, stripe_fee_actual, net_to_venue, created_at")
+    .eq("order_id", orderId)
+    .order("created_at", { ascending: true });
+
   return NextResponse.json({
     order,
     venueSlug,
     tickets: tickets ?? [],
+    ledger: ledger ?? [],
   });
 }
 
