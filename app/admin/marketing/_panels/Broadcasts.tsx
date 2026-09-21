@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import SendTable, { type SendRow } from "./SendTable";
+import SendTable, { type SendRow } from "@/app/admin/broadcasts/SendTable";
 
 function formatPercent(n: number | null) {
   return n === null ? "—" : `${Math.round(n * 100)}%`;

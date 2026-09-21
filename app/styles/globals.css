@@ -22283,3 +22283,58 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (prefers-reduced-motion: reduce) {
   .admin-shell .anav { transition: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   MERGED PAGES — app/components/admin/MergedPage.tsx
+   The pill tab bar is the calendar screen's Month / Show list control in
+   handoff/screens/calendar.dc.html; every merged page uses the same one.
+   ══════════════════════════════════════════════════════════════════════ */
+.admin-shell .merged-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 18px;
+  border-radius: 999px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.admin-shell .merged-tabs::-webkit-scrollbar { display: none; }
+.admin-shell .merged-tab {
+  flex: none;
+  padding: 9px 20px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.50);
+  text-decoration: none;
+}
+.admin-shell .merged-tab:hover { color: #fff; }
+.admin-shell .merged-tab.is-on {
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.admin-shell .merged-tab--out { margin-left: auto; color: rgba(255, 255, 255, 0.42); }
+
+/* A merged page's panels were whole pages with their own title. The merged
+   page's header is the title now, so a panel's own h1 steps down to a
+   section heading rather than competing with it. */
+.admin-shell .merged-panel .admin-page-title,
+.admin-shell .merged-panel h1 {
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 768px) {
+  .admin-shell .merged-tab { min-height: 44px; padding: 0 18px; }
+}

@@ -2,15 +2,28 @@ import baseline from "./nav-baseline.json";
 import { allNavLinks, DEFAULT_TAB_ROLES, resolveActive, visibleNav } from "@/lib/admin/nav";
 
 /**
+ * Routes merged into tabbed pages: old href → where that permission now
+ * lives. Must match the redirects in next.config.ts.
+ */
+const MOVED: Record<string, string> = {
+  "/admin/marketing": "/admin/marketing?tab=campaigns",
+  "/admin/broadcasts": "/admin/marketing?tab=broadcasts",
+  "/admin/auctions": "/admin/marketing?tab=auctions",
+  "/admin/market-radar": "/admin/marketing?tab=radar",
+  "/admin/sponsors": "/admin/marketing?tab=sponsors",
+};
+
+/**
  * nav-baseline.json is the flat sidebar as it was before the regroup into
  * the design's three-level nav: every href, the tab_key it checked in
  * sidebar_permissions, and its roles. The regroup moves links between groups
  * and turns some into tabs; it must not change who can open what.
  */
 describe("admin nav regroup keeps permissions", () => {
-  test("every old link survives with the same tab_key and roles", () => {
+  test("every old link survives — in place or merged — with the same tab_key and roles", () => {
     for (const old of baseline.leaves) {
-      const now = allNavLinks.find((l) => l.href === old.href);
+      const href = MOVED[old.href] ?? old.href;
+      const now = allNavLinks.find((l) => l.href === href);
       expect(now).toBeDefined();
       expect({ href: old.href, tabKey: now!.tabKey ?? null, roles: [...now!.roles].sort() })
         .toEqual({ href: old.href, tabKey: old.tabKey, roles: [...old.roles].sort() });
@@ -22,7 +35,7 @@ describe("admin nav regroup keeps permissions", () => {
   });
 
   test("the only new links are the design's additions, none with a tab_key", () => {
-    const oldHrefs = new Set(baseline.leaves.map((l) => l.href));
+    const oldHrefs = new Set(baseline.leaves.map((l) => MOVED[l.href] ?? l.href));
     const added = allNavLinks.filter((l) => !oldHrefs.has(l.href));
     expect(added.map((l) => l.href).sort()).toEqual(
       ["/admin/events/new", "/admin/marketing/fwb", "/admin/private-events", "/admin/settings", "/boxoffice"].sort()
@@ -55,7 +68,8 @@ describe("resolveActive", () => {
   });
   test("FWB is loyalty, the rest of /admin/marketing is campaigns", () => {
     expect(at("/admin/marketing/fwb-members")).toEqual(["audience", "loyalty", null]);
-    expect(at("/admin/marketing/campaigns")).toEqual(["audience", "marketing", "/admin/marketing"]);
+    expect(at("/admin/marketing/campaigns")).toEqual(["audience", "marketing", "/admin/marketing?tab=campaigns"]);
+    expect(at("/admin/marketing")).toEqual(["audience", "marketing", "/admin/marketing?tab=campaigns"]);
   });
   test("offer builder routes belong to Offers", () => {
     expect(at("/admin/offers/xyz")).toEqual(["deals", "offer", null]);
@@ -82,3 +96,18 @@ describe("visibleNav", () => {
     expect(visibleNav("box_office", null).map((g) => g.id)).not.toContain("admin");
   });
 });
+
+describe("merged redirects", () => {
+  test("next.config.ts redirects every merged route to where the nav says it lives", async () => {
+    const config = (await import("../../next.config")).default;
+    const redirects = await config.redirects!();
+    for (const [from, to] of Object.entries(MOVED)) {
+      if (from === splitPath(to)) continue; // the host page itself
+      expect(redirects).toContainEqual({ source: from, destination: to, permanent: false });
+    }
+  });
+});
+
+function splitPath(href: string) {
+  return href.split("?")[0];
+}

@@ -8,6 +8,7 @@ import { getCookie } from "@/lib/cookies";
 import { getOperator } from "@/lib/operators";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
 import AdminSidebar from "@/app/components/admin/AdminSidebar";
+import { AdminNavProvider } from "@/app/components/admin/AdminNavContext";
 import { visibleNav, isLinkVisible, partnerLink } from "@/lib/admin/nav";
 
 /* Nav definition lives in lib/admin/nav.ts; the sidebar itself in
@@ -292,7 +293,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarWithTab {...sidebarProps} />
       </Suspense>
 
-      <main className="admin-content">{children}</main>
+      <main className="admin-content">
+        <AdminNavProvider value={{ role: userRole, perms: sidebarPerms }}>{children}</AdminNavProvider>
+      </main>
     </div>
   );
 }

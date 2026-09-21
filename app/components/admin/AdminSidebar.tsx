@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  mergedTabs,
   resolveActive,
+  splitHref,
   type NavGroup,
   type NavLink,
   type NavPage,
@@ -114,12 +116,19 @@ export default function AdminSidebar({
 
   const renderTabs = (p: NavPage) => {
     if (p.routeTabs && p.routeTabs.length > 1) {
-      return p.routeTabs.map((t) => ({
-        key: t.href,
-        label: t.label,
-        href: t.href,
-        on: active?.routeTabHref === t.href,
-      }));
+      // A merged page's tabs share its path and differ by ?tab=; the default
+      // is the first one this user can see — the same rule the page uses.
+      const merged = mergedTabs(p);
+      const current = tabParam ?? merged[0]?.key;
+      return p.routeTabs.map((t) => {
+        const { path, tab } = splitHref(t.href);
+        return {
+          key: t.href,
+          label: t.label,
+          href: t.href,
+          on: tab ? pathname === path && current === tab : active?.routeTabHref === t.href,
+        };
+      });
     }
     if (p.paramTabs && (!p.paramTabsOn || p.paramTabsOn.test(pathname))) {
       const current = tabParam ?? p.paramTabs[0].key;

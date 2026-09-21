@@ -36,7 +36,11 @@
  * them here is a separate change with its own blast radius.
  */
 
-/** A navigable route with its own permission. */
+/**
+ * A navigable route with its own permission. After a merge, the href is the
+ * merged page plus its tab — `/admin/marketing?tab=broadcasts` — and the
+ * link keeps the tab_key and roles the old route had.
+ */
 export type NavLink = {
   label: string;
   href: string;
@@ -213,11 +217,11 @@ export const navGroups: NavGroup[] = [
         // Per-event ads fold into Campaigns (PHASE1B § Merges).
         match: /^\/admin\/events\/[^/]+\/ads$/,
         routeTabs: [
-          { label: "Campaigns", href: "/admin/marketing", tabKey: "marketing", roles: R.exec },
-          { label: "Broadcasts", href: "/admin/broadcasts", tabKey: "email_engine", roles: ["owner","super_admin","venue_admin","full_admin"] },
-          { label: "Auctions", href: "/admin/auctions", tabKey: "auctions", roles: R.exec },
-          { label: "Market radar", href: "/admin/market-radar", tabKey: "market_radar", roles: R.mgmt },
-          { label: "Sponsors", href: "/admin/sponsors", tabKey: "partners", roles: R.mgmt },
+          { label: "Campaigns", href: "/admin/marketing?tab=campaigns", tabKey: "marketing", roles: R.exec },
+          { label: "Broadcasts", href: "/admin/marketing?tab=broadcasts", tabKey: "email_engine", roles: ["owner","super_admin","venue_admin","full_admin"] },
+          { label: "Auctions", href: "/admin/marketing?tab=auctions", tabKey: "auctions", roles: R.exec },
+          { label: "Market radar", href: "/admin/marketing?tab=radar", tabKey: "market_radar", roles: R.mgmt },
+          { label: "Sponsors", href: "/admin/marketing?tab=sponsors", tabKey: "partners", roles: R.mgmt },
         ],
       },
       {
@@ -300,8 +304,32 @@ export function isLinkVisible(
   return true;
 }
 
+/** "/admin/marketing?tab=auctions" → { path: "/admin/marketing", tab: "auctions" }. */
+export function splitHref(href: string): { path: string; tab: string | null } {
+  const i = href.indexOf("?");
+  if (i === -1) return { path: href, tab: null };
+  return { path: href.slice(0, i), tab: new URLSearchParams(href.slice(i + 1)).get("tab") };
+}
+
+/**
+ * The tabs a merged page shows, in order — its route tabs that live on the
+ * page's own path. Pass the page from visibleNav() and these are exactly the
+ * tabs this user may open, so the page and the sidebar agree on the default
+ * (the first one) without talking to each other.
+ */
+export function mergedTabs(page: NavPage): { key: string; label: string; href: string }[] {
+  const tabs = page.routeTabs ?? [];
+  const host = tabs.map((t) => splitHref(t.href)).find((h) => h.tab)?.path;
+  if (!host) return [];
+  return tabs
+    .map((t) => ({ ...splitHref(t.href), label: t.label, href: t.href }))
+    .filter((t) => t.path === host && t.tab)
+    .map((t) => ({ key: t.tab!, label: t.label, href: t.href }));
+}
+
 /** `/admin/offers` owns `/admin/offers/123`, but `/admin` owns only itself. */
 function ownsPath(href: string, pathname: string): boolean {
+  href = splitHref(href).path;
   if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(href + "/");
 }
@@ -320,7 +348,7 @@ export function resolveActive(pathname: string, groups: NavGroup[] = navGroups):
       if (p.match?.test(pathname)) return { groupId: g.id, pageId: p.id, routeTabHref: null };
     }
   }
-  let best: { groupId: string; pageId: string; href: string; isTab: boolean } | null = null;
+  let best: { groupId: string; pageId: string; href: string; isTab: boolean; len: number } | null = null;
   for (const g of groups) {
     for (const p of g.pages) {
       if (p.contextualHref) continue;
@@ -329,8 +357,11 @@ export function resolveActive(pathname: string, groups: NavGroup[] = navGroups):
         ...(p.routeTabs ?? []).map((l) => ({ l, isTab: true })),
       ];
       for (const { l, isTab } of links) {
-        if (ownsPath(l.href, pathname) && (!best || l.href.length > best.href.length)) {
-          best = { groupId: g.id, pageId: p.id, href: l.href, isTab };
+        // Compare paths, not hrefs: a merged page's tabs share one path and
+        // differ only in ?tab=, and the first of them should win.
+        const len = splitHref(l.href).path.length;
+        if (ownsPath(l.href, pathname) && (!best || len > best.len)) {
+          best = { groupId: g.id, pageId: p.id, href: l.href, isTab, len };
         }
       }
     }

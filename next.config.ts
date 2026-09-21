@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+const MERGED_ROUTES: [string, string][] = [
+  ["/admin/broadcasts", "/admin/marketing?tab=broadcasts"],
+  ["/admin/auctions", "/admin/marketing?tab=auctions"],
+  ["/admin/market-radar", "/admin/marketing?tab=radar"],
+  ["/admin/sponsors", "/admin/marketing?tab=sponsors"],
+];
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: ".",
@@ -24,6 +31,13 @@ const nextConfig: NextConfig = {
     "/api/settlements/[id]/export-xlsx": ["./lib/xlsx-templates/artist-settlement/**"],
     "/api/settlements/[id]/export-venue-xlsx": ["./lib/xlsx-templates/venue-settlement/**"],
     "/api/offers/[id]/export-xlsx": ["./lib/xlsx-templates/offer/**"],
+  },
+  // Routes the admin rebuild merged into tabbed pages (design handoff
+  // PHASE1B). The old URL goes to its tab so bookmarks, emailed links and
+  // the detail pages' own "back" links keep working. Exact paths only —
+  // detail routes under them (/admin/broadcasts/new, …) are untouched.
+  async redirects() {
+    return MERGED_ROUTES.map(([source, destination]) => ({ source, destination, permanent: false }));
   },
   async rewrites() {
     return [
