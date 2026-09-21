@@ -1,48 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
-import { useVenue } from "@/app/components/VenueContext";
-import SafeImage from "@/app/components/SafeImage";
+import { getOperator } from "@/lib/operators";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
-import {
-  dashboardItem,
-  sidebarGroups,
-  partnerItem,
-  TAB_KEY_MAP,
-  type SidebarItem,
-} from "@/lib/admin/nav";
+import AdminSidebar from "@/app/components/admin/AdminSidebar";
+import { visibleNav, isLinkVisible, partnerLink } from "@/lib/admin/nav";
 
-/* Nav definition moved to lib/admin/nav.ts — it was duplicated in
-   settings/permissions/page.tsx and the two had already drifted. See the
-   comment there. */
+/* Nav definition lives in lib/admin/nav.ts; the sidebar itself in
+   app/components/admin/AdminSidebar.tsx. */
 
-/* The design system's sidebar groups are a label and a caret, nothing else
-   (design/liquid-glass/admin-globals.css.snippet.css, .nav-section). The
-   frosted SVG icons that used to sit left of each label were an addition
-   this portal made on its own and are not in any mockup, so they are gone;
-   SidebarGroup.icon stays in lib/admin/nav.ts, unused for now, rather than
-   churning that file's shape. */
+type SidebarProps = Omit<React.ComponentProps<typeof AdminSidebar>, "tabParam">;
+
+/* The sidebar reads `?tab=` to light the in-page tab that's showing.
+   useSearchParams has to sit under a Suspense boundary or statically
+   rendered admin pages fail the build, so this wrapper is what goes inside
+   one; the fallback is the same sidebar with no tab lit. */
+function SidebarWithTab(props: SidebarProps) {
+  const tab = useSearchParams().get("tab");
+  return <AdminSidebar {...props} tabParam={tab} />;
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { venueSlug } = useVenue();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminName, setAdminName] = useState("");
   const [venueName, setVenueName] = useState("");
   const [userRole, setUserRole] = useState("");
-  const [venueSlugResolved, setVenueSlugResolved] = useState("");
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [userId, setUserId] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [sidebarPerms, setSidebarPerms] = useState<Record<string, boolean> | null>(null);
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(["Shows"]));
   // Lazy initializer runs once on mount — cookie is always present (set by middleware, not httpOnly)
-  const [isWest72Operator] = useState(() => getCookie("operatorSlug") === "west72");
+  const [operatorSlug] = useState(() => getCookie("operatorSlug") || "venuecore");
 
   useEffect(() => {
     // Immediately read cookies for instant display (no flash of empty sidebar)
@@ -88,7 +82,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             .single();
           if (venue) {
             setVenueName(venue.name || "");
-            if (venue.slug) setVenueSlugResolved(venue.slug);
             // Persist venue info in cookies for PDF exports and sidebar
             document.cookie = `venue-name=${encodeURIComponent(venue.name || "")}; path=/; samesite=lax`;
             document.cookie = `venue-slug=${encodeURIComponent(venue.slug || "")}; path=/; samesite=lax`;
@@ -130,7 +123,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     const v = Array.isArray(venues) ? venues.find((x: Record<string, string>) => x.id === authBody.venue_id) : null;
                     if (v) {
                       setVenueName(v.name || "");
-                      if (v.slug) setVenueSlugResolved(v.slug);
                       document.cookie = `venue-name=${encodeURIComponent(v.name || "")}; path=/; samesite=lax`;
                       document.cookie = `venue-slug=${encodeURIComponent(v.slug || "")}; path=/; samesite=lax`;
                       if (v.logo_url) document.cookie = `venue-logo=${encodeURIComponent(v.logo_url)}; path=/; samesite=lax`;
@@ -180,66 +172,57 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       });
   }, [userRole]);
 
-  // Auto-expand the group containing the current page. Must run
-  // unconditionally, before the /admin/login early return below — this
-  // component stays mounted across a client-side navigation from
-  // /admin/login into the dashboard (same layout boundary, router.push not
-  // a full reload), and a hook called only on one side of that branch
-  // throws "Rendered more hooks than during the previous render" the moment
-  // that navigation happens — which is exactly what a blank screen right
-  // after logging in looks like.
-  useEffect(() => {
-    for (const g of sidebarGroups) {
-      if (g.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)))) {
-        setExpandedGroups((prev) => new Set(prev).add(g.groupLabel));
-        break;
-      }
-    }
-  }, [pathname]);
+  // The drawer closes whenever the route changes (Back included — links
+  // close it themselves on click). Adjusted during render rather than in an
+  // effect. Sits before the /admin/login early return below: this component
+  // stays mounted across the client-side navigation from /admin/login into
+  // the dashboard, and a hook called on only one side of that branch throws
+  // "Rendered more hooks than during the previous render" — a blank screen
+  // right after logging in.
+  const [drawerPath, setDrawerPath] = useState(pathname);
+  if (drawerPath !== pathname) {
+    setDrawerPath(pathname);
+    setSidebarOpen(false);
+  }
 
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
-  // Artists get a hardcoded sidebar
-  const ARTIST_ALLOWED_LABELS = ["Dashboard", "Ticket Sales", "Guest Lists"];
+  const navForUser = visibleNav(userRole, sidebarPerms);
+  const partner =
+    userRole === "partner" && isLinkVisible(partnerLink, userRole, sidebarPerms) ? partnerLink : null;
 
-  const isItemVisible = (item: SidebarItem): boolean => {
-    if (userRole === "artist") return ARTIST_ALLOWED_LABELS.includes(item.label);
-    const tabKey = TAB_KEY_MAP[item.label];
-    if (sidebarPerms && tabKey && tabKey in sidebarPerms) return sidebarPerms[tabKey];
-    if (userRole && !item.roles.includes(userRole)) return false;
-    return true;
+  const operator = getOperator(operatorSlug);
+  const isWest72Operator = operator.slug === "west72";
+
+  const signOut = async () => {
+    setSidebarOpen(false);
+    const supabase = getSupabaseBrowser();
+    await supabase.auth.signOut();
+    // Clear all admin cookies
+    document.cookie = "venue-id=; path=/; max-age=0";
+    document.cookie = "admin-role=; path=/; max-age=0";
+    document.cookie = "admin-name=; path=/; max-age=0";
+    document.cookie = "venue-name=; path=/; max-age=0";
+    window.location.href = "/";
   };
 
-  // Filter groups to only show groups with visible items
-  const visibleGroups = sidebarGroups
-    .map((g) => ({ ...g, items: g.items.filter(isItemVisible) }))
-    .filter((g) => g.items.length > 0);
-
-  // Flatten for mobile dropdown — Dashboard first, then groups, then partner
-  const visibleItems: SidebarItem[] = [];
-  if (isItemVisible(dashboardItem)) visibleItems.push(dashboardItem);
-  visibleItems.push(...visibleGroups.flatMap((g) => g.items));
-  if (userRole === "partner" && isItemVisible(partnerItem)) {
-    visibleItems.push(partnerItem);
-  }
-
-  const toggleGroup = (label: string) => {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
+  const sidebarProps: SidebarProps = {
+    groups: navForUser,
+    partner,
+    pathname,
+    wordmarkSrc: operator.logoWhite,
+    iconSrc: operator.logoIconWhite,
+    brandName: operator.name,
+    avatarSrc: userRole === "artist" && avatarUrl ? avatarUrl : undefined,
+    adminName,
+    venueName,
+    subtitle: userRole === "artist" ? "Artist Portal" : undefined,
+    drawerOpen: sidebarOpen,
+    onNavigate: () => setSidebarOpen(false),
+    onSignOut: signOut,
   };
-
-  const operatorIconFallback = isWest72Operator
-    ? "/West72_Logos/W72_tech_icon_white.png"
-    : "/VenueCore_Logos/VenueCore_Icon_Color.png";
-  const operatorWordmarkFallback = isWest72Operator
-    ? "/West72_Logos/W72_tech_wordmark_white.png"
-    : "/VenueCore_Logos/VenueCore_Icon_Color.png";
 
   return (
     <div className="admin-shell">
@@ -281,180 +264,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           />
         </Link>
 
-        <div className="admin-mobile-dropdown-wrapper">
-          <button
-            className="admin-mobile-avatar-btn"
-            onClick={() => setSidebarOpen((prev) => !prev)}
-            aria-label="Open navigation menu"
-            style={isWest72Operator ? { borderRadius: 12 } : undefined}
-          >
-            {isWest72Operator ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src="/West72_Logos/W72_tech_icon_white.png" alt="W72" className="admin-mobile-avatar-img" style={{ borderRadius: 8, objectFit: "contain" }} />
-            ) : avatarUrl ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
-            ) : (
-              <span className="admin-mobile-avatar-placeholder">
-                {adminName ? adminName.charAt(0).toUpperCase() : "☰"}
-              </span>
-            )}
-            <span className={`admin-mobile-dropdown-arrow ${sidebarOpen ? "open" : ""}`}>▾</span>
-          </button>
-          <nav className={`admin-mobile-dropdown-menu ${sidebarOpen ? "dropdown-open" : ""}`}>
-            {visibleItems.map((item) => (
-              <Link
-                key={item.href + item.label}
-                href={item.href}
-                className={`admin-mobile-dropdown-link ${pathname === item.href ? "active" : ""}`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="admin-sidebar-divider admin-sidebar-divider--tight" />
-            <button
-              className="admin-mobile-dropdown-link"
-              onClick={async () => {
-                setSidebarOpen(false);
-                const supabase = getSupabaseBrowser();
-                await supabase.auth.signOut();
-                document.cookie = "venue-id=; path=/; max-age=0";
-                document.cookie = "admin-role=; path=/; max-age=0";
-                document.cookie = "admin-name=; path=/; max-age=0";
-                document.cookie = "venue-name=; path=/; max-age=0";
-                window.location.href = "/";
-              }}
-              style={{ textAlign: "left", color: "var(--vc-danger)" }}
-            >
-              Sign Out
-            </button>
-          </nav>
-        </div>
+        <button
+          className="admin-mobile-avatar-btn"
+          onClick={() => setSidebarOpen((prev) => !prev)}
+          aria-label="Open navigation menu"
+          style={isWest72Operator ? { borderRadius: 12 } : undefined}
+        >
+          {isWest72Operator ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src="/West72_Logos/W72_tech_icon_white.png" alt="W72" className="admin-mobile-avatar-img" style={{ borderRadius: 8, objectFit: "contain" }} />
+          ) : avatarUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img src={avatarUrl} alt="" className="admin-mobile-avatar-img" />
+          ) : (
+            <span className="admin-mobile-avatar-placeholder">
+              {adminName ? adminName.charAt(0).toUpperCase() : "☰"}
+            </span>
+          )}
+        </button>
       </div>
 
       {sidebarOpen && (
-        <div className="admin-sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        <div className="anav-scrim" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       )}
 
-      {/* Desktop sidebar — hidden on mobile */}
-      <aside className={`admin-sidebar`}>
-        <div className="admin-sidebar-header">
-          {userRole === "artist" && avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img
-              src={avatarUrl}
-              alt={adminName || "Artist"}
-              style={{
-                width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
-                border: "3px solid rgba(255,255,255,0.3)",
-              }}
-            />
-          ) : (
-            <SafeImage
-              src={(() => { const logoSlug = venueSlugResolved || (venueSlug !== "default" ? venueSlug : ""); return logoSlug ? `/logos/${logoSlug}/logo.png` : operatorWordmarkFallback; })()}
-              fallback={operatorWordmarkFallback}
-              alt={venueName || "VenueCore"}
-              className="admin-sidebar-logo"
-              style={isWest72Operator && !venueSlugResolved && venueSlug === "default"
-                ? { width: 160, height: 40, objectFit: "contain" }
-                : { width: 80, height: 80, objectFit: "contain" }}
-            />
-          )}
-          {adminName && (
-            <p className="admin-sidebar-welcome">
-              Welcome, <strong>{adminName}</strong>
-            </p>
-          )}
-          {venueName && <p className="admin-sidebar-venue">{venueName}</p>}
-          {userRole === "artist" && (
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-              Artist Portal
-            </p>
-          )}
-        </div>
-
-        <nav className="admin-sidebar-nav">
-          {/* Dashboard — standalone above all groups */}
-          {isItemVisible(dashboardItem) && (
-            <Link
-              href={dashboardItem.href}
-              className={`admin-sidebar-link admin-sidebar-link--dashboard ${pathname === dashboardItem.href ? "active" : ""}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" />
-              </svg>
-              Dashboard
-            </Link>
-          )}
-          {visibleGroups.map((group) => {
-            const isExpanded = expandedGroups.has(group.groupLabel);
-            const hasActivePage = group.items.some((i) => pathname === i.href || (i.href !== "/admin" && pathname.startsWith(i.href)));
-            return (
-              <div key={group.groupLabel} className="admin-sidebar-group">
-                <button
-                  onClick={() => toggleGroup(group.groupLabel)}
-                  className={`admin-sidebar-group-btn${isExpanded ? " is-expanded" : ""}${hasActivePage ? " has-active" : ""}`}
-                  aria-expanded={isExpanded}
-                >
-                  <span className="admin-sidebar-group-label">{group.groupLabel}</span>
-                  <span className="admin-sidebar-group-caret" aria-hidden="true">▾</span>
-                </button>
-                {isExpanded && (
-                  <div className="admin-sidebar-group-items">
-                    {group.items.map((item) => (
-                      <Link
-                        key={item.href + item.label}
-                        href={item.href}
-                        className={`admin-sidebar-link admin-sidebar-link--sub ${pathname === item.href ? "active" : ""}`}
-                        onClick={() => setSidebarOpen(false)}
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {userRole === "partner" && isItemVisible(partnerItem) && (
-            <Link
-              href={partnerItem.href}
-              className={`admin-sidebar-link ${pathname === partnerItem.href ? "active" : ""}`}
-              onClick={() => setSidebarOpen(false)}
-            >
-              {partnerItem.label}
-            </Link>
-          )}
-        </nav>
-
-        {/* Sign Out — pinned to bottom */}
-        <div className="admin-sidebar-footer">
-          <div className="admin-sidebar-divider" />
-          <button
-            onClick={async () => {
-              const supabase = getSupabaseBrowser();
-              await supabase.auth.signOut();
-              // Clear all admin cookies
-              document.cookie = "venue-id=; path=/; max-age=0";
-              document.cookie = "admin-role=; path=/; max-age=0";
-              document.cookie = "admin-name=; path=/; max-age=0";
-              document.cookie = "venue-name=; path=/; max-age=0";
-              window.location.href = "/";
-            }}
-            className="admin-signout-btn"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Sign Out
-          </button>
-        </div>
-      </aside>
+      <Suspense fallback={<AdminSidebar {...sidebarProps} tabParam={null} />}>
+        <SidebarWithTab {...sidebarProps} />
+      </Suspense>
 
       <main className="admin-content">{children}</main>
     </div>

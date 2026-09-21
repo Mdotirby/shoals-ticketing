@@ -1,184 +1,359 @@
 /**
  * Admin navigation — the single definition.
  *
- * This lived in two places that had already drifted apart. app/admin/layout.tsx
- * held sidebarGroups; app/admin/settings/permissions/page.tsx held a DEFAULTS
- * map whose own comment admitted it "mirrors sidebarItems in admin/layout.tsx".
- * It did not:
+ * Shape follows handoff/ADMIN-NAV-SPEC.md (design project, handoff/screens/
+ * sidebar.dc.html): three levels.
  *
- *   layout.tsx  Events → owner, venue_admin, full_admin, read_only, box_office,
- *                        door_greeter, artist   (7)
- *   DEFAULTS    events → owner, venue_admin, full_admin                   (3)
+ *   GROUP   collapsible, never a destination — it only opens and closes
+ *     page  a destination; this is what a click navigates to
+ *       tab revealed inline, only under the ACTIVE page
  *
- * and DEFAULTS covered 12 tab keys against roughly two dozen nav entries, so
- * the permissions screen was showing defaults that did not match what the
- * sidebar actually did. ADMIN_MERGE_PLAN.md § 3 calls for one of the two to
- * become the source. This is it; the permissions screen now derives from here.
+ * Grouping is by workflow moment, not object type: "Day of show" holds three
+ * different objects because they are the same twenty minutes of someone's
+ * evening.
+ *
+ * TWO KINDS OF TAB
+ * The design merges several production routes into single tabbed pages
+ * (Marketing, Venue settings, Users & tenants, Tonight, Calendar & shows).
+ * Those merges haven't been built yet, so until they are, a page's tabs are
+ * its ROUTE TABS — the separate routes the merge will absorb, each keeping
+ * its own tab_key and roles. When a merge lands, its route tabs become PARAM
+ * TABS (`?tab=<key>` on one route) and nothing else here changes.
+ *
+ * Param tabs mirror a tab bar already rendered in the page body. The sidebar
+ * never owns that state — it links to `?tab=` and reads it back.
+ *
+ * PERMISSIONS ARE UNCHANGED
+ * Every link carries the tab_key and roles it had before the regroup, so
+ * sidebar_permissions rows resolve exactly as they did and
+ * DEFAULT_TAB_ROLES is identical. __tests__/admin/nav.test.ts holds this
+ * against a snapshot of the old nav. A link with no tabKey is gated on roles
+ * alone, which is also how it worked before (Events, FAQ Content, Venues).
  *
  * ROLE STRINGS ARE LEFT AS THEY ARE. These arrays still name legacy values
  * (full_admin, door_greeter) even though plans/role-taxonomy-migration.sql has
  * rewritten the database, because normalizeRole() resolves both and rewriting
- * them here is a separate change with its own blast radius — every one of these
- * arrays feeds a visibility check. Migrating them belongs with the capability
- * derivation in § 3.2, not with a chrome commit.
+ * them here is a separate change with its own blast radius.
  */
 
-export type SidebarItem = {
+/** A navigable route with its own permission. */
+export type NavLink = {
   label: string;
   href: string;
+  /** sidebar_permissions.tab_key. Omitted = gated on roles alone. */
+  tabKey?: string;
   roles: string[];
 };
 
-export type SidebarGroup = {
-  groupLabel: string;
+export type NavParamTab = { label: string; key: string };
+
+export type NavPage = {
+  id: string;
+  label: string;
+  /** The page's own route. Omit when the page is made of route tabs. */
+  link?: NavLink;
+  /** Separate routes shown as this page's tabs until the design's merge lands. */
+  routeTabs?: NavLink[];
+  /** In-page tabs, linked as `?tab=<key>`. */
+  paramTabs?: NavParamTab[];
+  /** Param tabs only show on paths matching this (e.g. the builder, not the list). */
+  paramTabsOn?: RegExp;
+  /** Paths that make this page active beyond its links' own prefixes. */
+  match?: RegExp;
+  /**
+   * Needs an id out of the URL (an event's workspace, its edit form). Listed
+   * only while the user is somewhere that id can be read from; returns the
+   * href for it, or null to hide the page.
+   */
+  contextualHref?: (pathname: string) => string | null;
+};
+
+export type NavGroup = {
+  id: string;
+  label: string;
+  /** Glyph from the mockup; also what the collapsed rail shows. */
   icon: string;
-  items: SidebarItem[];
-  roles: string[];
+  pages: NavPage[];
 };
 
-/** Dashboard sits above every group, on its own. */
-export const dashboardItem: SidebarItem = {
-  label: "Dashboard",
-  href: "/admin",
-  roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"],
+/** The event an /admin/events/<id>/… path is about, if any. */
+function eventIdIn(pathname: string): string | null {
+  const m = /^\/admin\/events\/([^/]+)/.exec(pathname);
+  return m && m[1] !== "new" ? m[1] : null;
+}
+
+const R = {
+  all: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"],
+  events: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
+  exec: ["owner","venue_admin","full_admin"],
+  mgmt: ["owner","venue_admin"],
+  owner: ["owner"],
 };
 
-export const sidebarGroups: SidebarGroup[] = [
+export const navGroups: NavGroup[] = [
   {
-    groupLabel: "Shows",
-    icon: "shows",
-    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
-    items: [
-      { label: "Events",        href: "/admin/events",       roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"] },
-      { label: "Calendar",      href: "/admin/calendar",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Seating",       href: "/admin/seating",      roles: ["owner","venue_admin"] },
+    id: "today",
+    label: "Today",
+    icon: "◉",
+    pages: [
+      { id: "dash", label: "Dashboard", link: { label: "Dashboard", href: "/admin", tabKey: "dashboard", roles: R.all } },
     ],
   },
   {
-    groupLabel: "Finance",
-    icon: "business",
-    roles: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
-    items: [
-      { label: "Ticket Sales",  href: "/admin/orders",       roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] },
-      { label: "Offers",        href: "/admin/offers",       roles: ["owner","venue_admin"] },
-      { label: "Settlements",   href: "/admin/settlements",  roles: ["owner","venue_admin"] },
-      { label: "Invoices",      href: "/admin/invoices",     roles: ["owner","venue_admin"] },
-      { label: "Contracts",     href: "/admin/contracts",    roles: ["owner","venue_admin"] },
-      { label: "Reports",       href: "/admin/reports",      roles: ["owner","venue_admin","full_admin","read_only","box_office"] },
+    id: "shows",
+    label: "Shows",
+    icon: "◈",
+    pages: [
+      {
+        id: "calendar",
+        label: "Calendar & shows",
+        routeTabs: [
+          { label: "Month", href: "/admin/calendar", tabKey: "calendar", roles: R.exec },
+          { label: "Show list", href: "/admin/events", roles: R.events },
+        ],
+      },
+      {
+        id: "workspace",
+        label: "Event workspace",
+        // Inside an event, its workspace and edit form are both one click
+        // away, whichever of the two you're on.
+        contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}` : null),
+        match: /^\/admin\/events\/(?!new$)[^/]+$/,
+        link: { label: "Event workspace", href: "/admin/events", roles: R.events },
+        paramTabs: [
+          { label: "Overview", key: "overview" },
+          { label: "Inventory & Holds", key: "inventory" },
+          { label: "Orders", key: "orders" },
+          { label: "Settlement", key: "settlement" },
+          { label: "Marketing", key: "marketing" },
+          { label: "Guest List", key: "guestlist" },
+          { label: "Access", key: "access" },
+        ],
+      },
+      {
+        id: "create",
+        label: "Create a show",
+        link: { label: "Create a show", href: "/admin/events/new", roles: R.exec },
+        paramTabs: [
+          { label: "Setup", key: "setup" },
+          { label: "Tickets", key: "tickets" },
+          { label: "On-sale & fees", key: "onsale" },
+        ],
+      },
+      {
+        id: "eventedit",
+        label: "Edit event",
+        contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}/edit` : null),
+        match: /^\/admin\/events\/[^/]+\/edit$/,
+        link: { label: "Edit event", href: "/admin/events", roles: R.events },
+      },
+      { id: "seating", label: "Seating map", link: { label: "Seating", href: "/admin/seating", tabKey: "seating", roles: R.mgmt } },
     ],
   },
   {
-    groupLabel: "Day of Show",
-    icon: "dayofshow",
-    roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"],
-    items: [
-      { label: "Scanner",       href: "/admin/scan",         roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
-      { label: "Guest Lists",   href: "/admin/guest-lists",  roles: ["owner","venue_admin","full_admin","artist"] },
-      { label: "Live Pulse",    href: "/admin/live",         roles: ["owner","venue_admin","full_admin"] },
+    id: "deals",
+    label: "Deals & bookings",
+    icon: "◷",
+    pages: [
+      {
+        id: "offer",
+        label: "Offers",
+        link: { label: "Offers", href: "/admin/offers", tabKey: "booking", roles: R.mgmt },
+        // Production's own keys, verbatim (merge plan § 10.1).
+        paramTabs: [
+          { label: "Details", key: "details" },
+          { label: "P&L", key: "pnl" },
+          { label: "Deal lab", key: "deal_lab" },
+        ],
+        paramTabsOn: /^\/admin\/offers\/[^/]+$/,
+      },
+      { id: "contracts", label: "Contracts", link: { label: "Contracts", href: "/admin/contracts", tabKey: "contracts", roles: R.mgmt } },
+      { id: "agents", label: "Agents", link: { label: "Agents", href: "/admin/agents", tabKey: "agents", roles: R.mgmt } },
+      { id: "quote", label: "Rental quotes", link: { label: "Rental quotes", href: "/admin/private-events", roles: R.mgmt } },
     ],
   },
   {
-    groupLabel: "Marketing",
-    icon: "growth",
-    roles: ["owner","venue_admin","full_admin"],
-    items: [
-      { label: "Campaigns",     href: "/admin/marketing",    roles: ["owner","venue_admin","full_admin"] },
-      { label: "Broadcasts",    href: "/admin/broadcasts",   roles: ["owner","super_admin","venue_admin","full_admin"] },
-      { label: "Market Radar",  href: "/admin/market-radar", roles: ["owner","venue_admin"] },
-      { label: "Auctions",      href: "/admin/auctions",     roles: ["owner","venue_admin","full_admin"] },
-      { label: "Sponsors",      href: "/admin/sponsors",     roles: ["owner","venue_admin"] },
+    id: "door",
+    label: "Day of show",
+    icon: "◎",
+    pages: [
+      {
+        id: "dayof",
+        label: "Tonight",
+        routeTabs: [
+          { label: "Pulse", href: "/admin/live", tabKey: "live_pulse", roles: R.exec },
+          { label: "Guest check-in", href: "/admin/guest-lists", tabKey: "guest_lists", roles: ["owner","venue_admin","full_admin","artist"] },
+        ],
+      },
+      { id: "boxoffice", label: "Box office POS", link: { label: "Box office POS", href: "/boxoffice", roles: ["owner","venue_admin","full_admin","box_office"] } },
+      // The design keeps scan as its own surface — the door scanner app — not
+      // a tab of Tonight (PHASE1B § Merges).
+      { id: "scan", label: "Scanner", link: { label: "Scanner", href: "/admin/scan", tabKey: "scanner", roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] } },
     ],
   },
   {
-    groupLabel: "Contacts",
-    icon: "contacts",
-    roles: ["owner","venue_admin"],
-    items: [
-      { label: "Agents",        href: "/admin/agents",       roles: ["owner","venue_admin"] },
+    id: "money",
+    label: "Money",
+    icon: "▤",
+    pages: [
+      { id: "orders", label: "Orders & refunds", link: { label: "Orders & refunds", href: "/admin/orders", tabKey: "sales", roles: ["owner","venue_admin","full_admin","box_office","door_greeter","artist"] } },
+      { id: "settle", label: "Settlements", link: { label: "Settlements", href: "/admin/settlements", tabKey: "settlements", roles: R.mgmt } },
+      { id: "invoice", label: "Invoices", link: { label: "Invoices", href: "/admin/invoices", tabKey: "invoices_payments", roles: R.mgmt } },
+      { id: "reporting", label: "Reporting", link: { label: "Reporting", href: "/admin/reports", tabKey: "reports", roles: ["owner","venue_admin","full_admin","read_only","box_office"] } },
     ],
   },
   {
-    groupLabel: "Settings",
-    icon: "settings",
-    roles: ["owner","venue_admin"],
-    items: [
-      { label: "Branding",      href: "/admin/settings/branding",    roles: ["owner","venue_admin"] },
-      { label: "FAQ Content",   href: "/admin/faqs",                 roles: ["owner","venue_admin"] },
-      { label: "Venue Portal",  href: "/portal",                     roles: ["owner","venue_admin"] },
-      { label: "Procedures",    href: "/admin/sops",                 roles: ["owner","venue_admin"] },
-      { label: "Team",          href: "/admin/users",                roles: ["owner","venue_admin"] },
-      { label: "Venues",        href: "/admin/venues",               roles: ["owner"] },
-      { label: "Permissions",   href: "/admin/settings/permissions", roles: ["owner"] },
-      { label: "Onboarding",    href: "/admin/onboarding",           roles: ["owner"] },
+    id: "audience",
+    label: "Audience",
+    icon: "◍",
+    pages: [
+      {
+        id: "marketing",
+        label: "Marketing",
+        // Per-event ads fold into Campaigns (PHASE1B § Merges).
+        match: /^\/admin\/events\/[^/]+\/ads$/,
+        routeTabs: [
+          { label: "Campaigns", href: "/admin/marketing", tabKey: "marketing", roles: R.exec },
+          { label: "Broadcasts", href: "/admin/broadcasts", tabKey: "email_engine", roles: ["owner","super_admin","venue_admin","full_admin"] },
+          { label: "Auctions", href: "/admin/auctions", tabKey: "auctions", roles: R.exec },
+          { label: "Market radar", href: "/admin/market-radar", tabKey: "market_radar", roles: R.mgmt },
+          { label: "Sponsors", href: "/admin/sponsors", tabKey: "partners", roles: R.mgmt },
+        ],
+      },
+      {
+        id: "loyalty",
+        label: "Loyalty — FWB",
+        match: /^\/admin\/marketing\/fwb/,
+        link: { label: "Loyalty — FWB", href: "/admin/marketing/fwb", roles: R.exec },
+      },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Administration",
+    icon: "⚙",
+    pages: [
+      {
+        id: "settings",
+        label: "Venue settings",
+        routeTabs: [
+          { label: "Profile & fees", href: "/admin/settings", roles: R.mgmt },
+          { label: "Branding", href: "/admin/settings/branding", tabKey: "site_branding", roles: R.mgmt },
+          { label: "Pages", href: "/admin/faqs", roles: R.mgmt },
+          { label: "Portals", href: "/portal", tabKey: "venue_management", roles: R.mgmt },
+          { label: "Procedures", href: "/admin/sops", tabKey: "sops", roles: R.mgmt },
+        ],
+      },
+      {
+        id: "identity",
+        label: "Users & tenants",
+        routeTabs: [
+          { label: "Onboarding", href: "/admin/onboarding", tabKey: "onboarding", roles: R.owner },
+          { label: "People", href: "/admin/users", tabKey: "users", roles: R.mgmt },
+          { label: "Tenants", href: "/admin/venues", roles: R.owner },
+        ],
+      },
+      { id: "roles", label: "Access control", link: { label: "Access control", href: "/admin/settings/permissions", tabKey: "permissions", roles: R.owner } },
     ],
   },
 ];
 
-/** Partner-only standalone item. */
-export const partnerItem: SidebarItem = {
+/** Partner-only standalone item, outside the groups. */
+export const partnerLink: NavLink = {
   label: "Partner Dashboard",
   href: "/admin/partner-dashboard",
+  tabKey: "partner_dashboard",
   roles: ["partner"],
 };
 
-/**
- * Display label → tab_key in sidebar_permissions.
- *
- * The mockup's own component notes call this out as a pattern worth keeping:
- * labels changed (Events became Shows, Sales became Ticket Sales, Email became
- * Broadcasts) while tab_key stayed put, so renaming a tab never orphans a
- * permission row. A NEW SCREEN NEEDS A ROW HERE or it silently fails the
- * visibility check.
- */
-export const TAB_KEY_MAP: Record<string, string> = {
-  "Dashboard": "dashboard",
-  "Calendar": "calendar",
-  "Shows": "events",           // was "Events"
-  "Seating": "seating",
-  "Ticket Sales": "sales",     // was "Sales"
-  "Offers": "booking",         // was "Booking"
-  "Settlements": "settlements",
-  "Invoices": "invoices_payments",  // matches the capability key
-  "Contracts": "contracts",
-  "Reports": "reports",
-  "Scanner": "scanner",
-  "Guest Lists": "guest_lists",
-  "Live Pulse": "live_pulse",
-  "Campaigns": "marketing",    // was "Marketing"
-  "Broadcasts": "email_engine", // was "Email" — same permission slot, new dashboard
-  "Market Radar": "market_radar",
-  "Auctions": "auctions",
-  "Sponsors": "partners",      // was "Partners"
-  "Agents": "agents",
-  "Branding": "site_branding", // was "Site Branding"
-  "Venue Portal": "venue_management", // was "Venue Management"
-  "Procedures": "sops",        // was "SOPs"
-  "Team": "users",             // /admin/users — the mockup's Users screen
-  "Permissions": "permissions",
-  "Onboarding": "onboarding",
-  "Partner Dashboard": "partner_dashboard",
-};
-
-/** Every nav item, flattened. */
-export const allNavItems: SidebarItem[] = [
-  dashboardItem,
-  ...sidebarGroups.flatMap((g) => g.items),
-  partnerItem,
+/** Every link a page or tab can navigate to (contextual pages excluded). */
+export const allNavLinks: NavLink[] = [
+  ...navGroups.flatMap((g) =>
+    g.pages.flatMap((p) => (p.contextualHref ? [] : [...(p.link ? [p.link] : []), ...(p.routeTabs ?? [])]))
+  ),
+  partnerLink,
 ];
 
 /**
- * tab_key → roles, DERIVED from the nav above rather than hand-maintained.
- * This is what the permissions screen seeds from, so the two can no longer
- * disagree the way they had.
- *
- * The "Events" label maps to tab_key "events" via TAB_KEY_MAP, which is why
- * the derived map is keyed off the label rather than the href.
+ * tab_key → roles, DERIVED from the nav rather than hand-maintained. This is
+ * what the permissions screen seeds from, so the two can't disagree.
  */
-export const DEFAULT_TAB_ROLES: Record<string, string[]> = allNavItems.reduce(
-  (acc, item) => {
-    const key = TAB_KEY_MAP[item.label];
-    if (key) acc[key] = item.roles;
+export const DEFAULT_TAB_ROLES: Record<string, string[]> = allNavLinks.reduce(
+  (acc, link) => {
+    if (link.tabKey) acc[link.tabKey] = link.roles;
     return acc;
   },
   {} as Record<string, string[]>
 );
+
+/** Artists see a fixed set, whatever sidebar_permissions says. */
+const ARTIST_TAB_KEYS = new Set(["dashboard", "sales", "guest_lists"]);
+
+export function isLinkVisible(
+  link: NavLink,
+  role: string,
+  perms: Record<string, boolean> | null
+): boolean {
+  if (role === "artist") return !!link.tabKey && ARTIST_TAB_KEYS.has(link.tabKey);
+  if (perms && link.tabKey && link.tabKey in perms) return perms[link.tabKey];
+  if (role && !link.roles.includes(role)) return false;
+  return true;
+}
+
+/** `/admin/offers` owns `/admin/offers/123`, but `/admin` owns only itself. */
+function ownsPath(href: string, pathname: string): boolean {
+  if (href === "/admin") return pathname === "/admin";
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+export type ActiveNav = { groupId: string; pageId: string; routeTabHref: string | null } | null;
+
+/**
+ * Which page the pathname belongs to. A page's own `match` wins first (so an
+ * event's workspace isn't claimed by the Show list's `/admin/events` prefix),
+ * then the longest link that owns the path (so `/admin/events/new` is Create a
+ * show, and `/admin/settings/branding` is the Branding tab, not Profile).
+ */
+export function resolveActive(pathname: string, groups: NavGroup[] = navGroups): ActiveNav {
+  for (const g of groups) {
+    for (const p of g.pages) {
+      if (p.match?.test(pathname)) return { groupId: g.id, pageId: p.id, routeTabHref: null };
+    }
+  }
+  let best: { groupId: string; pageId: string; href: string; isTab: boolean } | null = null;
+  for (const g of groups) {
+    for (const p of g.pages) {
+      if (p.contextualHref) continue;
+      const links = [
+        ...(p.link ? [{ l: p.link, isTab: false }] : []),
+        ...(p.routeTabs ?? []).map((l) => ({ l, isTab: true })),
+      ];
+      for (const { l, isTab } of links) {
+        if (ownsPath(l.href, pathname) && (!best || l.href.length > best.href.length)) {
+          best = { groupId: g.id, pageId: p.id, href: l.href, isTab };
+        }
+      }
+    }
+  }
+  return best ? { groupId: best.groupId, pageId: best.pageId, routeTabHref: best.isTab ? best.href : null } : null;
+}
+
+/**
+ * The nav a given user sees: links they can't open are dropped, a page with
+ * no openable link is dropped, a group with no pages is dropped. A route-tab
+ * page navigates to its first tab the user can open.
+ */
+export function visibleNav(role: string, perms: Record<string, boolean> | null): NavGroup[] {
+  return navGroups
+    .map((g) => ({
+      ...g,
+      pages: g.pages
+        .map((p) => ({
+          ...p,
+          link: p.link && isLinkVisible(p.link, role, perms) ? p.link : undefined,
+          routeTabs: p.routeTabs?.filter((t) => isLinkVisible(t, role, perms)),
+        }))
+        .filter((p) => p.link || (p.routeTabs && p.routeTabs.length > 0)),
+    }))
+    .filter((g) => g.pages.length > 0);
+}

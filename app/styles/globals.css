@@ -22019,3 +22019,267 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   border-radius: 10px;
   color: rgba(255, 255, 255, 0.55);
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   ADMIN NAV — grouped sidebar, rail and mobile drawer
+   ══════════════════════════════════════════════════════════════════════
+   app/components/admin/AdminSidebar.tsx. Every value below is lifted from
+   the inline styles of the design project's handoff/screens/sidebar.dc.html;
+   behaviour is handoff/ADMIN-NAV-SPEC.md.
+
+   New class names (.anav-*) rather than the old .admin-sidebar-* ones, so
+   none of the six generations of sidebar rules above can reach this markup —
+   including the mobile `.admin-sidebar { display: none !important }`. Those
+   rules are left in place, per the handoff's no-deletion rule; nothing in
+   the admin renders .admin-sidebar any more.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.admin-shell .anav {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: none;
+  width: 252px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 14px;
+  overflow: hidden;
+  background: rgba(6, 6, 8, 0.68);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-right: 1px solid rgba(255, 255, 255, 0.10);
+  font-family: var(--font-archivo), Archivo, sans-serif;
+  color: rgba(255, 255, 255, 0.95);
+  transition: width 180ms ease;
+}
+.admin-shell .anav.is-rail { width: 74px; }
+
+/* Brand: horizontal wordmark wide, icon mark in the rail. */
+.anav-brand { display: flex; align-items: center; gap: 11px; padding: 2px 8px 0; min-height: 24px; }
+.anav-wordmark { height: 24px; width: auto; max-width: 100%; display: block; object-fit: contain; }
+.anav-icon { height: 24px; width: auto; display: none; flex: none; }
+.anav-avatar { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; border: 1px solid rgba(255, 255, 255, 0.24); }
+.anav.is-rail .anav-wordmark { display: none; }
+.anav.is-rail .anav-icon { display: block; }
+.anav.is-rail .anav-brand { justify-content: center; padding: 2px 0 0; }
+
+.anav-welcome { padding: 0 8px; line-height: 1.3; }
+.anav-welcome-hi { font-size: 11.5px; color: rgba(255, 255, 255, 0.42); }
+.anav-welcome-name { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+.anav-welcome-venue { font-size: 10.5px; color: rgba(255, 255, 255, 0.34); margin-top: 2px; }
+.anav.is-rail .anav-welcome { display: none; }
+
+.anav-railtoggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 8px 11px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.anav-railtoggle:hover { background: rgba(255, 255, 255, 0.09); }
+.anav-railtoggle-icon { font-size: 12px; font-weight: 700; color: rgba(255, 255, 255, 0.60); }
+.anav-railtoggle-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.40);
+}
+.anav.is-rail .anav-railtoggle { justify-content: center; padding: 8px 0; }
+.anav.is-rail .anav-railtoggle-label { display: none; }
+
+.anav-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  flex: 1;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+/* Group row — opens and closes, never navigates. */
+.anav-group { display: flex; flex-direction: column; }
+.anav-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 9px 11px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.anav-group-btn:hover { background: rgba(255, 255, 255, 0.055); }
+.anav-group-icon { font-size: 12px; width: 13px; flex: none; text-align: center; color: rgba(255, 255, 255, 0.40); }
+.anav-group-label {
+  flex: 1; min-width: 0;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.50);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.anav-group-count { font-size: 9.5px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.28); }
+.anav-group-caret { font-size: 9px; flex: none; color: rgba(255, 255, 255, 0.34); }
+.anav-group.holds-active .anav-group-icon,
+.anav-group.holds-active .anav-group-label { color: rgba(255, 255, 255, 0.95); }
+.anav-group.holds-active .anav-group-label { font-weight: 700; }
+.anav-group.holds-active .anav-group-caret { color: rgba(255, 255, 255, 0.72); }
+
+/* Pages. The active group's 1px spine is the one cue that survives a glance. */
+.anav-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 2px 11px;
+  padding-left: 10px;
+  border-left: 1px solid transparent;
+}
+.anav-group.holds-active .anav-group-body { border-left-color: rgba(255, 255, 255, 0.40); }
+.anav-page { display: flex; flex-direction: column; }
+
+.admin-shell .anav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 34px;
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.56);
+}
+.admin-shell .anav-item:hover { background: rgba(255, 255, 255, 0.055); color: rgba(255, 255, 255, 0.86); }
+.anav-item-dot { width: 4px; height: 4px; border-radius: 999px; flex: none; background: rgba(255, 255, 255, 0.20); }
+.anav-item-label { flex: 1; min-width: 0; font-size: 12px; line-height: 1.3; font-weight: 500; }
+.admin-shell .anav-item.is-active {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  color: rgba(255, 255, 255, 0.95);
+}
+.anav-item.is-active .anav-item-dot { background: rgba(255, 255, 255, 0.86); }
+.anav-item.is-active .anav-item-label { font-weight: 700; }
+.anav-item--solo { margin-top: 10px; }
+
+/* Tabs — only under the active page; they mirror the page's own tab bar. */
+.anav-tabs { display: flex; flex-direction: column; margin: 3px 0 5px 11px; }
+.admin-shell .anav-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 0;
+  text-decoration: none;
+  color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .anav-tab:hover { opacity: 0.75; }
+.anav-tab-mark { width: 7px; height: 1px; flex: none; background: rgba(255, 255, 255, 0.18); }
+.anav-tab-label { flex: 1; min-width: 0; font-size: 10.5px; line-height: 1.35; font-weight: 500; }
+.admin-shell .anav-tab.is-active { color: rgba(255, 255, 255, 0.80); }
+.anav-tab.is-active .anav-tab-mark { background: rgba(255, 255, 255, 0.72); }
+.anav-tab.is-active .anav-tab-label { font-weight: 650; }
+
+/* Rail: glyphs and a dot per page, the active page's dot lit. */
+.anav-raildots { display: none; align-items: center; justify-content: center; gap: 3px; padding: 2px 0 4px; }
+.anav-raildots span { width: 3px; height: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); }
+.anav-raildots span.is-lit { background: rgba(255, 255, 255, 0.86); }
+.anav.is-rail .anav-raildots { display: flex; }
+.anav.is-rail .anav-group-btn { justify-content: center; padding: 9px 0; }
+.anav.is-rail .anav-group-label,
+.anav.is-rail .anav-group-count,
+.anav.is-rail .anav-group-caret,
+.anav.is-rail .anav-group-body,
+.anav.is-rail .anav-item--solo .anav-item-label { display: none; }
+
+.anav-foot { padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.anav-signout {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 11px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.50);
+}
+.anav-signout:hover { background: rgba(255, 255, 255, 0.055); color: rgba(255, 255, 255, 0.86); }
+.anav.is-rail .anav-signout { justify-content: center; padding: 8px 0; }
+.anav.is-rail .anav-signout-label { display: none; }
+
+.anav-scrim { display: none; }
+
+/* Phones: the same three levels as a full-height drawer over the content,
+   44px rows. Not a bottom tab bar — eight groups will not fit one. The rail
+   is a desktop affordance; a stored rail preference is ignored here. */
+@media (max-width: 768px) {
+  .admin-shell .anav,
+  .admin-shell .anav.is-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(86vw, 320px);
+    height: 100dvh;
+    z-index: 1010;
+    padding: 20px 14px calc(16px + env(safe-area-inset-bottom));
+    background: rgba(6, 6, 8, 0.98);
+    transform: translateX(-105%);
+    transition: transform 240ms ease;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+  .admin-shell .anav.is-open { transform: none; }
+
+  .anav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1009;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .anav-railtoggle,
+  .anav.is-rail .anav-raildots { display: none; }
+  .anav.is-rail .anav-wordmark,
+  .anav.is-rail .anav-welcome { display: block; }
+  .anav.is-rail .anav-icon { display: none; }
+  .anav.is-rail .anav-brand { justify-content: flex-start; padding: 2px 8px 0; }
+  .anav.is-rail .anav-group-btn { justify-content: flex-start; padding: 9px 11px; }
+  .anav.is-rail .anav-group-label,
+  .anav.is-rail .anav-group-caret,
+  .anav.is-rail .anav-signout-label,
+  .anav.is-rail .anav-item--solo .anav-item-label { display: inline; }
+  .anav.is-rail .anav-group-count { display: inline; }
+  .anav.is-rail .anav-group-body { display: flex; }
+  .anav.is-rail .anav-signout { justify-content: flex-start; padding: 8px 11px; }
+
+  .anav-group-btn,
+  .admin-shell .anav-item,
+  .anav-signout { min-height: 44px; }
+  .admin-shell .anav-tab { min-height: 44px; padding: 0; }
+  .anav-item-label { font-size: 14px; }
+  .anav-tab-label { font-size: 13px; }
+  .anav-group-label { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell .anav { transition: none; }
+}

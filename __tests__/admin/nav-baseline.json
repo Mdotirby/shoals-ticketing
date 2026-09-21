@@ -1,0 +1,376 @@
+{
+  "leaves": [
+    {
+      "href": "/admin",
+      "tabKey": "dashboard",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "read_only",
+        "box_office",
+        "door_greeter",
+        "artist",
+        "partner"
+      ]
+    },
+    {
+      "href": "/admin/events",
+      "tabKey": null,
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "read_only",
+        "box_office",
+        "door_greeter",
+        "artist"
+      ]
+    },
+    {
+      "href": "/admin/calendar",
+      "tabKey": "calendar",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin"
+      ]
+    },
+    {
+      "href": "/admin/seating",
+      "tabKey": "seating",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/orders",
+      "tabKey": "sales",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "box_office",
+        "door_greeter",
+        "artist"
+      ]
+    },
+    {
+      "href": "/admin/offers",
+      "tabKey": "booking",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/settlements",
+      "tabKey": "settlements",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/invoices",
+      "tabKey": "invoices_payments",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/contracts",
+      "tabKey": "contracts",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/reports",
+      "tabKey": "reports",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "read_only",
+        "box_office"
+      ]
+    },
+    {
+      "href": "/admin/scan",
+      "tabKey": "scanner",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "box_office",
+        "door_greeter"
+      ]
+    },
+    {
+      "href": "/admin/guest-lists",
+      "tabKey": "guest_lists",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin",
+        "artist"
+      ]
+    },
+    {
+      "href": "/admin/live",
+      "tabKey": "live_pulse",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin"
+      ]
+    },
+    {
+      "href": "/admin/marketing",
+      "tabKey": "marketing",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin"
+      ]
+    },
+    {
+      "href": "/admin/broadcasts",
+      "tabKey": "email_engine",
+      "roles": [
+        "owner",
+        "super_admin",
+        "venue_admin",
+        "full_admin"
+      ]
+    },
+    {
+      "href": "/admin/market-radar",
+      "tabKey": "market_radar",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/auctions",
+      "tabKey": "auctions",
+      "roles": [
+        "owner",
+        "venue_admin",
+        "full_admin"
+      ]
+    },
+    {
+      "href": "/admin/sponsors",
+      "tabKey": "partners",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/agents",
+      "tabKey": "agents",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/settings/branding",
+      "tabKey": "site_branding",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/faqs",
+      "tabKey": null,
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/portal",
+      "tabKey": "venue_management",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/sops",
+      "tabKey": "sops",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/users",
+      "tabKey": "users",
+      "roles": [
+        "owner",
+        "venue_admin"
+      ]
+    },
+    {
+      "href": "/admin/venues",
+      "tabKey": null,
+      "roles": [
+        "owner"
+      ]
+    },
+    {
+      "href": "/admin/settings/permissions",
+      "tabKey": "permissions",
+      "roles": [
+        "owner"
+      ]
+    },
+    {
+      "href": "/admin/onboarding",
+      "tabKey": "onboarding",
+      "roles": [
+        "owner"
+      ]
+    },
+    {
+      "href": "/admin/partner-dashboard",
+      "tabKey": "partner_dashboard",
+      "roles": [
+        "partner"
+      ]
+    }
+  ],
+  "defaults": {
+    "dashboard": [
+      "owner",
+      "venue_admin",
+      "full_admin",
+      "read_only",
+      "box_office",
+      "door_greeter",
+      "artist",
+      "partner"
+    ],
+    "calendar": [
+      "owner",
+      "venue_admin",
+      "full_admin"
+    ],
+    "seating": [
+      "owner",
+      "venue_admin"
+    ],
+    "sales": [
+      "owner",
+      "venue_admin",
+      "full_admin",
+      "box_office",
+      "door_greeter",
+      "artist"
+    ],
+    "booking": [
+      "owner",
+      "venue_admin"
+    ],
+    "settlements": [
+      "owner",
+      "venue_admin"
+    ],
+    "invoices_payments": [
+      "owner",
+      "venue_admin"
+    ],
+    "contracts": [
+      "owner",
+      "venue_admin"
+    ],
+    "reports": [
+      "owner",
+      "venue_admin",
+      "full_admin",
+      "read_only",
+      "box_office"
+    ],
+    "scanner": [
+      "owner",
+      "venue_admin",
+      "full_admin",
+      "box_office",
+      "door_greeter"
+    ],
+    "guest_lists": [
+      "owner",
+      "venue_admin",
+      "full_admin",
+      "artist"
+    ],
+    "live_pulse": [
+      "owner",
+      "venue_admin",
+      "full_admin"
+    ],
+    "marketing": [
+      "owner",
+      "venue_admin",
+      "full_admin"
+    ],
+    "email_engine": [
+      "owner",
+      "super_admin",
+      "venue_admin",
+      "full_admin"
+    ],
+    "market_radar": [
+      "owner",
+      "venue_admin"
+    ],
+    "auctions": [
+      "owner",
+      "venue_admin",
+      "full_admin"
+    ],
+    "partners": [
+      "owner",
+      "venue_admin"
+    ],
+    "agents": [
+      "owner",
+      "venue_admin"
+    ],
+    "site_branding": [
+      "owner",
+      "venue_admin"
+    ],
+    "venue_management": [
+      "owner",
+      "venue_admin"
+    ],
+    "sops": [
+      "owner",
+      "venue_admin"
+    ],
+    "users": [
+      "owner",
+      "venue_admin"
+    ],
+    "permissions": [
+      "owner"
+    ],
+    "onboarding": [
+      "owner"
+    ],
+    "partner_dashboard": [
+      "partner"
+    ]
+  }
+}
