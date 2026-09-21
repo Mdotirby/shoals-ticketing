@@ -21721,7 +21721,8 @@ body[data-theme="liquid-glass"] .admin-shell .ui-seg-item {
   transition: background 0.15s ease, color 0.15s ease;
 }
 body[data-theme="liquid-glass"] .admin-shell .ui-seg-item:hover { color: rgba(255, 255, 255, 0.82); }
-body[data-theme="liquid-glass"] .admin-shell .ui-seg-item--on {
+body[data-theme="liquid-glass"] .admin-shell .ui-seg-item--on,
+body[data-theme="liquid-glass"] .admin-shell .ui-seg-item--on:hover {
   background: var(--lg-white);
   color: var(--lg-ink);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -23085,3 +23086,152 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .evp-body { padding: 16px; }
   .admin-shell .evp-tab { min-height: 40px; }
 }
+
+/* ── Marketing — Campaigns tab (marketing.dc.html) ───────── */
+.admin-shell .mkt { display: flex; flex-direction: column; gap: 18px; }
+.admin-shell .mkt > .ui-kpis { margin-bottom: 0; }
+.admin-shell .mkt .card { margin-bottom: 0; }
+.admin-shell .mkt-toolbar { margin: 14px 0 6px; }
+.admin-shell .mkt-toolbar .filter-bar { margin-bottom: 0; }
+.admin-shell .mkt-search {
+  width: min(280px, 100%);
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .mkt-search::placeholder { color: rgba(255, 255, 255, 0.36); }
+.admin-shell .mkt-search:focus { outline: none; border-color: rgba(255, 255, 255, 0.36); }
+.admin-shell .mkt-state { padding: 40px 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .mkt-state--bad { color: var(--lg-bad); }
+.admin-shell .mkt .dtable { width: 100%; }
+.admin-shell .mkt-row { cursor: pointer; }
+.admin-shell .mkt-row:hover td { background: rgba(255, 255, 255, 0.035); }
+.admin-shell .mkt .mkt-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-shell .mkt th .mkt-num { display: block; }
+.admin-shell .mkt-of { color: rgba(255, 255, 255, 0.4); }
+.admin-shell .mkt-money { font-weight: 650; }
+.admin-shell .mkt-show { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.admin-shell .mkt-thumb {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06) center / cover no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .mkt-show-text { display: flex; flex-direction: column; min-width: 0; }
+.admin-shell .mkt-show-name { font-size: 13px; font-weight: 650; max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .mkt-show-venue { font-size: 11px; color: rgba(255, 255, 255, 0.44); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .mkt-date { font-size: 12px; color: rgba(255, 255, 255, 0.66); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.admin-shell .mkt-when {
+  display: block;
+  margin-top: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.36);
+}
+.admin-shell .mkt-when--live { color: var(--lg-good); }
+.admin-shell .mkt-meter { min-width: 120px; }
+.admin-shell .mkt-meter .ui-meter { margin-bottom: 5px; }
+.admin-shell .mkt-meter span { font-size: 11px; color: rgba(255, 255, 255, 0.6); font-variant-numeric: tabular-nums; }
+.admin-shell .mkt-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.admin-shell .mkt-tool {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 13px 15px;
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.admin-shell .mkt-tool:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.24); color: #fff; }
+.admin-shell .mkt-tool-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.admin-shell .mkt-tool-title { font-size: 13px; font-weight: 650; }
+.admin-shell .mkt-tool-desc { font-size: 11px; line-height: 1.4; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .mkt-tool-go { color: rgba(255, 255, 255, 0.36); }
+.admin-shell .mkt-tool:hover .mkt-tool-go { color: #fff; }
+@media (max-width: 1000px) {
+  .admin-shell .mkt-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .admin-shell .mkt-tools { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .mkt-search { width: 100%; }
+  .admin-shell .mkt-show-name, .admin-shell .mkt-show-venue { max-width: 170px; }
+}
+
+/* ── Marketing — Market radar tab (modules/market-radar) ─── */
+.admin-shell .mr { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .mr > .filter-bar { margin-bottom: 0; }
+.admin-shell .mr .card { margin-bottom: 0; }
+.admin-shell .mr > .ui-kpis { margin-bottom: 0; }
+.admin-shell .mr-title { font-size: 17px; font-weight: 800; letter-spacing: -0.025em; }
+.admin-shell .mr-sub { font-size: 12px; color: rgba(255, 255, 255, 0.46); margin-top: 3px; }
+.admin-shell .mr-banner {
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+}
+.admin-shell .mr-banner--good { color: var(--lg-good); border-color: rgba(143, 214, 168, 0.3); }
+.admin-shell .mr-banner--bad { color: var(--lg-bad); border-color: rgba(255, 140, 170, 0.3); }
+.admin-shell .mr-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0 12px;
+  margin-top: 14px;
+}
+.admin-shell .mr-filters .field input,
+.admin-shell .mr-filters .field select { width: 100%; }
+.admin-shell .mr-filter-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.admin-shell .mr-views { overflow-x: auto; scrollbar-width: none; }
+.admin-shell .mr-views::-webkit-scrollbar { display: none; }
+
+/* The four views keep their Tailwind markup; these remap its palette. */
+.admin-shell .mr-body .bg-gray-800,
+.admin-shell .mr-body .bg-gray-900 {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  border-color: rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.admin-shell .mr-body .bg-gray-700 { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .mr-body .hover\:bg-gray-800\/50:hover { background: rgba(255, 255, 255, 0.04); }
+.admin-shell .mr-body .border-gray-600 { border-color: rgba(255, 255, 255, 0.18); }
+.admin-shell .mr-body .border-gray-700 { border-color: rgba(255, 255, 255, 0.12); }
+.admin-shell .mr-body .border-gray-800 { border-color: rgba(255, 255, 255, 0.08); }
+.admin-shell .mr-body .hover\:border-gray-600:hover { border-color: rgba(255, 255, 255, 0.26); }
+.admin-shell .mr-body .text-gray-300 { color: rgba(255, 255, 255, 0.74); }
+.admin-shell .mr-body .text-gray-400 { color: rgba(255, 255, 255, 0.56); }
+.admin-shell .mr-body .text-gray-500 { color: rgba(255, 255, 255, 0.42); }
+.admin-shell .mr-body .text-gray-600 { color: rgba(255, 255, 255, 0.30); }
+.admin-shell .mr-body .text-blue-400 { color: rgba(255, 255, 255, 0.9); text-decoration: underline; text-decoration-color: rgba(255, 255, 255, 0.3); text-underline-offset: 3px; }
+.admin-shell .mr-body .hover\:text-blue-300:hover { color: #fff; text-decoration-color: #fff; }
+.admin-shell .mr-body .text-emerald-400 { color: var(--lg-good); }
+.admin-shell .mr-body .text-red-400 { color: var(--lg-bad); }
+.admin-shell .mr-body .text-amber-400,
+.admin-shell .mr-body .text-orange-400 { color: var(--lg-warn); }
+.admin-shell .mr-body .bg-emerald-500 { background: var(--lg-good); }
+.admin-shell .mr-body .bg-red-500 { background: var(--lg-bad); }
+.admin-shell .mr-body .bg-amber-500 { background: var(--lg-warn); }
+.admin-shell .mr-body .bg-emerald-500\/20,
+.admin-shell .mr-body .bg-emerald-500\/10 { background: rgba(143, 214, 168, 0.12); }
+.admin-shell .mr-body .bg-red-500\/20 { background: rgba(255, 140, 170, 0.12); }
+.admin-shell .mr-body .bg-orange-500\/20 { background: rgba(232, 212, 138, 0.12); }
+.admin-shell .mr-body .bg-blue-500\/20 { background: rgba(143, 160, 255, 0.12); color: var(--lg-info); }
+.admin-shell .mr-body .bg-gray-500\/20 { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .mr-body .border-emerald-500\/30 { border-color: rgba(143, 214, 168, 0.3); }
+.admin-shell .mr-body table th { font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .mr-body .rounded { border-radius: 7px; }
+.admin-shell .mr-body .rounded-md { border-radius: 12px; }
+.admin-shell .mr-body .rounded-lg { border-radius: 16px; }

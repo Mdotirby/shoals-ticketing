@@ -6,9 +6,10 @@ import {
   AreaChart, Area,
 } from 'recharts';
 
-const GOLD = '#d0c290';
-const GREEN = '#22c55e';
-const BLUE = '#7eb8da';
+// The design's palette: neutral figures are white, good is the one tone.
+const GOLD = 'rgba(255,255,255,0.86)';
+const GREEN = '#8fd6a8';
+const BLUE = 'rgba(255,255,255,0.86)';
 
 type TrendData = {
   total_events: number;
@@ -61,7 +62,7 @@ export default function TrendPanel() {
             className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
             style={{
               border: capMin === opt.min && capMax === opt.max ? `1px solid ${GOLD}` : '1px solid rgba(255,255,255,0.1)',
-              background: capMin === opt.min && capMax === opt.max ? 'rgba(208,194,144,0.15)' : 'rgba(255,255,255,0.03)',
+              background: capMin === opt.min && capMax === opt.max ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.03)',
               color: capMin === opt.min && capMax === opt.max ? GOLD : 'rgba(255,255,255,0.5)',
             }}
           >
@@ -82,7 +83,7 @@ export default function TrendPanel() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="shortDay" stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 11, fill: 'rgba(255,255,255,0.4)' }} />
               <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }} allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#12122e', border: '1px solid rgba(208,194,144,0.2)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.2)' }} contentStyle={{ background: 'rgba(12,12,16,0.94)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
               <Bar dataKey="count" fill={GOLD} radius={[4, 4, 0, 0]} name="Events" />
             </BarChart>
           </ResponsiveContainer>
@@ -101,7 +102,7 @@ export default function TrendPanel() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="label" stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
               <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }} allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#12122e', border: '1px solid rgba(208,194,144,0.2)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.2)' }} contentStyle={{ background: 'rgba(12,12,16,0.94)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
               <Area type="monotone" dataKey="count" stroke={BLUE} fill="url(#monthGrad)" strokeWidth={2} name="Events" />
             </AreaChart>
           </ResponsiveContainer>
@@ -117,7 +118,7 @@ export default function TrendPanel() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
               <XAxis dataKey="label" stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }} />
               <YAxis stroke="rgba(255,255,255,0.2)" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }} allowDecimals={false} />
-              <Tooltip contentStyle={{ background: '#12122e', border: '1px solid rgba(208,194,144,0.2)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
+              <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)', stroke: 'rgba(255,255,255,0.2)' }} contentStyle={{ background: 'rgba(12,12,16,0.94)', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 10, color: '#fff', fontSize: 12 }} />
               <Bar dataKey="count" fill={GREEN} radius={[4, 4, 0, 0]} name="Events" />
             </BarChart>
           </ResponsiveContainer>
@@ -202,7 +203,7 @@ export default function TrendPanel() {
                       <td style={tdStyle}>
                         {new Date(v.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </td>
-                      <td style={{ ...tdStyle, color: '#d0c290', fontWeight: 600 }}>
+                      <td style={{ ...tdStyle, color: '#fff', fontWeight: 650 }}>
                         {v.velocity}/day
                       </td>
                       <td style={tdStyle}>

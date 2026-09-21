@@ -1,10 +1,30 @@
 'use client';
 
+/**
+ * Market radar — a tab of Marketing, restyled onto the shared primitives.
+ *
+ * Restyle only: every fetch, the pending/applied filter split, the scan and
+ * the four views are unchanged. The shell (stats, filters, view switcher) is
+ * built from ui.tsx; the four view components keep their Tailwind markup and
+ * are brought onto the glass values by the scoped .mr rules in globals.css,
+ * which remap the handful of grey/blue/emerald utilities they use.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import EventTable from './EventTable';
 import RoutingPanel from './RoutingPanel';
 import CompetitionPanel from './CompetitionPanel';
 import TrendPanel from './TrendPanel';
+import {
+  Button,
+  Card,
+  Field,
+  Kpi,
+  KpiRow,
+  Segmented,
+  Spacer,
+  Toolbar,
+} from '@/app/components/admin/ui';
 import type { MarketRadarEvent, MarketRadarRoutingCluster, MarketRadarCompetition } from '@/modules/market-radar/types';
 
 type Tab = 'events' | 'routing' | 'competition' | 'trends';
@@ -179,202 +199,108 @@ export default function MarketRadarPage() {
 
   const highCompetition = competitions.filter((c) => c.competition_score >= 70).length;
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'events', label: 'Events' },
-    { key: 'routing', label: 'Routing' },
-    { key: 'competition', label: 'Competition' },
-    { key: 'trends', label: 'Trends & Comp Venues' },
+  const views: { value: Tab; label: string }[] = [
+    { value: 'events', label: 'Events' },
+    { value: 'routing', label: 'Routing' },
+    { value: 'competition', label: 'Competition' },
+    { value: 'trends', label: 'Trends & comp venues' },
   ];
 
-  return (
-    <div className="min-h-screen text-white px-4 py-6 md:p-10">
-      {/* Header */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Market Radar</h1>
-          <p className="text-gray-400 mt-1 text-sm sm:text-base">Live event intelligence for the Shoals region</p>
-        </div>
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 text-white rounded-lg font-medium transition-colors text-sm"
-        >
-          {scanning ? '⏳ Scanning...' : '🔄 Run Scan'}
-        </button>
-      </div>
-      {scanResult && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${scanResult.startsWith('Error') || scanResult.startsWith('Scan failed') ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`}>
-          {scanResult}
-        </div>
-      )}
+  const set = (k: keyof Filters) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setPendingFilters({ ...pendingFilters, [k]: e.target.value });
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Events" value={eventsTotal} />
-        <StatCard label="Routing Clusters" value={clusters.length} />
-        <StatCard label="High Competition" value={highCompetition} />
-        <StatCard
-          label="Last Scan"
+  const scanFailed = !!scanResult && (scanResult.startsWith('Error') || scanResult.startsWith('Scan failed'));
+
+  return (
+    <div className="mr">
+      <Toolbar>
+        <div className="mr-intro">
+          <div className="mr-title">Market radar</div>
+          <div className="mr-sub">Live event intelligence for the Shoals region</div>
+        </div>
+        <Spacer />
+        <Button variant="primary" onClick={runScan} disabled={scanning}>
+          {scanning ? 'Scanning…' : 'Run scan'}
+        </Button>
+      </Toolbar>
+
+      {scanResult && <div className={`mr-banner ${scanFailed ? 'mr-banner--bad' : 'mr-banner--good'}`}>{scanResult}</div>}
+
+      <KpiRow>
+        <Kpi label="Events tracked" value={eventsTotal.toLocaleString('en-US')} />
+        <Kpi label="Routing clusters" value={clusters.length} />
+        <Kpi label="High competition" value={highCompetition} sub="score of 70 or more" />
+        <Kpi
+          label="Last scan"
           value={
             lastScan
-              ? new Date(lastScan).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
+              ? new Date(lastScan).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
               : '—'
           }
+          sub={lastScan ? new Date(lastScan).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : undefined}
         />
-      </div>
+      </KpiRow>
 
-      {/* Error banner */}
-      {error && (
-        <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="mr-banner mr-banner--bad">{error}</div>}
 
-      {/* Filter bar */}
-      <div className="bg-gray-800 rounded-lg p-3 sm:p-4 mb-6 border border-gray-700">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">City</label>
-            <select
-              value={pendingFilters.city}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, city: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            >
-              <option value="">All Cities</option>
+      <Card title="Filters">
+        <div className="mr-filters">
+          <Field label="City">
+            <select value={pendingFilters.city} onChange={set('city')}>
+              <option value="">All cities</option>
               {cities.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
             </select>
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Date From</label>
-            <input
-              type="date"
-              value={pendingFilters.dateFrom}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, dateFrom: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Date To</label>
-            <input
-              type="date"
-              value={pendingFilters.dateTo}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, dateTo: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Capacity Min</label>
-            <input
-              type="number"
-              placeholder="No min"
-              value={pendingFilters.capacityMin}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, capacityMin: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Capacity Max</label>
-            <input
-              type="number"
-              placeholder="No max"
-              value={pendingFilters.capacityMax}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, capacityMax: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Competition Min</label>
-            <input
-              type="number"
-              placeholder="0"
-              value={pendingFilters.competitionMin}
-              onChange={(e) =>
-                setPendingFilters({ ...pendingFilters, competitionMin: e.target.value })
-              }
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Source</label>
-            <select
-              value={pendingFilters.source}
-              onChange={(e) => setPendingFilters({ ...pendingFilters, source: e.target.value })}
-              className="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-white"
-            >
-              <option value="">All Sources</option>
+          </Field>
+          <Field label="Date from">
+            <input type="date" value={pendingFilters.dateFrom} onChange={set('dateFrom')} />
+          </Field>
+          <Field label="Date to">
+            <input type="date" value={pendingFilters.dateTo} onChange={set('dateTo')} />
+          </Field>
+          <Field label="Capacity min">
+            <input type="number" placeholder="No min" value={pendingFilters.capacityMin} onChange={set('capacityMin')} />
+          </Field>
+          <Field label="Capacity max">
+            <input type="number" placeholder="No max" value={pendingFilters.capacityMax} onChange={set('capacityMax')} />
+          </Field>
+          <Field label="Competition min">
+            <input type="number" placeholder="0" value={pendingFilters.competitionMin} onChange={set('competitionMin')} />
+          </Field>
+          <Field label="Source">
+            <select value={pendingFilters.source} onChange={set('source')}>
+              <option value="">All sources</option>
               <option value="ticketmaster">Ticketmaster</option>
               <option value="bandsintown">Bandsintown</option>
-              <option value="venue_scrape">Venue Scrape</option>
+              <option value="venue_scrape">Venue scrape</option>
             </select>
-          </div>
+          </Field>
         </div>
+        <div className="mr-filter-actions">
+          <Button variant="ghost" onClick={handleResetFilters}>Reset</Button>
+          <Button onClick={handleApplyFilters}>Apply filters</Button>
+        </div>
+      </Card>
 
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={handleApplyFilters}
-            className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-500 text-white text-sm px-4 py-2 sm:py-1.5 rounded transition-colors"
-          >
-            Apply Filters
-          </button>
-          <button
-            onClick={handleResetFilters}
-            className="flex-1 sm:flex-none bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm px-4 py-2 sm:py-1.5 rounded transition-colors"
-          >
-            Reset
-          </button>
-        </div>
+      <div className="mr-views">
+        <Segmented<Tab> options={views} value={activeTab} onChange={setActiveTab} />
       </div>
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 mb-6 border-b border-gray-700 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-t transition-colors whitespace-nowrap flex-shrink-0 ${
-              activeTab === tab.key
-                ? 'bg-gray-800 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div>
-        {activeTab === 'events' && <EventTable events={events} loading={eventsLoading} />}
+      <div className="mr-body">
+        {activeTab === 'events' && (
+          <Card>
+            <EventTable events={events} loading={eventsLoading} />
+          </Card>
+        )}
         {activeTab === 'routing' && <RoutingPanel clusters={clusters} loading={clustersLoading} />}
         {activeTab === 'competition' && (
           <CompetitionPanel competitions={competitions} loading={competitionsLoading} />
         )}
         {activeTab === 'trends' && <TrendPanel />}
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="bg-gray-800 rounded-lg p-3 sm:p-4 border border-gray-700">
-      <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-lg sm:text-2xl font-bold mt-1 truncate">{value}</p>
     </div>
   );
 }
