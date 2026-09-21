@@ -1,8 +1,13 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET: list offers, optional ?venue_id= filter
 export async function GET(request: Request) {
+  // Every deal's guarantee and split, to anyone who asked. Staff only —
+  // every caller is an admin page.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
@@ -27,6 +32,8 @@ export async function GET(request: Request) {
 
 // POST: create an offer with all expanded fields
 export async function POST(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const body = await request.json();
 
