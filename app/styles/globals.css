@@ -22678,3 +22678,56 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 900px) {
   .ag-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   COMMAND CENTER EXTRAS — app/components/admin/DashExtras.tsx
+   Next 14 nights, receivables aging and ancillary, per dashboard.dc.html.
+   Rides on the page's own .cc-* tokens and cards.
+   ══════════════════════════════════════════════════════════════════════ */
+.admin-shell .dx-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
+.dx-night-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.admin-shell .dx-night {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.025);
+  text-decoration: none;
+  color: inherit;
+}
+.admin-shell .dx-night:hover { background: rgba(255, 255, 255, 0.06); }
+.dx-date { width: 40px; flex: none; display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+.dx-date strong { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.dx-date span { font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.dx-night-main { flex: 1; min-width: 0; }
+.dx-night-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dx-night-title span { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dx-kind {
+  flex: none;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.10);
+}
+.dx-kind--rental { background: transparent; color: rgba(255, 255, 255, 0.62); }
+.dx-kind--hold { background: transparent; border-style: dashed; color: oklch(0.86 0.09 92); }
+.dx-night-nums { flex: none; text-align: right; }
+.dx-aging { display: flex; align-items: flex-end; gap: 8px; height: 150px; margin-top: 16px; }
+.dx-aging-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.dx-aging-bar { width: 100%; max-width: 38px; border-radius: 6px 6px 3px 3px; }
+.dx-aging-val { font-size: 10px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.7); }
+.dx-aging-label { font-size: 9.5px; color: rgba(255, 255, 255, 0.44); }
+.dx-anc { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.dx-anc > div { display: flex; flex-direction: column; gap: 3px; }
+.dx-anc strong { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.dx-anc em { font-style: normal; font-size: 10.5px; color: rgba(255, 255, 255, 0.42); }
+@media (max-width: 1100px) {
+  .admin-shell .dx-row { grid-template-columns: minmax(0, 1fr); }
+}

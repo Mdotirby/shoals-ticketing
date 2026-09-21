@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import DashExtras from "@/app/components/admin/DashExtras";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import {
@@ -700,6 +701,9 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* ══ Next 14 nights, receivables, ancillary (dashboard.dc.html) ═══ */}
+      <DashExtras monthName={monthName} />
 
       {/* ══ Lower grid ═══════════════════════════════════════════════════ */}
       <div className="cc-lower">
