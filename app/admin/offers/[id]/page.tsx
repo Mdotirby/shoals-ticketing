@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import { getCookie } from "@/lib/cookies";
 import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
@@ -442,6 +443,20 @@ export default function AdminOfferDetailPage() {
               ✕ Deny Offer
             </button>
           </>
+        )}
+        {/* A countersigned offer is a contract: its terms are read-only here
+            (the save route refuses changes) and change only by revision. */}
+        {offer.status === "accepted" && (
+          <Link href={`/admin/offers/${offer.id}/edit`} className="ee-action" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 0, padding: "8px 14px" }}>
+            <strong>Countersigned</strong>
+            <span>terms are locked — view signed terms &amp; create a revision →</span>
+          </Link>
+        )}
+        {typeof offer.revision_of === "string" && offer.status !== "accepted" && (
+          <Link href={`/admin/offers/${offer.revision_of}/edit`} className="ee-action" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 0, padding: "8px 14px" }}>
+            <strong>Revision v{String(offer.version ?? "")}</strong>
+            <span>the signed version stays in force until this one is countersigned →</span>
+          </Link>
         )}
       </div>
 

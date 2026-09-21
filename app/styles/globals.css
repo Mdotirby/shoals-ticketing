@@ -22464,3 +22464,35 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .ee-tabs-note { display: none; }
   .ee-state-action { width: 100%; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   OFFER EDIT — app/admin/offers/[id]/edit, handoff/screens/offeredit.dc.html
+   Shares the event edit form's state card, cards and rail (.ee-*); these are
+   the signed-terms rows and the version history.
+   ══════════════════════════════════════════════════════════════════════ */
+.oe-terms { display: flex; flex-direction: column; gap: 13px; }
+.oe-term-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.72); }
+.oe-chip { margin-left: auto; font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: oklch(0.86 0.09 92); }
+.oe-chip--fixed { color: rgba(255, 255, 255, 0.34); }
+.oe-chip--open { color: #8fd6a8; }
+.oe-term-value {
+  padding: 13px 15px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+}
+.admin-shell .oe-notes { width: 100%; }
+.oe-notes-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+.oe-versions { list-style: none; margin: 14px 0 0; padding: 0; }
+.oe-versions li { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.oe-versions li > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.oe-versions a { font-size: 11.5px; font-weight: 650; color: rgba(255, 255, 255, 0.84); text-decoration: none; }
+.oe-versions span:not(.oe-v) { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.48); }
+.oe-v { width: 30px; flex: none; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.52); }
+.oe-versions li.is-current .oe-v { color: rgba(255, 255, 255, 0.95); }
+.admin-shell .oe-event-link { margin-top: 13px; }

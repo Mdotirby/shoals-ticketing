@@ -177,6 +177,15 @@ export const navGroups: NavGroup[] = [
         ],
         paramTabsOn: /^\/admin\/offers\/[^/]+$/,
       },
+      {
+        id: "offeredit",
+        label: "Edit offer",
+        // A signed offer's read-only terms and revision history — reached from
+        // the builder or the version list, never a destination on its own.
+        contextualHref: (p) => (/^\/admin\/offers\/[^/]+\/edit$/.test(p) ? p : null),
+        match: /^\/admin\/offers\/[^/]+\/edit$/,
+        link: { label: "Edit offer", href: "/admin/offers", tabKey: "booking", roles: R.mgmt },
+      },
       { id: "contracts", label: "Contracts", link: { label: "Contracts", href: "/admin/contracts", tabKey: "contracts", roles: R.mgmt } },
       { id: "agents", label: "Agents", link: { label: "Agents", href: "/admin/agents", tabKey: "agents", roles: R.mgmt } },
       { id: "quote", label: "Rental quotes", link: { label: "Rental quotes", href: "/admin/private-events", roles: R.mgmt } },

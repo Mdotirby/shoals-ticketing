@@ -96,6 +96,10 @@ export type ArtistOffer = {
 
   // Status
   status: "draft" | "sent" | "accepted" | "declined" | "expired";
+  /** Revisions (plans/offer-revisions-migration.sql) — absent until it runs. */
+  revision_of?: string | null;
+  version?: number;
+  superseded_at?: string | null;
   terms?: string;
   notes?: string;
   created_by?: string;

@@ -1,42 +1,19 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-
-// Whitelist of columns that exist on artist_offers. Keep in sync with
-// plans/offers-expansion-migration.sql + plans/offer-tax-columns-migration.sql.
-// Unknown keys from the client are silently dropped so that future form drift
-// cannot break saves.
-const ALLOWED_COLUMNS = new Set<string>([
-  // Identity / linkage
-  "artist_name", "venue", "venue_address", "venue_contact", "venue_phone",
-  "event_date", "venue_id", "event_venue_id", "event_id",
-  // Agency
-  "agency", "agent_name", "agent_phone", "agent_email",
-  // Show details
-  "day_of_event", "num_shows", "show_length", "show_time", "billing",
-  "show_lineup",
-  // Deal
-  "guarantee", "deal_type", "backend_percentage", "other_terms",
-  "radius_distance", "radius_days_prior", "radius_days_after",
-  "production_by", "deposit_pct", "deposit_amount", "deposit_due",
-  "balance_due", "merch_split", "merch_seller",
-  "comps", "artist_comps", "marketing_comps",
-  // Scaling + expenses
-  "ticket_scaling", "fixed_expenses", "variable_expenses",
-  // Totals
-  "total_fixed", "total_variable", "total_expenses",
-  "gross_potential", "adj_gross",
-  "tax_rate", "tax_amount", "tax_method",
-  "net_potential", "splitpoint", "artist_backend", "pot_walkout",
-  "offer_valid_days",
-  // Meta
-  "terms", "notes", "status", "created_by",
-]);
+import { requireStaff } from "@/lib/auth/can";
+import { changedTerms, revisionsMissing } from "@/lib/offers/revisions";
+import { ALLOWED_COLUMNS } from "@/lib/offers/columns";
 
 // GET: single offer
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Offers carry guarantees and splits, and every caller is an admin page.
+  // This route answered anyone.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
@@ -61,6 +38,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Anyone could rewrite a signed deal. Staff only now.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = (await request.json()) as Record<string, unknown>;
@@ -76,12 +57,50 @@ export async function PUT(
     }
   }
 
+  // A countersigned offer is a contract (lib/offers/revisions.ts): its terms
+  // are never edited in place. Notes and status may still move; anything
+  // else is refused with a pointer to the revision flow.
+  const { data: current } = await admin.from("artist_offers").select("*").eq("id", id).single();
+  if (current?.status === "accepted") {
+    const changed = changedTerms(current, updates);
+    if (changed.length > 0) {
+      return NextResponse.json(
+        {
+          error: "This offer is countersigned, so its terms can't be edited in place. Create a revision instead — the signed version stays in force until the revision is signed.",
+          locked: changed,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const { data, error } = await admin
     .from("artist_offers")
     .update(updates)
     .eq("id", id)
     .select()
     .single();
+
+  // A revision just got countersigned: the version it revised stops being
+  // the operative deal. Walk back up the chain and mark every signed
+  // ancestor superseded. Both stay on file.
+  if (!error && updates.status === "accepted" && current?.status !== "accepted" && current?.revision_of) {
+    let parentId: string | null = current.revision_of as string;
+    const now = new Date().toISOString();
+    for (let hops = 0; parentId && hops < 50; hops++) {
+      const { data: parent }: { data: { id: string; status: string; revision_of: string | null; superseded_at: string | null } | null } = await admin
+        .from("artist_offers")
+        .select("id, status, revision_of, superseded_at")
+        .eq("id", parentId)
+        .single();
+      if (!parent) break;
+      if (parent.status === "accepted" && !parent.superseded_at) {
+        const { error: supErr } = await admin.from("artist_offers").update({ superseded_at: now }).eq("id", parent.id);
+        if (supErr && revisionsMissing(supErr.message)) break;
+      }
+      parentId = parent.revision_of;
+    }
+  }
 
   if (error) {
     console.error(`PUT /api/offers/${id} failed:`, error.message, error.code, error.details);
@@ -96,6 +115,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
