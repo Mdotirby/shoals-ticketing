@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTabParam } from "@/lib/admin/useTabParam";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import { formatPhoneNumber } from "@/lib/formatPhone";
@@ -42,6 +43,8 @@ function emptyScalingRow(): TicketScalingRow {
 function emptyLineup(): ShowLineupItem {
   return { time: "", artist: "", set_length: "" };
 }
+
+const OFFER_TABS = ["details", "pnl", "deal_lab"] as const;
 
 export default function AdminCreateOfferPage() {
   const router = useRouter();
@@ -273,7 +276,9 @@ export default function AdminCreateOfferPage() {
   const [offerValidDays, setOfferValidDays] = useState("14");
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"details" | "pnl" | "deal_lab">("details");
+  // Keys verbatim from before (merge plan § 10.1); now held in `?tab=` so
+  // the sidebar's tab rows and a pasted link open the same tab.
+  const [activeTab, setActiveTab] = useTabParam(OFFER_TABS);
 
   // Ancillary revenue state (P&L tab)
   const [ancillaryItems, setAncillaryItems] = useState([

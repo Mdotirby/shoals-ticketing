@@ -5,6 +5,7 @@ import { surchargeCents, ratePctLabel, DEFAULT_SURCHARGE_MODE } from "@/lib/fees
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useTabParam } from "@/lib/admin/useTabParam";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
@@ -43,6 +44,8 @@ const BOOKING_STATUS_COLORS: Record<string, string> = {
  * picker lives in step 1 — it decides whether the other two exist at all.
  */
 type StepNumber = 1 | 2 | 3;
+/** `?tab=` values, in step order — the same keys the sidebar links to. */
+const STEP_KEYS = ["setup", "tickets", "onsale"] as const;
 const STEPS: { n: StepNumber; label: string }[] = [
   { n: 1, label: "Setup" },
   { n: 2, label: "Tickets" },
@@ -191,7 +194,13 @@ export default function AdminCreateEventPage() {
 
   // Cropper state
   const formRef = useRef<HTMLFormElement>(null);
-  const [step, setStep] = useState<StepNumber>(1);
+  // The step lives in `?tab=` so the sidebar's tab rows and a pasted link
+  // land on the same one. setStep keeps its old signature (value or updater)
+  // so none of its call sites change.
+  const [stepKey, setStepKey] = useTabParam(STEP_KEYS);
+  const step = (STEP_KEYS.indexOf(stepKey) + 1) as StepNumber;
+  const setStep = (next: StepNumber | ((s: StepNumber) => StepNumber)) =>
+    setStepKey(STEP_KEYS[(typeof next === "function" ? next(step) : next) - 1]);
   // Which button was pressed. Kept in state rather than passed through the
   // submit event because the label has to say "Publishing…" vs "Saving…".
   const [publishIntent, setPublishIntent] = useState<"draft" | "published">("draft");

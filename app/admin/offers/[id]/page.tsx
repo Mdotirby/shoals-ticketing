@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useTabParam } from "@/lib/admin/useTabParam";
 import { getCookie } from "@/lib/cookies";
 import type { ArtistOffer, ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import type { Venue } from "@/lib/types/venue";
@@ -37,6 +38,8 @@ const DEFAULT_VARIABLE: VariableExpenseItem[] = [
   { name: "SESAC", rate: 0.0003, amount: 0 }, { name: "GMR", rate: 0.0015, amount: 0 },
 ];
 
+const OFFER_TABS = ["details", "pnl", "deal_lab"] as const;
+
 export default function AdminOfferDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
@@ -57,7 +60,9 @@ export default function AdminOfferDetailPage() {
   const [signedByBuyer, setSignedByBuyer] = useState("");
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"details" | "pnl" | "deal_lab">("details");
+  // Keys verbatim from before (merge plan § 10.1); now held in `?tab=` so
+  // the sidebar's tab rows and a pasted link open the same tab.
+  const [activeTab, setActiveTab] = useTabParam(OFFER_TABS);
 
   // Ancillary revenue state (P&L tab)
   const [ancillaryItems, setAncillaryItems] = useState([

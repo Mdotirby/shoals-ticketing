@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useTabParam } from "@/lib/admin/useTabParam";
 import { resolveCapacity, capacityLabel, offSaleLabel } from "@/lib/capacity";
 import {
   StatusBadge,
@@ -71,6 +72,7 @@ const TABS: { key: string; label: string }[] = [
   { key: "guestlist", label: "Guest List" },
   { key: "access", label: "Access" },
 ];
+const TAB_KEYS = TABS.map((t) => t.key);
 
 function formatCurrency(n: number) {
   return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -90,7 +92,8 @@ export default function EventWorkspacePage() {
   const params = useParams();
   const id = params.id as string;
 
-  const [tab, setTab] = useState("overview");
+  // In the URL, so the sidebar's tab rows and a pasted link open the same tab.
+  const [tab, setTab] = useTabParam(TAB_KEYS);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [publishing, setPublishing] = useState(false);
   // The offer is the only thing that knows WHY the room and the sellable cap
