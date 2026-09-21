@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
+import { writeAudit } from "@/lib/auth/audit";
+import { checkLocks, paidSaleCount, touchesLockedFields, type LockCheck } from "@/lib/events/editLocks";
 
 // GET IS PUBLIC BY DESIGN — the storefront's event detail. PUT and DELETE
 // are guarded below.
@@ -134,6 +136,31 @@ export async function PUT(
     console.log(`  start_time: ${JSON.stringify(updates.start_time)}, end_time: ${JSON.stringify(updates.end_time)}`);
   }
 
+  // ── Field locks on a show that has sold (lib/events/editLocks.ts) ──
+  // Event class is fixed after the first sale; title, date and venue can
+  // change but every change is recorded with before/after. Only looked up
+  // when the update touches one of those fields, so ordinary saves (artwork,
+  // description, the publish button) pay nothing extra.
+  let lockCheck: LockCheck | null = null;
+  if (touchesLockedFields(updates)) {
+    const [{ data: current }, sold] = await Promise.all([
+      admin.from("events").select("title, date, venue, event_venue_id, venue_id, event_type").eq("id", id).single(),
+      paidSaleCount(admin, id),
+    ]);
+    if (current && sold > 0) {
+      lockCheck = checkLocks(current, updates);
+      if (lockCheck.hardChanged.length > 0) {
+        return NextResponse.json(
+          {
+            error: `This show has sold ${sold} order${sold === 1 ? "" : "s"}, so its event class is fixed. Tickets were sold under it.`,
+            locked: lockCheck.hardChanged,
+          },
+          { status: 409 }
+        );
+      }
+    }
+  }
+
   let { data, error } = await admin
     .from("events")
     .update(updates)
@@ -162,6 +189,16 @@ export async function PUT(
       { error: error.message },
       { status: 500 }
     );
+  }
+
+  if (lockCheck && lockCheck.lockableChanged.length > 0) {
+    await writeAudit(guard.actor, {
+      action: "event.edited_while_selling",
+      targetType: "event",
+      targetId: id,
+      venueId: (data?.venue_id as string | null) ?? null,
+      detail: { changes: lockCheck.lockableChanged },
+    });
   }
 
   console.log(`PUT /api/events/${id} — success, start_time=${data?.start_time}, end_time=${data?.end_time}`);

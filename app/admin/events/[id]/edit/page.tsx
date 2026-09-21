@@ -11,6 +11,8 @@ import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useIsMobile } from "@/lib/useIsMobile";
+import { useTabParam } from "@/lib/admin/useTabParam";
+import { fmtUSD } from "@/app/components/admin/ui";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null; tax_method?: string | null };
 
@@ -19,6 +21,37 @@ type RevenueItem = {
   category: string;
   amount: string;
 };
+
+/** Tabs per handoff/screens/eventedit.dc.html; the sidebar links to ?tab=. */
+const EE_TABS = [
+  { key: "setup", label: "Setup" },
+  { key: "tickets", label: "Tickets" },
+  { key: "onsale", label: "On-sale & fees" },
+  { key: "promo", label: "Promo & tracking" },
+] as const;
+const EE_TAB_KEYS = EE_TABS.map((t) => t.key);
+
+type TicketingKpis = {
+  paidTickets: number;
+  compedTickets: number;
+  sellable: number;
+  sellThrough: number;
+  gross: number;
+  feesRetained: number;
+};
+
+type AuditRow = { id: string; action: string; created_at: string; detail: Record<string, unknown> | null };
+
+/** One line of the "Recent changes" card. */
+function describeAudit(a: AuditRow): string {
+  const who = (a.detail?.actor_email as string | undefined)?.split("@")[0] ?? "Someone";
+  if (a.action === "event.unlocked_for_edit") return `${who} unlocked the show for editing.`;
+  if (a.action === "event.edited_while_selling") {
+    const changes = (a.detail?.changes as { field: string }[] | undefined) ?? [];
+    return `${who} changed ${changes.map((c) => c.field.replace(/_id$/, "").replace(/_/g, " ")).join(", ") || "locked fields"}.`;
+  }
+  return `${who}: ${a.action.replace(/[._]/g, " ")}.`;
+}
 
 const ACCEPTED_IMAGE_TYPES = ".jpg,.jpeg,.png,.webp";
 const MAX_TIERS = 8;
@@ -249,6 +282,8 @@ export default function AdminEditEventPage() {
           end_time: event.end_time ? (event.end_time.match(/T(\d{2}:\d{2})/)?.[1] || event.end_time) : "",
           venue_address: "",
         });
+
+        setEventStatus(event.status || "draft");
 
         if (event.image_url) {
           setPreviewUrl(event.image_url);
@@ -621,6 +656,92 @@ export default function AdminEditEventPage() {
     setNewLink(prev => ({ ...prev, label, slug }));
   }
 
+  // ── The design's edit model (handoff PHASE1-EDIT-PAGES § 1) ──
+  // Four tabs over one form, a money rail that never leaves the screen, and
+  // a lock on the fields a buyer paid for. Everything above this line — the
+  // loads, the handlers, handleSubmit — is the form as it was.
+  const [eeTab, setEeTab] = useTabParam(EE_TAB_KEYS);
+  const [eventStatus, setEventStatus] = useState("draft");
+  const [unlocked, setUnlocked] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [ticketing, setTicketing] = useState<TicketingKpis | null>(null);
+  const [soldByTier, setSoldByTier] = useState<Record<string, { name: string; price: number; sold: number }>>({});
+  const [auditEntries, setAuditEntries] = useState<AuditRow[]>([]);
+
+  // Sales figures for the rail and the tier locks. Same source the event
+  // workspace's Ticketing tab reads (settlement_ledger via
+  // /api/admin/ticketing), so the two never disagree.
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/admin/ticketing/${id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.kpis) return;
+        setTicketing(data.kpis);
+        const map: Record<string, { name: string; price: number; sold: number }> = {};
+        for (const t of data.inventory ?? []) map[t.id] = { name: t.name, price: Number(t.price) || 0, sold: Number(t.sold) || 0 };
+        setSoldByTier(map);
+      })
+      .catch(() => {});
+    // This show's own audit trail. Roles without read_audit get a 403 and
+    // simply don't see the card.
+    fetch(`/api/admin/audit?target_id=${id}&limit=5`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data?.entries)) setAuditEntries(data.entries);
+      })
+      .catch(() => {});
+  }, [id]);
+
+  const soldTotal = ticketing?.paidTickets ?? 0;
+  const hasSales = soldTotal > 0;
+  /** Published with sales: title, date, time, venue and host freeze until unlocked. */
+  const lockable = eventStatus === "published" && hasSales;
+  const locked = lockable && !unlocked;
+  /** Event class is fixed after the first sale — published or not. */
+  const classFixed = hasSales;
+
+  const unlockForEdit = async () => {
+    setUnlocking(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/events/${id}/unlock`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't unlock this show for editing");
+      }
+      setUnlocked(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't unlock this show for editing");
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  const editState: { tone: "warn" | "good" | "quiet"; eyebrow: string; body: string } = locked
+    ? {
+        tone: "warn",
+        eyebrow: "Published · locked while selling",
+        body: `This show is on sale and ${soldTotal.toLocaleString()} ticket${soldTotal === 1 ? " is" : "s are"} out. Title, date, time and venue are frozen until you take the form out of read-only — a buyer paid for each of them. Artwork, billing, description and links never lock.`,
+      }
+    : unlocked
+    ? {
+        tone: "good",
+        eyebrow: "Unlocked · audit entry written",
+        body: "Title, date, time and venue are open. Saving records each change with its before and after.",
+      }
+    : eventStatus === "published"
+    ? {
+        tone: "quiet",
+        eyebrow: "Published · no sales yet",
+        body: "Nothing is locked until the first ticket sells.",
+      }
+    : {
+        tone: "quiet",
+        eyebrow: "Draft",
+        body: "Not on the storefront. Publish from the event workspace once it's ready.",
+      };
+
   // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -628,6 +749,27 @@ export default function AdminEditEventPage() {
 
     const isHardTicket = isHardTicketType(form.event_type);
     const isPrivate = form.event_type === "private";
+
+    // The tier save replaces the whole list, so the lock on tiers with sales
+    // is checked here: price and capacity only go up, and it stays.
+    if (isHardTicket) {
+      for (const [tierId, t] of Object.entries(soldByTier)) {
+        if (t.sold === 0) continue;
+        const draft = tiers.find((x) => x.id === tierId);
+        if (!draft) {
+          setError(`${t.name} has ${t.sold} sold and can't be removed.`);
+          return;
+        }
+        if (parseFloat(draft.price) < t.price) {
+          setError(`${t.name}: the price can only go up once tickets have sold (currently $${t.price.toFixed(2)}).`);
+          return;
+        }
+        if (parseInt(draft.capacity) < t.sold) {
+          setError(`${t.name}: capacity can't go below the ${t.sold} already sold.`);
+          return;
+        }
+      }
+    }
 
     // Validate tiers only for hard ticket
     if (isHardTicket) {
@@ -846,1568 +988,1750 @@ export default function AdminEditEventPage() {
   }
 
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">{form.title || "Event"} - Edit Event</h1>
-
-      {/* Event-scoped module shortcuts */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          margin: "0 0 20px",
-          flexWrap: "wrap",
-        }}
-      >
-        <Link
-          href={`/admin/events/${id}/ads`}
-          style={{
-            padding: "6px 14px",
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#ffffff",
-            border: "1px solid rgba(255, 255, 255, 0.4)",
-            background: "rgba(255, 255, 255, 0.08)",
-            textDecoration: "none",
-          }}
-        >
-          Ad Engine
-        </Link>
-      </div>
-
-      <form className="admin-form" onSubmit={handleSubmit}>
-        {error && <div className="admin-form-error">{error}</div>}
-
-        {/* Host / Organization Selector */}
-        <div className="admin-form-label admin-form-full">
-          Host / Organization
-          <select
-            className="admin-form-input"
-            value={resolvedVenueId || ""}
-            onChange={(e) => setResolvedVenueId(e.target.value || null)}
-            style={{ marginTop: 6 }}
-          >
-            <option value="">— Select host —</option>
-            {availableHosts.map((h) => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
-            The organization, promoter, or venue hosting this event
-          </p>
-        </div>
-
-        {/* Event Type Selector */}
-        <div className="admin-form-label admin-form-full">
-          Event Type
-          <select
-            className="admin-form-input"
-            value={form.event_type}
-            onChange={(e) => setForm({ ...form, event_type: e.target.value })}
-            style={{ marginTop: 6 }}
-          >
-            <option value="hard_ticket">Hard Ticket</option>
-            <option value="non_ticketed">Non-Ticketed</option>
-            <option value="private">Private Event</option>
-          </select>
-        </div>
-
-        {/* Booking Status */}
-        <div className="admin-form-label admin-form-full">
-          Booking Status
-          <select
-            className="admin-form-input"
-            value={form.booking_status}
-            onChange={(e) => setForm({ ...form, booking_status: e.target.value })}
-            style={{ marginTop: 6 }}
-          >
-            <option value="confirmed">Confirmed</option>
-            <option value="hold">Hold</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Event Name *
-            <input
-              type="text"
-              name="title"
-              className="admin-form-input"
-              value={form.title}
-              onChange={handleChange}
-              required
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Subtitle / Tour Name
-            <input
-              type="text"
-              name="subtitle"
-              className="admin-form-input"
-              placeholder='e.g. "The In Defense of Drinking Tour"'
-              value={form.subtitle}
-              onChange={handleChange}
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Venue *
-            {eventVenues.length > 0 && (
-              <select
-                className="admin-form-input"
-                value={selectedEventVenueId || ""}
-                onChange={(e) => {
-                  const v = eventVenues.find((x) => x.id === e.target.value);
-                  if (v) {
-                    setSelectedEventVenueId(v.id);
-                    setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
-                    setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
-                  } else {
-                    setSelectedEventVenueId(null);
-                    setSelectedVenueFees({ facility_fee: null });
-                  }
-                }}
-                style={{ marginBottom: 6 }}
-              >
-                <option value="">— Select a venue or type below —</option>
-                {eventVenues.map((v) => (
-                  <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
-                ))}
-              </select>
-            )}
-            <input
-              type="text"
-              name="venue"
-              className="admin-form-input"
-              value={form.venue}
-              onChange={(e) => {
-                handleChange(e);
-                setSelectedEventVenueId(null);
-                setSelectedVenueFees({ facility_fee: null });
-              }}
-              required
-            />
-            {!selectedEventVenueId && form.venue && (
-              <input
-                type="text"
-                name="venue_address"
-                className="admin-form-input"
-                value={form.venue_address}
-                onChange={handleChange}
-                placeholder="e.g. 1001 Main St, Florence, AL 35630"
-                style={{ marginTop: 6 }}
-              />
-            )}
-          </label>
-
-          <label className="admin-form-label">
-            Date *
-            <input
-              type="date"
-              name="date"
-              className="admin-form-input"
-              value={form.date}
-              onChange={handleChange}
-              required
-            />
-          </label>
-
-          <label className="admin-form-label">
-            Time
-            <select
-              name="time"
-              className="admin-form-input"
-              value={form.time}
-              onChange={(e) => setForm({ ...form, time: e.target.value })}
-            >
-              <option value="">— Select time —</option>
-              {Array.from({ length: 30 }, (_, i) => {
-                const h24 = Math.floor(i / 2) + 10;
-                const m = i % 2 === 0 ? "00" : "30";
-                const h12 = h24 > 12 ? h24 - 12 : h24;
-                const ampm = h24 >= 12 ? "PM" : "AM";
-                const val = `${String(h24).padStart(2, "0")}:${m}`;
-                return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
-              })}
-            </select>
-          </label>
-
-        </div>
-
-        {/* Contact Fields — shown for private events */}
-        {isPrivate && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(180,100,200,0.06)",
-            border: "1px solid rgba(180,100,200,0.15)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Client Contact Info
-            </span>
-            <div className="admin-form-grid">
-              <label className="admin-form-label">
-                Contact Name
-                <input
-                  type="text"
-                  name="contact_name"
-                  className="admin-form-input"
-                  value={form.contact_name}
-                  onChange={handleChange}
-                  placeholder="Client name"
-                />
-              </label>
-              <label className="admin-form-label">
-                Phone
-                <input
-                  type="tel"
-                  name="contact_phone"
-                  className="admin-form-input"
-                  value={form.contact_phone}
-                  onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
-                  placeholder="(555)-123-4567"
-                />
-              </label>
-              <label className="admin-form-label" style={{ gridColumn: "span 2" }}>
-                Email
-                <input
-                  type="email"
-                  name="contact_email"
-                  className="admin-form-input"
-                  value={form.contact_email}
-                  onChange={handleChange}
-                  placeholder="client@example.com"
-                />
-              </label>
-            </div>
+    <div className="admin-form-page ee-page">
+      {/* ── State: what this show is and what that means for editing ── */}
+      <div className="card ee-state">
+        <div className="ee-state-text">
+          <div className={`ee-eyebrow ee-eyebrow--${editState.tone}`}>
+            <span className="ee-dot" />
+            {editState.eyebrow}
           </div>
-        )}
-
-        {/* ── Free Event Checkbox (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: isFree ? "#22c55e" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={isFree}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setIsFree(checked);
-                  if (checked) {
-                    setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
-                  }
-                }}
-                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
-              />
-              Free Event
-            </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, all ticket prices are set to $0 and fees are disabled. Customers will register instead of paying.
-            </p>
+          <div className="ee-state-title">
+            <h1 className="admin-page-title">{form.title || "Event"}</h1>
+            <span className="ee-state-meta">{[form.date, form.venue].filter(Boolean).join(" · ")}</span>
           </div>
-        )}
-
-        {/* ── Ticket Tiers (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full">
-            Ticket Tiers *
-            <div className="admin-tiers-list">
-              {tiers.map((tier, i) => (
-                <div key={i} className="admin-tier-row">
-                  <span className="admin-tier-number">Tier {i + 1}</span>
-                  <input
-                    type="text"
-                    className="admin-form-input admin-tier-input"
-                    placeholder="Tier name (e.g. GA, VIP)"
-                    value={tier.tier_name}
-                    onChange={(e) =>
-                      handleTierChange(i, "tier_name", e.target.value)
-                    }
-                    required
-                  />
-                  <input
-                    type="number"
-                    className="admin-form-input admin-tier-input admin-tier-price"
-                    placeholder="Price"
-                    value={tier.price}
-                    onChange={(e) =>
-                      handleTierChange(i, "price", e.target.value)
-                    }
-                    step="0.01"
-                    min="0"
-                    required
-                    disabled={isFree}
-                  />
-                  <input
-                    type="number"
-                    className="admin-form-input admin-tier-input admin-tier-capacity"
-                    placeholder="Capacity"
-                    value={tier.capacity}
-                    onChange={(e) =>
-                      handleTierChange(i, "capacity", e.target.value)
-                    }
-                    min="1"
-                    step="1"
-                    required
-                  />
-                  {tiers.length > 1 && (
-                    <button
-                      type="button"
-                      className="admin-tier-remove-btn"
-                      onClick={() => removeTier(i)}
-                      title="Remove tier"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {tiers.length < MAX_TIERS && (
-              <button
-                type="button"
-                className="admin-tier-add-btn"
-                onClick={addTier}
-              >
-                + Add Tier
+          <p className="ee-state-body">{editState.body}</p>
+        </div>
+        {lockable && (
+          <div className="ee-state-action">
+            {unlocked ? (
+              <button type="button" className="btn ee-btn-lg" onClick={() => window.location.reload()}>
+                Discard changes
+              </button>
+            ) : (
+              <button type="button" className="btn btn-primary ee-btn-lg" onClick={unlockForEdit} disabled={unlocking}>
+                {unlocking ? "Unlocking…" : "Edit event"}
               </button>
             )}
+            <p className="ee-state-hint">Unlocking writes an audit entry before the first keystroke.</p>
           </div>
         )}
+      </div>
 
-        {/* ── External Ticketing Link ── */}
-        <div className="admin-form-label admin-form-full" style={{
-          padding: 16, borderRadius: 10,
-          background: externalTicketUrl ? "rgba(245,158,11,0.06)" : "rgba(255, 255, 255, 0.04)",
-          border: `1px solid ${externalTicketUrl ? "rgba(245,158,11,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
-          marginTop: 8,
-        }}>
-          <span style={{ color: externalTicketUrl ? "#f59e0b" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
-            External Ticketing Link
-          </span>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
-            If tickets are sold on another platform (Eventbrite, AXS, venue box office, etc.), paste the link here.
-            The &ldquo;Buy Tickets&rdquo; button on your event page will route directly to that URL instead of VenueCore checkout.
-          </p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ flex: 2 }}>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Ticketing URL</span>
-              <input
-                className="admin-form-input"
-                type="url"
-                placeholder="https://www.eventbrite.com/e/..."
-                value={externalTicketUrl}
-                onChange={(e) => setExternalTicketUrl(e.target.value)}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Button Label (optional)</span>
-              <input
-                className="admin-form-input"
-                placeholder="Get Tickets"
-                value={externalTicketLabel}
-                onChange={(e) => setExternalTicketLabel(e.target.value)}
-              />
-            </div>
-          </div>
-          {externalTicketUrl && (
-            <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8, margin: "8px 0 0" }}>
-              VenueCore checkout is disabled for this event. Tickets link out to the URL above.
-            </p>
-          )}
-        </div>
+      <div className="merged-tabs ee-tabs" role="tablist">
+        {EE_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={eeTab === t.key}
+            className={`merged-tab${eeTab === t.key ? " is-on" : ""}`}
+            onClick={() => setEeTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+        <span className="ee-tabs-note">No autosave — a live show saves on your word</span>
+      </div>
 
-        {/* ── Co-Promoter / Guest Meta Pixel ── */}
-        <div className="admin-form-label admin-form-full" style={{
-          padding: 16, borderRadius: 10,
-          background: metaPixelId ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
-          border: `1px solid ${metaPixelId ? "rgba(59,130,246,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
-          marginTop: 8,
-        }}>
-          <span style={{ color: metaPixelId ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
-            Co-Promoter Meta Pixel ID
-          </span>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
-            If a co-promoter or advertiser needs their Meta Pixel to fire on this event&apos;s pages
-            (for retargeting their paid social ads), paste their Pixel ID here.
-            It fires alongside the venue&apos;s pixel — both on the event detail and landing pages.
-          </p>
-          <input
-            className="admin-form-input"
-            type="text"
-            placeholder="e.g. 1660200431930684"
-            value={metaPixelId}
-            onChange={(e) => setMetaPixelId(e.target.value.trim())}
-          />
-          {metaPixelId && (
-            <p style={{ fontSize: 11, color: "#3b82f6", marginTop: 8 }}>
-              Co-promoter pixel active — firing on event detail and landing pages.
-            </p>
-          )}
-        </div>
+      <form className="ee-grid" onSubmit={handleSubmit}>
+        <div className="ee-main">
+          {error && <div className="admin-form-error">{error}</div>}
 
-        {/* ── Spotify Embed ── */}
-        <div className="admin-form-label admin-form-full" style={{
-          padding: 16, borderRadius: 10,
-          background: spotifyUrl ? "rgba(30,215,96,0.06)" : "rgba(255, 255, 255, 0.04)",
-          border: `1px solid ${spotifyUrl ? "rgba(30,215,96,0.25)" : "rgba(255, 255, 255, 0.12)"}`,
-          marginTop: 8,
-        }}>
-          <span style={{ color: spotifyUrl ? "#1ed760" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
-            Spotify — Listen Before You Go
-          </span>
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
-            Paste any Spotify link — artist page, album, playlist, or single track.
-            An embedded player will appear on the event page so fans can listen without leaving.
-          </p>
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "0 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Featured Track</p>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              className="admin-form-input"
-              type="url"
-              placeholder="https://open.spotify.com/track/..."
-              value={spotifyFeaturedTrack}
-              onChange={(e) => setSpotifyFeaturedTrack(e.target.value.trim())}
-              style={{ flex: 1 }}
-            />
-            <input
-              className="admin-form-input"
-              type="number"
-              min="0"
-              placeholder="Start (sec)"
-              value={spotifyFeaturedTrackStart}
-              onChange={(e) => setSpotifyFeaturedTrackStart(e.target.value)}
-              style={{ width: 110, flexShrink: 0 }}
-            />
-          </div>
-          {spotifyFeaturedTrackStart && (
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
-              Starts at {spotifyFeaturedTrackStart}s — {Math.floor(Number(spotifyFeaturedTrackStart) / 60)}:{String(Number(spotifyFeaturedTrackStart) % 60).padStart(2, "0")} into the track
-            </p>
-          )}
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Artist Page</p>
-          <input
-            className="admin-form-input"
-            type="url"
-            placeholder="https://open.spotify.com/artist/..."
-            value={spotifyUrl}
-            onChange={(e) => setSpotifyUrl(e.target.value.trim())}
-          />
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Listeners</p>
-          <input
-            className="admin-form-input"
-            type="text"
-            placeholder="e.g. 2.4M or 847,000"
-            value={spotifyMonthlyListeners}
-            onChange={(e) => setSpotifyMonthlyListeners(e.target.value)}
-          />
-          {(spotifyFeaturedTrack || spotifyUrl) && (
-            <p style={{ fontSize: 11, color: "#1ed760", marginTop: 8 }}>
-              Spotify player active — fans can listen directly on the event page.
-            </p>
-          )}
-        </div>
+          {eeTab === "setup" && (
+            <>
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Locked while selling</span>
+                  <span className="ee-card-aside">a buyer paid for each of these</span>
+                </div>
+                <div className="admin-form ee-fields">
+                {/* Host / Organization Selector */}
+                <div className="admin-form-label admin-form-full">
+                  Host / Organization
+                  <select
+                    className="admin-form-input"
+                    value={resolvedVenueId || ""}
+                    disabled={locked}
+                    onChange={(e) => setResolvedVenueId(e.target.value || null)}
+                    style={{ marginTop: 6 }}
+                  >
+                    <option value="">— Select host —</option>
+                    {availableHosts.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
+                    The organization, promoter, or venue hosting this event
+                  </p>
+                </div>
 
-        {/* ── On-Sale Date & Time (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <span style={{ color: onSaleDate ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
-              On-Sale Date & Time
-            </span>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
-              Leave empty for tickets to go on sale immediately. Set a date to schedule when tickets become available.
-            </p>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
-              <label style={{ flex: 1 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Date</span>
-                <input
-                  type="date"
-                  className="admin-form-input"
-                  value={onSaleDate}
-                  onChange={(e) => setOnSaleDate(e.target.value)}
-                />
-              </label>
-              <label style={{ flex: 1 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Time (Central Time)</span>
-                <select
-                  className="admin-form-input"
-                  value={onSaleTime}
-                  onChange={(e) => setOnSaleTime(e.target.value)}
-                >
-                  <option value="">12:00 AM (midnight)</option>
-                  {Array.from({ length: 48 }, (_, i) => {
-                    const h24 = Math.floor(i / 2);
-                    const m = i % 2 === 0 ? "00" : "30";
-                    const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
-                    const ampm = h24 >= 12 ? "PM" : "AM";
-                    const val = `${String(h24).padStart(2, "0")}:${m}`;
-                    return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
-                  })}
-                </select>
-              </label>
-              {onSaleDate && (
-                <button
-                  type="button"
-                  onClick={() => { setOnSaleDate(""); setOnSaleTime(""); }}
-                  style={{
-                    padding: "8px 12px", borderRadius: 8,
-                    border: "1px solid rgba(255,107,107,0.3)",
-                    background: "rgba(255,107,107,0.1)",
-                    color: "#ff6b6b", fontSize: 12, fontWeight: 600,
-                    cursor: "pointer", whiteSpace: "nowrap",
-                  }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+                <div className="admin-form-grid">
+                  <label className="admin-form-label">
+                    Event Name *
+                    <input
+                      type="text"
+                      name="title"
+                      disabled={locked}
+                      className="admin-form-input"
+                      value={form.title}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
 
-        {/* ── Presale Access (only for hard ticket events with an on-sale date) ── */}
-        {isHardTicket && onSaleDate && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(168,85,247,0.04)",
-            border: "1px solid rgba(168,85,247,0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 14 }}>
-              Presale Access
-            </span>
+                  <label className="admin-form-label">
+                    Subtitle / Tour Name
+                    <input
+                      type="text"
+                      name="subtitle"
+                      className="admin-form-input"
+                      placeholder='e.g. "The In Defense of Drinking Tour"'
+                      value={form.subtitle}
+                      onChange={handleChange}
+                    />
+                  </label>
 
-            {(["artist", "venue"] as const).map((type, idx) => {
-              const config = type === "artist" ? artistPresale : venuePresale;
-              const setConfig = type === "artist" ? setArtistPresale : setVenuePresale;
-              const label = type === "artist" ? "Artist Presale" : "Venue Presale";
-              return (
-                <div key={type} style={{ marginBottom: idx === 0 ? 10 : 0 }}>
-                  <div style={{
-                    borderRadius: 8,
-                    border: `1px solid ${config.enabled ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`,
-                    background: config.enabled ? "rgba(168,85,247,0.05)" : "rgba(255,255,255,0.015)",
-                    transition: "border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
-                    boxShadow: config.enabled ? "0 0 0 1px rgba(168,85,247,0.08), 0 4px 16px rgba(168,85,247,0.07)" : "none",
-                    overflow: "hidden",
-                  }}>
-                    {/* Header row — click anywhere to toggle */}
-                    <div
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", cursor: "pointer", userSelect: "none" }}
-                      onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  <label className="admin-form-label">
+                    Venue *
+                    {eventVenues.length > 0 && (
+                      <select
+                        className="admin-form-input"
+                        value={selectedEventVenueId || ""}
+                        disabled={locked}
+                        onChange={(e) => {
+                          const v = eventVenues.find((x) => x.id === e.target.value);
+                          if (v) {
+                            setSelectedEventVenueId(v.id);
+                            setForm((prev) => ({ ...prev, venue: v.name, venue_address: v.full_address || "" }));
+                            setSelectedVenueFees({ facility_fee: v.facility_fee ?? null });
+                          } else {
+                            setSelectedEventVenueId(null);
+                            setSelectedVenueFees({ facility_fee: null });
+                          }
+                        }}
+                        style={{ marginBottom: 6 }}
+                      >
+                        <option value="">— Select a venue or type below —</option>
+                        {eventVenues.map((v) => (
+                          <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      type="text"
+                      name="venue"
+                      disabled={locked}
+                      className="admin-form-input"
+                      value={form.venue}
+                      onChange={(e) => {
+                        handleChange(e);
+                        setSelectedEventVenueId(null);
+                        setSelectedVenueFees({ facility_fee: null });
+                      }}
+                      required
+                    />
+                    {!selectedEventVenueId && form.venue && (
+                      <input
+                        type="text"
+                        name="venue_address"
+                        className="admin-form-input"
+                        value={form.venue_address}
+                        onChange={handleChange}
+                        placeholder="e.g. 1001 Main St, Florence, AL 35630"
+                        style={{ marginTop: 6 }}
+                      />
+                    )}
+                  </label>
+
+                  <label className="admin-form-label">
+                    Date *
+                    <input
+                      type="date"
+                      name="date"
+                      disabled={locked}
+                      className="admin-form-input"
+                      value={form.date}
+                      onChange={handleChange}
+                      required
+                    />
+                  </label>
+
+                  <label className="admin-form-label">
+                    Time
+                    <select
+                      name="time"
+                      disabled={locked}
+                      className="admin-form-input"
+                      value={form.time}
+                      onChange={(e) => setForm({ ...form, time: e.target.value })}
                     >
-                      <span style={{ fontSize: 13, fontWeight: 700, color: config.enabled ? "#a855f7" : "rgba(255,255,255,0.55)", transition: "color 0.3s ease" }}>
-                        {label}
-                      </span>
-                      {/* Pill toggle */}
-                      <div style={{
-                        width: 40, height: 22, borderRadius: 11, flexShrink: 0, position: "relative",
-                        background: config.enabled ? "#a855f7" : "rgba(255,255,255,0.14)",
-                        transition: "background 0.22s ease",
-                      }}>
-                        <div style={{
-                          position: "absolute", top: 3,
-                          left: config.enabled ? 21 : 3,
-                          width: 16, height: 16, borderRadius: "50%",
-                          background: "#fff",
-                          transition: "left 0.22s ease",
-                          boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                        }} />
-                      </div>
+                      <option value="">— Select time —</option>
+                      {Array.from({ length: 30 }, (_, i) => {
+                        const h24 = Math.floor(i / 2) + 10;
+                        const m = i % 2 === 0 ? "00" : "30";
+                        const h12 = h24 > 12 ? h24 - 12 : h24;
+                        const ampm = h24 >= 12 ? "PM" : "AM";
+                        const val = `${String(h24).padStart(2, "0")}:${m}`;
+                        return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+                      })}
+                    </select>
+                  </label>
+
+                </div>
+                </div>
+              </section>
+
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Fixed for the life of the show</span>
+                </div>
+                <div className="admin-form ee-fields">
+                {/* Event Type Selector */}
+                <div className="admin-form-label admin-form-full">
+                  Event Type
+                  <select
+                    className="admin-form-input"
+                    value={form.event_type}
+                    disabled={classFixed}
+                    onChange={(e) => setForm({ ...form, event_type: e.target.value })}
+                    style={{ marginTop: 6 }}
+                  >
+                    <option value="hard_ticket">Hard Ticket</option>
+                    <option value="non_ticketed">Non-Ticketed</option>
+                    <option value="private">Private Event</option>
+                  </select>
+                  {classFixed && <p className="ee-field-note">Fixed — tickets were sold under this class.</p>}
+                </div>
+                </div>
+              </section>
+
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Always editable</span>
+                  <span className="ee-card-aside">cannot invalidate a ticket</span>
+                </div>
+                <div className="admin-form ee-fields">
+                {/* Booking Status */}
+                <div className="admin-form-label admin-form-full">
+                  Booking Status
+                  <select
+                    className="admin-form-input"
+                    value={form.booking_status}
+                    onChange={(e) => setForm({ ...form, booking_status: e.target.value })}
+                    style={{ marginTop: 6 }}
+                  >
+                    <option value="confirmed">Confirmed</option>
+                    <option value="hold">Hold</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                {/* Contact Fields — shown for private events */}
+                {isPrivate && (
+                  <div className="admin-form-label admin-form-full" style={{
+                    padding: 16, borderRadius: 10,
+                    background: "rgba(180,100,200,0.06)",
+                    border: "1px solid rgba(180,100,200,0.15)",
+                    marginTop: 8,
+                  }}>
+                    <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+                      Client Contact Info
+                    </span>
+                    <div className="admin-form-grid">
+                      <label className="admin-form-label">
+                        Contact Name
+                        <input
+                          type="text"
+                          name="contact_name"
+                          className="admin-form-input"
+                          value={form.contact_name}
+                          onChange={handleChange}
+                          placeholder="Client name"
+                        />
+                      </label>
+                      <label className="admin-form-label">
+                        Phone
+                        <input
+                          type="tel"
+                          name="contact_phone"
+                          className="admin-form-input"
+                          value={form.contact_phone}
+                          onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
+                          placeholder="(555)-123-4567"
+                        />
+                      </label>
+                      <label className="admin-form-label" style={{ gridColumn: "span 2" }}>
+                        Email
+                        <input
+                          type="email"
+                          name="contact_email"
+                          className="admin-form-input"
+                          value={form.contact_email}
+                          onChange={handleChange}
+                          placeholder="client@example.com"
+                        />
+                      </label>
                     </div>
+                  </div>
+                )}
 
-                    {/* Expandable body */}
-                    <div style={{
-                      maxHeight: config.enabled ? "480px" : "0px",
-                      overflow: "hidden",
-                      opacity: config.enabled ? 1 : 0,
-                      transition: "max-height 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.28s ease",
-                    }}>
-                      <div style={{ padding: "2px 14px 16px" }}>
-
-                        {/* Code input */}
-                        <div style={{ marginBottom: 14 }}>
-                          <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
-                            Presale Code
-                          </label>
-                          <input
-                            type="text"
-                            className="admin-form-input"
-                            value={config.code}
-                            onChange={(e) => setConfig((prev) => ({ ...prev, code: e.target.value.toUpperCase().slice(0, 15) }))}
-                            placeholder="e.g. EARLYBIRD"
-                            maxLength={15}
-                            style={{ fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase", maxWidth: 240 }}
-                          />
-                          <span style={{
-                            fontSize: 11,
-                            color: config.code.length >= 13 ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.2)",
-                            marginTop: 3, display: "block",
-                            transition: "color 0.2s ease",
-                          }}>
-                            {config.code.length}/15
-                          </span>
-                        </div>
-
-                        {/* Presale window */}
-                        <div style={{ marginBottom: 14 }}>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6, fontWeight: 600 }}>
-                            Presale Window (optional)
-                          </span>
-                          <div style={{ display: "flex", gap: 10 }}>
-                            <div style={{ flex: 1 }}>
-                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Opens</span>
+                {/* ── Private Event Revenue Fields ── */}
+                {isPrivate && (
+                  <div className="admin-form-label admin-form-full" style={{
+                    padding: 16, borderRadius: 10,
+                    background: "rgba(180,100,200,0.04)",
+                    border: "1px solid rgba(180,100,200,0.12)",
+                    marginTop: 8,
+                  }}>
+                    <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+                      Revenue Line Items
+                    </span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {revenueItems.map((item, i) => {
+                        const label = REVENUE_CATEGORIES.find((c) => c.value === item.category)?.label || item.category;
+                        return (
+                          <div key={item.category} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{label}</span>
+                            <div style={{ position: "relative", width: 140 }}>
+                              <span style={{
+                                position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+                                color: "rgba(255,255,255,0.3)", fontSize: 13, pointerEvents: "none",
+                              }}>$</span>
                               <input
-                                type="datetime-local"
+                                type="number"
                                 className="admin-form-input"
-                                value={config.starts_at}
-                                onChange={(e) => setConfig((prev) => ({ ...prev, starts_at: e.target.value }))}
-                                style={{ fontSize: 12 }}
-                              />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Closes</span>
-                              <input
-                                type="datetime-local"
-                                className="admin-form-input"
-                                value={config.ends_at || (onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}` : "")}
-                                onChange={(e) => setConfig((prev) => ({ ...prev, ends_at: e.target.value }))}
-                                style={{ fontSize: 12 }}
+                                value={item.amount}
+                                onChange={(e) => {
+                                  const updated = [...revenueItems];
+                                  updated[i] = { ...updated[i], amount: e.target.value };
+                                  setRevenueItems(updated);
+                                }}
+                                placeholder="0.00"
+                                step="0.01"
+                                min="0"
+                                style={{ width: "100%", paddingLeft: 24 }}
                               />
                             </div>
                           </div>
-                        </div>
-
-                        {/* Capacity */}
-                        <div style={{ marginBottom: 12 }}>
-                          <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
-                            Max Presale Tickets (optional)
-                          </label>
-                          <input
-                            type="number"
-                            className="admin-form-input"
-                            value={config.capacity}
-                            onChange={(e) => setConfig((prev) => ({ ...prev, capacity: e.target.value }))}
-                            placeholder="No limit"
-                            min="1"
-                            step="1"
-                            style={{ maxWidth: 140 }}
-                          />
-                        </div>
-
-                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", margin: 0 }}>
-                          Anyone with this code can purchase tickets before the general on-sale opens.
-                        </p>
-                      </div>
+                        );
+                      })}
                     </div>
+                    {(() => {
+                      const total = revenueItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+                      return total > 0 ? (
+                        <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#ffffff" }}>
+                          Total: ${total.toFixed(2)}
+                        </div>
+                      ) : null;
+                    })()}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Facility Fee (read-only display — see selectedVenueFees load
-             effect above). No per-event toggle or amount input: the fee
-             always mirrors whatever's saved on the venue itself, set once
-             at event-creation time (app/admin/events/new/page.tsx) and
-             never editable per-event again. Removed after a bug where an
-             unloaded fee value silently defaulted to 0 and got written back
-             to the venue on save, wiping the real fee. ── */}
-        {isHardTicket && selectedEventVenueId && !isFree && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 4 }}>
-              Facility Fee
-            </span>
-            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
-              {selectedVenueFees.facility_fee != null
-                ? `$${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket`
-                : "No fee set for this venue"}
-            </span>
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, margin: "6px 0 0" }}>
-              Set on the venue, not per-event — applies automatically to every event here.
-            </p>
-          </div>
-        )}
-
-        {/* ── Tax Method (only for hard ticket events) ── */}
-        {isHardTicket && !isFree && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 10 }}>
-              Tax Method
-            </span>
-            <select
-              className="admin-form-input"
-              value={taxMethod}
-              onChange={(e) => setTaxMethod(e.target.value as "multiplier" | "divisor")}
-              style={{ maxWidth: 320 }}
-            >
-              <option value="multiplier">Multiplier — customer pays tax on top of face price</option>
-              <option value="divisor">Divisor — tax is baked into the face price</option>
-            </select>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
-              {taxMethod === "multiplier"
-                ? "Tax is added on top at checkout. Use this for most shows."
-                : "Tax is embedded in the face price — checkout will not add it again. Match this to your offer's tax method."}
-            </p>
-          </div>
-        )}
-
-        {/* ── Fees Included In Price (only for hard ticket events) ──
-             Independent of Tax Method — bakes the ticketing fee + facility
-             fee into the sticker price instead of adding them at checkout.
-             Settlement still backs the real face value out of that price,
-             so the venue/platform still collects the same fee per ticket. ── */}
-        {isHardTicket && !isFree && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: feesIncludedInPrice ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${feesIncludedInPrice ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: feesIncludedInPrice ? "#818cf8" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={feesIncludedInPrice}
-                onChange={(e) => setFeesIncludedInPrice(e.target.checked)}
-                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
-              />
-              Ticketing/Facility Fees Included in Price
-            </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
-              {feesIncludedInPrice
-                ? "The ticket price above is all-in — checkout will not add the ticketing fee or facility fee on top. For example, a $15 ticket with a $3 ticketing fee settles as ~$12 face value, so the venue/platform still collects its $3 per ticket."
-                : "The ticketing fee and facility fee are added on top of the ticket price at checkout, as usual."}
-            </p>
-          </div>
-        )}
-
-        {/* ── Reserved Seating (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: reservedSeatingEnabled ? "#818cf8" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={reservedSeatingEnabled}
-                onChange={(e) => {
-                  setReservedSeatingEnabled(e.target.checked);
-                  if (!e.target.checked) setSelectedLayoutId(null);
-                }}
-                style={{ width: 18, height: 18, accentColor: "#818cf8" }}
-              />
-              Enable Reserved Seating
-            </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, buyers will select specific seats from a seating chart instead of general admission tickets.
-            </p>
-
-            {reservedSeatingEnabled && (
-              <div style={{ marginTop: 12 }}>
-                <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                  Seating Layout
-                </label>
-                {seatingLayouts.length > 0 ? (
-                  <select
-                    className="admin-form-input"
-                    value={selectedLayoutId || ""}
-                    onChange={(e) => setSelectedLayoutId(e.target.value || null)}
-                    style={{ maxWidth: 400 }}
-                  >
-                    <option value="">— Select a seating layout —</option>
-                    {seatingLayouts.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                    No seating layouts yet.{" "}
-                    <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
-                      Create one in Seating Management
-                    </a>
-                  </p>
                 )}
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* ── Promo Codes (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(255, 255, 255, 0.04)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "#ffffff", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Promo Codes
-            </span>
-
-            {/* Existing promo codes */}
-            {promoCodes.length > 0 && (
-              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                {promoCodes.map((pc) => (
-                  <div key={pc.id} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "8px 12px", borderRadius: 8,
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}>
-                    <span style={{ fontWeight: 700, color: "#ffffff", fontSize: 13, minWidth: 80 }}>{pc.code}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1 }}>
-                      {pc.discount_type === "fixed" ? `$${pc.discount_value}` : `${pc.discount_value}%`} off
-                      {pc.max_uses ? ` · ${pc.current_uses}/${pc.max_uses} used` : ` · ${pc.current_uses} used`}
-                      {pc.expires_at ? ` · Exp ${new Date(pc.expires_at).toLocaleDateString()}` : ""}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await fetch(`/api/promo-codes?id=${pc.id}`, { method: "DELETE" });
-                        setPromoCodes((prev) => prev.filter((p) => p.id !== pc.id));
-                      }}
-                      style={{
-                        background: "transparent", border: "none",
-                        color: "rgba(255,107,107,0.7)", cursor: "pointer", fontSize: 14,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add new promo code */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-              <div style={{ flex: "1 1 120px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Code</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newPromo.code}
-                  onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
-                  placeholder="e.g. VIP20"
-                  style={{ textTransform: "uppercase" }}
-                />
-              </div>
-              <div style={{ flex: "0 0 100px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Type</label>
-                <select
-                  className="admin-form-input"
-                  value={newPromo.discount_type}
-                  onChange={(e) => setNewPromo({ ...newPromo, discount_type: e.target.value })}
-                >
-                  <option value="fixed">Fixed $</option>
-                  <option value="percentage">Percent %</option>
-                </select>
-              </div>
-              <div style={{ flex: "0 0 80px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Value</label>
-                <input
-                  type="number"
-                  className="admin-form-input"
-                  value={newPromo.discount_value}
-                  onChange={(e) => setNewPromo({ ...newPromo, discount_value: e.target.value })}
-                  placeholder="10"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-              <div style={{ flex: "0 0 70px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Max Uses</label>
-                <input
-                  type="number"
-                  className="admin-form-input"
-                  value={newPromo.max_uses}
-                  onChange={(e) => setNewPromo({ ...newPromo, max_uses: e.target.value })}
-                  placeholder="∞"
-                  min="1"
-                />
-              </div>
-              <div style={{ flex: "0 0 130px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Expires</label>
-                <input
-                  type="date"
-                  className="admin-form-input"
-                  value={newPromo.expires_at}
-                  onChange={(e) => setNewPromo({ ...newPromo, expires_at: e.target.value })}
-                />
-              </div>
-              <button
-                type="button"
-                disabled={promoLoading || !newPromo.code.trim() || !newPromo.discount_value}
-                onClick={async () => {
-                  setPromoLoading(true);
-                  try {
-                    const res = await fetch("/api/promo-codes", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        event_id: id,
-                        code: newPromo.code.trim(),
-                        discount_type: newPromo.discount_type,
-                        discount_value: newPromo.discount_value,
-                        max_uses: newPromo.max_uses || null,
-                        expires_at: newPromo.expires_at ? `${newPromo.expires_at}T23:59:59Z` : null,
-                      }),
-                    });
-                    if (res.ok) {
-                      const created = await res.json();
-                      setPromoCodes((prev) => [created, ...prev]);
-                      setNewPromo({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
-                    } else {
-                      const err = await res.json();
-                      setError(err.error || "Failed to create promo code");
-                    }
-                  } catch {
-                    setError("Failed to create promo code");
-                  } finally {
-                    setPromoLoading(false);
-                  }
-                }}
-                style={{
-                  padding: "8px 14px", borderRadius: 8,
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                  background: "rgba(255, 255, 255, 0.1)",
-                  color: "#ffffff", fontSize: 12, fontWeight: 600,
-                  cursor: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? "not-allowed" : "pointer",
-                  opacity: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {promoLoading ? "..." : "+ Add"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Landing Page URL (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(168,85,247,0.04)",
-            border: "1px solid rgba(168,85,247,0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Landing Page
-            </span>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 10px" }}>
-              Conversion-optimized page with no navigation — ideal for ad campaigns and social links.
-            </p>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <div style={{ flex: "1 1 200px" }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>/e/</span>
-                  <input
-                    type="text"
-                    className="admin-form-input"
-                    value={landingPageSlug}
-                    onChange={(e) => setLandingPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-                    placeholder="auto-generated-from-title"
-                    style={{ flex: 1 }}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                disabled={landingPageSlugSaving || !landingPageSlug.trim()}
-                onClick={async () => {
-                  setLandingPageSlugSaving(true);
-                  try {
-                    await fetch(`/api/events/${id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ landing_page_slug: landingPageSlug.trim() }),
-                    });
-                  } catch {}
-                  setLandingPageSlugSaving(false);
-                }}
-                style={{
-                  padding: "8px 14px", borderRadius: 8,
-                  border: "1px solid rgba(168,85,247,0.3)",
-                  background: "rgba(168,85,247,0.1)",
-                  color: "#a855f7", fontSize: 12, fontWeight: 600,
-                  cursor: landingPageSlugSaving || !landingPageSlug.trim() ? "not-allowed" : "pointer",
-                  opacity: landingPageSlugSaving || !landingPageSlug.trim() ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {landingPageSlugSaving ? "Saving..." : "Save Slug"}
-              </button>
-              {landingPageSlug && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = `${window.location.origin}/e/${landingPageSlug}`;
-                    navigator.clipboard.writeText(url);
-                    setLandingPageCopied(true);
-                    setTimeout(() => setLandingPageCopied(false), 2000);
-                  }}
-                  style={{
-                    padding: "8px 14px", borderRadius: 8,
-                    border: `1px solid ${landingPageCopied ? "rgba(34,197,94,0.3)" : "rgba(168,85,247,0.3)"}`,
-                    background: landingPageCopied ? "rgba(34,197,94,0.1)" : "rgba(168,85,247,0.1)",
-                    color: landingPageCopied ? "#22c55e" : "#a855f7",
-                    fontSize: 12, fontWeight: 600,
-                    cursor: "pointer", whiteSpace: "nowrap",
-                  }}
-                >
-                  {landingPageCopied ? "Copied!" : "Copy URL"}
-                </button>
-              )}
-              {landingPageSlug && (
-                <a
-                  href={`/e/${landingPageSlug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: "8px 14px", borderRadius: 8,
-                    border: "1px solid rgba(168,85,247,0.3)",
-                    background: "rgba(168,85,247,0.1)",
-                    color: "#a855f7", fontSize: 12, fontWeight: 600,
-                    textDecoration: "none", whiteSpace: "nowrap",
-                  }}
-                >
-                  Preview
-                </a>
-              )}
-            </div>
-            {landingPageSlug && (
-              <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
-                {window.location.origin}/e/{landingPageSlug}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Trackable Links (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(6,182,212,0.04)",
-            border: "1px solid rgba(6,182,212,0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "#06b6d4", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Trackable Links
-            </span>
-
-            {/* Existing trackable links */}
-            {trackableLinks.length > 0 && (
-              <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                {trackableLinks.map((link) => (
-                  <div key={link.id}>
-                    <div style={{
-                      display: "flex",
-                      flexDirection: isMobile ? "column" : "row",
-                      alignItems: isMobile ? "stretch" : "center",
-                      gap: isMobile ? 8 : 10,
-                      padding: isMobile ? 12 : "8px 12px", borderRadius: 8,
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      flexWrap: isMobile ? "nowrap" : "wrap",
-                    }}>
-                      {/* ── Row 1 (mobile) / left cluster (desktop): label + slug + source/medium pills ── */}
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
-                        flex: isMobile ? "none" : "0 1 auto", minWidth: 0,
-                      }}>
-                        <span style={{ fontWeight: 700, color: "#06b6d4", fontSize: 13, wordBreak: "break-word" }}>
-                          {link.label}
-                        </span>
-                        <span style={{
-                          fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace",
-                          background: "rgba(6,182,212,0.08)", padding: "2px 8px", borderRadius: 4,
-                          wordBreak: "break-all",
-                        }}>
-                          /t/{link.slug}
-                        </span>
-                        {link.source && (
-                          <span style={{
-                            fontSize: 10, color: "rgba(6,182,212,0.8)", background: "rgba(6,182,212,0.1)",
-                            padding: "1px 6px", borderRadius: 10, fontWeight: 600,
-                          }}>
-                            {link.source}
-                          </span>
-                        )}
-                        {link.medium && (
-                          <span style={{
-                            fontSize: 10, color: "rgba(6,182,212,0.7)", background: "rgba(6,182,212,0.07)",
-                            padding: "1px 6px", borderRadius: 10, fontWeight: 600,
-                          }}>
-                            {link.medium}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* ── Stats (pushed right on desktop, own line on mobile) ── */}
-                      <span style={{
-                        fontSize: 11, color: "rgba(255,255,255,0.4)",
-                        marginLeft: isMobile ? 0 : "auto",
-                        whiteSpace: "nowrap",
-                      }}>
-                        {link.clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
-                      </span>
-
-                      {/* ── Actions row ── */}
-                      <div style={{
-                        display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
-                        justifyContent: isMobile ? "flex-start" : undefined,
-                      }}>
+                {/* Image upload section */}
+                <div className="admin-form-label admin-form-full">
+                  Event Image
+                  <div className="admin-image-upload-area">
+                    {previewUrl ? (
+                      <div className="admin-image-preview-wrapper">
+                        <img
+                          src={previewUrl}
+                          alt="Event preview"
+                          className="admin-image-preview"
+                        />
                         <button
                           type="button"
-                          onClick={() => copyTrackableLink(link.slug, link.id)}
-                          style={{
-                            background: copiedLinkId === link.id ? "rgba(34,197,94,0.15)" : "rgba(6,182,212,0.1)",
-                            border: `1px solid ${copiedLinkId === link.id ? "rgba(34,197,94,0.3)" : "rgba(6,182,212,0.2)"}`,
-                            color: copiedLinkId === link.id ? "#22c55e" : "#06b6d4",
-                            fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
-                            cursor: "pointer",
-                          }}
+                          className="admin-image-remove-btn"
+                          onClick={handleRemoveImage}
                         >
-                          {copiedLinkId === link.id ? "Copied!" : "Copy"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setQrLink({
-                            url: `${window.location.origin}/t/${link.slug}`,
-                            label: link.label,
-                          })}
-                          style={{
-                            background: "rgba(6,182,212,0.1)",
-                            border: "1px solid rgba(6,182,212,0.2)",
-                            color: "#06b6d4",
-                            fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
-                            cursor: "pointer",
-                          }}
-                        >
-                          QR
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleLinkActive(link.id, link.is_active !== false)}
-                          style={{
-                            background: link.is_active !== false ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
-                            border: `1px solid ${link.is_active !== false ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
-                            color: link.is_active !== false ? "#22c55e" : "rgba(255,255,255,0.4)",
-                            fontSize: 10, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 6px", borderRadius: 4,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {link.is_active !== false ? "Active" : "Off"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextId = expandedLinkId === link.id ? null : link.id;
-                            setExpandedLinkId(nextId);
-                            if (nextId) loadLinkAnalytics(nextId);
-                          }}
-                          style={{
-                            background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)",
-                            color: "#06b6d4", fontSize: 10, fontWeight: 600,
-                            padding: isMobile ? "6px 10px" : "2px 6px",
-                            borderRadius: 4, cursor: "pointer",
-                          }}
-                        >
-                          {expandedLinkId === link.id ? "▲ Stats" : "▼ Stats"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteTrackableLink(link.id)}
-                          style={{
-                            background: "transparent",
-                            border: isMobile ? "1px solid rgba(255,107,107,0.2)" : "none",
-                            color: "rgba(255,107,107,0.7)", cursor: "pointer",
-                            fontSize: 14,
-                            padding: isMobile ? "6px 10px" : 0,
-                            borderRadius: 4,
-                            marginLeft: isMobile ? "auto" : 0,
-                          }}
-                        >
-                          ✕
+                          ✕ Remove
                         </button>
                       </div>
-                    </div>
-
-                    {/* Expanded Analytics Dashboard */}
-                    {expandedLinkId === link.id && (
-                      <div style={{
-                        padding: 14, marginTop: 4, borderRadius: 8,
-                        background: "rgba(6,182,212,0.03)",
-                        border: "1px solid rgba(6,182,212,0.08)",
-                      }}>
-                        {linkAnalytics[link.id] ? (() => {
-                          const a = linkAnalytics[link.id];
-                          const stats = a.analytics || a;
-                          const dailyClicks: { date: string; count: number }[] = stats.daily_clicks || [];
-                          const maxClicks = Math.max(...dailyClicks.map((d: { count: number }) => d.count), 1);
-                          const convRate = stats.total_clicks > 0
-                            ? ((stats.total_conversions || 0) / stats.total_clicks * 100).toFixed(1)
-                            : "0.0";
-                          return (
-                            <>
-                              <div style={{
-                                display: "grid",
-                                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)",
-                                gap: isMobile ? 8 : 10, marginBottom: 14,
-                              }}>
-                                {[
-                                  { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
-                                  { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
-                                  { label: "Conversions", value: stats.total_conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
-                                  { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(255, 255, 255, 0.1)" },
-                                  { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },
-                                ].map((s) => (
-                                  <div key={s.label} style={{
-                                    background: s.bg, borderRadius: 8, padding: "10px 8px", textAlign: "center",
-                                  }}>
-                                    <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{s.value}</div>
-                                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{s.label}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              {dailyClicks.length > 0 && (
-                                <>
-                                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, fontWeight: 600 }}>
-                                    Clicks — Last 30 Days
-                                  </div>
-                                  <div style={{
-                                    display: "flex", alignItems: "flex-end", gap: 2, height: 60,
-                                  }}>
-                                    {dailyClicks.map((d: { date: string; count: number }, i: number) => (
-                                      <div
-                                        key={i}
-                                        title={`${d.date}: ${d.count} clicks`}
-                                        style={{
-                                          flex: 1, minWidth: 4,
-                                          height: `${Math.max((d.count / maxClicks) * 100, 4)}%`,
-                                          background: d.count > 0
-                                            ? "rgba(6,182,212,0.6)"
-                                            : "rgba(255,255,255,0.05)",
-                                          borderRadius: 2,
-                                          transition: "height 0.2s",
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                            </>
-                          );
-                        })() : (
-                          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading analytics…</span>
+                    ) : (
+                      <div
+                        className="admin-image-dropzone"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {uploading ? (
+                          <span className="admin-image-uploading">Uploading…</span>
+                        ) : (
+                          <>
+                            <span className="admin-image-dropzone-icon"></span>
+                            <span className="admin-image-dropzone-text">
+                              Click to upload an image
+                            </span>
+                            <span className="admin-image-dropzone-hint">
+                              .jpg, .jpeg, .png, or .webp — max 45 MB
+                            </span>
+                          </>
                         )}
                       </div>
                     )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPTED_IMAGE_TYPES}
+                      onChange={handleFileSelect}
+                      className="admin-image-file-input"
+                    />
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
 
-            {/* Add new trackable link */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(140px, 1fr))",
-              gap: 8,
-              alignItems: "flex-end",
-            }}>
-              <div style={{ gridColumn: isMobile ? "1 / -1" : undefined }}>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Label</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newLink.label}
-                  onChange={(e) => handleLinkLabelChange(e.target.value)}
-                  placeholder="e.g. Facebook Ad - Spring Show"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newLink.slug}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, slug: e.target.value }))}
-                  placeholder="auto-generated"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Source</label>
-                <select
-                  className="admin-form-input"
-                  value={newLink.source}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, source: e.target.value }))}
-                >
-                  <option value="">— Source —</option>
-                  {["facebook", "instagram", "twitter", "email", "flyer", "radio", "tv", "website", "other"].map((s) => (
-                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Medium</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newLink.medium}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, medium: e.target.value }))}
-                  placeholder="e.g. paid"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Campaign</label>
-                <input
-                  type="text"
-                  className="admin-form-input"
-                  value={newLink.campaign}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, campaign: e.target.value }))}
-                  placeholder="optional"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Destination</label>
-                <select
-                  className="admin-form-input"
-                  value={newLink.destination_type}
-                  onChange={(e) => setNewLink(prev => ({ ...prev, destination_type: e.target.value }))}
-                >
-                  <option value="event_page">Event Page</option>
-                  {landingPageSlug && <option value="landing_page">Landing Page</option>}
-                </select>
-              </div>
-              <button
-                type="button"
-                disabled={creatingLink || !newLink.label.trim() || !newLink.slug.trim()}
-                onClick={createTrackableLink}
-                style={{
-                  gridColumn: isMobile ? "1 / -1" : undefined,
-                  padding: isMobile ? "12px 14px" : "8px 14px", borderRadius: 8,
-                  border: "1px solid rgba(6,182,212,0.3)",
-                  background: "rgba(6,182,212,0.1)",
-                  color: "#06b6d4", fontSize: 13, fontWeight: 600,
-                  cursor: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? "not-allowed" : "pointer",
-                  opacity: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? 0.5 : 1,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {creatingLink ? "..." : "+ Create Link"}
-              </button>
-            </div>
-          </div>
-        )}
+                {/* Email flyer upload section — separate from Event Image above.
+                    This is a pre-sized 1080x1350 asset used only in the announcement
+                    email, not the website's hero background. Uploaded as-is, no crop. */}
+                <div className="admin-form-label admin-form-full">
+                  Email Flyer (1080x1350)
+                  <div className="admin-image-upload-area">
+                    {form.email_flyer_url ? (
+                      <div className="admin-image-preview-wrapper">
+                        <img
+                          src={form.email_flyer_url}
+                          alt="Email flyer preview"
+                          className="admin-image-preview"
+                        />
+                        <button
+                          type="button"
+                          className="admin-image-remove-btn"
+                          onClick={handleRemoveFlyer}
+                        >
+                          ✕ Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className="admin-image-dropzone"
+                        onClick={() => flyerInputRef.current?.click()}
+                      >
+                        {uploadingFlyer ? (
+                          <span className="admin-image-uploading">Uploading…</span>
+                        ) : (
+                          <>
+                            <span className="admin-image-dropzone-icon"></span>
+                            <span className="admin-image-dropzone-text">
+                              Click to upload the email flyer
+                            </span>
+                            <span className="admin-image-dropzone-hint">
+                              1080x1350 portrait, purpose-built for the announcement email — .jpg, .jpeg, .png, or .webp
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <input
+                      ref={flyerInputRef}
+                      type="file"
+                      accept={ACCEPTED_IMAGE_TYPES}
+                      onChange={handleFlyerUpload}
+                      className="admin-image-file-input"
+                    />
+                  </div>
+                </div>
 
-        {/* ── Private Event Revenue Fields ── */}
-        {isPrivate && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: "rgba(180,100,200,0.04)",
-            border: "1px solid rgba(180,100,200,0.12)",
-            marginTop: 8,
-          }}>
-            <span style={{ color: "rgba(180,100,200,0.8)", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
-              Revenue Line Items
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {revenueItems.map((item, i) => {
-                const label = REVENUE_CATEGORIES.find((c) => c.value === item.category)?.label || item.category;
-                return (
-                  <div key={item.category} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>{label}</span>
-                    <div style={{ position: "relative", width: 140 }}>
-                      <span style={{
-                        position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-                        color: "rgba(255,255,255,0.3)", fontSize: 13, pointerEvents: "none",
-                      }}>$</span>
+                <label className="admin-form-label admin-form-full">
+                  Description
+                  <textarea
+                    name="description"
+                    className="admin-form-textarea"
+                    value={form.description}
+                    onChange={handleChange}
+                    placeholder="Event description..."
+                    rows={4}
+                  />
+                </label>
+
+                {/* ── Spotify Embed ── */}
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: spotifyUrl ? "rgba(30,215,96,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${spotifyUrl ? "rgba(30,215,96,0.25)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: spotifyUrl ? "#1ed760" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+                    Spotify — Listen Before You Go
+                  </span>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+                    Paste any Spotify link — artist page, album, playlist, or single track.
+                    An embedded player will appear on the event page so fans can listen without leaving.
+                  </p>
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "0 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Featured Track</p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      className="admin-form-input"
+                      type="url"
+                      placeholder="https://open.spotify.com/track/..."
+                      value={spotifyFeaturedTrack}
+                      onChange={(e) => setSpotifyFeaturedTrack(e.target.value.trim())}
+                      style={{ flex: 1 }}
+                    />
+                    <input
+                      className="admin-form-input"
+                      type="number"
+                      min="0"
+                      placeholder="Start (sec)"
+                      value={spotifyFeaturedTrackStart}
+                      onChange={(e) => setSpotifyFeaturedTrackStart(e.target.value)}
+                      style={{ width: 110, flexShrink: 0 }}
+                    />
+                  </div>
+                  {spotifyFeaturedTrackStart && (
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+                      Starts at {spotifyFeaturedTrackStart}s — {Math.floor(Number(spotifyFeaturedTrackStart) / 60)}:{String(Number(spotifyFeaturedTrackStart) % 60).padStart(2, "0")} into the track
+                    </p>
+                  )}
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Artist Page</p>
+                  <input
+                    className="admin-form-input"
+                    type="url"
+                    placeholder="https://open.spotify.com/artist/..."
+                    value={spotifyUrl}
+                    onChange={(e) => setSpotifyUrl(e.target.value.trim())}
+                  />
+                  <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, margin: "12px 0 4px", fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>Monthly Listeners</p>
+                  <input
+                    className="admin-form-input"
+                    type="text"
+                    placeholder="e.g. 2.4M or 847,000"
+                    value={spotifyMonthlyListeners}
+                    onChange={(e) => setSpotifyMonthlyListeners(e.target.value)}
+                  />
+                  {(spotifyFeaturedTrack || spotifyUrl) && (
+                    <p style={{ fontSize: 11, color: "#1ed760", marginTop: 8 }}>
+                      Spotify player active — fans can listen directly on the event page.
+                    </p>
+                  )}
+                </div>
+                </div>
+              </section>
+            </>
+          )}
+
+          {eeTab === "tickets" && (
+            <section className="card ee-card">
+              <div className="ee-card-head">
+                <span className="ee-eyebrow">Tiers{soldTotal > 0 ? ` — ${soldTotal} sold against them` : ""}</span>
+                {hasSales && <span className="ee-chip">price up only</span>}
+              </div>
+              {!isHardTicket && (
+                <p className="ee-field-note">This show doesn&apos;t sell tickets here, so there are no tiers to edit.</p>
+              )}
+              <div className="admin-form ee-fields">
+              {/* ── Free Event Checkbox (only for hard ticket events) ── */}
+              {isHardTicket && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    color: isFree ? "#22c55e" : "rgba(255,255,255,0.6)",
+                    fontWeight: 700, fontSize: 13,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={isFree}
+                      disabled={hasSales && !isFree}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setIsFree(checked);
+                        if (checked) {
+                          setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
+                        }
+                      }}
+                      style={{ width: 18, height: 18, accentColor: "#22c55e" }}
+                    />
+                    Free Event
+                  </label>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+                    When enabled, all ticket prices are set to $0 and fees are disabled. Customers will register instead of paying.
+                  </p>
+                </div>
+              )}
+
+              {/* ── Ticket Tiers (only for hard ticket events) ── */}
+              {isHardTicket && (
+                <div className="admin-form-label admin-form-full">
+                  Ticket Tiers *
+                  {hasSales && (
+                    <p className="ee-field-note">A tier with sales can go up in price and capacity, never down, and can&apos;t be removed.</p>
+                  )}
+                  <div className="admin-tiers-list">
+                    {tiers.map((tier, i) => (
+                      <div key={i} className="admin-tier-row">
+                        <span className="admin-tier-number">
+                          Tier {i + 1}
+                          {tier.id && soldByTier[tier.id]?.sold ? (
+                            <span className="ee-tier-sold">{soldByTier[tier.id].sold} sold</span>
+                          ) : null}
+                        </span>
+                        <input
+                          type="text"
+                          className="admin-form-input admin-tier-input"
+                          placeholder="Tier name (e.g. GA, VIP)"
+                          value={tier.tier_name}
+                          onChange={(e) =>
+                            handleTierChange(i, "tier_name", e.target.value)
+                          }
+                          required
+                        />
+                        <input
+                          type="number"
+                          className="admin-form-input admin-tier-input admin-tier-price"
+                          placeholder="Price"
+                          value={tier.price}
+                          onChange={(e) =>
+                            handleTierChange(i, "price", e.target.value)
+                          }
+                          step="0.01"
+                          min={tier.id && soldByTier[tier.id]?.sold ? soldByTier[tier.id].price : 0}
+                          required
+                          disabled={isFree}
+                        />
+                        <input
+                          type="number"
+                          className="admin-form-input admin-tier-input admin-tier-capacity"
+                          placeholder="Capacity"
+                          value={tier.capacity}
+                          onChange={(e) =>
+                            handleTierChange(i, "capacity", e.target.value)
+                          }
+                          min={Math.max(1, tier.id ? soldByTier[tier.id]?.sold ?? 0 : 0)}
+                          step="1"
+                          required
+                        />
+                        {tiers.length > 1 && !(tier.id && soldByTier[tier.id]?.sold) && (
+                          <button
+                            type="button"
+                            className="admin-tier-remove-btn"
+                            onClick={() => removeTier(i)}
+                            title="Remove tier"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {tiers.length < MAX_TIERS && (
+                    <button
+                      type="button"
+                      className="admin-tier-add-btn"
+                      onClick={addTier}
+                    >
+                      + Add Tier
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* ── Reserved Seating (only for hard ticket events) ── */}
+              {isHardTicket && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: reservedSeatingEnabled ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${reservedSeatingEnabled ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    color: reservedSeatingEnabled ? "#818cf8" : "rgba(255,255,255,0.6)",
+                    fontWeight: 700, fontSize: 13,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={reservedSeatingEnabled}
+                      onChange={(e) => {
+                        setReservedSeatingEnabled(e.target.checked);
+                        if (!e.target.checked) setSelectedLayoutId(null);
+                      }}
+                      style={{ width: 18, height: 18, accentColor: "#818cf8" }}
+                    />
+                    Enable Reserved Seating
+                  </label>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
+                    When enabled, buyers will select specific seats from a seating chart instead of general admission tickets.
+                  </p>
+
+                  {reservedSeatingEnabled && (
+                    <div style={{ marginTop: 12 }}>
+                      <label style={{ display: "block", color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                        Seating Layout
+                      </label>
+                      {seatingLayouts.length > 0 ? (
+                        <select
+                          className="admin-form-input"
+                          value={selectedLayoutId || ""}
+                          onChange={(e) => setSelectedLayoutId(e.target.value || null)}
+                          style={{ maxWidth: 400 }}
+                        >
+                          <option value="">— Select a seating layout —</option>
+                          {seatingLayouts.map((l) => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+                          No seating layouts yet.{" "}
+                          <a href="/admin/seating" style={{ color: "#818cf8", textDecoration: "underline" }}>
+                            Create one in Seating Management
+                          </a>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              </div>
+            </section>
+          )}
+
+          {eeTab === "onsale" && (
+            <section className="card ee-card">
+              <div className="ee-card-head">
+                <span className="ee-eyebrow">On-sale, presale &amp; fees</span>
+              </div>
+              {hasSales && (
+                <p className="ee-field-note">
+                  Fee changes apply to orders placed from the moment you save. Orders already taken keep the schedule
+                  they were sold under, and settlement reads each order&apos;s own schedule.
+                </p>
+              )}
+              {!isHardTicket && (
+                <p className="ee-field-note">This show doesn&apos;t sell tickets here, so there is no on-sale or fee setup.</p>
+              )}
+              <div className="admin-form ee-fields">
+              {/* ── On-Sale Date & Time (only for hard ticket events) ── */}
+              {isHardTicket && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: onSaleDate ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${onSaleDate ? "rgba(59,130,246,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: onSaleDate ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 8 }}>
+                    On-Sale Date & Time
+                  </span>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+                    Leave empty for tickets to go on sale immediately. Set a date to schedule when tickets become available.
+                  </p>
+                  <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+                    <label style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Date</span>
                       <input
-                        type="number"
+                        type="date"
                         className="admin-form-input"
-                        value={item.amount}
-                        onChange={(e) => {
-                          const updated = [...revenueItems];
-                          updated[i] = { ...updated[i], amount: e.target.value };
-                          setRevenueItems(updated);
+                        value={onSaleDate}
+                        onChange={(e) => setOnSaleDate(e.target.value)}
+                      />
+                    </label>
+                    <label style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Time (Central Time)</span>
+                      <select
+                        className="admin-form-input"
+                        value={onSaleTime}
+                        onChange={(e) => setOnSaleTime(e.target.value)}
+                      >
+                        <option value="">12:00 AM (midnight)</option>
+                        {Array.from({ length: 48 }, (_, i) => {
+                          const h24 = Math.floor(i / 2);
+                          const m = i % 2 === 0 ? "00" : "30";
+                          const h12 = h24 === 0 ? 12 : h24 > 12 ? h24 - 12 : h24;
+                          const ampm = h24 >= 12 ? "PM" : "AM";
+                          const val = `${String(h24).padStart(2, "0")}:${m}`;
+                          return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
+                        })}
+                      </select>
+                    </label>
+                    {onSaleDate && (
+                      <button
+                        type="button"
+                        onClick={() => { setOnSaleDate(""); setOnSaleTime(""); }}
+                        style={{
+                          padding: "8px 12px", borderRadius: 8,
+                          border: "1px solid rgba(255,107,107,0.3)",
+                          background: "rgba(255,107,107,0.1)",
+                          color: "#ff6b6b", fontSize: 12, fontWeight: 600,
+                          cursor: "pointer", whiteSpace: "nowrap",
                         }}
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        style={{ width: "100%", paddingLeft: 24 }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Presale Access (only for hard ticket events with an on-sale date) ── */}
+              {isHardTicket && onSaleDate && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: "rgba(168,85,247,0.04)",
+                  border: "1px solid rgba(168,85,247,0.12)",
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 14 }}>
+                    Presale Access
+                  </span>
+
+                  {(["artist", "venue"] as const).map((type, idx) => {
+                    const config = type === "artist" ? artistPresale : venuePresale;
+                    const setConfig = type === "artist" ? setArtistPresale : setVenuePresale;
+                    const label = type === "artist" ? "Artist Presale" : "Venue Presale";
+                    return (
+                      <div key={type} style={{ marginBottom: idx === 0 ? 10 : 0 }}>
+                        <div style={{
+                          borderRadius: 8,
+                          border: `1px solid ${config.enabled ? "rgba(168,85,247,0.35)" : "rgba(255,255,255,0.08)"}`,
+                          background: config.enabled ? "rgba(168,85,247,0.05)" : "rgba(255,255,255,0.015)",
+                          transition: "border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease",
+                          boxShadow: config.enabled ? "0 0 0 1px rgba(168,85,247,0.08), 0 4px 16px rgba(168,85,247,0.07)" : "none",
+                          overflow: "hidden",
+                        }}>
+                          {/* Header row — click anywhere to toggle */}
+                          <div
+                            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", cursor: "pointer", userSelect: "none" }}
+                            onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                          >
+                            <span style={{ fontSize: 13, fontWeight: 700, color: config.enabled ? "#a855f7" : "rgba(255,255,255,0.55)", transition: "color 0.3s ease" }}>
+                              {label}
+                            </span>
+                            {/* Pill toggle */}
+                            <div style={{
+                              width: 40, height: 22, borderRadius: 11, flexShrink: 0, position: "relative",
+                              background: config.enabled ? "#a855f7" : "rgba(255,255,255,0.14)",
+                              transition: "background 0.22s ease",
+                            }}>
+                              <div style={{
+                                position: "absolute", top: 3,
+                                left: config.enabled ? 21 : 3,
+                                width: 16, height: 16, borderRadius: "50%",
+                                background: "#fff",
+                                transition: "left 0.22s ease",
+                                boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                              }} />
+                            </div>
+                          </div>
+
+                          {/* Expandable body */}
+                          <div style={{
+                            maxHeight: config.enabled ? "480px" : "0px",
+                            overflow: "hidden",
+                            opacity: config.enabled ? 1 : 0,
+                            transition: "max-height 0.35s cubic-bezier(0.25,0.46,0.45,0.94), opacity 0.28s ease",
+                          }}>
+                            <div style={{ padding: "2px 14px 16px" }}>
+
+                              {/* Code input */}
+                              <div style={{ marginBottom: 14 }}>
+                                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
+                                  Presale Code
+                                </label>
+                                <input
+                                  type="text"
+                                  className="admin-form-input"
+                                  value={config.code}
+                                  onChange={(e) => setConfig((prev) => ({ ...prev, code: e.target.value.toUpperCase().slice(0, 15) }))}
+                                  placeholder="e.g. EARLYBIRD"
+                                  maxLength={15}
+                                  style={{ fontFamily: "monospace", letterSpacing: "0.08em", textTransform: "uppercase", maxWidth: 240 }}
+                                />
+                                <span style={{
+                                  fontSize: 11,
+                                  color: config.code.length >= 13 ? "rgba(168,85,247,0.9)" : "rgba(255,255,255,0.2)",
+                                  marginTop: 3, display: "block",
+                                  transition: "color 0.2s ease",
+                                }}>
+                                  {config.code.length}/15
+                                </span>
+                              </div>
+
+                              {/* Presale window */}
+                              <div style={{ marginBottom: 14 }}>
+                                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6, fontWeight: 600 }}>
+                                  Presale Window (optional)
+                                </span>
+                                <div style={{ display: "flex", gap: 10 }}>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Opens</span>
+                                    <input
+                                      type="datetime-local"
+                                      className="admin-form-input"
+                                      value={config.starts_at}
+                                      onChange={(e) => setConfig((prev) => ({ ...prev, starts_at: e.target.value }))}
+                                      style={{ fontSize: 12 }}
+                                    />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", display: "block", marginBottom: 2 }}>Closes</span>
+                                    <input
+                                      type="datetime-local"
+                                      className="admin-form-input"
+                                      value={config.ends_at || (onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}` : "")}
+                                      onChange={(e) => setConfig((prev) => ({ ...prev, ends_at: e.target.value }))}
+                                      style={{ fontSize: 12 }}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Capacity */}
+                              <div style={{ marginBottom: 12 }}>
+                                <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 3, fontWeight: 600 }}>
+                                  Max Presale Tickets (optional)
+                                </label>
+                                <input
+                                  type="number"
+                                  className="admin-form-input"
+                                  value={config.capacity}
+                                  onChange={(e) => setConfig((prev) => ({ ...prev, capacity: e.target.value }))}
+                                  placeholder="No limit"
+                                  min="1"
+                                  step="1"
+                                  style={{ maxWidth: 140 }}
+                                />
+                              </div>
+
+                              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", margin: 0 }}>
+                                Anyone with this code can purchase tickets before the general on-sale opens.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* ── Facility Fee (read-only display — see selectedVenueFees load
+                   effect above). No per-event toggle or amount input: the fee
+                   always mirrors whatever's saved on the venue itself, set once
+                   at event-creation time (app/admin/events/new/page.tsx) and
+                   never editable per-event again. Removed after a bug where an
+                   unloaded fee value silently defaulted to 0 and got written back
+                   to the venue on save, wiping the real fee. ── */}
+              {isHardTicket && selectedEventVenueId && !isFree && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 4 }}>
+                    Facility Fee
+                  </span>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}>
+                    {selectedVenueFees.facility_fee != null
+                      ? `$${Number(selectedVenueFees.facility_fee).toFixed(2)} per ticket`
+                      : "No fee set for this venue"}
+                  </span>
+                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, margin: "6px 0 0" }}>
+                    Set on the venue, not per-event — applies automatically to every event here.
+                  </p>
+                </div>
+              )}
+
+              {/* ── Tax Method (only for hard ticket events) ── */}
+              {isHardTicket && !isFree && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: "rgba(255, 255, 255, 0.04)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 10 }}>
+                    Tax Method
+                  </span>
+                  <select
+                    className="admin-form-input"
+                    value={taxMethod}
+                    onChange={(e) => setTaxMethod(e.target.value as "multiplier" | "divisor")}
+                    style={{ maxWidth: 320 }}
+                  >
+                    <option value="multiplier">Multiplier — customer pays tax on top of face price</option>
+                    <option value="divisor">Divisor — tax is baked into the face price</option>
+                  </select>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+                    {taxMethod === "multiplier"
+                      ? "Tax is added on top at checkout. Use this for most shows."
+                      : "Tax is embedded in the face price — checkout will not add it again. Match this to your offer's tax method."}
+                  </p>
+                </div>
+              )}
+
+              {/* ── Fees Included In Price (only for hard ticket events) ──
+                   Independent of Tax Method — bakes the ticketing fee + facility
+                   fee into the sticker price instead of adding them at checkout.
+                   Settlement still backs the real face value out of that price,
+                   so the venue/platform still collects the same fee per ticket. ── */}
+              {isHardTicket && !isFree && (
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: feesIncludedInPrice ? "rgba(99,102,241,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${feesIncludedInPrice ? "rgba(99,102,241,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                    color: feesIncludedInPrice ? "#818cf8" : "rgba(255,255,255,0.6)",
+                    fontWeight: 700, fontSize: 13,
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={feesIncludedInPrice}
+                      onChange={(e) => setFeesIncludedInPrice(e.target.checked)}
+                      style={{ width: 18, height: 18, accentColor: "#818cf8" }}
+                    />
+                    Ticketing/Facility Fees Included in Price
+                  </label>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "8px 0 0" }}>
+                    {feesIncludedInPrice
+                      ? "The ticket price above is all-in — checkout will not add the ticketing fee or facility fee on top. For example, a $15 ticket with a $3 ticketing fee settles as ~$12 face value, so the venue/platform still collects its $3 per ticket."
+                      : "The ticketing fee and facility fee are added on top of the ticket price at checkout, as usual."}
+                  </p>
+                </div>
+              )}
+              </div>
+            </section>
+          )}
+
+          {eeTab === "promo" && (
+            <>
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Promo codes, landing page &amp; tracking links</span>
+                  <span className="ee-card-aside">orders attribute on first touch</span>
+                </div>
+                <div className="admin-form ee-fields">
+                {/* ── Promo Codes (only for hard ticket events) ── */}
+                {isHardTicket && (
+                  <div className="admin-form-label admin-form-full" style={{
+                    padding: 16, borderRadius: 10,
+                    background: "rgba(255, 255, 255, 0.04)",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    marginTop: 8,
+                  }}>
+                    <span style={{ color: "#ffffff", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+                      Promo Codes
+                    </span>
+
+                    {/* Existing promo codes */}
+                    {promoCodes.length > 0 && (
+                      <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {promoCodes.map((pc) => (
+                          <div key={pc.id} style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "8px 12px", borderRadius: 8,
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                          }}>
+                            <span style={{ fontWeight: 700, color: "#ffffff", fontSize: 13, minWidth: 80 }}>{pc.code}</span>
+                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", flex: 1 }}>
+                              {pc.discount_type === "fixed" ? `$${pc.discount_value}` : `${pc.discount_value}%`} off
+                              {pc.max_uses ? ` · ${pc.current_uses}/${pc.max_uses} used` : ` · ${pc.current_uses} used`}
+                              {pc.expires_at ? ` · Exp ${new Date(pc.expires_at).toLocaleDateString()}` : ""}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                await fetch(`/api/promo-codes?id=${pc.id}`, { method: "DELETE" });
+                                setPromoCodes((prev) => prev.filter((p) => p.id !== pc.id));
+                              }}
+                              style={{
+                                background: "transparent", border: "none",
+                                color: "rgba(255,107,107,0.7)", cursor: "pointer", fontSize: 14,
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new promo code */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+                      <div style={{ flex: "1 1 120px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Code</label>
+                        <input
+                          type="text"
+                          className="admin-form-input"
+                          value={newPromo.code}
+                          onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
+                          placeholder="e.g. VIP20"
+                          style={{ textTransform: "uppercase" }}
+                        />
+                      </div>
+                      <div style={{ flex: "0 0 100px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Type</label>
+                        <select
+                          className="admin-form-input"
+                          value={newPromo.discount_type}
+                          onChange={(e) => setNewPromo({ ...newPromo, discount_type: e.target.value })}
+                        >
+                          <option value="fixed">Fixed $</option>
+                          <option value="percentage">Percent %</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: "0 0 80px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Value</label>
+                        <input
+                          type="number"
+                          className="admin-form-input"
+                          value={newPromo.discount_value}
+                          onChange={(e) => setNewPromo({ ...newPromo, discount_value: e.target.value })}
+                          placeholder="10"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <div style={{ flex: "0 0 70px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Max Uses</label>
+                        <input
+                          type="number"
+                          className="admin-form-input"
+                          value={newPromo.max_uses}
+                          onChange={(e) => setNewPromo({ ...newPromo, max_uses: e.target.value })}
+                          placeholder="∞"
+                          min="1"
+                        />
+                      </div>
+                      <div style={{ flex: "0 0 130px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Expires</label>
+                        <input
+                          type="date"
+                          className="admin-form-input"
+                          value={newPromo.expires_at}
+                          onChange={(e) => setNewPromo({ ...newPromo, expires_at: e.target.value })}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={promoLoading || !newPromo.code.trim() || !newPromo.discount_value}
+                        onClick={async () => {
+                          setPromoLoading(true);
+                          try {
+                            const res = await fetch("/api/promo-codes", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                event_id: id,
+                                code: newPromo.code.trim(),
+                                discount_type: newPromo.discount_type,
+                                discount_value: newPromo.discount_value,
+                                max_uses: newPromo.max_uses || null,
+                                expires_at: newPromo.expires_at ? `${newPromo.expires_at}T23:59:59Z` : null,
+                              }),
+                            });
+                            if (res.ok) {
+                              const created = await res.json();
+                              setPromoCodes((prev) => [created, ...prev]);
+                              setNewPromo({ code: "", discount_type: "fixed", discount_value: "", max_uses: "", expires_at: "" });
+                            } else {
+                              const err = await res.json();
+                              setError(err.error || "Failed to create promo code");
+                            }
+                          } catch {
+                            setError("Failed to create promo code");
+                          } finally {
+                            setPromoLoading(false);
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px", borderRadius: 8,
+                          border: "1px solid rgba(255, 255, 255, 0.3)",
+                          background: "rgba(255, 255, 255, 0.1)",
+                          color: "#ffffff", fontSize: 12, fontWeight: 600,
+                          cursor: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? "not-allowed" : "pointer",
+                          opacity: promoLoading || !newPromo.code.trim() || !newPromo.discount_value ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {promoLoading ? "..." : "+ Add"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Landing Page URL (only for hard ticket events) ── */}
+                {isHardTicket && (
+                  <div className="admin-form-label admin-form-full" style={{
+                    padding: 16, borderRadius: 10,
+                    background: "rgba(168,85,247,0.04)",
+                    border: "1px solid rgba(168,85,247,0.12)",
+                    marginTop: 8,
+                  }}>
+                    <span style={{ color: "#a855f7", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+                      Landing Page
+                    </span>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", margin: "0 0 10px" }}>
+                      Conversion-optimized page with no navigation — ideal for ad campaigns and social links.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 200px" }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>/e/</span>
+                          <input
+                            type="text"
+                            className="admin-form-input"
+                            value={landingPageSlug}
+                            onChange={(e) => setLandingPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                            placeholder="auto-generated-from-title"
+                            style={{ flex: 1 }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={landingPageSlugSaving || !landingPageSlug.trim()}
+                        onClick={async () => {
+                          setLandingPageSlugSaving(true);
+                          try {
+                            await fetch(`/api/events/${id}`, {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ landing_page_slug: landingPageSlug.trim() }),
+                            });
+                          } catch {}
+                          setLandingPageSlugSaving(false);
+                        }}
+                        style={{
+                          padding: "8px 14px", borderRadius: 8,
+                          border: "1px solid rgba(168,85,247,0.3)",
+                          background: "rgba(168,85,247,0.1)",
+                          color: "#a855f7", fontSize: 12, fontWeight: 600,
+                          cursor: landingPageSlugSaving || !landingPageSlug.trim() ? "not-allowed" : "pointer",
+                          opacity: landingPageSlugSaving || !landingPageSlug.trim() ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {landingPageSlugSaving ? "Saving..." : "Save Slug"}
+                      </button>
+                      {landingPageSlug && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const url = `${window.location.origin}/e/${landingPageSlug}`;
+                            navigator.clipboard.writeText(url);
+                            setLandingPageCopied(true);
+                            setTimeout(() => setLandingPageCopied(false), 2000);
+                          }}
+                          style={{
+                            padding: "8px 14px", borderRadius: 8,
+                            border: `1px solid ${landingPageCopied ? "rgba(34,197,94,0.3)" : "rgba(168,85,247,0.3)"}`,
+                            background: landingPageCopied ? "rgba(34,197,94,0.1)" : "rgba(168,85,247,0.1)",
+                            color: landingPageCopied ? "#22c55e" : "#a855f7",
+                            fontSize: 12, fontWeight: 600,
+                            cursor: "pointer", whiteSpace: "nowrap",
+                          }}
+                        >
+                          {landingPageCopied ? "Copied!" : "Copy URL"}
+                        </button>
+                      )}
+                      {landingPageSlug && (
+                        <a
+                          href={`/e/${landingPageSlug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            padding: "8px 14px", borderRadius: 8,
+                            border: "1px solid rgba(168,85,247,0.3)",
+                            background: "rgba(168,85,247,0.1)",
+                            color: "#a855f7", fontSize: 12, fontWeight: 600,
+                            textDecoration: "none", whiteSpace: "nowrap",
+                          }}
+                        >
+                          Preview
+                        </a>
+                      )}
+                    </div>
+                    {landingPageSlug && (
+                      <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.3)", fontFamily: "monospace" }}>
+                        {window.location.origin}/e/{landingPageSlug}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Trackable Links (only for hard ticket events) ── */}
+                {isHardTicket && (
+                  <div className="admin-form-label admin-form-full" style={{
+                    padding: 16, borderRadius: 10,
+                    background: "rgba(6,182,212,0.04)",
+                    border: "1px solid rgba(6,182,212,0.12)",
+                    marginTop: 8,
+                  }}>
+                    <span style={{ color: "#06b6d4", fontWeight: 700, fontSize: 13, marginBottom: 10, display: "block" }}>
+                      Trackable Links
+                    </span>
+
+                    {/* Existing trackable links */}
+                    {trackableLinks.length > 0 && (
+                      <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+                        {trackableLinks.map((link) => (
+                          <div key={link.id}>
+                            <div style={{
+                              display: "flex",
+                              flexDirection: isMobile ? "column" : "row",
+                              alignItems: isMobile ? "stretch" : "center",
+                              gap: isMobile ? 8 : 10,
+                              padding: isMobile ? 12 : "8px 12px", borderRadius: 8,
+                              background: "rgba(255,255,255,0.03)",
+                              border: "1px solid rgba(255,255,255,0.06)",
+                              flexWrap: isMobile ? "nowrap" : "wrap",
+                            }}>
+                              {/* ── Row 1 (mobile) / left cluster (desktop): label + slug + source/medium pills ── */}
+                              <div style={{
+                                display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                                flex: isMobile ? "none" : "0 1 auto", minWidth: 0,
+                              }}>
+                                <span style={{ fontWeight: 700, color: "#06b6d4", fontSize: 13, wordBreak: "break-word" }}>
+                                  {link.label}
+                                </span>
+                                <span style={{
+                                  fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "monospace",
+                                  background: "rgba(6,182,212,0.08)", padding: "2px 8px", borderRadius: 4,
+                                  wordBreak: "break-all",
+                                }}>
+                                  /t/{link.slug}
+                                </span>
+                                {link.source && (
+                                  <span style={{
+                                    fontSize: 10, color: "rgba(6,182,212,0.8)", background: "rgba(6,182,212,0.1)",
+                                    padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                                  }}>
+                                    {link.source}
+                                  </span>
+                                )}
+                                {link.medium && (
+                                  <span style={{
+                                    fontSize: 10, color: "rgba(6,182,212,0.7)", background: "rgba(6,182,212,0.07)",
+                                    padding: "1px 6px", borderRadius: 10, fontWeight: 600,
+                                  }}>
+                                    {link.medium}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* ── Stats (pushed right on desktop, own line on mobile) ── */}
+                              <span style={{
+                                fontSize: 11, color: "rgba(255,255,255,0.4)",
+                                marginLeft: isMobile ? 0 : "auto",
+                                whiteSpace: "nowrap",
+                              }}>
+                                {link.clicks ?? 0} clicks · {link.conversions ?? 0} conv · ${Number(link.revenue ?? 0).toFixed(0)} rev
+                              </span>
+
+                              {/* ── Actions row ── */}
+                              <div style={{
+                                display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
+                                justifyContent: isMobile ? "flex-start" : undefined,
+                              }}>
+                                <button
+                                  type="button"
+                                  onClick={() => copyTrackableLink(link.slug, link.id)}
+                                  style={{
+                                    background: copiedLinkId === link.id ? "rgba(34,197,94,0.15)" : "rgba(6,182,212,0.1)",
+                                    border: `1px solid ${copiedLinkId === link.id ? "rgba(34,197,94,0.3)" : "rgba(6,182,212,0.2)"}`,
+                                    color: copiedLinkId === link.id ? "#22c55e" : "#06b6d4",
+                                    fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {copiedLinkId === link.id ? "Copied!" : "Copy"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setQrLink({
+                                    url: `${window.location.origin}/t/${link.slug}`,
+                                    label: link.label,
+                                  })}
+                                  style={{
+                                    background: "rgba(6,182,212,0.1)",
+                                    border: "1px solid rgba(6,182,212,0.2)",
+                                    color: "#06b6d4",
+                                    fontSize: 11, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 8px", borderRadius: 4,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  QR
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleLinkActive(link.id, link.is_active !== false)}
+                                  style={{
+                                    background: link.is_active !== false ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                                    border: `1px solid ${link.is_active !== false ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.1)"}`,
+                                    color: link.is_active !== false ? "#22c55e" : "rgba(255,255,255,0.4)",
+                                    fontSize: 10, fontWeight: 600, padding: isMobile ? "6px 10px" : "2px 6px", borderRadius: 4,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {link.is_active !== false ? "Active" : "Off"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextId = expandedLinkId === link.id ? null : link.id;
+                                    setExpandedLinkId(nextId);
+                                    if (nextId) loadLinkAnalytics(nextId);
+                                  }}
+                                  style={{
+                                    background: "rgba(6,182,212,0.08)", border: "1px solid rgba(6,182,212,0.15)",
+                                    color: "#06b6d4", fontSize: 10, fontWeight: 600,
+                                    padding: isMobile ? "6px 10px" : "2px 6px",
+                                    borderRadius: 4, cursor: "pointer",
+                                  }}
+                                >
+                                  {expandedLinkId === link.id ? "▲ Stats" : "▼ Stats"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteTrackableLink(link.id)}
+                                  style={{
+                                    background: "transparent",
+                                    border: isMobile ? "1px solid rgba(255,107,107,0.2)" : "none",
+                                    color: "rgba(255,107,107,0.7)", cursor: "pointer",
+                                    fontSize: 14,
+                                    padding: isMobile ? "6px 10px" : 0,
+                                    borderRadius: 4,
+                                    marginLeft: isMobile ? "auto" : 0,
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Expanded Analytics Dashboard */}
+                            {expandedLinkId === link.id && (
+                              <div style={{
+                                padding: 14, marginTop: 4, borderRadius: 8,
+                                background: "rgba(6,182,212,0.03)",
+                                border: "1px solid rgba(6,182,212,0.08)",
+                              }}>
+                                {linkAnalytics[link.id] ? (() => {
+                                  const a = linkAnalytics[link.id];
+                                  const stats = a.analytics || a;
+                                  const dailyClicks: { date: string; count: number }[] = stats.daily_clicks || [];
+                                  const maxClicks = Math.max(...dailyClicks.map((d: { count: number }) => d.count), 1);
+                                  const convRate = stats.total_clicks > 0
+                                    ? ((stats.total_conversions || 0) / stats.total_clicks * 100).toFixed(1)
+                                    : "0.0";
+                                  return (
+                                    <>
+                                      <div style={{
+                                        display: "grid",
+                                        gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)",
+                                        gap: isMobile ? 8 : 10, marginBottom: 14,
+                                      }}>
+                                        {[
+                                          { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
+                                          { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
+                                          { label: "Conversions", value: stats.total_conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
+                                          { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(255, 255, 255, 0.1)" },
+                                          { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },
+                                        ].map((s) => (
+                                          <div key={s.label} style={{
+                                            background: s.bg, borderRadius: 8, padding: "10px 8px", textAlign: "center",
+                                          }}>
+                                            <div style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>{s.value}</div>
+                                            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{s.label}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {dailyClicks.length > 0 && (
+                                        <>
+                                          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6, fontWeight: 600 }}>
+                                            Clicks — Last 30 Days
+                                          </div>
+                                          <div style={{
+                                            display: "flex", alignItems: "flex-end", gap: 2, height: 60,
+                                          }}>
+                                            {dailyClicks.map((d: { date: string; count: number }, i: number) => (
+                                              <div
+                                                key={i}
+                                                title={`${d.date}: ${d.count} clicks`}
+                                                style={{
+                                                  flex: 1, minWidth: 4,
+                                                  height: `${Math.max((d.count / maxClicks) * 100, 4)}%`,
+                                                  background: d.count > 0
+                                                    ? "rgba(6,182,212,0.6)"
+                                                    : "rgba(255,255,255,0.05)",
+                                                  borderRadius: 2,
+                                                  transition: "height 0.2s",
+                                                }}
+                                              />
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+                                    </>
+                                  );
+                                })() : (
+                                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Loading analytics…</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new trackable link */}
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fill, minmax(140px, 1fr))",
+                      gap: 8,
+                      alignItems: "flex-end",
+                    }}>
+                      <div style={{ gridColumn: isMobile ? "1 / -1" : undefined }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Label</label>
+                        <input
+                          type="text"
+                          className="admin-form-input"
+                          value={newLink.label}
+                          onChange={(e) => handleLinkLabelChange(e.target.value)}
+                          placeholder="e.g. Facebook Ad - Spring Show"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Slug</label>
+                        <input
+                          type="text"
+                          className="admin-form-input"
+                          value={newLink.slug}
+                          onChange={(e) => setNewLink(prev => ({ ...prev, slug: e.target.value }))}
+                          placeholder="auto-generated"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Source</label>
+                        <select
+                          className="admin-form-input"
+                          value={newLink.source}
+                          onChange={(e) => setNewLink(prev => ({ ...prev, source: e.target.value }))}
+                        >
+                          <option value="">— Source —</option>
+                          {["facebook", "instagram", "twitter", "email", "flyer", "radio", "tv", "website", "other"].map((s) => (
+                            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Medium</label>
+                        <input
+                          type="text"
+                          className="admin-form-input"
+                          value={newLink.medium}
+                          onChange={(e) => setNewLink(prev => ({ ...prev, medium: e.target.value }))}
+                          placeholder="e.g. paid"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Campaign</label>
+                        <input
+                          type="text"
+                          className="admin-form-input"
+                          value={newLink.campaign}
+                          onChange={(e) => setNewLink(prev => ({ ...prev, campaign: e.target.value }))}
+                          placeholder="optional"
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Destination</label>
+                        <select
+                          className="admin-form-input"
+                          value={newLink.destination_type}
+                          onChange={(e) => setNewLink(prev => ({ ...prev, destination_type: e.target.value }))}
+                        >
+                          <option value="event_page">Event Page</option>
+                          {landingPageSlug && <option value="landing_page">Landing Page</option>}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={creatingLink || !newLink.label.trim() || !newLink.slug.trim()}
+                        onClick={createTrackableLink}
+                        style={{
+                          gridColumn: isMobile ? "1 / -1" : undefined,
+                          padding: isMobile ? "12px 14px" : "8px 14px", borderRadius: 8,
+                          border: "1px solid rgba(6,182,212,0.3)",
+                          background: "rgba(6,182,212,0.1)",
+                          color: "#06b6d4", fontSize: 13, fontWeight: 600,
+                          cursor: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? "not-allowed" : "pointer",
+                          opacity: creatingLink || !newLink.label.trim() || !newLink.slug.trim() ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {creatingLink ? "..." : "+ Create Link"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                </div>
+              </section>
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Selling elsewhere &amp; partner pixels</span>
+                </div>
+                <div className="admin-form ee-fields">
+                {/* ── External Ticketing Link ── */}
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: externalTicketUrl ? "rgba(245,158,11,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${externalTicketUrl ? "rgba(245,158,11,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: externalTicketUrl ? "#f59e0b" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+                    External Ticketing Link
+                  </span>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+                    If tickets are sold on another platform (Eventbrite, AXS, venue box office, etc.), paste the link here.
+                    The &ldquo;Buy Tickets&rdquo; button on your event page will route directly to that URL instead of VenueCore checkout.
+                  </p>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <div style={{ flex: 2 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Ticketing URL</span>
+                      <input
+                        className="admin-form-input"
+                        type="url"
+                        placeholder="https://www.eventbrite.com/e/..."
+                        value={externalTicketUrl}
+                        onChange={(e) => setExternalTicketUrl(e.target.value)}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 2 }}>Button Label (optional)</span>
+                      <input
+                        className="admin-form-input"
+                        placeholder="Get Tickets"
+                        value={externalTicketLabel}
+                        onChange={(e) => setExternalTicketLabel(e.target.value)}
                       />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            {(() => {
-              const total = revenueItems.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
-              return total > 0 ? (
-                <div style={{ textAlign: "right", marginTop: 10, fontSize: 14, fontWeight: 700, color: "#ffffff" }}>
-                  Total: ${total.toFixed(2)}
+                  {externalTicketUrl && (
+                    <p style={{ fontSize: 11, color: "#f59e0b", marginTop: 8, margin: "8px 0 0" }}>
+                      VenueCore checkout is disabled for this event. Tickets link out to the URL above.
+                    </p>
+                  )}
                 </div>
-              ) : null;
-            })()}
-          </div>
-        )}
 
-        {/* Image upload section */}
-        <div className="admin-form-label admin-form-full">
-          Event Image
-          <div className="admin-image-upload-area">
-            {previewUrl ? (
-              <div className="admin-image-preview-wrapper">
-                <img
-                  src={previewUrl}
-                  alt="Event preview"
-                  className="admin-image-preview"
-                />
-                <button
-                  type="button"
-                  className="admin-image-remove-btn"
-                  onClick={handleRemoveImage}
-                >
-                  ✕ Remove
-                </button>
-              </div>
-            ) : (
-              <div
-                className="admin-image-dropzone"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {uploading ? (
-                  <span className="admin-image-uploading">Uploading…</span>
-                ) : (
-                  <>
-                    <span className="admin-image-dropzone-icon"></span>
-                    <span className="admin-image-dropzone-text">
-                      Click to upload an image
-                    </span>
-                    <span className="admin-image-dropzone-hint">
-                      .jpg, .jpeg, .png, or .webp — max 45 MB
-                    </span>
-                  </>
-                )}
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES}
-              onChange={handleFileSelect}
-              className="admin-image-file-input"
-            />
-          </div>
+                {/* ── Co-Promoter / Guest Meta Pixel ── */}
+                <div className="admin-form-label admin-form-full" style={{
+                  padding: 16, borderRadius: 10,
+                  background: metaPixelId ? "rgba(59,130,246,0.06)" : "rgba(255, 255, 255, 0.04)",
+                  border: `1px solid ${metaPixelId ? "rgba(59,130,246,0.2)" : "rgba(255, 255, 255, 0.12)"}`,
+                  marginTop: 8,
+                }}>
+                  <span style={{ color: metaPixelId ? "#3b82f6" : "rgba(255,255,255,0.6)", fontWeight: 700, fontSize: 13, display: "block", marginBottom: 6 }}>
+                    Co-Promoter Meta Pixel ID
+                  </span>
+                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "0 0 10px" }}>
+                    If a co-promoter or advertiser needs their Meta Pixel to fire on this event&apos;s pages
+                    (for retargeting their paid social ads), paste their Pixel ID here.
+                    It fires alongside the venue&apos;s pixel — both on the event detail and landing pages.
+                  </p>
+                  <input
+                    className="admin-form-input"
+                    type="text"
+                    placeholder="e.g. 1660200431930684"
+                    value={metaPixelId}
+                    onChange={(e) => setMetaPixelId(e.target.value.trim())}
+                  />
+                  {metaPixelId && (
+                    <p style={{ fontSize: 11, color: "#3b82f6", marginTop: 8 }}>
+                      Co-promoter pixel active — firing on event detail and landing pages.
+                    </p>
+                  )}
+                </div>
+                </div>
+              </section>
+            </>
+          )}
         </div>
 
-        {/* Email flyer upload section — separate from Event Image above.
-            This is a pre-sized 1080x1350 asset used only in the announcement
-            email, not the website's hero background. Uploaded as-is, no crop. */}
-        <div className="admin-form-label admin-form-full">
-          Email Flyer (1080x1350)
-          <div className="admin-image-upload-area">
-            {form.email_flyer_url ? (
-              <div className="admin-image-preview-wrapper">
-                <img
-                  src={form.email_flyer_url}
-                  alt="Email flyer preview"
-                  className="admin-image-preview"
-                />
-                <button
-                  type="button"
-                  className="admin-image-remove-btn"
-                  onClick={handleRemoveFlyer}
-                >
-                  ✕ Remove
-                </button>
+        {/* ── Money rail: on screen across all four tabs, because every edit
+            here has a number attached to it. ── */}
+        <aside className="ee-rail">
+          <section className="card ee-card ee-money">
+            <span className="ee-eyebrow">Sold so far</span>
+            <dl className="ee-money-rows">
+              <div>
+                <dt>Gross sold</dt>
+                <dd>{ticketing ? fmtUSD(ticketing.gross) : "—"}</dd>
               </div>
-            ) : (
-              <div
-                className="admin-image-dropzone"
-                onClick={() => flyerInputRef.current?.click()}
-              >
-                {uploadingFlyer ? (
-                  <span className="admin-image-uploading">Uploading…</span>
-                ) : (
-                  <>
-                    <span className="admin-image-dropzone-icon"></span>
-                    <span className="admin-image-dropzone-text">
-                      Click to upload the email flyer
-                    </span>
-                    <span className="admin-image-dropzone-hint">
-                      1080x1350 portrait, purpose-built for the announcement email — .jpg, .jpeg, .png, or .webp
-                    </span>
-                  </>
-                )}
+              <div>
+                <dt>Fees retained</dt>
+                <dd>{ticketing ? fmtUSD(ticketing.feesRetained) : "—"}</dd>
               </div>
+              <div>
+                <dt>Tickets out</dt>
+                <dd>
+                  {ticketing
+                    ? `${ticketing.paidTickets.toLocaleString()}${ticketing.sellable ? ` / ${ticketing.sellable.toLocaleString()}` : ""}`
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt>Comps issued</dt>
+                <dd>{ticketing ? ticketing.compedTickets.toLocaleString() : "—"}</dd>
+              </div>
+            </dl>
+            {ticketing && ticketing.sellable > 0 && (
+              <>
+                <div className="ee-meter">
+                  <span style={{ width: `${Math.min(100, ticketing.sellThrough)}%` }} />
+                </div>
+                <p className="ee-rail-note">{ticketing.sellThrough}% of the sellable room.</p>
+              </>
             )}
-            <input
-              ref={flyerInputRef}
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES}
-              onChange={handleFlyerUpload}
-              className="admin-image-file-input"
-            />
-          </div>
-        </div>
+          </section>
 
-        <label className="admin-form-label admin-form-full">
-          Description
-          <textarea
-            name="description"
-            className="admin-form-textarea"
-            value={form.description}
-            onChange={handleChange}
-            placeholder="Event description..."
-            rows={4}
-          />
-        </label>
+          <button type="submit" className="btn btn-primary ee-btn-lg ee-save" disabled={saving || uploading}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
 
-        <button
-          type="submit"
-          className="admin-form-submit"
-          disabled={saving || uploading}
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+          <section className="card ee-card">
+            <span className="ee-eyebrow">Actions that leave this form</span>
+            <div className="ee-actions">
+              <Link href={`/admin/events/${id}`} className="ee-action">
+                <strong>Event workspace</strong>
+                <span>Publish or unpublish, inventory and holds, orders, settlement.</span>
+              </Link>
+              <Link href={`/admin/events/${id}/ads`} className="ee-action">
+                <strong>Ad Engine</strong>
+                <span>Paid campaigns for this show.</span>
+              </Link>
+            </div>
+          </section>
+
+          {auditEntries.length > 0 && (
+            <section className="card ee-card">
+              <span className="ee-eyebrow">Recent changes</span>
+              <ul className="ee-changes">
+                {auditEntries.map((a) => (
+                  <li key={a.id}>
+                    <strong>
+                      {new Date(a.created_at).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </strong>
+                    {" — "}
+                    {describeAudit(a)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </aside>
       </form>
 
       {/* Crop modal */}

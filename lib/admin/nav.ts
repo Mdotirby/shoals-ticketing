@@ -150,6 +150,12 @@ export const navGroups: NavGroup[] = [
         contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}/edit` : null),
         match: /^\/admin\/events\/[^/]+\/edit$/,
         link: { label: "Edit event", href: "/admin/events", roles: R.events },
+        paramTabs: [
+          { label: "Setup", key: "setup" },
+          { label: "Tickets", key: "tickets" },
+          { label: "On-sale & fees", key: "onsale" },
+          { label: "Promo & tracking", key: "promo" },
+        ],
       },
       { id: "seating", label: "Seating map", link: { label: "Seating", href: "/admin/seating", tabKey: "seating", roles: R.mgmt } },
     ],

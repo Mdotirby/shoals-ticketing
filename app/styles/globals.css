@@ -22338,3 +22338,129 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 768px) {
   .admin-shell .merged-tab { min-height: 44px; padding: 0 18px; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   EVENT EDIT — app/admin/events/[id]/edit, handoff/screens/eventedit.dc.html
+   State card, pill tabs (shared .merged-tabs), a two-column body with the
+   money rail pinned on the right; under 1100px the rail moves above the
+   form, which is where the mobile frame puts it.
+   ══════════════════════════════════════════════════════════════════════ */
+.admin-shell .ee-page { max-width: none; }
+.admin-shell .ee-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+.ee-state-text { flex: 1; min-width: 260px; }
+.ee-state-title { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin-top: 7px; }
+.admin-shell .ee-state-title .admin-page-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.ee-state-meta { font-size: 11.5px; color: rgba(255, 255, 255, 0.46); }
+.ee-state-body { font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.56); margin: 8px 0 0; max-width: 760px; }
+.ee-state-action { display: flex; flex-direction: column; gap: 9px; min-width: 190px; }
+.ee-state-hint { font-size: 10px; line-height: 1.45; text-align: center; color: rgba(255, 255, 255, 0.38); margin: 0; }
+.admin-shell .ee-btn-lg { min-height: 48px; padding: 14px 22px; border-radius: 999px; font-size: 13.5px; font-weight: 700; justify-content: center; }
+
+.ee-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.50);
+}
+.ee-dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.ee-eyebrow--warn { color: oklch(0.86 0.09 92); }
+.ee-eyebrow--good { color: #8fd6a8; }
+.ee-eyebrow--quiet { color: rgba(255, 255, 255, 0.52); }
+
+.admin-shell .ee-tabs { margin-bottom: 16px; }
+.ee-tabs-note { margin-left: auto; padding: 0 16px; font-size: 10px; color: rgba(255, 255, 255, 0.34); white-space: nowrap; }
+
+.ee-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 16px;
+  align-items: start;
+}
+.ee-main, .ee-rail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.ee-rail { position: sticky; top: 16px; }
+.admin-shell .ee-card { padding: 21px 22px; margin: 0; }
+.ee-card-head { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin-bottom: 14px; }
+.ee-card-aside { margin-left: auto; font-size: 10px; color: rgba(255, 255, 255, 0.36); }
+.ee-chip {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: oklch(0.86 0.09 92);
+}
+/* The moved sections keep their own markup; inside a card they stack. */
+.admin-shell .ee-fields { display: flex; flex-direction: column; gap: 14px; max-width: none; margin: 0; padding: 0; background: none; border: none; box-shadow: none; }
+.ee-field-note { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.44); margin: 6px 0 0; }
+.ee-tier-sold {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #8fd6a8;
+}
+.admin-shell .ee-fields input:disabled,
+.admin-shell .ee-fields select:disabled {
+  background: rgba(255, 255, 255, 0.022);
+  border-style: dashed;
+  color: rgba(255, 255, 255, 0.56);
+  cursor: default;
+}
+
+.ee-money-rows { margin: 14px 0 0; }
+.ee-money-rows > div { display: flex; align-items: baseline; gap: 10px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.ee-money-rows dt { flex: 1; font-size: 12.5px; color: rgba(255, 255, 255, 0.62); }
+.ee-money-rows dd { margin: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.86); }
+.ee-money-rows > div:first-child dt,
+.ee-money-rows > div:first-child dd { font-size: 13px; font-weight: 650; color: rgba(255, 255, 255, 0.95); }
+.ee-meter { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); margin-top: 15px; overflow: hidden; }
+.ee-meter span { display: block; height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.55); }
+.ee-rail-note { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.42); margin: 9px 0 0; }
+.admin-shell .ee-save { width: 100%; }
+
+.ee-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
+.admin-shell .ee-action {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 44px;
+  padding: 12px 15px;
+  border-radius: 13px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .ee-action:hover { background: rgba(255, 255, 255, 0.10); }
+.ee-action strong { font-size: 12.5px; font-weight: 650; color: rgba(255, 255, 255, 0.95); }
+.ee-action span { font-size: 10.5px; color: rgba(255, 255, 255, 0.42); }
+.ee-changes { list-style: none; margin: 13px 0 0; padding: 0; display: flex; flex-direction: column; gap: 11px; }
+.ee-changes li { font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.66); }
+.ee-changes strong { color: rgba(255, 255, 255, 0.92); }
+
+@media (max-width: 1100px) {
+  .ee-grid { grid-template-columns: minmax(0, 1fr); }
+  /* Money on top, then the form, then save and the rest of the rail — the
+     mobile frame leads with the numbers, not with a stack of cards. */
+  .ee-rail { display: contents; }
+  .ee-rail > .ee-money { order: -1; }
+  .ee-rail > :not(.ee-money) { order: 1; }
+}
+@media (max-width: 768px) {
+  .ee-tabs-note { display: none; }
+  .ee-state-action { width: 100%; }
+}
