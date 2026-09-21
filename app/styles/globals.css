@@ -20048,6 +20048,13 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
   margin: 0 0 20px;
 }
 .admin-page-header-text { flex: 1 1 320px; min-width: 0; }
+/* On phones the header stacks (flex-direction: column), and an older rule
+   turns every child div into a wrapping row. That put the eyebrow beside the
+   title and turned the 320px basis into a 320px HEIGHT under the title. The
+   text block stays a plain block, sized by its content. */
+@media (max-width: 768px) {
+  .admin-page-header > .admin-page-header-text { display: block; flex: 0 0 auto; }
+}
 .admin-page-eyebrow {
   font-family: var(--font-archivo), sans-serif;
   font-size: 9px;
