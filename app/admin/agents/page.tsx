@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { fmtUSD } from "@/app/components/admin/ui";
 
 type Agent = {
   id: string;
@@ -22,6 +24,14 @@ type EventOption = {
   id: string;
   title: string;
   date: string;
+};
+
+type AgentSummary = {
+  roster: string[];
+  shows: { event_id: string | null; title: string; date: string; state: string; artist: string | null; gross: number }[];
+  offers: { id: string }[];
+  stats: { showsBooked: number; grossBooked: number; avgSettleDays: number | null; firstShow: string | null };
+  portalAccess: boolean;
 };
 
 type Assignment = {
@@ -53,6 +63,10 @@ export default function AdminAgentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [assignEventId, setAssignEventId] = useState("");
   const [loadingAssignments, setLoadingAssignments] = useState(false);
+
+  // Detail panel
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<AgentSummary | null>(null);
 
   const role = getCookie("user-role");
   const venueId = getCookie("venue-id");
@@ -109,6 +123,7 @@ export default function AdminAgentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: editAgent.id,
           agency: editForm.agency,
           agent_name: editForm.agent_name,
           agent_phone: editForm.agent_phone,
@@ -223,109 +238,249 @@ export default function AdminAgentsPage() {
     }
   }
 
+  // ── Master / detail (handoff/screens/agents.dc.html) ──
+  // An agent is a person; the agency is an attribute. The list sits beside
+  // one agent's detail: contact, relationship, roster, and every show booked
+  // through them. No rebates — agents aren't paid one.
+  const canManage = role === "owner" || role === "venue_admin";
+  const selected = agents.find((a) => a.id === selectedId) ?? agents[0] ?? null;
+
+  useEffect(() => {
+    if (!selected) return;
+    setAssignAgent(selected);
+    loadAssignments(selected.id);
+    setSummary(null);
+    fetch(`/api/agents/${selected.id}/summary`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setSummary(d))
+      .catch(() => setSummary(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
+
   if (loading) {
     return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Agents</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>
+      <div className="admin-form-page ee-page">
+        <p className="ee-state-body">Loading agents…</p>
       </div>
     );
   }
 
+  const displayName = (a: Agent) => (a.first_name && a.last_name ? `${a.first_name} ${a.last_name}` : a.agent_name);
+  const openEdit = (a: Agent) => {
+    setEditAgent(a);
+    setEditForm({
+      agency: a.agency || "",
+      agent_name: a.agent_name || "",
+      agent_phone: a.agent_phone || "",
+      agent_email: a.agent_email || a.email || "",
+    });
+  };
+  const dateShort = (d: string) =>
+    new Date(d.length === 10 ? `${d}T12:00:00` : d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
   return (
-    <div className="admin-form-page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <h1 className="admin-page-title" style={{ margin: 0 }}>Agents</h1>
-        {(role === "owner" || role === "venue_admin") && (
-          <button
-            className="admin-form-submit"
-            style={{ padding: "8px 20px", fontSize: 13 }}
-            onClick={() => setShowOnboard(true)}
-          >
-            + Onboard Agent
-          </button>
+    <div className="admin-form-page ee-page">
+      <div className="card ee-state">
+        <div className="ee-state-text">
+          <span className="ee-eyebrow">Representation</span>
+          <div className="ee-state-title">
+            <h1 className="admin-page-title">Agents</h1>
+          </div>
+          <p className="ee-state-body">
+            An agent is a person, not a company — the agency is an attribute. What matters is the relationship: who they
+            represent, the shows they&apos;ve booked with us, and how fast we settle with them.
+          </p>
+        </div>
+        {canManage && (
+          <div className="ee-state-action">
+            <button className="btn btn-primary ee-btn-lg" onClick={() => setShowOnboard(true)}>
+              + Onboard agent
+            </button>
+          </div>
         )}
       </div>
-      <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 20 }}>
-        Manage booking agents and their event assignments.
-      </p>
 
-      {error && <div className="admin-form-error" style={{ marginBottom: 12 }}>{error}</div>}
-      {success && <div className="admin-form-success" style={{ marginBottom: 12 }}>{success}</div>}
+      {error && <div className="admin-form-error">{error}</div>}
+      {success && <div className="admin-form-success">{success}</div>}
 
-      {/* Agents Table */}
-      <div style={{ overflowX: "auto" }}>
-        <table className="admin-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.15)" }}>
-              <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Agent</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Agency</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Email</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Phone</th>
-              <th style={{ padding: "10px 12px", textAlign: "left", color: "rgba(255,255,255,0.5)", fontWeight: 600, fontSize: 11, textTransform: "uppercase" }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agents.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: "24px 12px", textAlign: "center", color: "rgba(255,255,255,0.3)" }}>
-                  No agents found. Use Onboarding to add agents.
-                </td>
-              </tr>
-            ) : (
-              agents.map((agent) => (
-                <tr key={agent.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <td style={{ padding: "10px 12px", color: "#ffffff" }}>
-                    {agent.first_name && agent.last_name
-                      ? `${agent.first_name} ${agent.last_name}`
-                      : agent.agent_name}
-                  </td>
-                  <td style={{ padding: "10px 12px", color: "rgba(255,255,255,0.7)" }}>{agent.agency}</td>
-                  <td style={{ padding: "10px 12px", color: "rgba(255,255,255,0.6)" }}>{agent.email || agent.agent_email || "—"}</td>
-                  <td style={{ padding: "10px 12px", color: "rgba(255,255,255,0.6)" }}>{agent.agent_phone || "—"}</td>
-                  <td style={{ padding: "10px 12px" }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="admin-sponsor-edit-btn"
-                        style={{ fontSize: 12, padding: "4px 10px" }}
-                        onClick={() => {
-                          setEditAgent(agent);
-                          setEditForm({
-                            agency: agent.agency || "",
-                            agent_name: agent.agent_name || "",
-                            agent_phone: agent.agent_phone || "",
-                            agent_email: agent.agent_email || agent.email || "",
-                          });
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="admin-sponsor-edit-btn"
-                        style={{ fontSize: 12, padding: "4px 10px", background: "rgba(255, 255, 255, 0.1)" }}
-                        onClick={() => {
-                          setAssignAgent(agent);
-                          loadAssignments(agent.id);
-                        }}
-                      >
-                        Events
-                      </button>
-                      {(role === "owner" || role === "venue_admin") && (
-                        <button
-                          className="admin-tier-remove-btn"
-                          style={{ fontSize: 12, padding: "4px 10px" }}
-                          onClick={() => handleRemoveAgent(agent)}
-                        >
+      <div className="ag-grid">
+        <section className="card ee-card">
+          <div className="ee-card-head">
+            <span className="ee-eyebrow">All agents</span>
+            <span className="ee-card-aside">{agents.length}</span>
+          </div>
+          {agents.length === 0 ? (
+            <p className="ee-field-note">No agents yet. Onboard one to give them portal access.</p>
+          ) : (
+            <div className="ob-rows">
+              {agents.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`ob-row${selected?.id === a.id ? " is-on" : ""}`}
+                  onClick={() => setSelectedId(a.id)}
+                >
+                  <span className="ob-row-main">
+                    <span className="ob-row-who">
+                      <strong>{displayName(a)}</strong>
+                    </span>
+                    <span className="ob-row-show">{a.agency}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {selected && (
+          <div className="ag-detail">
+            <section className="card ee-card">
+              <div className="ag-head">
+                <div>
+                  <h2 className="ag-name">{displayName(selected)}</h2>
+                  <p className="ee-state-meta">{selected.agency}</p>
+                </div>
+                <div className="ag-actions">
+                  <button type="button" className="btn" onClick={() => openEdit(selected)}>
+                    Edit contact
+                  </button>
+                  <Link className="btn" href="/admin/offers/new">
+                    New offer
+                  </Link>
+                  {canManage && (
+                    <button type="button" className="btn ob-tone-bad" onClick={() => handleRemoveAgent(selected)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="ag-stats">
+                <div>
+                  <span className="ee-eyebrow">Shows booked</span>
+                  <strong>{summary ? summary.stats.showsBooked : "—"}</strong>
+                  <em>{summary?.stats.firstShow ? `since ${dateShort(summary.stats.firstShow)}` : " "}</em>
+                </div>
+                <div>
+                  <span className="ee-eyebrow">Gross booked</span>
+                  <strong>{summary ? fmtUSD(summary.stats.grossBooked) : "—"}</strong>
+                  <em>ticket sales, all shows</em>
+                </div>
+                <div>
+                  <span className="ee-eyebrow">Avg settle time</span>
+                  <strong>{summary?.stats.avgSettleDays != null ? `${summary.stats.avgSettleDays} days` : "—"}</strong>
+                  <em>show to finalized settlement</em>
+                </div>
+              </div>
+            </section>
+
+            <div className="ag-pair">
+              <section className="card ee-card">
+                <span className="ee-eyebrow">Contact</span>
+                <dl className="ob-detail">
+                  <div><dt>Name</dt><dd>{selected.agent_name}</dd></div>
+                  <div><dt>Agency</dt><dd>{selected.agency}</dd></div>
+                  <div><dt>Email</dt><dd>{selected.agent_email || selected.email || "—"}</dd></div>
+                  <div><dt>Phone</dt><dd>{selected.agent_phone || "—"}</dd></div>
+                </dl>
+              </section>
+
+              <section className="card ee-card">
+                <span className="ee-eyebrow">Relationship with us</span>
+                <dl className="ob-detail">
+                  <div>
+                    <dt>Portal</dt>
+                    <dd>{summary?.portalAccess ?? !!selected.user_id ? "Agent login enabled — sees only their own shows" : "No login"}</dd>
+                  </div>
+                  <div><dt>Offers</dt><dd>{summary ? `${summary.offers.length} on file` : "—"}</dd></div>
+                </dl>
+                <span className="ee-eyebrow ob-sub">Roster</span>
+                <div className="ag-roster">
+                  {summary && summary.roster.length === 0 && <span className="ee-field-note">No artists on file yet.</span>}
+                  {summary?.roster.map((r) => (
+                    <span key={r} className="ag-chip">
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <section className="card ee-card">
+              <div className="ee-card-head">
+                <span className="ee-eyebrow">Shows booked through this agent</span>
+                <span className="ee-card-aside">gross from the ledger</span>
+              </div>
+              {summary && summary.shows.length === 0 && <p className="ee-field-note">No shows yet.</p>}
+              {summary && summary.shows.length > 0 && (
+                <div className="ag-table" role="table">
+                  <div className="ag-tr ag-th" role="row">
+                    <span>Show</span><span>Date</span><span>Status</span><span>Gross</span>
+                  </div>
+                  {summary.shows.map((s, i) => {
+                    const cells = (
+                      <>
+                        <span className="ag-show">{s.title}</span>
+                        <span>{s.date ? dateShort(s.date) : "TBD"}</span>
+                        <span className={s.state === "On sale" ? "ob-tone-good" : s.state === "Cancelled" ? "ob-tone-bad" : s.event_id ? "" : "ob-tone-quiet"}>{s.state}</span>
+                        <span>{s.gross ? fmtUSD(s.gross) : "—"}</span>
+                      </>
+                    );
+                    // An offer with no event linked has nowhere to go yet.
+                    return s.event_id ? (
+                      <Link key={s.event_id} className="ag-tr" role="row" href={`/admin/events/${s.event_id}`}>
+                        {cells}
+                      </Link>
+                    ) : (
+                      <div key={`offer-${i}`} className="ag-tr" role="row">
+                        {cells}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <span className="ee-eyebrow ob-sub">Assigned events · portal visibility</span>
+              <p className="ee-field-note">What this agent can see in their portal.</p>
+              {canManage && (
+                <div className="ag-assign">
+                  <select className="admin-form-input" value={assignEventId} onChange={(e) => setAssignEventId(e.target.value)}>
+                    <option value="">Select event to assign…</option>
+                    {events
+                      .filter((ev) => !assignments.some((a) => a.event_id === ev.id))
+                      .map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.title} ({ev.date ? new Date(ev.date).toLocaleDateString() : "TBD"})
+                        </option>
+                      ))}
+                  </select>
+                  <button className="btn" onClick={handleAssign} disabled={!assignEventId}>
+                    Assign
+                  </button>
+                </div>
+              )}
+              {loadingAssignments ? (
+                <p className="ee-field-note">Loading…</p>
+              ) : assignments.length === 0 ? (
+                <p className="ee-field-note">No events assigned.</p>
+              ) : (
+                <ul className="ob-tickets">
+                  {assignments.map((a) => (
+                    <li key={a.id}>
+                      <span>
+                        {a.event.title} · {a.event.date ? new Date(a.event.date).toLocaleDateString() : "TBD"}
+                      </span>
+                      {canManage && (
+                        <button type="button" className="ag-link" onClick={() => handleUnassign(a.id)}>
                           Remove
                         </button>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
       </div>
 
       {/* Onboard Agent Modal */}
@@ -335,7 +490,7 @@ export default function AdminAgentsPage() {
           display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
         }} onClick={() => setShowOnboard(false)}>
           <div style={{
-            background: "#131629", borderRadius: 12, padding: 24, maxWidth: 520, width: "100%",
+            background: "rgba(14, 14, 18, 0.96)", borderRadius: 20, backdropFilter: "blur(28px) saturate(160%)", padding: 24, maxWidth: 520, width: "100%",
             border: "1px solid rgba(255, 255, 255, 0.15)",
           }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#ffffff" }}>Onboard New Agent</h2>
@@ -390,7 +545,7 @@ export default function AdminAgentsPage() {
           display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
         }} onClick={() => setEditAgent(null)}>
           <div style={{
-            background: "#131629", borderRadius: 12, padding: 24, maxWidth: 480, width: "100%",
+            background: "rgba(14, 14, 18, 0.96)", borderRadius: 20, backdropFilter: "blur(28px) saturate(160%)", padding: 24, maxWidth: 480, width: "100%",
             border: "1px solid rgba(255, 255, 255, 0.15)",
           }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ margin: "0 0 16px", fontSize: 18, color: "#ffffff" }}>Edit Agent</h2>
@@ -426,101 +581,6 @@ export default function AdminAgentsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Assignments Modal */}
-      {assignAgent && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000,
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
-        }} onClick={() => setAssignAgent(null)}>
-          <div style={{
-            background: "#131629", borderRadius: 12, padding: 24, maxWidth: 560, width: "100%",
-            border: "1px solid rgba(255, 255, 255, 0.15)", maxHeight: "80vh", overflowY: "auto",
-          }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ margin: "0 0 4px", fontSize: 18, color: "#ffffff" }}>
-              Event Assignments
-            </h2>
-            <p style={{ margin: "0 0 16px", fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-              {assignAgent.agent_name} — {assignAgent.agency}
-            </p>
-
-            {/* Add assignment */}
-            {(role === "owner" || role === "venue_admin") && (
-              <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-                <select
-                  className="admin-form-input"
-                  value={assignEventId}
-                  onChange={(e) => setAssignEventId(e.target.value)}
-                  style={{ flex: 1 }}
-                >
-                  <option value="">Select event to assign…</option>
-                  {events
-                    .filter((ev) => !assignments.some((a) => a.event_id === ev.id))
-                    .map((ev) => (
-                      <option key={ev.id} value={ev.id}>
-                        {ev.title} ({ev.date ? new Date(ev.date).toLocaleDateString() : "TBD"})
-                      </option>
-                    ))}
-                </select>
-                <button
-                  className="admin-form-submit"
-                  style={{ padding: "8px 16px", whiteSpace: "nowrap" }}
-                  onClick={handleAssign}
-                  disabled={!assignEventId}
-                >
-                  Assign
-                </button>
-              </div>
-            )}
-
-            {/* Current assignments */}
-            {loadingAssignments ? (
-              <p style={{ color: "rgba(255,255,255,0.4)" }}>Loading…</p>
-            ) : assignments.length === 0 ? (
-              <p style={{ color: "rgba(255,255,255,0.3)", textAlign: "center", padding: 16 }}>
-                No events assigned.
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {assignments.map((a) => (
-                  <div
-                    key={a.id}
-                    style={{
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      padding: "10px 12px", background: "rgba(255, 255, 255, 0.05)", borderRadius: 8,
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: "#ffffff", fontSize: 14 }}>{a.event.title}</span>
-                      <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginLeft: 8 }}>
-                        {a.event.date ? new Date(a.event.date).toLocaleDateString() : "TBD"}
-                      </span>
-                    </div>
-                    {(role === "owner" || role === "venue_admin") && (
-                      <button
-                        className="admin-tier-remove-btn"
-                        style={{ fontSize: 11, padding: "2px 8px" }}
-                        onClick={() => handleUnassign(a.id)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="admin-tier-remove-btn"
-              onClick={() => setAssignAgent(null)}
-              style={{ marginTop: 16, width: "100%" }}
-            >
-              Close
-            </button>
           </div>
         </div>
       )}

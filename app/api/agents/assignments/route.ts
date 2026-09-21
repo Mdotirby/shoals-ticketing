@@ -1,9 +1,12 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/agents/assignments?agent_id=xxx
 // List agent assignments with event details
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { searchParams } = new URL(request.url);
   const agentId = searchParams.get("agent_id");
 
@@ -48,6 +51,8 @@ export async function GET(request: Request) {
 
 // POST /api/agents/assignments — Assign agent to event (admin only)
 export async function POST(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const body = await request.json();
   const { agent_id, event_id } = body;
@@ -81,6 +86,8 @@ export async function POST(request: Request) {
 // DELETE /api/agents/assignments?id=xxx
 // Remove an agent assignment
 export async function DELETE(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   const agentId = searchParams.get("agent_id");

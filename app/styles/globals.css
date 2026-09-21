@@ -22610,3 +22610,71 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .ob-grid { grid-template-columns: minmax(0, 1fr); }
   .ob-grid .ee-rail { display: flex; order: 0; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   AGENTS — app/admin/agents, handoff/screens/agents.dc.html (no rebates).
+   List beside detail; shares the order book's rows and the edit pages'
+   cards (.ob-*, .ee-*).
+   ══════════════════════════════════════════════════════════════════════ */
+.ag-grid { display: grid; grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ag-detail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.ag-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.ag-head > div:first-child { flex: 1; min-width: 200px; }
+.admin-shell .ag-name { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.ag-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-shell .ag-actions .btn {
+  min-height: 44px;
+  padding: 12px 17px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .ag-actions .btn:hover { background: rgba(255, 255, 255, 0.12); }
+.ag-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+.ag-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.ag-stats strong { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.ag-stats em { font-style: normal; font-size: 10px; color: rgba(255, 255, 255, 0.42); }
+.ag-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+.ag-roster { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.ag-chip {
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.ag-table { margin-top: 6px; }
+.admin-shell .ag-tr {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: 9px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+}
+.admin-shell a.ag-tr:hover { background: rgba(255, 255, 255, 0.04); }
+.ag-tr > span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.ag-th { font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.40); border-bottom-color: rgba(255, 255, 255, 0.10); }
+.ag-show { font-weight: 600; color: rgba(255, 255, 255, 0.95); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ag-assign { display: flex; gap: 8px; margin: 10px 0; }
+.ag-assign select { flex: 1; min-width: 0; }
+.admin-shell .ag-link { background: none; border: none; color: rgba(255, 255, 255, 0.5); font: inherit; font-size: 11px; cursor: pointer; }
+.admin-shell .ag-link:hover { color: oklch(0.72 0.13 22); }
+@media (max-width: 900px) {
+  .ag-grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,9 +1,15 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET: list agents, optional ?venue_id= filter
 export async function GET(request: Request) {
+  // Every route here answered anyone — including DELETE, which removes the
+  // agent's login. Staff only; every caller is an admin page (the agent
+  // portal has its own route, /api/agents/portal).
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const venueId = searchParams.get("venue_id");
@@ -22,10 +28,33 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? []);
 }
 
-// POST: create or update an agent (upsert by agency + agent_name)
+// POST: create or update an agent.
+//   With `id`: update that agent — name and agency included.
+//   Without:   upsert by agency + agent_name (how the offer builder and
+//              onboarding create one).
+// The edit form used to send no id, so renaming an agent or changing their
+// agency matched nothing and created a second agent, orphaning the first.
 export async function POST(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const admin = createAdminClient();
   const body = await request.json();
+
+  if (body.id) {
+    const { data, error } = await admin
+      .from("agents")
+      .update({
+        agency: body.agency,
+        agent_name: body.agent_name,
+        agent_phone: body.agent_phone || null,
+        agent_email: body.agent_email || null,
+      })
+      .eq("id", body.id)
+      .select()
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  }
 
   // Check if agent already exists
   const { data: existing } = await admin
@@ -72,6 +101,13 @@ export async function POST(request: Request) {
 
 // DELETE: fully remove an agent (agents row + admin_users row + auth user)
 export async function DELETE(request: Request) {
+  // Removes the agent's login too — owner or venue admin only, as the page
+  // already implied by hiding the button from everyone else.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+  if (!["owner", "venue_admin"].includes(guard.actor.resolved.level ?? "")) {
+    return NextResponse.json({ error: "Only an owner or venue admin can remove an agent" }, { status: 403 });
+  }
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
