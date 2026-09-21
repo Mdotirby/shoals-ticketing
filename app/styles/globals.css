@@ -23235,3 +23235,43 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .mr-body .rounded { border-radius: 7px; }
 .admin-shell .mr-body .rounded-md { border-radius: 12px; }
 .admin-shell .mr-body .rounded-lg { border-radius: 16px; }
+
+/* ── Venue settings — Profile tab (settings.dc.html) ─────── */
+.admin-shell .setp { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .setp .card { margin-bottom: 0; }
+.admin-shell .setp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.admin-shell .setp-body { margin-top: 16px; }
+.admin-shell .setp-body .field input,
+.admin-shell .setp-fees .field input { width: 100%; }
+.admin-shell .setp-fees {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 12px;
+  margin-top: 16px;
+}
+.admin-shell .setp .field input.setp-locked {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.022);
+  color: rgba(255, 255, 255, 0.56);
+  cursor: not-allowed;
+}
+.admin-shell .setp-actions { display: flex; justify-content: flex-end; }
+.admin-shell .setp-state { padding: 40px 0; font-size: 13px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .setp-banner {
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .setp-banner--good { color: var(--lg-good); border-color: rgba(143, 214, 168, 0.3); }
+.admin-shell .setp-banner--bad { color: var(--lg-bad); border-color: rgba(255, 140, 170, 0.3); }
+@media (max-width: 640px) {
+  .admin-shell .setp-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .setp-actions .btn { width: 100%; }
+}

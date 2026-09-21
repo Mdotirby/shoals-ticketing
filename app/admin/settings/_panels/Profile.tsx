@@ -1,6 +1,17 @@
 "use client";
 
+/**
+ * Venue settings — Profile tab, rebuilt on the shared primitives against
+ * handoff/screens/settings.dc.html (#set-profile, #set-fees).
+ *
+ * Restyle only: the /api/venues load and PUT, the venue-id resolution, the
+ * tax-rate percent/decimal conversion and the owner-only fee guard are
+ * unchanged. The flat admin-form sections become the design's cards; fees
+ * carry its "owner only" pill and read as locked fields for everyone else.
+ */
+
 import { useEffect, useState } from "react";
+import { Button, Card, Field, FieldRow, Pill } from "@/app/components/admin/ui";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 
@@ -143,205 +154,95 @@ export default function AdminSettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="admin-form-page">
-        <h1 className="admin-page-title">Settings</h1>
-        <p style={{ color: "rgba(255,255,255,0.5)" }}>Loading…</p>
-      </div>
-    );
+    return <div className="setp-state">Loading venue settings…</div>;
   }
 
+  const feeLock = !isOwner
+    ? { readOnly: true, title: "Only the owner can edit this field", className: "setp-locked" }
+    : {};
+
   return (
-    <div className="admin-form-page">
-      <h1 className="admin-page-title">Settings</h1>
+    <form className="setp" onSubmit={handleSave}>
+      {error && <div className="setp-banner setp-banner--bad">{error}</div>}
+      {success && <div className="setp-banner setp-banner--good">{success}</div>}
 
-      <form className="admin-form" onSubmit={handleSave}>
-        {error && <div className="admin-form-error">{error}</div>}
-        {success && <div className="admin-form-success">{success}</div>}
+      <div className="setp-grid">
+        <Card title="Venue profile" sub="Name, room and address as they appear on offers and the storefront">
+          <div className="setp-body">
+            <FieldRow>
+              <Field label="Venue name">
+                <input type="text" value={venue.name} onChange={(e) => setVenue({ ...venue, name: e.target.value })} required />
+              </Field>
+              <Field label="Nickname">
+                <input type="text" value={venue.nickname} onChange={(e) => setVenue({ ...venue, nickname: e.target.value })} placeholder="e.g. SRL" />
+              </Field>
+            </FieldRow>
+            <Field label="Total capacity">
+              <input type="number" value={venue.capacity} onChange={(e) => setVenue({ ...venue, capacity: e.target.value })} />
+            </Field>
+            <Field label="Street address">
+              <input type="text" value={venue.address_street} onChange={(e) => setVenue({ ...venue, address_street: e.target.value })} />
+            </Field>
+            <FieldRow cols={3}>
+              <Field label="City">
+                <input type="text" value={venue.address_city} onChange={(e) => setVenue({ ...venue, address_city: e.target.value })} />
+              </Field>
+              <Field label="State">
+                <input type="text" value={venue.address_state} onChange={(e) => setVenue({ ...venue, address_state: e.target.value })} placeholder="AL" maxLength={2} />
+              </Field>
+              <Field label="ZIP code">
+                <input type="text" value={venue.address_zip} onChange={(e) => setVenue({ ...venue, address_zip: e.target.value })} />
+              </Field>
+            </FieldRow>
+          </div>
+        </Card>
 
-        {/* ── Venue Information ── */}
-        <h2 className="admin-form-section-title">Venue Information</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Venue Name
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.name}
-              onChange={(e) => setVenue({ ...venue, name: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label">
-            Nickname
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.nickname}
-              onChange={(e) => setVenue({ ...venue, nickname: e.target.value })}
-              placeholder="e.g. SRL"
-            />
-          </label>
-          <label className="admin-form-label">
-            Total Capacity
-            <input
-              type="number"
-              className="admin-form-input"
-              value={venue.capacity}
-              onChange={(e) => setVenue({ ...venue, capacity: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label">
-            Street Address
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.address_street}
-              onChange={(e) => setVenue({ ...venue, address_street: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label">
-            City
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.address_city}
-              onChange={(e) => setVenue({ ...venue, address_city: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label">
-            State
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.address_state}
-              onChange={(e) => setVenue({ ...venue, address_state: e.target.value })}
-              placeholder="AL"
-              maxLength={2}
-            />
-          </label>
-          <label className="admin-form-label">
-            ZIP Code
-            <input
-              type="text"
-              className="admin-form-input"
-              value={venue.address_zip}
-              onChange={(e) => setVenue({ ...venue, address_zip: e.target.value })}
-            />
-          </label>
+        <Card title="Buyer / promoter" sub="The party named on offers and contracts">
+          <div className="setp-body">
+            <Field label="Buyer name (company)">
+              <input type="text" value={buyer.buyer_name} onChange={(e) => setBuyer({ ...buyer, buyer_name: e.target.value })} placeholder="e.g. West 72 Entertainment LLC" />
+            </Field>
+            <Field label="Contract signatory">
+              <input type="text" value={buyer.contract_signatory} onChange={(e) => setBuyer({ ...buyer, contract_signatory: e.target.value })} />
+            </Field>
+            <FieldRow>
+              <Field label="Phone">
+                <input type="tel" value={buyer.buyer_phone} onChange={(e) => setBuyer({ ...buyer, buyer_phone: formatPhoneNumber(e.target.value) })} />
+              </Field>
+              <Field label="Email">
+                <input type="email" value={buyer.buyer_email} onChange={(e) => setBuyer({ ...buyer, buyer_email: e.target.value })} />
+              </Field>
+            </FieldRow>
+            <Field label="Promoter address">
+              <input type="text" value={buyer.promoter_address} onChange={(e) => setBuyer({ ...buyer, promoter_address: e.target.value })} placeholder="798 N Royal Ave, Florence AL, 35630" />
+            </Field>
+          </div>
+        </Card>
+      </div>
+
+      <Card
+        title="Fees & tax"
+        actions={<Pill>owner only</Pill>}
+        sub={isOwner ? "Per-ticket fees and the sales tax rate for this venue." : "Set by the platform owner — read-only for venue staff."}
+      >
+        <div className="setp-fees">
+          <Field label="Ticketing fee ($ per ticket)">
+            <input type="number" value={fees.ticketing_fee} onChange={(e) => setFees({ ...fees, ticketing_fee: e.target.value })} step="0.01" min="0" {...feeLock} />
+          </Field>
+          <Field label="Facility fee ($ per ticket)">
+            <input type="number" value={fees.facility_fee} onChange={(e) => setFees({ ...fees, facility_fee: e.target.value })} step="0.01" min="0" {...feeLock} />
+          </Field>
+          <Field label="Tax rate (%)">
+            <input type="number" value={fees.tax_rate} onChange={(e) => setFees({ ...fees, tax_rate: e.target.value })} step="0.5" min="0" {...feeLock} />
+          </Field>
         </div>
+      </Card>
 
-        {/* ── Buyer Information ── */}
-        <h2 className="admin-form-section-title">Buyer / Promoter Information</h2>
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Buyer Name (Company)
-            <input
-              type="text"
-              className="admin-form-input"
-              value={buyer.buyer_name}
-              onChange={(e) => setBuyer({ ...buyer, buyer_name: e.target.value })}
-              placeholder="e.g. West 72 Entertainment LLC"
-            />
-          </label>
-          <label className="admin-form-label">
-            Contract Signatory
-            <input
-              type="text"
-              className="admin-form-input"
-              value={buyer.contract_signatory}
-              onChange={(e) => setBuyer({ ...buyer, contract_signatory: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label">
-            Phone
-            <input
-              type="tel"
-              className="admin-form-input"
-              value={buyer.buyer_phone}
-              onChange={(e) => setBuyer({ ...buyer, buyer_phone: formatPhoneNumber(e.target.value) })}
-            />
-          </label>
-          <label className="admin-form-label">
-            Email
-            <input
-              type="email"
-              className="admin-form-input"
-              value={buyer.buyer_email}
-              onChange={(e) => setBuyer({ ...buyer, buyer_email: e.target.value })}
-            />
-          </label>
-          <label className="admin-form-label admin-form-full">
-            Promoter Address
-            <input
-              type="text"
-              className="admin-form-input"
-              value={buyer.promoter_address}
-              onChange={(e) => setBuyer({ ...buyer, promoter_address: e.target.value })}
-              placeholder="798 N Royal Ave, Florence AL, 35630"
-            />
-          </label>
-        </div>
-
-        {/* ── Fees & Tax (owner only can edit) ── */}
-        <h2 className="admin-form-section-title">Fees & Tax</h2>
-        {!isOwner && (
-          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12 }}>
-            These fields are set by the platform owner and cannot be edited by venue admins.
-          </p>
-        )}
-        <div className="admin-form-grid">
-          <label className="admin-form-label">
-            Ticketing Fee ($ per ticket)
-            <input
-              type="number"
-              className="admin-form-input"
-              value={fees.ticketing_fee}
-              onChange={(e) => setFees({ ...fees, ticketing_fee: e.target.value })}
-              step="0.01"
-              min="0"
-              readOnly={!isOwner}
-              style={{ opacity: isOwner ? 1 : 0.5 }}
-              title={isOwner ? "" : "Only the owner can edit this field"}
-            />
-          </label>
-          <label className="admin-form-label">
-            Facility Fee ($ per ticket)
-            <input
-              type="number"
-              className="admin-form-input"
-              value={fees.facility_fee}
-              onChange={(e) => setFees({ ...fees, facility_fee: e.target.value })}
-              step="0.01"
-              min="0"
-              readOnly={!isOwner}
-              style={{ opacity: isOwner ? 1 : 0.5 }}
-              title={isOwner ? "" : "Only the owner can edit this field"}
-            />
-          </label>
-          <label className="admin-form-label">
-            Tax Rate (%)
-            <input
-              type="number"
-              className="admin-form-input"
-              value={fees.tax_rate}
-              onChange={(e) => setFees({ ...fees, tax_rate: e.target.value })}
-              step="0.5"
-              min="0"
-              readOnly={!isOwner}
-              style={{ opacity: isOwner ? 1 : 0.5 }}
-              title={isOwner ? "" : "Only the owner can edit this field"}
-            />
-          </label>
-        </div>
-
-        <button
-          type="submit"
-          className="admin-form-submit"
-          disabled={saving}
-        >
-          {saving ? "Saving…" : "Save Settings"}
-        </button>
-      </form>
-    </div>
+      <div className="setp-actions">
+        <Button type="submit" variant="primary" disabled={saving}>
+          {saving ? "Saving…" : "Save settings"}
+        </Button>
+      </div>
+    </form>
   );
 }
