@@ -12,6 +12,8 @@ import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
+import { Button, Card, PageHeader, StatusBadge } from "@/app/components/admin/ui";
+import OfferRail from "../_parts/OfferRail";
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -222,7 +224,12 @@ export default function AdminOfferDetailPage() {
       artistTotal,
       potWalkout,
     };
-  }, [form.ticket_scaling, form.fixed_expenses, form.variable_expenses, form.tax_rate, form.tax_method]);
+  }, [
+    form.ticket_scaling, form.fixed_expenses, form.variable_expenses, form.tax_rate, form.tax_method,
+    // artistBackend / artistTotal / potWalkout read these — without them the
+    // artist figures sat stale after a guarantee or backend edit.
+    form.guarantee, form.backend_percentage, form.deal_type,
+  ]);
 
   // Merge live-computed derived totals into form state before saving so the
   // database always has the up-to-date totals/splitpoint/net_potential/etc.
@@ -412,92 +419,101 @@ export default function AdminOfferDetailPage() {
     finally { setExporting(false); }
   };
 
-  if (loading) return <div className="admin-form-page"><h1 className="admin-page-title">Loading…</h1></div>;
-  if (!offer) return <div className="admin-form-page"><h1 className="admin-page-title">Offer Not Found</h1></div>;
+  if (loading) return <div className="ofb-state">Loading offer…</div>;
+  if (!offer) return <div className="ofb-state">Offer not found.</div>;
+
+  const tabLabel: Record<(typeof OFFER_TABS)[number], string> = { details: "Details", pnl: "P&L", deal_lab: "Deal lab" };
+  const dateLabel = form.event_date
+    ? new Date(String(form.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+    : "MA — no date";
+  const updatedAt = (offer as { updated_at?: string }).updated_at;
+  const scalingRows = Array.isArray(form.ticket_scaling) ? (form.ticket_scaling as Array<Record<string, number>>) : [];
+  const walkoutBasis = {
+    netPotential: live.netPotential,
+    totalFixed: live.totalFixed,
+    totalVariable: live.totalVariable,
+    sellable: scalingRows.reduce((s, r) => s + (Number(r.sellable_cap) || 0), 0),
+    guarantee: Number(form.guarantee) || 0,
+    backendPct: Number(form.backend_percentage) || 0,
+    dealType: String(form.deal_type || "FLAT"),
+  };
 
   return (
-    <div className="admin-form-page" style={{ maxWidth: 1100 }}>
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">{String(form.artist_name || "Offer")}</h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button className="report-export-btn report-export-pdf" onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</button>
-          <button className="admin-form-submit" onClick={handleSave} disabled={saving} style={{ padding: "8px 16px" }}>{saving ? "Saving…" : "Save"}</button>
-          <button className="admin-sponsor-edit-btn" onClick={() => router.push("/admin/offers")}>← Back</button>
-        </div>
-      </div>
+    <div className="ofb">
+      <PageHeader
+        eyebrow="Offer"
+        title={String(form.artist_name || "Offer")}
+        sub={[dateLabel, String(form.venue || ""), form.agency ? String(form.agency) : ""].filter(Boolean).join(" · ")}
+        actions={
+          <>
+            <Button variant="ghost" onClick={() => router.push("/admin/offers")}>← Offers</Button>
+            <Button onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          </>
+        }
+      />
 
-      {error && <div className="admin-form-error">{error}</div>}
-      {success && <div className="admin-form-success">{success}</div>}
+      {error && <div className="ofb-banner ofb-banner--bad">{error}</div>}
+      {success && <div className="ofb-banner ofb-banner--good">{success}</div>}
 
       {/* Status + Confirm/Deny */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "12px 0" }}>
-        <span className={`admin-event-status ${offer.status === "accepted" ? "status-published" : offer.status === "declined" ? "status-declined" : "status-draft"}`}>
+      <div className="ofb-status">
+        <StatusBadge variant={offer.status === "accepted" ? "good" : offer.status === "declined" ? "bad" : "draft"}>
           {offer.status}
-        </span>
+        </StatusBadge>
         {offer.status !== "accepted" && offer.status !== "declined" && (
           <>
-            <button className="portal-form-submit" style={{ background: "rgba(100,200,100,0.15)", borderColor: "rgba(100,200,100,0.4)", color: "#7ddb7d" }} onClick={() => handleStatusChange("accepted")} disabled={saving}>
-              ✓ Confirm Offer
-            </button>
-            <button className="portal-form-submit" style={{ background: "rgba(255,100,100,0.1)", borderColor: "rgba(255,100,100,0.3)", color: "#ff9a9a" }} onClick={() => handleStatusChange("declined")} disabled={saving}>
-              ✕ Deny Offer
-            </button>
+            <Button size="sm" onClick={() => handleStatusChange("accepted")} disabled={saving}>✓ Confirm offer</Button>
+            <Button size="sm" variant="danger" onClick={() => handleStatusChange("declined")} disabled={saving}>✕ Deny offer</Button>
           </>
         )}
         {/* A countersigned offer is a contract: its terms are read-only here
             (the save route refuses changes) and change only by revision. */}
         {offer.status === "accepted" && (
-          <Link href={`/admin/offers/${offer.id}/edit`} className="ee-action" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 0, padding: "8px 14px" }}>
+          <Link href={`/admin/offers/${offer.id}/edit`} className="ofb-status-link">
             <strong>Countersigned</strong>
             <span>terms are locked — view signed terms &amp; create a revision →</span>
           </Link>
         )}
         {typeof offer.revision_of === "string" && offer.status !== "accepted" && (
-          <Link href={`/admin/offers/${offer.revision_of}/edit`} className="ee-action" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 0, padding: "8px 14px" }}>
+          <Link href={`/admin/offers/${offer.revision_of}/edit`} className="ofb-status-link">
             <strong>Revision v{String(offer.version ?? "")}</strong>
             <span>the signed version stays in force until this one is countersigned →</span>
           </Link>
         )}
       </div>
 
-      {/* Tab Bar */}
-      <div style={{
-        display: "flex", gap: 0, borderBottom: "1px solid rgba(255,255,255,0.1)",
-        marginBottom: 20, marginTop: 8,
-      }}>
-        {(["details", "pnl", "deal_lab"] as const).map(tab => (
+      {/* Tabs — keys verbatim (details / pnl / deal_lab), held in ?tab= */}
+      <div className="merged-tabs ofb-tabs" role="tablist">
+        {OFFER_TABS.map((tab) => (
           <button
             key={tab}
             type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={`merged-tab${activeTab === tab ? " is-on" : ""}`}
             onClick={() => setActiveTab(tab)}
-            style={{
-              padding: "10px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: activeTab === tab ? "#ffffff" : "rgba(255,255,255,0.4)",
-              background: "transparent",
-              border: "none",
-              borderBottom: activeTab === tab ? "2px solid #ffffff" : "2px solid transparent",
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
           >
-            {tab === "details"
-              ? "Offer Details"
-              : tab === "pnl"
-              ? "P&L / Breakeven"
-              : "Deal Lab (Simulated)"}
+            {tabLabel[tab]}
           </button>
         ))}
+        <span className="ofb-tabs-note">
+          {offer.version ? `v${String(offer.version)}` : ""}
+          {offer.version && updatedAt ? " · " : ""}
+          {updatedAt ? `updated ${new Date(updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : ""}
+        </span>
       </div>
 
+      <div className="ofb-grid">
+      <div className="ofb-main">
       {activeTab === "details" && (
       <>
       {/* Editable Fields */}
+      <Card title="Deal structure" actions={<span className="ofb-kind">{String(form.deal_type || "FLAT")} deal</span>}>
       <div className="admin-form">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
           <div>
-            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Venue Info</h2>
+            <h3 className="ofb-sub">Venue Info</h3>
             {eventVenues.length > 0 && (
               <label className="admin-form-label" style={{ marginBottom: 12 }}>
                 Select Previous Venue
@@ -527,7 +543,7 @@ export default function AdminOfferDetailPage() {
           </div>
 
           <div>
-            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Agency & Artist</h2>
+            <h3 className="ofb-sub">Agency & Artist</h3>
             <div className="admin-form-grid">
               <label className="admin-form-label">Artist Name<input type="text" className="admin-form-input" value={String(form.artist_name || "")} onChange={(e) => updateField("artist_name", e.target.value)} /></label>
               <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={String(form.agency || "")} onChange={(e) => updateField("agency", e.target.value)} /></label>
@@ -550,9 +566,9 @@ export default function AdminOfferDetailPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
           <div>
-            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Deal</h2>
+            <h3 className="ofb-sub">Deal</h3>
             <div className="admin-form-grid">
               <label className="admin-form-label">Guarantee ($)<input type="number" className="admin-form-input" value={String(form.guarantee || "")} onChange={(e) => updateField("guarantee", parseFloat(e.target.value) || 0)} step="0.01" /></label>
               <label className="admin-form-label">Deal Type<select className="admin-form-input" value={String(form.deal_type || "FLAT")} onChange={(e) => updateField("deal_type", e.target.value)}>
@@ -572,7 +588,7 @@ export default function AdminOfferDetailPage() {
           </div>
 
           <div>
-            <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Tax</h2>
+            <h3 className="ofb-sub">Tax</h3>
             <div className="admin-form-grid">
               <label className="admin-form-label">
                 Tax Method
@@ -589,8 +605,12 @@ export default function AdminOfferDetailPage() {
           </div>
         </div>
 
+      </div>
+      </Card>
+
         {/* ── Ticket Scaling ── */}
-        <h2 className="admin-form-section-title">Ticket Scaling</h2>
+      <Card title="Scaling & gross potential" sub="Seats − comps − kills = sellable; fees apply to every tier">
+      <div className="admin-form">
         {(() => {
           const scaling = Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : [];
           const rawTax = Number(form.tax_rate) || 0;
@@ -676,8 +696,12 @@ export default function AdminOfferDetailPage() {
           );
         })()}
 
+      </div>
+      </Card>
+
         {/* ── Fixed Expenses ── */}
-        <h2 className="admin-form-section-title">Expenses</h2>
+      <Card title="Show expenses — offer estimate">
+      <div className="admin-form">
         <div className="offer-expenses-grid">
           <div className="offer-expenses-col">
             <h3 className="offer-expenses-heading">Fixed Expenses</h3>
@@ -719,8 +743,12 @@ export default function AdminOfferDetailPage() {
 
 
 
+      </div>
+      </Card>
+
         {/* ── Financials Summary ── */}
-        <h2 className="admin-form-section-title">Financials</h2>
+      <Card title="At sellout" sub="Every sellable ticket sold, on the terms above">
+      <div className="admin-form">
         <div className="offer-potential-grid">
           <div className="offer-potential-col">
             <div className="offer-potential-row"><span>Gross (Price × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
@@ -750,11 +778,12 @@ export default function AdminOfferDetailPage() {
           <textarea className="admin-form-textarea" rows={3} value={String(form.notes || "")} onChange={(e) => updateField("notes", e.target.value)} />
         </label>
       </div>
+      </Card>
 
       {/* ════════════════════════════════════════════
           CONTRACT SECTION
       ════════════════════════════════════════════ */}
-      <h2 className="admin-form-section-title" style={{ marginTop: 32 }}>Contract</h2>
+      <Card title="Contract">
 
       {!contract ? (
         /* ── No contract yet ── */
@@ -901,9 +930,9 @@ export default function AdminOfferDetailPage() {
                   contract.status === "void" ? "rgba(255,100,100,0.12)" :
                   "rgba(255,200,50,0.12)",
                 color:
-                  contract.status === "signed" ? "#7ddb7d" :
+                  contract.status === "signed" ? "var(--lg-good)" :
                   contract.status === "sent" ? "#6ab4ff" :
-                  contract.status === "void" ? "#ff9a9a" :
+                  contract.status === "void" ? "var(--lg-bad)" :
                   "#e8c94a",
                 padding: "4px 14px",
                 borderRadius: 4,
@@ -1005,7 +1034,7 @@ export default function AdminOfferDetailPage() {
                   padding: "8px 16px",
                   background: "rgba(100,200,100,0.15)",
                   borderColor: "rgba(100,200,100,0.4)",
-                  color: "#7ddb7d",
+                  color: "var(--lg-good)",
                 }}
                 disabled={contractLoading}
                 onClick={async () => {
@@ -1121,6 +1150,7 @@ export default function AdminOfferDetailPage() {
           )}
         </div>
       )}
+      </Card>
       </>
       )}
 
@@ -1206,12 +1236,13 @@ export default function AdminOfferDetailPage() {
         };
 
         return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="ofb-stack">
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 24 }}>
+          <div className="ofb-pair">
             {/* ── Section A: Breakeven Point ── */}
-            <div>
-              <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Breakeven Point (Based on Offer)</h2>
+            <div className="card ofb-card">
+              <div className="card-head"><h3>Breakeven point</h3></div>
+              <div className="card-sub">Based on the offer</div>
               <div className="offer-potential-grid">
                 <div className="offer-potential-col">
                   <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
@@ -1230,8 +1261,9 @@ export default function AdminOfferDetailPage() {
             </div>
 
             {/* ── Section B: Potential at Sellout ── */}
-            <div>
-              <h2 className="admin-form-section-title" style={{ marginTop: 0 }}>Potential at Sellout (Based on Offer)</h2>
+            <div className="card ofb-card">
+              <div className="card-head"><h3>Potential at sellout</h3></div>
+              <div className="card-sub">Based on the offer</div>
               <div className="offer-potential-grid">
                 <div className="offer-potential-col">
                   <div className="offer-potential-row"><span>Gross Potential:</span><strong>${grossPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
@@ -1241,7 +1273,7 @@ export default function AdminOfferDetailPage() {
                   <div className="offer-potential-row"><span>Total Expenses:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
                   <div className="offer-potential-row">
                     <span style={{ fontWeight: 700 }}>P&amp;L (Offer):</span>
-                    <strong style={{ color: pnlOffer >= 0 ? "#7ddb7d" : "#ff9a9a" }}>{fmtDollar(pnlOffer)}</strong>
+                    <strong style={{ color: pnlOffer >= 0 ? "var(--lg-good)" : "var(--lg-bad)" }}>{fmtDollar(pnlOffer)}</strong>
                   </div>
                 </div>
                 <div className="offer-potential-col">
@@ -1260,8 +1292,9 @@ export default function AdminOfferDetailPage() {
           </div>
 
           {/* ── Section C: Ancillary Revenue ── */}
-          <h2 className="admin-form-section-title">Ancillary Revenue</h2>
-          <div style={{ overflowX: "auto" }}>
+          <div className="card ofb-card">
+          <div className="card-head"><h3>Ancillary revenue</h3></div>
+          <div className="ofb-table-scroll">
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
@@ -1305,7 +1338,7 @@ export default function AdminOfferDetailPage() {
                         placeholder="0.00"
                       />
                     </td>
-                    <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: (item.income - item.expenses) >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+                    <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 600, color: (item.income - item.expenses) >= 0 ? "var(--lg-good)" : "var(--lg-bad)" }}>
                       {fmtDollar(item.income - item.expenses)}
                     </td>
                   </tr>
@@ -1318,16 +1351,19 @@ export default function AdminOfferDetailPage() {
                   <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#fff" }}>
                     ${ancillaryItems.reduce((s, i) => s + i.expenses, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: ancillaryTotal >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
+                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: ancillaryTotal >= 0 ? "var(--lg-good)" : "var(--lg-bad)" }}>
                     {fmtDollar(ancillaryTotal)}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+          </div>
 
           {/* ── Section D: Profit & Loss Summary ── */}
-          <h2 className="admin-form-section-title">Profit &amp; Loss (Based on Actuals / Offer)</h2>
+          <div className="card ofb-card">
+          <div className="card-head"><h3>Profit &amp; loss</h3></div>
+          <div className="card-sub">Based on actuals where entered, the offer otherwise</div>
           <div className="offer-potential-grid">
             <div className="offer-potential-col">
               <div className="offer-potential-row"><span>Net Ticket Revenue:</span><strong>${netTicketRevenue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
@@ -1345,14 +1381,15 @@ export default function AdminOfferDetailPage() {
               <div className="offer-potential-row"><span>Show Expenses{guaranteeInExpenses ? " (incl. Talent)" : ""}:</span><strong>${totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
               <div className="offer-potential-row">
                 <span style={{ fontWeight: 700 }}>Total Expenses:</span>
-                <strong style={{ color: "#ff9a9a" }}>${totalAllExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                <strong style={{ color: "var(--lg-bad)" }}>${totalAllExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
               </div>
               <div style={{ height: 12 }} />
               <div className="offer-potential-row" style={{ padding: "12px 16px" }}>
                 <span style={{ fontWeight: 700, fontSize: 15 }}>P&amp;L:</span>
-                <strong style={{ color: finalPnl >= 0 ? "#7ddb7d" : "#ff9a9a", fontSize: 16 }}>{fmtDollar(finalPnl)}</strong>
+                <strong style={{ color: finalPnl >= 0 ? "var(--lg-good)" : "var(--lg-bad)", fontSize: 16 }}>{fmtDollar(finalPnl)}</strong>
               </div>
             </div>
+          </div>
           </div>
 
         </div>
@@ -1402,6 +1439,19 @@ export default function AdminOfferDetailPage() {
         );
       })()}
 
+      </div>
+      <OfferRail
+        basis={walkoutBasis}
+        showWalkouts={activeTab !== "deal_lab"}
+        venueId={venue?.id || offer.venue_id || getCookie("venue-id") || null}
+        artistName={String(form.artist_name || "")}
+        agentEmail={String(form.agent_email || "")}
+        saving={saving}
+        exporting={exporting}
+        onSave={handleSave}
+        onExport={exportPDF}
+      />
+      </div>
     </div>
   );
 }

@@ -160,7 +160,7 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
 
       {/* BLOCKERS */}
       {bundle.blockers.length > 0 && (
-        <div style={{ ...cardStyle, borderColor: "#6b2323", background: "#2a1515", color: "#f88", fontSize: 13 }}>
+        <div style={{ ...cardStyle, borderColor: "rgba(255,140,170,0.3)", background: "rgba(255,140,170,0.06)", color: "var(--lg-bad)", fontSize: 13 }}>
           <strong>Cannot simulate yet.</strong>
           <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
             {bundle.blockers.map((b, i) => <li key={i}>{b}</li>)}
@@ -275,7 +275,7 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
               )}
             </>
           ) : (
-            <div style={{ color: "#f88", fontSize: 13 }}>{recommendation.rationale}</div>
+            <div style={{ color: "var(--lg-bad)", fontSize: 13 }}>{recommendation.rationale}</div>
           )}
         </Card>
       )}
@@ -295,7 +295,7 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
               </thead>
               <tbody>
                 {grouped.map((g) => (
-                  <tr key={`${g.structure}`} style={{ borderTop: "1px solid #222" }}>
+                  <tr key={`${g.structure}`} style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
                     <td style={tdStyle}>
                       <strong>{STRUCTURE_LABELS[g.structure]}</strong>
                       <div style={{ opacity: 0.6, marginTop: 2, fontSize: 11 }}>
@@ -311,7 +311,7 @@ export default function DealLabPanel({ inputs }: { inputs: InlineInputs }) {
                           <Row
                             label="Promoter"
                             value={money(sim.promoter_profit)}
-                            color={sim.promoter_profit >= 0 ? "#6f6" : "#f66"}
+                            color={sim.promoter_profit >= 0 ? "var(--lg-good)" : "var(--lg-bad)"}
                           />
                           <Row
                             label="BE"
@@ -378,12 +378,13 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
         onChange={(e) => onChange(e.target.value)}
         inputMode="numeric"
         style={{
-          padding: "6px 8px",
-          background: "#0b0d12",
-          border: "1px solid #2a2f3a",
-          borderRadius: 4,
-          color: "#eee",
-          fontSize: 13,
+          padding: "9px 12px",
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.16)",
+          borderRadius: 12,
+          color: "#fff",
+          fontSize: 16,
+          fontFamily: "inherit",
         }}
       />
     </label>
@@ -391,9 +392,9 @@ function Input({ label, value, onChange }: { label: string; value: string; onCha
 }
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: "#0b0d12", padding: 10, borderRadius: 6 }}>
-      <div style={{ opacity: 0.6, fontSize: 11 }}>{label}</div>
-      <div style={{ fontWeight: 600, fontSize: 15, marginTop: 2 }}>{value}</div>
+    <div style={{ background: "rgba(255,255,255,0.045)", border: "1px solid rgba(255,255,255,0.12)", padding: "11px 13px", borderRadius: 14 }}>
+      <div style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)" }}>{label}</div>
+      <div style={{ fontWeight: 800, fontSize: 16, marginTop: 4, fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
   );
 }
@@ -407,26 +408,29 @@ function Row({ label, value, color }: { label: string; value: string; color?: st
 }
 
 /* ── styles ── */
+// Glass values from ui.tsx's card (the offer builder around it is glass now).
 const cardStyle: React.CSSProperties = {
-  background: "#0f1116",
-  border: "1px solid #222",
-  borderRadius: 8,
-  padding: 14,
+  background: "linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04))",
+  border: "1px solid rgba(255,255,255,0.16)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.12)",
+  borderRadius: 20,
+  padding: 18,
 };
 const cardTitle: React.CSSProperties = {
-  fontSize: 12,
-  margin: "0 0 10px",
+  fontSize: 9.5,
+  fontWeight: 700,
+  margin: "0 0 12px",
   textTransform: "uppercase",
-  letterSpacing: 1,
-  color: "#ffffff",
+  letterSpacing: "0.17em",
+  color: "rgba(255,255,255,0.5)",
 };
 const bannerStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  background: "#3a2e0e",
-  border: "1px solid #6b5c20",
-  borderRadius: 6,
-  fontSize: 12,
-  color: "#f5d576",
+  padding: "10px 14px",
+  background: "rgba(232,212,138,0.08)",
+  border: "1px dashed rgba(232,212,138,0.4)",
+  borderRadius: 999,
+  fontSize: 11.5,
+  color: "var(--lg-warn)",
   fontWeight: 500,
   textAlign: "center",
   letterSpacing: 0.5,
@@ -464,11 +468,11 @@ const thStyle: React.CSSProperties = {
 };
 const tdStyle: React.CSSProperties = { padding: "10px", verticalAlign: "top" };
 const btnSmall: React.CSSProperties = {
-  padding: "4px 8px",
-  background: "#222",
-  color: "#eee",
-  border: "1px solid #333",
-  borderRadius: 4,
+  padding: "6px 12px",
+  background: "rgba(255,255,255,0.06)",
+  color: "#fff",
+  border: "1px solid rgba(255,255,255,0.18)",
+  borderRadius: 999,
   cursor: "pointer",
   fontSize: 11,
 };
@@ -476,7 +480,7 @@ const riskPill: React.CSSProperties = {
   padding: "2px 6px",
   borderRadius: 8,
   fontSize: 10,
-  background: "#3a1a1a",
-  color: "#f88",
+  background: "rgba(255,140,170,0.12)",
+  color: "var(--lg-bad)",
   textTransform: "uppercase",
 };

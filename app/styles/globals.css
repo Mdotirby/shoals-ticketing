@@ -23282,3 +23282,154 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .setp-grid { grid-template-columns: minmax(0, 1fr); }
   .admin-shell .setp-actions .btn { width: 100%; }
 }
+
+/* ── Offer builder (offers.dc.html) — /admin/offers/[id] ─── */
+.admin-shell .ofb { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .ofb > .admin-page-header { margin-bottom: 0; }
+.admin-shell .ofb .card { margin-bottom: 0; }
+.admin-shell .ofb-state { padding: 60px 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofb-banner {
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .ofb-banner--good { color: var(--lg-good); border-color: rgba(143, 214, 168, 0.3); }
+.admin-shell .ofb-banner--bad { color: var(--lg-bad); border-color: rgba(255, 140, 170, 0.3); }
+
+.admin-shell .ofb-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-shell .ofb-status-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .ofb-status-link:hover { background: rgba(255, 255, 255, 0.10); }
+.admin-shell .ofb-status-link strong { font-size: 12px; font-weight: 700; color: #fff; }
+.admin-shell .ofb-status-link span { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+
+.admin-shell .ofb-tabs { margin: 0; }
+.admin-shell .ofb-tabs-note {
+  margin-left: auto;
+  padding: 0 16px;
+  font-size: 10px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.admin-shell .ofb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+.admin-shell .ofb-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .ofb-main .admin-form { margin-top: 16px; }
+.admin-shell .ofb-sub {
+  margin: 4px 0 12px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+}
+.admin-shell .ofb-kind {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+/* Thirteen columns of inputs don't squeeze into the main column — scroll them. */
+.admin-shell .ofb .offer-scaling-header,
+.admin-shell .ofb .offer-scaling-row { min-width: 1040px; }
+.admin-shell .ofb .offer-scaling-table { padding-bottom: 4px; }
+
+/* P&L */
+.admin-shell .ofb-stack { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .ofb-pair { display: flex; flex-direction: column; gap: 16px; }
+/* The potential grid is a glass panel of its own elsewhere; inside a card it
+   would be a box in a box, so it goes flat here. */
+.admin-shell .ofb .card .offer-potential-grid {
+  margin-top: 14px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.admin-shell .ofb-table-scroll { overflow-x: auto; margin-top: 12px; }
+
+/* Rail */
+.admin-shell .ofb-rail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .ofb-rail-lede { margin: 8px 0 0; font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.62); }
+.admin-shell .ofb-rail-sub { margin-top: 4px; font-size: 11px; color: rgba(255, 255, 255, 0.34); }
+.admin-shell .ofb-rail-empty { margin-top: 14px; font-size: 12px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofb-rail-warn { margin-top: 12px; font-size: 11.5px; color: var(--lg-bad); }
+.admin-shell .ofb-rail-foot { margin-top: 12px; font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .ofb-scen { display: flex; flex-direction: column; gap: 9px; margin-top: 16px; }
+.admin-shell .ofb-scen-row {
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+.admin-shell .ofb-scen-row.is-top { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.16); }
+.admin-shell .ofb-scen-head { display: flex; align-items: baseline; gap: 8px; }
+.admin-shell .ofb-scen-label { flex: 1; font-size: 12px; font-weight: 650; }
+.admin-shell .ofb-scen-sold { font-size: 10px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofb-scen-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 11px; }
+.admin-shell .ofb-scen-nums span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.34);
+}
+.admin-shell .ofb-scen-nums b { display: block; margin-top: 3px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.admin-shell .ofb-scen-basis { margin-top: 9px; font-size: 9.5px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofb-tone-good { color: var(--lg-good); }
+.admin-shell .ofb-tone-bad { color: var(--lg-bad); }
+.admin-shell .ofb-tone-flat { color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofb-comps { display: flex; flex-direction: column; margin-top: 12px; }
+.admin-shell .ofb-comp {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.admin-shell .ofb-comp:last-child { border-bottom: none; }
+.admin-shell .ofb-comp:hover { opacity: 0.78; color: #fff; }
+.admin-shell .ofb-comp-name { min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .ofb-comp-name b { font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .ofb-comp-name i { font-style: normal; font-size: 9px; color: rgba(255, 255, 255, 0.34); font-variant-numeric: tabular-nums; }
+.admin-shell .ofb-comp-sold,
+.admin-shell .ofb-comp-gross,
+.admin-shell .ofb-comp-net { font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.admin-shell .ofb-comp-sold { color: rgba(255, 255, 255, 0.6); }
+.admin-shell .ofb-rail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-shell .ofb-rail-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+@media (max-width: 1180px) {
+  .admin-shell .ofb-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .admin-shell .ofb .admin-form-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .ofb-tabs-note { display: none; }
+  .admin-shell .ofb-status-link { border-radius: 14px; flex-direction: column; gap: 2px; }
+}
