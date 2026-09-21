@@ -252,9 +252,9 @@ export const navGroups: NavGroup[] = [
         id: "identity",
         label: "Users & tenants",
         routeTabs: [
-          { label: "Onboarding", href: "/admin/onboarding", tabKey: "onboarding", roles: R.owner },
-          { label: "People", href: "/admin/users", tabKey: "users", roles: R.mgmt },
-          { label: "Tenants", href: "/admin/venues", roles: R.owner },
+          { label: "Onboarding", href: "/admin/users?tab=onboarding", tabKey: "onboarding", roles: R.owner },
+          { label: "People", href: "/admin/users?tab=people", tabKey: "users", roles: R.mgmt },
+          { label: "Tenants", href: "/admin/users?tab=tenants", roles: R.owner },
         ],
       },
       { id: "roles", label: "Access control", link: { label: "Access control", href: "/admin/settings/permissions", tabKey: "permissions", roles: R.owner } },

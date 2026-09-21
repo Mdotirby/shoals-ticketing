@@ -14,6 +14,9 @@ const MOVED: Record<string, string> = {
   "/admin/settings/branding": "/admin/settings?tab=branding",
   "/admin/faqs": "/admin/settings?tab=pages",
   "/admin/sops": "/admin/settings?tab=procedures",
+  "/admin/users": "/admin/users?tab=people",
+  "/admin/onboarding": "/admin/users?tab=onboarding",
+  "/admin/venues": "/admin/users?tab=tenants",
 };
 
 /**

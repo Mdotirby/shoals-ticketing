@@ -8,6 +8,8 @@ const MERGED_ROUTES: [string, string][] = [
   ["/admin/settings/branding", "/admin/settings?tab=branding"],
   ["/admin/faqs", "/admin/settings?tab=pages"],
   ["/admin/sops", "/admin/settings?tab=procedures"],
+  ["/admin/onboarding", "/admin/users?tab=onboarding"],
+  ["/admin/venues", "/admin/users?tab=tenants"],
 ];
 
 const nextConfig: NextConfig = {
