@@ -39,7 +39,7 @@ describe("dated rate cutover", () => {
 
   it("changes the buyer's surcharge by about six cents on a $27.90 subtotal", () => {
     // Drivin' N Cryin': $20 face + $3 service + $3 facility + $1.90 tax.
-    const before = surchargeCents(2790, "on_subtotal");
+    const before = surchargeCents(2790, "on_subtotal", "online", BEFORE);
     const rate = ratesFor("online", AFTER);
     const after = Math.round(2790 * rate.pct + rate.flatCents);
     expect(after - before).toBeLessThanOrEqual(7);
