@@ -37,36 +37,43 @@ type Props = {
 };
 
 // ── Style constants ────────────────────────────────────────────────────────────
+// The panel's nine tabs all draw from these, so pointing them at the liquid-
+// glass values (the same ones ui.tsx's classes encode) restyles every tab
+// without touching the fetch/save logic inside them.
 
 const GOLD = "#ffffff";
 const card: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255, 255, 255, 0.12)",
-  borderRadius: 10, padding: "16px 20px", marginBottom: 12,
+  background: "rgba(255,255,255,0.045)",
+  border: "1px solid rgba(255,255,255,0.16)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+  borderRadius: 14, padding: "16px 18px", marginBottom: 12,
 };
 const inp: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.12)",
+  width: "100%", padding: "10px 13px", borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.16)",
   background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 16,
+  fontFamily: "inherit",
 };
 const lbl: React.CSSProperties = {
-  display: "block", fontSize: 10, fontWeight: 700,
-  color: "rgba(255,255,255,0.4)", textTransform: "uppercase",
-  letterSpacing: "0.5px", marginBottom: 3,
+  display: "block", fontSize: 9.5, fontWeight: 700,
+  color: "rgba(255,255,255,0.50)", textTransform: "uppercase",
+  letterSpacing: "0.17em", marginBottom: 6,
 };
 const btnGold: React.CSSProperties = {
-  background: GOLD, color: "#0b0d1d", border: "none", borderRadius: 7,
-  padding: "9px 18px", fontWeight: 700, cursor: "pointer", fontSize: 13,
+  background: "linear-gradient(180deg, #ffffff, rgba(255,255,255,0.82))", color: "#0a0a0c",
+  border: "none", borderRadius: 999, boxShadow: "inset 0 1px 0 #fff",
+  padding: "10px 18px", fontWeight: 700, cursor: "pointer", fontSize: 12.5,
 };
 const btnOutline: React.CSSProperties = {
-  background: "transparent", color: GOLD, border: `1px solid ${GOLD}`,
-  borderRadius: 7, padding: "9px 18px", fontWeight: 600,
-  cursor: "pointer", fontSize: 13,
+  background: "linear-gradient(155deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04))", color: "#fff",
+  border: "1px solid rgba(255,255,255,0.18)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.14)",
+  borderRadius: 999, padding: "10px 18px", fontWeight: 600,
+  cursor: "pointer", fontSize: 12.5,
 };
 const btnDanger: React.CSSProperties = {
-  background: "transparent", color: "#ef4444",
-  border: "1px solid rgba(239,68,68,0.3)", borderRadius: 7,
-  padding: "7px 14px", fontWeight: 600, cursor: "pointer", fontSize: 12,
+  background: "transparent", color: "var(--lg-bad)",
+  border: "1px solid rgba(255,140,170,0.32)", borderRadius: 999,
+  padding: "8px 14px", fontWeight: 600, cursor: "pointer", fontSize: 12,
 };
 
 function fmt(n: number) {
@@ -78,22 +85,14 @@ function fmtDate(d: string) {
     weekday: "short", month: "short", day: "numeric", year: "numeric",
   });
 }
-function statusBadge(status: string, colors?: Record<string, string>) {
-  const defaults: Record<string, string> = {
-    confirmed: "#22c55e", hold: "#f59e0b", cancelled: "#ef4444",
-    draft: "#6b7280", sent: "#3b82f6", signed: "#22c55e", void: "#6b7280",
-    active: "#22c55e", finalized: "#22c55e", paid: "#22c55e", overdue: "#ef4444",
+/** Status words onto the design's four tones; anything unknown reads neutral. */
+function statusBadge(status: string) {
+  const tone: Record<string, "good" | "warn" | "bad" | "info"> = {
+    confirmed: "good", signed: "good", active: "good", finalized: "good", paid: "good",
+    hold: "warn", sent: "info", cancelled: "bad", overdue: "bad",
   };
-  const c = (colors ?? defaults)[status] ?? "#6b7280";
-  return (
-    <span style={{
-      display: "inline-block", padding: "2px 9px", borderRadius: 20,
-      fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-      background: `${c}22`, color: c, border: `1px solid ${c}44`,
-    }}>
-      {status}
-    </span>
-  );
+  const t = tone[status];
+  return <span className={`evp-badge${t ? ` evp-badge--${t}` : ""}`}>{status}</span>;
 }
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
@@ -161,90 +160,42 @@ export default function EventPanel({ event, onClose, onUpdate }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const BOOKING_COLORS: Record<string, string> = {
-    confirmed: "rgba(80,200,120,0.9)", hold: "rgba(255,200,50,0.9)", cancelled: "rgba(255,80,80,0.9)",
-  };
-  const statusColor = BOOKING_COLORS[event.booking_status || "confirmed"] || BOOKING_COLORS.confirmed;
-
   return (
     <>
-      {/* Backdrop */}
-      <div
-        onClick={handleClose}
-        style={{
-          position: "fixed", inset: 0, zIndex: 8998,
-          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(2px)",
-          opacity: visible ? 1 : 0, transition: "opacity 0.28s ease",
-        }}
-      />
+      <div onClick={handleClose} className={`evp-scrim${visible ? " is-on" : ""}`} />
 
-      {/* Panel */}
-      <div
-        ref={panelRef}
-        style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 8999,
-          width: "min(600px, 100vw)",
-          background: "var(--vc-bg-deep)",
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-          display: "flex", flexDirection: "column",
-          transform: visible ? "translateX(0)" : "translateX(100%)",
-          transition: "transform 0.28s cubic-bezier(0.22,1,0.36,1)",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.5)",
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          padding: "18px 20px 14px",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-          flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-              <h2 style={{ color: GOLD, margin: "0 0 6px", fontSize: 18, fontWeight: 800, lineHeight: 1.2 }}>
-                {event.title}
-              </h2>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                {statusBadge(event.booking_status || "confirmed")}
-                {event.hold_level && (
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "rgba(255,200,50,0.15)", color: "rgba(255,200,50,0.9)", border: "1px solid rgba(255,200,50,0.3)" }}>
-                    {event.hold_level}
-                  </span>
-                )}
-                <span style={{ color: "rgba(255,255,255,0.45)", fontSize: 12 }}>
-                  {fmtDate(event.date)}{event.venue ? ` · ${event.venue}` : ""}
-                </span>
-              </div>
+      <div ref={panelRef} className={`evp${visible ? " is-on" : ""}`} role="dialog" aria-modal="true" aria-label={event.title}>
+        <div className="evp-head">
+          <div className="evp-head-text">
+            <h2>{event.title}</h2>
+            <div className="evp-head-meta">
+              {statusBadge(event.booking_status || "confirmed")}
+              {event.hold_level && <span className="evp-badge evp-badge--warn">{event.hold_level}</span>}
+              <span>{fmtDate(event.date)}{event.venue ? ` · ${event.venue}` : ""}</span>
             </div>
-            <button onClick={handleClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 22, lineHeight: 1, padding: 4, flexShrink: 0 }}>
-              ×
-            </button>
           </div>
-
-          {/* Status bar */}
-          <div style={{ height: 3, background: statusColor, borderRadius: 2, marginTop: 12 }} />
+          <button type="button" onClick={handleClose} className="evp-close" aria-label="Close">×</button>
         </div>
 
-        {/* Tab bar */}
-        <div style={{ display: "flex", borderBottom: "1px solid rgba(255,255,255,0.07)", overflowX: "auto", flexShrink: 0 }}>
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              style={{
-                padding: "10px 18px", border: "none", background: "none", cursor: "pointer",
-                color: activeTab === t.key ? GOLD : "rgba(255,255,255,0.4)",
-                borderBottom: activeTab === t.key ? `2px solid ${GOLD}` : "2px solid transparent",
-                fontWeight: activeTab === t.key ? 700 : 500, fontSize: 13, whiteSpace: "nowrap",
-                transition: "color 0.15s",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {tabs.length > 1 && (
+          <div className="evp-tabs" role="tablist">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === t.key}
+                onClick={() => setActiveTab(t.key)}
+                className={`evp-tab${activeTab === t.key ? " is-on" : ""}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tab content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+        <div className="evp-body">
           {activeTab === "details"    && <DetailsTab    event={event} onUpdate={onUpdate} onClose={handleClose} />}
           {activeTab === "sales"      && <TicketSalesTab eventId={event.id} event={event} />}
           {activeTab === "offers"     && <OffersTab     eventId={event.id} event={event} venueSlug={venueSlug} onUpdate={onUpdate} />}
@@ -256,18 +207,15 @@ export default function EventPanel({ event, onClose, onUpdate }: Props) {
           {activeTab === "attachments"&& <AttachmentsTab eventId={event.id} />}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.07)", flexShrink: 0, display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          {event.event_type === "private" ? (
-            <a href={`/admin/private-events/${event.id}`} style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>
-              Full Rental Hub →
-            </a>
-          ) : event.event_type && event.event_type !== "non_ticketed" ? (
-            <a href={`/admin/events/${event.id}/edit`} style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>
-              Full Event Editor →
-            </a>
-          ) : null}
-        </div>
+        {event.event_type && event.event_type !== "non_ticketed" && (
+          <div className="evp-foot">
+            {event.event_type === "private" ? (
+              <a href={`/admin/private-events/${event.id}`}>Full rental hub →</a>
+            ) : (
+              <a href={`/admin/events/${event.id}/edit`}>Full event editor →</a>
+            )}
+          </div>
+        )}
       </div>
     </>
   );
@@ -355,7 +303,7 @@ function DetailsTab({ event, onUpdate, onClose }: { event: CalendarEvent; onUpda
           <div style={{ display: "flex", gap: 6 }}>
             {BOOKING_OPTS.map(o => (
               <button key={o.value} type="button" onClick={() => setForm(p => ({ ...p, booking_status: o.value }))}
-                style={{ flex: 1, padding: "7px 6px", borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: "pointer",
+                style={{ flex: 1, padding: "7px 6px", borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: "pointer",
                   border: `1px solid ${form.booking_status === o.value ? "rgba(255, 255, 255, 0.6)" : "rgba(255,255,255,0.1)"}`,
                   background: form.booking_status === o.value ? "rgba(255, 255, 255, 0.12)" : "transparent",
                   color: form.booking_status === o.value ? GOLD : "rgba(255,255,255,0.45)",
@@ -554,7 +502,7 @@ function OffersTab({ eventId, event, venueSlug, onUpdate }: { eventId: string; e
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
                 {["draft","sent","accepted","declined"].map(s => (
                   <button key={s} onClick={() => updateStatus(o.id, s)} disabled={o.status === s || updatingId === o.id}
-                    style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    style={{ padding: "5px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer",
                       border: `1px solid ${o.status === s ? GOLD : "rgba(255,255,255,0.15)"}`,
                       background: o.status === s ? "rgba(255, 255, 255, 0.12)" : "transparent",
                       color: o.status === s ? GOLD : "rgba(255,255,255,0.4)",
@@ -709,7 +657,7 @@ function ContractsTab({ eventId, venueSlug }: { eventId: string; venueSlug: stri
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {["draft","sent","signed","void"].map(s => (
                   <button key={s} onClick={() => updateStatus(c.id, s)} disabled={c.status === s}
-                    style={{ padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                    style={{ padding: "5px 10px", borderRadius: 999, fontSize: 11, fontWeight: 600, cursor: "pointer",
                       border: `1px solid ${c.status === s ? GOLD : "rgba(255,255,255,0.15)"}`,
                       background: c.status === s ? "rgba(255, 255, 255, 0.12)" : "transparent",
                       color: c.status === s ? GOLD : "rgba(255,255,255,0.4)",
@@ -950,7 +898,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
             <input style={{ ...inp, fontSize: 16, textAlign: "right" }} type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(idx, "unit_price", parseFloat(e.target.value) || 0)} />
             <span style={{ color: "#fff", fontSize: 12, fontWeight: 600, textAlign: "right" }}>${item.amount.toFixed(2)}</span>
             <button onClick={() => setQForm(p => ({ ...p, line_items: p.line_items.filter((_, i) => i !== idx) }))}
-              style={{ background: "none", border: "none", color: "rgba(255,80,80,0.6)", cursor: "pointer", fontSize: 16 }}>×</button>
+              style={{ background: "none", border: "none", color: "var(--lg-bad)", cursor: "pointer", fontSize: 16 }}>×</button>
           </div>
         ))}
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 8, paddingTop: 8, textAlign: "right" }}>
@@ -1031,7 +979,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
             {q.status !== "accepted" && (
               <>
                 <button onClick={() => accept(q)} disabled={acceptingId === q.id}
-                  style={{ fontSize: 11, padding: "6px 12px", borderRadius: 6, fontWeight: 600, cursor: "pointer", background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}>
+                  style={{ fontSize: 11, padding: "6px 12px", fontWeight: 600, cursor: "pointer", background: "rgba(143,214,168,0.12)", color: "var(--lg-good)", border: "1px solid rgba(143,214,168,0.3)", borderRadius: 999 }}>
                   {acceptingId === q.id ? "…" : "✓ Accept"}
                 </button>
                 <button onClick={() => decline(q)}
@@ -1039,7 +987,7 @@ function QuoteTab({ event, venueSlug, onUpdate }: { event: CalendarEvent; venueS
               </>
             )}
             {q.status === "accepted" && (
-              <span style={{ fontSize: 11, color: "#22c55e", padding: "6px 0" }}>✓ Confirmed</span>
+              <span style={{ fontSize: 11, color: "var(--lg-good)", padding: "6px 0" }}>✓ Confirmed</span>
             )}
           </div>
         </div>
@@ -1105,8 +1053,8 @@ function InvoicesTab({ event, venueSlug }: { event: CalendarEvent; venueSlug: st
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>{fmt(inv.total)}</div>
-                  {inv.balance_due > 0 && <div style={{ color: "#ef4444", fontSize: 11 }}>Balance: {fmt(inv.balance_due)}</div>}
-                  {inv.amount_paid > 0 && <div style={{ color: "#22c55e", fontSize: 11 }}>Paid: {fmt(inv.amount_paid)}</div>}
+                  {inv.balance_due > 0 && <div style={{ color: "var(--lg-bad)", fontSize: 11 }}>Balance: {fmt(inv.balance_due)}</div>}
+                  {inv.amount_paid > 0 && <div style={{ color: "var(--lg-good)", fontSize: 11 }}>Paid: {fmt(inv.amount_paid)}</div>}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>

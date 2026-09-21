@@ -1,10 +1,39 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+/**
+ * Calendar — the Month tab of Calendar & shows, rebuilt on the shared
+ * primitives against handoff/screens/calendar.dc.html.
+ *
+ * Restyle only: the month fetch, the multi-day spread, the quick-hold and
+ * new-show payloads, the private-rental redirect and the delete confirmation
+ * are the old page's, line for line. What changed is the room it sits in —
+ * the design's month card with its legend, glass chips that read show /
+ * rental / hold by fill rather than by colour, and a right rail.
+ *
+ * The rail carries only what the calendar's own rows can prove. The design's
+ * "revenue per available night" and "$ of unbooked room" figures need a gross
+ * and a half-house floor this endpoint doesn't return, so they are left out
+ * rather than estimated; the drag-to-reorder hold ranking is left out because
+ * nothing stores a rank beyond H1–H3.
+ */
+
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { getCookie } from "@/lib/cookies";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import {
+  Button,
+  Card,
+  CalendarGrid,
+  Eyebrow,
+  Field,
+  FieldRow,
+  Meter,
+  Modal,
+  Segmented,
+  cx,
+} from "@/app/components/admin/ui";
 import EventPanel from "../EventPanel";
 
 type CalendarEvent = {
@@ -56,46 +85,32 @@ type HoldForm = {
   hold_level: string;
 };
 
-// Booking status colors (primary color coding for calendar)
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: "rgba(80,200,120,0.9)",   // green
-  hold: "rgba(255,200,50,0.9)",        // yellow
-  cancelled: "rgba(255,80,80,0.9)",    // red
+/** How a row reads on the grid. Status wins over class: a cancelled rental is cancelled. */
+type Kind = "show" | "rental" | "hold" | "cancelled";
+
+const TICKETED = ["hard_ticket", "ticketed", "co_promote", "rental_box_office"];
+
+const CLASS_LABEL: Record<string, string> = {
+  hard_ticket: "Hard ticket",
+  ticketed: "Hard ticket",
+  non_ticketed: "Non-ticketed",
+  private: "Private rental",
+  co_promote: "Co-promote",
+  rental_box_office: "Rental box office",
 };
 
-const BOOKING_STATUS_BG: Record<string, string> = {
-  confirmed: "rgba(80,200,120,0.12)",
-  hold: "rgba(255,200,50,0.12)",
-  cancelled: "rgba(255,80,80,0.12)",
-};
+const HOLD_RANK: Record<string, string> = { H1: "Highest", H2: "Medium", H3: "Lowest" };
 
-// Event type indicator (secondary - shown as small badge)
-const EVENT_TYPE_COLORS: Record<string, string> = {
-  hard_ticket: "rgba(255, 255, 255, 0.85)",
-  ticketed: "rgba(255, 255, 255, 0.85)",       // legacy support
-  non_ticketed: "rgba(100,149,237,0.85)",
-  private: "rgba(180,100,200,0.85)",
-  co_promote: "rgba(255,140,0,0.85)",
-  rental_box_office: "rgba(80,200,220,0.85)",
-};
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-const HOLD_LEVEL_COLORS: Record<string, string> = {
-  H1: "rgba(255,90,70,1)",
-  H2: "rgba(255,160,40,1)",
-  H3: "rgba(255,200,50,1)",
-};
+const COLOR_CHOICES = ["", "#8fd6a8", "#e8d48a", "#ff8caa", "#ffffff", "#8fa0ff", "#c9a0e8", "#f0b27a"];
 
-const EVENT_TYPE_BG: Record<string, string> = {
-  hard_ticket: "rgba(255, 255, 255, 0.15)",
-  ticketed: "rgba(255, 255, 255, 0.15)",
-  non_ticketed: "rgba(100,149,237,0.15)",
-  private: "rgba(180,100,200,0.15)",
-  co_promote: "rgba(255,140,0,0.15)",
-  rental_box_office: "rgba(80,200,220,0.15)",
-};
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+function kindOf(ev: CalendarEvent): Kind {
+  if (ev.booking_status === "cancelled") return "cancelled";
+  if (ev.booking_status === "hold") return "hold";
+  if (ev.event_type === "private") return "rental";
+  return "show";
+}
 
 /**
  * Safely parse a date string into a local-time Date object.
@@ -112,21 +127,30 @@ function safeDate(d: string): Date {
   return new Date(d.replace(/[+-]\d{2}:\d{2}$/, "").replace(/Z$/, ""));
 }
 
-/** Extract a YYYY-MM-DD key from a date string using local-time-safe parsing */
-function dateKey(d: string): string {
-  const dt = safeDate(d);
+function keyOf(dt: Date): string {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < breakpoint);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, [breakpoint]);
-  return isMobile;
+/** Extract a YYYY-MM-DD key from a date string using local-time-safe parsing */
+function dateKey(d: string): string {
+  return keyOf(safeDate(d));
+}
+
+function timeLabel(d: string): string {
+  const dt = safeDate(d);
+  if (dt.getHours() === 0 && dt.getMinutes() === 0) return "";
+  if (dt.getHours() === 12 && dt.getMinutes() === 0 && d.length > 10 && d.includes("T12:00:00")) return "";
+  return dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).replace(":00", "");
+}
+
+/** The chip's quiet second line: hold rank, rental, or class + time. */
+function chipMeta(ev: CalendarEvent): string {
+  const k = kindOf(ev);
+  const t = timeLabel(ev.date);
+  if (k === "cancelled") return "Cancelled";
+  if (k === "hold") return [ev.hold_level ? `${ev.hold_level} hold` : "Hold", CLASS_LABEL[ev.event_type || ""]].filter(Boolean).join(" · ");
+  if (k === "rental") return ["Rental", t].filter(Boolean).join(" · ");
+  return [CLASS_LABEL[ev.event_type || ""] || "Show", t].filter(Boolean).join(" · ");
 }
 
 function emptyForm(dateStr?: string): EventForm {
@@ -171,7 +195,7 @@ export default function CalendarPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  // Event panel — opens when clicking an existing event pill
+  // Event panel — opens when clicking an existing event chip
   const [panelEvent, setPanelEvent] = useState<CalendarEvent | null>(null);
 
   // Modal state — used only for creating NEW events
@@ -185,15 +209,12 @@ export default function CalendarPage() {
   const [holdForm, setHoldForm] = useState<HoldForm>(emptyHoldForm());
   const [holdSaving, setHoldSaving] = useState(false);
 
-  // UI toggle state
-  const [showLegend, setShowLegend] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Venue info
   const [venueId, setVenueId] = useState<string | null>(null);
   const [venueName, setVenueName] = useState("");
 
-  const isMobile = useIsMobile();
   const role = getCookie("user-role");
 
   // Load venue info
@@ -243,7 +264,15 @@ export default function CalendarPage() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // Calendar grid computation
+  // On a phone the month strip scrolls; keep the selected month in view.
+  const monthsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = monthsRef.current;
+    const on = strip?.querySelector<HTMLElement>(".cal-month.active");
+    if (strip && on) strip.scrollLeft = on.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2;
+  }, [currentMonth]);
+
+  // Calendar grid computation — whole weeks, padded from the months either side
   const calendarDays = useMemo(() => {
     const [year, mon] = currentMonth.split("-").map(Number);
     const firstDay = new Date(year, mon - 1, 1);
@@ -254,19 +283,14 @@ export default function CalendarPage() {
 
     const days: { date: Date; inMonth: boolean }[] = [];
 
-    // Previous month padding
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      const d = new Date(year, mon - 1, -i);
-      days.push({ date: d, inMonth: false });
+      days.push({ date: new Date(year, mon - 1, -i), inMonth: false });
     }
-
-    // Current month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({ date: new Date(year, mon - 1, i), inMonth: true });
     }
-
-    // Next month padding (fill to 6 rows)
-    const remaining = 42 - days.length;
+    // Pad to the end of the last week — only as many rows as the month needs.
+    const remaining = (7 - (days.length % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
       days.push({ date: new Date(year, mon, i), inMonth: false });
     }
@@ -280,7 +304,7 @@ export default function CalendarPage() {
 
     const addToDay = (key: string, ev: CalendarEvent) => {
       if (!map[key]) map[key] = [];
-      if (!map[key].find(x => x.id === ev.id)) map[key].push(ev);
+      if (!map[key].find((x) => x.id === ev.id)) map[key].push(ev);
     };
 
     events.forEach((e) => {
@@ -288,14 +312,12 @@ export default function CalendarPage() {
       const endKey = e.end_time ? dateKey(e.end_time) : null;
 
       if (endKey && endKey !== startKey) {
-        // Multi-day: walk day by day from start to end
         const cursor = safeDate(e.date);
         cursor.setHours(12, 0, 0, 0);
         const endD = safeDate(e.end_time!);
         endD.setHours(12, 0, 0, 0);
         while (cursor <= endD) {
-          const k = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-          addToDay(k, e);
+          addToDay(keyOf(cursor), e);
           cursor.setDate(cursor.getDate() + 1);
         }
       } else {
@@ -307,15 +329,9 @@ export default function CalendarPage() {
   }, [events]);
 
   // Navigation
-  const prevMonth = () => {
+  const shiftMonth = (delta: number) => {
     const [y, m] = currentMonth.split("-").map(Number);
-    const d = new Date(y, m - 2, 1);
-    setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  };
-
-  const nextMonth = () => {
-    const [y, m] = currentMonth.split("-").map(Number);
-    const d = new Date(y, m, 1);
+    const d = new Date(y, m - 1 + delta, 1);
     setCurrentMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
 
@@ -329,43 +345,63 @@ export default function CalendarPage() {
     setCurrentMonth(`${y + dir}-${String(m).padStart(2, "0")}`);
   };
 
-  // Month label
   const monthLabel = useMemo(() => {
     const [y, m] = currentMonth.split("-").map(Number);
     return new Date(y, m - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
   }, [currentMonth]);
 
+  const today = new Date();
+  const todayStr = keyOf(today);
+
+  /**
+   * The rail. Every figure is a count of this month's rows — nights are
+   * distinct dates, so a two-day hold counts two nights and two shows on one
+   * night count one. Cancelled rows book nothing.
+   */
+  const rail = useMemo(() => {
+    const inMonth = Object.keys(eventsByDate).filter((k) => k.startsWith(currentMonth));
+    const [y, m] = currentMonth.split("-").map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+
+    const live = (k: string) => (eventsByDate[k] || []).filter((e) => kindOf(e) !== "cancelled");
+    const booked = inMonth.filter((k) => live(k).some((e) => kindOf(e) !== "hold"));
+    const heldOnly = inMonth.filter((k) => {
+      const l = live(k);
+      return l.length > 0 && l.every((e) => kindOf(e) === "hold");
+    });
+
+    const monthRows = events.filter((e) => dateKey(e.date).startsWith(currentMonth));
+    const confirmed = monthRows.filter((e) => kindOf(e) === "show" || kindOf(e) === "rental");
+    const ticketed = confirmed.filter((e) => TICKETED.includes(e.event_type || "")).length;
+    const rentals = confirmed.filter((e) => kindOf(e) === "rental").length;
+
+    // Dark nights still ahead: in this month, today or later, nothing live on them.
+    let darkAhead = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const k = `${currentMonth}-${String(d).padStart(2, "0")}`;
+      if (k >= todayStr && live(k).length === 0) darkAhead++;
+    }
+
+    const holds = monthRows
+      .filter((e) => kindOf(e) === "hold")
+      .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || (a.hold_level || "H9").localeCompare(b.hold_level || "H9"));
+
+    return { daysInMonth, booked: booked.length, heldOnly: heldOnly.length, ticketed, rentals, darkAhead, holds };
+  }, [eventsByDate, events, currentMonth, todayStr]);
+
+  const agenda = useMemo(
+    () =>
+      events
+        .filter((e) => e.date && dateKey(e.date).startsWith(currentMonth))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+    [events, currentMonth],
+  );
+
   // Open modal for new event
   const openNewEvent = (dateStr?: string) => {
     setEditingEvent(null);
     setForm(emptyForm(dateStr));
-    setShowModal(true);
-  };
-
-  // Open modal for editing
-  const openEditEvent = (event: CalendarEvent) => {
-    setEditingEvent(event);
-    const eventDate = safeDate(event.date);
-    setForm({
-      title: event.title,
-      date: `${eventDate.getFullYear()}-${String(eventDate.getMonth() + 1).padStart(2, "0")}-${String(eventDate.getDate()).padStart(2, "0")}`,
-      time: eventDate.toTimeString().slice(0, 5),
-      end_time: event.end_time ? safeDate(event.end_time).toTimeString().slice(0, 5) : "",
-      venue: event.venue || "",
-      event_type: event.event_type || "hard_ticket",
-      booking_status: event.booking_status || "confirmed",
-      hold_level: event.hold_level || "",
-      contact_name: event.contact_name || "",
-      contact_phone: event.contact_phone || "",
-      contact_email: event.contact_email || "",
-      contact_company: "",
-      billing_address: "",
-      tax_exempt: false,
-      notes: event.notes || "",
-      calendar_color: event.calendar_color || "",
-      status: event.status || "published",
-      description: "",
-    });
+    setShowAdvanced(false);
     setShowModal(true);
   };
 
@@ -491,457 +527,183 @@ export default function CalendarPage() {
     }
   };
 
-  /** Get the display color for an event based on booking_status (primary) */
-  const getEventColor = (ev: CalendarEvent) => {
-    if (ev.calendar_color) return ev.calendar_color;
-    const bs = ev.booking_status || "confirmed";
-    return BOOKING_STATUS_COLORS[bs] || BOOKING_STATUS_COLORS.confirmed;
-  };
-
-  const getEventBg = (ev: CalendarEvent) => {
-    if (ev.calendar_color) return ev.calendar_color.replace("0.85", "0.12").replace("0.9", "0.12");
-    const bs = ev.booking_status || "confirmed";
-    return BOOKING_STATUS_BG[bs] || BOOKING_STATUS_BG.confirmed;
-  };
-
-  // Determines where in a multi-day span a given day falls
-  const getSpanPosition = (ev: CalendarEvent, dayKey: string): "single" | "start" | "middle" | "end" => {
-    if (!ev.end_time) return "single";
-    const startKey = dateKey(ev.date);
-    const endKey = dateKey(ev.end_time);
-    if (startKey === endKey) return "single";
-    if (dayKey === startKey) return "start";
-    if (dayKey === endKey) return "end";
-    return "middle";
-  };
-
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-
   if (role && !["owner", "venue_admin", "full_admin"].includes(role)) {
     return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
   }
 
+  const year = parseInt(currentMonth.split("-")[0]);
+
   return (
-    <div className="admin-form-page" style={{ maxWidth: "100%" }}>
-      <h1 className="admin-page-title" style={isMobile ? { fontSize: 20, marginBottom: 4 } : undefined}>Calendar</h1>
-      {!isMobile && (
-        <p style={{ color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>
-          {venueName ? `${venueName} — ` : ""}Manage your shows, holds, and private bookings.
-        </p>
-      )}
-
-      {/* Legend — collapsible */}
-      <div style={{ marginBottom: isMobile ? 10 : 16, position: "relative" }}>
-        <button
-          onClick={() => setShowLegend((v) => !v)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 11, color: "rgba(255,255,255,0.4)", background: "none",
-            border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6,
-            padding: "4px 10px", cursor: "pointer",
-            transition: "color 0.15s, border-color 0.15s",
-          }}
-        >
-          <span style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            {["confirmed","hold","cancelled"].map((s) => (
-              <span key={s} style={{ width: 7, height: 7, borderRadius: 2, background: BOOKING_STATUS_COLORS[s], display: "inline-block" }} />
-            ))}
-          </span>
-          Legend
-          <span style={{ opacity: 0.5, fontSize: 9, transform: showLegend ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▾</span>
-        </button>
-
-        {showLegend && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 100,
-            background: "#0f1128", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 10, padding: "14px 16px",
-            display: "flex", flexDirection: "column", gap: 12,
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            minWidth: 260,
-          }}>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Status</div>
-              <div style={{ display: "flex", gap: 12 }}>
-                {[{ label: "Confirmed", status: "confirmed" },{ label: "Hold", status: "hold" },{ label: "Cancelled", status: "cancelled" }].map((l) => (
-                  <div key={l.status} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 3, background: BOOKING_STATUS_COLORS[l.status] }} />
-                    {l.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Hold Priority</div>
-              <div style={{ display: "flex", gap: 12 }}>
-                {[{ label: "H1 — Highest", level: "H1" },{ label: "H2 — Medium", level: "H2" },{ label: "H3 — Lowest", level: "H3" }].map((l) => (
-                  <div key={l.level} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
-                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, fontWeight: 700, background: HOLD_LEVEL_COLORS[l.level]?.replace(",1)",",0.15)"), color: HOLD_LEVEL_COLORS[l.level], border: `1px solid ${HOLD_LEVEL_COLORS[l.level]?.replace(",1)",",0.3)")}` }}>{l.level}</span>
-                    {l.label.replace(`${l.level} — `, "")}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Show Type</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
-                {[
-                  { label: "Hard Ticket", type: "hard_ticket" },
-                  { label: "Internal", type: "non_ticketed" },
-                  { label: "Private Rental", type: "private" },
-                  { label: "Co-Promote", type: "co_promote" },
-                  { label: "Rental / Box Office", type: "rental_box_office" },
-                ].map((l) => (
-                  <div key={l.type} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
-                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: EVENT_TYPE_COLORS[l.type] }} />
-                    {l.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="calm">
+      {/* ── Month navigation ── */}
+      <div className="calm-toolbar">
+        <div className="calm-nav">
+          <button type="button" className="cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">‹</button>
+          <h2>{monthLabel}</h2>
+          <button type="button" className="cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">›</button>
+          <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+        </div>
+        <span className="filter-spacer" />
+        <Button onClick={() => openQuickHold()}>+ Quick hold</Button>
+        <Button variant="primary" onClick={() => openNewEvent()}>+ New show</Button>
       </div>
 
-      {/* Month Navigation */}
-      <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 12, marginBottom: isMobile ? 10 : 16, flexWrap: "wrap" }}>
-        <button onClick={prevMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&larr;</button>
-        <h2 style={{ color: "#ffffff", fontSize: isMobile ? 16 : 20, fontWeight: 700, margin: 0, flex: isMobile ? 1 : undefined, minWidth: isMobile ? 0 : 200, textAlign: "center" }}>
-          {monthLabel}
-        </h2>
-        <button onClick={nextMonth} style={{ ...navBtnStyle, padding: isMobile ? "6px 10px" : "8px 16px", fontSize: isMobile ? 14 : 16 }}>&rarr;</button>
-        <button onClick={goToToday} style={{ ...navBtnStyle, fontSize: isMobile ? 10 : 12, padding: isMobile ? "4px 10px" : "6px 14px" }}>Today</button>
-        {!isMobile && <div style={{ flex: 1 }} />}
-        <button
-          onClick={() => openQuickHold()}
-          style={{
-            padding: isMobile ? "8px 14px" : "10px 20px",
-            fontSize: isMobile ? 11 : 13,
-            background: "rgba(255,200,50,0.1)",
-            border: "1px solid rgba(255,200,50,0.3)",
-            borderRadius: 8,
-            color: "rgba(255,200,50,0.9)",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          + Quick Hold
-        </button>
-        <button
-          onClick={() => openNewEvent()}
-          className="admin-form-submit"
-          style={{ padding: isMobile ? "8px 14px" : "10px 20px", fontSize: isMobile ? 11 : 13 }}
-        >
-          + New Show
-        </button>
+      <div className="calm-months" ref={monthsRef}>
+        <button type="button" className="cal-nav calm-yr" onClick={() => navigateYear(-1)} aria-label="Previous year">‹</button>
+        <span className="calm-year">{year}</span>
+        <button type="button" className="cal-nav calm-yr" onClick={() => navigateYear(1)} aria-label="Next year">›</button>
+        {MONTHS.map((m, i) => {
+          const val = `${year}-${String(i + 1).padStart(2, "0")}`;
+          const isNow = today.getFullYear() === year && today.getMonth() === i;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setCurrentMonth(val)}
+              className={cx("cal-month", currentMonth === val && "active", isNow && "calm-month-now")}
+            >
+              {m}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Year / Month Quick-Select Strip */}
-      {(() => {
-        const year = parseInt(currentMonth.split("-")[0]);
-        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        return (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            marginBottom: isMobile ? 10 : 14,
-            overflowX: "auto", paddingBottom: 2,
-          }}>
-            {/* Year prev */}
-            <button
-              onClick={() => navigateYear(-1)}
-              style={{ ...navBtnStyle, padding: "3px 9px", fontSize: 13, flexShrink: 0, lineHeight: 1.2 }}
-            >‹</button>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)", flexShrink: 0, minWidth: 34, textAlign: "center" }}>
-              {year}
-            </span>
-            <button
-              onClick={() => navigateYear(1)}
-              style={{ ...navBtnStyle, padding: "3px 9px", fontSize: 13, flexShrink: 0, lineHeight: 1.2 }}
-            >›</button>
-
-            {/* Month pills */}
-            {MONTHS.map((m, i) => {
-              const monthNum = String(i + 1).padStart(2, "0");
-              const isActive = currentMonth === `${year}-${monthNum}`;
-              const isToday = (() => {
-                const now = new Date();
-                return now.getFullYear() === year && now.getMonth() === i;
-              })();
-              return (
-                <button
-                  key={m}
-                  onClick={() => setCurrentMonth(`${year}-${monthNum}`)}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 20,
-                    fontSize: 11,
-                    fontWeight: isActive ? 700 : 500,
-                    border: `1px solid ${isActive ? "#ffffff" : isToday ? "rgba(255, 255, 255, 0.25)" : "rgba(255,255,255,0.1)"}`,
-                    background: isActive ? "rgba(255, 255, 255, 0.15)" : "transparent",
-                    color: isActive ? "#ffffff" : isToday ? "rgba(255, 255, 255, 0.5)" : "rgba(255,255,255,0.35)",
-                    cursor: "pointer",
-                    flexShrink: 0,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-        );
-      })()}
-
-      {/* Calendar: Mobile List View / Desktop Grid */}
-      {isMobile ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 0, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, overflow: "hidden" }}>
-          {(() => {
-            const monthEvents = events
-              .filter(e => e.date && dateKey(e.date).startsWith(currentMonth))
-              .sort((a, b) => (dateKey(a.date)).localeCompare(dateKey(b.date)));
-
-            if (monthEvents.length === 0) {
-              return (
-                <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.3)", fontSize: 14 }}>
-                  No events this month
-                </div>
-              );
-            }
-
-            return monthEvents.map((ev) => {
-              const d = safeDate(ev.date);
-              const dayNum = d.getDate();
-              const dayName = d.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
-              const monthName = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase();
-
-              const typeColor = EVENT_TYPE_COLORS[ev.event_type || ""] || "#888";
-              const statusColor = BOOKING_STATUS_COLORS[ev.booking_status || ""] || "#888";
-
-              return (
-                <div
-                  key={ev.id}
-                  onClick={() => setPanelEvent(ev)}
-                  style={{
-                    display: "flex",
-                    gap: 14,
-                    padding: "14px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    cursor: "pointer",
-                    transition: "background 0.15s",
-                  }}
-                >
-                  {/* Date column */}
-                  <div style={{ width: 52, flexShrink: 0, textAlign: "center" }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 1 }}>
-                      {monthName}
-                    </div>
-                    <div style={{ fontSize: 26, fontWeight: 700, color: "#ffffff", lineHeight: 1.1 }}>
-                      {dayNum}
-                    </div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
-                      {dayName}
-                    </div>
-                  </div>
-
-                  {/* Event info column */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {ev.title}
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
-                      {ev.venue || "No venue"}
-                    </div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                      {/* Event type badge */}
-                      <span style={{
-                        display: "inline-flex", alignItems: "center", gap: 4,
-                        fontSize: 10, padding: "1px 7px", borderRadius: 3,
-                        background: typeColor.replace(/[\d.]+\)$/, "0.15)"), color: typeColor, fontWeight: 600,
-                      }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: typeColor }} />
-                        {(ev.event_type || "event").replace("_", " ")}
-                      </span>
-                      {/* Booking status badge */}
-                      <span style={{
-                        fontSize: 10, padding: "1px 7px", borderRadius: 3,
-                        background: statusColor.replace(/[\d.]+\)$/, "0.15)"), color: statusColor, fontWeight: 600,
-                      }}>
-                        {ev.booking_status || "—"}
-                      </span>
-                      {/* Hold level badge */}
-                      {ev.hold_level && (
-                        <span style={{
-                          fontSize: 10, padding: "1px 6px", borderRadius: 3, fontWeight: 800,
-                          background: HOLD_LEVEL_COLORS[ev.hold_level]?.replace(",1)", ",0.15)"),
-                          color: HOLD_LEVEL_COLORS[ev.hold_level],
-                          border: `1px solid ${HOLD_LEVEL_COLORS[ev.hold_level]?.replace(",1)", ",0.3)")}`,
-                        }}>
-                          {ev.hold_level}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
-      ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}>
-          {/* Day headers */}
-          {DAYS.map((d, idx) => (
-            <div key={idx} style={{
-              padding: "10px 8px",
-              textAlign: "center",
-              fontSize: 11,
-              fontWeight: 600,
-              color: "rgba(255,255,255,0.4)",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-              background: "rgba(255,255,255,0.03)",
-              borderBottom: "1px solid rgba(255,255,255,0.08)",
-            }}>
-              {d}
+      <div className="calm-layout">
+        {/* ── The month ── */}
+        <Card className="calm-card">
+          <div className="calm-card-head">
+            <div className="calm-card-title">{monthLabel}</div>
+            <span className="filter-spacer" />
+            <div className="calm-legend">
+              <span><i className="calm-sw calm-sw--show" />Ticketed show</span>
+              <span><i className="calm-sw calm-sw--rental" />Private rental</span>
+              <span><i className="calm-sw calm-sw--hold" />Hold</span>
+              <span><i className="calm-sw calm-sw--dark" />Dark</span>
             </div>
-          ))}
+          </div>
 
-          {/* Calendar cells */}
-          {calendarDays.map((day, i) => {
-            const key = `${day.date.getFullYear()}-${String(day.date.getMonth() + 1).padStart(2, "0")}-${String(day.date.getDate()).padStart(2, "0")}`;
-            const dayEvents = eventsByDate[key] || [];
-            const isToday = key === todayStr;
-
-            return (
-              <div
-                key={i}
-                onClick={() => openNewEvent(key)}
-                style={{
-                  minHeight: 100,
-                  padding: "4px 6px",
-                  background: isToday
-                    ? "rgba(255, 255, 255, 0.06)"
-                    : day.inMonth
-                    ? "rgba(255,255,255,0.01)"
-                    : "rgba(0,0,0,0.15)",
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
-                  borderRight: "1px solid rgba(255,255,255,0.04)",
-                  cursor: "pointer",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"; }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isToday
-                    ? "rgba(255, 255, 255, 0.06)"
-                    : day.inMonth ? "rgba(255,255,255,0.01)" : "rgba(0,0,0,0.15)";
-                }}
-              >
-                {/* Date number */}
-                <div style={{
-                  fontSize: 12,
-                  fontWeight: isToday ? 700 : day.inMonth ? 500 : 400,
-                  color: isToday
-                    ? "#ffffff"
-                    : day.inMonth
-                    ? "rgba(255,255,255,0.6)"
-                    : "rgba(255,255,255,0.2)",
-                  marginBottom: 4,
-                  textAlign: "left",
-                }}>
-                  {day.date.getDate()}
-                </div>
-
-                {/* Desktop: event pills with multi-day span support */}
-                {dayEvents.slice(0, 3).map((ev) => {
-                  const color = getEventColor(ev);
-                  const bg = getEventBg(ev);
-                  const type = ev.event_type || "hard_ticket";
-                  const typeColor = EVENT_TYPE_COLORS[type] || EVENT_TYPE_COLORS.hard_ticket;
-                  const isHold = ev.booking_status === "hold";
-                  const holdLevel = ev.hold_level;
-                  const pos = getSpanPosition(ev, key);
-                  const isSpan = pos !== "single";
-
-                  // Cell has padding: "4px 6px" — negative margins cancel it to bleed to edge
-                  const spanStyle: React.CSSProperties = isSpan ? {
-                    borderRadius:
-                      pos === "start" ? "4px 0 0 4px" :
-                      pos === "end"   ? "0 4px 4px 0" : 0,
-                    marginLeft:  (pos === "middle" || pos === "end") ? -6 : 0,
-                    marginRight: (pos === "start" || pos === "middle") ? -6 : 0,
-                    borderLeft:  (pos === "start") ? `3px ${isHold ? "dashed" : "solid"} ${color}` : "none",
-                    paddingLeft: (pos === "middle" || pos === "end") ? 4 : 6,
-                  } : {
-                    borderRadius: 4,
-                    borderLeft: `3px ${isHold ? "dashed" : "solid"} ${color}`,
-                    paddingLeft: 6,
-                  };
-
-                  return (
-                    <div
-                      key={ev.id}
-                      onClick={(e) => { e.stopPropagation(); setPanelEvent(ev); }}
-                      title={`${ev.title}${holdLevel ? ` [${holdLevel}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
-                      style={{
-                        fontSize: 10,
-                        height: 18,
-                        paddingRight: 4,
-                        marginBottom: 2,
-                        background: bg,
-                        color,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: pos === "start" || pos === "single" ? "ellipsis" : "clip",
-                        cursor: "pointer",
-                        fontWeight: 500,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                        boxSizing: "border-box",
-                        ...spanStyle,
-                      }}
-                    >
-                      {/* Show badge + title only on start or single-day events */}
-                      {(pos === "single" || pos === "start") && (
-                        <>
-                          {holdLevel ? (
-                            <span style={{
-                              fontSize: 8, padding: "0px 3px", borderRadius: 2, fontWeight: 800,
-                              background: HOLD_LEVEL_COLORS[holdLevel]?.replace(",1)", ",0.2)"),
-                              color: HOLD_LEVEL_COLORS[holdLevel],
-                              flexShrink: 0, lineHeight: "14px",
-                            }}>{holdLevel}</span>
-                          ) : (
-                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: typeColor, flexShrink: 0 }} />
-                          )}
-                          {ev.title}
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-                {dayEvents.length > 3 && (
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.3)", paddingLeft: 4 }}>
-                    +{dayEvents.length - 3} more
+          <div className="calm-grid-wrap">
+            <CalendarGrid>
+              {calendarDays.map((day, i) => {
+                const key = keyOf(day.date);
+                const dayEvents = eventsByDate[key] || [];
+                return (
+                  <div
+                    key={i}
+                    onClick={() => openNewEvent(key)}
+                    className={cx(
+                      "cal-cell calm-cell",
+                      !day.inMonth && "dim",
+                      key === todayStr && "today",
+                      dayEvents.length > 0 && "calm-cell--busy",
+                    )}
+                  >
+                    <div className="d">{day.date.getDate()}</div>
+                    {dayEvents.slice(0, 3).map((ev) => {
+                      const k = kindOf(ev);
+                      const continued = dateKey(ev.date) !== key;
+                      return (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setPanelEvent(ev); }}
+                          title={`${ev.title}${ev.hold_level ? ` [${ev.hold_level}]` : ""} (${ev.booking_status || "confirmed"})${ev.notes ? ` — ${ev.notes}` : ""}`}
+                          className={cx("calm-chip", `calm-chip--${k}`, continued && "calm-chip--cont")}
+                          style={ev.calendar_color ? { borderLeftColor: ev.calendar_color } : undefined}
+                        >
+                          <span className="calm-chip-name">{continued ? `↳ ${ev.title}` : ev.title}</span>
+                          {!continued && <span className="calm-chip-meta">{chipMeta(ev)}</span>}
+                        </button>
+                      );
+                    })}
+                    {dayEvents.length > 3 && <div className="calm-more">+{dayEvents.length - 3} more</div>}
                   </div>
-                )}
+                );
+              })}
+            </CalendarGrid>
+          </div>
+
+          {/* Phones get the month as an agenda — seven columns don't fit 375px. */}
+          <div className="calm-agenda">
+            {agenda.length === 0 ? (
+              <div className="calm-empty">{loading ? "Loading…" : "Nothing booked this month"}</div>
+            ) : (
+              agenda.map((ev) => {
+                const d = safeDate(ev.date);
+                const k = kindOf(ev);
+                return (
+                  <button key={ev.id} type="button" className="calm-agenda-row" onClick={() => setPanelEvent(ev)}>
+                    <div className="calm-agenda-date">
+                      <span>{d.toLocaleDateString("en-US", { weekday: "short" })}</span>
+                      <b>{d.getDate()}</b>
+                    </div>
+                    <div className={cx("calm-agenda-body", `calm-chip--${k}`)}>
+                      <div className="calm-agenda-title">{ev.title}</div>
+                      <div className="calm-agenda-meta">{chipMeta(ev)}{ev.venue ? ` · ${ev.venue}` : ""}</div>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {loading && agenda.length > 0 && <div className="calm-loading">Refreshing…</div>}
+        </Card>
+
+        {/* ── Rail ── */}
+        <div className="calm-rail">
+          <Card>
+            <Eyebrow>Holds — {monthLabel.split(" ")[0]}</Eyebrow>
+            <div className="calm-rail-sub">Earliest date first, then H1 before H2 before H3</div>
+            {rail.holds.length === 0 ? (
+              <div className="calm-rail-empty">No holds on the books this month.</div>
+            ) : (
+              <div className="calm-holds">
+                {rail.holds.map((h) => (
+                  <button key={h.id} type="button" className="calm-hold" onClick={() => setPanelEvent(h)}>
+                    <span className={cx("calm-hold-rank", h.hold_level === "H1" && "calm-hold-rank--top")}>
+                      {h.hold_level ? h.hold_level.slice(1) : "–"}
+                    </span>
+                    <span className="calm-hold-body">
+                      <span className="calm-hold-name">{h.title}</span>
+                      <span className="calm-hold-meta">
+                        {safeDate(h.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        {CLASS_LABEL[h.event_type || ""] ? ` · ${CLASS_LABEL[h.event_type || ""]}` : ""}
+                      </span>
+                    </span>
+                    <span className="calm-hold-state">{h.hold_level ? HOLD_RANK[h.hold_level] : "Held"}</span>
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            )}
+          </Card>
+
+          <Card>
+            <Eyebrow>Utilization</Eyebrow>
+            <div className="calm-util">
+              <div>
+                <div className="calm-util-line"><span>Nights booked</span><b>{rail.booked} of {rail.daysInMonth}</b></div>
+                <Meter percent={(rail.booked / rail.daysInMonth) * 100} />
+              </div>
+              <div>
+                <div className="calm-util-line"><span>Ticketed vs. rental</span><b>{rail.ticketed} / {rail.rentals}</b></div>
+                <Meter percent={rail.ticketed + rail.rentals ? (rail.ticketed / (rail.ticketed + rail.rentals)) * 100 : 0} />
+              </div>
+              <div>
+                <div className="calm-util-line"><span>Held but unconfirmed</span><b>{rail.heldOnly} {rail.heldOnly === 1 ? "date" : "dates"}</b></div>
+                <Meter percent={(rail.heldOnly / rail.daysInMonth) * 100} tone="info" />
+              </div>
+            </div>
+            <div className="calm-note">
+              {rail.darkAhead === 0
+                ? "No dark nights left this month."
+                : `${rail.darkAhead} dark ${rail.darkAhead === 1 ? "night" : "nights"} still open this month.`}
+            </div>
+          </Card>
         </div>
-      )}
+      </div>
 
-      {loading && (
-        <p style={{ color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 16 }}>Loading events...</p>
-      )}
-
-      {/* ── Event Panel ── */}
+      {/* ── Event panel ── */}
       {panelEvent && (
         <EventPanel
           event={panelEvent}
@@ -950,589 +712,252 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* ── Quick Hold Modal ── */}
+      {/* ── Quick hold ── */}
       {showHoldModal && (
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 20,
-          }}
-          onClick={() => setShowHoldModal(false)}
+        <Modal
+          title="Quick hold"
+          sub="Blocks the date without a full event. You can promote it later."
+          onClose={() => setShowHoldModal(false)}
+          width={440}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowHoldModal(false)}>Cancel</Button>
+              <Button
+                variant="primary"
+                onClick={handleSaveHold}
+                disabled={holdSaving || !holdForm.title.trim() || !holdForm.date}
+              >
+                {holdSaving ? "Saving…" : "Save hold"}
+              </Button>
+            </>
+          }
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#0f1128",
-              borderRadius: 16,
-              border: "1px solid rgba(255,200,50,0.2)",
-              padding: 28,
-              width: "100%",
-              maxWidth: 400,
-            }}
-          >
-            <h2 style={{ color: "rgba(255,200,50,0.9)", fontSize: 18, margin: "0 0 6px", fontWeight: 700 }}>
-              Quick Hold
-            </h2>
-            <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: "0 0 20px" }}>
-              Blocks the date without a full event. You can promote it later.
-            </p>
-
-            {/* Hold Priority */}
-            <label style={labelStyle}>Hold Priority</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              {["H1", "H2", "H3"].map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setHoldForm({ ...holdForm, hold_level: level })}
-                  style={{
-                    flex: 1,
-                    padding: "10px 8px",
-                    borderRadius: 8,
-                    border: `1px solid ${holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.1)"}`,
-                    background: holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level].replace(",1)", ",0.15)") : "transparent",
-                    color: holdForm.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.4)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {level}
-                  <div style={{ fontSize: 9, fontWeight: 400, marginTop: 2, opacity: 0.7 }}>
-                    {level === "H1" ? "Highest" : level === "H2" ? "Medium" : "Lowest"}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Hold Name */}
-            <label style={labelStyle}>Hold Name *</label>
+          <Field label="Hold priority">
+            <Segmented
+              options={[
+                { value: "H1", label: "H1 · highest" },
+                { value: "H2", label: "H2 · medium" },
+                { value: "H3", label: "H3 · lowest" },
+              ]}
+              value={holdForm.hold_level}
+              onChange={(v) => setHoldForm({ ...holdForm, hold_level: v })}
+            />
+          </Field>
+          <Field label="Hold name *">
             <input
-              className="admin-form-input"
               value={holdForm.title}
               onChange={(e) => setHoldForm({ ...holdForm, title: e.target.value })}
               placeholder="e.g. Smith Wedding, Band Inquiry, Corporate Event"
-              style={{ width: "100%", marginBottom: 14 }}
               autoFocus
             />
-
-            {/* Event Type */}
-            <label style={labelStyle}>Type</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {[
-                { value: "private", label: "Rental / Private" },
-                { value: "hard_ticket", label: "Hard Ticket" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setHoldForm({ ...holdForm, event_type: opt.value })}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.1)"}`,
-                    background: holdForm.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(255, 255, 255, 0.15)") : "transparent",
-                    color: holdForm.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.4)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Dates */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-              <div>
-                <label style={labelStyle}>Start Date *</label>
-                <input
-                  type="date"
-                  className="admin-form-input"
-                  value={holdForm.date}
-                  onChange={(e) => setHoldForm({ ...holdForm, date: e.target.value })}
-                  style={{ width: "100%" }}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>End Date <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(optional)</span></label>
-                <input
-                  type="date"
-                  className="admin-form-input"
-                  value={holdForm.end_date}
-                  min={holdForm.date || undefined}
-                  onChange={(e) => setHoldForm({ ...holdForm, end_date: e.target.value })}
-                  style={{ width: "100%" }}
-                />
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={handleSaveHold}
-                disabled={holdSaving || !holdForm.title.trim() || !holdForm.date}
-                style={{
-                  flex: 1,
-                  padding: "12px 20px",
-                  background: "rgba(255,200,50,0.15)",
-                  border: "1px solid rgba(255,200,50,0.4)",
-                  borderRadius: 8,
-                  color: "rgba(255,200,50,0.95)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: holdSaving || !holdForm.title.trim() || !holdForm.date ? "not-allowed" : "pointer",
-                  opacity: holdSaving || !holdForm.title.trim() || !holdForm.date ? 0.5 : 1,
-                }}
-              >
-                {holdSaving ? "Saving..." : "Save Hold"}
-              </button>
-              <button
-                onClick={() => setShowHoldModal(false)}
-                style={{
-                  padding: "12px 20px",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.5)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+          </Field>
+          <Field label="Type">
+            <Segmented
+              options={[
+                { value: "private", label: "Rental / private" },
+                { value: "hard_ticket", label: "Hard ticket" },
+              ]}
+              value={holdForm.event_type}
+              onChange={(v) => setHoldForm({ ...holdForm, event_type: v })}
+            />
+          </Field>
+          <FieldRow>
+            <Field label="Start date *">
+              <input
+                type="date"
+                value={holdForm.date}
+                onChange={(e) => setHoldForm({ ...holdForm, date: e.target.value })}
+              />
+            </Field>
+            <Field label="End date" hint="Optional — for a multi-day hold">
+              <input
+                type="date"
+                value={holdForm.end_date}
+                min={holdForm.date || undefined}
+                onChange={(e) => setHoldForm({ ...holdForm, end_date: e.target.value })}
+              />
+            </Field>
+          </FieldRow>
+        </Modal>
       )}
 
-      {/* ── Event Modal ── */}
+      {/* ── New / edit show ── */}
       {showModal && (
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: 9999,
-            background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
-            display: "flex", alignItems: isMobile ? "stretch" : "center", justifyContent: "center",
-            padding: isMobile ? 0 : 20,
-          }}
-          onClick={() => setShowModal(false)}
+        <Modal
+          title={editingEvent ? (editingEvent.booking_status === "hold" ? "Edit hold" : "Edit show") : "New show"}
+          onClose={() => setShowModal(false)}
+          width={560}
+          footer={
+            <>
+              {editingEvent && (
+                <Button variant="danger" onClick={handleDelete}>
+                  {editingEvent.booking_status === "hold" ? "Delete hold" : "Delete show"}
+                </Button>
+              )}
+              <span className="filter-spacer" />
+              <Button variant="ghost" onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSave} disabled={saving || !form.title.trim()}>
+                {saving ? "Saving…" : editingEvent ? "Save changes" : "Create show"}
+              </Button>
+            </>
+          }
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#0f1128",
-              borderRadius: isMobile ? 0 : 16,
-              border: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)",
-              padding: isMobile ? "20px 16px" : 28,
-              width: "100%",
-              maxWidth: isMobile ? "100%" : 540,
-              height: isMobile ? "100%" : "auto",
-              maxHeight: isMobile ? "100%" : "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <h2 style={{ color: "#ffffff", fontSize: 18, margin: "0 0 20px", fontWeight: 700 }}>
-              {editingEvent
-                ? (editingEvent.booking_status === "hold" ? "Edit Hold" : "Edit Show")
-                : "New Show"}
-            </h2>
-
-            {/* Title */}
-            <label style={labelStyle}>Show Name *</label>
+          <Field label="Show name *">
             <input
-              className="admin-form-input"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g. Private Party, Band Night, Staff Meeting"
-              style={{ width: "100%", marginBottom: 14 }}
             />
+          </Field>
 
-            {/* Show Type */}
-            <label style={labelStyle}>Show Type</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {[
-                { value: "non_ticketed", label: "Non-Ticketed" },
+          <Field label="Show type">
+            <Segmented
+              options={[
+                { value: "non_ticketed", label: "Non-ticketed" },
                 { value: "private", label: "Private" },
-                { value: "hard_ticket", label: "Hard Ticket" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, event_type: opt.value })}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.1)"}`,
-                    background: form.event_type === opt.value ? (EVENT_TYPE_BG[opt.value] || "rgba(255, 255, 255, 0.15)") : "transparent",
-                    color: form.event_type === opt.value ? (EVENT_TYPE_COLORS[opt.value] || "#ffffff") : "rgba(255,255,255,0.5)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+                { value: "hard_ticket", label: "Hard ticket" },
+              ]}
+              value={form.event_type}
+              onChange={(v) => setForm({ ...form, event_type: v })}
+            />
+          </Field>
 
-            {/* Status */}
-            <label style={labelStyle}>Status</label>
-            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-              {[
+          <Field label="Status">
+            <Segmented
+              options={[
                 { value: "confirmed", label: "Confirmed" },
                 { value: "hold", label: "Hold" },
                 ...(editingEvent ? [{ value: "cancelled", label: "Cancelled" }] : []),
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, booking_status: opt.value })}
-                  style={{
-                    flex: 1,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
-                    background: form.booking_status === opt.value ? BOOKING_STATUS_BG[opt.value] : "transparent",
-                    color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+              ]}
+              value={form.booking_status}
+              onChange={(v) => setForm({ ...form, booking_status: v })}
+            />
+          </Field>
 
-            {/* Hold Level — shown only when booking_status is "hold" */}
-            {form.booking_status === "hold" && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Hold Priority</label>
-                <div style={{ display: "flex", gap: 8 }}>
-                  {["H1", "H2", "H3"].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setForm({ ...form, hold_level: form.hold_level === level ? "" : level })}
-                      style={{
-                        flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                        border: `1px solid ${form.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.1)"}`,
-                        background: form.hold_level === level ? HOLD_LEVEL_COLORS[level].replace(",1)", ",0.15)") : "transparent",
-                        color: form.hold_level === level ? HOLD_LEVEL_COLORS[level] : "rgba(255,255,255,0.4)",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {level} {level === "H1" ? "— Highest" : level === "H2" ? "— Medium" : "— Lowest"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          {form.booking_status === "hold" && (
+            <Field label="Hold priority">
+              <Segmented
+                options={[
+                  { value: "H1", label: "H1 · highest" },
+                  { value: "H2", label: "H2 · medium" },
+                  { value: "H3", label: "H3 · lowest" },
+                ]}
+                value={form.hold_level}
+                onChange={(v) => setForm({ ...form, hold_level: form.hold_level === v ? "" : v })}
+              />
+            </Field>
+          )}
 
-            {/* Date & Times */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
-              <div>
-                <label style={labelStyle}>Date *</label>
-                <input
-                  type="date"
-                  className="admin-form-input"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  style={{ width: "100%" }}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Start Time</label>
-                <input
-                  type="time"
-                  className="admin-form-input"
-                  value={form.time}
-                  onChange={(e) => setForm({ ...form, time: e.target.value })}
-                  style={{ width: "100%" }}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>End Time</label>
-                <input
-                  type="time"
-                  className="admin-form-input"
-                  value={form.end_time}
-                  onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-                  style={{ width: "100%" }}
-                />
-              </div>
-            </div>
+          <FieldRow cols={3}>
+            <Field label="Date *">
+              <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            </Field>
+            <Field label="Start time">
+              <input type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
+            </Field>
+            <Field label="End time">
+              <input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
+            </Field>
+          </FieldRow>
 
-            {/* Venue */}
-            <label style={labelStyle}>Location / Room</label>
+          <Field label="Location / room">
             <input
-              className="admin-form-input"
               value={form.venue}
               onChange={(e) => setForm({ ...form, venue: e.target.value })}
               placeholder={venueName || "e.g. Main Stage, VIP Room"}
-              style={{ width: "100%", marginBottom: 14 }}
             />
+          </Field>
 
-            {/* Contact Fields (shown for private events) */}
-            {form.event_type === "private" && (
-              <div style={{ marginBottom: 14, padding: 12, borderRadius: 8, background: "rgba(180,100,200,0.06)", border: "1px solid rgba(180,100,200,0.15)" }}>
-                <label style={{ ...labelStyle, color: "rgba(180,100,200,0.7)" }}>Client Information</label>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, marginTop: 6 }}>
-                  <div>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Contact Name</label>
-                    <input
-                      className="admin-form-input"
-                      value={form.contact_name}
-                      onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
-                      placeholder="Client name"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Company</label>
-                    <input
-                      className="admin-form-input"
-                      value={form.contact_company}
-                      onChange={(e) => setForm({ ...form, contact_company: e.target.value })}
-                      placeholder="Company name"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Email</label>
-                    <input
-                      className="admin-form-input"
-                      type="email"
-                      value={form.contact_email}
-                      onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-                      placeholder="client@example.com"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Phone</label>
-                    <input
-                      className="admin-form-input"
-                      value={form.contact_phone}
-                      onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
-                      placeholder="(555) 123-4567"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div style={isMobile ? {} : { gridColumn: "span 2" }}>
-                    <label style={{ ...labelStyle, fontSize: 10 }}>Billing Address</label>
-                    <input
-                      className="admin-form-input"
-                      value={form.billing_address}
-                      onChange={(e) => setForm({ ...form, billing_address: e.target.value })}
-                      placeholder="123 Main St, City, State 12345"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                  <div style={isMobile ? {} : { gridColumn: "span 2" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
-                      <input
-                        type="checkbox"
-                        checked={form.tax_exempt}
-                        onChange={(e) => setForm({ ...form, tax_exempt: e.target.checked })}
-                        style={{ accentColor: "rgba(180,100,200,0.7)" }}
-                      />
-                      Tax Exempt
-                    </label>
-                  </div>
-                </div>
-                <p style={{ marginTop: 8, fontSize: 10, color: "rgba(180,100,200,0.5)" }}>
-                  <a
-                    href={`/admin/events/new?date=${form.date}&type=private`}
-                    style={{ color: "rgba(180,100,200,0.7)", textDecoration: "underline" }}
-                    onClick={(e) => { e.preventDefault(); setShowModal(false); router.push(`/admin/events/new?date=${form.date}&type=private`); }}
-                  >
-                    Need more fields? Use the full event form →
-                  </a>
-                </p>
-              </div>
-            )}
+          {form.event_type === "private" && (
+            <div className="calm-client">
+              <Eyebrow>Client</Eyebrow>
+              <FieldRow>
+                <Field label="Contact name">
+                  <input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} placeholder="Client name" />
+                </Field>
+                <Field label="Company">
+                  <input value={form.contact_company} onChange={(e) => setForm({ ...form, contact_company: e.target.value })} placeholder="Company name" />
+                </Field>
+                <Field label="Email">
+                  <input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} placeholder="client@example.com" />
+                </Field>
+                <Field label="Phone">
+                  <input
+                    value={form.contact_phone}
+                    onChange={(e) => setForm({ ...form, contact_phone: formatPhoneNumber(e.target.value) })}
+                    placeholder="(555) 123-4567"
+                  />
+                </Field>
+              </FieldRow>
+              <Field label="Billing address">
+                <input value={form.billing_address} onChange={(e) => setForm({ ...form, billing_address: e.target.value })} placeholder="123 Main St, City, State 12345" />
+              </Field>
+              <label className="calm-check">
+                <input type="checkbox" checked={form.tax_exempt} onChange={(e) => setForm({ ...form, tax_exempt: e.target.checked })} />
+                Tax exempt
+              </label>
+              <a
+                className="calm-link"
+                href={`/admin/events/new?date=${form.date}&type=private`}
+                onClick={(e) => { e.preventDefault(); setShowModal(false); router.push(`/admin/events/new?date=${form.date}&type=private`); }}
+              >
+                Need more fields? Use the full event form →
+              </a>
+            </div>
+          )}
 
-            {/* Notes */}
-            <label style={labelStyle}>Internal Notes</label>
-            <textarea
-              className="admin-form-input"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Internal notes (not shown publicly)"
-              rows={3}
-              style={{ width: "100%", marginBottom: 14, resize: "vertical" }}
-            />
+          <Field label="Internal notes">
+            <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Internal notes (not shown publicly)" rows={3} />
+          </Field>
 
-            {/* Description */}
-            <label style={labelStyle}>Description</label>
-            <textarea
-              className="admin-form-input"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Public description (optional)"
-              rows={2}
-              style={{ width: "100%", marginBottom: 14, resize: "vertical" }}
-            />
+          <Field label="Description">
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Public description (optional)" rows={2} />
+          </Field>
 
-            {/* Advanced — color override + visibility (collapsed by default) */}
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                fontSize: 11, color: "rgba(255,255,255,0.3)",
-                background: "none", border: "none", cursor: "pointer",
-                padding: "0 0 14px", marginTop: -4,
-              }}
-            >
-              <span style={{ transform: showAdvanced ? "rotate(90deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▶</span>
-              Advanced
-            </button>
+          <button type="button" className="calm-adv" onClick={() => setShowAdvanced((v) => !v)} aria-expanded={showAdvanced}>
+            {showAdvanced ? "▾" : "▸"} Advanced
+          </button>
 
-            {showAdvanced && (
-              <>
-                <label style={labelStyle}>Custom Color (overrides status color)</label>
-                <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-                  {["", "#50c878", "#ffc832", "#ff6b6b", "#ffffff", "#6495ed", "#b464c8", "#ffa500"].map((c) => (
+          {showAdvanced && (
+            <>
+              <Field label="Chip colour" hint="Overrides the edge of this show's chip on the month">
+                <div className="calm-swatches">
+                  {COLOR_CHOICES.map((c) => (
                     <button
-                      key={c}
+                      key={c || "none"}
                       type="button"
+                      aria-label={c ? `Colour ${c}` : "No colour"}
                       onClick={() => setForm({ ...form, calendar_color: c })}
-                      style={{
-                        width: 28, height: 28, borderRadius: "50%",
-                        background: c || "rgba(255,255,255,0.1)",
-                        border: form.calendar_color === c ? "2px solid #fff" : "2px solid transparent",
-                        cursor: "pointer", position: "relative",
-                      }}
+                      className={cx("calm-swatch", form.calendar_color === c && "is-on", !c && "calm-swatch--none")}
+                      style={c ? { background: c } : undefined}
                     >
-                      {c === "" && <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "rgba(255,255,255,0.4)" }}>×</span>}
+                      {!c && "×"}
                     </button>
                   ))}
                 </div>
+              </Field>
 
-                {/* Visibility — only relevant for public ticketed shows */}
-                {["hard_ticket", "ticketed", "co_promote", "rental_box_office"].includes(form.event_type) && (
-                  <>
-                    <label style={labelStyle}>Visibility</label>
-                    <select
-                      className="admin-form-input"
-                      value={form.status}
-                      onChange={(e) => setForm({ ...form, status: e.target.value })}
-                      style={{ width: "100%", marginBottom: 14 }}
-                    >
-                      <option value="published">Published</option>
-                      <option value="draft">Draft</option>
-                    </select>
-                  </>
-                )}
-              </>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 10, flexWrap: isMobile ? "wrap" : "nowrap", marginTop: 6 }}>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.title.trim()}
-                className="admin-form-submit"
-                style={{ flex: 1, padding: "12px 20px" }}
-              >
-                {saving ? "Saving..." : editingEvent ? "Save Changes" : "Create Show"}
-              </button>
-              {editingEvent && (
-                <button
-                  onClick={handleDelete}
-                  style={{
-                    padding: "12px 20px",
-                    background: "rgba(255,80,80,0.1)",
-                    color: "rgba(255,80,80,0.8)",
-                    border: "1px solid rgba(255,80,80,0.2)",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: 600,
-                  }}
-                >
-                  {editingEvent.booking_status === "hold" ? "Delete Hold" : "Delete Show"}
-                </button>
+              {TICKETED.includes(form.event_type) && (
+                <Field label="Visibility">
+                  <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                  </select>
+                </Field>
               )}
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  padding: "12px 20px",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.5)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  fontSize: 13,
-                }}
-              >
-                Cancel
-              </button>
-            </div>
+            </>
+          )}
 
-            {/* Link to full event editor / management hub */}
-            {editingEvent && (
-              <p style={{ textAlign: "center", marginTop: 12, fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                {editingEvent.event_type === "private" ? (
-                  <a href={`/admin/private-events/${editingEvent.id}`} style={{ color: "rgba(180,100,200,0.6)", textDecoration: "underline" }}>
-                    Manage Rental →
-                  </a>
-                ) : (
-                  <a href={`/admin/events/${editingEvent.id}/edit`} style={{ color: "rgba(255, 255, 255, 0.6)", textDecoration: "underline" }}>
-                    View Full Details →
-                  </a>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
+          {editingEvent && (
+            <a
+              className="calm-link"
+              href={editingEvent.event_type === "private" ? `/admin/private-events/${editingEvent.id}` : `/admin/events/${editingEvent.id}/edit`}
+            >
+              {editingEvent.event_type === "private" ? "Manage rental →" : "View full details →"}
+            </a>
+          )}
+        </Modal>
       )}
     </div>
   );
 }
-
-/**
- * ── RESTYLE — PRESENTATION ONLY ────────────────────────────────────────────
- * The calendar carries no money math; these two objects are its shared chrome
- * and moving them to the glass language restyles the navigation and every
- * field label at once, without touching a line of scheduling logic.
- */
-const navBtnStyle: React.CSSProperties = {
-  padding: "9px 16px",
-  minHeight: 40,
-  background:
-    "linear-gradient(120deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.02) 30%, rgba(255,255,255,0) 60%), linear-gradient(155deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04))",
-  border: "1px solid rgba(255,255,255,0.18)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.16)",
-  borderRadius: 999,
-  color: "rgba(255,255,255,0.82)",
-  cursor: "pointer",
-  fontSize: 14,
-  fontWeight: 650,
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 9.5,
-  fontWeight: 700,
-  color: "rgba(255,255,255,0.45)",
-  textTransform: "uppercase",
-  letterSpacing: "0.13em",
-  marginBottom: 6,
-};

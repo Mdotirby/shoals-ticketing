@@ -310,6 +310,11 @@ export function Field({
   );
 }
 
+/** Fields side by side — date and times, name and company. One column on phones. */
+export function FieldRow({ cols = 2, children }: { cols?: 2 | 3; children: React.ReactNode }) {
+  return <div className={`ui-field-row ui-field-row-${cols}`}>{children}</div>;
+}
+
 /**
  * Segmented pill control — the date-range switcher on the dashboard and the
  * view switchers elsewhere. Controlled: caller owns the value.
