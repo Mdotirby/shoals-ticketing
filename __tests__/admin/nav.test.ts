@@ -6,6 +6,8 @@ import { allNavLinks, DEFAULT_TAB_ROLES, resolveActive, visibleNav } from "@/lib
  * lives. Must match the redirects in next.config.ts.
  */
 const MOVED: Record<string, string> = {
+  "/admin/calendar": "/admin/calendar?tab=month",
+  "/admin/events": "/admin/calendar?tab=list",
   "/admin/marketing": "/admin/marketing?tab=campaigns",
   "/admin/broadcasts": "/admin/marketing?tab=broadcasts",
   "/admin/auctions": "/admin/marketing?tab=auctions",
@@ -61,7 +63,7 @@ describe("resolveActive", () => {
     expect(at("/admin/nope")).toBeNull();
   });
   test("an event's own pages beat the show list's prefix", () => {
-    expect(at("/admin/events")).toEqual(["shows", "calendar", "/admin/events"]);
+    expect(at("/admin/calendar")).toEqual(["shows", "calendar", "/admin/calendar?tab=month"]);
     expect(at("/admin/events/new")).toEqual(["shows", "create", null]);
     expect(at("/admin/events/abc-123")).toEqual(["shows", "workspace", null]);
     expect(at("/admin/events/abc-123/edit")).toEqual(["shows", "eventedit", null]);

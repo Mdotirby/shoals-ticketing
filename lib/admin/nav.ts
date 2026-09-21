@@ -112,8 +112,8 @@ export const navGroups: NavGroup[] = [
         id: "calendar",
         label: "Calendar & shows",
         routeTabs: [
-          { label: "Month", href: "/admin/calendar", tabKey: "calendar", roles: R.exec },
-          { label: "Show list", href: "/admin/events", roles: R.events },
+          { label: "Month", href: "/admin/calendar?tab=month", tabKey: "calendar", roles: R.exec },
+          { label: "Show list", href: "/admin/calendar?tab=list", roles: R.events },
         ],
       },
       {
