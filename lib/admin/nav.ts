@@ -241,11 +241,11 @@ export const navGroups: NavGroup[] = [
         id: "settings",
         label: "Venue settings",
         routeTabs: [
-          { label: "Profile & fees", href: "/admin/settings", roles: R.mgmt },
-          { label: "Branding", href: "/admin/settings/branding", tabKey: "site_branding", roles: R.mgmt },
-          { label: "Pages", href: "/admin/faqs", roles: R.mgmt },
+          { label: "Profile & fees", href: "/admin/settings?tab=profile", roles: R.mgmt },
+          { label: "Branding", href: "/admin/settings?tab=branding", tabKey: "site_branding", roles: R.mgmt },
+          { label: "Pages", href: "/admin/settings?tab=pages", roles: R.mgmt },
           { label: "Portals", href: "/portal", tabKey: "venue_management", roles: R.mgmt },
-          { label: "Procedures", href: "/admin/sops", tabKey: "sops", roles: R.mgmt },
+          { label: "Procedures", href: "/admin/settings?tab=procedures", tabKey: "sops", roles: R.mgmt },
         ],
       },
       {

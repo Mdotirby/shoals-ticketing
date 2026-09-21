@@ -11,6 +11,9 @@ const MOVED: Record<string, string> = {
   "/admin/auctions": "/admin/marketing?tab=auctions",
   "/admin/market-radar": "/admin/marketing?tab=radar",
   "/admin/sponsors": "/admin/marketing?tab=sponsors",
+  "/admin/settings/branding": "/admin/settings?tab=branding",
+  "/admin/faqs": "/admin/settings?tab=pages",
+  "/admin/sops": "/admin/settings?tab=procedures",
 };
 
 /**
@@ -38,7 +41,7 @@ describe("admin nav regroup keeps permissions", () => {
     const oldHrefs = new Set(baseline.leaves.map((l) => MOVED[l.href] ?? l.href));
     const added = allNavLinks.filter((l) => !oldHrefs.has(l.href));
     expect(added.map((l) => l.href).sort()).toEqual(
-      ["/admin/events/new", "/admin/marketing/fwb", "/admin/private-events", "/admin/settings", "/boxoffice"].sort()
+      ["/admin/events/new", "/admin/marketing/fwb", "/admin/private-events", "/admin/settings?tab=profile", "/boxoffice"].sort()
     );
     for (const l of added) expect(l.tabKey).toBeUndefined();
   });
@@ -62,8 +65,7 @@ describe("resolveActive", () => {
     expect(at("/admin/events/abc-123/ads")).toEqual(["audience", "marketing", null]);
   });
   test("longest route wins inside a merged page", () => {
-    expect(at("/admin/settings")).toEqual(["admin", "settings", "/admin/settings"]);
-    expect(at("/admin/settings/branding")).toEqual(["admin", "settings", "/admin/settings/branding"]);
+    expect(at("/admin/settings")).toEqual(["admin", "settings", "/admin/settings?tab=profile"]);
     expect(at("/admin/settings/permissions")).toEqual(["admin", "roles", null]);
   });
   test("FWB is loyalty, the rest of /admin/marketing is campaigns", () => {

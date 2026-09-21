@@ -5,6 +5,9 @@ const MERGED_ROUTES: [string, string][] = [
   ["/admin/auctions", "/admin/marketing?tab=auctions"],
   ["/admin/market-radar", "/admin/marketing?tab=radar"],
   ["/admin/sponsors", "/admin/marketing?tab=sponsors"],
+  ["/admin/settings/branding", "/admin/settings?tab=branding"],
+  ["/admin/faqs", "/admin/settings?tab=pages"],
+  ["/admin/sops", "/admin/settings?tab=procedures"],
 ];
 
 const nextConfig: NextConfig = {
