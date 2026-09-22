@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
-import { changedTerms, revisionsMissing } from "@/lib/offers/revisions";
+import { blockingTerms, revisionsMissing } from "@/lib/offers/revisions";
 import { ALLOWED_COLUMNS } from "@/lib/offers/columns";
 
 // GET: single offer
@@ -62,7 +62,7 @@ export async function PUT(
   // else is refused with a pointer to the revision flow.
   const { data: current } = await admin.from("artist_offers").select("*").eq("id", id).single();
   if (current?.status === "accepted") {
-    const changed = changedTerms(current, updates);
+    const changed = blockingTerms(current, updates);
     if (changed.length > 0) {
       return NextResponse.json(
         {

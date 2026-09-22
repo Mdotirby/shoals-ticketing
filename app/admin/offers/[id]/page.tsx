@@ -163,6 +163,8 @@ export default function AdminOfferDetailPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  /** The show a confirmed offer just created, so the banner can link to it. */
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
 
   // Contract state
   const [contract, setContract] = useState<Contract | null>(null);
@@ -430,7 +432,7 @@ export default function AdminOfferDetailPage() {
   });
 
   const handleSave = async () => {
-    setSaving(true); setError(""); setSuccess("");
+    setSaving(true); setError(""); setSuccess(""); setCreatedEventId(null);
     try {
       const res = await fetch(`/api/offers/${id}`, {
         method: "PUT",
@@ -447,7 +449,7 @@ export default function AdminOfferDetailPage() {
   };
 
   const handleStatusChange = async (status: string) => {
-    setSaving(true); setError(""); setSuccess("");
+    setSaving(true); setError(""); setSuccess(""); setCreatedEventId(null);
     try {
       const res = await fetch(`/api/offers/${id}`, {
         method: "PUT",
@@ -460,8 +462,15 @@ export default function AdminOfferDetailPage() {
       setForm(updated);
 
       if (status === "accepted") {
-        // Auto-create event from offer data
-        setSuccess("Offer confirmed! Creating event...");
+        // Create the show from the offer — as a DRAFT.
+        //
+        // This used to POST status: "published", so countersigning an offer
+        // put a live, buyable show on the storefront with no artwork and
+        // nobody's say-so. Confirming an offer is a booking decision; it
+        // belongs on the calendar and in the Shows list straight away, which
+        // booking_status: "confirmed" does. Being on sale is a separate,
+        // deliberate act — the Publish button in the event workspace.
+        setSuccess("Offer confirmed! Creating the show as a draft…");
 
         // Build date with show time (local string, not ISO — matches how events are stored)
         const offerDate = updated.event_date ? String(updated.event_date).slice(0, 10) : "";
@@ -495,15 +504,31 @@ export default function AdminOfferDetailPage() {
             price: displayPrice,
             venue_id: updated.venue_id || getCookie("venue-id") || null,
             event_venue_id: updated.event_venue_id || null,
-            status: "published",
+            status: "draft",
+            booking_status: "confirmed",
             description: `${updated.artist_name} - ${updated.billing || "Live Performance"}`,
             tiers: tiers.length > 0 ? tiers : undefined,
           }),
         });
         if (eventRes.ok) {
-          setSuccess("Offer confirmed & event published with ticket tiers! Go to Events to add an image.");
+          const created = await eventRes.json().catch(() => null);
+          setCreatedEventId(created?.id ?? null);
+          // Point the offer at the show it just made. Without this the two
+          // records never know about each other: the workspace reads "no offer
+          // linked" and the break-even row on the edit rail stays empty,
+          // because both look the offer up by event_id.
+          if (created?.id) {
+            await fetch(`/api/offers/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ event_id: created.id }),
+            }).catch(() => {});
+          }
+          setSuccess(
+            "Offer confirmed. The show is on the calendar as a draft with its tiers — add artwork, then publish it from the event workspace when you want it on sale.",
+          );
         } else {
-          setSuccess("Offer confirmed but event creation failed. Create manually.");
+          setSuccess("Offer confirmed, but the show wasn't created. Create it from Create a show.");
         }
       } else if (status === "declined") {
         setSuccess("Offer declined.");
@@ -630,7 +655,19 @@ export default function AdminOfferDetailPage() {
       />
 
       {error && <div className="ofb-banner ofb-banner--bad">{error}</div>}
-      {success && <div className="ofb-banner ofb-banner--good">{success}</div>}
+      {success && (
+        <div className="ofb-banner ofb-banner--good">
+          {success}
+          {createdEventId && (
+            <>
+              {" "}
+              <Link href={`/admin/events/${createdEventId}`} className="ofb-banner-link">
+                Open the show →
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Status + Confirm/Deny */}
       <div className="ofb-status">

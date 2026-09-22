@@ -1,4 +1,4 @@
-import { changedTerms, openRevision, operativeVersion, type OfferVersion } from "@/lib/offers/revisions";
+import { blockingTerms, changedTerms, openRevision, operativeVersion, type OfferVersion } from "@/lib/offers/revisions";
 
 const signed = { guarantee: 18000, backend_percentage: 85, deal_type: "vs", notes: "old", status: "accepted", ticket_scaling: [{ tier: "GA", price: 25 }] };
 
@@ -35,5 +35,35 @@ describe("chain", () => {
   test("an unsigned revision is the open one", () => {
     expect(openRevision(chain)?.id).toBe("c");
     expect(openRevision(chain.slice(0, 2))).toBeNull();
+  });
+});
+
+/**
+ * blockingTerms — the one exception to "a countersigned offer is frozen".
+ *
+ * Accepting an offer is what creates its show, so event_id can only ever be
+ * filled in after acceptance. It is allowed exactly once.
+ */
+describe("blockingTerms — linking a countersigned offer to its show", () => {
+  const unlinked = { status: "accepted", guarantee: 8000, event_id: null };
+
+  it("lets an unlinked signed offer take an event_id", () => {
+    expect(blockingTerms(unlinked, { event_id: "evt-1" })).toEqual([]);
+  });
+
+  it("still refuses a term change sent alongside the link", () => {
+    expect(blockingTerms(unlinked, { event_id: "evt-1", guarantee: 9000 })).toEqual(["guarantee"]);
+  });
+
+  it("refuses re-pointing an already-linked offer at a different show", () => {
+    expect(blockingTerms({ ...unlinked, event_id: "evt-1" }, { event_id: "evt-2" })).toEqual(["event_id"]);
+  });
+
+  it("refuses clearing an existing link", () => {
+    expect(blockingTerms({ ...unlinked, event_id: "evt-1" }, { event_id: null })).toEqual(["event_id"]);
+  });
+
+  it("is a no-op when the link is already what it should be", () => {
+    expect(blockingTerms({ ...unlinked, event_id: "evt-1" }, { event_id: "evt-1" })).toEqual([]);
   });
 });

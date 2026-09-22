@@ -174,7 +174,10 @@ function emptyForm(dateStr?: string): EventForm {
     tax_exempt: false,
     notes: "",
     calendar_color: "",
-    status: "published",
+    // The calendar books rooms; it does not put shows on sale. Anything it
+    // creates is a draft until someone publishes it deliberately from the
+    // event workspace.
+    status: "draft",
     description: "",
   };
 }
@@ -528,7 +531,8 @@ export default function CalendarPage() {
       hold_level: holdForm.hold_level || null,
       notes: null,
       calendar_color: null,
-      status: "published",
+      // A hold is the opposite of a listing. Draft, not published-but-hidden.
+      status: "draft",
       venue_id: venueId,
     };
 

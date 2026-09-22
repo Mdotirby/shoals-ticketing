@@ -136,7 +136,8 @@ export async function POST(req: NextRequest) {
     tax_exempt: body.tax_exempt || false,
     start_time: body.start_time || null,
     calendar_color: body.calendar_color || null,
-    status: body.status || "published",
+    // Fail closed: a caller that does not say publishes nothing.
+    status: body.status || "draft",
     venue_id: body.venue_id || null,
   };
   // Remove undefined values so they don't get sent to Supabase

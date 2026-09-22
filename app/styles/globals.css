@@ -22232,6 +22232,9 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ee-action--none:hover { background: rgba(255, 255, 255, 0.022); }
 .ee-actions--more { margin-top: 13px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 
+/* Link inside the offer's confirm banner — to the draft show it just made. */
+.admin-shell .ofb-banner-link { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+
 @media (max-width: 1100px) {
   .ee-grid { grid-template-columns: minmax(0, 1fr); }
   /* Money on top, then the form, then save and the rest of the rail — the

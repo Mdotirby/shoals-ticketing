@@ -35,6 +35,24 @@ export function changedTerms(current: Record<string, unknown>, updates: Record<s
   return Object.keys(updates).filter((k) => !NON_TERM_FIELDS.has(k) && !same(current[k], updates[k]));
 }
 
+/**
+ * Which terms actually block a write to a countersigned offer.
+ *
+ * Same as changedTerms, minus one exception: linking the offer to the show it
+ * produced. Accepting an offer is what creates that show, so event_id can only
+ * ever be filled in after acceptance — refusing it would leave every
+ * offer-created show permanently unlinked, and both the event workspace and
+ * the edit rail's break-even look the offer up by event_id.
+ *
+ * The exception is deliberately one-way: it applies only while event_id is
+ * still empty. Re-pointing a signed offer at a DIFFERENT show changes what the
+ * settlement settles, so that is a term change and still needs a revision.
+ */
+export function blockingTerms(current: Record<string, unknown>, updates: Record<string, unknown>): string[] {
+  const firstLink = (k: string) => k === "event_id" && !current.event_id && !!updates.event_id;
+  return changedTerms(current, updates).filter((k) => !firstLink(k));
+}
+
 export type OfferVersion = {
   id: string;
   version: number;

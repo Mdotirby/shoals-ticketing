@@ -173,7 +173,10 @@ export async function POST(request) {
     venue_rebate: isPrivate ? null : (body.venue_rebate ?? 0),
     description: body.description || (isPrivate ? "" : null),
     image_url: body.image_url || (isPrivate ? "" : null),
-    status: body.status || "published",
+    // Fail closed. This defaulted to "published", so any caller that simply
+    // did not mention status put a live show on the storefront — which is how
+    // confirming an offer used to publish one.
+    status: body.status || "draft",
     venue_id: body.venue_id || null,
     event_venue_id: body.event_venue_id || null,
     event_type: body.event_type || "hard_ticket",
