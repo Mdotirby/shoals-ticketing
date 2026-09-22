@@ -22204,6 +22204,34 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .ee-changes li { font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.66); }
 .ee-changes strong { color: rgba(255, 255, 255, 0.92); }
 
+/* The rail's last money row — the one the mockup pulls out of the list. */
+.ee-money-rows > .ee-money-rows-total { border-bottom: none; margin-top: 4px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+.ee-money-rows > .ee-money-rows-total dt { font-size: 13px; font-weight: 700; color: #fff; }
+.ee-money-rows > .ee-money-rows-total dd { font-size: 16px; font-weight: 800; color: #fff; }
+
+/* "Not editable on this form at all" — values shown, never inputs. */
+.ee-readonly { margin: 0; display: flex; flex-direction: column; gap: 15px; }
+.ee-readonly > div { display: flex; flex-direction: column; gap: 4px; }
+.ee-readonly dt { font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.ee-readonly dd {
+  margin: 0;
+  padding: 11px 13px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+.ee-readonly .ee-field-note { margin-top: 2px; }
+
+/* An action row with nowhere to go — it explains, it does not link. */
+.admin-shell .ee-action--none { cursor: default; border-style: dashed; background: rgba(255, 255, 255, 0.022); }
+.admin-shell .ee-action--none:hover { background: rgba(255, 255, 255, 0.022); }
+.ee-actions--more { margin-top: 13px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+
 @media (max-width: 1100px) {
   .ee-grid { grid-template-columns: minmax(0, 1fr); }
   /* Money on top, then the form, then save and the rest of the rail — the

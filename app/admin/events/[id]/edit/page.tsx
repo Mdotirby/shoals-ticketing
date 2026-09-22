@@ -2,7 +2,7 @@
 
 import { isHardTicket as isHardTicketType } from "@/lib/eventClass";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ImageCropper from "@/app/components/ImageCropper";
@@ -13,6 +13,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import { fmtUSD } from "@/app/components/admin/ui";
+import { breakEvenShare } from "@/lib/offers/walkout";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null; tax_method?: string | null };
 
@@ -124,6 +125,12 @@ export default function AdminEditEventPage() {
     venue: "",
     date: "",
     time: "",
+    // Doors, age policy and deal type are columns the workspace already reads
+    // and displays; no form ever wrote them, so the workspace's "Doors · show ·
+    // age" line was permanently a dash.
+    doors_time: "",
+    age_restriction: "",
+    deal_type: "own_risk",
     description: "",
     image_url: "",
     email_flyer_url: "",
@@ -264,6 +271,9 @@ export default function AdminEditEventPage() {
           venue: event.venue || "",
           date: dateStr,
           time: timeStr,
+          doors_time: (event.doors_time || "").slice(0, 5),
+          age_restriction: event.age_restriction || "",
+          deal_type: event.deal_type || "own_risk",
           description: event.description || "",
           image_url: event.image_url || "",
           email_flyer_url: event.email_flyer_url || "",
@@ -667,6 +677,11 @@ export default function AdminEditEventPage() {
   const [ticketing, setTicketing] = useState<TicketingKpis | null>(null);
   const [soldByTier, setSoldByTier] = useState<Record<string, { name: string; price: number; sold: number }>>({});
   const [auditEntries, setAuditEntries] = useState<AuditRow[]>([]);
+  /** The linked offer, for the rail's break-even row only. */
+  const [offer, setOffer] = useState<{
+    net_potential: number | null; total_fixed: number | null; total_variable: number | null;
+    guarantee: number | null; backend_percentage: number | null; deal_type: string | null;
+  } | null>(null);
 
   // Sales figures for the rail and the tier locks. Same source the event
   // workspace's Ticketing tab reads (settlement_ledger via
@@ -683,6 +698,19 @@ export default function AdminEditEventPage() {
         setSoldByTier(map);
       })
       .catch(() => {});
+    // The linked offer, for "To break even". Same row and same helper the
+    // event workspace uses, so the two screens cannot disagree about it.
+    import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
+      const { data } = await getSupabaseBrowser()
+        .from("artist_offers")
+        .select("net_potential, total_fixed, total_variable, guarantee, backend_percentage, deal_type")
+        .eq("event_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data) setOffer(data);
+    });
+
     // This show's own audit trail. Roles without read_audit get a 403 and
     // simply don't see the card.
     fetch(`/api/admin/audit?target_id=${id}&limit=5`)
@@ -694,6 +722,24 @@ export default function AdminEditEventPage() {
   }, [id]);
 
   const soldTotal = ticketing?.paidTickets ?? 0;
+
+  // To break even — the offer's own walkout, not a second formula. Null when
+  // no offer is linked; { tickets: null } when the show loses money even sold
+  // out. Same shape the event workspace uses.
+  const breakEven = useMemo(() => {
+    const sellable = ticketing?.sellable ?? 0;
+    if (!offer || !offer.net_potential || sellable <= 0) return null;
+    const share = breakEvenShare({
+      netPotential: Number(offer.net_potential) || 0,
+      totalFixed: Number(offer.total_fixed) || 0,
+      totalVariable: Number(offer.total_variable) || 0,
+      sellable,
+      guarantee: Number(offer.guarantee) || 0,
+      backendPct: Number(offer.backend_percentage) || 0,
+      dealType: String(offer.deal_type || "FLAT"),
+    });
+    return share === null ? { tickets: null, share: null } : { tickets: Math.ceil(share * sellable), share };
+  }, [offer, ticketing]);
   const hasSales = soldTotal > 0;
   /** Published with sales: title, date, time, venue and host freeze until unlocked. */
   const lockable = eventStatus === "published" && hasSales;
@@ -810,6 +856,9 @@ export default function AdminEditEventPage() {
         body: JSON.stringify({
           title: form.title,
           subtitle: form.subtitle || null,
+          doors_time: form.doors_time || null,
+          age_restriction: form.age_restriction || null,
+          deal_type: form.deal_type,
           venue: form.venue,
           date: dateTime,
           price: isPrivate ? null : lowestPrice,
@@ -1081,18 +1130,6 @@ export default function AdminEditEventPage() {
                   </label>
 
                   <label className="admin-form-label">
-                    Subtitle / Tour Name
-                    <input
-                      type="text"
-                      name="subtitle"
-                      className="admin-form-input"
-                      placeholder='e.g. "The In Defense of Drinking Tour"'
-                      value={form.subtitle}
-                      onChange={handleChange}
-                    />
-                  </label>
-
-                  <label className="admin-form-label">
                     Venue *
                     {eventVenues.length > 0 && (
                       <select
@@ -1157,8 +1194,23 @@ export default function AdminEditEventPage() {
                     />
                   </label>
 
+                  {/* Doors and show time, as the mockup's "Doors / show" row.
+                      Doors is what prints on the ticket; the date column
+                      carries the show time. */}
                   <label className="admin-form-label">
-                    Time
+                    Doors
+                    <input
+                      type="time"
+                      name="doors_time"
+                      disabled={locked}
+                      className="admin-form-input"
+                      value={form.doors_time}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label className="admin-form-label">
+                    Show time
                     <select
                       name="time"
                       disabled={locked}
@@ -1203,6 +1255,30 @@ export default function AdminEditEventPage() {
                   </select>
                   {classFixed && <p className="ee-field-note">Fixed — tickets were sold under this class.</p>}
                 </div>
+
+                {/* Deal type — whose money the show is. The mockup fixes it
+                    here for the same reason the class is fixed: it is what the
+                    settlement was built against. */}
+                <div className="admin-form-label admin-form-full">
+                  Deal type
+                  <select
+                    className="admin-form-input"
+                    value={form.deal_type}
+                    disabled={classFixed}
+                    onChange={(e) => setForm({ ...form, deal_type: e.target.value })}
+                    style={{ marginTop: 6 }}
+                  >
+                    <option value="own_risk">Own risk — the room carries it</option>
+                    <option value="guarantee">Guarantee — the artist is promised a figure</option>
+                    <option value="co_promote">Co-promote — split after costs</option>
+                    <option value="rental_box_office">Rental + box office — they rent, you sell</option>
+                  </select>
+                  <p className="ee-field-note">
+                    {classFixed
+                      ? "Fixed — the settlement is built against this deal. Change it on a revision, not here."
+                      : "Changes settlement only. Inventory, scanner and storefront stay yours."}
+                  </p>
+                </div>
                 </div>
               </section>
 
@@ -1212,6 +1288,38 @@ export default function AdminEditEventPage() {
                   <span className="ee-card-aside">cannot invalidate a ticket</span>
                 </div>
                 <div className="admin-form ee-fields">
+                {/* The mockup's support billing and age policy lead this card:
+                    neither can invalidate a ticket, so neither ever locks. */}
+                <div className="admin-form-grid">
+                  <label className="admin-form-label">
+                    Support / billing
+                    <input
+                      type="text"
+                      name="subtitle"
+                      className="admin-form-input"
+                      placeholder='e.g. w/ The Ledger Wide'
+                      value={form.subtitle}
+                      onChange={handleChange}
+                    />
+                  </label>
+
+                  <label className="admin-form-label">
+                    Age policy
+                    <select
+                      name="age_restriction"
+                      className="admin-form-input"
+                      value={form.age_restriction}
+                      onChange={handleChange}
+                    >
+                      <option value="">All ages</option>
+                      <option value="18+">18+</option>
+                      <option value="21+">21+</option>
+                      <option value="16+">16+</option>
+                      <option value="Under 12 free with adult">Under 12 free with adult</option>
+                    </select>
+                  </label>
+                </div>
+
                 {/* Booking Status */}
                 <div className="admin-form-label admin-form-full">
                   Booking Status
@@ -1502,6 +1610,43 @@ export default function AdminEditEventPage() {
                   )}
                 </div>
                 </div>
+              </section>
+
+              {/* The mockup's fourth card: the three things this form shows but
+                  deliberately will not change, each with the reason. They are
+                  here so nobody hunts for a control that was never meant to be
+                  on an edit form. */}
+              <section className="card ee-card">
+                <div className="ee-card-head">
+                  <span className="ee-eyebrow">Not editable on this form at all</span>
+                </div>
+                <dl className="ee-readonly">
+                  <div>
+                    <dt>Visibility</dt>
+                    <dd>{eventStatus === "published" ? "Published" : "Draft"}</dd>
+                    <p className="ee-field-note">
+                      Only Publish and Unpublish change this, in the event workspace, and each is its own action with its own confirm.
+                    </p>
+                  </div>
+                  <div>
+                    <dt>Capacity</dt>
+                    <dd>
+                      {ticketing && ticketing.sellable > 0
+                        ? `${ticketing.sellable.toLocaleString()} sellable · floor ${soldTotal.toLocaleString()} sold`
+                        : "Set by the tiers on the Tickets tab"}
+                    </dd>
+                    <p className="ee-field-note">
+                      Cannot go below tickets already sold. Raising it is allowed at any time — edit the tier.
+                    </p>
+                  </div>
+                  <div>
+                    <dt>Tier price</dt>
+                    <dd>{hasSales ? "No downward move" : "Free to change — nothing sold yet"}</dd>
+                    <p className="ee-field-note">
+                      Lowering a face price after a sale forces a partial-refund decision for every prior buyer, so the Tickets tab only lets a selling tier go up.
+                    </p>
+                  </div>
+                </dl>
               </section>
             </>
           )}
@@ -2681,13 +2826,39 @@ export default function AdminEditEventPage() {
                 <dt>Comps issued</dt>
                 <dd>{ticketing ? ticketing.compedTickets.toLocaleString() : "—"}</dd>
               </div>
+              {/* The mockup's last row, stated as tickets still to sell. */}
+              <div className="ee-money-rows-total">
+                <dt>To break even</dt>
+                <dd>
+                  {breakEven === null
+                    ? "No offer linked"
+                    : breakEven.tickets === null
+                      ? "Not at sellout"
+                      : Math.max(0, breakEven.tickets - soldTotal) === 0
+                        ? "Passed"
+                        : `${Math.max(0, breakEven.tickets - soldTotal).toLocaleString()} tickets`}
+                </dd>
+              </div>
             </dl>
             {ticketing && ticketing.sellable > 0 && (
               <>
                 <div className="ee-meter">
                   <span style={{ width: `${Math.min(100, ticketing.sellThrough)}%` }} />
                 </div>
-                <p className="ee-rail-note">{ticketing.sellThrough}% of the sellable room.</p>
+                {/* The meter counts every seat gone, comps included — a
+                    comped seat cannot be sold to anyone else. "Tickets out"
+                    above is paid only, so the note names both rather than
+                    letting one percentage stand for two different figures. */}
+                <p className="ee-rail-note">
+                  {ticketing.sellThrough}% of the sellable room is gone —{" "}
+                  {ticketing.paidTickets.toLocaleString()} paid
+                  {ticketing.compedTickets > 0 ? `, ${ticketing.compedTickets.toLocaleString()} comped` : ""}.
+                  {breakEven && breakEven.tickets !== null
+                    ? ` ${breakEven.tickets.toLocaleString()} paid tickets clear the guarantee and costs, per the offer's walkout.`
+                    : breakEven && breakEven.tickets === null
+                      ? " The offer loses money even sold out."
+                      : " Link an offer to see what it takes to break even."}
+                </p>
               </>
             )}
           </section>
@@ -2698,10 +2869,38 @@ export default function AdminEditEventPage() {
 
           <section className="card ee-card">
             <span className="ee-eyebrow">Actions that leave this form</span>
+            {/* The mockup's three. Each one is a decision with consequences
+                for people who already paid, so none of them is a field on this
+                form — they are somewhere else on purpose. Where a flow does
+                not exist yet, the row says so rather than pretending. */}
             <div className="ee-actions">
               <Link href={`/admin/events/${id}`} className="ee-action">
+                <strong>{eventStatus === "published" ? "Unpublish listing" : "Publish listing"}</strong>
+                <span>
+                  {eventStatus === "published"
+                    ? "Pulls it off the storefront. Sold tickets stay valid and scannable. In the workspace, with its own confirm."
+                    : "Puts it on the storefront. In the workspace, with its own confirm."}
+                </span>
+              </Link>
+              <div className="ee-action ee-action--none">
+                <strong>Postpone or move</strong>
+                <span>
+                  No guided flow yet. Change the date above, then notify buyers and settle refund-or-honor per order from the
+                  workspace&apos;s orders tab.
+                </span>
+              </div>
+              <div className="ee-action ee-action--none">
+                <strong>Cancel show</strong>
+                <span>
+                  Set Booking status to Cancelled above. That marks the show; it does not refund anything — refunds are issued
+                  per order, and {soldTotal > 0 ? `${soldTotal.toLocaleString()} are out.` : "none are out yet."}
+                </span>
+              </div>
+            </div>
+            <div className="ee-actions ee-actions--more">
+              <Link href={`/admin/events/${id}`} className="ee-action">
                 <strong>Event workspace</strong>
-                <span>Publish or unpublish, inventory and holds, orders, settlement.</span>
+                <span>Inventory and holds, orders, settlement.</span>
               </Link>
               <Link href={`/admin/events/${id}/ads`} className="ee-action">
                 <strong>Ad Engine</strong>
