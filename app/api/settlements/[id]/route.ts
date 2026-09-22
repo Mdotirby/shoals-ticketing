@@ -1,11 +1,19 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
+
+/** Recording a payout is a money action — it needs the payout capability. */
+const PAYOUT_COLUMNS = ["payout_amount", "payout_method", "payout_reference", "payout_at", "payout_by"];
 
 // GET /api/settlements/:id — single settlement with expenses and deposits
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Every figure on a settlement, to anyone who asked, until now.
+  const guard = await requireCapability("view_settlement");
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 
@@ -46,6 +54,18 @@ const WRITABLE_COLUMNS = new Set([
   "status",
   "finalized_at",
   "finalized_by",
+  // Signatures and the payout record (plans/settlement-signature-payout-migration.sql).
+  // The PUT below peels off columns the database doesn't have yet, so these
+  // are harmless until that migration is run.
+  "venue_signed_by",
+  "venue_signed_at",
+  "artist_signed_by",
+  "artist_signed_at",
+  "payout_amount",
+  "payout_method",
+  "payout_reference",
+  "payout_at",
+  "payout_by",
   // Source
   "source",
   // Manual entry fields (external settlements)
@@ -132,8 +152,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const admin = createAdminClient();
   const body = await request.json();
+
+  const touchesPayout = PAYOUT_COLUMNS.some((c) => c in body);
+  const guard = await requireCapability(touchesPayout ? "sign_payout" : "view_settlement", { write: true });
+  if (!guard.ok) return guard.response;
+
+  const admin = createAdminClient();
 
   // Build an updates object containing only writable columns
   const updates: Record<string, unknown> = {};

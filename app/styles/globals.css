@@ -23946,16 +23946,61 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .stl-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .admin-shell .stl-rail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 .admin-shell .stl-rail .card > div[style] { max-width: none !important; }
-.admin-shell .stl-sign {
-  margin-top: 14px;
-  padding: 12px 13px;
+.admin-shell .stl-sigs { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.admin-shell .stl-sig {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
   border-radius: 12px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
 }
+.admin-shell .stl-sig-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; background: var(--lg-warn); }
+.admin-shell .stl-sig.is-signed .stl-sig-dot { background: var(--lg-good); }
+.admin-shell .stl-sig-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .stl-sig-body b { font-size: 12px; font-weight: 550; }
+.admin-shell .stl-sig-body i { font-style: normal; font-size: 9.5px; color: rgba(255, 255, 255, 0.38); }
+.admin-shell .stl-sig-state { flex: none; font-size: 9.5px; font-weight: 650; color: var(--lg-good); }
+.admin-shell .stl-payout,
+.admin-shell .stl-paid {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .stl-payout-head,
+.admin-shell .stl-paid-head { display: flex; align-items: baseline; gap: 10px; }
+.admin-shell .stl-payout-head span,
+.admin-shell .stl-paid-head span {
+  flex: 1;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .stl-payout-head b,
+.admin-shell .stl-paid-head b { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.admin-shell .stl-paid-head b { color: var(--lg-good); }
+.admin-shell .stl-paid-sub { margin-top: 6px; font-size: 10.5px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .stl-payout-form { display: flex; gap: 8px; margin-top: 12px; }
+.admin-shell .stl-payout-form select,
+.admin-shell .stl-payout-form input {
+  min-height: 38px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .stl-payout-form select { flex: none; width: 104px; }
+.admin-shell .stl-payout-form select option { color: #000; }
+.admin-shell .stl-payout-form input { flex: 1; min-width: 0; }
+.admin-shell .stl-payout-note { margin-top: 10px; font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.38); }
 .admin-shell .stl-more {
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);

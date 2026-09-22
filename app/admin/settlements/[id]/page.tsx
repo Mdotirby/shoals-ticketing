@@ -114,6 +114,8 @@ export default function SettlementDetailPage() {
   }, []);
 
   const [settlement, setSettlement] = useState<Settlement | null>(null);
+  const [payoutMethod, setPayoutMethod] = useState("ACH");
+  const [payoutReference, setPayoutReference] = useState("");
   const [expenses, setExpenses] = useState<SettlementExpense[]>([]);
   const [deposits, setDeposits] = useState<SettlementDeposit[]>([]);
 
@@ -526,6 +528,41 @@ export default function SettlementDetailPage() {
   };
 
   /* ─── Save Draft / Finalize ─── */
+  /**
+   * Write a couple of columns and merge the result back — used by the
+   * signature and payout controls, which shouldn't re-save the whole
+   * settlement (and mustn't clobber unsaved edits elsewhere on the page).
+   * Columns land only once plans/settlement-signature-payout-migration.sql
+   * has been run; until then the route peels them off and nothing sticks,
+   * so say that rather than pretending it saved.
+   */
+  const patchSettlement = async (fields: Record<string, unknown>) => {
+    if (!settlement) return;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/settlements/${settlement.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fields),
+      });
+      const updated = await res.json();
+      if (!res.ok) throw new Error(updated?.error || "Save failed");
+      const missed = Object.keys(fields).filter((k) => updated[k] === undefined || updated[k] === null);
+      setSettlement((prev) => (prev ? { ...prev, ...updated } : updated));
+      if (missed.length) {
+        setError("Saved, but the signature/payout columns aren't in the database yet — run plans/settlement-signature-payout-migration.sql.");
+      } else {
+        setSuccess("Saved.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async (status: "draft" | "finalized" = "draft") => {
     if (!settlement) return;
     setSaving(true);
@@ -2255,10 +2292,143 @@ export default function SettlementDetailPage() {
 
       {/* ── Signature & payout ── */}
       <Card title="Signature &amp; payout">
-        <div className="stl-sign">
-          Settlement signatures aren&apos;t recorded yet — finalizing stamps who and when in the audit log, but there is no
-          counter-signature from the artist side.
-        </div>
+        {(() => {
+          const st = settlement as unknown as Record<string, string | number | null>;
+          const venueBy = (st.venue_signed_by as string) || "";
+          const venueAt = (st.venue_signed_at as string) || "";
+          const artistBy = (st.artist_signed_by as string) || "";
+          const artistAt = (st.artist_signed_at as string) || "";
+          const paidAt = (st.payout_at as string) || "";
+          const paidAmount = Number(st.payout_amount ?? 0);
+          const when = (iso: string) =>
+            new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+          return (
+            <>
+              <div className="stl-sigs">
+                <div className={`stl-sig${venueAt ? " is-signed" : ""}`}>
+                  <span className="stl-sig-dot" />
+                  <span className="stl-sig-body">
+                    <b>{venueBy || "Venue"}</b>
+                    <i>{venueAt ? `Signed ${when(venueAt)}` : "Not signed"}</i>
+                  </span>
+                  {venueAt ? (
+                    <span className="stl-sig-state">Signed</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-header-btn"
+                      style={{ fontSize: 11 }}
+                      disabled={saving}
+                      onClick={() =>
+                        patchSettlement({
+                          venue_signed_by: getCookie("user-name") || "Venue",
+                          venue_signed_at: new Date().toISOString(),
+                        })
+                      }
+                    >
+                      Sign
+                    </button>
+                  )}
+                </div>
+
+                <div className={`stl-sig${artistAt ? " is-signed" : ""}`}>
+                  <span className="stl-sig-dot" />
+                  <span className="stl-sig-body">
+                    <b>{artistBy || "Artist side"}</b>
+                    <i>{artistAt ? `Signed ${when(artistAt)}` : "Not signed — tour manager or agent"}</i>
+                  </span>
+                  {artistAt ? (
+                    <span className="stl-sig-state">Signed</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="admin-header-btn"
+                      style={{ fontSize: 11 }}
+                      disabled={saving}
+                      onClick={() => {
+                        const who = window.prompt("Who signed for the artist? (name on the settlement)");
+                        if (!who || !who.trim()) return;
+                        patchSettlement({ artist_signed_by: who.trim(), artist_signed_at: new Date().toISOString() });
+                      }}
+                    >
+                      Record
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Payout — a record of a payment made elsewhere; this app moves no money. */}
+              {paidAt ? (
+                <div className="stl-paid">
+                  <div className="stl-paid-head">
+                    <span>Paid</span>
+                    <b>{fmt(paidAmount)}</b>
+                  </div>
+                  <div className="stl-paid-sub">
+                    {[(st.payout_method as string) || "method not noted", (st.payout_reference as string) || null, when(paidAt), (st.payout_by as string) ? `by ${st.payout_by}` : null]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-sponsor-edit-btn"
+                    style={{ marginTop: 10, fontSize: 11 }}
+                    disabled={saving}
+                    onClick={() => {
+                      if (!confirm("Clear this payout record? The settlement goes back to unpaid.")) return;
+                      patchSettlement({ payout_amount: null, payout_method: null, payout_reference: null, payout_at: null, payout_by: null });
+                    }}
+                  >
+                    Clear payout record
+                  </button>
+                </div>
+              ) : (
+                <div className="stl-payout">
+                  <div className="stl-payout-head">
+                    <span>Due to artist</span>
+                    <b>{fmt(balanceDue)}</b>
+                  </div>
+                  <div className="stl-payout-form">
+                    <select value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)} aria-label="Payout method">
+                      <option value="ACH">ACH</option>
+                      <option value="Check">Check</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Stripe">Stripe</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input
+                      value={payoutReference}
+                      onChange={(e) => setPayoutReference(e.target.value)}
+                      placeholder="Reference — cheque no., transfer id"
+                      aria-label="Payout reference"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-form-submit"
+                    style={{ width: "100%", marginTop: 10 }}
+                    disabled={saving || balanceDue <= 0}
+                    onClick={() =>
+                      patchSettlement({
+                        payout_amount: balanceDue,
+                        payout_method: payoutMethod,
+                        payout_reference: payoutReference.trim() || null,
+                        payout_at: new Date().toISOString(),
+                        payout_by: getCookie("user-name") || null,
+                      })
+                    }
+                  >
+                    {balanceDue > 0 ? `Record payout · ${fmt(balanceDue)}` : "Nothing due"}
+                  </button>
+                  <div className="stl-payout-note">
+                    Records a payment made elsewhere — by ACH, cheque or cash. Nothing here moves money.
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
       {/* ════════════════════════════════════════════
           §9  ACTIONS
       ════════════════════════════════════════════ */}
