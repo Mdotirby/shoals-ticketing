@@ -15,6 +15,7 @@ import type {
 } from "@/lib/types/settlement";
 import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
 import { getCookie } from "@/lib/cookies";
+import { Card } from "@/app/components/admin/ui";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -364,6 +365,9 @@ export default function SettlementDetailPage() {
   const ccActual = ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0);
 
   const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
+  // Offer vs. actual, as the mockup's expense table reads it.
+  const totalEstimated = expenses.reduce((s, e) => s + (e.estimated_amount || 0), 0);
+  const totalVariance = totalExpenses - totalEstimated;
 
   // Cash sales carry no fees, no tax, no card surcharge — the whole figure
   // feeds straight into NBOR, on top of the Stripe-sourced netReceipts above.
@@ -964,110 +968,18 @@ export default function SettlementDetailPage() {
           </button>
         </div>
       </div>
-
       {error && <div className="admin-form-error">{error}</div>}
       {success && <div className="admin-form-success">{success}</div>}
 
-      {/* ════════════════════════════════════════════
-          §1  DEAL TERMS (editable in draft)
-      ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Deal Terms</h2>
-      <div className="admin-form-grid">
-        <div>
-          <label className="admin-form-label">Artist</label>
-          <input
-            className="admin-form-input"
-            value={artistName}
-            onChange={(e) => setArtistName(e.target.value)}
-            disabled={isFinalized}
-          />
-        </div>
-        <div>
-          <label className="admin-form-label">Deal Type</label>
-          <select
-            className="admin-form-input"
-            value={dealType}
-            onChange={(e) => setDealType(e.target.value)}
-            disabled={isFinalized}
-          >
-            {DEAL_TYPES.map((dt) => (
-              <option key={dt} value={dt}>{dt}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="admin-form-label">Guarantee ($)</label>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            value={guaranteeInput}
-            onChange={(e) => setGuaranteeInput(Number(e.target.value))}
-            disabled={isFinalized}
-          />
-        </div>
-        <div>
-          <label className="admin-form-label">
-            Backend % <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 85 for 85%)</span>
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            value={backendPctInput}
-            onChange={(e) => setBackendPctInput(Number(e.target.value))}
-            disabled={isFinalized}
-            placeholder="85"
-          />
-        </div>
-        <div>
-          <label className="admin-form-label">
-            Service Fee Rebate %{" "}
-            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>
-              (share of the service fee returned — e.g. 50 for 50%)
-            </span>
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            className="admin-form-input"
-            value={serviceFeeRebatePct}
-            onChange={(e) => setServiceFeeRebatePct(Number(e.target.value))}
-            disabled={isFinalized}
-            placeholder="0"
-          />
-        </div>
-        <div>
-          <label className="admin-form-label">Radius Clause</label>
-          <input
-            className="admin-form-input"
-            value={radiusClause}
-            onChange={(e) => setRadiusClause(e.target.value)}
-            disabled={isFinalized}
-            placeholder="e.g. 50 mi / 30 days prior"
-          />
-        </div>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label className="admin-form-label">Bonus Structure (free text or JSON)</label>
-          <input
-            className="admin-form-input"
-            value={bonusStructureRaw}
-            onChange={(e) => setBonusStructureRaw(e.target.value)}
-            disabled={isFinalized}
-            placeholder='e.g. 75% sold +$500, Sellout +$1000'
-          />
-        </div>
-      </div>
+      <div className="stl-grid">
+      <div className="stl-main">
 
+      {/* ── Ticket manifest — actuals (settlement.dc.html) ── */}
+      <Card title={isExternal ? "Revenue figures — as entered" : "Ticket manifest — actuals"} sub={isExternal ? "External settlement — figures typed from their report" : "In-house ticketing · every tier, then what comes off the top"}>
       {/* ════════════════════════════════════════════
           §2  TICKET AUDIT / MANUAL ENTRY
       ════════════════════════════════════════════ */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={sectionTitleStyle}>
-          {isExternal ? "Revenue Figures" : "Ticket Audit"}
-        </h2>
         {!isFinalized && !isExternal && (
           <button
             className="admin-header-btn"
@@ -1458,7 +1370,6 @@ export default function SettlementDetailPage() {
           §4  FINANCIAL SUMMARY
           Single walk: Gross Receipts → minus pass-throughs → Net Receipts.
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Financial Summary</h2>
       <div style={{ maxWidth: 560 }}>
         <div style={rowStyle}>
           <span style={labelStyle}>Tickets Sold (Excl. Comps)</span>
@@ -1534,11 +1445,13 @@ export default function SettlementDetailPage() {
           Greyed rows are not part of the subtraction.
         </p>
       </div>
+      </Card>
 
+      {/* ── Expenses — offer vs. actual ── */}
+      <Card title="Expenses — offer vs. actual" sub="Estimated against what the show actually cost">
       {/* ════════════════════════════════════════════
           §5  EXPENSES
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Expenses</h2>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, color: "#fff" }}>
           <thead>
@@ -1547,6 +1460,7 @@ export default function SettlementDetailPage() {
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Category</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Estimated</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Actual</th>
+              <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Variance</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}>Receipt</th>
               <th style={{ padding: "8px 6px", color: "rgba(255,255,255,0.5)" }}></th>
             </tr>
@@ -1590,6 +1504,15 @@ export default function SettlementDetailPage() {
                     />
                   )}
                 </td>
+                {/* Variance — what this line ran over or under the offer. */}
+                {(() => {
+                  const v = (Number(exp.actual_amount) || 0) - (Number(exp.estimated_amount) || 0);
+                  return (
+                    <td style={{ padding: "6px", color: v > 0 ? "var(--lg-warn)" : v < 0 ? "var(--lg-good)" : "rgba(255,255,255,0.3)" }}>
+                      {v === 0 ? "—" : `${v > 0 ? "+" : "−"}${fmt(Math.abs(v))}`}
+                    </td>
+                  );
+                })()}
                 <td style={{ padding: "6px" }}>
                   {exp.receipt_url ? (
                     <a href={exp.receipt_url} target="_blank" rel="noopener noreferrer"
@@ -1625,8 +1548,12 @@ export default function SettlementDetailPage() {
           </tbody>
           <tfoot>
             <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>
-              <td colSpan={3} style={{ padding: "8px 6px", fontWeight: 700 }}>Total Expenses</td>
+              <td colSpan={2} style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
+              <td style={{ padding: "8px 6px", fontWeight: 600, color: "rgba(255,255,255,0.44)" }}>{fmt(totalEstimated)}</td>
               <td style={{ padding: "8px 6px", fontWeight: 700 }}>{fmt(totalExpenses)}</td>
+              <td style={{ padding: "8px 6px", fontWeight: 600, color: totalVariance > 0 ? "var(--lg-warn)" : totalVariance < 0 ? "var(--lg-good)" : "rgba(255,255,255,0.3)" }}>
+                {totalVariance === 0 ? "—" : `${totalVariance > 0 ? "+" : "−"}${fmt(Math.abs(totalVariance))}`}
+              </td>
               <td colSpan={2} />
             </tr>
           </tfoot>
@@ -1637,103 +1564,13 @@ export default function SettlementDetailPage() {
           + Add Expense
         </button>
       )}
+      </Card>
 
-      {/* ════════════════════════════════════════════
-          §6  DEPOSITS & ADVANCES
-      ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Deposits &amp; Advances</h2>
-      {deposits.length === 0 && (
-        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No deposits recorded.</p>
-      )}
-      {deposits.map((dep) => (
-        <div key={dep.id} style={{
-          display: "flex", gap: 10, alignItems: "center",
-          padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.06)",
-          flexWrap: "wrap",
-        }}>
-          <select
-            className="admin-form-input"
-            style={{ width: 140 }}
-            value={dep.type}
-            onChange={(e) => updateDepositLocal(dep.id, { type: e.target.value as SettlementDeposit["type"] })}
-            disabled={isFinalized}
-          >
-            <option value="deposit">Deposit</option>
-            <option value="cash_advance">Cash Advance</option>
-            <option value="other">Other</option>
-          </select>
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 120, textAlign: "right" }}
-            value={dep.amount}
-            onChange={(e) => updateDepositLocal(dep.id, { amount: Number(e.target.value) })}
-            disabled={isFinalized}
-          />
-          <input
-            type="date"
-            className="admin-form-input"
-            style={{ width: 150 }}
-            value={dep.date?.slice(0, 10) || ""}
-            onChange={(e) => updateDepositLocal(dep.id, { date: e.target.value })}
-            disabled={isFinalized}
-          />
-          <input
-            className="admin-form-input"
-            style={{ flex: 1, minWidth: 100 }}
-            placeholder="Notes"
-            value={dep.notes || ""}
-            onChange={(e) => updateDepositLocal(dep.id, { notes: e.target.value })}
-            disabled={isFinalized}
-          />
-          {dep.receipt_url ? (
-            <a href={dep.receipt_url} target="_blank" rel="noopener noreferrer"
-              style={{ color: "var(--admin-primary, #ffffff)", fontSize: 12 }}>
-              Receipt
-            </a>
-          ) : !isFinalized ? (
-            <button
-              style={{
-                background: "none", border: "1px solid rgba(255,255,255,0.15)",
-                color: "rgba(255,255,255,0.5)", fontSize: 11,
-                padding: "3px 8px", borderRadius: 4, cursor: "pointer",
-              }}
-              onClick={() => uploadDepositReceipt(dep.id)}
-            >
-              Upload
-            </button>
-          ) : null}
-          {!isFinalized && (
-            <button
-              className="admin-sponsor-delete-btn"
-              onClick={() => removeDeposit(dep.id)}
-              style={{ fontSize: 11 }}
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      ))}
-      <div style={{ ...rowStyle, fontWeight: 700, marginTop: 4 }}>
-        <span style={labelStyle}>Total Deposits + Advances</span>
-        <span style={valStyle}>{fmt(totalDeposits + totalCashAdvances)}</span>
-      </div>
-      {!isFinalized && (
-        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button className="admin-header-btn" style={{ fontSize: 13 }} onClick={() => addDeposit("deposit")}>
-            + Add Deposit
-          </button>
-          <button className="admin-header-btn" style={{ fontSize: 13 }} onClick={() => addDeposit("cash_advance")}>
-            + Add Cash Advance
-          </button>
-        </div>
-      )}
-
+      {/* ── Ancillary splits ── */}
+      <Card title="Ancillary splits" sub="Merch and the venue's own revenue on this show">
       {/* ════════════════════════════════════════════
           §6.5  MERCH SETTLEMENT
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Merch Settlement</h2>
       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, marginTop: -8, marginBottom: 8 }}>
         Track merch sold at the show, the contracted split, and the cost of running merch.
         The venue&rsquo;s share is deducted from the artist&rsquo;s balance due below.
@@ -2000,9 +1837,304 @@ export default function SettlementDetailPage() {
       </div>
 
       {/* ════════════════════════════════════════════
+          §8  ANCILLARY REVENUE (venue P&L)
+      ════════════════════════════════════════════ */}
+      <div className="admin-form-grid">
+        {[
+          { label: "Bar Revenue", value: barRevenue, setter: setBarRevenue },
+          { label: "Concessions", value: concessionsRevenue, setter: setConcessionsRevenue },
+          { label: "Merch Commission", value: merchCommission, setter: setMerchCommission },
+          { label: "Ticketing Rebate", value: ticketingRebate, setter: setTicketingRebate },
+          { label: "Parking Revenue", value: parkingRevenue, setter: setParkingRevenue },
+          { label: "Sponsorship", value: sponsorshipRevenue, setter: setSponsorshipRevenue },
+        ].map((field) => (
+          <div key={field.label}>
+            <label className="admin-form-label">{field.label}</label>
+            <input
+              type="number"
+              step="0.01"
+              className="admin-form-input"
+              value={field.value}
+              onChange={(e) => field.setter(Number(e.target.value))}
+              disabled={isFinalized}
+            />
+          </div>
+        ))}
+      </div>
+
+      {otherAncillary.map((item, idx) => (
+        <div key={idx} style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6 }}>
+          <input
+            className="admin-form-input"
+            placeholder="Name"
+            value={item.name}
+            onChange={(e) => updateOtherAncillary(idx, { name: e.target.value })}
+            disabled={isFinalized}
+            style={{ flex: 1 }}
+          />
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            style={{ width: 140, textAlign: "right" }}
+            value={item.amount}
+            onChange={(e) => updateOtherAncillary(idx, { amount: Number(e.target.value) })}
+            disabled={isFinalized}
+          />
+          {!isFinalized && (
+            <button
+              className="admin-sponsor-delete-btn"
+              onClick={() => removeOtherAncillary(idx)}
+              style={{ fontSize: 11 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ))}
+      {!isFinalized && (
+        <button
+          className="admin-header-btn"
+          style={{ marginTop: 8, fontSize: 13 }}
+          onClick={addOtherAncillary}
+        >
+          + Add Other Revenue
+        </button>
+      )}
+
+      <div style={{ maxWidth: 500, marginTop: 16 }}>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Total Ancillary Revenue</span>
+          <span style={valStyle}>{fmt(totalAncillary)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Net Receipts + Ancillary</span>
+          <span style={valStyle}>{fmt(netReceiptsWithCash + totalAncillary)}</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={labelStyle}>Total Expenses + Artist Total</span>
+          <span style={valStyle}>{fmt(totalExpenses + artistTotal)}</span>
+        </div>
+        <div style={{
+          ...rowStyle,
+          borderBottom: "3px solid var(--admin-primary, #ffffff)",
+          paddingBottom: 10,
+        }}>
+          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Venue Net Profit</span>
+          <span style={{
+            ...valStyle, fontSize: 18,
+            color: venueNetProfit >= 0 ? "#7ddb7d" : "#ff9a9a",
+          }}>
+            {fmt(venueNetProfit)}
+          </span>
+        </div>
+      </div>
+      </Card>
+
+      {/* Not in the mockup — the terms this settlement was struck under,
+          and the money already paid against it. */}
+      <details className="stl-more">
+        <summary>
+          <span className="ui-eyebrow">More</span>
+          <span className="stl-more-sub">deal terms · deposits &amp; advances</span>
+        </summary>
+        <div className="stl-more-body">
+      {/* ════════════════════════════════════════════
+          §1  DEAL TERMS (editable in draft)
+      ════════════════════════════════════════════ */}
+      <h2 style={sectionTitleStyle}>Deal Terms</h2>
+      <div className="admin-form-grid">
+        <div>
+          <label className="admin-form-label">Artist</label>
+          <input
+            className="admin-form-input"
+            value={artistName}
+            onChange={(e) => setArtistName(e.target.value)}
+            disabled={isFinalized}
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">Deal Type</label>
+          <select
+            className="admin-form-input"
+            value={dealType}
+            onChange={(e) => setDealType(e.target.value)}
+            disabled={isFinalized}
+          >
+            {DEAL_TYPES.map((dt) => (
+              <option key={dt} value={dt}>{dt}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="admin-form-label">Guarantee ($)</label>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            value={guaranteeInput}
+            onChange={(e) => setGuaranteeInput(Number(e.target.value))}
+            disabled={isFinalized}
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">
+            Backend % <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>(e.g. 85 for 85%)</span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            value={backendPctInput}
+            onChange={(e) => setBackendPctInput(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="85"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">
+            Service Fee Rebate %{" "}
+            <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400, fontSize: 11 }}>
+              (share of the service fee returned — e.g. 50 for 50%)
+            </span>
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            className="admin-form-input"
+            value={serviceFeeRebatePct}
+            onChange={(e) => setServiceFeeRebatePct(Number(e.target.value))}
+            disabled={isFinalized}
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="admin-form-label">Radius Clause</label>
+          <input
+            className="admin-form-input"
+            value={radiusClause}
+            onChange={(e) => setRadiusClause(e.target.value)}
+            disabled={isFinalized}
+            placeholder="e.g. 50 mi / 30 days prior"
+          />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label className="admin-form-label">Bonus Structure (free text or JSON)</label>
+          <input
+            className="admin-form-input"
+            value={bonusStructureRaw}
+            onChange={(e) => setBonusStructureRaw(e.target.value)}
+            disabled={isFinalized}
+            placeholder='e.g. 75% sold +$500, Sellout +$1000'
+          />
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════
+          §6  DEPOSITS & ADVANCES
+      ════════════════════════════════════════════ */}
+      <h2 style={sectionTitleStyle}>Deposits &amp; Advances</h2>
+      {deposits.length === 0 && (
+        <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>No deposits recorded.</p>
+      )}
+      {deposits.map((dep) => (
+        <div key={dep.id} style={{
+          display: "flex", gap: 10, alignItems: "center",
+          padding: "6px 0", borderBottom: "1px solid rgba(255,255,255,0.06)",
+          flexWrap: "wrap",
+        }}>
+          <select
+            className="admin-form-input"
+            style={{ width: 140 }}
+            value={dep.type}
+            onChange={(e) => updateDepositLocal(dep.id, { type: e.target.value as SettlementDeposit["type"] })}
+            disabled={isFinalized}
+          >
+            <option value="deposit">Deposit</option>
+            <option value="cash_advance">Cash Advance</option>
+            <option value="other">Other</option>
+          </select>
+          <input
+            type="number"
+            step="0.01"
+            className="admin-form-input"
+            style={{ width: 120, textAlign: "right" }}
+            value={dep.amount}
+            onChange={(e) => updateDepositLocal(dep.id, { amount: Number(e.target.value) })}
+            disabled={isFinalized}
+          />
+          <input
+            type="date"
+            className="admin-form-input"
+            style={{ width: 150 }}
+            value={dep.date?.slice(0, 10) || ""}
+            onChange={(e) => updateDepositLocal(dep.id, { date: e.target.value })}
+            disabled={isFinalized}
+          />
+          <input
+            className="admin-form-input"
+            style={{ flex: 1, minWidth: 100 }}
+            placeholder="Notes"
+            value={dep.notes || ""}
+            onChange={(e) => updateDepositLocal(dep.id, { notes: e.target.value })}
+            disabled={isFinalized}
+          />
+          {dep.receipt_url ? (
+            <a href={dep.receipt_url} target="_blank" rel="noopener noreferrer"
+              style={{ color: "var(--admin-primary, #ffffff)", fontSize: 12 }}>
+              Receipt
+            </a>
+          ) : !isFinalized ? (
+            <button
+              style={{
+                background: "none", border: "1px solid rgba(255,255,255,0.15)",
+                color: "rgba(255,255,255,0.5)", fontSize: 11,
+                padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+              }}
+              onClick={() => uploadDepositReceipt(dep.id)}
+            >
+              Upload
+            </button>
+          ) : null}
+          {!isFinalized && (
+            <button
+              className="admin-sponsor-delete-btn"
+              onClick={() => removeDeposit(dep.id)}
+              style={{ fontSize: 11 }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ))}
+      <div style={{ ...rowStyle, fontWeight: 700, marginTop: 4 }}>
+        <span style={labelStyle}>Total Deposits + Advances</span>
+        <span style={valStyle}>{fmt(totalDeposits + totalCashAdvances)}</span>
+      </div>
+      {!isFinalized && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          <button className="admin-header-btn" style={{ fontSize: 13 }} onClick={() => addDeposit("deposit")}>
+            + Add Deposit
+          </button>
+          <button className="admin-header-btn" style={{ fontSize: 13 }} onClick={() => addDeposit("cash_advance")}>
+            + Add Cash Advance
+          </button>
+        </div>
+      )}
+
+        </div>
+      </details>
+
+      </div>
+
+      <aside className="stl-rail">
+      {/* ── Which side wins ── */}
+      <Card title="Which side wins" sub="Guarantee against the backend, then what each side walks with">
+      {/* ════════════════════════════════════════════
           §7  SETTLEMENT CALCULATION
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Settlement</h2>
       <div style={{ maxWidth: 500 }}>
         <div style={rowStyle}>
           <span style={labelStyle}>Net Receipts (NBOR, incl. cash)</span>
@@ -2119,106 +2251,17 @@ export default function SettlementDetailPage() {
           </span>
         </div>
       </div>
+      </Card>
 
-      {/* ════════════════════════════════════════════
-          §8  ANCILLARY REVENUE (venue P&L)
-      ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Ancillary Revenue (Venue)</h2>
-      <div className="admin-form-grid">
-        {[
-          { label: "Bar Revenue", value: barRevenue, setter: setBarRevenue },
-          { label: "Concessions", value: concessionsRevenue, setter: setConcessionsRevenue },
-          { label: "Merch Commission", value: merchCommission, setter: setMerchCommission },
-          { label: "Ticketing Rebate", value: ticketingRebate, setter: setTicketingRebate },
-          { label: "Parking Revenue", value: parkingRevenue, setter: setParkingRevenue },
-          { label: "Sponsorship", value: sponsorshipRevenue, setter: setSponsorshipRevenue },
-        ].map((field) => (
-          <div key={field.label}>
-            <label className="admin-form-label">{field.label}</label>
-            <input
-              type="number"
-              step="0.01"
-              className="admin-form-input"
-              value={field.value}
-              onChange={(e) => field.setter(Number(e.target.value))}
-              disabled={isFinalized}
-            />
-          </div>
-        ))}
-      </div>
-
-      {otherAncillary.map((item, idx) => (
-        <div key={idx} style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 6 }}>
-          <input
-            className="admin-form-input"
-            placeholder="Name"
-            value={item.name}
-            onChange={(e) => updateOtherAncillary(idx, { name: e.target.value })}
-            disabled={isFinalized}
-            style={{ flex: 1 }}
-          />
-          <input
-            type="number"
-            step="0.01"
-            className="admin-form-input"
-            style={{ width: 140, textAlign: "right" }}
-            value={item.amount}
-            onChange={(e) => updateOtherAncillary(idx, { amount: Number(e.target.value) })}
-            disabled={isFinalized}
-          />
-          {!isFinalized && (
-            <button
-              className="admin-sponsor-delete-btn"
-              onClick={() => removeOtherAncillary(idx)}
-              style={{ fontSize: 11 }}
-            >
-              ✕
-            </button>
-          )}
+      {/* ── Signature & payout ── */}
+      <Card title="Signature &amp; payout">
+        <div className="stl-sign">
+          Settlement signatures aren&apos;t recorded yet — finalizing stamps who and when in the audit log, but there is no
+          counter-signature from the artist side.
         </div>
-      ))}
-      {!isFinalized && (
-        <button
-          className="admin-header-btn"
-          style={{ marginTop: 8, fontSize: 13 }}
-          onClick={addOtherAncillary}
-        >
-          + Add Other Revenue
-        </button>
-      )}
-
-      <div style={{ maxWidth: 500, marginTop: 16 }}>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Total Ancillary Revenue</span>
-          <span style={valStyle}>{fmt(totalAncillary)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Net Receipts + Ancillary</span>
-          <span style={valStyle}>{fmt(netReceiptsWithCash + totalAncillary)}</span>
-        </div>
-        <div style={rowStyle}>
-          <span style={labelStyle}>Total Expenses + Artist Total</span>
-          <span style={valStyle}>{fmt(totalExpenses + artistTotal)}</span>
-        </div>
-        <div style={{
-          ...rowStyle,
-          borderBottom: "3px solid var(--admin-primary, #ffffff)",
-          paddingBottom: 10,
-        }}>
-          <span style={{ ...labelStyle, fontWeight: 700, fontSize: 16 }}>Venue Net Profit</span>
-          <span style={{
-            ...valStyle, fontSize: 18,
-            color: venueNetProfit >= 0 ? "#7ddb7d" : "#ff9a9a",
-          }}>
-            {fmt(venueNetProfit)}
-          </span>
-        </div>
-      </div>
-
       {/* ════════════════════════════════════════════
           §9  ACTIONS
       ════════════════════════════════════════════ */}
-      <h2 style={sectionTitleStyle}>Actions</h2>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 40 }}>
         {!isFinalized && (
           <>
@@ -2256,6 +2299,9 @@ export default function SettlementDetailPage() {
         <button className="admin-header-btn" onClick={exportVenuePDF} disabled={exportingVenueXlsx} style={{ padding: "10px 20px" }}>
           {exportingVenueXlsx ? "Exporting…" : "Export Venue Settlement Excel"}
         </button>
+      </div>
+      </Card>
+      </aside>
       </div>
     </div>
   );

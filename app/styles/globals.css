@@ -23933,3 +23933,50 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .ofs-row > :nth-child(4),
   .admin-shell .ofs-row > :nth-child(5) { display: none; }
 }
+
+/* ── Settlement (settlement.dc.html) ─────────────────────── */
+.admin-shell .stl .card { margin-bottom: 0; }
+.admin-shell .stl-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 378px;
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+.admin-shell .stl-main { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .stl-rail { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .stl-rail .card > div[style] { max-width: none !important; }
+.admin-shell .stl-sign {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+.admin-shell .stl-more {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+.admin-shell .stl-more > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 48px;
+  padding: 15px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.admin-shell .stl-more > summary::-webkit-details-marker { display: none; }
+.admin-shell .stl-more > summary::before { content: "▸"; font-size: 10px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .stl-more[open] > summary::before { content: "▾"; }
+.admin-shell .stl-more > summary .ui-eyebrow { margin: 0; }
+.admin-shell .stl-more-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .stl-more-body { padding: 0 20px 18px; }
+@media (max-width: 1180px) {
+  .admin-shell .stl-grid { grid-template-columns: minmax(0, 1fr); }
+}
