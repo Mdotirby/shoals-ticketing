@@ -7,6 +7,7 @@ import { useTabParam } from "@/lib/admin/useTabParam";
 import { useAdminNav } from "@/app/components/admin/AdminNavContext";
 import { fmtUSD } from "@/app/components/admin/ui";
 import { REFUND_REASONS, refundBlocker, type RefundReason } from "@/lib/orders/refundPolicy";
+import { orderBreakdown } from "@/lib/orders/breakdown";
 import ByShow from "./_panels/ByShow";
 
 /**
@@ -61,7 +62,15 @@ type Detail = {
     ticketing_fee: number;
     facility_fee: number;
     tax_collected: number;
+    /**
+     * Two fee columns, and they disagree on purpose: stripe_fee is what we
+     * estimated at checkout, stripe_fee_actual is what Stripe really took at
+     * settlement. net_to_venue is computed from the actual one, so anything
+     * shown next to it has to use the same figure — a terminal order reads
+     * stripe_fee 0 and stripe_fee_actual 0.94.
+     */
     stripe_fee: number;
+    stripe_fee_actual?: number | null;
     net_to_venue: number;
   }[];
 };
@@ -303,14 +312,15 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
     }
   };
 
+  // What Stripe actually took, not what checkout guessed. net_to_venue is
+  // derived from this, so the two lines agree.
+  const cardFee = sale ? (sale.stripe_fee_actual ?? sale.stripe_fee ?? 0) : 0;
+
+  // Lines that add up to what the buyer was charged. The ledger's
+  // ticket_revenue sometimes already contains the service fee, so the split
+  // lives in lib/orders/breakdown.ts with the cases spelled out and pinned.
   const lines: [string, number][] = sale
-    ? [
-        ["Face value", sale.ticket_revenue],
-        ["Service fee", sale.ticketing_fee],
-        ["Facility fee", sale.facility_fee],
-        ["Sales tax", sale.tax_collected],
-        ["Card surcharge", Math.max(0, sale.gross_amount - sale.ticket_revenue - sale.ticketing_fee - sale.facility_fee - sale.tax_collected)],
-      ]
+    ? orderBreakdown(sale).map((l) => [l.label, l.amount] as [string, number])
     : [];
 
   return (
@@ -335,6 +345,15 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
           {refundRows.map((r, i) => (
             <div key={i}><dt>Refunded</dt><dd className="ob-tone-bad">{fmtUSD(r.gross_amount)}</dd></div>
           ))}
+          {/* What the show actually keeps — the mockup's last two lines. Both
+              come off the same ledger row as everything above, and were
+              already fetched; the panel just stopped at what the buyer paid. */}
+          {sale && cardFee > 0 && (
+            <div><dt>Card processing</dt><dd className="ob-tone-quiet">−{fmtUSD(cardFee)}</dd></div>
+          )}
+          {sale && (
+            <div className="ee-money-rows-total"><dt>Net to the show</dt><dd>{fmtUSD(sale.net_to_venue)}</dd></div>
+          )}
         </dl>
 
         <span className="ee-eyebrow ob-sub">Tickets · {tickets.length}</span>
