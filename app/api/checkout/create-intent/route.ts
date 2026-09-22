@@ -2,6 +2,7 @@ import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { resolveTierFees, unlocksTier, type FeeMode, type TierFeeOverrides } from "@/lib/fees/tierFees";
 import {
   resolveVenueFees,
   validatePromoCode,
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       fwbOptIn,
       promoCode,
       presaleCode,
+      unlockCode,
       selectedSeats,
       sessionId,
       trackingRef,
@@ -166,19 +168,42 @@ export async function POST(request: Request) {
     // ── Resolve ticket price (tier or event-level) ────────────────────────
     let ticketPriceDollars = event.price;
     let tierName = "General Admission";
+    let tierFeeModes: TierFeeOverrides | null = null;
 
     if (tierId) {
-      const { data: tier, error: tierError } = await admin
+      let { data: tier, error: tierError } = await admin
         .from("ticket_tiers")
-        .select("id, tier_name, price, capacity")
+        .select("id, tier_name, price, capacity, service_fee_mode, facility_fee_mode, unlock_code")
         .eq("id", tierId)
         .eq("event_id", eventId)
         .single();
+      if (tierError && /service_fee_mode|facility_fee_mode|unlock_code|column .* does not exist/i.test(tierError.message)) {
+        const retry = await admin
+          .from("ticket_tiers")
+          .select("id, tier_name, price, capacity")
+          .eq("id", tierId)
+          .eq("event_id", eventId)
+          .single();
+        tier = retry.data
+          ? { ...retry.data, service_fee_mode: null, facility_fee_mode: null, unlock_code: null }
+          : null;
+        tierError = retry.error;
+      }
 
       if (tierError || !tier) {
         return NextResponse.json(
           { error: "Ticket tier not found" },
           { status: 404 }
+        );
+      }
+
+      // A locked tier needs its code. This is the ONLY place that decides it —
+      // the storefront is told `locked: true` and never sees the code, so a
+      // client that hides the lock still cannot buy.
+      if (!unlocksTier(tier.unlock_code, unlockCode)) {
+        return NextResponse.json(
+          { error: "That tier needs an unlock code." },
+          { status: 403 }
         );
       }
 
@@ -208,10 +233,45 @@ export async function POST(request: Request) {
 
       ticketPriceDollars = tier.price;
       tierName = tier.tier_name;
+      // The column is unconstrained text to this client; narrow it here so an
+      // unexpected value falls back to inheriting rather than being trusted.
+      const asMode = (v: unknown): FeeMode | null =>
+        v === "added" || v === "included" || v === "waived" ? v : null;
+      tierFeeModes = {
+        service_fee_mode: asMode(tier.service_fee_mode),
+        facility_fee_mode: asMode(tier.facility_fee_mode),
+      };
     }
 
     // ── Resolve venue fees ────────────────────────────────────────────────
-    const fees = await resolveVenueFees(admin, event);
+    const venueFees = await resolveVenueFees(admin, event);
+
+    /**
+     * The tier may override what the event charges — see lib/fees/tierFees.ts.
+     * A WAIVED fee is not charged and not earned, which is different from the
+     * event's fees_included_in_price (still earned, just out of the face).
+     *
+     * `charged` drives what the buyer pays; `earned` is what the show books.
+     * They differ only for an included fee, which is exactly the case that was
+     * previously indistinguishable in the data.
+     */
+    const tierFees = resolveTierFees(
+      {
+        ticketingFee: venueFees.ticketingFee,
+        facilityFee: venueFees.facilityFee,
+        feesIncludedInPrice: venueFees.feesIncludedInPrice,
+        facilityFeeEnabled: event.facility_fee_enabled,
+      },
+      tierFeeModes,
+    );
+    const fees = {
+      ...venueFees,
+      ticketingFee: tierFees.service.charged,
+      facilityFee: tierFees.facility.charged,
+      // `charged` already accounts for "included" by being zero, so nothing
+      // further should be subtracted on top of it.
+      feesIncludedInPrice: false,
+    };
 
     // ── Validate promo code ───────────────────────────────────────────────
     let promoResult: { promoCodeId: string; promoCodeStr: string; discountCentsPerTicket: number } | null = null;
@@ -305,12 +365,17 @@ export async function POST(request: Request) {
         tier_name: tierName,
         venue_id: event.venue_id || "",
         quantity: String(effectiveQuantity),
-        ticketing_fee: String(fees.ticketingFee),
-        facility_fee: String(fees.facilityFee),
+        // What the show EARNS, not what was added to the buyer's total. For an
+        // included fee those differ; for a waived one this is zero, which is
+        // the whole point — a waived fee must never appear as fee revenue.
+        ticketing_fee: String(tierFees.service.earned),
+        facility_fee: String(tierFees.facility.earned),
         venue_rebate: String(fees.venueRebate),
         tax_rate: String(fees.taxRate),
         tax_method: fees.taxMethod,
-        fees_included_in_price: fees.feesIncludedInPrice ? "true" : "false",
+        fees_included_in_price: tierFees.addedToFace === 0 && (tierFees.service.earned > 0 || tierFees.facility.earned > 0) ? "true" : "false",
+        service_fee_mode: tierFees.service.mode,
+        facility_fee_mode: tierFees.facility.mode,
         buyer_name: buyerName || "",
         buyer_email: buyerEmail || "",
         buyer_phone: buyerPhone || "",
