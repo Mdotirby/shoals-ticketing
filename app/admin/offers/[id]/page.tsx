@@ -12,8 +12,116 @@ import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
-import { Button, Card, PageHeader, StatusBadge } from "@/app/components/admin/ui";
+import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
+import { walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import OfferRail from "../_parts/OfferRail";
+
+/**
+ * Deal lab — the mockup's four levers (offers.dc.html): move one, read the
+ * venue's net at the bottom. The arithmetic is lib/offers/walkout.ts, the same
+ * function the rail and the settlement use, so a scenario here and a walkout
+ * there can't disagree.
+ *
+ * Nothing here writes to the offer until "Copy to the offer" is pressed.
+ */
+function DealLevers({
+  basis,
+  faceTier,
+  onCopy,
+}: {
+  basis: WalkoutBasis;
+  faceTier: { netPrice: number; sellable: number } | null;
+  onCopy: (patch: { guarantee?: number; backendPct?: number; facePrice?: number }) => void;
+}) {
+  const [guarantee, setGuarantee] = useState(basis.guarantee);
+  const [backendPct, setBackendPct] = useState(basis.backendPct);
+  const [face, setFace] = useState(faceTier?.netPrice ?? 0);
+  const [costs, setCosts] = useState(basis.totalFixed + basis.totalVariable);
+  const [share, setShare] = useState(1);
+
+  const asWritten = walkoutAt(share, basis);
+  // A face-price move changes net receipts by the tier's own quantity.
+  const faceDelta = faceTier ? (face - faceTier.netPrice) * faceTier.sellable : 0;
+  const lab = walkoutAt(share, {
+    ...basis,
+    netPotential: basis.netPotential + faceDelta,
+    guarantee,
+    backendPct,
+    totalFixed: Math.max(0, costs - basis.totalVariable),
+  });
+  const delta = lab.venue - asWritten.venue;
+  const money = (n: number) => fmtUSD(n, { cents: false });
+
+  const levers: Array<{ label: string; value: string; note: string; input: React.ReactNode }> = [
+    {
+      label: "Guarantee",
+      value: money(guarantee),
+      note: "What the artist is promised before any split",
+      input: <input type="range" min={0} max={Math.max(5000, Math.round(basis.guarantee * 3))} step={100} value={guarantee} onChange={(e) => setGuarantee(Number(e.target.value))} />,
+    },
+    {
+      label: "Artist split after costs",
+      value: `${backendPct}%`,
+      note: "Backend percentage on net after expenses",
+      input: <input type="range" min={0} max={100} step={1} value={backendPct} onChange={(e) => setBackendPct(Number(e.target.value))} />,
+    },
+    {
+      label: "Face price — first tier",
+      value: faceTier ? fmtUSD(face) : "—",
+      note: faceTier ? `${faceTier.sellable.toLocaleString()} seats at this price` : "no tiers on the offer yet",
+      input: <input type="range" min={0} max={Math.max(50, Math.round((faceTier?.netPrice ?? 0) * 3))} step={1} value={face} disabled={!faceTier} onChange={(e) => setFace(Number(e.target.value))} />,
+    },
+    {
+      label: "Show costs",
+      value: money(costs),
+      note: "Fixed plus variable at sellout",
+      input: <input type="range" min={0} max={Math.max(10000, Math.round((basis.totalFixed + basis.totalVariable) * 3))} step={100} value={costs} onChange={(e) => setCosts(Number(e.target.value))} />,
+    },
+  ];
+
+  return (
+    <Card>
+      <div className="ofb-card-head">
+        <Eyebrow>Deal lab — move one lever</Eyebrow>
+        <span className="filter-spacer" />
+        <label className="ofl-share">
+          against
+          <input type="range" min={0.3} max={1} step={0.01} value={share} onChange={(e) => setShare(Number(e.target.value))} />
+          {Math.round(share * 100)}% sell-through
+        </label>
+      </div>
+
+      <div className="ofl">
+        {levers.map((l) => (
+          <div key={l.label} className="ofl-row">
+            <div className="ofl-head">
+              <span className="ofl-label">{l.label}</span>
+              <span className="ofl-value">{l.value}</span>
+            </div>
+            {l.input}
+            <div className="ofl-note">{l.note}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="ofl-out">
+        <div className="ofl-out-head">
+          <span>Venue net at these settings</span>
+          <b className={delta > 0.5 ? "ofb-tone-good" : delta < -0.5 ? "ofb-tone-bad" : ""}>{money(lab.venue)}</b>
+        </div>
+        <div className="ofl-out-sub">
+          Versus {money(asWritten.venue)} on the offer as written — {delta >= 0 ? "+" : "−"}{money(Math.abs(delta))}.
+          The artist walks with {money(lab.artist)} in this scenario. The lab never writes to the offer; copy a setting across when you like it.
+        </div>
+        <div className="ofl-out-actions">
+          <Button size="sm" onClick={() => onCopy({ guarantee, backendPct, facePrice: faceTier ? face : undefined })}>
+            Copy to the offer
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 /** Convert 24hr time (e.g. "19:00") to 12hr format (e.g. "7:00 PM") */
 function formatTime12hr(time: string): string {
@@ -231,6 +339,75 @@ export default function AdminOfferDetailPage() {
     form.guarantee, form.backend_percentage, form.deal_type,
   ]);
 
+  // ── Scaling rows, as the six-column table reads them ──────────────────────
+  // Same arithmetic the 13-column sheet did; the working columns now open per
+  // tier instead of all being on screen at once.
+  const [openTier, setOpenTier] = useState<number | null>(null);
+
+  const scalingRaw = Array.isArray(form.ticket_scaling)
+    ? (form.ticket_scaling as Array<Record<string, number | string>>)
+    : [];
+
+  const setTier = (i: number, patch: Record<string, string | number>) => {
+    const s = [...scalingRaw];
+    s[i] = { ...s[i], ...patch };
+    updateField("ticket_scaling", s);
+  };
+  /** Seats, comps and kills all feed sellable — keep it in step. */
+  const setSeats = (i: number, key: "seats" | "comps" | "kills", v: number) => {
+    const s = [...scalingRaw];
+    const row = { ...s[i], [key]: v };
+    row.sellable_cap = Number(row.seats || 0) - Number(row.comps || 0) - Number(row.kills || 0);
+    s[i] = row;
+    updateField("ticket_scaling", s);
+  };
+  const globalFees = {
+    fac: Number(scalingRaw[0]?.facility_fee ?? 0),
+    tkt: Number(scalingRaw[0]?.ticketing_fee ?? 0),
+  };
+  const applyFeesToAll = (fac: number, tkt: number) => {
+    updateField(
+      "ticket_scaling",
+      scalingRaw.map((r) => ({ ...r, facility_fee: fac, ticketing_fee: tkt, price: Number(r.net_price || 0) + fac + tkt })),
+    );
+  };
+
+  const scalingRows = scalingRaw.map((r, i) => {
+    const rawTax = Number(form.tax_rate) || 0;
+    const trd = (rawTax > 0 && rawTax < 1 ? rawTax * 100 : rawTax) / 100;
+    const tm = (form.tax_method as string) || "multiplier";
+    const netPrice = Number(r.net_price || 0);
+    const facFee = Number(r.facility_fee || 0);
+    const tktFee = Number(r.ticketing_fee || 0);
+    const price = Number(r.price || netPrice + facFee + tktFee);
+    const taxEach = tm === "divisor"
+      ? Math.round((netPrice * trd) / (1 + trd) * 100) / 100
+      : Math.round(netPrice * trd * 100) / 100;
+    const preCC = tm === "divisor" ? price : price + taxEach;
+    const ccEach = offerSurchargePerTicket(preCC);
+    const allIn = preCC + ccEach;
+    const sellable = Number(r.sellable_cap || 0);
+    return {
+      i,
+      raw: r,
+      name: String(r.name || ""),
+      seats: Number(r.seats || 0),
+      comps: Number(r.comps || 0),
+      kills: Number(r.kills || 0),
+      netPrice, facFee, tktFee, price, taxEach, ccEach, allIn, sellable,
+      feesEach: facFee + tktFee + taxEach + ccEach,
+      gross: sellable * allIn,
+      net: sellable * netPrice,
+    };
+  });
+  // Column sums, so the total line adds up the rows above it exactly.
+  const scalingTotals = {
+    seats: scalingRows.reduce((t, r) => t + r.seats, 0),
+    sellable: scalingRows.reduce((t, r) => t + r.sellable, 0),
+    gross: scalingRows.reduce((t, r) => t + r.gross, 0),
+    net: scalingRows.reduce((t, r) => t + r.net, 0),
+  };
+
   // Merge live-computed derived totals into form state before saving so the
   // database always has the up-to-date totals/splitpoint/net_potential/etc.
   const buildSavePayload = (overrides: Record<string, unknown> = {}) => ({
@@ -427,12 +604,11 @@ export default function AdminOfferDetailPage() {
     ? new Date(String(form.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
     : "MA — no date";
   const updatedAt = (offer as { updated_at?: string }).updated_at;
-  const scalingRows = Array.isArray(form.ticket_scaling) ? (form.ticket_scaling as Array<Record<string, number>>) : [];
   const walkoutBasis = {
     netPotential: live.netPotential,
     totalFixed: live.totalFixed,
     totalVariable: live.totalVariable,
-    sellable: scalingRows.reduce((s, r) => s + (Number(r.sellable_cap) || 0), 0),
+    sellable: scalingTotals.sellable,
     guarantee: Number(form.guarantee) || 0,
     backendPct: Number(form.backend_percentage) || 0,
     dealType: String(form.deal_type || "FLAT"),
@@ -508,282 +684,298 @@ export default function AdminOfferDetailPage() {
       <div className="ofb-main">
       {activeTab === "details" && (
       <>
-      {/* Editable Fields */}
-      <Card title="Deal structure" actions={<span className="ofb-kind">{String(form.deal_type || "FLAT")} deal</span>}>
-      <div className="admin-form">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
-          <div>
-            <h3 className="ofb-sub">Venue Info</h3>
-            {eventVenues.length > 0 && (
-              <label className="admin-form-label" style={{ marginBottom: 12 }}>
-                Select Previous Venue
-                <select className="admin-form-input" onChange={(e) => {
-                  const v = eventVenues.find((x) => x.id === e.target.value);
-                  if (v) {
-                    updateField("event_venue_id", v.id);
-                    updateField("venue", v.name);
-                    updateField("venue_address", v.full_address || "");
-                    updateField("venue_contact", v.contact_name || "");
-                    updateField("venue_phone", v.phone || "");
-                  }
-                }} defaultValue="">
-                  <option value="" disabled>— Choose a venue —</option>
-                  {eventVenues.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}{v.full_address ? ` (${v.full_address})` : ""}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <div className="admin-form-grid">
-              <label className="admin-form-label">Venue<input type="text" className="admin-form-input" value={String(form.venue || "")} onChange={(e) => updateField("venue", e.target.value)} /></label>
-              <label className="admin-form-label admin-form-full">Venue Address<input type="text" className="admin-form-input" value={String(form.venue_address || "")} onChange={(e) => updateField("venue_address", e.target.value)} /></label>
-              <label className="admin-form-label">Venue Contact <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="text" className="admin-form-input" value={String(form.venue_contact || "")} onChange={(e) => updateField("venue_contact", e.target.value)} /></label>
-              <label className="admin-form-label">Venue Phone <span style={{ opacity: 0.5, fontSize: 11 }}>(optional)</span><input type="tel" className="admin-form-input" value={String(form.venue_phone || "")} onChange={(e) => updateField("venue_phone", formatPhoneNumber(e.target.value))} /></label>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="ofb-sub">Agency & Artist</h3>
-            <div className="admin-form-grid">
-              <label className="admin-form-label">Artist Name<input type="text" className="admin-form-input" value={String(form.artist_name || "")} onChange={(e) => updateField("artist_name", e.target.value)} /></label>
-              <label className="admin-form-label">Agency<input type="text" className="admin-form-input" value={String(form.agency || "")} onChange={(e) => updateField("agency", e.target.value)} /></label>
-              <label className="admin-form-label">Agent Name<input type="text" className="admin-form-input" value={String(form.agent_name || "")} onChange={(e) => updateField("agent_name", e.target.value)} /></label>
-              <label className="admin-form-label">Agent Phone<input type="tel" className="admin-form-input" value={String(form.agent_phone || "")} onChange={(e) => updateField("agent_phone", formatPhoneNumber(e.target.value))} /></label>
-              <label className="admin-form-label">Agent Email<input type="email" className="admin-form-input" value={String(form.agent_email || "")} onChange={(e) => updateField("agent_email", e.target.value)} /></label>
-              <label className="admin-form-label">Event Date
-                <select className="admin-form-input" value={form.event_date ? "date" : "ma"} onChange={(e) => { if (e.target.value === "ma") updateField("event_date", null); }}>
-                  <option value="ma">MA — No date attached</option>
-                  <option value="date">Specific date</option>
-                </select>
-              </label>
-              {form.event_date !== null && form.event_date !== undefined && (
-                <label className="admin-form-label">Date<input type="date" className="admin-form-input" value={form.event_date ? String(form.event_date).slice(0,10) : ""} onChange={(e) => updateField("event_date", e.target.value)} /></label>
-              )}
-              <label className="admin-form-label">Billing<select className="admin-form-input" value={String(form.billing || "100% Headline")} onChange={(e) => updateField("billing", e.target.value)}>
-                <option>100% Headline</option><option>Co-Headline</option><option>Support</option>
-              </select></label>
-            </div>
-          </div>
+      {/* ── Deal structure — the mockup's nine fields, three across ── */}
+      <Card
+        title="Deal structure"
+        actions={<span className="ofb-kind">{String(form.deal_type || "FLAT")} · {form.event_date ? "dated" : "MA — no date"}</span>}
+      >
+        <div className="ofb-fields">
+          <label className="ofb-field">
+            <span className="ofb-field-label">Artist</span>
+            <input value={String(form.artist_name || "")} onChange={(e) => updateField("artist_name", e.target.value)} />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Agency / agent</span>
+            <span className="ofb-field-pair">
+              <input value={String(form.agency || "")} placeholder="Agency" onChange={(e) => updateField("agency", e.target.value)} />
+              <input value={String(form.agent_name || "")} placeholder="Agent" onChange={(e) => updateField("agent_name", e.target.value)} />
+            </span>
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Date</span>
+            <input
+              type="date"
+              value={form.event_date ? String(form.event_date).slice(0, 10) : ""}
+              onChange={(e) => updateField("event_date", e.target.value || null)}
+            />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Venue / room</span>
+            <input value={String(form.venue || "")} onChange={(e) => updateField("venue", e.target.value)} />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Deal type</span>
+            <select value={String(form.deal_type || "FLAT")} onChange={(e) => updateField("deal_type", e.target.value)}>
+              <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
+            </select>
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Guarantee</span>
+            <input type="number" step="0.01" value={String(form.guarantee || "")} onChange={(e) => updateField("guarantee", parseFloat(e.target.value) || 0)} />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Backend split</span>
+            <input
+              value={String(form.backend_percentage || "")}
+              placeholder="% after costs"
+              onChange={(e) => updateField("backend_percentage", e.target.value)}
+            />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Billing</span>
+            <select value={String(form.billing || "100% Headline")} onChange={(e) => updateField("billing", e.target.value)}>
+              <option>100% Headline</option><option>Co-Headline</option><option>Support</option>
+            </select>
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Merch rate</span>
+            <input value={String(form.merch_split || "")} placeholder="e.g. 80/20 · venue sells" onChange={(e) => updateField("merch_split", e.target.value)} />
+          </label>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(340px, 100%), 1fr))", gap: 24 }}>
-          <div>
-            <h3 className="ofb-sub">Deal</h3>
-            <div className="admin-form-grid">
-              <label className="admin-form-label">Guarantee ($)<input type="number" className="admin-form-input" value={String(form.guarantee || "")} onChange={(e) => updateField("guarantee", parseFloat(e.target.value) || 0)} step="0.01" /></label>
-              <label className="admin-form-label">Deal Type<select className="admin-form-input" value={String(form.deal_type || "FLAT")} onChange={(e) => updateField("deal_type", e.target.value)}>
-                <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
-              </select></label>
-              <label className="admin-form-label">Backend %<input type="text" className="admin-form-input" value={String(form.backend_percentage || "")} onChange={(e) => updateField("backend_percentage", e.target.value)} /></label>
-              <label className="admin-form-label">Radius (mi)<input type="text" className="admin-form-input" value={String(form.radius_distance || "")} onChange={(e) => updateField("radius_distance", e.target.value)} /></label>
-              <label className="admin-form-label">Days Prior<input type="number" className="admin-form-input" value={String(form.radius_days_prior || "")} onChange={(e) => updateField("radius_days_prior", parseInt(e.target.value) || null)} /></label>
-              <label className="admin-form-label">Days After<input type="number" className="admin-form-input" value={String(form.radius_days_after || "")} onChange={(e) => updateField("radius_days_after", parseInt(e.target.value) || null)} /></label>
-              <label className="admin-form-label">Deposit $<input type="number" className="admin-form-input" value={String(form.deposit_amount || "")} onChange={(e) => updateField("deposit_amount", parseFloat(e.target.value) || 0)} step="0.01" /></label>
-              <label className="admin-form-label">Balance Due<input type="text" className="admin-form-input" value={String(form.balance_due || "")} onChange={(e) => updateField("balance_due", e.target.value)} /></label>
-              <label className="admin-form-label">Merch<input type="text" className="admin-form-input" value={String(form.merch_split || "")} onChange={(e) => updateField("merch_split", e.target.value)} /></label>
-              <label className="admin-form-label">Total Comps<input type="number" className="admin-form-input" value={String(form.comps || "")} onChange={(e) => updateField("comps", parseInt(e.target.value) || 0)} /></label>
-              <label className="admin-form-label">Artist Comps<input type="number" className="admin-form-input" value={String(form.artist_comps || "")} onChange={(e) => updateField("artist_comps", parseInt(e.target.value) || 0)} /></label>
-              <label className="admin-form-label">Marketing Comps<input type="number" className="admin-form-input" value={String(form.marketing_comps || "")} onChange={(e) => updateField("marketing_comps", parseInt(e.target.value) || 0)} /></label>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="ofb-sub">Tax</h3>
-            <div className="admin-form-grid">
-              <label className="admin-form-label">
-                Tax Method
-                <select className="admin-form-input" value={String(form.tax_method || "multiplier")} onChange={(e) => updateField("tax_method", e.target.value)}>
-                  <option value="multiplier">Multiplier (default — customer pays tax on top)</option>
-                  <option value="divisor">Divisor (tax baked into face price)</option>
-                </select>
-              </label>
-              <label className="admin-form-label">
-                Tax Rate (%)
-                <input type="number" className="admin-form-input" value={(() => { const r = Number(form.tax_rate || 0); return r > 0 && r < 1 ? r * 100 : r; })()} onChange={(e) => updateField("tax_rate", parseFloat(e.target.value) / 100 || 0)} step="0.5" min="0" placeholder="9.5" />
-              </label>
-            </div>
-          </div>
-        </div>
-
-      </div>
-      </Card>
-
-        {/* ── Ticket Scaling ── */}
-      <Card title="Scaling & gross potential" sub="Seats − comps − kills = sellable; fees apply to every tier">
-      <div className="admin-form">
-        {(() => {
-          const scaling = Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number | string>> : [];
-          const rawTax = Number(form.tax_rate) || 0;
-          const trd = (rawTax > 0 && rawTax < 1 ? rawTax * 100 : rawTax) / 100;
-          const tm = (form.tax_method as string) || "multiplier";
-          // Derive global fee values from first tier (all tiers share the same fees)
-          const globalFacFee = Number(scaling[0]?.facility_fee ?? 0);
-          const globalTktFee = Number(scaling[0]?.ticketing_fee ?? 0);
-          const applyFeesToAll = (ff: number, tf: number) => {
-            const s = scaling.map((r) => ({ ...r, facility_fee: ff, ticketing_fee: tf, price: Number(r.net_price || 0) + ff + tf }));
-            updateField("ticket_scaling", s);
-          };
-          return (
-            <>
-              <div className="offer-scaling-table">
-                <div className="offer-scaling-header">
-                  <span>Name</span><span># Seats</span><span>Comps</span><span>Kills</span><span>Sellable</span><span>Net Price</span><span>Fac. Fee</span><span>Tkt Fee</span><span>Sub.</span><span>Tax/Ticket</span><span>CC/Ticket</span><span>Price</span><span>Gross</span>
-                </div>
-                {scaling.map((r, i) => {
-                  const np = Number(r.net_price || 0);
-                  const ff = Number(r.facility_fee || 0);
-                  const tf = Number(r.ticketing_fee || 0);
-                  const price = Number(r.price || np + ff + tf);
-                  const taxPerTicket = tm === "divisor"
-                    ? Math.round(np * trd / (1 + trd) * 100) / 100
-                    : Math.round(np * trd * 100) / 100;
-                  const preCC = tm === "divisor" ? price : price + taxPerTicket;
-                  const ccPerTicket = offerSurchargePerTicket(preCC);
-                  const allIn = preCC + ccPerTicket;
-                  const sellable = Number(r.sellable_cap || 0);
-                  return (
-                    <div key={i} className="offer-scaling-row">
-                      <input type="text" className="admin-form-input" value={String(r.name || "")} onChange={(e) => { const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)]; s[i] = { ...s[i], name: e.target.value }; updateField("ticket_scaling", s); }} />
-                      <input type="number" className="admin-form-input" value={r.seats || ""} onChange={(e) => {
-                        const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
-                        const v = parseInt(e.target.value) || 0;
-                        s[i] = { ...s[i], seats: v, sellable_cap: v - Number(s[i].comps || 0) - Number(s[i].kills || 0) };
-                        updateField("ticket_scaling", s);
-                      }} />
-                      <input type="number" className="admin-form-input" value={r.comps || ""} onChange={(e) => {
-                        const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
-                        const v = parseInt(e.target.value) || 0;
-                        s[i] = { ...s[i], comps: v, sellable_cap: Number(s[i].seats || 0) - v - Number(s[i].kills || 0) };
-                        updateField("ticket_scaling", s);
-                      }} />
-                      <input type="number" className="admin-form-input" value={r.kills || ""} onChange={(e) => {
-                        const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
-                        const v = parseInt(e.target.value) || 0;
-                        s[i] = { ...s[i], kills: v, sellable_cap: Number(s[i].seats || 0) - Number(s[i].comps || 0) - v };
-                        updateField("ticket_scaling", s);
-                      }} />
-                      <span className="offer-calc-cell">{sellable}</span>
-                      <input type="number" className="admin-form-input" value={r.net_price || ""} onChange={(e) => {
-                        const s = [...(form.ticket_scaling as Array<Record<string, unknown>>)];
-                        const np2 = parseFloat(e.target.value) || 0;
-                        s[i] = { ...s[i], net_price: np2, price: np2 + Number(s[i].facility_fee || 0) + Number(s[i].ticketing_fee || 0) };
-                        updateField("ticket_scaling", s);
-                      }} step="0.01" />
-                      <span className="offer-calc-cell">${ff.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${tf.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${price.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${taxPerTicket.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${ccPerTicket.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${allIn.toFixed(2)}</span>
-                      <span className="offer-calc-cell">${(sellable * allIn).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      {scaling.length > 1 && <button type="button" className="admin-tier-remove-btn" onClick={() => updateField("ticket_scaling", scaling.filter((_, j) => j !== i))}>✕</button>}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="offer-scaling-footer">
-                <button type="button" className="admin-tier-add-btn" onClick={() => updateField("ticket_scaling", [...scaling, { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: globalFacFee + globalTktFee, net_price: 0, facility_fee: globalFacFee, ticketing_fee: globalTktFee }])}>+ Add Tier</button>
-                <label className="admin-form-label offer-inline-label">Facility Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={globalFacFee} onChange={(e) => applyFeesToAll(parseFloat(e.target.value) || 0, globalTktFee)} step="0.01" /></label>
-                <label className="admin-form-label offer-inline-label">Ticketing Fee $<input type="number" className="admin-form-input" style={{ width: 80 }} value={globalTktFee} onChange={(e) => applyFeesToAll(globalFacFee, parseFloat(e.target.value) || 0)} step="0.01" /></label>
-              </div>
-              <div className="offer-totals-row">
-                <span>Total Cap: <strong>{scaling.reduce((s, r) => s + Number(r.seats || 0), 0)}</strong></span>
-                <span>Sellable: <strong>{scaling.reduce((s, r) => s + Number(r.sellable_cap || 0), 0)}</strong></span>
-                <span>Gross Potential: <strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-                <span>Adj. Gross: <strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
-              </div>
-            </>
-          );
-        })()}
-
-      </div>
-      </Card>
-
-        {/* ── Fixed Expenses ── */}
-      <Card title="Show expenses — offer estimate">
-      <div className="admin-form">
-        <div className="offer-expenses-grid">
-          <div className="offer-expenses-col">
-            <h3 className="offer-expenses-heading">Fixed Expenses</h3>
-            {(Array.isArray(form.fixed_expenses) ? form.fixed_expenses as Array<{name: string; amount: number}> : []).map((e, i) => (
-              <div key={i} className="offer-expense-row">
-                <input type="text" className="admin-form-input" value={e.name} onChange={(ev) => { const f = [...(form.fixed_expenses as Array<Record<string, unknown>>)]; f[i] = { ...f[i], name: ev.target.value }; updateField("fixed_expenses", f); }} />
-                <input type="number" className="admin-form-input" value={e.amount || ""} onChange={(ev) => { const f = [...(form.fixed_expenses as Array<Record<string, unknown>>)]; f[i] = { ...f[i], amount: parseFloat(ev.target.value) || 0 }; updateField("fixed_expenses", f); }} step="0.01" />
-              </div>
-            ))}
-            <button type="button" className="admin-tier-add-btn" onClick={() => updateField("fixed_expenses", [...(Array.isArray(form.fixed_expenses) ? form.fixed_expenses : []), { name: "", amount: 0 }])}>+ New Expense</button>
-          </div>
-          <div className="offer-expenses-col">
-            <h3 className="offer-expenses-heading">Variable Expenses</h3>
-            {(Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{name: string; rate: number; amount: number}> : []).map((e, i) => {
-              // Live amount = rate × current gross potential (not the stored stale value)
-              const liveAmount = Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100;
-              return (
-                <div key={i} className="offer-expense-row">
-                  <span className="offer-var-name">{e.name}</span>
-                  <input
-                    type="number"
-                    className="admin-form-input"
-                    style={{ width: 80 }}
-                    value={e.rate}
-                    onChange={(ev) => {
-                      const v = [...(form.variable_expenses as Array<Record<string, unknown>>)];
-                      const rate = parseFloat(ev.target.value) || 0;
-                      v[i] = { ...v[i], rate, amount: Math.round(live.grossPotential * rate * 100) / 100 };
-                      updateField("variable_expenses", v);
+        {/* Everything else the offer carries — the export and the contract read
+            these, so they stay on the page, out of the way. */}
+        <details className="ofb-terms">
+          <summary>
+            <span className="ui-eyebrow">More terms</span>
+            <span className="ofb-terms-sub">venue contact · agent contact · radius · deposit · comps · tax · notes</span>
+          </summary>
+          <div className="ofb-terms-body">
+            <div className="ofb-fields">
+              {eventVenues.length > 0 && (
+                <label className="ofb-field">
+                  <span className="ofb-field-label">Copy a previous venue</span>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      const v = eventVenues.find((x) => x.id === e.target.value);
+                      if (v) {
+                        updateField("event_venue_id", v.id);
+                        updateField("venue", v.name);
+                        updateField("venue_address", v.full_address || "");
+                        updateField("venue_contact", v.contact_name || "");
+                        updateField("venue_phone", v.phone || "");
+                      }
                     }}
-                    step="0.0001"
-                  />
-                  <span className="offer-var-amount">${liveAmount.toFixed(2)}</span>
-                </div>
-              );
-            })}
+                  >
+                    <option value="" disabled>— choose —</option>
+                    {eventVenues.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="ofb-field ofb-field--wide">
+                <span className="ofb-field-label">Venue address</span>
+                <input value={String(form.venue_address || "")} onChange={(e) => updateField("venue_address", e.target.value)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Venue contact</span>
+                <input value={String(form.venue_contact || "")} onChange={(e) => updateField("venue_contact", e.target.value)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Venue phone</span>
+                <input type="tel" value={String(form.venue_phone || "")} onChange={(e) => updateField("venue_phone", formatPhoneNumber(e.target.value))} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Agent phone</span>
+                <input type="tel" value={String(form.agent_phone || "")} onChange={(e) => updateField("agent_phone", formatPhoneNumber(e.target.value))} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Agent email</span>
+                <input type="email" value={String(form.agent_email || "")} onChange={(e) => updateField("agent_email", e.target.value)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Radius (mi)</span>
+                <input value={String(form.radius_distance || "")} onChange={(e) => updateField("radius_distance", e.target.value)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Days prior</span>
+                <input type="number" value={String(form.radius_days_prior || "")} onChange={(e) => updateField("radius_days_prior", parseInt(e.target.value) || null)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Days after</span>
+                <input type="number" value={String(form.radius_days_after || "")} onChange={(e) => updateField("radius_days_after", parseInt(e.target.value) || null)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Deposit $</span>
+                <input type="number" step="0.01" value={String(form.deposit_amount || "")} onChange={(e) => updateField("deposit_amount", parseFloat(e.target.value) || 0)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Balance due</span>
+                <input value={String(form.balance_due || "")} onChange={(e) => updateField("balance_due", e.target.value)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Total comps</span>
+                <input type="number" value={String(form.comps || "")} onChange={(e) => updateField("comps", parseInt(e.target.value) || 0)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Artist comps</span>
+                <input type="number" value={String(form.artist_comps || "")} onChange={(e) => updateField("artist_comps", parseInt(e.target.value) || 0)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Marketing comps</span>
+                <input type="number" value={String(form.marketing_comps || "")} onChange={(e) => updateField("marketing_comps", parseInt(e.target.value) || 0)} />
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Tax method</span>
+                <select value={String(form.tax_method || "multiplier")} onChange={(e) => updateField("tax_method", e.target.value)}>
+                  <option value="multiplier">Multiplier — on top of face</option>
+                  <option value="divisor">Divisor — baked into face</option>
+                </select>
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Tax rate (%)</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  value={(() => { const r = Number(form.tax_rate || 0); return r > 0 && r < 1 ? r * 100 : r; })()}
+                  onChange={(e) => updateField("tax_rate", parseFloat(e.target.value) / 100 || 0)}
+                />
+              </label>
+              <label className="ofb-field ofb-field--wide">
+                <span className="ofb-field-label">Notes</span>
+                <textarea rows={3} value={String(form.notes || "")} onChange={(e) => updateField("notes", e.target.value)} />
+              </label>
+            </div>
           </div>
-        </div>
-
-
-
-      </div>
+        </details>
       </Card>
 
-        {/* ── Financials Summary ── */}
-      <Card title="At sellout" sub="Every sellable ticket sold, on the terms above">
-      <div className="admin-form">
-        <div className="offer-potential-grid">
-          <div className="offer-potential-col">
-            <div className="offer-potential-row"><span>Gross (Price × Sellable):</span><strong>${live.displayGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Stripe Fees ({rateLabel()}):</span><strong>(${live.totalCC.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
-            <div className="offer-potential-row"><span>Tkt &amp; Fac. Fees:</span><strong>(${live.totalFees.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
-            <div className="offer-potential-row"><span>Adj. Gross:</span><strong>${live.displayAdjGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>{(form.tax_method || "multiplier") === "multiplier" ? `Tax (${live.taxRatePct.toFixed(2)}% Multiplier):` : `Tax (${live.taxRatePct.toFixed(2)}% Divisor):`}</span><strong>(${live.taxAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</strong></div>
-            <div className="offer-potential-row"><span>Net Potential:</span><strong>${live.netPotential.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row"><span>Total Expenses:</span><strong>${live.totalExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            <div className="offer-potential-row highlight"><span>Net After Expenses (Splitpoint):</span><strong>${live.netAfterExpenses.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+      {/* ── Scaling & gross potential — the mockup's six columns; the working
+             figures (seats, comps, kills, net price) open per tier ── */}
+      <Card
+        title="Scaling & gross potential"
+        sub={`${scalingTotals.sellable.toLocaleString()} sellable of ${scalingTotals.seats.toLocaleString()} in the room`}
+      >
+        <div className="ofs">
+          <div className="ofs-row ofs-row--head">
+            <div>Tier</div>
+            <div className="ofs-num">Qty</div>
+            <div className="ofs-num">Price</div>
+            <div className="ofs-num">Fees</div>
+            <div className="ofs-num">Gross</div>
+            <div className="ofs-num">Net to show</div>
+            <div />
           </div>
-          <div className="offer-potential-col">
-            <h3 className="offer-expenses-heading">Artist Potential at Sellout</h3>
-            <div className="offer-potential-row"><span>Guarantee:</span><strong>${Number(form.guarantee || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-            {form.deal_type !== "FLAT" && (
-              <>
-                <div className="offer-potential-row"><span>Overage ({Number(form.backend_percentage || 0)}% of net, less guarantee):</span><strong>${Math.max(live.overage, 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-                <div className="offer-potential-row"><span>Artist Backend ({String(form.deal_type)}):</span><strong>${live.artistBackend.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
-              </>
-            )}
-            <div className="offer-potential-row highlight"><span>Artist Total:</span><strong>${live.artistTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+
+          {scalingRows.map((r) => (
+            <div key={r.i} className="ofs-tier">
+              <div className="ofs-row">
+                <div className="ofs-name">{r.name || "Untitled tier"}</div>
+                <div className="ofs-num">{r.sellable.toLocaleString()}</div>
+                <div className="ofs-num">{fmtUSD(r.allIn)}</div>
+                <div className="ofs-num ofs-dim">{fmtUSD(r.feesEach)} ea</div>
+                <div className="ofs-num">{fmtUSD(r.gross, { cents: false })}</div>
+                <div className="ofs-num ofs-strong">{fmtUSD(r.net, { cents: false })}</div>
+                <button
+                  type="button"
+                  className="ofs-toggle"
+                  aria-expanded={openTier === r.i}
+                  onClick={() => setOpenTier(openTier === r.i ? null : r.i)}
+                >
+                  {openTier === r.i ? "▾" : "▸"}
+                </button>
+              </div>
+              {openTier === r.i && (
+                <div className="ofs-edit">
+                  <label className="ofb-field">
+                    <span className="ofb-field-label">Tier name</span>
+                    <input value={r.name} onChange={(e) => setTier(r.i, { name: e.target.value })} />
+                  </label>
+                  <label className="ofb-field">
+                    <span className="ofb-field-label"># Seats</span>
+                    <input type="number" value={r.seats || ""} onChange={(e) => setSeats(r.i, "seats", parseInt(e.target.value) || 0)} />
+                  </label>
+                  <label className="ofb-field">
+                    <span className="ofb-field-label">Comps</span>
+                    <input type="number" value={r.comps || ""} onChange={(e) => setSeats(r.i, "comps", parseInt(e.target.value) || 0)} />
+                  </label>
+                  <label className="ofb-field">
+                    <span className="ofb-field-label">Kills</span>
+                    <input type="number" value={r.kills || ""} onChange={(e) => setSeats(r.i, "kills", parseInt(e.target.value) || 0)} />
+                  </label>
+                  <label className="ofb-field">
+                    <span className="ofb-field-label">Net price (face)</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={r.netPrice || ""}
+                      onChange={(e) => {
+                        const np = parseFloat(e.target.value) || 0;
+                        setTier(r.i, { net_price: np, price: np + r.facFee + r.tktFee });
+                      }}
+                    />
+                  </label>
+                  <div className="ofs-derived">
+                    <span>Sub {fmtUSD(r.price)}</span>
+                    <span>Tax {fmtUSD(r.taxEach)}</span>
+                    <span>Card {fmtUSD(r.ccEach)}</span>
+                    <span>All-in {fmtUSD(r.allIn)}</span>
+                    {scalingRows.length > 1 && (
+                      <button type="button" className="ofs-remove" onClick={() => { setOpenTier(null); updateField("ticket_scaling", scalingRows.filter((x) => x.i !== r.i).map((x) => x.raw)); }}>
+                        Remove tier
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div className="ofs-row ofs-row--total">
+            <div>Gross potential</div>
+            <div className="ofs-num">{scalingTotals.sellable.toLocaleString()}</div>
+            <div />
+            <div />
+            <div className="ofs-num">{fmtUSD(scalingTotals.gross, { cents: false })}</div>
+            <div className="ofs-num">{fmtUSD(scalingTotals.net, { cents: false })}</div>
+            <div />
           </div>
         </div>
 
-        <label className="admin-form-label admin-form-full" style={{ marginTop: 16 }}>
-          Notes
-          <textarea className="admin-form-textarea" rows={3} value={String(form.notes || "")} onChange={(e) => updateField("notes", e.target.value)} />
-        </label>
-      </div>
+        <div className="ofs-foot">
+          <Button
+            onClick={() => updateField("ticket_scaling", [...scalingRows.map((x) => x.raw), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: globalFees.fac + globalFees.tkt, net_price: 0, facility_fee: globalFees.fac, ticketing_fee: globalFees.tkt }])}
+          >
+            + Add tier
+          </Button>
+          <label className="ofs-fee">
+            Facility fee $
+            <input type="number" step="0.01" value={globalFees.fac} onChange={(e) => applyFeesToAll(parseFloat(e.target.value) || 0, globalFees.tkt)} />
+          </label>
+          <label className="ofs-fee">
+            Ticketing fee $
+            <input type="number" step="0.01" value={globalFees.tkt} onChange={(e) => applyFeesToAll(globalFees.fac, parseFloat(e.target.value) || 0)} />
+          </label>
+          <span className="filter-spacer" />
+          <span className="ofb-rail-sub">Fees apply to every tier · comps and kills come out of the room before sellable</span>
+        </div>
       </Card>
 
       {/* ════════════════════════════════════════════
           CONTRACT SECTION
       ════════════════════════════════════════════ */}
-      <Card title="Contract">
+      {/* Not in the mockup — the contract workflow lives here, collapsed. */}
+      <details className="ofb-terms">
+        <summary>
+          <span className="ui-eyebrow">Contract</span>
+          <span className="ofb-terms-sub">
+            {contract ? `${contract.status} · v${contract.version}` : "none on file — generate or upload"}
+          </span>
+        </summary>
+        <div className="ofb-terms-body">
 
       {!contract ? (
         /* ── No contract yet ── */
@@ -1150,7 +1342,8 @@ export default function AdminOfferDetailPage() {
           )}
         </div>
       )}
-      </Card>
+        </div>
+      </details>
       </>
       )}
 
@@ -1235,8 +1428,81 @@ export default function AdminOfferDetailPage() {
           return v < 0 ? `$(${formatted})` : `$${formatted}`;
         };
 
+        const fixedRows = Array.isArray(form.fixed_expenses) ? (form.fixed_expenses as Array<{ name: string; amount: number }>) : [];
+        const varRows = Array.isArray(form.variable_expenses) ? (form.variable_expenses as Array<{ name: string; rate: number; amount: number }>) : [];
+
         return (
         <div className="ofb-stack">
+
+          {/* ── Show expenses — where the mockup puts them ── */}
+          <Card title="Show expenses — offer estimate" sub="Fixed amounts and rates on gross; the rate lines recompute as scaling changes">
+            <div className="ofe">
+              {fixedRows.map((e, i) => (
+                <div key={`f${i}`} className="ofe-row">
+                  <input
+                    className="ofe-name"
+                    value={e.name}
+                    placeholder="Expense"
+                    onChange={(ev) => {
+                      const f = [...fixedRows];
+                      f[i] = { ...f[i], name: ev.target.value };
+                      updateField("fixed_expenses", f);
+                    }}
+                  />
+                  <span className="ofe-kind">Fixed</span>
+                  <input
+                    className="ofe-amt"
+                    type="number"
+                    step="0.01"
+                    value={e.amount || ""}
+                    onChange={(ev) => {
+                      const f = [...fixedRows];
+                      f[i] = { ...f[i], amount: parseFloat(ev.target.value) || 0 };
+                      updateField("fixed_expenses", f);
+                    }}
+                  />
+                </div>
+              ))}
+              {varRows.map((e, i) => {
+                const liveAmount = Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100;
+                return (
+                  <div key={`v${i}`} className="ofe-row">
+                    <span className="ofe-name ofe-name--static">{e.name}</span>
+                    <span className="ofe-kind ofe-kind--var">Variable</span>
+                    <span className="ofe-var">
+                      <input
+                        type="number"
+                        step="0.0001"
+                        value={e.rate}
+                        onChange={(ev) => {
+                          const v = [...varRows];
+                          const rate = parseFloat(ev.target.value) || 0;
+                          v[i] = { ...v[i], rate, amount: Math.round(live.grossPotential * rate * 100) / 100 };
+                          updateField("variable_expenses", v);
+                        }}
+                      />
+                      <b>{fmtUSD(liveAmount)}</b>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="ofe-foot">
+              <Button onClick={() => updateField("fixed_expenses", [...fixedRows, { name: "", amount: 0 }])}>+ New expense</Button>
+              <span className="filter-spacer" />
+              <span className="ofe-total">
+                <span>Total show costs</span>
+                <b>{fmtUSD(live.totalExpenses)}</b>
+              </span>
+            </div>
+          </Card>
+
+          <details className="ofb-terms">
+            <summary>
+              <span className="ui-eyebrow">More</span>
+              <span className="ofb-terms-sub">breakeven · potential at sellout · ancillary revenue · profit &amp; loss</span>
+            </summary>
+            <div className="ofb-terms-body ofb-stack">
 
           <div className="ofb-pair">
             {/* ── Section A: Breakeven Point ── */}
@@ -1392,6 +1658,8 @@ export default function AdminOfferDetailPage() {
           </div>
           </div>
 
+            </div>
+          </details>
         </div>
         );
       })()}
@@ -1416,6 +1684,31 @@ export default function AdminOfferDetailPage() {
             ? null
             : Number(rawBackend);
         return (
+          <div className="ofb-stack">
+            {/* Keyed on the offer's own figures: edit the offer and the lab
+                re-baselines by remounting, rather than syncing in an effect. */}
+            <DealLevers
+              key={`${walkoutBasis.guarantee}-${walkoutBasis.backendPct}-${walkoutBasis.totalFixed}-${scalingRows[0]?.netPrice ?? 0}`}
+              basis={walkoutBasis}
+              faceTier={scalingRows[0] ?? null}
+              onCopy={(patch) => {
+                if (patch.guarantee !== undefined) updateField("guarantee", patch.guarantee);
+                if (patch.backendPct !== undefined) updateField("backend_percentage", String(patch.backendPct));
+                if (patch.facePrice !== undefined && scalingRows[0]) {
+                  setTier(scalingRows[0].i, {
+                    net_price: patch.facePrice,
+                    price: patch.facePrice + scalingRows[0].facFee + scalingRows[0].tktFee,
+                  });
+                }
+              }}
+            />
+
+            <details className="ofb-terms">
+              <summary>
+                <span className="ui-eyebrow">Full deal lab</span>
+                <span className="ofb-terms-sub">five structures side by side — flat, vs, plus, door split, tiered bonus</span>
+              </summary>
+              <div className="ofb-terms-body">
           <DealLabPanel
             inputs={{
               gross_potential_full: live.grossPotential,
@@ -1436,6 +1729,9 @@ export default function AdminOfferDetailPage() {
               offer_backend_percentage: backendPct,
             }}
           />
+              </div>
+            </details>
+          </div>
         );
       })()}
 

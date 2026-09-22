@@ -23703,3 +23703,233 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 640px) {
   .admin-shell .dof-pos.btn { width: 100%; justify-content: center; }
 }
+
+/* ── Offer builder — fields, scaling, expenses, levers (offers.dc.html) ── */
+.admin-shell .ofb-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 17px;
+}
+.admin-shell .ofb-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.admin-shell .ofb-field--wide { grid-column: span 2; }
+.admin-shell .ofb-field-label { font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .ofb-field input,
+.admin-shell .ofb-field select,
+.admin-shell .ofb-field textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.admin-shell .ofb-field textarea { min-height: 78px; resize: vertical; }
+.admin-shell .ofb-field select option { color: #000; }
+.admin-shell .ofb-field input:focus,
+.admin-shell .ofb-field select:focus,
+.admin-shell .ofb-field textarea:focus { outline: none; border-color: rgba(255, 255, 255, 0.4); }
+.admin-shell .ofb-field-pair { display: flex; gap: 8px; }
+.admin-shell .ofb-terms { margin-top: 18px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
+.admin-shell .ofb-terms > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 44px;
+  padding: 14px 0 0;
+  cursor: pointer;
+  list-style: none;
+}
+.admin-shell .ofb-terms > summary::-webkit-details-marker { display: none; }
+.admin-shell .ofb-terms > summary::before { content: "▸"; font-size: 10px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .ofb-terms[open] > summary::before { content: "▾"; }
+.admin-shell .ofb-terms > summary .ui-eyebrow { margin: 0; }
+.admin-shell .ofb-terms-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .ofb-terms-body { padding-top: 4px; }
+.admin-shell .ofb-main > .ofb-terms { margin-top: 0; border-top: none; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.025); }
+.admin-shell .ofb-main > .ofb-terms > summary { padding: 15px 20px; }
+.admin-shell .ofb-main > .ofb-terms > .ofb-terms-body { padding: 0 20px 18px; }
+
+/* Scaling — the mockup's six columns, working figures per tier */
+.admin-shell .ofs { margin-top: 16px; }
+.admin-shell .ofs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 74px 84px 96px 104px 110px 28px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 11.5px;
+}
+.admin-shell .ofs-row--head {
+  padding: 0 0 8px;
+  border-bottom-color: rgba(255, 255, 255, 0.10);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.40);
+}
+.admin-shell .ofs-row--total { border-bottom: none; font-weight: 650; font-size: 12.5px; padding-top: 14px; }
+.admin-shell .ofs-num { text-align: right; font-variant-numeric: tabular-nums; }
+.admin-shell .ofs-dim { color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofs-strong { font-weight: 650; }
+.admin-shell .ofs-name { min-width: 0; font-size: 12.5px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .ofs-toggle {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .ofs-edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 14px;
+  margin: 0 0 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .ofs-derived {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+}
+.admin-shell .ofs-remove {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--lg-bad);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid rgba(255, 140, 170, 0.3);
+}
+.admin-shell .ofs-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.admin-shell .ofs-fee { display: flex; align-items: center; gap: 8px; font-size: 10.5px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .ofs-fee input {
+  width: 84px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Expenses */
+/* One column: beside the rail there isn't room for the mockup's two without
+   truncating every expense name. */
+.admin-shell .ofe { display: flex; flex-direction: column; margin-top: 15px; }
+.admin-shell .ofe-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px 178px;
+  gap: 11px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.admin-shell .ofe-name {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .ofe-name--static { border-color: transparent; background: none; font-size: 12px; color: rgba(255, 255, 255, 0.80); padding-left: 0; }
+.admin-shell .ofe-kind {
+  flex: none;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .ofe-kind--var { color: rgba(255, 255, 255, 0.72); background: rgba(255, 255, 255, 0.10); }
+.admin-shell .ofe-amt,
+.admin-shell .ofe-var input {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 16px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .ofe-var { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.admin-shell .ofe-var input { width: 88px; }
+.admin-shell .ofe-var b { width: 78px; text-align: right; font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.admin-shell .ofe-kind { text-align: center; }
+.admin-shell .ofe-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 16px; padding-top: 13px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
+.admin-shell .ofe-total { display: flex; align-items: baseline; gap: 12px; }
+.admin-shell .ofe-total span { font-size: 13px; font-weight: 650; }
+.admin-shell .ofe-total b { font-size: 14.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+/* Deal lab levers */
+.admin-shell .ofl { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.admin-shell .ofl-head { display: flex; align-items: baseline; gap: 9px; }
+.admin-shell .ofl-label { flex: 1; font-size: 12px; font-weight: 600; color: rgba(255, 255, 255, 0.78); }
+.admin-shell .ofl-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .ofl-note { margin-top: 6px; font-size: 10.5px; color: rgba(255, 255, 255, 0.40); }
+.admin-shell .ofl input[type="range"],
+.admin-shell .ofl-share input[type="range"] {
+  width: 100%;
+  margin-top: 9px;
+  accent-color: #fff;
+  height: 6px;
+}
+.admin-shell .ofl-share { display: flex; align-items: center; gap: 8px; font-size: 10px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
+.admin-shell .ofl-share input[type="range"] { width: 110px; margin-top: 0; }
+.admin-shell .ofl-out {
+  margin-top: 18px;
+  padding: 15px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .ofl-out-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.admin-shell .ofl-out-head span { flex: 1; font-size: 8.5px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ofl-out-head b { font-size: 24px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.admin-shell .ofl-out-sub { margin-top: 8px; font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .ofl-out-actions { margin-top: 12px; }
+
+@media (max-width: 900px) {
+  .admin-shell .ofb-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .admin-shell .ofb-fields { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .ofb-field--wide { grid-column: auto; }
+  .admin-shell .ofs-row { grid-template-columns: minmax(0, 1.4fr) 60px 84px 28px; }
+  .admin-shell .ofs-row > :nth-child(4),
+  .admin-shell .ofs-row > :nth-child(5) { display: none; }
+}
