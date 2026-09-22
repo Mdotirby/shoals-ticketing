@@ -895,16 +895,16 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           {/* ══ Column 1 — Sell at the door ══════════════════════════════════ */}
           <div className="bo-col">
             <div className="bo-glass">
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+              {/* The show is picked from a chip in the card header, as in
+                  boxoffice.dc.html — the tiles and keypad are the card. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <div className="bo-eyebrow">Sell at the door</div>
                 <span style={{ flex: 1 }} />
-              </div>
-
               <select
                 value={selectedEventId}
                 onChange={(e) => setSelectedEventId(e.target.value)}
-                className="bo-field"
-                style={{ marginTop: 12, appearance: "none", WebkitAppearance: "none" }}
+                className="bo-event-chip"
+                aria-label="Show"
                 disabled={loadingEvents}
               >
                 <option value="">{loadingEvents ? "Loading events…" : "— Select event —"}</option>
@@ -914,6 +914,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
                   </option>
                 ))}
               </select>
+              </div>
 
               {selectedEvent && (
                 <div className="bo-sub" style={{ marginTop: 8 }}>
@@ -1202,8 +1203,16 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
             )}
           </div>
 
-          {/* ══ Column 3 — Tonight ═══════════════════════════════════════════ */}
-          <div className="bo-col">
+        </div>
+
+        {/* ══ Not in the mockup — tonight's numbers, the guest list and the
+            drawer count. Kept, collapsed under the till. ══ */}
+        <details className="bo-more">
+          <summary>
+            <span className="bo-eyebrow">Tonight at the door</span>
+            <span className="bo-note">door totals · comps &amp; guest list · drawer &amp; reconcile</span>
+          </summary>
+          <div className="bo-more-body">
             <div className="bo-glass">
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <div className="bo-eyebrow">Tonight at the door</div>
@@ -1318,7 +1327,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
               </div>
             </div>
           </div>
-        </div>
+        </details>
       </div>
     </div>
   );
