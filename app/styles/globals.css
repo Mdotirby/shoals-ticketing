@@ -20574,7 +20574,12 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
 .cshow-note { font-size: 10.5px; line-height: 1.5; color: var(--cshow-w44); text-wrap: pretty; }
 
 /* ── Step header ──────────────────────────────────────────── */
-.cshow-steps { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.cshow-steps { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.cshow-draft-chip {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--cshow-w32); padding: 5px 11px; border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
 .cshow-step {
   display: flex; align-items: center; gap: 9px;
   padding: 10px 15px; border-radius: 999px; cursor: pointer;
@@ -20645,7 +20650,11 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
    they are the fields that write the event and were not worth re-plumbing for
    a layout change. */
 .cshow-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.cshow-panel > .admin-form-full { grid-column: 1 / -1; }
+.cshow-panel > .admin-form-full,
+.cshow-panel > .cshow-card { grid-column: 1 / -1; }
+/* A card inside a step panel carries its own padding; the panel's grid is for
+   the loose fields, so a card spans it and lays its own fields out. */
+.cshow-card > .admin-form-grid { margin-top: 14px; }
 @media (max-width: 700px) { .cshow-panel { grid-template-columns: 1fr; } }
 
 /* ── Create a show: tier scaling row ──────────────────────────
@@ -24024,4 +24033,100 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .stl-more-body { padding: 0 20px 18px; }
 @media (max-width: 1180px) {
   .admin-shell .stl-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Create a show — intro, class selects, preview (createshow.dc.html) ── */
+.admin-shell .cshow-intro {
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  border-radius: 24px;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.055));
+  backdrop-filter: var(--lg-bf, blur(28px) saturate(160%));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.admin-shell .cshow-intro-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .cshow-intro-title { margin: 7px 0 0; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; }
+.admin-shell .cshow-intro-body { margin: 8px 0 0; max-width: 880px; font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.56); }
+.admin-shell .cshow-card-head { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; margin-bottom: 4px; }
+.admin-shell .cshow-spacer { flex: 1; }
+.admin-shell .cshow-selects { display: flex; flex-direction: column; gap: 14px; margin-top: 15px; }
+.admin-shell .cshow-stands { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 15px; }
+.admin-shell .cshow-select { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.admin-shell .cshow-select-head { display: flex; align-items: center; gap: 9px; font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .cshow-select select {
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.admin-shell .cshow-select select option { color: #000; }
+.admin-shell .cshow-select-note { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.40); }
+.admin-shell .cshow-tag {
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .cshow-tag--good { color: var(--lg-good); border-color: rgba(143, 214, 168, 0.35); }
+.admin-shell .cshow-tag--locked { color: var(--lg-warn); border-color: rgba(232, 212, 138, 0.35); border-style: dashed; }
+.admin-shell .cshow-locked {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 11px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.56);
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+.admin-shell .cshow-callout {
+  margin-top: 15px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .cshow-callout strong { color: #fff; font-weight: 650; }
+.admin-shell .cshow-preview { margin-top: 14px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); }
+.admin-shell .cshow-preview-art { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.admin-shell .cshow-preview-art--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.045);
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.14);
+}
+.admin-shell .cshow-preview-body { padding: 13px 14px; }
+.admin-shell .cshow-preview-title { font-size: 14px; font-weight: 700; letter-spacing: -0.02em; }
+.admin-shell .cshow-preview-when { margin-top: 4px; font-size: 11px; color: rgba(255, 255, 255, 0.62); font-variant-numeric: tabular-nums; }
+.admin-shell .cshow-preview-venue { margin-top: 2px; font-size: 11px; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .cshow-preview-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.admin-shell .cshow-preview-foot em {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 7px 13px;
+  border-radius: 999px;
+  color: #0a0a0c;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
 }

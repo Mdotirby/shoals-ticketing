@@ -177,7 +177,16 @@ export async function POST(request) {
     venue_id: body.venue_id || null,
     event_venue_id: body.event_venue_id || null,
     event_type: body.event_type || "hard_ticket",
+    // deal_type was being dropped here: the create form has always sent it
+    // (its "whose money is it" dropdown) and this row never carried it, so
+    // every new show landed as own_risk regardless of what was picked.
+    deal_type: body.deal_type || "own_risk",
     booking_status: body.booking_status || "confirmed",
+    // The rest of the basics the create form asks for. All three are columns
+    // the edit page already writes; create simply never offered them.
+    subtitle: body.subtitle || null,
+    doors_time: body.doors_time || null,
+    age_restriction: body.age_restriction || null,
     contact_name: body.contact_name || null,
     contact_phone: body.contact_phone || null,
     contact_email: body.contact_email || null,
@@ -196,11 +205,21 @@ export async function POST(request) {
   eventRow.start_time = body.start_time || null;
   eventRow.end_time = body.end_time || null;
 
-  const { data: event, error: eventError } = await admin
+  let { data: event, error: eventError } = await admin
     .from("events")
     .insert(eventRow)
     .select()
     .single();
+
+  // Same peel-off the PUT route uses: a column whose migration hasn't been run
+  // yet drops out and the show is still created, rather than the whole form
+  // failing on a field nobody filled in.
+  if (eventError && /column .* does not exist/i.test(eventError.message || "")) {
+    for (const col of ["deal_type", "subtitle", "doors_time", "age_restriction"]) {
+      delete eventRow[col];
+    }
+    ({ data: event, error: eventError } = await admin.from("events").insert(eventRow).select().single());
+  }
 
   if (eventError) {
     return new Response(JSON.stringify({ error: eventError.message }), { status: 500 });

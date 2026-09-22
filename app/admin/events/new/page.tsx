@@ -29,12 +29,6 @@ const REVENUE_CATEGORIES = [
   { value: "labor", label: "Labor" },
 ];
 
-const BOOKING_STATUS_COLORS: Record<string, string> = {
-  confirmed: "#50c878",
-  hold: "#ffc832",
-  cancelled: "#ff6b6b",
-};
-
 /**
  * The three steps, per ADMIN_MERGE_PLAN.md § 9.1.
  *
@@ -97,6 +91,12 @@ export default function AdminCreateEventPage() {
 
   const [form, setForm] = useState({
     title: "",
+    // The mockup's basics, all real columns the edit page already writes —
+    // create just never offered them, so every show had to be re-opened to set
+    // a support act, a doors time or an age policy.
+    subtitle: "",
+    doors_time: "",
+    age_restriction: "",
     venue: "",
     date: "",
     time: "",
@@ -356,6 +356,9 @@ export default function AdminCreateEventPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title,
+          subtitle: form.subtitle || null,
+          doors_time: form.doors_time || null,
+          age_restriction: form.age_restriction || null,
           venue: form.venue,
           date: dateTime,
           price: lowestPrice,
@@ -544,13 +547,6 @@ export default function AdminCreateEventPage() {
   };
 
   const isHardTicket = isHardTicketType(form.event_type);
-  /* The picker shows five buttons across two axes now: three classes, plus
-     Co-Promote and Rental which are deal structures on a hard_ticket show.
-     This is which button reads as selected. */
-  const selectedTypeValue =
-    form.deal_type === "co_promote" || form.deal_type === "rental_box_office"
-      ? form.deal_type
-      : form.event_type;
   const isPrivate = form.event_type === "private";
 
   /**
@@ -656,13 +652,17 @@ export default function AdminCreateEventPage() {
 
   return (
     <div className="admin-form-page cshow">
-      <h1 className="admin-page-title">Create a show</h1>
-      <p className="cshow-note" style={{ marginTop: -4, marginBottom: 18, maxWidth: 640 }}>
-        Pick the class first — it decides the rest of the form. A private rental never
-        shows a tier editor; a non-ticketed night never asks for a price. Booking status
-        and the on-sale time are independent of each other, so a show can sit confirmed
-        on the calendar with its on-sale still weeks out.
-      </p>
+      {/* ── Intro card (createshow.dc.html) ── */}
+      <div className="cshow-intro">
+        <div className="cshow-intro-eyebrow">Event class decides the form</div>
+        <h1 className="cshow-intro-title">Create a show</h1>
+        <p className="cshow-intro-body">
+          Pick the class first. Everything below it — tiers, on-sale, fees, seating — appears only for the classes that sell
+          tickets. A private rental never shows a tier editor; a non-ticketed night never asks for a price. Booking status and
+          the on-sale time are independent of each other, so a show can sit confirmed on the calendar with its on-sale still
+          weeks out. Visibility is neither: nothing on this form can make a show public, and only Publish can.
+        </p>
+      </div>
 
       {/* ── Numbered steps ────────────────────────────────────────────────
           Three, per § 9.1: what the show is, what it sells, when and for how
@@ -685,6 +685,10 @@ export default function AdminCreateEventPage() {
             {s.label}
           </button>
         ))}
+        <span className="cshow-spacer" />
+        {/* The mockup's "Draft · autosaved" chip. This form does not autosave,
+            so it says what is actually true: nothing exists until Save. */}
+        <span className="cshow-draft-chip">Draft · nothing saved until you save</span>
       </div>
 
       <div className="cshow-layout">
@@ -693,110 +697,111 @@ export default function AdminCreateEventPage() {
 
           {/* ══ 1 · Setup ══════════════════════════════════════════════ */}
           <div hidden={step !== 1} className="cshow-panel">
-        {/* Show Type Selector */}
-        <div className="admin-form-label admin-form-full">
-          Show Type
-          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-            {[
-              { value: "hard_ticket",        label: "Hard Ticket",        color: "#ffffff",           bg: "rgba(255, 255, 255, 0.1)" },
-              { value: "non_ticketed",        label: "Non-Ticketed",       color: "rgba(100,149,237,0.9)", bg: "rgba(100,149,237,0.1)" },
-              { value: "private",             label: "Private Event",      color: "rgba(180,100,200,0.9)", bg: "rgba(180,100,200,0.1)" },
-              // Co-Promote and Rental keep their own buttons — the operator
-              // still picks "what kind of show is this" in one place — but they
-              // now set event_type + deal_type rather than a class of their own
-              // (ADMIN_MERGE_PLAN.md § 9.1). Same UX, correct data. The numbered
-              // Setup / Tickets / On-sale rebuild of this form is item 8.
-              { value: "co_promote",          label: "Co-Promote",         color: "rgba(255,140,0,0.9)",   bg: "rgba(255,140,0,0.1)" },
-              { value: "rental_box_office",   label: "Rental / Box Office", color: "rgba(80,200,220,0.9)", bg: "rgba(80,200,220,0.1)" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => {
-                  const isDeal = opt.value === "co_promote" || opt.value === "rental_box_office";
-                  setForm({
-                    ...form,
-                    event_type: isDeal ? "hard_ticket" : opt.value,
-                    deal_type: isDeal ? opt.value : "own_risk",
-                  });
-                }}
-                style={{
-                  flex: "1 1 auto",
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${selectedTypeValue === opt.value ? opt.color : "rgba(255,255,255,0.1)"}`,
-                  background: selectedTypeValue === opt.value ? opt.bg : "transparent",
-                  color: selectedTypeValue === opt.value ? opt.color : "rgba(255,255,255,0.5)",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
+        {/* ── What kind of show — the mockup's three dropdowns ── */}
+        <div className="cshow-card">
+          <div className="cshow-card-head">
+            <div className="cshow-eyebrow">What kind of show</div>
+            <span className="cshow-spacer" />
+            <div className="cshow-note">class first — it decides the rest of the form</div>
           </div>
-          {(form.deal_type === "co_promote" || form.deal_type === "rental_box_office") && (
-            <p style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.35)" }}>
-              {form.deal_type === "co_promote"
-                ? "After creating this event you'll be taken to the offer builder to set deal terms (split %, guarantee, expenses)."
-                : "After creating this event you'll be taken to the offer builder to set the flat rental fee and deal terms."}
-            </p>
-          )}
-        </div>
 
-        {/* Host / Organization Selector */}
-        <div className="admin-form-label admin-form-full">
-          Host / Organization
-          <select
-            className="admin-form-input"
-            value={resolvedVenueId || ""}
-            onChange={(e) => setResolvedVenueId(e.target.value || null)}
-            style={{ marginTop: 6 }}
-          >
-            <option value="">— Select host —</option>
-            {availableHosts.map((h) => (
-              <option key={h.id} value={h.id}>{h.name}</option>
-            ))}
-          </select>
-          <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
-            The organization, promoter, or venue hosting this event
-          </p>
-        </div>
-
-        {/* Booking Status */}
-        <div className="admin-form-label admin-form-full">
-          Booking Status
-          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-            {[
-              { value: "confirmed", label: "Confirmed" },
-              { value: "hold", label: "Hold" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm({ ...form, booking_status: opt.value })}
-                style={{
-                  flex: 1,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  border: `1px solid ${form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.1)"}`,
-                  background: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] + "18" : "transparent",
-                  color: form.booking_status === opt.value ? BOOKING_STATUS_COLORS[opt.value] : "rgba(255,255,255,0.5)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
+          <div className="cshow-selects">
+            <label className="cshow-select">
+              <span className="cshow-select-head">
+                Event class
+                <span className="cshow-spacer" />
+                <em className={isHardTicket ? "cshow-tag cshow-tag--good" : "cshow-tag"}>{isHardTicket ? "sells" : "no tickets"}</em>
+              </span>
+              <select
+                value={form.event_type}
+                onChange={(e) => setForm({ ...form, event_type: e.target.value })}
               >
-                {opt.label}
-              </button>
-            ))}
+                <option value="hard_ticket">Hard ticket — sells here</option>
+                <option value="non_ticketed">Non-ticketed — no price, no scanner</option>
+                <option value="private">Private rental — client books the room</option>
+              </select>
+              <span className="cshow-select-note">
+                Only the selling classes get tiers, an on-sale and a scanner.
+              </span>
+            </label>
+
+            <label className="cshow-select">
+              <span className="cshow-select-head">
+                Deal type
+                <span className="cshow-spacer" />
+                <em className="cshow-tag">splits</em>
+              </span>
+              <select
+                value={String(form.deal_type || "own_risk")}
+                onChange={(e) => setForm({ ...form, deal_type: e.target.value })}
+              >
+                <option value="own_risk">Own risk — the room carries it</option>
+                <option value="guarantee">Guarantee — the artist is promised a figure</option>
+                <option value="co_promote">Co-promote — split after costs</option>
+                <option value="rental_box_office">Rental + box office — they rent, you sell</option>
+              </select>
+              <span className="cshow-select-note">
+                Changes settlement only — the inventory, scanner and storefront stay yours. The offer carries the numbers.
+              </span>
+            </label>
+
+            <label className="cshow-select">
+              <span className="cshow-select-head">
+                Room
+                <span className="cshow-spacer" />
+                <em className="cshow-tag">your venue</em>
+              </span>
+              <select value={resolvedVenueId || ""} onChange={(e) => setResolvedVenueId(e.target.value || null)}>
+                <option value="">— Select host —</option>
+                {availableHosts.map((h) => (
+                  <option key={h.id} value={h.id}>{h.name}</option>
+                ))}
+              </select>
+              <span className="cshow-select-note">The organization, promoter or venue hosting this show.</span>
+            </label>
+          </div>
+
+          <div className="cshow-callout">
+            Class answers <strong>does this sell here</strong>. Deal type answers <strong>whose money is it</strong>. They are
+            independent — a co-promoted show still uses your inventory, your scanner and your storefront. Only the split at the
+            end differs.
           </div>
         </div>
 
+        {/* ── Where it stands — booking status beside a locked Draft ── */}
+        <div className="cshow-card">
+          <div className="cshow-eyebrow">Where it stands</div>
+          <div className="cshow-stands">
+            <label className="cshow-select">
+              <span className="cshow-select-head">Booking status</span>
+              <select
+                value={form.booking_status}
+                onChange={(e) => setForm({ ...form, booking_status: e.target.value })}
+              >
+                <option value="confirmed">Confirmed</option>
+                <option value="hold">Hold</option>
+              </select>
+              <span className="cshow-select-note">A hold blocks the room without publishing anything.</span>
+            </label>
+
+            <div className="cshow-select">
+              <span className="cshow-select-head">
+                Visibility
+                <span className="cshow-spacer" />
+                <em className="cshow-tag cshow-tag--locked">locked</em>
+              </span>
+              {/* Not a control: saving always writes a draft, and only the
+                  publish gate in the rail can make a show public. */}
+              <div className="cshow-locked">Draft</div>
+              <span className="cshow-select-note">
+                Not editable here. Saving always writes Draft — publishing is a deliberate action of its own.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="cshow-card">
+          <div className="cshow-eyebrow">The basics</div>
         <div className="admin-form-grid">
           <label className="admin-form-label">
             Event Name *
@@ -808,6 +813,18 @@ export default function AdminCreateEventPage() {
               onChange={handleChange}
               placeholder="e.g. Jed Harrelson"
               required
+            />
+          </label>
+
+          <label className="admin-form-label">
+            Support / subtitle
+            <input
+              type="text"
+              name="subtitle"
+              className="admin-form-input"
+              value={form.subtitle}
+              onChange={handleChange}
+              placeholder="e.g. with Ada Marlowe Trio"
             />
           </label>
 
@@ -875,10 +892,26 @@ export default function AdminCreateEventPage() {
             />
           </label>
 
+          {/* Doors and show time are two figures, as the mockup draws them —
+              doors is what goes on the ticket and the storefront, show time is
+              what the date column carries. */}
+          {!isPrivate && (
+            <label className="admin-form-label">
+              Doors
+              <input
+                type="time"
+                name="doors_time"
+                className="admin-form-input"
+                value={form.doors_time}
+                onChange={handleChange}
+              />
+            </label>
+          )}
+
           {/* Hide the generic Time dropdown for private events — they use Start/End Time instead */}
           {!isPrivate && (
             <label className="admin-form-label">
-              Time
+              Show time
               <select
                 name="time"
                 className="admin-form-input"
@@ -894,6 +927,24 @@ export default function AdminCreateEventPage() {
                   const val = `${String(h24).padStart(2, "0")}:${m}`;
                   return <option key={val} value={val}>{h12}:{m} {ampm}</option>;
                 })}
+              </select>
+            </label>
+          )}
+
+          {!isPrivate && (
+            <label className="admin-form-label">
+              Age policy
+              <select
+                name="age_restriction"
+                className="admin-form-input"
+                value={form.age_restriction}
+                onChange={handleChange}
+              >
+                <option value="">All ages</option>
+                <option value="18+">18+</option>
+                <option value="21+">21+</option>
+                <option value="16+">16+</option>
+                <option value="Under 12 free with adult">Under 12 free with adult</option>
               </select>
             </label>
           )}
@@ -1089,6 +1140,7 @@ export default function AdminCreateEventPage() {
             />
           </label>
         )}
+        </div>
           </div>
 
           {/* ══ 2 · Tickets ════════════════════════════════════════════ */}
@@ -1531,6 +1583,45 @@ export default function AdminCreateEventPage() {
               </div>
             </div>
           )}
+
+          {/* ── What the buyer will see (createshow.dc.html) ──
+              The storefront card as this form currently describes it, so the
+              listing and the money sit on one screen. */}
+          <div className="cshow-card">
+            <div className="cshow-eyebrow">What the buyer will see</div>
+            <div className="cshow-preview">
+              {previewUrl || form.image_url ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={previewUrl || form.image_url} alt="" className="cshow-preview-art" />
+              ) : (
+                <div className="cshow-preview-art cshow-preview-art--empty">Event artwork · 1200×775</div>
+              )}
+              <div className="cshow-preview-body">
+                <div className="cshow-preview-title">{form.title || "Show title"}</div>
+                <div className="cshow-preview-when">
+                  {form.date
+                    ? new Date(`${form.date}T${form.time || "19:00"}:00`).toLocaleString("en-US", {
+                        weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                      })
+                    : "Date not set"}
+                </div>
+                <div className="cshow-preview-venue">{form.venue || "Venue not set"}</div>
+                <div className="cshow-preview-foot">
+                  <span>
+                    {isHardTicket && tiers.some((t) => parseFloat(t.price) > 0)
+                      ? `From ${fmtMoney(Math.min(...tiers.map((t) => parseFloat(t.price) || 0).filter((n) => n > 0)))}`
+                      : isHardTicket ? "No price yet" : "No tickets"}
+                  </span>
+                  <span className="cshow-spacer" />
+                  <em>Get Tickets</em>
+                </div>
+              </div>
+            </div>
+            <div className="cshow-note" style={{ marginTop: 11 }}>
+              The card shows the lowest tier price. It won&apos;t appear on the storefront until visibility is Published and the
+              on-sale time has passed.
+            </div>
+          </div>
 
           {/* The publish gate. Persistent because it is the thing that
               decides whether any of this reaches a buyer. */}
