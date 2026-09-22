@@ -23586,3 +23586,120 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 640px) {
   .bo-event-chip { max-width: 100%; width: 100%; }
 }
+
+/* ── Tonight — Pulse tab (dayof.dc.html) ─────────────────── */
+.admin-shell .dof { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .dof .card { margin-bottom: 0; }
+.admin-shell .dof > .ui-kpis { margin-bottom: 0; }
+.admin-shell .dof-state { padding: 50px 0; text-align: center; font-size: 13px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .dof-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06));
+  backdrop-filter: var(--lg-bf, blur(28px) saturate(160%));
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+}
+.admin-shell .dof-hero-text { flex: 1; min-width: 260px; }
+.admin-shell .dof-state-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.admin-shell .dof-dot { width: 10px; height: 10px; border-radius: 999px; flex: none; background: rgba(255, 255, 255, 0.35); }
+.admin-shell .dof-state-line.is-live { color: var(--lg-good); }
+.admin-shell .dof-state-line.is-live .dof-dot { background: var(--lg-good); box-shadow: 0 0 12px var(--lg-good), 0 0 24px rgba(143, 214, 168, 0.5); }
+.admin-shell .dof-title { margin-top: 8px; font-size: 20px; font-weight: 800; letter-spacing: -0.03em; }
+.admin-shell .dof-brief { margin: 8px 0 0; max-width: 800px; font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.60); }
+.admin-shell .dof-hero-sub { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 14px; }
+.admin-shell .dof-pick {
+  min-height: 36px;
+  max-width: 100%;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .dof-pick option { color: #000; }
+.admin-shell .dof-link { font-size: 11px; font-weight: 600; color: rgba(255, 255, 255, 0.66); }
+.admin-shell .dof-link:hover { color: #fff; }
+.admin-shell .dof-pos.btn { min-height: 48px; padding: 14px 22px; font-size: 13.5px; white-space: nowrap; }
+.admin-shell .dof-banner {
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .dof-banner--bad { color: var(--lg-bad); border-color: rgba(255, 140, 170, 0.3); }
+.admin-shell .dof-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .dof-card-head { display: flex; align-items: baseline; gap: 11px; flex-wrap: wrap; }
+.admin-shell .dof-card-head .ui-eyebrow { margin: 0; }
+.admin-shell .dof-count { font-size: 10px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .dof-empty { margin-top: 14px; font-size: 12px; line-height: 1.5; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .dof-untracked { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.admin-shell .dof-untracked b { font-size: 12.5px; color: rgba(255, 255, 255, 0.4); font-weight: 600; }
+.admin-shell .dof-untracked span { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .dof-gate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .dof-gate-dot { width: 8px; height: 8px; border-radius: 999px; flex: none; background: rgba(255, 255, 255, 0.3); }
+.admin-shell .dof-gate-dot.is-on { background: var(--lg-good); }
+.admin-shell .dof-gate-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .dof-gate-body b { font-size: 12.5px; font-weight: 650; }
+.admin-shell .dof-gate-body i { font-style: normal; font-size: 10.5px; color: rgba(255, 255, 255, 0.42); margin-top: 2px; }
+.admin-shell .dof-gate-n { font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.admin-shell .dof-feed { display: flex; flex-direction: column; margin-top: 13px; }
+.admin-shell .dof-feed-row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .dof-feed-when { width: 56px; flex: none; font-size: 10.5px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .dof-feed-what { flex: 1; min-width: 0; font-size: 11.5px; line-height: 1.5; }
+.admin-shell .dof-tone-good { color: var(--lg-good); }
+.admin-shell .dof-tone-plain { color: rgba(255, 255, 255, 0.95); }
+.admin-shell .dof-tone-dim { color: rgba(255, 255, 255, 0.62); }
+.admin-shell .dof-guests { display: flex; flex-direction: column; gap: 7px; margin-top: 14px; }
+.admin-shell .dof-guest {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 13px;
+  text-align: left;
+  font: inherit;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .dof-guest:hover { background: rgba(255, 255, 255, 0.09); }
+.admin-shell .dof-guest:disabled { opacity: 0.6; cursor: wait; }
+.admin-shell .dof-guest-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .dof-guest-body b { font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .dof-guest-body i { font-style: normal; font-size: 10px; color: rgba(255, 255, 255, 0.42); margin-top: 2px; }
+.admin-shell .dof-guest-state { flex: none; font-size: 10.5px; font-weight: 650; color: rgba(255, 255, 255, 0.52); }
+.admin-shell .dof-guest.is-in .dof-guest-state { color: var(--lg-good); }
+@media (max-width: 640px) {
+  .admin-shell .dof-pos.btn { width: 100%; justify-content: center; }
+}
