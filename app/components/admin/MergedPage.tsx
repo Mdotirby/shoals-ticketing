@@ -27,6 +27,8 @@ type Props = {
   actions?: React.ReactNode;
   /** tab key → the panel. A function, so unopened tabs never render. */
   panels: Record<string, () => React.ReactNode>;
+  /** Quiet line at the right end of the tab bar, as the mockups carry. */
+  tabsNote?: React.ReactNode;
 };
 
 export default function MergedPage(props: Props) {
@@ -37,7 +39,7 @@ export default function MergedPage(props: Props) {
   );
 }
 
-function MergedPageInner({ pageId, title, sub, actions, panels }: Props) {
+function MergedPageInner({ pageId, title, sub, actions, panels, tabsNote }: Props) {
   const { role, perms } = useAdminNav();
   const page = visibleNav(role, perms)
     .flatMap((g) => g.pages)
@@ -72,6 +74,7 @@ function MergedPageInner({ pageId, title, sub, actions, panels }: Props) {
               {t.label} ↗
             </Link>
           ))}
+          {tabsNote && <span className="merged-tabs-note">{tabsNote}</span>}
         </div>
       )}
 

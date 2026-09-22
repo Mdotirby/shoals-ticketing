@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
+import { eventSales } from "@/lib/admin/eventSales";
 
 export const dynamic = "force-dynamic";
 
@@ -49,35 +50,18 @@ export async function GET(request: Request) {
   const { data: events } = await evQ;
   const ids = (events ?? []).map((e) => e.id);
 
-  const [tiersRes, ticketsRes, ledgerRes, offersRes] = ids.length
-    ? await Promise.all([
-        admin.from("ticket_tiers").select("event_id, capacity").in("event_id", ids),
-        admin.from("tickets").select("event_id, orders!inner(status, source)").in("event_id", ids),
-        admin.from("settlement_ledger").select("event_id, gross_amount").in("event_id", ids),
-        admin.from("artist_offers").select("event_id, guarantee, deal_type, backend_percentage, status").in("event_id", ids).eq("status", "accepted"),
-      ])
-    : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
-
-  const sum = <T,>(rows: T[] | null, key: (r: T) => string, val: (r: T) => number) => {
-    const m = new Map<string, number>();
-    for (const r of rows ?? []) m.set(key(r), (m.get(key(r)) ?? 0) + val(r));
-    return m;
-  };
-  const cap = sum(tiersRes.data as { event_id: string; capacity: number | null }[], (r) => r.event_id, (r) => Number(r.capacity) || 0);
-  const sold = sum(
-    ((ticketsRes.data ?? []) as { event_id: string; orders: { status: string; source: string | null } | { status: string; source: string | null }[] }[]).filter((t) => {
-      const o = Array.isArray(t.orders) ? t.orders[0] : t.orders;
-      return o?.status === "paid" && o?.source !== "comp";
-    }),
-    (r) => r.event_id,
-    () => 1
-  );
-  const gross = sum(ledgerRes.data as { event_id: string; gross_amount: number | null }[], (r) => r.event_id, (r) => Number(r.gross_amount) || 0);
+  const [sales, offersRes] = await Promise.all([
+    eventSales(admin, ids),
+    ids.length
+      ? admin.from("artist_offers").select("event_id, guarantee, deal_type, backend_percentage, status").in("event_id", ids).eq("status", "accepted")
+      : Promise.resolve({ data: [] as unknown[] }),
+  ]);
   const deal = new Map(((offersRes.data ?? []) as { event_id: string; guarantee: number | null; deal_type: string | null; backend_percentage: number | null }[]).map((o) => [o.event_id, o]));
 
   const nights = (events ?? []).map((e) => {
-    const c = cap.get(e.id) ?? 0;
-    const s = sold.get(e.id) ?? 0;
+    const es = sales.get(e.id);
+    const c = es?.capacity ?? 0;
+    const s = es?.sold ?? 0;
     const o = deal.get(e.id);
     const dealText = o
       ? [
@@ -97,7 +81,7 @@ export async function GET(request: Request) {
       sold: s,
       capacity: c,
       pace: c > 0 ? Math.round((s / c) * 100) : null,
-      gross: Math.round((gross.get(e.id) ?? 0) * 100) / 100,
+      gross: es?.gross ?? 0,
     };
   });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import MergedPage from "@/app/components/admin/MergedPage";
 import Month from "./_panels/Month";
 import ShowList from "./_panels/ShowList";
@@ -17,6 +18,12 @@ export default function CalendarAndShowsPage() {
       pageId="calendar"
       title="Calendar & shows"
       sub="Holds, confirms & rentals — by month or as a list"
+      actions={
+        <Link href="/admin/events/new" className="btn btn-primary">
+          + New event
+        </Link>
+      }
+      tabsNote="Same shows, two readings — the month for the room, the list for the book"
       panels={{
         month: () => <Month />,
         list: () => <ShowList />,

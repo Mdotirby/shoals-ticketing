@@ -10,14 +10,16 @@
  * the design's month card with its legend, glass chips that read show /
  * rental / hold by fill rather than by colour, and a right rail.
  *
- * The rail carries only what the calendar's own rows can prove. The design's
- * "revenue per available night" and "$ of unbooked room" figures need a gross
- * and a half-house floor this endpoint doesn't return, so they are left out
- * rather than estimated; the drag-to-reorder hold ranking is left out because
- * nothing stores a rank beyond H1–H3.
+ * The rail is the design's: Hold priority for the next held date (ranked by
+ * H1–H3 — nothing stores a finer rank, so there's no drag-to-reorder), and
+ * Utilization with revenue per available night from the settlement ledger
+ * via /api/admin/events/sales. The design's "$ of unbooked room" needs a
+ * half-house floor nothing records, so it isn't estimated. Month navigation
+ * sits in the month card's header, as in the mockup; "+ New event" is the
+ * page header's, and "+ Quick hold" is on the hold card.
  */
 
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { getCookie } from "@/lib/cookies";
@@ -33,6 +35,7 @@ import {
   Modal,
   Segmented,
   cx,
+  fmtUSD,
 } from "@/app/components/admin/ui";
 import EventPanel from "../EventPanel";
 
@@ -101,7 +104,6 @@ const CLASS_LABEL: Record<string, string> = {
 
 const HOLD_RANK: Record<string, string> = { H1: "Highest", H2: "Medium", H3: "Lowest" };
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const COLOR_CHOICES = ["", "#8fd6a8", "#e8d48a", "#ff8caa", "#ffffff", "#8fa0ff", "#c9a0e8", "#f0b27a"];
 
@@ -144,9 +146,10 @@ function timeLabel(d: string): string {
 }
 
 /** The chip's quiet second line: hold rank, rental, or class + time. */
-function chipMeta(ev: CalendarEvent): string {
+function chipMeta(ev: CalendarEvent, sold = 0): string {
   const k = kindOf(ev);
   const t = timeLabel(ev.date);
+  if (k === "show" && sold > 0) return [`${sold.toLocaleString("en-US")} sold`, t].filter(Boolean).join(" · ");
   if (k === "cancelled") return "Cancelled";
   if (k === "hold") return [ev.hold_level ? `${ev.hold_level} hold` : "Hold", CLASS_LABEL[ev.event_type || ""]].filter(Boolean).join(" · ");
   if (k === "rental") return ["Rental", t].filter(Boolean).join(" · ");
@@ -264,13 +267,21 @@ export default function CalendarPage() {
     fetchEvents();
   }, [fetchEvents]);
 
-  // On a phone the month strip scrolls; keep the selected month in view.
-  const monthsRef = useRef<HTMLDivElement>(null);
+  // Sold and ledger gross for this month's shows (lib/admin/eventSales.ts —
+  // the same figures the Command Center shows).
+  const [sales, setSales] = useState<Record<string, { sold: number; capacity: number; gross: number }>>({});
   useEffect(() => {
-    const strip = monthsRef.current;
-    const on = strip?.querySelector<HTMLElement>(".cal-month.active");
-    if (strip && on) strip.scrollLeft = on.offsetLeft - strip.clientWidth / 2 + on.offsetWidth / 2;
-  }, [currentMonth]);
+    const ids = Array.from(new Set(events.map((e) => e.id))).slice(0, 300);
+    if (!ids.length) return;
+    let live = true;
+    fetch(`/api/admin/events/sales?ids=${ids.join(",")}`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => live && setSales(d || {}))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [events]);
 
   // Calendar grid computation — whole weeks, padded from the months either side
   const calendarDays = useMemo(() => {
@@ -340,11 +351,6 @@ export default function CalendarPage() {
     setCurrentMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   };
 
-  const navigateYear = (dir: 1 | -1) => {
-    const [y, m] = currentMonth.split("-").map(Number);
-    setCurrentMonth(`${y + dir}-${String(m).padStart(2, "0")}`);
-  };
-
   const monthLabel = useMemo(() => {
     const [y, m] = currentMonth.split("-").map(Number);
     return new Date(y, m - 1).toLocaleString("en-US", { month: "long", year: "numeric" });
@@ -382,12 +388,26 @@ export default function CalendarPage() {
       if (k >= todayStr && live(k).length === 0) darkAhead++;
     }
 
-    const holds = monthRows
-      .filter((e) => kindOf(e) === "hold")
-      .sort((a, b) => dateKey(a.date).localeCompare(dateKey(b.date)) || (a.hold_level || "H9").localeCompare(b.hold_level || "H9"));
+    // Hold priority is per date, as the design has it: the next held date
+    // (or the month's first, looking back), its holds ranked H1 → H3.
+    const holdsByDate: Record<string, CalendarEvent[]> = {};
+    for (const e of monthRows.filter((r) => kindOf(r) === "hold")) (holdsByDate[dateKey(e.date)] ||= []).push(e);
+    const holdDates = Object.keys(holdsByDate).sort();
+    const focusDate = holdDates.find((k) => k >= todayStr) ?? holdDates[0] ?? null;
+    const focusHolds = focusDate
+      ? holdsByDate[focusDate].slice().sort((a, b) => (a.hold_level || "H9").localeCompare(b.hold_level || "H9"))
+      : [];
 
-    return { daysInMonth, booked: booked.length, heldOnly: heldOnly.length, ticketed, rentals, darkAhead, holds };
-  }, [eventsByDate, events, currentMonth, todayStr]);
+    // Revenue per available night: this month's ledger gross over every night.
+    const monthGross = monthRows.reduce((t, e) => t + (sales[e.id]?.gross || 0), 0);
+    const earningNights = new Set(monthRows.filter((e) => (sales[e.id]?.gross || 0) > 0).map((e) => dateKey(e.date))).size;
+
+    return {
+      daysInMonth, booked: booked.length, heldOnly: heldOnly.length, ticketed, rentals, darkAhead,
+      focusDate, focusHolds, otherHoldDates: Math.max(0, holdDates.length - 1),
+      revPerNight: monthGross / daysInMonth, earningNights,
+    };
+  }, [eventsByDate, events, currentMonth, todayStr, sales]);
 
   const agenda = useMemo(
     () =>
@@ -531,48 +551,18 @@ export default function CalendarPage() {
     return <div className="admin-form-page"><h1 className="admin-page-title">Access Denied</h1></div>;
   }
 
-  const year = parseInt(currentMonth.split("-")[0]);
-
   return (
     <div className="calm">
-      {/* ── Month navigation ── */}
-      <div className="calm-toolbar">
-        <div className="calm-nav">
-          <button type="button" className="cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">‹</button>
-          <h2>{monthLabel}</h2>
-          <button type="button" className="cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">›</button>
-          <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
-        </div>
-        <span className="filter-spacer" />
-        <Button onClick={() => openQuickHold()}>+ Quick hold</Button>
-        <Button variant="primary" onClick={() => openNewEvent()}>+ New show</Button>
-      </div>
-
-      <div className="calm-months" ref={monthsRef}>
-        <button type="button" className="cal-nav calm-yr" onClick={() => navigateYear(-1)} aria-label="Previous year">‹</button>
-        <span className="calm-year">{year}</span>
-        <button type="button" className="cal-nav calm-yr" onClick={() => navigateYear(1)} aria-label="Next year">›</button>
-        {MONTHS.map((m, i) => {
-          const val = `${year}-${String(i + 1).padStart(2, "0")}`;
-          const isNow = today.getFullYear() === year && today.getMonth() === i;
-          return (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setCurrentMonth(val)}
-              className={cx("cal-month", currentMonth === val && "active", isNow && "calm-month-now")}
-            >
-              {m}
-            </button>
-          );
-        })}
-      </div>
-
       <div className="calm-layout">
         {/* ── The month ── */}
         <Card className="calm-card">
           <div className="calm-card-head">
-            <div className="calm-card-title">{monthLabel}</div>
+            <div className="calm-nav">
+              <button type="button" className="cal-nav" onClick={() => shiftMonth(-1)} aria-label="Previous month">‹</button>
+              <div className="calm-card-title">{monthLabel}</div>
+              <button type="button" className="cal-nav" onClick={() => shiftMonth(1)} aria-label="Next month">›</button>
+              <Button variant="ghost" size="sm" onClick={goToToday}>Today</Button>
+            </div>
             <span className="filter-spacer" />
             <div className="calm-legend">
               <span><i className="calm-sw calm-sw--show" />Ticketed show</span>
@@ -612,7 +602,7 @@ export default function CalendarPage() {
                           style={ev.calendar_color ? { borderLeftColor: ev.calendar_color } : undefined}
                         >
                           <span className="calm-chip-name">{continued ? `↳ ${ev.title}` : ev.title}</span>
-                          {!continued && <span className="calm-chip-meta">{chipMeta(ev)}</span>}
+                          {!continued && <span className="calm-chip-meta">{chipMeta(ev, sales[ev.id]?.sold)}</span>}
                         </button>
                       );
                     })}
@@ -639,7 +629,7 @@ export default function CalendarPage() {
                     </div>
                     <div className={cx("calm-agenda-body", `calm-chip--${k}`)}>
                       <div className="calm-agenda-title">{ev.title}</div>
-                      <div className="calm-agenda-meta">{chipMeta(ev)}{ev.venue ? ` · ${ev.venue}` : ""}</div>
+                      <div className="calm-agenda-meta">{chipMeta(ev, sales[ev.id]?.sold)}{ev.venue ? ` · ${ev.venue}` : ""}</div>
                     </div>
                   </button>
                 );
@@ -653,27 +643,38 @@ export default function CalendarPage() {
         {/* ── Rail ── */}
         <div className="calm-rail">
           <Card>
-            <Eyebrow>Holds — {monthLabel.split(" ")[0]}</Eyebrow>
-            <div className="calm-rail-sub">Earliest date first, then H1 before H2 before H3</div>
-            {rail.holds.length === 0 ? (
+            <div className="calm-rail-head">
+              <Eyebrow>
+                Hold priority
+                {rail.focusDate
+                  ? ` — ${safeDate(rail.focusDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`
+                  : ""}
+              </Eyebrow>
+              <span className="filter-spacer" />
+              <Button size="sm" onClick={() => openQuickHold(rail.focusDate ?? undefined)}>+ Quick hold</Button>
+            </div>
+            <div className="calm-rail-sub">H1 first · open a hold to confirm or release it</div>
+            {rail.focusHolds.length === 0 ? (
               <div className="calm-rail-empty">No holds on the books this month.</div>
             ) : (
               <div className="calm-holds">
-                {rail.holds.map((h) => (
+                {rail.focusHolds.map((h, i) => (
                   <button key={h.id} type="button" className="calm-hold" onClick={() => setPanelEvent(h)}>
-                    <span className={cx("calm-hold-rank", h.hold_level === "H1" && "calm-hold-rank--top")}>
-                      {h.hold_level ? h.hold_level.slice(1) : "–"}
-                    </span>
+                    <span className={cx("calm-hold-rank", i === 0 && "calm-hold-rank--top")}>{i + 1}</span>
                     <span className="calm-hold-body">
                       <span className="calm-hold-name">{h.title}</span>
                       <span className="calm-hold-meta">
-                        {safeDate(h.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                        {CLASS_LABEL[h.event_type || ""] ? ` · ${CLASS_LABEL[h.event_type || ""]}` : ""}
+                        {[h.hold_level ? `${h.hold_level} hold` : "Hold", CLASS_LABEL[h.event_type || ""]].filter(Boolean).join(" · ")}
                       </span>
                     </span>
                     <span className="calm-hold-state">{h.hold_level ? HOLD_RANK[h.hold_level] : "Held"}</span>
                   </button>
                 ))}
+              </div>
+            )}
+            {rail.otherHoldDates > 0 && (
+              <div className="calm-rail-sub" style={{ marginTop: 12 }}>
+                {rail.otherHoldDates} more held {rail.otherHoldDates === 1 ? "date" : "dates"} this month — on the grid.
               </div>
             )}
           </Card>
@@ -688,6 +689,10 @@ export default function CalendarPage() {
               <div>
                 <div className="calm-util-line"><span>Ticketed vs. rental</span><b>{rail.ticketed} / {rail.rentals}</b></div>
                 <Meter percent={rail.ticketed + rail.rentals ? (rail.ticketed / (rail.ticketed + rail.rentals)) * 100 : 0} />
+              </div>
+              <div>
+                <div className="calm-util-line"><span>Revenue per available night</span><b>{fmtUSD(rail.revPerNight, { cents: false })}</b></div>
+                <Meter percent={(rail.earningNights / rail.daysInMonth) * 100} tone="good" />
               </div>
               <div>
                 <div className="calm-util-line"><span>Held but unconfirmed</span><b>{rail.heldOnly} {rail.heldOnly === 1 ? "date" : "dates"}</b></div>
