@@ -45,6 +45,17 @@ export type TicketTierDraft = {
   seats?: string; // the room's allocation to this tier
   comps?: string; // artist + marketing + house
   kills?: string; // production kills, sightline kills
+
+  /**
+   * Per-tier fee treatment — see lib/fees/tierFees.ts. Empty string in the
+   * form means "inherit from the event", which is stored as NULL. A tier that
+   * waives a fee is not charging it AND not earning it, which is a different
+   * thing from the event's fees_included_in_price.
+   */
+  service_fee_mode?: "" | "added" | "included" | "waived";
+  facility_fee_mode?: "" | "added" | "included" | "waived";
+  /** When set, the tier shows locked and needs this code to buy. */
+  unlock_code?: string;
 };
 
 export type Ticket = {

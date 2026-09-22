@@ -4168,6 +4168,8 @@ select.admin-form-input {
 
 .admin-tier-row {
   display: flex;
+  /* The inputs stay on one line; the fee panel wraps under them full width. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
@@ -24160,4 +24162,75 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   border-radius: 999px;
   color: #0a0a0c;
   background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
+}
+
+/* ── Per-tier fee treatment (TierFeePanel) ──────────────────────────────
+   A tier row stays three inputs wide; the exception lives behind a chip that
+   already says what it is, so a waived fee is visible without opening it. */
+.admin-shell .tfp { flex: 1 0 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 2px; }
+.admin-shell .tfp-chip {
+  align-self: flex-start;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .tfp-chip:hover { background: rgba(255, 255, 255, 0.09); color: rgba(255, 255, 255, 0.75); }
+.admin-shell .tfp-chip--waived { color: var(--lg-warn, #e8d48a); border-color: rgba(232, 212, 138, 0.38); }
+.admin-shell .tfp-chip--coded { border-style: dashed; }
+.admin-shell .tfp-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 13px;
+  padding: 15px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.admin-shell .tfp-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.admin-shell .tfp-field--wide { grid-column: 1 / -1; }
+.admin-shell .tfp-field > span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .tfp-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.44);
+  text-wrap: pretty;
+}
+.admin-shell .tfp-preview {
+  grid-column: 1 / -1;
+  padding: 12px 13px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .tfp-preview-row {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 5px 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.66);
+}
+.admin-shell .tfp-preview-row > span:first-child { flex: 1; }
+.admin-shell .tfp-preview-row--total {
+  margin-top: 4px; padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 14px; font-weight: 800; color: #fff;
+}
+.admin-shell .tfp-preview-sub { font-size: 11px; color: rgba(255, 255, 255, 0.50); }
+.admin-shell .tfp-preview-sub em { font-style: normal; color: rgba(255, 255, 255, 0.32); }
+.admin-shell .tfp-preview-note {
+  margin: 8px 0 0; font-size: 10.5px; line-height: 1.5;
+  color: var(--lg-warn, #e8d48a); text-wrap: pretty;
 }

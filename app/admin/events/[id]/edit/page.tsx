@@ -13,6 +13,7 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import { fmtUSD } from "@/app/components/admin/ui";
+import TierFeePanel, { type TierFeeContext } from "@/app/components/admin/TierFeePanel";
 import { breakEvenShare } from "@/lib/offers/walkout";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null; tax_method?: string | null };
@@ -250,7 +251,8 @@ export default function AdminEditEventPage() {
 
     Promise.all([
       fetch(`/api/events/${id}`).then((r) => r.json()),
-      fetch(`/api/events/${id}/ticket-types`).then((r) => r.json()),
+      // admin=1 returns unlock_code, which the public shape withholds.
+      fetch(`/api/events/${id}/ticket-types?admin=1`).then((r) => r.json()),
     ])
       .then(([event, tierData]) => {
         if (event.error) {
@@ -348,11 +350,18 @@ export default function AdminEditEventPage() {
         // Map existing tiers — preserve id so PUT can upsert instead of delete+reinsert
         if (Array.isArray(tierData) && tierData.length > 0) {
           setTiers(
-            tierData.map((t: { id: string; tier_name: string; price: number; capacity: number }) => ({
+            tierData.map((t: {
+              id: string; tier_name: string; price: number; capacity: number;
+              service_fee_mode?: string | null; facility_fee_mode?: string | null; unlock_code?: string | null;
+            }) => ({
               id: t.id,
               tier_name: t.tier_name,
               price: String(t.price),
               capacity: String(t.capacity),
+              // NULL in the column means inherit, which the form shows as "".
+              service_fee_mode: (t.service_fee_mode ?? "") as "" | "added" | "included" | "waived",
+              facility_fee_mode: (t.facility_fee_mode ?? "") as "" | "added" | "included" | "waived",
+              unlock_code: t.unlock_code ?? "",
             }))
           );
         } else {
@@ -723,6 +732,20 @@ export default function AdminEditEventPage() {
 
   const soldTotal = ticketing?.paidTickets ?? 0;
 
+  /**
+   * What a tier inherits when it says nothing: the selected room's rate card,
+   * plus the event's own two fee flags. Read straight off eventVenues so the
+   * per-tier preview shows the real numbers rather than platform defaults.
+   */
+  const selectedVenue = eventVenues.find((v) => v.id === selectedEventVenueId) || null;
+  const tierFeeCtx: TierFeeContext = {
+    ticketingFee: Number(selectedVenue?.ticketing_fee ?? 3) || 0,
+    facilityFee: Number(selectedVenue?.facility_fee ?? selectedVenueFees.facility_fee ?? 0) || 0,
+    taxRate: taxMethod === "divisor" ? 0 : Number(selectedVenue?.tax_rate ?? 0.095) || 0,
+    feesIncludedInPrice,
+    facilityFeeEnabled: !isFree,
+  };
+
   // To break even — the offer's own walkout, not a second formula. Null when
   // no offer is linked; { tickets: null } when the show loses money even sold
   // out. Same shape the event workspace uses.
@@ -947,6 +970,10 @@ export default function AdminEditEventPage() {
               price: parseFloat(t.price),
               capacity: parseInt(t.capacity),
               sort_order: i,
+              // Empty string means inherit, which the route stores as NULL.
+              service_fee_mode: t.service_fee_mode || null,
+              facility_fee_mode: t.facility_fee_mode || null,
+              unlock_code: t.unlock_code || null,
             })),
           }),
         });
@@ -1756,6 +1783,11 @@ export default function AdminEditEventPage() {
                             ✕
                           </button>
                         )}
+                        <TierFeePanel
+                          tier={tier}
+                          ctx={tierFeeCtx}
+                          onChange={(field, value) => handleTierChange(i, field, value)}
+                        />
                       </div>
                     ))}
                   </div>

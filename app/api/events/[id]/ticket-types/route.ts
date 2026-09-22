@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { getEventSeatInventoryBySection } from "@/lib/checkout-helpers";
 import { NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/can";
+import { normalizeUnlockCode } from "@/lib/fees/tierFees";
 
 // GET IS PUBLIC BY DESIGN — the storefront and the box office both read it
 // to show what is on sale. POST and PUT are guarded below.
@@ -94,7 +95,35 @@ export async function GET(
     };
   });
 
-  return NextResponse.json(tiersWithSold, { status: 200 });
+  /**
+   * This route is PUBLIC, and `select("*")` now pulls unlock_code with it.
+   * Returning that would defeat the lock entirely — anyone could read the code
+   * straight out of the API and buy the tier. So the code never leaves the
+   * server: callers get a boolean, and the actual check happens server-side at
+   * checkout (lib/fees/tierFees.ts unlocksTier).
+   *
+   * Staff asking for ?admin=1 do get it back, because the tier editor has to
+   * show and edit the code it is setting. Guarded, obviously.
+   */
+  const wantsAdmin = new URL(request.url).searchParams.get("admin") === "1";
+  let includeCodes = false;
+  if (wantsAdmin) {
+    const guard = await requireCapability("ticket_scaling");
+    includeCodes = guard.ok;
+  }
+
+  const safe = tiersWithSold.map((t) => {
+    const row = t as Record<string, unknown>;
+    const code = typeof row.unlock_code === "string" ? row.unlock_code : null;
+    return {
+      ...row,
+      unlock_code: includeCodes ? code : undefined,
+      /** Shown locked on the storefront and the box office; needs the code to buy. */
+      locked: !!code,
+    };
+  });
+
+  return NextResponse.json(safe, { status: 200 });
 }
 
 // POST: create a ticket tier for an event (admin)
@@ -150,7 +179,24 @@ export async function PUT(
     return NextResponse.json({ error: "tiers array is required" }, { status: 400 });
   }
 
-  type IncomingTier = { id?: string; tier_name: string; price: number; capacity: number; sort_order?: number };
+  type FeeMode = "added" | "included" | "waived";
+  type IncomingTier = {
+    id?: string; tier_name: string; price: number; capacity: number; sort_order?: number;
+    service_fee_mode?: FeeMode | null; facility_fee_mode?: FeeMode | null; unlock_code?: string | null;
+  };
+
+  /**
+   * The tier-level fee columns (plans/tier-fee-modes-and-unlock-migration.sql).
+   * Kept apart from the always-present columns so a database without the
+   * migration can still save a tier — see the retry below.
+   */
+  const feeColumns = (t: IncomingTier) => ({
+    service_fee_mode: t.service_fee_mode ?? null,
+    facility_fee_mode: t.facility_fee_mode ?? null,
+    unlock_code: normalizeUnlockCode(t.unlock_code) || null,
+  });
+  const missingColumn = (msg: string | undefined) =>
+    /service_fee_mode|facility_fee_mode|unlock_code|column .* does not exist/i.test(msg ?? "");
 
   // Fetch existing tier IDs and which ones have tickets sold
   const [{ data: existingRows }, { data: soldRows }] = await Promise.all([
@@ -178,24 +224,22 @@ export async function PUT(
   // Update existing tiers / insert new ones
   for (const [i, t] of (body.tiers as IncomingTier[]).entries()) {
     const sortOrder = t.sort_order ?? i;
+    const base = { tier_name: t.tier_name, price: t.price, capacity: t.capacity, sort_order: sortOrder };
+
     if (t.id && existingIds.has(t.id)) {
-      const { error } = await admin.from("ticket_tiers").update({
-        tier_name: t.tier_name,
-        price: t.price,
-        capacity: t.capacity,
-        sort_order: sortOrder,
-      }).eq("id", t.id);
+      let { error } = await admin.from("ticket_tiers").update({ ...base, ...feeColumns(t) }).eq("id", t.id);
+      // Ship before the migration: drop the new columns and save the rest.
+      if (error && missingColumn(error.message)) {
+        ({ error } = await admin.from("ticket_tiers").update(base).eq("id", t.id));
+      }
       if (error) {
         return NextResponse.json({ error: "Failed to update tier: " + error.message }, { status: 500 });
       }
     } else {
-      const { error } = await admin.from("ticket_tiers").insert({
-        event_id: id,
-        tier_name: t.tier_name,
-        price: t.price,
-        capacity: t.capacity,
-        sort_order: sortOrder,
-      });
+      let { error } = await admin.from("ticket_tiers").insert({ event_id: id, ...base, ...feeColumns(t) });
+      if (error && missingColumn(error.message)) {
+        ({ error } = await admin.from("ticket_tiers").insert({ event_id: id, ...base }));
+      }
       if (error) {
         return NextResponse.json({ error: "Failed to insert tier: " + error.message }, { status: 500 });
       }
