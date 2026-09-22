@@ -16,11 +16,15 @@ export const dynamic = "force-dynamic";
  *  aging      open invoice balances bucketed by days past due
  *  ancillary  month to date: merch splits from settlements and fees
  *             retained from the ledger
+ *  cash       the cash-position row and Money in motion, from invoices:
+ *             deposits held (paid on invoices for events still ahead),
+ *             receivables (open balances on sent invoices), collectible in
+ *             the next 7 days, and average days from sent to paid
  *
- * Deliberately not here: the mockup's "Money in motion" (earned-unbilled,
- * banked, deposit lag) and bar / concession revenue. Nothing in the system
- * records those yet, and a money screen that estimates them would be worse
- * than one that leaves them out.
+ * Deliberately not here: unrestricted cash, earned-unbilled, banked,
+ * settlement payables and deposit lag, and bar / concession revenue. Nothing
+ * in the system records those yet; the page shows their slots as "Not
+ * tracked yet" rather than estimating them.
  */
 export async function GET(request: Request) {
   const guard = await requireStaff();
@@ -99,6 +103,7 @@ export async function GET(request: Request) {
 
   // ── Receivables aging ──
   let invQ = admin.from("invoices").select("balance_due, due_date, status").gt("balance_due", 0);
+  // A draft hasn't been sent, so nothing on it is owed yet.
   if (venueId) invQ = invQ.eq("venue_id", venueId);
   const { data: invoices } = await invQ;
   const buckets = [
@@ -109,7 +114,7 @@ export async function GET(request: Request) {
     { label: "90+", min: 91, max: Infinity, value: 0 },
   ];
   for (const inv of (invoices ?? []) as { balance_due: number; due_date: string | null; status: string | null }[]) {
-    if (inv.status === "void" || inv.status === "paid") continue;
+    if (inv.status === "void" || inv.status === "paid" || inv.status === "draft") continue;
     const late = inv.due_date ? Math.floor((now.getTime() - new Date(`${inv.due_date.slice(0, 10)}T12:00:00`).getTime()) / 86400000) : 0;
     const b = buckets.find((x) => late >= x.min && late <= x.max) ?? buckets[0];
     b.value += Number(inv.balance_due) || 0;
@@ -124,6 +129,43 @@ export async function GET(request: Request) {
   const merch = (settlementsMtd ?? []).reduce((t, s) => t + (Number(s.merch_venue_share) || 0), 0);
   const fees = (ledgerMtd ?? []).reduce((t, l) => t + (Number(l.ticketing_fee) || 0) + (Number(l.facility_fee) || 0), 0);
 
+  // ── Cash position, from invoices ──
+  let allInvQ = admin
+    .from("invoices")
+    .select("amount_paid, balance_due, due_date, status, sent_at, paid_at, events(date)");
+  if (venueId) allInvQ = allInvQ.eq("venue_id", venueId);
+  const { data: allInvoices } = await allInvQ;
+  type InvRow = {
+    amount_paid: number | null;
+    balance_due: number | null;
+    due_date: string | null;
+    status: string | null;
+    sent_at: string | null;
+    paid_at: string | null;
+    events: { date: string | null } | { date: string | null }[] | null;
+  };
+  const in7 = now.getTime() + 7 * 86400000;
+  let depositsHeld = 0, depositEvents = 0, receivables = 0, receivableCount = 0, collectible7 = 0, collectible7Count = 0;
+  const collectDays: number[] = [];
+  for (const inv of (allInvoices ?? []) as InvRow[]) {
+    if (inv.status === "void" || inv.status === "draft") continue;
+    const ev = Array.isArray(inv.events) ? inv.events[0] : inv.events;
+    const eventAhead = ev?.date ? new Date(ev.date).getTime() > now.getTime() : false;
+    const paid = Number(inv.amount_paid) || 0;
+    const open = Number(inv.balance_due) || 0;
+    // Paid ahead of the event: held, not yet earned.
+    if (eventAhead && paid > 0) { depositsHeld += paid; depositEvents++; }
+    if (open > 0 && inv.status !== "paid") {
+      receivables += open; receivableCount++;
+      const due = inv.due_date ? new Date(`${inv.due_date.slice(0, 10)}T12:00:00`).getTime() : null;
+      if (due !== null && due <= in7) { collectible7 += open; collectible7Count++; }
+    }
+    if (inv.sent_at && inv.paid_at) {
+      const d = (new Date(inv.paid_at).getTime() - new Date(inv.sent_at).getTime()) / 86400000;
+      if (d >= 0) collectDays.push(d);
+    }
+  }
+
   const r2 = (n: number) => Math.round(n * 100) / 100;
   return NextResponse.json({
     nights,
@@ -132,6 +174,16 @@ export async function GET(request: Request) {
       merchSplits: r2(merch),
       merchEvents: (settlementsMtd ?? []).filter((s) => Number(s.merch_venue_share) > 0).length,
       feesRetained: r2(fees),
+    },
+    cash: {
+      depositsHeld: r2(depositsHeld),
+      depositEvents,
+      receivables: r2(receivables),
+      receivableCount,
+      collectible7: r2(collectible7),
+      collectible7Count,
+      avgDaysToCollect: collectDays.length ? Math.round((collectDays.reduce((a, b) => a + b, 0) / collectDays.length) * 10) / 10 : null,
+      paidInvoices: collectDays.length,
     },
   });
 }

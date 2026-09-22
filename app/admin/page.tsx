@@ -560,11 +560,11 @@ export default function AdminDashboardPage() {
       <div className="dash-header">
         <div>
           <h1 className="admin-page-title">Command Center</h1>
-          <p className="dash-subtitle">Your shows at a glance</p>
+          <p className="dash-subtitle">Your cash and your nights at a glance</p>
         </div>
         <div className="cc-actions">
           <Link href="/admin/events/new" className="cc-btn cc-btn--primary">+ New event</Link>
-          <Link href="/admin/reports" className="cc-btn">Reporting</Link>
+          <Link href="/admin/reports" className="cc-btn">View reports</Link>
           {dosEvent && <Link href={`/admin/live/${dosEvent.id}`} className="cc-btn">Tonight: {dosEvent.title}</Link>}
         </div>
       </div>
@@ -682,6 +682,42 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* ══ Rows 2–4 of dashboard.dc.html: cash position, money in motion +
+          aging, next 14 nights + needs a decision + ancillary ══ */}
+      <DashExtras
+        monthName={monthName}
+        decisions={
+        <div className="cc-card">
+          <div className="cc-eyebrow">Needs a decision</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+            {queue.length === 0 && (
+              <div className="cc-note">
+                Nothing pacing badly and no show missing tiers. This list is derived from what is on this page,
+                so it stays empty until one of those numbers says otherwise.
+              </div>
+            )}
+            {queue.slice(0, 6).map((q) => (
+              <Link key={q.title} href={q.href} className="cc-queue-item">
+                <span style={{ width: 3, alignSelf: "stretch", borderRadius: 999, background: q.tone, flex: "none" }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="cc-queue-title">{q.title}</div>
+                  <div className="cc-queue-body">{q.body}</div>
+                </div>
+                <div className="cc-queue-age">{q.age}</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+        }
+      />
+
+      {/* ══ Not in the mockup — kept, collapsed ═══════════════════════════ */}
+      <details className="cc-more">
+        <summary>
+          <span className="cc-eyebrow">More figures</span>
+          <span className="cc-more-sub">all-time ledger · where the gross splits · latest sales · last 30 days</span>
+        </summary>
+        <div className="cc-more-body">
       {/* ══ Where the money went ═════════════════════════════════════════ */}
       <div className="cc-kpis">
         {[
@@ -701,9 +737,6 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
-
-      {/* ══ Next 14 nights, receivables, ancillary (dashboard.dc.html) ═══ */}
-      <DashExtras monthName={monthName} />
 
       {/* ══ Lower grid ═══════════════════════════════════════════════════ */}
       <div className="cc-lower">
@@ -745,29 +778,6 @@ export default function AdminDashboardPage() {
               <div className="cc-split-value" style={{ color: data.refunds > 0 ? "var(--cc-warn)" : "var(--cc-w72)" }}>{formatCurrency(data.refunds)}</div>
               <div className="cc-split-sub">already netted off gross</div>
             </div>
-          </div>
-        </div>
-
-        {/* Needs a decision */}
-        <div className="cc-card">
-          <div className="cc-eyebrow">Needs a decision</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
-            {queue.length === 0 && (
-              <div className="cc-note">
-                Nothing pacing badly and no show missing tiers. This list is derived from what is on this page,
-                so it stays empty until one of those numbers says otherwise.
-              </div>
-            )}
-            {queue.slice(0, 6).map((q) => (
-              <Link key={q.title} href={q.href} className="cc-queue-item">
-                <span style={{ width: 3, alignSelf: "stretch", borderRadius: 999, background: q.tone, flex: "none" }} />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="cc-queue-title">{q.title}</div>
-                  <div className="cc-queue-body">{q.body}</div>
-                </div>
-                <div className="cc-queue-age">{q.age}</div>
-              </Link>
-            ))}
           </div>
         </div>
 
@@ -834,6 +844,8 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+        </div>
+      </details>
     </div>
   );
 }

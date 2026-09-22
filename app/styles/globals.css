@@ -22646,7 +22646,6 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
    Next 14 nights, receivables aging and ancillary, per dashboard.dc.html.
    Rides on the page's own .cc-* tokens and cards.
    ══════════════════════════════════════════════════════════════════════ */
-.admin-shell .dx-row { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); }
 .dx-night-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
 .admin-shell .dx-night {
   display: flex;
@@ -22690,9 +22689,6 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .dx-anc > div { display: flex; flex-direction: column; gap: 3px; }
 .dx-anc strong { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .dx-anc em { font-style: normal; font-size: 10.5px; color: rgba(255, 255, 255, 0.42); }
-@media (max-width: 1100px) {
-  .admin-shell .dx-row { grid-template-columns: minmax(0, 1fr); }
-}
 
 /* ── Form rows (ui.tsx FieldRow) ─────────────────────────── */
 .admin-shell .ui-field-row { display: grid; gap: 0 12px; }
@@ -23432,4 +23428,60 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .ofb .admin-form-grid { grid-template-columns: minmax(0, 1fr); }
   .admin-shell .ofb-tabs-note { display: none; }
   .admin-shell .ofb-status-link { border-radius: 14px; flex-direction: column; gap: 2px; }
+}
+
+/* ── Command Center rows 2–4 (dashboard.dc.html) ─────────── */
+.admin-shell .dx-row2 { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.admin-shell .dx-row3 { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+.admin-shell .dx-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.admin-shell .dx-untracked { color: rgba(255, 255, 255, 0.34); font-weight: 600; letter-spacing: -0.01em; }
+.admin-shell .cc-kpi-value.dx-untracked { font-size: 17px; line-height: 25px; }
+.admin-shell .cc-split-value.dx-untracked { font-size: 12px; }
+.admin-shell .dx-anc strong.dx-untracked { font-size: 14px; }
+.admin-shell .dx-untracked-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.34);
+}
+.admin-shell .dx-callout {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.66);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .cc-more {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+.admin-shell .cc-more > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 48px;
+  padding: 15px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+.admin-shell .cc-more > summary::-webkit-details-marker { display: none; }
+.admin-shell .cc-more > summary::before { content: "▸"; font-size: 10px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .cc-more[open] > summary::before { content: "▾"; }
+.admin-shell .cc-more-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .cc-more-body { display: flex; flex-direction: column; gap: 16px; padding: 0 16px 16px; }
+.admin-shell .cc-more-body .cc-lower { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+@media (max-width: 1100px) {
+  .admin-shell .dx-row2,
+  .admin-shell .dx-row3,
+  .admin-shell .cc-more-body .cc-lower { grid-template-columns: minmax(0, 1fr); }
 }
