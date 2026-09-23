@@ -75,6 +75,15 @@ export default function AdminUsersPage() {
   const [msg, setMsg] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [recoveryLink, setRecoveryLink] = useState<string | null>(null);
 
+  /**
+   * Adding someone. POST /api/admin/users has existed all along, guarded by
+   * assign_roles — this panel simply never offered a way to call it, so the
+   * only way to get a person into the system was the onboarding wizard or SQL.
+   */
+  const [showAdd, setShowAdd] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newPerson, setNewPerson] = useState({ first_name: "", last_name: "", email: "", password: "", role: "box_office" as StaffLevel });
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -94,6 +103,41 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const addPerson = async () => {
+    if (!newPerson.email.trim() || !newPerson.role) return;
+    setAdding(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newPerson.email.trim(),
+          // Blank means the API generates one and the person uses the
+          // recovery link instead — safer than inventing a password here.
+          password: newPerson.password.trim() || undefined,
+          role: newPerson.role,
+          first_name: newPerson.first_name.trim() || null,
+          last_name: newPerson.last_name.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg({ tone: "bad", text: data.error || "Could not add that person." });
+        return;
+      }
+      setMsg({ tone: "ok", text: `${newPerson.email.trim()} added as ${roleLabel(newPerson.role)}.` });
+      setNewPerson({ first_name: "", last_name: "", email: "", password: "", role: "box_office" });
+      setShowAdd(false);
+      await load();
+      if (data?.id) setSelectedId(data.id);
+    } catch {
+      setMsg({ tone: "bad", text: "Could not add that person." });
+    } finally {
+      setAdding(false);
+    }
+  };
 
   useEffect(() => {
     import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
@@ -219,7 +263,53 @@ export default function AdminUsersPage() {
             <div className="team-eyebrow">Team</div>
             <span style={{ flex: 1 }} />
             <span className="team-note">{staff.length} staff · {external.length} external</span>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowAdd((v) => !v)} aria-expanded={showAdd}>
+              {showAdd ? "Cancel" : "+ Add person"}
+            </button>
           </div>
+
+          {showAdd && (
+            <div className="team-add">
+              <div className="team-add-row">
+                <label>
+                  <span>First name</span>
+                  <input value={newPerson.first_name} onChange={(e) => setNewPerson((p) => ({ ...p, first_name: e.target.value }))} autoComplete="off" />
+                </label>
+                <label>
+                  <span>Last name</span>
+                  <input value={newPerson.last_name} onChange={(e) => setNewPerson((p) => ({ ...p, last_name: e.target.value }))} autoComplete="off" />
+                </label>
+              </div>
+              <label>
+                <span>Email *</span>
+                <input type="email" value={newPerson.email} onChange={(e) => setNewPerson((p) => ({ ...p, email: e.target.value }))} placeholder="name@west72ent.com" autoComplete="off" />
+              </label>
+              <div className="team-add-row">
+                <label>
+                  <span>Access level *</span>
+                  <select value={newPerson.role} onChange={(e) => setNewPerson((p) => ({ ...p, role: e.target.value as StaffLevel }))}>
+                    {STAFF_LEVELS.map((lv) => (
+                      <option key={lv} value={lv}>{STAFF_LEVEL_LABELS[lv]}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Temporary password</span>
+                  <input type="text" value={newPerson.password} onChange={(e) => setNewPerson((p) => ({ ...p, password: e.target.value }))} placeholder="leave blank to send a link" autoComplete="off" />
+                </label>
+              </div>
+              <p className="team-note">
+                {LEVEL_NOTES[newPerson.role] ?? ""}
+              </p>
+              <p className="team-note">
+                Leave the password blank and they get no usable login until you send them a recovery
+                link from their row — which is the safer way round, since nothing is emailed from here.
+              </p>
+              <button type="button" className="btn btn-primary" disabled={adding || !newPerson.email.trim()} onClick={addPerson}>
+                {adding ? "Adding…" : "Add person"}
+              </button>
+            </div>
+          )}
 
           <div className="team-thead" style={{ marginTop: 14 }}>
             <div>User</div>
