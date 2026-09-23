@@ -114,6 +114,18 @@ async function writeSettlementLedger({
   // card fee rather than losing the sale entirely.
   try {
     const actual = await fetchActualStripeCost(stripePaymentIntentId);
+    if (!actual) {
+      // Silence here is why 712 of 985 rows were still running on the
+      // estimate months later: the enrichment fails quietly and settlement
+      // goes on reporting a card cost that is ~8% light. Say so, loudly
+      // enough to find in the logs, and name the fix.
+      console.error(
+        `STRIPE COST NOT RECORDED for order ${orderId} (pi ${stripePaymentIntentId ?? "none"}). ` +
+          `settlement_ledger.stripe_fee_actual stays null and settlement will use the ` +
+          `billed surcharge instead, which understates Stripe's real cut. ` +
+          `Re-run: node plans/backfill-stripe-actual-fees.mjs --apply`
+      );
+    }
     if (actual) {
       await admin
         .from("settlement_ledger")
