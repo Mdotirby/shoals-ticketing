@@ -10,6 +10,7 @@ import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { earnBenefits } from "@/lib/fwb/earn";
 import { computeLedgerAmounts, hasSaleRow } from "@/lib/settlement/ledger";
+import { voidTicketsForOrder } from "@/lib/tickets/void";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode");
 
@@ -1185,6 +1186,24 @@ export async function POST(request: Request) {
             net_to_platform: refundedTicketing - refundedRebate,
             type: "refund",
           });
+          // A fully refunded order must stop getting people through the door.
+          // A PARTIAL refund deliberately does not void: which of the tickets
+          // the money came back on is not knowable from the charge alone.
+          if (isFullRefund) {
+            const voided = await voidTicketsForOrder(admin, order.id, "Order refunded");
+            if (voided.alreadyScanned > 0) {
+              console.warn(
+                `Order ${order.id} refunded AFTER ${voided.alreadyScanned} of its tickets were already scanned — ` +
+                  `those people were admitted on a ticket that is now void.`
+              );
+            }
+            if (voided.unsupported) {
+              console.error(
+                `Could not void tickets for refunded order ${order.id}: the voided_at column is missing. ` +
+                  `Run plans/ticket-void-migration.sql — until then refunded tickets keep scanning.`
+              );
+            }
+          }
           console.log(`Refund $${refundAmount} recorded for order ${order.id}${isFullRefund ? " — marked refunded" : ""}`);
         }
       }

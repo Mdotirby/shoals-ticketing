@@ -27,9 +27,10 @@
  * same proportional reversal the webhook would have written — including
  * leaving stripe_fee unreversed, because Stripe keeps its cut on a refund.
  *
- * Tickets on a fully refunded order are NOT voided here. That is a decision
- * about whether someone gets in at the door, and it is reported loudly rather
- * than taken automatically.
+ * Tickets on a fully refunded order ARE voided, because a refunded ticket
+ * that still scans is how eight people got into MSM: The 90's on a table
+ * nobody paid for. Tickets already scanned are voided too and reported
+ * separately — the void cannot un-admit them, but the record should be true.
  *
  * ── Safety ───────────────────────────────────────────────────────────────
  *   • Reads Stripe with STRIPE_LIVE_READONLY_KEY.
@@ -173,13 +174,29 @@ for (const r of repairs) {
 }
 console.log(`\nrepaired: ${ok} of ${repairs.length}`);
 
-// Tickets on a refunded order stay valid unless someone decides otherwise.
+// A fully refunded order must stop getting people through the door.
 for (const r of repairs) {
   if (!r.isFull) continue;
-  const { data: t } = await db.from("tickets").select("id, is_scanned").eq("order_id", r.order.id);
-  if (t?.length) {
-    const scanned = t.filter((x) => x.is_scanned).length;
-    console.log(`  NOTE: order ${r.order.id.slice(0, 8)} was fully refunded but still has ${t.length} valid ticket(s)` +
-      `${scanned ? `, ${scanned} already scanned` : ""} — void them by hand if they should not scan.`);
+  const { data: t, error } = await db
+    .from("tickets")
+    .select("id, is_scanned, voided_at")
+    .eq("order_id", r.order.id);
+  if (error) {
+    console.log(`  NOTE: could not read tickets for ${r.order.id.slice(0, 8)} (${error.message}).` +
+      ` If voided_at is missing, run plans/ticket-void-migration.sql.`);
+    continue;
   }
+  const live = (t ?? []).filter((x) => !x.voided_at);
+  if (!live.length) continue;
+  const { error: vErr } = await db
+    .from("tickets")
+    .update({ voided_at: new Date().toISOString(), void_reason: "Order refunded" })
+    .in("id", live.map((x) => x.id));
+  if (vErr) {
+    console.log(`  NOTE: could not void ${live.length} ticket(s) on ${r.order.id.slice(0, 8)} — ${vErr.message}`);
+    continue;
+  }
+  const scanned = live.filter((x) => x.is_scanned).length;
+  console.log(`  voided ${live.length} ticket(s) on ${r.order.id.slice(0, 8)}` +
+    (scanned ? `  — ${scanned} had ALREADY BEEN SCANNED; those people were admitted on a refunded order.` : ""));
 }

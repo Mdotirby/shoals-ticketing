@@ -4,6 +4,7 @@ import { getStripe } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 import { writeAudit } from "@/lib/auth/audit";
 import { REFUND_REASONS, refundBlocker } from "@/lib/orders/refundPolicy";
+import { voidTicketsForOrder } from "@/lib/tickets/void";
 
 /**
  * POST /api/admin/orders/[orderId]/refund
@@ -106,16 +107,30 @@ export async function POST(
     );
   }
 
+  // Seats go back on sale, so the tickets that held them must stop working.
+  // Without this a refunded ticket still scanned clean at the door.
+  const voided = await voidTicketsForOrder(admin, orderId, `Order refunded — ${reasonLabel}`);
+
   await writeAudit(guard.actor, {
     action: "order.refunded",
     targetType: "order",
     targetId: orderId,
     venueId: event?.venue_id ?? null,
-    detail: { reason, amount: Number(order.total_amount) || 0, event_id: order.event_id, note: note?.trim() || null },
+    detail: {
+      reason, amount: Number(order.total_amount) || 0, event_id: order.event_id, note: note?.trim() || null,
+      tickets_voided: voided.voided,
+      // Someone already walked in on these. Worth a permanent record.
+      tickets_voided_after_scan: voided.alreadyScanned,
+    },
   });
 
   return NextResponse.json({
     success: true,
     seatsReleased: (releasedSeats || []).length,
+    ticketsVoided: voided.voided,
+    ticketsVoidedAfterScan: voided.alreadyScanned,
+    // True only when the void migration has not been run — the refund still
+    // went through, but the tickets will keep scanning until it is.
+    ticketVoidUnsupported: voided.unsupported,
   });
 }

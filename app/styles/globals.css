@@ -24327,3 +24327,27 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 }
 .bo-unlock > button:disabled { opacity: 0.4; cursor: not-allowed; }
 .bo-unlock-error { flex: 1 0 100%; font-size: 12.5px; color: oklch(0.72 0.13 22); }
+
+/* ── Door: a refused check-in, stated rather than swallowed ───────────── */
+.scan-refusal {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 14px;
+  padding: 13px 15px;
+  border-radius: 13px;
+  background: rgba(248, 113, 113, 0.10);
+  border: 1px solid rgba(248, 113, 113, 0.38);
+}
+.scan-refusal strong { font-size: 12.5px; font-weight: 800; color: oklch(0.72 0.13 22); white-space: nowrap; }
+.scan-refusal span { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.45; color: rgba(255, 255, 255, 0.80); }
+.scan-refusal button {
+  flex: none;
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  font: inherit; font-size: 13px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}

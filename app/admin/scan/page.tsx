@@ -70,6 +70,8 @@ export default function AdminScanPage() {
   const [searchResults, setSearchResults] = useState<PersonResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [checkingIn, setCheckingIn] = useState<Set<string>>(new Set());
+  /** Why the server refused a check-in — a void or refunded ticket. */
+  const [bulkRefusal, setBulkRefusal] = useState<string | null>(null);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── Manual code state ─────────────────────────────────────────────────────
@@ -263,20 +265,28 @@ export default function AdminScanPage() {
       });
       const data = await res.json();
       if (data.checked_in >= 0) {
+        // Only mark what the server actually admitted. This used to mark every
+        // requested ticket scanned regardless, so a void or refunded ticket
+        // the server refused still showed as checked in on the door's screen.
+        const refused: { id: string; name: string | null; reason: string }[] = data.refused ?? [];
+        const refusedIds = new Set(refused.map((r) => r.id));
+        const admitted = unscannedIds.filter((id) => !refusedIds.has(id));
         setSearchResults((prev) =>
           prev.map((p) => {
             if (`${p.customer_name}||${p.customer_email}` !== key) return p;
-            return {
-              ...p,
-              tickets: p.tickets.map((t) =>
-                unscannedIds.includes(t.id)
-                  ? { ...t, is_scanned: true, scanned_at: new Date().toISOString() }
-                  : t
-              ),
-              scanned: p.total,
-            };
+            const tickets = p.tickets.map((t) =>
+              admitted.includes(t.id)
+                ? { ...t, is_scanned: true, scanned_at: new Date().toISOString() }
+                : t
+            );
+            return { ...p, tickets, scanned: tickets.filter((t) => t.is_scanned).length };
           })
         );
+        if (refused.length > 0) {
+          setBulkRefusal(`${refused.length} ticket${refused.length > 1 ? "s" : ""} refused — ${refused[0].reason}`);
+          if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+        }
+        if (admitted.length === 0) return;
         if (navigator.vibrate) navigator.vibrate(100);
         try {
           const ctx = new AudioContext();
@@ -308,7 +318,12 @@ export default function AdminScanPage() {
         body: JSON.stringify({ ticket_ids: [ticketId] }),
       });
       const data = await res.json();
-      if (data.checked_in >= 0) {
+      const refusedOne: { id: string; name: string | null; reason: string }[] = data.refused ?? [];
+      if (refusedOne.length > 0) {
+        // The server would not admit it; do not draw it as admitted.
+        setBulkRefusal(refusedOne[0].reason);
+        if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+      } else if (data.checked_in >= 0) {
         const personKey = `${person.customer_name}||${person.customer_email}`;
         setSearchResults((prev) =>
           prev.map((p) => {
@@ -487,6 +502,16 @@ export default function AdminScanPage() {
       </div>
 
       {/* ── GUEST NAME / EMAIL SEARCH ── */}
+      {/* A refused check-in must be visible at the door. The list used to
+          draw a refused ticket as admitted and say nothing. */}
+      {bulkRefusal && (
+        <div className="scan-refusal" role="alert">
+          <strong>Not checked in</strong>
+          <span>{bulkRefusal}</span>
+          <button type="button" onClick={() => setBulkRefusal(null)} aria-label="Dismiss">✕</button>
+        </div>
+      )}
+
       <div className="scan-search-section">
         <div className="scan-section-label">Search by Name or Email</div>
         <div className="scan-search-input-row">
