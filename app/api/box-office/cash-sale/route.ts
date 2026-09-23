@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import { v4 as uuidv4 } from "uuid";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
+import { unlocksTier } from "@/lib/fees/tierFees";
 const QRCode = require("qrcode");
 
 /**
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     const {
       event_id,
       tier_id,
+      unlock_code,
       quantity = 1,
       buyer_first_name,
       buyer_last_name,
@@ -87,12 +89,22 @@ export async function POST(request: Request) {
     let ticketPrice = Number(event.price) || 0;
     let tierName = "GA";
     if (tier_id) {
-      const { data: tier } = await admin
+      let { data: tier, error: tierError } = await admin
         .from("ticket_tiers")
-        .select("price, tier_name")
+        .select("price, tier_name, unlock_code")
         .eq("id", tier_id)
         .single();
+      if (tierError && /unlock_code|column .* does not exist/i.test(tierError.message)) {
+        const retry = await admin.from("ticket_tiers").select("price, tier_name").eq("id", tier_id).single();
+        tier = retry.data ? { ...retry.data, unlock_code: null } : null;
+        tierError = retry.error;
+      }
       if (tier) {
+        // Cash has no fees to waive, but a locked tier is still locked. The
+        // code is the authorisation to sell it, not the payment method.
+        if (!unlocksTier(tier.unlock_code, unlock_code)) {
+          return NextResponse.json({ error: "That tier needs an unlock code." }, { status: 403 });
+        }
         ticketPrice = Number(tier.price) || 0;
         tierName = tier.tier_name;
       }

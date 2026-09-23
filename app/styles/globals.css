@@ -24294,3 +24294,36 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   text-wrap: pretty;
 }
 @media (max-width: 420px) { .sf-fields-row { flex-direction: column; } }
+
+/* ── Box office: unlock a code-gated tier at the door ──────────────────── */
+.bo-unlock { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+.bo-unlock input {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: 52px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.bo-unlock input::placeholder { letter-spacing: normal; text-transform: none; color: rgba(255, 255, 255, 0.34); }
+.bo-unlock > button {
+  flex: none;
+  min-height: 52px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0a0a0c;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.82));
+  border: none;
+}
+.bo-unlock > button:disabled { opacity: 0.4; cursor: not-allowed; }
+.bo-unlock-error { flex: 1 0 100%; font-size: 12.5px; color: oklch(0.72 0.13 22); }

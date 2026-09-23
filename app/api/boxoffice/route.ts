@@ -4,11 +4,12 @@ import { NextResponse } from "next/server";
 import { resolveVenueFees, calculateFees } from "@/lib/checkout-helpers";
 import Stripe from "stripe";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
+import { resolveTierFees, unlocksTier, type FeeMode, type TierFeeOverrides } from "@/lib/fees/tierFees";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { event_id, quantity = 1, tier_id, buyer_name, buyer_email, buyer_phone } = body;
+    const { event_id, quantity = 1, tier_id, unlock_code, buyer_name, buyer_email, buyer_phone } = body;
 
     if (!event_id) {
       return NextResponse.json({ error: "event_id is required" }, { status: 400 });
@@ -47,17 +48,43 @@ export async function POST(request: Request) {
     let ticketPrice = event.price;
     let tierName = "General Admission";
 
+    let tierFeeModes: TierFeeOverrides | null = null;
+
     if (tier_id) {
-      const { data: tier } = await admin
+      let { data: tier, error: tierError } = await admin
         .from("ticket_tiers")
-        .select("id, tier_name, price, capacity")
+        .select("id, tier_name, price, capacity, service_fee_mode, facility_fee_mode, unlock_code")
         .eq("id", tier_id)
         .eq("event_id", event_id)
         .single();
+      if (tierError && /service_fee_mode|facility_fee_mode|unlock_code|column .* does not exist/i.test(tierError.message)) {
+        const retry = await admin
+          .from("ticket_tiers")
+          .select("id, tier_name, price, capacity")
+          .eq("id", tier_id)
+          .eq("event_id", event_id)
+          .single();
+        tier = retry.data
+          ? { ...retry.data, service_fee_mode: null, facility_fee_mode: null, unlock_code: null }
+          : null;
+        tierError = retry.error;
+      }
 
       if (tier) {
+        // A locked tier needs its code at the door too. The box office is
+        // staffed, but "staffed" is not "allowed to hand out the code tier" —
+        // the code is the authorisation, wherever the sale happens.
+        if (!unlocksTier(tier.unlock_code, unlock_code)) {
+          return NextResponse.json({ error: "That tier needs an unlock code." }, { status: 403 });
+        }
         ticketPrice = tier.price;
         tierName = tier.tier_name;
+        const asMode = (v: unknown): FeeMode | null =>
+          v === "added" || v === "included" || v === "waived" ? v : null;
+        tierFeeModes = {
+          service_fee_mode: asMode(tier.service_fee_mode),
+          facility_fee_mode: asMode(tier.facility_fee_mode),
+        };
       }
     }
 
@@ -66,8 +93,30 @@ export async function POST(request: Request) {
     // event_venues overrides, tax_method, and fees_included_in_price entirely
     // — a box-office sale on a divisor-tax event charged the tax twice, and any
     // event configured through event_venues got the wrong service/facility fee.
-    const fees = await resolveVenueFees(admin, event);
-    const { ticketingFee, facilityFee, venueRebate, taxRate, taxMethod, feesIncludedInPrice } = fees;
+    const venueFees = await resolveVenueFees(admin, event);
+
+    /**
+     * The tier's own fee treatment, resolved exactly as online checkout does
+     * (lib/fees/tierFees.ts). Without this a tier that waives its fees still
+     * charged them at the door — the same ticket costing two different
+     * amounts depending on which till sold it.
+     */
+    const tierFees = resolveTierFees(
+      {
+        ticketingFee: venueFees.ticketingFee,
+        facilityFee: venueFees.facilityFee,
+        feesIncludedInPrice: venueFees.feesIncludedInPrice,
+        facilityFeeEnabled: event.facility_fee_enabled,
+      },
+      tierFeeModes,
+    );
+
+    const { venueRebate, taxRate, taxMethod } = venueFees;
+    // `charged` is already 0 for an included or waived fee, so nothing further
+    // is subtracted on top of it.
+    const ticketingFee = tierFees.service.charged;
+    const facilityFee = tierFees.facility.charged;
+    const feesIncludedInPrice = false;
 
     const stripe = getStripe();
 
@@ -169,12 +218,18 @@ export async function POST(request: Request) {
         venue_id: event.venue_id || "",
         quantity: String(quantity),
         tier_id: tier_id || "",
-        ticketing_fee: String(ticketingFee),
-        facility_fee: String(facilityFee),
+        // What the show EARNS, not what was added to the buyer's total — a
+        // waived fee must never reach settlement as fee revenue.
+        ticketing_fee: String(tierFees.service.earned),
+        facility_fee: String(tierFees.facility.earned),
         venue_rebate: String(venueRebate),
         tax_rate: String(taxRate),
         tax_method: taxMethod,
-        fees_included_in_price: String(feesIncludedInPrice),
+        fees_included_in_price: String(
+          tierFees.addedToFace === 0 && (tierFees.service.earned > 0 || tierFees.facility.earned > 0),
+        ),
+        service_fee_mode: tierFees.service.mode,
+        facility_fee_mode: tierFees.facility.mode,
         buyer_name: buyer_name || "",
         buyer_phone: buyer_phone || "",
         source: "box_office",

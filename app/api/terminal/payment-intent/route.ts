@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
+import { resolveTierFees, unlocksTier, type FeeMode, type TierFeeOverrides } from "@/lib/fees/tierFees";
 import { surchargeCents } from "@/lib/fees/rates";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
 
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
     const {
       event_id,
       tier_id,
+      unlock_code,
       quantity = 1,
       buyer_name,
       buyer_email,
@@ -61,20 +63,55 @@ export async function POST(request: Request) {
     // Resolve ticket price — use tier if specified
     let ticketPriceDollars = event.price || 0;
     let tierName = "GA";
+    let tierFeeModes: TierFeeOverrides | null = null;
     if (tier_id) {
-      const { data: tier } = await admin
+      let { data: tier, error: tierError } = await admin
         .from("ticket_tiers")
-        .select("price, tier_name")
+        .select("price, tier_name, service_fee_mode, facility_fee_mode, unlock_code")
         .eq("id", tier_id)
         .single();
+      if (tierError && /service_fee_mode|facility_fee_mode|unlock_code|column .* does not exist/i.test(tierError.message)) {
+        const retry = await admin.from("ticket_tiers").select("price, tier_name").eq("id", tier_id).single();
+        tier = retry.data ? { ...retry.data, service_fee_mode: null, facility_fee_mode: null, unlock_code: null } : null;
+        tierError = retry.error;
+      }
       if (tier) {
+        // The code authorises the sale, not the payment method — a staffed
+        // till is not on its own permission to sell the code tier.
+        if (!unlocksTier(tier.unlock_code, unlock_code)) {
+          return NextResponse.json({ error: "That tier needs an unlock code." }, { status: 403 });
+        }
         ticketPriceDollars = tier.price;
         tierName = tier.tier_name;
+        const asMode = (v: unknown): FeeMode | null =>
+          v === "added" || v === "included" || v === "waived" ? v : null;
+        tierFeeModes = {
+          service_fee_mode: asMode(tier.service_fee_mode),
+          facility_fee_mode: asMode(tier.facility_fee_mode),
+        };
       }
     }
 
-    // Resolve venue fees (same logic as online checkout)
-    const fees = await resolveVenueFees(admin, event);
+    // Resolve venue fees (same logic as online checkout), then let the TIER
+    // override them — a waived fee must be waived at the door too, or the same
+    // ticket costs two different amounts depending on which till sold it.
+    const venueFees = await resolveVenueFees(admin, event);
+    const tierFees = resolveTierFees(
+      {
+        ticketingFee: venueFees.ticketingFee,
+        facilityFee: venueFees.facilityFee,
+        feesIncludedInPrice: venueFees.feesIncludedInPrice,
+        facilityFeeEnabled: event.facility_fee_enabled,
+      },
+      tierFeeModes,
+    );
+    const fees = {
+      ...venueFees,
+      ticketingFee: tierFees.service.charged,
+      facilityFee: tierFees.facility.charged,
+      // `charged` already encodes "included" as zero.
+      feesIncludedInPrice: false,
+    };
 
     // Fee math — card-present uses $0.05 flat fee instead of $0.30
     const ticketPriceCents = Math.round(ticketPriceDollars * 100);
@@ -116,8 +153,9 @@ export async function POST(request: Request) {
         buyer_email: buyer_email || "",
         buyer_phone: buyer_phone || "",
         buyer_zip: buyer_zip || "",
-        ticketing_fee: String(fees.ticketingFee),
-        facility_fee: String(fees.facilityFee),
+        // What the show EARNS — zero for a waived fee, by design.
+        ticketing_fee: String(tierFees.service.earned),
+        facility_fee: String(tierFees.facility.earned),
         venue_rebate: String(fees.venueRebate),
         tax_rate: String(fees.taxRate),
         tax_method: fees.taxMethod,

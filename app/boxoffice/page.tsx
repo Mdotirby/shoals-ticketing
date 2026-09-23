@@ -47,7 +47,7 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 const ALLOWED_ROLES = ["owner", "venue_admin", "box_office"];
 
 type EventOption  = { id: string; title: string; date: string; price: number; event_type: string };
-type TierOption   = { id: string; tier_name: string; price: number; capacity?: number | null; sold?: number | null };
+type TierOption   = { id: string; tier_name: string; price: number; capacity?: number | null; sold?: number | null; locked?: boolean };
 type PaymentMode  = "idle" | "terminal" | "manual";
 type SaleType     = "card" | "cash";
 
@@ -306,6 +306,11 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   const [tiers, setTiers]                     = useState<TierOption[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedTierId, setSelectedTierId]   = useState("");
+  /** Tiers unlocked at this till, and the code, which the server re-checks. */
+  const [unlockedTierIds, setUnlockedTierIds] = useState<string[]>([]);
+  const [tierCode, setTierCode]               = useState<string | null>(null);
+  const [tierCodeInput, setTierCodeInput]     = useState("");
+  const [tierCodeError, setTierCodeError]     = useState<string | null>(null);
   const [quantity, setQuantity]               = useState(1);
   const [saleType, setSaleType]               = useState<SaleType>("card");
   const [buyerName, setBuyerName]             = useState("");
@@ -437,6 +442,11 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   }, []);
 
   useEffect(() => {
+    // A code unlocks a tier on ONE show; changing shows must not carry it over.
+    setUnlockedTierIds([]);
+    setTierCode(null);
+    setTierCodeInput("");
+    setTierCodeError(null);
     if (!selectedEventId) { setTiers([]); setSelectedTierId(""); return; }
     setLoadingTiers(true);
     fetch(`/api/events/${selectedEventId}/ticket-types`)
@@ -490,6 +500,32 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
       if (next) setQuantity(Math.min(20, Math.max(1, parseInt(next, 10))));
       return next;
     });
+  };
+
+  const isTierLocked = (t: TierOption) => !!t.locked && !unlockedTierIds.includes(t.id);
+  const hasLockedTier = tiers.some(isTierLocked);
+
+  const submitTierCode = async () => {
+    const code = tierCodeInput.trim();
+    if (!code || !selectedEventId) return;
+    setTierCodeError(null);
+    try {
+      const res = await fetch(`/api/events/${selectedEventId}/tier-unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.tierIds) && data.tierIds.length > 0) {
+        setUnlockedTierIds((prev) => [...new Set([...prev, ...data.tierIds])]);
+        setTierCode(code);
+        setTierCodeInput("");
+      } else {
+        setTierCodeError(data.error || "No tier on this show uses that code.");
+      }
+    } catch {
+      setTierCodeError("Couldn't check that code.");
+    }
   };
 
   const pickTier = (tierId: string) => {
@@ -577,6 +613,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         body: JSON.stringify({
           event_id: selectedEventId,
           tier_id: selectedTierId || undefined,
+          unlock_code: tierCode || undefined,
           quantity,
           buyer_name: buyerName.trim(),
           buyer_email: buyerEmail.trim(),
@@ -626,6 +663,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           eventId: selectedEventId,
           quantity,
           tierId: selectedTierId || undefined,
+          unlockCode: tierCode || undefined,
           buyerName: buyerName.trim(),
           buyerEmail: buyerEmail.trim(),
           buyerPhone: buyerPhone.trim(),
@@ -659,6 +697,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         body: JSON.stringify({
           event_id: selectedEventId,
           tier_id: selectedTierId || undefined,
+          unlock_code: tierCode || undefined,
           quantity,
           buyer_first_name: parts[0],
           buyer_last_name: parts.slice(1).join(" ") || parts[0],
@@ -936,22 +975,31 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
                       <span className="bo-tile-avail">event price</span>
                     </button>
                   )}
-                  {tiers.map((tier) => (
-                    <button
-                      key={tier.id}
-                      type="button"
-                      className="bo-tile"
-                      aria-pressed={selectedTierId === tier.id}
-                      onClick={() => pickTier(tier.id)}
-                    >
-                      <span className="bo-tile-name">{tier.tier_name}</span>
-                      <span style={{ flex: 1 }} />
-                      <span className="bo-tile-price">{money(tier.price)}</span>
-                      <span className="bo-tile-avail">
-                        {tier.capacity != null ? `${Math.max(0, tier.capacity - (tier.sold ?? 0))} left` : " "}
-                      </span>
-                    </button>
-                  ))}
+                  {tiers.map((tier) => {
+                    const locked = isTierLocked(tier);
+                    return (
+                      <button
+                        key={tier.id}
+                        type="button"
+                        className="bo-tile"
+                        aria-pressed={selectedTierId === tier.id}
+                        disabled={locked}
+                        title={locked ? "Needs its unlock code" : undefined}
+                        onClick={() => pickTier(tier.id)}
+                      >
+                        <span className="bo-tile-name">{locked ? `🔒 ${tier.tier_name}` : tier.tier_name}</span>
+                        <span style={{ flex: 1 }} />
+                        <span className="bo-tile-price">{money(tier.price)}</span>
+                        <span className="bo-tile-avail">
+                          {locked
+                            ? "code required"
+                            : tier.capacity != null
+                              ? `${Math.max(0, tier.capacity - (tier.sold ?? 0))} left`
+                              : " "}
+                        </span>
+                      </button>
+                    );
+                  })}
                   {/* Comp is drawn because the mockup draws it, and disabled
                       because the manager-PIN gate it calls for does not exist
                       yet. An ungated comp button at a door is worse than none. */}
@@ -961,6 +1009,21 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
                     <span className="bo-tile-price">$0</span>
                     <span className="bo-tile-avail">manager PIN</span>
                   </button>
+                </div>
+              )}
+
+              {hasLockedTier && (
+                <div className="bo-unlock">
+                  <input
+                    type="text"
+                    value={tierCodeInput}
+                    placeholder="Unlock code"
+                    aria-label="Tier unlock code"
+                    onChange={(e) => { setTierCodeInput(e.target.value); setTierCodeError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitTierCode(); } }}
+                  />
+                  <button type="button" onClick={submitTierCode} disabled={!tierCodeInput.trim()}>Unlock</button>
+                  {tierCodeError && <span className="bo-unlock-error">{tierCodeError}</span>}
                 </div>
               )}
 
