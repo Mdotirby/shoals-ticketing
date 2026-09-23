@@ -169,15 +169,23 @@ export default function AdminCreateEventPage() {
     });
   }, []);
 
-  // Free event state
-  const [isFree, setIsFree] = useState(false);
-
   // On-sale scheduler state
   const [onSaleDate, setOnSaleDate] = useState("");
   const [onSaleTime, setOnSaleTime] = useState("");
 
   // Tier builder state — starts with one default tier
   const [tiers, setTiers] = useState<TicketTierDraft[]>([emptyTier()]);
+
+  /**
+   * Free is what the tiers say, not a switch.
+   *
+   * The Free Event checkbox forced every tier to $0 and turned the facility
+   * fee off for the whole show — which is precisely what stopped a paid
+   * wristband sitting beside a free GA. Tier prices and per-tier fee modes
+   * cover everything it covered, so this is derived and written back on save
+   * to keep events.is_free honest for the readers that still consult it.
+   */
+  const isFree = tiers.length > 0 && tiers.every((t) => (parseFloat(t.price) || 0) === 0);
 
   // Reserved seating state
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
@@ -372,6 +380,7 @@ export default function AdminCreateEventPage() {
           status: publishIntent,
           venue_id: resolvedVenueId || null,
           event_venue_id: selectedEventVenueId || null,
+          // A show whose every tier is $0 has no facility fee to charge.
           facility_fee_enabled: isFree ? false : facilityFeeEnabled,
           is_free: isFree,
           on_sale_at: onSaleDate ? `${onSaleDate}T${onSaleTime || "00:00"}:00` : null,
@@ -1151,41 +1160,6 @@ export default function AdminCreateEventPage() {
                 price here. Go back to Setup, or save the show.
               </div>
             )}
-        {/* ── Free Event Checkbox (only for hard ticket events) ── */}
-        {isHardTicket && (
-          <div className="admin-form-label admin-form-full" style={{
-            padding: 16, borderRadius: 10,
-            background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
-            border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
-            marginTop: 8,
-          }}>
-            <label style={{
-              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-              color: isFree ? "#22c55e" : "rgba(255,255,255,0.6)",
-              fontWeight: 700, fontSize: 13,
-            }}>
-              <input
-                type="checkbox"
-                checked={isFree}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setIsFree(checked);
-                  if (checked) {
-                    setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
-                    setFacilityFeeEnabled(false);
-                  }
-                }}
-                style={{ width: 18, height: 18, accentColor: "#22c55e" }}
-              />
-              Free Event
-            </label>
-            <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-              When enabled, all ticket prices are set to $0 and fees are disabled. Customers will register instead of paying.
-            </p>
-          </div>
-        )}
-
-
         {/* ── Ticket Tiers (only for hard ticket events) ── */}
         {isHardTicket && (
           <div className="admin-form-label admin-form-full">
@@ -1215,7 +1189,6 @@ export default function AdminCreateEventPage() {
                     step="0.01"
                     min="0"
                     required
-                    disabled={isFree}
                   />
                   <input
                     type="number"

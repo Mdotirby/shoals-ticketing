@@ -28,6 +28,8 @@ type TicketType = {
   id: string;
   name: string;
   basePrice: number;
+  /** True when the tier needs an unlock code; the code stays on the server. */
+  locked?: boolean;
   allInPrice: number;
   capacity: number;
   quantitySold: number;
@@ -812,7 +814,15 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
 
   const selectedTier = ticketTypes.find((t) => t.id === selectedTierId) ?? ticketTypes[0];
   const displayPrice = selectedTier ? selectedTier.allInPrice : 0;
-  const isFree = event.isFree || displayPrice === 0;
+  /**
+   * Free is a property of the TIER being bought, not of the show.
+   *
+   * `event.isFree ||` overrode the tier, so a paid tier on an otherwise-free
+   * show was unreachable here — the same whole-page free mode that made a
+   * wristband beside a free GA impossible on /events/[id]. The event flag is
+   * only the answer when there is no tier to ask.
+   */
+  const isFree = selectedTier ? displayPrice === 0 : event.isFree;
   const selectedTierSoldOut = selectedTier
     ? selectedTier.quantitySold >= selectedTier.capacity
     : false;
@@ -1313,22 +1323,29 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 <div className="lp-tier-selector">
                   {ticketTypes.map((t) => {
                     const tierSoldOut = t.quantitySold >= t.capacity;
+                    // A code-gated tier is shown but not selectable here. This
+                    // page has no code entry, and checkout refuses it anyway —
+                    // better a visible lock than a 403 the buyer cannot act on.
+                    const locked = !!t.locked;
                     return (
                       <button
                         key={t.id}
                         type="button"
                         className={`lp-tier-btn ${t.id === selectedTierId ? "lp-tier-btn-active" : ""} ${tierSoldOut ? "lp-tier-btn-sold-out" : ""}`}
-                        disabled={tierSoldOut}
+                        disabled={tierSoldOut || locked}
+                        title={locked ? "Needs an unlock code" : undefined}
                         onClick={() => {
-                          if (tierSoldOut) return;
+                          if (tierSoldOut || locked) return;
                           setSelectedTierId(t.id);
                           if (checkoutOpen) setCheckoutOpen(false);
                         }}
                       >
-                        <span className="lp-tier-name">{t.name}</span>
+                        <span className="lp-tier-name">{locked ? `🔒 ${t.name}` : t.name}</span>
                         {tierSoldOut
                           ? <span className="lp-tier-sold-out-label">Sold Out</span>
-                          : <span className="lp-tier-price">${t.allInPrice.toFixed(2)}</span>
+                          : locked
+                            ? <span className="lp-tier-sold-out-label">Code required</span>
+                            : <span className="lp-tier-price">${t.allInPrice.toFixed(2)}</span>
                         }
                       </button>
                     );

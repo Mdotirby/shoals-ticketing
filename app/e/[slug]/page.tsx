@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getOperator } from "@/lib/operators";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
+import { resolveTierFees } from "@/lib/fees/tierFees";
 import EventLandingPage from "./EventLandingPage";
 
 export const dynamic = "force-dynamic";
@@ -98,11 +99,25 @@ export default async function LandingPage({ params }: Props) {
   }
 
   // 2. Fetch ticket tiers
-  const { data: tiers } = await admin
+  let { data: tiers } = await admin
     .from("ticket_tiers")
-    .select("id, event_id, tier_name, price, capacity, sort_order")
+    .select("id, event_id, tier_name, price, capacity, sort_order, service_fee_mode, facility_fee_mode, unlock_code")
     .eq("event_id", event.id)
     .order("sort_order", { ascending: true });
+  if (!tiers) {
+    // Pre-migration database: fall back to the columns that always existed.
+    const retry = await admin
+      .from("ticket_tiers")
+      .select("id, event_id, tier_name, price, capacity, sort_order")
+      .eq("event_id", event.id)
+      .order("sort_order", { ascending: true });
+    tiers = (retry.data ?? []).map((t) => ({
+      ...t,
+      service_fee_mode: null,
+      facility_fee_mode: null,
+      unlock_code: null,
+    }));
+  }
 
   // 2b. Count issued tickets per tier — tickets.ticket_type_id is the authoritative field
   // (orders.tier_id is not persisted by the webhook).
@@ -177,16 +192,32 @@ export default async function LandingPage({ params }: Props) {
 
   const feesIncludedInPrice = event.fees_included_in_price === true;
 
-  function calcAllIn(base: number): number {
-    // Divisor: tax is baked into face price — don't add it again for the all-in display
+  /**
+   * A tier can waive the venue's fees or have them taken out of the face, so
+   * the all-in price has to be computed PER TIER — the same resolution
+   * checkout runs. Quoting the event's fees here advertised money a waived
+   * tier never takes.
+   */
+  function calcAllIn(base: number, tier?: { service_fee_mode?: string | null; facility_fee_mode?: string | null } | null): number {
     const effectiveTaxRate = fees.tax_method === "divisor" ? 0 : fees.tax_rate;
     const tax = Math.round(base * effectiveTaxRate * 100) / 100;
-    const subtotalBeforeStripe = feesIncludedInPrice
-      ? base + tax
-      : base + fees.ticketing_fee + fees.facility_fee + tax;
-    // When fees are baked into the price, the venue absorbs the card
-    // processing fee too — the all-in price IS the charge, full stop.
-    if (feesIncludedInPrice) {
+
+    const asMode = (v: unknown) => (v === "added" || v === "included" || v === "waived" ? v : null);
+    const resolved = resolveTierFees(
+      {
+        ticketingFee: fees.ticketing_fee,
+        facilityFee: fees.facility_fee,
+        feesIncludedInPrice,
+      },
+      tier
+        ? { service_fee_mode: asMode(tier.service_fee_mode), facility_fee_mode: asMode(tier.facility_fee_mode) }
+        : null,
+    );
+
+    const subtotalBeforeStripe = base + resolved.addedToFace + tax;
+    // When nothing is added on top, the venue is absorbing the fees — and the
+    // card cost with them — so the all-in price IS the charge.
+    if (resolved.addedToFace === 0 && (resolved.service.earned > 0 || resolved.facility.earned > 0)) {
       return Math.round(subtotalBeforeStripe * 100) / 100;
     }
     const processingFee = onlineSurchargeDollars(subtotalBeforeStripe);
@@ -198,9 +229,11 @@ export default async function LandingPage({ params }: Props) {
       id: t.id,
       name: t.tier_name,
       basePrice: t.price,
-      allInPrice: calcAllIn(t.price),
+      allInPrice: calcAllIn(t.price, t),
       capacity: t.capacity,
       quantitySold: soldByTier[t.id] ?? 0,
+      // The code itself never leaves the server — only whether one is needed.
+      locked: !!t.unlock_code,
     };
   });
 
@@ -210,7 +243,8 @@ export default async function LandingPage({ params }: Props) {
       id: `${event.id}-ga`,
       name: "General Admission",
       basePrice: event.price,
-      allInPrice: calcAllIn(event.price),
+      allInPrice: calcAllIn(event.price, null),
+      locked: false,
       capacity: event.capacity || 500,
       quantitySold: 0,
     });

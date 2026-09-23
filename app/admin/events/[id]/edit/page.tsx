@@ -152,9 +152,6 @@ export default function AdminEditEventPage() {
     venue_address: "",
   });
 
-  // Free event state
-  const [isFree, setIsFree] = useState(false);
-
   // External ticketing state
   const [externalTicketUrl, setExternalTicketUrl] = useState("");
   const [externalTicketLabel, setExternalTicketLabel] = useState("");
@@ -169,6 +166,18 @@ export default function AdminEditEventPage() {
   const [onSaleTime, setOnSaleTime] = useState("");
 
   const [tiers, setTiers] = useState<TicketTierDraft[]>([]);
+
+  // Free event state
+  /**
+   * Free is not a switch any more — it is what the tiers say.
+   *
+   * The Free Event checkbox forced every tier to $0 and disabled the price
+   * field, which is exactly what made a paid wristband beside a free GA
+   * impossible. Tier prices and per-tier fee modes express everything it
+   * expressed, so the flag is derived here and written back on save to keep
+   * events.is_free truthful for the readers that still consult it.
+   */
+  const isFree = tiers.length > 0 && tiers.every((t) => (parseFloat(t.price) || 0) === 0);
 
   // Reserved seating state
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
@@ -303,11 +312,6 @@ export default function AdminEditEventPage() {
 
         if (event.event_venue_id) {
           setSelectedEventVenueId(event.event_venue_id);
-        }
-
-        // Load free event flag
-        if (event.is_free) {
-          setIsFree(true);
         }
 
         // Load on_sale_at — display in Central Time so admins set CST
@@ -896,6 +900,8 @@ export default function AdminEditEventPage() {
           // touches facility_fee_enabled for a non-free event — there's no
           // more per-event toggle, so nothing here should ever flip it.
           facility_fee_enabled: isFree ? false : undefined,
+          // Derived from the tiers, so anything still reading the column gets
+          // the truth without anyone having to remember a checkbox.
           is_free: isFree,
           on_sale_at: onSaleDate ? chicagoToUtcIso(onSaleDate, onSaleTime) : null,
           venue_id: resolvedVenueId || null,
@@ -1688,40 +1694,6 @@ export default function AdminEditEventPage() {
                 <p className="ee-field-note">This show doesn&apos;t sell tickets here, so there are no tiers to edit.</p>
               )}
               <div className="admin-form ee-fields">
-              {/* ── Free Event Checkbox (only for hard ticket events) ── */}
-              {isHardTicket && (
-                <div className="admin-form-label admin-form-full" style={{
-                  padding: 16, borderRadius: 10,
-                  background: isFree ? "rgba(34,197,94,0.06)" : "rgba(255, 255, 255, 0.04)",
-                  border: `1px solid ${isFree ? "rgba(34,197,94,0.15)" : "rgba(255, 255, 255, 0.12)"}`,
-                  marginTop: 8,
-                }}>
-                  <label style={{
-                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-                    color: isFree ? "#22c55e" : "rgba(255,255,255,0.6)",
-                    fontWeight: 700, fontSize: 13,
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={isFree}
-                      disabled={hasSales && !isFree}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setIsFree(checked);
-                        if (checked) {
-                          setTiers((prev) => prev.map((t) => ({ ...t, price: "0" })));
-                        }
-                      }}
-                      style={{ width: 18, height: 18, accentColor: "#22c55e" }}
-                    />
-                    Free Event
-                  </label>
-                  <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, margin: "6px 0 0" }}>
-                    When enabled, all ticket prices are set to $0 and fees are disabled. Customers will register instead of paying.
-                  </p>
-                </div>
-              )}
-
               {/* ── Ticket Tiers (only for hard ticket events) ── */}
               {isHardTicket && (
                 <div className="admin-form-label admin-form-full">
@@ -1759,7 +1731,6 @@ export default function AdminEditEventPage() {
                           step="0.01"
                           min={tier.id && soldByTier[tier.id]?.sold ? soldByTier[tier.id].price : 0}
                           required
-                          disabled={isFree}
                         />
                         <input
                           type="number"
