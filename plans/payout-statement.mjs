@@ -22,6 +22,21 @@
  * Stripe actually took, presales for shows that have not happened yet, and any
  * show that has not been paid out.
  *
+ * ── Whose show is it ────────────────────────────────────────────────────
+ * The rule above is for OUR OWN show, where face, service fee and facility
+ * fee all come to us. When a CLIENT sells through the platform, the client is
+ * owed the FACE VALUE ONLY — the service and facility fees are what we earn
+ * for running the ticketing, and they stay.
+ *
+ * events.deal_type is supposed to say which, and right now it cannot be
+ * trusted: the create API never wrote the column (fixed 2026-09-23), so every
+ * event in the database reads own_risk whether or not it was. MSM: The 90's
+ * was a client show and reads own_risk like everything else — applying the
+ * own-show rule to it overstated what was owed by its $1,956.00 service fee.
+ *
+ * So client shows are named explicitly below until deal_type is reliable.
+ * Both figures print for every show, so the difference is never hidden.
+ *
  * Cash never enters Stripe, so it is excluded from the payout figure and
  * reported separately — it is already in the drawer. Comps and free claims are
  * $0 by definition. REFUNDED AND FAILED CHARGES ARE EXCLUDED THROUGHOUT: that
@@ -45,6 +60,14 @@ const stripe = new Stripe(env.STRIPE_LIVE_READONLY_KEY);
 const usd = (n) => `$${(Number(n) || 0).toFixed(2)}`;
 const pad = (s, n) => String(s).padStart(n);
 
+/**
+ * Shows where a CLIENT sold through us and is owed face value only.
+ * Keyed by event id. Delete an entry once events.deal_type carries the truth.
+ */
+const CLIENT_SHOWS = new Set([
+  "ae91a17e-9892-4020-96ba-e62da8fb1b5e", // Muscle Shoals Meets: The 90's, 2026-08-15
+]);
+
 // ── Live charges only ───────────────────────────────────────────────────
 const live = new Map();
 let sa;
@@ -63,7 +86,7 @@ for (;;) {
 const { data: orders } = await db.from("orders").select("id, event_id, source, status, stripe_payment_intent_id");
 const { data: ledger } = await db.from("settlement_ledger")
   .select("order_id, event_id, type, gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, stripe_fee, stripe_fee_actual");
-const { data: events } = await db.from("events").select("id, title, date, closed_out_at");
+const { data: events } = await db.from("events").select("id, title, date, deal_type, closed_out_at");
 
 const ordById = Object.fromEntries((orders ?? []).map((o) => [o.id, o]));
 const evById = Object.fromEntries((events ?? []).map((e) => [e.id, e]));
@@ -80,6 +103,7 @@ for (const r of ledger ?? []) {
     title: ev.title, date: String(ev.date).slice(0, 10),
     face: 0, svc: 0, fac: 0, tax: 0, surcharge: 0, actualFee: 0,
     cardGross: 0, cash: 0, n: 0, unlinked: 0,
+    client: CLIENT_SHOWS.has(r.event_id) || (ev.deal_type && ev.deal_type !== "own_risk"),
   });
 
   if (o.source === "comp" || o.source === "free") continue;
@@ -108,16 +132,18 @@ console.log("date        show                              orders  card gross   
 console.log("-".repeat(140));
 let T = { face: 0, svc: 0, fac: 0, tax: 0, payout: 0, gross: 0, sur: 0, fee: 0, cash: 0, unlinked: 0, drift: 0, unplayed: 0 };
 for (const s of rows) {
-  // Authoritative: what came in, less what stays behind.
-  const payout = Math.round((s.cardGross - s.tax - s.surcharge) * 100) / 100;
+  // Our own show: everything but the tax and surcharge is ours.
+  // A client's show: they are owed the face value; the fees are what we earn.
+  const ours = Math.round((s.cardGross - s.tax - s.surcharge) * 100) / 100;
+  const payout = s.client ? Math.round(s.face * 100) / 100 : ours;
   const naive = Math.round((s.face + s.svc + s.fac) * 100) / 100;
-  const drift = Math.round((naive - payout) * 100) / 100;
+  const drift = s.client ? 0 : Math.round((naive - payout) * 100) / 100;
   const cardPL = s.surcharge - s.actualFee;
   T.face += s.face; T.svc += s.svc; T.fac += s.fac; T.tax += s.tax;
   T.payout += payout; T.gross += s.cardGross; T.sur += s.surcharge; T.fee += s.actualFee;
   T.cash += s.cash; T.unlinked += s.unlinked;
   if (s.date > today) T.unplayed += payout;
-  const future = s.date > today ? " (not played)" : "";
+  const future = (s.date > today ? " (not played)" : "") + (s.client ? "  CLIENT — face only, we keep " + usd(ours - payout) : "");
   if (Math.abs(drift) > 0.011) T.drift += drift;
   console.log(
     `${s.date}  ${s.title.slice(0, 32).padEnd(33)} ${pad(s.n, 5)} ${pad(usd(s.cardGross), 11)} ${pad(usd(s.face), 9)} ${pad(usd(s.svc), 8)} ${pad(usd(s.fac), 8)}  | ${pad(usd(payout), 11)} | ${pad(usd(s.tax), 8)} ${pad(usd(cardPL), 9)}${future}`,
