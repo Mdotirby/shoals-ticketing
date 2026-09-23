@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
+import { resolveTierFees } from "@/lib/fees/tierFees";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
 
 
@@ -23,7 +24,7 @@ type OrderSummaryProps = {
   /** Called when a promo code is applied or removed. Passes the code string or null. */
   onPromoApplied?: (promoCode: string | null) => void;
   /** Called when total is $0 and user claims free tickets */
-  onFreeCheckout?: (name: string, email: string) => void;
+  onFreeCheckout?: (claim: { firstName: string; lastName: string; email: string; zip: string }) => void;
   /** External override to disable the checkout button (e.g. reserved seating with no seats selected, sold-out tier) */
   checkoutDisabled?: boolean;
   /** Message to show instead of the empty-cart state when checkoutDisabled is true */
@@ -39,9 +40,15 @@ type OrderSummaryProps = {
    * mockup only covers the states below need it in-card).
    */
   ticketTypes?: TicketType[];
+  /** Tiers the visitor has unlocked with a code. A locked tier shows but cannot be picked. */
+  isTierLocked?: (t: TicketType) => boolean;
+  /** Rendered under the tier list when any tier is still locked. */
+  unlockSlot?: React.ReactNode;
   selectedTicketId?: string | null;
   onSelectTicket?: (id: string) => void;
-  computeAllInPrice?: (price: number) => number;
+  /** Takes the tier too: a tier can waive or absorb the venue's fees, so the
+   *  quoted price is wrong without it. */
+  computeAllInPrice?: (price: number, tier?: TicketType | null) => number;
   isTierSoldOut?: (ticket: TicketType) => boolean;
   onQuantityChange?: (updater: (quantity: number) => number) => void;
   /** Drives the qty stepper's disabled state — distinct from checkoutDisabled,
@@ -64,6 +71,8 @@ export default function OrderSummary({
   checkoutDisabled = false,
   checkoutDisabledMessage,
   ticketTypes,
+  isTierLocked,
+  unlockSlot,
   selectedTicketId,
   onSelectTicket,
   computeAllInPrice,
@@ -81,8 +90,13 @@ export default function OrderSummary({
   const hasSelection = selectedTicket !== null && quantity > 0;
 
   // ── Free checkout state ──
-  const [freeName, setFreeName] = useState("");
+  // A free claim collects a first and last name, an email to deliver the
+  // ticket to, and an optional zip for demographics. Nothing else — there is
+  // no payment to justify asking for more.
+  const [freeFirst, setFreeFirst] = useState("");
+  const [freeLast, setFreeLast] = useState("");
   const [freeEmail, setFreeEmail] = useState("");
+  const [freeZip, setFreeZip] = useState("");
   const [freeLoading, setFreeLoading] = useState(false);
 
   // ── Price details disclosure — collapsed by default, matches the all-inclusive
@@ -152,16 +166,36 @@ export default function OrderSummary({
   // ── Totals ──
   const subtotal = hasSelection ? selectedTicket.price * quantity : 0;
   const discountedSubtotal = Math.max(subtotal - totalDiscount, 0);
-  const isFreeOrder = discountedSubtotal <= 0 && appliedPromo !== null;
+  /**
+   * Free means "nothing to pay", which a $0 TIER achieves just as much as a
+   * 100% promo. This used to require a promo, so a free GA tier sitting beside
+   * a paid one fell through to the card form with a $0 total.
+   */
+  const isFreeOrder = hasSelection && discountedSubtotal <= 0;
 
-  const totalTicketingFee = isFreeOrder ? 0 : (hasSelection ? ticketingFee * quantity : 0);
-  const totalFacilityFee = isFreeOrder ? 0 : (hasSelection ? facilityFee * quantity : 0);
+  /**
+   * A tier can waive the venue's fees, or have them taken out of the face.
+   * Resolved with the same helper checkout uses, so the cart and the charge
+   * agree — otherwise a waived tier would quote fees it never takes.
+   */
+  const tierFees = resolveTierFees(
+    { ticketingFee, facilityFee, feesIncludedInPrice },
+    selectedTicket
+      ? {
+          service_fee_mode: selectedTicket.service_fee_mode ?? null,
+          facility_fee_mode: selectedTicket.facility_fee_mode ?? null,
+        }
+      : null,
+  );
+
+  const totalTicketingFee = isFreeOrder ? 0 : (hasSelection ? tierFees.service.charged * quantity : 0);
+  const totalFacilityFee = isFreeOrder ? 0 : (hasSelection ? tierFees.facility.charged * quantity : 0);
   const tax = isFreeOrder ? 0 : (hasSelection
     ? Math.round(discountedSubtotal * rate * 100) / 100
     : 0);
-  const subtotalBeforeStripe = feesIncludedInPrice
-    ? discountedSubtotal + tax
-    : discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
+  // `charged` is already zero for an included or waived fee, so these simply
+  // add up — no separate feesIncludedInPrice branch is needed any more.
+  const subtotalBeforeStripe = discountedSubtotal + totalTicketingFee + totalFacilityFee + tax;
   // When fees are baked into the price, the venue absorbs the card
   // processing fee too — the customer is charged exactly subtotalBeforeStripe.
   const processingFee = isFreeOrder || feesIncludedInPrice ? 0 : (hasSelection
@@ -237,18 +271,21 @@ export default function OrderSummary({
             {tiers.map((tt) => {
               const isActive = tt.id === (selectedTicketId ?? selectedTicket?.id);
               const soldOut = isTierSoldOut?.(tt) ?? false;
-              const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price) ?? tt.price);
+              // Visible but not buyable until a code is entered — the tier is
+              // shown on purpose, so nobody has to know it exists to ask.
+              const locked = isTierLocked?.(tt) ?? false;
+              const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price, tt) ?? tt.price);
               return (
                 <div
                   key={tt.id}
-                  className={`sf-tier${isActive ? " sf-tier--active" : ""}`}
-                  onClick={() => { if (!soldOut) onSelectTicket?.(tt.id); }}
+                  className={`sf-tier${isActive ? " sf-tier--active" : ""}${locked ? " sf-tier--locked" : ""}`}
+                  onClick={() => { if (!soldOut && !locked) onSelectTicket?.(tt.id); }}
                 >
                   <div className="sf-tier-top">
                     <div className="sf-tier-info">
-                      <div className="sf-tier-name">{tt.name}</div>
+                      <div className="sf-tier-name">{locked ? `🔒 ${tt.name}` : tt.name}</div>
                       <div className="sf-tier-note">
-                        {soldOut ? "Sold out" : (tt.perks?.[0] ?? "Full event access")}
+                        {soldOut ? "Sold out" : locked ? "Code required" : (tt.perks?.[0] ?? "Full event access")}
                       </div>
                     </div>
                     <div className="sf-tier-price">
@@ -262,12 +299,14 @@ export default function OrderSummary({
                       conveyed by the tier note and the disabled stepper, so
                       nothing about availability is hidden. */}
                   <div className="sf-tier-bottom">
-                    {qtyStepper(tt, isActive, soldOut)}
+                    {qtyStepper(tt, isActive, soldOut || locked)}
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {unlockSlot}
 
           {/* Not in the mockup — kept. */}
           {!appliedPromo ? (
@@ -386,28 +425,55 @@ export default function OrderSummary({
 
           {isFreeOrder && hasSelection ? (
             <div className="sf-fields">
-              <input
-                type="text"
-                className="sf-input"
-                placeholder="Your name"
-                value={freeName}
-                onChange={(e) => setFreeName(e.target.value)}
-              />
+              <div className="sf-fields-row">
+                <input
+                  type="text"
+                  className="sf-input"
+                  placeholder="First name"
+                  autoComplete="given-name"
+                  value={freeFirst}
+                  onChange={(e) => setFreeFirst(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="sf-input"
+                  placeholder="Last name"
+                  autoComplete="family-name"
+                  value={freeLast}
+                  onChange={(e) => setFreeLast(e.target.value)}
+                />
+              </div>
               <input
                 type="email"
                 className="sf-input"
                 placeholder="Your email"
+                autoComplete="email"
                 value={freeEmail}
                 onChange={(e) => setFreeEmail(e.target.value)}
+              />
+              <input
+                type="text"
+                className="sf-input"
+                placeholder="Zip code (optional)"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                maxLength={10}
+                value={freeZip}
+                onChange={(e) => setFreeZip(e.target.value)}
               />
               <button
                 type="button"
                 className="sf-btn sf-btn--primary sf-btn--block"
-                disabled={!freeName.trim() || !freeEmail.trim() || freeLoading}
+                disabled={!freeFirst.trim() || !freeLast.trim() || !freeEmail.trim() || freeLoading}
                 onClick={async () => {
                   setFreeLoading(true);
                   try {
-                    await onFreeCheckout?.(freeName.trim(), freeEmail.trim());
+                    await onFreeCheckout?.({
+                      firstName: freeFirst.trim(),
+                      lastName: freeLast.trim(),
+                      email: freeEmail.trim(),
+                      zip: freeZip.trim(),
+                    });
                   } finally {
                     setFreeLoading(false);
                   }
@@ -415,6 +481,9 @@ export default function OrderSummary({
               >
                 {freeLoading ? "Claiming..." : "Claim Free Tickets"}
               </button>
+              <p className="sf-fields-note">
+                We only use your zip to understand where our audience travels from. It is optional.
+              </p>
             </div>
           ) : (
             <button

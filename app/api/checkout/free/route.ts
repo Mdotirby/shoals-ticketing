@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
 import { validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
+import { unlocksTier } from "@/lib/fees/tierFees";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -20,9 +21,14 @@ export async function POST(request: Request) {
   const body = await request.json();
   const {
     event_id,
+    tier_id,
+    unlock_code,
     buyer_name,
+    buyer_first_name,
+    buyer_last_name,
     buyer_email,
     buyer_phone,
+    buyer_zip,
     quantity = 1,
     promo_code,
     presale_code,
@@ -33,9 +39,18 @@ export async function POST(request: Request) {
     utm_campaign,
   } = body;
 
-  if (!event_id || !buyer_name || !buyer_email) {
+  /**
+   * A free claim asks for first and last name separately, plus an optional zip
+   * for demographics. `buyer_name` stays supported because the paid flow and
+   * the older free form both send a single field.
+   */
+  const fullName =
+    [buyer_first_name, buyer_last_name].filter((n) => String(n ?? "").trim()).join(" ").trim() ||
+    String(buyer_name ?? "").trim();
+
+  if (!event_id || !fullName || !buyer_email) {
     return NextResponse.json(
-      { error: "event_id, buyer_name, and buyer_email are required" },
+      { error: "event_id, a first and last name, and an email are required" },
       { status: 400 }
     );
   }
@@ -104,6 +119,65 @@ export async function POST(request: Request) {
     }
   }
 
+  /**
+   * Which tier is being claimed.
+   *
+   * This used to ignore tier_id entirely and stamp every free ticket with the
+   * event's FIRST tier by sort_order. That was harmless while a free show had
+   * one tier, and wrong the moment a show mixes a $0 GA with a paid tier: the
+   * claim would be attributed to whichever tier happened to sort first, and
+   * the paid tier's inventory could be consumed for nothing.
+   *
+   * So the tier is resolved properly and must actually be free. A paid tier is
+   * refused here rather than quietly issued at no charge — that route is
+   * create-intent, which takes money.
+   */
+  let claimedTier: { id: string; tier_name: string; price: number; capacity: number } | null = null;
+  {
+    const wanted = admin.from("ticket_tiers").select("id, tier_name, price, capacity, unlock_code").eq("event_id", event_id);
+    const { data: tierRows } = tier_id ? await wanted.eq("id", tier_id) : await wanted.order("sort_order", { ascending: true }).limit(1);
+    const tier = (tierRows ?? [])[0] as
+      | { id: string; tier_name: string; price: number; capacity: number; unlock_code: string | null }
+      | undefined;
+
+    if (tier_id && !tier) {
+      return NextResponse.json({ error: "Ticket tier not found" }, { status: 404 });
+    }
+
+    if (tier) {
+      if (Number(tier.price) > 0) {
+        return NextResponse.json(
+          { error: "That tier is not free. Please check out normally." },
+          { status: 400 }
+        );
+      }
+
+      // A locked tier needs its code here too — the free path must not be a
+      // way around the lock.
+      if (!unlocksTier(tier.unlock_code, unlock_code)) {
+        return NextResponse.json({ error: "That tier needs an unlock code." }, { status: 403 });
+      }
+
+      // Free does not mean unlimited. Seated events are governed by the seats
+      // table instead, which validateAndHoldSeats already enforces.
+      if (!(Array.isArray(seat_ids) && seat_ids.length > 0) && Number(tier.capacity) > 0) {
+        const { count: claimed } = await admin
+          .from("tickets")
+          .select("id", { count: "exact", head: true })
+          .eq("event_id", event_id)
+          .eq("ticket_type_id", tier.id);
+        if ((claimed ?? 0) + quantity > Number(tier.capacity)) {
+          return NextResponse.json(
+            { error: "There are not that many left for this tier." },
+            { status: 409 }
+          );
+        }
+      }
+
+      claimedTier = { id: tier.id, tier_name: tier.tier_name, price: Number(tier.price), capacity: Number(tier.capacity) };
+    }
+  }
+
   // Resolve venue slug for email sender
   let venueSlug = "tickets";
   if (event.venue_id) {
@@ -151,13 +225,18 @@ export async function POST(request: Request) {
     .from("orders")
     .insert({
       event_id,
-      customer_name: buyer_name,
+      customer_name: fullName,
       customer_email: buyer_email,
       customer_phone: buyer_phone || null,
+      customer_zip: String(buyer_zip ?? "").trim() || null,
       quantity,
       total_amount: 0,
       status: "paid",
-      source: "online",
+      // A free claim is its OWN thing. It is not a comp — nobody gave it away,
+      // the holder claimed it — and it is not a sale, because no money moved.
+      // Recording it as "online" made a $0 RSVP indistinguishable from a real
+      // sale except by its total.
+      source: "free",
       promo_code_id: promoCodeId || null,
       tracking_link_slug: tracking_ref || null,
       utm_source: utm_source || null,
@@ -182,14 +261,6 @@ export async function POST(request: Request) {
       .in("id", seat_ids);
   }
 
-  // ── Get default tier ──────────────────────────────────────────────────────
-  const { data: defaultTier } = await admin
-    .from("ticket_tiers")
-    .select("id")
-    .eq("event_id", event_id)
-    .order("sort_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
 
   // ── Create tickets with QR codes ──────────────────────────────────────────
   const tickets = [];
@@ -202,8 +273,8 @@ export async function POST(request: Request) {
     tickets.push({
       order_id: order.id,
       event_id,
-      ticket_type_id: defaultTier?.id || null,
-      customer_name: buyer_name,
+      ticket_type_id: claimedTier?.id || null,
+      customer_name: fullName,
       customer_email: buyer_email,
       qr_code: qrCode,
       qr_data_url: qrDataUrl,
@@ -307,7 +378,12 @@ export async function POST(request: Request) {
   if (buyer_email) {
     try {
       const email = buyer_email.toLowerCase();
-      const nameParts = buyer_name.split(" ");
+      // Prefer the two fields the free form actually collects; fall back to
+      // splitting a single name for callers that still send one.
+      const nameParts = [
+        String(buyer_first_name ?? "").trim() || fullName.split(" ")[0] || "",
+        String(buyer_last_name ?? "").trim() || fullName.split(" ").slice(1).join(" "),
+      ];
       const { data: existingProfile } = await admin
         .from("customer_profiles")
         .select(
@@ -376,7 +452,7 @@ export async function POST(request: Request) {
     try {
       await sendTicketEmail({
         to: buyer_email,
-        customerName: buyer_name,
+        customerName: fullName,
         eventTitle: event.title,
         eventDate: event.date,
         eventVenue: event.venue,

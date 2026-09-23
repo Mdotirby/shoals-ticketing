@@ -43,6 +43,8 @@ type InlineCheckoutProps = {
   quantity: number;
   promoCode?: string | null;
   presaleCode?: string | null;
+  /** Code the buyer entered to unlock a locked tier; re-proved on the server. */
+  unlockCode?: string | null;
   selectedSeatIds?: string[];
   isFreeEvent?: boolean;
   onBack: () => void;
@@ -91,6 +93,7 @@ function CheckoutForm({
   quantity,
   promoCode,
   presaleCode,
+  unlockCode,
   selectedSeatIds,
   isFreeEvent,
   onBack,
@@ -189,6 +192,7 @@ function CheckoutForm({
           body: JSON.stringify({
             eventId,
             tierId: tierId || undefined,
+            unlockCode: unlockCode || undefined,
             quantity,
             buyerName: ev.payerName || "",
             buyerEmail: ev.payerEmail || "",
@@ -285,6 +289,8 @@ function CheckoutForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event_id: eventId,
+            tier_id: tierId || undefined,
+            unlock_code: unlockCode || undefined,
             buyer_name: buyerName.trim(),
             buyer_email: buyerEmail.trim(),
             buyer_phone: buyerPhone.trim() || undefined,
@@ -333,6 +339,7 @@ function CheckoutForm({
         body: JSON.stringify({
           eventId,
           tierId: tierId || undefined,
+          unlockCode: unlockCode || undefined,
           quantity,
           buyerName: buyerName.trim(),
           buyerEmail: buyerEmail.trim(),

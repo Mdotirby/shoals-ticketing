@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { TicketType } from "@/lib/types/ticket";
 import { surchargeCents } from "@/lib/fees/rates";
+import { resolveTierFees } from "@/lib/fees/tierFees";
 import { Sponsor, SponsorTier } from "@/lib/types/sponsor";
 import OrderSummary from "@/app/components/OrderSummary";
 import InlineCheckout from "@/app/components/InlineCheckout";
@@ -116,6 +117,16 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   const [presaleShake, setPresaleShake] = useState(false);
   const [presaleType, setPresaleType] = useState<"artist" | "venue" | null>(null);
   const [presaleCode, setPresaleCode] = useState<string | null>(null);
+  /**
+   * Tiers this visitor has unlocked with a code, and the code itself so
+   * checkout can re-prove it. The page never learns any tier's code — it asks
+   * the server which ids a typed code opens.
+   */
+  const [unlockedTierIds, setUnlockedTierIds] = useState<string[]>([]);
+  const [tierCode, setTierCode] = useState<string | null>(null);
+  const [tierCodeInput, setTierCodeInput] = useState("");
+  const [tierCodeError, setTierCodeError] = useState<string | null>(null);
+  const [tierCodeLoading, setTierCodeLoading] = useState(false);
   const [allEvents, setAllEvents] = useState<{ id: string; title: string; venue: string; date: string; price: number; image_url?: string; is_free?: boolean; on_sale_at?: string; closed_out_at?: string | null; venue_id?: string }[]>([]);
   const [reservedSeatingEnabled, setReservedSeatingEnabled] = useState(false);
   const [seatingSections, setSeatingSections] = useState<SectionFull[]>([]);
@@ -561,12 +572,18 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               const mapped = tiers.map((t: {
                 id: string; event_id: string; tier_name: string;
                 price: number; capacity: number; sort_order: number; quantity_sold?: number;
-                quantity_available?: number;
+                quantity_available?: number; locked?: boolean;
+                service_fee_mode?: "added" | "included" | "waived" | null;
+                facility_fee_mode?: "added" | "included" | "waived" | null;
               }) => ({
                 id: t.id,
                 event_id: t.event_id,
                 name: t.tier_name,
                 price: t.price,
+                // The code itself never reaches here — only whether one is needed.
+                locked: !!t.locked,
+                service_fee_mode: t.service_fee_mode ?? null,
+                facility_fee_mode: t.facility_fee_mode ?? null,
                 // quantity_available is seat-derived for reserved-seating events;
                 // capacity is the raw admin-entered number (wrong unit for tables).
                 quantity_available: t.quantity_available ?? t.capacity,
@@ -576,7 +593,12 @@ export default function EventDetailClient({ requiresSeating = false }: { require
               }));
               setTicketTypes(mapped);
               // Default to first available (non-sold-out) tier
-              const firstAvailable = mapped.find((t) => t.quantity_sold < t.quantity_available) ?? mapped[0];
+              // Never land on a locked tier by default — the buyer has not
+              // given a code yet, so it would open on something they cannot buy.
+              const firstAvailable =
+                mapped.find((t) => !t.locked && t.quantity_sold < t.quantity_available) ??
+                mapped.find((t) => !t.locked) ??
+                mapped[0];
               setSelectedTicketId(firstAvailable?.id ?? null);
             } else {
               const ga: TicketType = {
@@ -653,21 +675,102 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     }).slice(0, 4);
   }, [allEvents, event]);
 
-  // Determine if this is a free event
-  const isFreeEvent = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
+  /**
+   * Free or paid is a property of the TIER being bought, not of the show.
+   *
+   * This used to be whole-page: `is_free` on the event, or every tier at $0.
+   * That made a $0 GA sitting next to a paid tier impossible — the page went
+   * into free mode and ignored the paid tier entirely, or stayed in paid mode
+   * and sent a $0 order into Stripe, which rejects anything under $0.50.
+   *
+   * The event flag is still honoured when nothing is selected yet.
+   */
+  const isTierLocked = (t: TicketType | null | undefined) => !!t?.locked && !unlockedTierIds.includes(t.id);
+  const hasLockedTier = ticketTypes.some((t) => isTierLocked(t));
+
+  const submitTierCode = async () => {
+    const code = tierCodeInput.trim();
+    if (!code) return;
+    setTierCodeLoading(true);
+    setTierCodeError(null);
+    try {
+      const res = await fetch(`/api/events/${eventId}/tier-unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.tierIds) && data.tierIds.length > 0) {
+        setUnlockedTierIds((prev) => [...new Set([...prev, ...data.tierIds])]);
+        setTierCode(code);
+        setTierCodeInput("");
+        // Jump straight to what they just unlocked — that is what the code was for.
+        setSelectedTicketId(data.tierIds[0]);
+      } else {
+        setTierCodeError(data.error || "That code doesn't match anything on this show.");
+      }
+    } catch {
+      setTierCodeError("Couldn't check that code. Try again.");
+    } finally {
+      setTierCodeLoading(false);
+    }
+  };
+
+  // One markup for the code box, used by both the standalone panel and the
+  // cart — a locked tier has to be unlockable from wherever it is shown.
+  const unlockPanel = hasLockedTier ? (
+    <div className="tier-unlock">
+      <label htmlFor="tier-code-cart">Have a code?</label>
+      <div className="tier-unlock-row">
+        <input
+          id="tier-code-cart"
+          type="text"
+          value={tierCodeInput}
+          placeholder="Enter code"
+          onChange={(e) => { setTierCodeInput(e.target.value); setTierCodeError(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitTierCode(); } }}
+        />
+        <button type="button" onClick={submitTierCode} disabled={tierCodeLoading || !tierCodeInput.trim()}>
+          {tierCodeLoading ? "Checking…" : "Unlock"}
+        </button>
+      </div>
+      {tierCodeError && <p className="tier-unlock-error">{tierCodeError}</p>}
+    </div>
+  ) : null;
+
+  const eventFlaggedFree = event?.is_free === true || (event?.price === 0 && ticketTypes.every((t) => t.price === 0));
+  const isFreeEvent = selectedTicket ? selectedTicket.price === 0 : eventFlaggedFree;
+
+  /**
+   * Skipping the cart and going straight to a free claim is only safe when
+   * there is nothing to choose. With a second tier on the show — a paid
+   * wristband beside a $0 GA — jumping to free checkout hides every other
+   * tier, and the buyer has no way back to them.
+   */
+  const freeShortcut = isFreeEvent && ticketTypes.length <= 1;
 
   // All-in per-ticket price for the tier selector — same fee math as OrderSummary/
   // InlineCheckout (Stripe fee constants matched to those components), computed
   // for a single ticket (no quantity, no promo) so the dropdown shows what one
   // ticket in that tier actually costs, not just its pre-fee face value.
-  const computeAllInPrice = (ticketPrice: number): number => {
+  const computeAllInPrice = (ticketPrice: number, tier?: TicketType | null): number => {
     const rawRate = venueFees.tax_rate;
     const rate = venueFees.tax_method === "divisor" ? 0 : (rawRate > 1 ? rawRate / 100 : rawRate);
     const tax = Math.round(ticketPrice * rate * 100) / 100;
-    if (event?.fees_included_in_price === true) {
-      return ticketPrice + tax;
-    }
-    const beforeStripe = ticketPrice + venueFees.ticketing_fee + venueFees.facility_fee + tax;
+
+    // A tier can waive the venue's fees or take them out of the face — the
+    // same resolution checkout runs, so the price quoted here is the price
+    // charged. Without this a waived tier advertised fees it would not take.
+    const fees = resolveTierFees(
+      {
+        ticketingFee: venueFees.ticketing_fee,
+        facilityFee: venueFees.facility_fee,
+        feesIncludedInPrice: event?.fees_included_in_price === true,
+      },
+      tier ? { service_fee_mode: tier.service_fee_mode ?? null, facility_fee_mode: tier.facility_fee_mode ?? null } : null,
+    );
+
+    const beforeStripe = ticketPrice + fees.addedToFace + tax;
     const processingFee = surchargeCents(Math.round(beforeStripe * 100)) / 100;
     return beforeStripe + processingFee;
   };
@@ -708,7 +811,10 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
     checkoutStep !== "checkout" &&
     (ticketsOnSale || presaleUnlocked) &&
-    !isFreeEvent;
+    // The free shortcut below only applies when there is nothing to choose.
+    // With more than one tier the cart has to stay on screen, or picking the
+    // $0 tier by default hides every other tier on the show.
+    !freeShortcut;
 
   // InlineCheckout (mid-Stripe-checkout, or any free-event path) renders its
   // own "General Admission × 1  $29.01" line inside .ic-order-breakdown —
@@ -722,7 +828,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     !!event &&
     !event.external_ticket_url &&
     !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
-    (checkoutStep === "checkout" || ((ticketsOnSale || presaleUnlocked) && isFreeEvent));
+    (checkoutStep === "checkout" ||
+      ((ticketsOnSale || presaleUnlocked) && freeShortcut));
 
   const orderSummaryRef = useRef<HTMLDivElement>(null);
 
@@ -750,15 +857,22 @@ export default function EventDetailClient({ requiresSeating = false }: { require
     }, 50);
   };
 
-  const handleFreeCheckout = async (name: string, email: string) => {
+  const handleFreeCheckout = async (claim: { firstName: string; lastName: string; email: string; zip: string }) => {
     try {
       const res = await fetch("/api/checkout/free", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event_id: eventId,
-          buyer_name: name,
-          buyer_email: email,
+          // Which tier is being claimed. Without this the server fell back to
+          // the show's first tier, which is wrong the moment a $0 GA sits
+          // beside a paid one.
+          tier_id: selectedTicketId,
+          unlock_code: tierCode || undefined,
+          buyer_first_name: claim.firstName,
+          buyer_last_name: claim.lastName,
+          buyer_email: claim.email,
+          buyer_zip: claim.zip || undefined,
           quantity,
           promo_code: appliedPromoRef.current,
           presale_code: presaleUnlocked ? presaleCode : undefined,
@@ -1182,10 +1296,12 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     >
                       {ticketTypes.map((tt) => {
                         const soldOut = seatedSoldOutTierIds.has(tt.id) || (!reservedSeatingEnabled && tt.quantity_sold >= tt.quantity_available);
-                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price);
+                        const locked = isTierLocked(tt);
+                        const allInPrice = tt.price === 0 ? 0 : computeAllInPrice(tt.price, tt);
                         return (
-                          <option key={tt.id} value={tt.id} disabled={soldOut}>
-                            {tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}{soldOut ? " (Sold Out)" : ""}
+                          <option key={tt.id} value={tt.id} disabled={soldOut || locked}>
+                            {locked ? "🔒 " : ""}{tt.name} — {tt.price === 0 ? "Free" : `$${allInPrice.toFixed(2)}`}
+                            {soldOut ? " (Sold Out)" : locked ? " (code required)" : ""}
                           </option>
                         );
                       })}
@@ -1196,6 +1312,25 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       <button type="button" className="ticket-qty-btn" onClick={() => setQuantity((q) => Math.min(10, q + 1))} disabled={selectedTicketSoldOut}>+</button>
                     </div>
                   </div>
+                  {hasLockedTier && (
+                    <div className="tier-unlock">
+                      <label htmlFor="tier-code">Have a code?</label>
+                      <div className="tier-unlock-row">
+                        <input
+                          id="tier-code"
+                          type="text"
+                          value={tierCodeInput}
+                          placeholder="Enter code"
+                          onChange={(e) => { setTierCodeInput(e.target.value); setTierCodeError(null); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitTierCode(); } }}
+                        />
+                        <button type="button" onClick={submitTierCode} disabled={tierCodeLoading || !tierCodeInput.trim()}>
+                          {tierCodeLoading ? "Checking…" : "Unlock"}
+                        </button>
+                      </div>
+                      {tierCodeError && <p className="tier-unlock-error">{tierCodeError}</p>}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1274,6 +1409,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     quantity={quantity}
                     promoCode={appliedPromoRef.current}
                     presaleCode={presaleUnlocked ? presaleCode : undefined}
+                    unlockCode={tierCode}
                     selectedSeatIds={reservedSeatingEnabled ? [...selectedSeats.map((s) => s.seatId), ...selectedTables.flatMap((t) => t.seatIds)] : undefined}
                     onSeatsUnavailable={handleSeatsUnavailable}
                     isFreeEvent={isFreeEvent}
@@ -1405,16 +1541,18 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                   }}>
                     {presaleType === "artist" ? "Artist Presale" : "Venue Presale"}
                   </div>
-                  {isFreeEvent ? (
+                  {freeShortcut ? (
                     <InlineCheckout
                       eventId={event.id}
                       eventTitle={event.title}
                       eventDate={formatEventDateFull(event.date)}
                       eventVenue={event.venue}
-                      tierName="Free Admission"
+                      tierId={selectedTicket?.id}
+                      tierName={selectedTicket?.name || "Free Admission"}
                       ticketPrice={0}
                       quantity={quantity}
                       presaleCode={presaleCode}
+                      unlockCode={tierCode}
                       isFreeEvent={true}
                       onBack={() => {}}
                     />
@@ -1437,6 +1575,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                           : "Select seats from the map to continue."
                       }
                       ticketTypes={ticketTypes}
+                      isTierLocked={isTierLocked}
+                      unlockSlot={unlockPanel}
                       selectedTicketId={selectedTicketId}
                       onSelectTicket={setSelectedTicketId}
                       computeAllInPrice={computeAllInPrice}
@@ -1446,16 +1586,18 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     />
                   )}
                 </>
-              ) : isFreeEvent ? (
+              ) : freeShortcut ? (
                 /* ── Free Event — go straight to inline checkout ── */
                 <InlineCheckout
                   eventId={event.id}
                   eventTitle={event.title}
                   eventDate={formatEventDateFull(event.date)}
                   eventVenue={event.venue}
-                  tierName="Free Admission"
+                  tierId={selectedTicket?.id}
+                  tierName={selectedTicket?.name || "Free Admission"}
                   ticketPrice={0}
                   quantity={quantity}
+                  unlockCode={tierCode}
                   isFreeEvent={true}
                   onBack={() => {}}
                 />
@@ -1481,6 +1623,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                         : "Select seats from the map to continue."
                   }
                   ticketTypes={ticketTypes}
+                  isTierLocked={isTierLocked}
+                  unlockSlot={unlockPanel}
                   selectedTicketId={selectedTicketId}
                   onSelectTicket={setSelectedTicketId}
                   computeAllInPrice={computeAllInPrice}

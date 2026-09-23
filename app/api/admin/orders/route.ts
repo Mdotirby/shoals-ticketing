@@ -14,7 +14,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * list with ?event_id= applied.
  *
  *   ?q=        name, email, full order id, or a Stripe payment id (pi_…)
- *   ?scope=    all | refunds | comps
+ *   ?scope=    all | refunds | comps | free
  *   ?event_id= one show
  *   ?limit=    default 50, max 200
  *
@@ -47,6 +47,9 @@ export async function GET(request: Request) {
   if (eventId) query = query.eq("event_id", eventId);
   if (scope === "refunds") query = query.eq("status", "refunded");
   if (scope === "comps") query = query.eq("source", "comp");
+  // A claimed $0 ticket. Neither a sale nor a house giveaway, so it gets its
+  // own scope rather than being buried among either.
+  if (scope === "free") query = query.eq("source", "free");
   if (q) {
     if (UUID.test(q)) query = query.eq("id", q);
     else if (q.startsWith("pi_")) query = query.eq("stripe_payment_intent_id", q);

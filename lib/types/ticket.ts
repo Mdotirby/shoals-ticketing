@@ -7,6 +7,15 @@ export type TicketType = {
   quantity_sold: number;
   sort_order: number;
   perks?: string[]; // e.g. ["All sessions & workshops", "Meals & coffee breaks"]
+
+  /**
+   * True when the tier needs an unlock code. The code itself is NEVER sent to
+   * the storefront — only this flag — so the real check is server-side.
+   */
+  locked?: boolean;
+  /** Per-tier fee treatment, so the price shown matches what will be charged. */
+  service_fee_mode?: "added" | "included" | "waived" | null;
+  facility_fee_mode?: "added" | "included" | "waived" | null;
 };
 
 /** A ticket tier stored in the ticket_tiers table */

@@ -22346,6 +22346,7 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .ob-tone-bad { color: oklch(0.72 0.13 22); }
 .ob-tone-warn { color: oklch(0.86 0.09 92); }
 .ob-tone-quiet { color: rgba(255, 255, 255, 0.62); }
+.ob-tone-info { color: var(--lg-info, #9fc5e8); }
 
 .ob-detail { margin: 13px 0 0; }
 .ob-detail > div { display: flex; align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
@@ -24234,3 +24235,62 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   margin: 8px 0 0; font-size: 10.5px; line-height: 1.5;
   color: var(--lg-warn, #e8d48a); text-wrap: pretty;
 }
+
+/* ── Code-locked tier (storefront) ──────────────────────────────────────
+   The tier is shown on purpose — nobody should have to already know it
+   exists — but it cannot be picked until the code checks out server-side. */
+.sf-tier--locked { opacity: 0.62; cursor: default; }
+.sf-tier--locked .sf-tier-name { letter-spacing: -0.01em; }
+.sf-tier--locked .sf-tier-note { color: rgba(255, 255, 255, 0.42); }
+
+.tier-unlock { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+.tier-unlock > label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.46);
+}
+.tier-unlock-row { display: flex; gap: 8px; }
+.tier-unlock-row input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.tier-unlock-row input::placeholder { letter-spacing: normal; text-transform: none; color: rgba(255, 255, 255, 0.34); }
+.tier-unlock-row button {
+  flex: none;
+  min-height: 44px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0b0d1d;
+  background: linear-gradient(135deg, rgb(var(--vc-gold-rgb)), rgba(var(--vc-gold-rgb), 0.72));
+  border: none;
+}
+.tier-unlock-row button:disabled { opacity: 0.45; cursor: not-allowed; }
+.tier-unlock-error { margin: 0; font-size: 12px; color: oklch(0.72 0.13 22); }
+
+/* Free-claim capture: first + last on one line, then email and optional zip. */
+.sf-fields-row { display: flex; gap: 8px; }
+.sf-fields-row > .sf-input { flex: 1; min-width: 0; }
+.sf-fields-note {
+  margin: 2px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.40);
+  text-wrap: pretty;
+}
+@media (max-width: 420px) { .sf-fields-row { flex-direction: column; } }

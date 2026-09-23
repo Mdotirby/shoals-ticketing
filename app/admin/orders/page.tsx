@@ -31,6 +31,7 @@ const VIEWS = [
 const SCOPES = [
   { key: "all", label: "All orders" },
   { key: "refunds", label: "Refunds" },
+  { key: "free", label: "Free" },
   { key: "comps", label: "Comps" },
 ] as const;
 
@@ -82,6 +83,9 @@ const when = (d: string, opts: Intl.DateTimeFormatOptions = { month: "short", da
 function stateOf(o: Pick<Row, "status" | "source" | "total_amount">): { label: string; tone: string } {
   if (o.status === "refunded") return { label: "Refunded", tone: "bad" };
   if (o.source === "comp") return { label: "Comp", tone: "quiet" };
+  // Claimed, not bought and not given away. Showing this as "Paid $0.00" made
+  // a free RSVP look like a sale that collected nothing.
+  if (o.source === "free") return { label: "Free", tone: "info" };
   if (o.source === "cash") return { label: "Paid · cash", tone: "good" };
   if (o.status === "paid") return { label: "Paid", tone: "good" };
   return { label: o.status, tone: "quiet" };
