@@ -24384,3 +24384,38 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 }
 .team-add select option { color: #000; }
 .team-add .btn { align-self: flex-start; }
+
+/* ── Portals: artist and agent logins ─────────────────────────────────── */
+.portal-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.portal-row {
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.portal-row-head { display: flex; align-items: center; gap: 11px; padding: 11px 13px; }
+.portal-row-name { font-size: 13px; font-weight: 650; color: rgba(255, 255, 255, 0.95); }
+.portal-tag {
+  flex: none;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 9px; border-radius: 999px;
+  color: rgba(255, 255, 255, 0.40);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+}
+.portal-tag--on { color: var(--lg-good, #8fd6a8); border-style: solid; border-color: rgba(143, 214, 168, 0.38); }
+.portal-row-body {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 13px 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 2px; padding-top: 12px;
+}
+.portal-assign {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 11px; border-radius: 10px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+@media (max-width: 640px) {
+  .portal-row-head { flex-wrap: wrap; }
+  .portal-assign { flex-wrap: wrap; }
+}

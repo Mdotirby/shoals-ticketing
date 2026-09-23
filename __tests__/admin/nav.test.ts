@@ -21,6 +21,8 @@ const MOVED: Record<string, string> = {
   "/admin/users": "/admin/users?tab=people",
   "/admin/onboarding": "/admin/users?tab=onboarding",
   "/admin/venues": "/admin/users?tab=tenants",
+  "/admin/settings/permissions": "/admin/users?tab=access",
+  "/portal": "/admin/users?tab=portals",
 };
 
 /**
@@ -73,7 +75,9 @@ describe("resolveActive", () => {
   });
   test("longest route wins inside a merged page", () => {
     expect(at("/admin/settings")).toEqual(["admin", "settings", "/admin/settings?tab=profile"]);
-    expect(at("/admin/settings/permissions")).toEqual(["admin", "roles", null]);
+    // Access control and Portals are tabs of the identity hub now; both old
+    // routes redirect. A bare /admin/users lands on the hub's first tab.
+    expect(at("/admin/users")).toEqual(["admin", "identity", "/admin/users?tab=onboarding"]);
   });
   test("FWB is loyalty, the rest of /admin/marketing is campaigns", () => {
     expect(at("/admin/marketing/fwb-members")).toEqual(["audience", "loyalty", null]);

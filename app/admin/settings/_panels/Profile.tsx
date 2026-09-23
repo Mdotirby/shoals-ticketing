@@ -23,6 +23,78 @@ export default function AdminSettingsPage() {
   const [venueId, setVenueId] = useState("");
   const [isOwner, setIsOwner] = useState(false);
 
+  /**
+   * Offer defaults, moved off /portal — the old-structure page that was the
+   * ONLY place they could be edited, while /admin/offers/new was the only
+   * place they were read. They belong beside the buyer they auto-fill for.
+   *
+   * They live on the OWNER'S admin_users row, not the venue, which is why
+   * this needs the signed-in user's id rather than venueId.
+   */
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState({
+    default_radius_distance: "",
+    default_radius_days_prior: "",
+    default_radius_days_after: "",
+    default_ticketing_fee: "3.00",
+  });
+  const [savingDefaults, setSavingDefaults] = useState(false);
+  const [defaultsMsg, setDefaultsMsg] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        // The role cookie is not always set, so ask the signed-in user's own
+        // row rather than trusting it — gating the editor on a cookie that
+        // happened to be empty is why this card did not render at all.
+        const res = await fetch("/api/admin/users");
+        const all = await res.json();
+        if (!live || !Array.isArray(all)) return;
+        const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
+        const { data } = await getSupabaseBrowser().auth.getUser();
+        const me = all.find((u: { email?: string | null }) => u.email && u.email === data?.user?.email);
+        if (!me) return;
+        if (me.role !== "owner" && me.role !== "super_admin") return;
+        setIsOwner(true);
+        setOwnerId(me.id);
+        setDefaults({
+          default_radius_distance: me.default_radius_distance ?? "",
+          default_radius_days_prior: me.default_radius_days_prior != null ? String(me.default_radius_days_prior) : "",
+          default_radius_days_after: me.default_radius_days_after != null ? String(me.default_radius_days_after) : "",
+          default_ticketing_fee: me.default_ticketing_fee != null ? String(me.default_ticketing_fee) : "3.00",
+        });
+      } catch {
+        // Non-fatal — the rest of the page still works.
+      }
+    })();
+    return () => { live = false; };
+  }, []);
+
+  const saveDefaults = async () => {
+    if (!ownerId) return;
+    setSavingDefaults(true);
+    setDefaultsMsg("");
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: ownerId,
+          default_radius_distance: defaults.default_radius_distance || null,
+          default_radius_days_prior: defaults.default_radius_days_prior ? parseInt(defaults.default_radius_days_prior) : null,
+          default_radius_days_after: defaults.default_radius_days_after ? parseInt(defaults.default_radius_days_after) : null,
+          default_ticketing_fee: defaults.default_ticketing_fee ? parseFloat(defaults.default_ticketing_fee) : 3.0,
+        }),
+      });
+      setDefaultsMsg(res.ok ? "Saved." : "Could not save.");
+    } catch {
+      setDefaultsMsg("Could not save.");
+    } finally {
+      setSavingDefaults(false);
+    }
+  };
+
   const [venue, setVenue] = useState({
     name: "",
     nickname: "",
@@ -218,6 +290,39 @@ export default function AdminSettingsPage() {
             </Field>
           </div>
         </Card>
+
+        {isOwner && (
+          <Card title="Offer defaults" actions={<Pill>owner only</Pill>} sub="What auto-fills on every new offer, for every venue">
+            <div className="setp-body">
+              <FieldRow>
+                <Field label="Radius (miles)">
+                  <input type="text" inputMode="numeric" value={defaults.default_radius_distance} placeholder="e.g. 150"
+                    onChange={(e) => setDefaults({ ...defaults, default_radius_distance: e.target.value })} />
+                </Field>
+                <Field label="Default service fee">
+                  <input type="number" step="0.01" min="0" value={defaults.default_ticketing_fee} placeholder="3.00"
+                    onChange={(e) => setDefaults({ ...defaults, default_ticketing_fee: e.target.value })} />
+                </Field>
+              </FieldRow>
+              <FieldRow>
+                <Field label="Radius days before">
+                  <input type="number" min="0" value={defaults.default_radius_days_prior} placeholder="e.g. 60"
+                    onChange={(e) => setDefaults({ ...defaults, default_radius_days_prior: e.target.value })} />
+                </Field>
+                <Field label="Radius days after">
+                  <input type="number" min="0" value={defaults.default_radius_days_after} placeholder="e.g. 60"
+                    onChange={(e) => setDefaults({ ...defaults, default_radius_days_after: e.target.value })} />
+                </Field>
+              </FieldRow>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
+                <button type="button" className="btn btn-outline btn-sm" onClick={saveDefaults} disabled={savingDefaults || !ownerId}>
+                  {savingDefaults ? "Saving…" : "Save offer defaults"}
+                </button>
+                {defaultsMsg && <span className="setp-note">{defaultsMsg}</span>}
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
       <Card

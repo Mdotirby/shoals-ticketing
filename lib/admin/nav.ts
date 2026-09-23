@@ -268,7 +268,8 @@ export const navGroups: NavGroup[] = [
           { label: "Profile & fees", href: "/admin/settings?tab=profile", roles: R.mgmt },
           { label: "Branding", href: "/admin/settings?tab=branding", tabKey: "site_branding", roles: R.mgmt },
           { label: "Pages", href: "/admin/settings?tab=pages", roles: R.mgmt },
-          { label: "Portals", href: "/portal", tabKey: "venue_management", roles: R.mgmt },
+          // Portals moved to the identity hub — it is about who gets a login,
+          // not about how this venue is configured. /portal redirects there.
           { label: "Procedures", href: "/admin/settings?tab=procedures", tabKey: "sops", roles: R.mgmt },
         ],
       },
@@ -278,10 +279,14 @@ export const navGroups: NavGroup[] = [
         routeTabs: [
           { label: "Onboarding", href: "/admin/users?tab=onboarding", tabKey: "onboarding", roles: R.owner },
           { label: "People", href: "/admin/users?tab=people", tabKey: "users", roles: R.mgmt },
+          // Outside logins — artists and agents. Was /portal, on the old structure.
+          { label: "Portals", href: "/admin/users?tab=portals", tabKey: "venue_management", roles: R.mgmt },
+          // Was its own route at /admin/settings/permissions, which is now a
+          // redirect. Identity, capability and door are one subject.
+          { label: "Access", href: "/admin/users?tab=access", tabKey: "permissions", roles: R.owner },
           { label: "Tenants", href: "/admin/users?tab=tenants", roles: R.owner },
         ],
       },
-      { id: "roles", label: "Access control", link: { label: "Access control", href: "/admin/settings/permissions", tabKey: "permissions", roles: R.owner } },
     ],
   },
 ];

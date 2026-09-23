@@ -14,7 +14,10 @@ export async function GET() {
 
   const { data, error } = await admin
     .from("admin_users")
-    .select("id, email, role, venue_id, first_name, last_name, avatar_url, website_url, buyer_name, contract_signatory, buyer_phone, buyer_email, promoter_address, created_at")
+    // The default_* columns are the owner's offer defaults, edited in Venue
+    // settings and read by /admin/offers/new. They were never returned here,
+    // so the editor could not show what was already set.
+    .select("id, email, role, venue_id, first_name, last_name, avatar_url, website_url, buyer_name, contract_signatory, buyer_phone, buyer_email, promoter_address, default_radius_distance, default_radius_days_prior, default_radius_days_after, default_ticketing_fee, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {

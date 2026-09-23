@@ -12,6 +12,11 @@ const MERGED_ROUTES: [string, string][] = [
   ["/admin/sops", "/admin/settings?tab=procedures"],
   ["/admin/onboarding", "/admin/users?tab=onboarding"],
   ["/admin/venues", "/admin/users?tab=tenants"],
+  // Identity, capability and door are one subject. Access control was its own
+  // route and /portal was still on the old structure; both are tabs of the
+  // identity hub now.
+  ["/admin/settings/permissions", "/admin/users?tab=access"],
+  ["/portal", "/admin/users?tab=portals"],
 ];
 
 const nextConfig: NextConfig = {
