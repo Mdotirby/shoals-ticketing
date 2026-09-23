@@ -120,10 +120,41 @@ for (const r of repairs) {
   if (!r.sale) console.log(`     the ledger never recorded this sale (net ${usd(r.ledgerNet)}) — status only, no reversal written.`);
 }
 
-if (!repairs.length) { console.log("\nNothing to do."); process.exit(0); }
+/**
+ * Voiding is its own pass, over EVERY fully refunded order — not a side
+ * effect of ledger repair. The first version only voided orders it was
+ * already repairing, so an order whose ledger was correct kept its live
+ * tickets. That is the exact shape of the original bug: correct books, open
+ * door.
+ */
+const toVoid = [];
+for (const c of refunded) {
+  if (c.amount_refunded < c.amount) continue;          // partial: see above
+  const pi = typeof c.payment_intent === "string" ? c.payment_intent : null;
+  const order = (pi && byPi.get(pi)) || null;
+  if (!order) continue;
+  const { data: t, error } = await db.from("tickets").select("id, is_scanned, voided_at").eq("order_id", order.id);
+  if (error) {
+    console.log(`\ncannot read tickets for ${order.id.slice(0, 8)} — ${error.message}`);
+    console.log(`if voided_at is missing, run plans/ticket-void-migration.sql`);
+    continue;
+  }
+  const live = (t ?? []).filter((x) => !x.voided_at);
+  if (live.length) toVoid.push({ order, live });
+}
+
+if (toVoid.length) {
+  console.log(`\nTICKETS STILL VALID ON A FULLY REFUNDED ORDER: ${toVoid.length} order(s), ${toVoid.reduce((n, v) => n + v.live.length, 0)} ticket(s)`);
+  for (const v of toVoid) {
+    const scanned = v.live.filter((x) => x.is_scanned).length;
+    console.log(`   order ${v.order.id.slice(0, 8)}  ${v.live.length} ticket(s)${scanned ? `, ${scanned} ALREADY SCANNED` : ""}  ${v.order.customer_email ?? ""}`);
+  }
+}
+
+if (!repairs.length && !toVoid.length) { console.log("\nNothing to do."); process.exit(0); }
 
 if (!APPLY) {
-  console.log(`\nDRY RUN — nothing written. Re-run with --apply to repair ${repairs.length}.`);
+  console.log(`\nDRY RUN — nothing written. Re-run with --apply to repair ${repairs.length} ledger row(s) and void ${toVoid.reduce((n, v) => n + v.live.length, 0)} ticket(s).`);
   console.log(`Fix the cause too: subscribe the live webhook endpoint to charge.refunded`);
   console.log(`and charge.dispute.created, or this will keep happening.`);
   process.exit(0);
@@ -174,29 +205,15 @@ for (const r of repairs) {
 }
 console.log(`\nrepaired: ${ok} of ${repairs.length}`);
 
-// A fully refunded order must stop getting people through the door.
-for (const r of repairs) {
-  if (!r.isFull) continue;
-  const { data: t, error } = await db
-    .from("tickets")
-    .select("id, is_scanned, voided_at")
-    .eq("order_id", r.order.id);
-  if (error) {
-    console.log(`  NOTE: could not read tickets for ${r.order.id.slice(0, 8)} (${error.message}).` +
-      ` If voided_at is missing, run plans/ticket-void-migration.sql.`);
-    continue;
-  }
-  const live = (t ?? []).filter((x) => !x.voided_at);
-  if (!live.length) continue;
-  const { error: vErr } = await db
+// Void what the pass above found. A refunded ticket that still scans is how
+// eight people got into MSM: The 90's on a table nobody paid for.
+for (const v of toVoid) {
+  const { error } = await db
     .from("tickets")
     .update({ voided_at: new Date().toISOString(), void_reason: "Order refunded" })
-    .in("id", live.map((x) => x.id));
-  if (vErr) {
-    console.log(`  NOTE: could not void ${live.length} ticket(s) on ${r.order.id.slice(0, 8)} — ${vErr.message}`);
-    continue;
-  }
-  const scanned = live.filter((x) => x.is_scanned).length;
-  console.log(`  voided ${live.length} ticket(s) on ${r.order.id.slice(0, 8)}` +
+    .in("id", v.live.map((x) => x.id));
+  if (error) { console.log(`  FAILED to void ${v.order.id.slice(0, 8)}: ${error.message}`); continue; }
+  const scanned = v.live.filter((x) => x.is_scanned).length;
+  console.log(`  voided ${v.live.length} ticket(s) on ${v.order.id.slice(0, 8)}` +
     (scanned ? `  — ${scanned} had ALREADY BEEN SCANNED; those people were admitted on a refunded order.` : ""));
 }
