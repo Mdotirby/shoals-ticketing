@@ -24419,3 +24419,65 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .portal-row-head { flex-wrap: wrap; }
   .portal-assign { flex-wrap: wrap; }
 }
+
+/* ── FAQ editor (Venue settings → Pages) ──────────────────────────────── */
+.faq-panel { display: flex; flex-direction: column; gap: 14px; }
+.faq-note { font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.50); margin: 0 0 14px; text-wrap: pretty; }
+.faq-alert {
+  padding: 12px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5;
+  color: rgba(255, 255, 255, 0.80);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.faq-alert--bad { color: oklch(0.72 0.13 22); border-color: rgba(248, 113, 113, 0.38); background: rgba(248, 113, 113, 0.08); }
+
+.faq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.faq-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 13px 14px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.032);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+}
+.faq-row--drag { cursor: grab; }
+.faq-row--drag:active { cursor: grabbing; }
+.faq-list--readonly .faq-row { flex-direction: column; gap: 4px; opacity: 0.86; border-style: dashed; }
+.faq-grip { flex: none; font-size: 13px; line-height: 1.5; color: rgba(255, 255, 255, 0.26); }
+.faq-body { flex: 1; min-width: 0; }
+.faq-q { font-size: 13px; font-weight: 650; color: rgba(255, 255, 255, 0.92); }
+.faq-a { font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.48); margin-top: 4px; text-wrap: pretty; }
+.faq-row-actions { flex: none; display: flex; gap: 4px; }
+
+.faq-actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+.faq-edit {
+  display: flex; flex-direction: column; gap: 11px;
+  margin-top: 13px; padding: 15px 16px; border-radius: 13px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.faq-edit input, .faq-edit textarea {
+  width: 100%; padding: 11px 13px; border-radius: 11px;
+  font: inherit; font-size: 15px; color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  resize: vertical;
+}
+.faq-warn {
+  margin: 0; padding: 11px 13px; border-radius: 11px;
+  font-size: 11.5px; line-height: 1.55; text-wrap: pretty;
+  color: var(--lg-warn, #e8d48a);
+  background: rgba(232, 212, 138, 0.07);
+  border: 1px solid rgba(232, 212, 138, 0.30);
+}
+.faq-warn strong { color: #fff; font-weight: 700; }
+.faq-venue { display: flex; align-items: center; gap: 10px; }
+.faq-venue > span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42); flex: none;
+}
+.faq-venue select {
+  flex: 1; min-width: 0; min-height: 42px; padding: 10px 13px; border-radius: 11px;
+  font: inherit; font-size: 14px; color: #fff;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.faq-venue select option { color: #000; }

@@ -1,11 +1,16 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // PUT /api/faqs/[id] — update question, answer, or sort_order
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Was unauthenticated — anyone could rewrite or delete a venue's FAQs.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
   const body = await request.json();
@@ -31,6 +36,10 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Was unauthenticated — anyone could rewrite or delete a venue's FAQs.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
   const admin = createAdminClient();
 

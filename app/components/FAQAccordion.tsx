@@ -1,45 +1,13 @@
 "use client";
 
+import { GLOBAL_FAQS, type FAQItem } from "@/lib/faqs/defaults";
+
+// Re-exported so existing importers keep working; the data lives in lib now.
+export { GLOBAL_FAQS };
+export type { FAQItem };
+
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-
-export type FAQItem = {
-  question: string;
-  answer: string;
-};
-
-export const GLOBAL_FAQS: FAQItem[] = [
-  {
-    question: "What is your refund policy?",
-    answer:
-      "All sales are final. Refunds are only issued if the event is cancelled by the organizer. In the event of a cancellation, you will be automatically refunded to your original payment method within 5–10 business days.",
-  },
-  {
-    question: "What time do doors open?",
-    answer:
-      "Doors typically open 1 hour before the scheduled show time. Check your specific event page for the exact door time.",
-  },
-  {
-    question: "Can I transfer my ticket to someone else?",
-    answer:
-      "Yes, tickets can be transferred to another person up until the event start time. Log in to your ticket page and use the transfer option to send your ticket via email.",
-  },
-  {
-    question: "Is there parking available?",
-    answer:
-      "Parking availability varies by venue. We recommend arriving early and checking the venue website for nearby parking options. Rideshare drop-off is available at all venues.",
-  },
-  {
-    question: "Will I receive my ticket immediately?",
-    answer:
-      "Yes. After checkout you will receive a confirmation email with your QR code ticket(s) attached. Tickets are also accessible via your order confirmation link.",
-  },
-  {
-    question: "Is this event age-restricted?",
-    answer:
-      "Age restrictions vary by event. Check the event details section above for any age requirements. Valid ID may be required at the door.",
-  },
-];
 
 type FAQAccordionProps = {
   faqs?: FAQItem[];

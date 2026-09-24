@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/faqs?venue_id=<id>  — list FAQs for a venue, ordered by sort_order
 export async function GET(request: Request) {
@@ -25,6 +26,10 @@ export async function GET(request: Request) {
 
 // POST /api/faqs — create a new FAQ entry
 export async function POST(request: Request) {
+  // Was unauthenticated — anyone could write FAQs onto any venue's public site.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const body = await request.json();
 
