@@ -24481,3 +24481,47 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 .faq-venue select option { color: #000; }
+
+/* ── Create a show: promo codes + tracking links staged before the event ── */
+.admin-shell .mkt-draft-list { display: flex; flex-direction: column; gap: 8px; margin-top: 13px; }
+.admin-shell .mkt-draft {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 11px;
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.admin-shell .mkt-draft > strong { font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em; }
+.admin-shell .mkt-draft > span { flex: 1; color: rgba(255, 255, 255, 0.50); }
+.admin-shell .mkt-draft > button {
+  flex: none; width: 26px; height: 26px; border-radius: 999px;
+  font: inherit; font-size: 12px; cursor: pointer;
+  color: rgba(255, 255, 255, 0.60);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.admin-shell .mkt-draft--link > input {
+  flex: 1; min-width: 0; min-height: 36px; padding: 8px 11px; border-radius: 9px;
+  font: inherit; font-size: 14px; color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .mkt-draft--link > input:nth-of-type(2) { flex: 0 1 140px; }
+
+.admin-shell .mkt-promo-row { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-top: 13px; }
+.admin-shell .mkt-promo-row label { display: flex; flex-direction: column; gap: 6px; flex: 1 1 120px; min-width: 0; }
+.admin-shell .mkt-promo-row label > span {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .mkt-promo-row input,
+.admin-shell .mkt-promo-row select {
+  width: 100%; min-height: 42px; padding: 10px 12px; border-radius: 11px;
+  font: inherit; font-size: 15px; color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.19);
+}
+.admin-shell .mkt-promo-row select option { color: #000; }
+.admin-shell .mkt-promo-row > .cshow-btn { flex: 0 0 auto; width: auto; min-height: 42px; }
+.admin-shell .mkt-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.55); cursor: pointer; }
+.admin-shell .mkt-toggle input { width: 16px; height: 16px; accent-color: #fff; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import DwellTracker from "@/app/components/DwellTracker";
 import { useSearchParams, useRouter } from "next/navigation";
 import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
 import { trackFbEvent } from "@/lib/fbq";
@@ -1067,6 +1068,8 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
   return (
     <main className="lp-main">
       {metaPixelId && <TrackingPixels metaPixelId={metaPixelId} />}
+      {/* Visible time on the page, for whichever tracked link sent them. */}
+      <DwellTracker />
 
       {/* ── Presale animation styles — hoisted so they survive the unlock transition ── */}
       {presaleAvailable && (

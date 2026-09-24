@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
+import DwellTracker from "@/app/components/DwellTracker";
 import { motion } from "framer-motion";
 import { TicketType } from "@/lib/types/ticket";
 import { surchargeCents } from "@/lib/fees/rates";
@@ -893,6 +894,8 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   if (isLoading) {
     return (
       <main className="ticket-page">
+        {/* Measures visible time on the page for a tracked link. No-op without ?ref=. */}
+        <DwellTracker />
         <div className="ticket-page-loading">Loading event...</div>
       </main>
     );

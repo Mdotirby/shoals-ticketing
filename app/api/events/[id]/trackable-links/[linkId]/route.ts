@@ -49,6 +49,12 @@ export async function GET(
     const conversions = allEvents.filter(
       (e: { event_type: string }) => e.event_type === "conversion"
     );
+    const views = allEvents.filter((e: { event_type: string }) => e.event_type === "view");
+    // How long visitors actually stayed — recorded by DwellTracker on pagehide.
+    const dwells = allEvents
+      .filter((e: { event_type: string }) => e.event_type === "dwell")
+      .map((e: { metadata: { ms?: number } | null }) => Number(e.metadata?.ms) || 0)
+      .filter((ms: number) => ms > 0);
 
     // Unique clicks by distinct ip_address
     const uniqueIps = new Set(
@@ -81,13 +87,22 @@ export async function GET(
       0
     );
 
-    // Click-to-conversion rate
+    // Click-to-conversion rate. A conversion is only ever written by the
+    // Stripe webhook after an order row exists, so this cannot be inflated by
+    // traffic — see processTicketOrder.
     const totalClicks = clicks.length;
     const totalConversions = conversions.length;
     const conversionRate =
       totalClicks > 0
         ? ((totalConversions / totalClicks) * 100).toFixed(1)
         : "0";
+
+    // Mean visible seconds per measured visit. Null rather than 0 when nothing
+    // has been measured — "no data" and "they left instantly" are different.
+    const avgDwellSeconds =
+      dwells.length > 0
+        ? Math.round(dwells.reduce((a: number, b: number) => a + b, 0) / dwells.length / 100) / 10
+        : null;
 
     return NextResponse.json(
       {
@@ -97,9 +112,12 @@ export async function GET(
           unique_clicks: uniqueIps.size,
           clicks_by_day: clicksByDayMap,
           daily_clicks: dailyClicks,
+          total_views: views.length,
           total_conversions: totalConversions,
           total_revenue: totalRevenue,
           conversion_rate: conversionRate,
+          avg_dwell_seconds: avgDwellSeconds,
+          dwell_samples: dwells.length,
         },
       },
       { status: 200 }

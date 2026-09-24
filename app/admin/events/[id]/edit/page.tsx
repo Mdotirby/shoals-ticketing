@@ -2573,12 +2573,20 @@ export default function AdminEditEventPage() {
                                     <>
                                       <div style={{
                                         display: "grid",
-                                        gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)",
+                                        gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(7, 1fr)",
                                         gap: isMobile ? 8 : 10, marginBottom: 14,
                                       }}>
                                         {[
+                                          { label: "Views", value: stats.total_views ?? 0, bg: "rgba(148,163,184,0.1)" },
                                           { label: "Total Clicks", value: stats.total_clicks ?? 0, bg: "rgba(6,182,212,0.1)" },
                                           { label: "Unique Clicks", value: stats.unique_clicks ?? 0, bg: "rgba(99,102,241,0.1)" },
+                                          // Visible seconds, averaged. "—" when nothing has been
+                                          // measured yet: no data is not zero seconds.
+                                          {
+                                            label: "Avg on page",
+                                            value: stats.avg_dwell_seconds == null ? "—" : `${stats.avg_dwell_seconds}s`,
+                                            bg: "rgba(251,191,36,0.1)",
+                                          },
                                           { label: "Conversions", value: stats.total_conversions ?? 0, bg: "rgba(34,197,94,0.1)" },
                                           { label: "Revenue", value: `$${Number(stats.total_revenue ?? 0).toFixed(2)}`, bg: "rgba(255, 255, 255, 0.1)" },
                                           { label: "Conv Rate", value: `${convRate}%`, bg: "rgba(244,114,182,0.1)" },

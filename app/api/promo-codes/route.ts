@@ -36,6 +36,10 @@ export async function GET(request: Request) {
 // POST /api/promo-codes
 export async function POST(request: Request) {
   try {
+    // Was unauthenticated: anyone could mint a discount code against any event.
+    const guard = await requireStaff();
+    if (!guard.ok) return guard.response;
+
     const body = await request.json();
     const { event_id, code, discount_type, discount_value, max_uses, expires_at } = body;
 
