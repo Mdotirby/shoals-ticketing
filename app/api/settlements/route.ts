@@ -1,24 +1,38 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
+import { DENY, tenantScope } from "@/lib/auth/tenant";
 import { computeEventAudit, findOfferForEvent } from "@/lib/settlement/audit";
 import { settlementWaterfall } from "@/lib/settlement/model";
 
-// GET /api/settlements
-//   ?venue_id=     filter by venue
-//   ?event_id=     return existing settlement(s) for an event (used by the
-//                  "Create or Open Settlement" button on /admin/orders/[id])
+/**
+ * GET /api/settlements   ?venue_id= &event_id=
+ *
+ * THIS ROUTE ANSWERED ANYONE. Unauthenticated, it returned every settlement
+ * for every venue: artist_name, guarantee, artist_total, artist_backend,
+ * venue_net_profit, bar and merch splits, payout details. `venue_id` was an
+ * optional filter, so omitting it handed over every tenant's deal terms.
+ *
+ * view_settlement is the capability that already governs this data elsewhere,
+ * and the rows are pinned to the caller's own venue unless they hold
+ * cross_tenant_reporting.
+ */
 export async function GET(request: Request) {
+  const guard = await requireCapability("view_settlement");
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
-  const venueId = searchParams.get("venue_id");
   const eventId = searchParams.get("event_id");
+  const scope = tenantScope(guard.actor, searchParams.get("venue_id"));
+  if (scope === DENY) return NextResponse.json([], { status: 200 });
 
   let query = admin
     .from("settlements")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (venueId) query = query.eq("venue_id", venueId);
+  if (scope !== null) query = query.eq("venue_id", scope);
   if (eventId) query = query.eq("event_id", eventId);
 
   const { data, error } = await query;

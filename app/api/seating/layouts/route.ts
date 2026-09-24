@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireStaff } from "@/lib/auth/can";
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 /** GET /api/seating/layouts?venue_id=xxx */
 export async function GET(req: Request) {
+  // Was unauthenticated. A seating layout is not public information — it maps
+  // the room, its holds and its scaling.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(req.url);
   const venueId = searchParams.get("venue_id");
   let q = admin.from("venue_layouts").select("*").order("created_at", { ascending: false });

@@ -1,19 +1,30 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
+import { DENY, tenantScope } from "@/lib/auth/tenant";
 
-// GET /api/contracts — list contracts, optional ?venue_id= filter
+/**
+ * GET /api/contracts   ?venue_id=
+ *
+ * THIS ROUTE ANSWERED ANYONE — every signed contract for every venue, with
+ * no session required and venue_id as an optional filter.
+ */
 export async function GET(request: Request) {
+  const guard = await requireCapability("quote_contract_rentals");
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
-  const venueId = searchParams.get("venue_id");
+  const scope = tenantScope(guard.actor, searchParams.get("venue_id"));
+  if (scope === DENY) return NextResponse.json([], { status: 200 });
 
   let query = admin
     .from("contracts")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (venueId) {
-    query = query.eq("venue_id", venueId);
+  if (scope !== null) {
+    query = query.eq("venue_id", scope);
   }
 
   const { data, error } = await query;
