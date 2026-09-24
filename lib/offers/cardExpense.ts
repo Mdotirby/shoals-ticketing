@@ -1,4 +1,4 @@
-import { offerSurchargePerTicket, STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
+import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 
 /**
  * The card surcharge as a show expense.
@@ -15,10 +15,21 @@ import { offerSurchargePerTicket, STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } 
  * expense list no longer depends on someone remembering to add a row.
  *
  * ── The rate ─────────────────────────────────────────────────────────────
- * Online card-not-present: 2.9% + $0.30 per ticket, from lib/fees/rates.ts
- * via offerSurchargePerTicket() — the same function the builder's own
- * per-ticket all-in price is computed with, so the expense and the price the
- * buyer sees can never quote different rates.
+ * Online card-not-present: exactly 2.9% + exactly $0.30 per ticket, taken
+ * from STRIPE_ONLINE_PCT and STRIPE_ONLINE_FLAT_CENTS. Neither is rounded --
+ * not to 3%, not to anything else.
+ *
+ * ── Why this does not call offerSurchargePerTicket() ──────────────────────
+ * That function rounds to the whole cent, because it prices ONE ticket and a
+ * card cannot be charged a fraction of a cent. Applied 520 times that
+ * rounding compounds: $24.00 x 2.9% + $0.30 = $0.996 a ticket, which becomes
+ * $1.00 each and $520.00 across Sunny Sweeney's tier against a true $517.92.
+ * $2.08 of rounding, all of it upward, and it makes the rate look like it
+ * was rounded too.
+ *
+ * So the total is computed whole -- 2.9% of the summed base plus $0.30 a
+ * ticket -- and rounded exactly once, at the end. The per-ticket figure is
+ * returned unrounded for display.
  *
  * An offer assumes a sellout, so the expense is the surcharge on every
  * sellable seat. Door sales run card-present at a different rate, but an
@@ -31,6 +42,22 @@ export const CARD_RATE_PCT = STRIPE_ONLINE_PCT;
 export const CARD_RATE_FLAT = STRIPE_ONLINE_FLAT_CENTS / 100;
 
 export const CARD_EXPENSE_NAME = `Card processing (${(CARD_RATE_PCT * 100).toFixed(1)}% + $${CARD_RATE_FLAT.toFixed(2)})`;
+
+/**
+ * The surcharge on one ticket, unrounded.
+ *
+ * offerSurchargePerTicket() in lib/fees/rates.ts rounds to the whole cent,
+ * which is right when pricing a single real charge and wrong when the figure
+ * is about to be multiplied by a thousand seats. An offer is a forecast, so
+ * every surcharge figure in the offer model -- the per-ticket line, the fee
+ * total and the show expense -- comes through here and is rounded only where
+ * it is finally presented. One implementation, so those three can never
+ * disagree the way they did when two of them rounded and one did not.
+ */
+export function cardSurchargeExact(preCcDollars: number): number {
+  if (preCcDollars <= 0) return 0;
+  return preCcDollars * CARD_RATE_PCT + CARD_RATE_FLAT;
+}
 
 export type ScalingLike = {
   sellable_cap?: number | null;
@@ -74,18 +101,23 @@ export function cardExpenseAtSellout(
   const dec = (raw > 0 && raw < 1 ? raw * 100 : raw) / 100;
   const divisor = opts.taxMethod === "divisor";
 
-  let amount = 0;
+  // Accumulate the base the percentage applies to, and the ticket count the
+  // flat fee applies to, WITHOUT rounding either along the way.
+  let base = 0;
   let tickets = 0;
   for (const r of rows) {
     const sellable = Number(r?.sellable_cap) || 0;
     if (sellable <= 0) continue;
     const price = Number(r?.price) || 0;
-    const taxPer = divisor ? 0 : Math.round((Number(r?.net_price) || 0) * dec * 100) / 100;
-    amount += sellable * offerSurchargePerTicket(price + taxPer);
+    const taxPer = divisor ? 0 : (Number(r?.net_price) || 0) * dec;
+    base += sellable * (price + taxPer);
     tickets += sellable;
   }
-  amount = Math.round(amount * 100) / 100;
-  return { amount, tickets, perTicket: tickets > 0 ? Math.round((amount / tickets) * 100) / 100 : 0 };
+  // Identical to summing cardSurchargeExact() per ticket, since the rate is
+  // linear -- written as one multiplication so no intermediate value rounds.
+  const exact = base * CARD_RATE_PCT + tickets * CARD_RATE_FLAT;
+  const amount = Math.round(exact * 100) / 100;
+  return { amount, tickets, perTicket: tickets > 0 ? exact / tickets : 0 };
 }
 
 /** The derived line, shaped like the stored expense rows it sits beside. */

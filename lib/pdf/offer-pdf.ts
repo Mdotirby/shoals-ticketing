@@ -6,7 +6,7 @@
 import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem } from "../types/offer";
 import { artistPayout } from "@/lib/settlement/model";
 import type { Venue } from "../types/venue";
-import { offerSurchargePerTicket } from "@/lib/fees/rates";
+import { cardSurchargeExact } from "@/lib/offers/cardExpense";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize, formatTime12hr,
@@ -275,7 +275,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
         ? Math.round((r.net_price || 0) * taxRateDecScaling / (1 + taxRateDecScaling) * 100) / 100
         : Math.round((r.net_price || 0) * taxRateDecScaling * 100) / 100;
       const preCC = (r.price || 0) + (taxMethodScaling === "divisor" ? 0 : taxPer);
-      const ccPer = offerSurchargePerTicket(preCC);
+      const ccPer = cardSurchargeExact(preCC);
       const allIn = preCC + ccPer;
       const tierGross = (r.sellable_cap || 0) * allIn;
       const tierName = doc.splitTextToSize(r.name, tierMaxW)[0] || r.name;
@@ -388,7 +388,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        const cc = offerSurchargePerTicket(preCC);
+        const cc = cardSurchargeExact(preCC);
         return sum + t.sellable_cap * (preCC + cc);
       }, 0)
     : Number(data.gross_potential || 0);
@@ -396,7 +396,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     ? scaling.reduce((sum: number, t: TicketScalingRow) => {
         const taxPer = taxMethod === "divisor" ? 0 : Math.round((t.net_price || 0) * taxRateDecimal * 100) / 100;
         const preCC = (t.price || 0) + taxPer;
-        return sum + t.sellable_cap * offerSurchargePerTicket(preCC);
+        return sum + t.sellable_cap * cardSurchargeExact(preCC);
       }, 0)
     : 0;
   const displayAdjGrossPDF = Math.round((displayGrossPDF - totalCCPDF - totalFeesPDF) * 100) / 100;

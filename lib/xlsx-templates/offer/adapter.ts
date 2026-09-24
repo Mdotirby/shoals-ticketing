@@ -1,7 +1,7 @@
 import type { ArtistOffer } from "@/lib/types/offer";
-import { offerSurchargePerTicket, STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
+import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 import { artistPayout } from "@/lib/settlement/model";
-import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
+import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
  * ArtistOffer -> the flat field map offer/manifest.json's cells expect.
@@ -30,13 +30,16 @@ import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/l
  *     -- not a raw sum (which the sheet used inconsistently across its own
  *     copies of this template).
  *
- * CC fee: computed via lib/fees/rates.ts's offerSurchargePerTicket() -- the
- * SAME function the live offer builder pages call, so this can never drift
- * out of sync with what Matt sees while creating the offer again. That
- * function prices the full flat fee per ticket (matches the source
- * spreadsheet's own assumption -- confirmed with Matt after an earlier
- * version amortised the flat fee across an assumed order size, which
- * understated it here to match a since-corrected bug in the live page).
+ * CC fee: computed via lib/offers/cardExpense.ts's cardSurchargeExact() --
+ * the SAME function the live offer builder pages call, so this can never
+ * drift out of sync with what Matt sees while creating the offer. Exactly
+ * 2.9% + exactly $0.30, and deliberately NOT offerSurchargePerTicket(),
+ * which rounds to the whole cent: right for pricing one real charge, wrong
+ * for a figure about to be multiplied by a tier's seat count. It prices the
+ * full flat fee per ticket (matches the source spreadsheet's own assumption
+ * -- confirmed with Matt after an earlier version amortised the flat fee
+ * across an assumed order size, which understated it here to match a
+ * since-corrected bug in the live page).
  */
 export type OfferData = {
   artist_name: string;
@@ -136,6 +139,10 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   const taxMethod = offer.tax_method;
 
   let tCap = 0, tComps = 0, tKills = 0, tSellable = 0, tSvc = 0, tFac = 0, tTax = 0, tCc = 0, tAllin = 0, tGross = 0;
+  // Sub-total x sellable: face plus the two fees, with no tax and no card.
+  // This is what gross_potential means on the record, and tGross (the all-in)
+  // is not -- see the fallback below.
+  let tSubtotal = 0;
   const ticket_scaling = rows.map((r) => {
     const capacity = r.seats || 0;
     const comps = r.comps || 0;
@@ -160,7 +167,10 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     const isDivisor = taxMethod === "divisor";
     const tax = isDivisor && taxRate > 0 ? price - price / (1 + taxRate) : price * taxRate;
     const preCc = price + svc + fac + (isDivisor ? 0 : tax);
-    const cc = offerSurchargePerTicket(preCc);
+    // Exact, not rounded to the cent: this is multiplied by the tier's seat
+    // count two lines down, and it must land on the same total as the show
+    // expense below. See lib/offers/cardExpense.ts.
+    const cc = cardSurchargeExact(preCc);
     const allin_price = preCc + cc;
     const gross = allin_price * sellable;
 
@@ -174,6 +184,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     tCc += cc * sellable;
     tAllin += allin_price * sellable;
     tGross += gross;
+    tSubtotal += (price + svc + fac) * sellable;
 
     return { tier: r.name, capacity, comps, kills, sellable, price, svc, fac, tax, cc, allin_price, gross };
   });
@@ -185,7 +196,12 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   const facility_fees = tFac;
   const cc_fees = tCc;
   const taxes = tTax;
-  const gross_potential = offer.gross_potential ?? tGross;
+  // Falls back to the SUB-TOTAL, not tGross. tGross is the all-in and carries
+  // the card surcharge and any multiplier tax inside it; using it here would
+  // leave the surcharge inside adjusted gross while the expense list takes it
+  // out again -- charging the show twice for it. No offer on file has a null
+  // gross_potential, so this never fires today; it is wrong anyway.
+  const gross_potential = offer.gross_potential ?? tSubtotal;
   // Adjusted gross is gross less the ticketing and facility fees -- the two
   // fees that are not the show's money. The card surcharge is NOT one of
   // them: it is shown on its own line as a cost, but it is not carved out of

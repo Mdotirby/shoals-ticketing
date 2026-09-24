@@ -11,11 +11,11 @@ import type { Contract } from "@/lib/types/contract";
 import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
-import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
+import { rateLabel } from "@/lib/fees/rates";
 import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
 import { walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import OfferRail from "../_parts/OfferRail";
-import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
+import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
  * Deal lab — the mockup's four levers (offers.dc.html): move one, read the
@@ -281,13 +281,13 @@ export default function AdminOfferDetailPage() {
         ? 0
         : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      const cc = offerSurchargePerTicket(preCC);
+      const cc = cardSurchargeExact(preCC);
       return s + (Number(r.sellable_cap) || 0) * (preCC + cc);
     }, 0);
     const totalCC = scaling.reduce((s, r) => {
       const taxPer = taxMethod === "divisor" ? 0 : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
       const preCC = (Number(r.price) || 0) + taxPer;
-      return s + (Number(r.sellable_cap) || 0) * offerSurchargePerTicket(preCC);
+      return s + (Number(r.sellable_cap) || 0) * cardSurchargeExact(preCC);
     }, 0);
     const preCCGross = displayGross - totalCC;
     const displayAdjGross = preCCGross - totalFees;
@@ -340,6 +340,19 @@ export default function AdminOfferDetailPage() {
       totalExpenses,
       cardExpense,
       ownVarExp,
+      // The variable-expense list every document and the record itself get:
+      // the offer's own rate lines with their amounts re-synced, plus the
+      // derived card line. Built here so the save payload and the PDF cannot
+      // hand out different lists -- the PDF used to receive the raw form
+      // value, which still held the legacy hand-entered card row, while its
+      // totals came from this computation.
+      variableExpensesOut: [
+        ...ownVarExp.map((e) => ({
+          ...e,
+          amount: Math.round((Number(e.rate) || 0) * grossPotential * 100) / 100,
+        })),
+        { name: CARD_EXPENSE_NAME, rate: 0, amount: cardExpense.amount, locked: true },
+      ],
       netAfterExpenses,
       splitpoint,
       overage,
@@ -399,7 +412,7 @@ export default function AdminOfferDetailPage() {
       ? Math.round((netPrice * trd) / (1 + trd) * 100) / 100
       : Math.round(netPrice * trd * 100) / 100;
     const preCC = tm === "divisor" ? price : price + taxEach;
-    const ccEach = offerSurchargePerTicket(preCC);
+    const ccEach = cardSurchargeExact(preCC);
     const allIn = preCC + ccEach;
     const sellable = Number(r.sellable_cap || 0);
     // A tier is consistent when what the buyer pays before tax and card is
@@ -452,13 +465,7 @@ export default function AdminOfferDetailPage() {
     // export, the offer PDF -- sees the same expenses the builder totalled.
     // It is rebuilt from `ownVarExp` each save rather than appended, so a
     // legacy 3%-of-gross card row is replaced instead of duplicated.
-    variable_expenses: [
-      ...live.ownVarExp.map((e) => ({
-        ...e,
-        amount: Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100,
-      })),
-      { name: CARD_EXPENSE_NAME, rate: 0, amount: live.cardExpense.amount, locked: true },
-    ],
+    variable_expenses: live.variableExpensesOut,
     ...overrides,
   });
 
@@ -612,7 +619,7 @@ export default function AdminOfferDetailPage() {
         marketing_comps: form.marketing_comps as number,
         ticket_scaling: form.ticket_scaling as TicketScalingRow[],
         fixed_expenses: form.fixed_expenses as ExpenseItem[],
-        variable_expenses: form.variable_expenses as VariableExpenseItem[],
+        variable_expenses: live.variableExpensesOut as VariableExpenseItem[],
         total_fixed: live.totalFixed,
         total_variable: live.totalVariable,
         total_expenses: live.totalExpenses,
@@ -1605,7 +1612,11 @@ export default function AdminOfferDetailPage() {
                 <span className="ofe-kind ofe-kind--var">Variable</span>
                 <span className="ofe-var">
                   <span className="ofe-derived-note">
-                    {live.cardExpense.tickets.toLocaleString()} × {fmtUSD(live.cardExpense.perTicket)}
+                    {/* Three decimals, because the per-ticket figure is not a
+                        round cent and fmtUSD would show $0.996 as "$1.00" --
+                        which reads as though the rate had been rounded. */}
+                    {live.cardExpense.tickets.toLocaleString()} × $
+                    {live.cardExpense.perTicket.toFixed(3)}
                   </span>
                   <b>{fmtUSD(live.cardExpense.amount)}</b>
                 </span>

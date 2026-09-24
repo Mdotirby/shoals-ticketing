@@ -6,9 +6,9 @@ import { useTabParam } from "@/lib/admin/useTabParam";
 import { getCookie } from "@/lib/cookies";
 import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem } from "@/lib/types/offer";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
+import { rateLabel } from "@/lib/fees/rates";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
-import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
+import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
@@ -315,14 +315,14 @@ export default function AdminCreateOfferPage() {
       ? 0
       : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    const cc = offerSurchargePerTicket(preCC);
+    const cc = cardSurchargeExact(preCC);
     return sum + r.sellable_cap * (preCC + cc);
   }, 0);
   // totalCC = Stripe's share — customer-funded, goes to Stripe not promoter
   const totalCC = scaling.reduce((sum, r) => {
     const taxPer = taxMode === "divisor" ? 0 : Math.round((r.net_price || 0) * taxRateDecimal * 100) / 100;
     const preCC = (r.price || 0) + taxPer;
-    return sum + r.sellable_cap * offerSurchargePerTicket(preCC);
+    return sum + r.sellable_cap * cardSurchargeExact(preCC);
   }, 0);
   const preCCGross = displayGross - totalCC;      // what promoter receives from Stripe
   const displayAdjGross = preCCGross - totalFees; // after ticketing/facility fees removed
@@ -684,7 +684,7 @@ export default function AdminCreateOfferPage() {
               ? Math.round(r.net_price * taxRateDecimal / (1 + taxRateDecimal) * 100) / 100
               : Math.round(r.net_price * taxRateDecimal * 100) / 100;
             const preCC = taxMode === "divisor" ? r.price : r.price + taxPerTicket;
-            const ccPerTicket = offerSurchargePerTicket(preCC);
+            const ccPerTicket = cardSurchargeExact(preCC);
             const allIn = preCC + ccPerTicket;
             const tierGross = r.sellable_cap * allIn;
             return (
@@ -748,7 +748,7 @@ export default function AdminCreateOfferPage() {
             <div className="offer-expense-row">
               <span className="offer-var-name">{CARD_EXPENSE_NAME}</span>
               <span className="offer-var-name" style={{ opacity: 0.5, fontSize: 11 }}>
-                {cardExpense.tickets.toLocaleString()} x ${cardExpense.perTicket.toFixed(2)}
+                {cardExpense.tickets.toLocaleString()} x ${cardExpense.perTicket.toFixed(3)}
               </span>
               <span className="offer-var-amount">${cardExpense.amount.toFixed(2)}</span>
             </div>

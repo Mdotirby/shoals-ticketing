@@ -44,27 +44,29 @@ describe("withoutCardExpense", () => {
 
 describe("cardExpenseAtSellout", () => {
   // Sunny Sweeney: 520 sellable, $24.00 sub-total, 9.5% divisor.
-  // 24.00 * 2.9% = 69.6c + 30c = 99.6c, rounded to the cent a buyer can
-  // actually be charged = $1.00 a ticket, x 520 = $520.00.
-  it("prices the divisor case off the sub-total alone", () => {
+  // Exactly 2.9% of 24.00 = $0.696, plus exactly $0.30 = $0.996 a ticket.
+  // x 520 = $517.92 -- NOT $520.00, which is what per-ticket rounding to the
+  // whole cent produces. Neither the rate nor the flat fee is rounded, and
+  // the total is rounded exactly once, at the end.
+  it("prices the divisor case off the sub-total alone, without rounding per ticket", () => {
     const out = cardExpenseAtSellout(
       [{ sellable_cap: 520, price: 24, net_price: 20 }],
       { taxMethod: "divisor", taxRate: 0.095 },
     );
-    expect(out.amount).toBeCloseTo(520.0, 2);
+    expect(out.amount).toBeCloseTo(517.92, 2);
     expect(out.tickets).toBe(520);
-    expect(out.perTicket).toBeCloseTo(1.0, 2);
+    expect(out.perTicket).toBeCloseTo(0.996, 6);
   });
 
   it("adds multiplier tax before charging the card, because the buyer pays it", () => {
     // face 20 -> tax 1.90 on top -> card charged on 24 + 1.90 = 25.90
-    // 25.90 * 0.029 + 0.30 = $1.0511 -> 1.05 a ticket
+    // 25.90 * 2.9% + 0.30 = $1.0511 a ticket, kept at full precision
     const out = cardExpenseAtSellout(
       [{ sellable_cap: 100, price: 24, net_price: 20 }],
       { taxMethod: "multiplier", taxRate: 0.095 },
     );
-    expect(out.perTicket).toBeCloseTo(1.05, 2);
-    expect(out.amount).toBeCloseTo(105.0, 2);
+    expect(out.perTicket).toBeCloseTo(1.0511, 6);
+    expect(out.amount).toBeCloseTo(105.11, 2);
   });
 
   it("reads a tax rate stored as a percentage the same as one stored as a decimal", () => {
@@ -81,8 +83,8 @@ describe("cardExpenseAtSellout", () => {
       ],
       { taxMethod: "divisor" },
     );
-    // $1.00 x 100 + $1.75 x 50 = 100.00 + 87.50 = 187.50
-    expect(out.amount).toBeCloseTo(187.5, 2);
+    // (24*.029+.30)*100 + (50*.029+.30)*50 = 99.60 + 87.50 = 187.10
+    expect(out.amount).toBeCloseTo(187.1, 2);
     expect(out.tickets).toBe(150);
   });
 
@@ -97,6 +99,22 @@ describe("cardExpenseAtSellout", () => {
   });
 });
 
+describe("the rate is exact", () => {
+  it("is 2.9% and $0.30, not 3% and not a rounded flat fee", () => {
+    // One ticket at $100: 2.9% is $2.90, never $3.00.
+    const out = cardExpenseAtSellout([{ sellable_cap: 1, price: 100 }], {});
+    expect(out.amount).toBeCloseTo(3.2, 6); // 2.90 + 0.30
+  });
+
+  it("stays exact across a large tier rather than compounding a rounded cent", () => {
+    // 1,000 x $19.99. Exact: 19990 * 2.9% + 1000 * 0.30 = 579.71 + 300.
+    const out = cardExpenseAtSellout([{ sellable_cap: 1000, price: 19.99 }], {});
+    expect(out.amount).toBeCloseTo(879.71, 2);
+    // Per-ticket rounding would have given $0.88 x 1000 = $880.00.
+    expect(out.amount).not.toBeCloseTo(880.0, 2);
+  });
+});
+
 describe("cardExpenseRow", () => {
   it("is named for the rate it actually charges", () => {
     expect(CARD_EXPENSE_NAME).toBe("Card processing (2.9% + $0.30)");
@@ -106,7 +124,7 @@ describe("cardExpenseRow", () => {
     const row = cardExpenseRow([{ sellable_cap: 520, price: 24, net_price: 20 }], { taxMethod: "divisor", taxRate: 0.095 });
     expect(row.rate).toBe(0);
     expect(row.locked).toBe(true);
-    expect(row.amount).toBeCloseTo(520.0, 2);
+    expect(row.amount).toBeCloseTo(517.92, 2);
   });
 
   it("is itself recognised as a card line, so re-saving cannot stack copies", () => {

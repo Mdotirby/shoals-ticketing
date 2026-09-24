@@ -4,6 +4,7 @@ import { requireCapability } from "@/lib/auth/can";
 import { DENY, tenantScope } from "@/lib/auth/tenant";
 import { computeEventAudit, findOfferForEvent } from "@/lib/settlement/audit";
 import { settlementWaterfall } from "@/lib/settlement/model";
+import { withoutCardExpense } from "@/lib/offers/cardExpense";
 
 /**
  * GET /api/settlements   ?venue_id= &event_id=
@@ -344,7 +345,15 @@ export async function POST(request: Request) {
     }
 
     if (Array.isArray(offerData.variable_expenses)) {
-      for (const exp of offerData.variable_expenses) {
+      // NOT the offer's card-processing line. An offer carries the surcharge
+      // as a show expense because it is forecasting a sellout; a settlement
+      // must not, because lib/settlement/model.ts keeps the surcharge out of
+      // the split base entirely -- the buyer funds it and it goes straight to
+      // Stripe, and the real fee is already recorded per order against the
+      // actual charge. Seeding it here would put a card cost in front of
+      // someone to fill in an actual for, against a waterfall that has
+      // already excluded it: the show charged twice for one surcharge.
+      for (const exp of withoutCardExpense(offerData.variable_expenses)) {
         expenses.push({
           settlement_id: settlement.id,
           name: exp.name,
