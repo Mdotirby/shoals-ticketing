@@ -1,6 +1,7 @@
 import type { ArtistOffer } from "@/lib/types/offer";
 import { offerSurchargePerTicket, STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 import { artistPayout } from "@/lib/settlement/model";
+import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
  * ArtistOffer -> the flat field map offer/manifest.json's cells expect.
@@ -150,10 +151,17 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     const price = r.net_price || 0;
     const svc = r.ticketing_fee || 0;
     const fac = r.facility_fee || 0;
-    const tax =
-      taxMethod === "divisor" && taxRate > 0 ? price - price / (1 + taxRate) : price * taxRate;
-    const cc = offerSurchargePerTicket(price + svc + fac + tax);
-    const allin_price = price + svc + fac + tax + cc;
+    // Under `divisor` the tax is already INSIDE the face -- that is what
+    // divisor means -- so it is shown in the TAX column as a memo but must
+    // not be added again to reach what the buyer pays. Adding it made the
+    // sheet quote an all-in of $26.79 on Sunny Sweeney's tier where the
+    // builder quotes $25.00, and charged the card fee on the inflated base
+    // on top of that. Only a `multiplier` tax is genuinely added on top.
+    const isDivisor = taxMethod === "divisor";
+    const tax = isDivisor && taxRate > 0 ? price - price / (1 + taxRate) : price * taxRate;
+    const preCc = price + svc + fac + (isDivisor ? 0 : tax);
+    const cc = offerSurchargePerTicket(preCc);
+    const allin_price = preCc + cc;
     const gross = allin_price * sellable;
 
     tCap += capacity;
@@ -200,10 +208,29 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     (taxMethod === "divisor" ? adj_gross_potential - taxes : adj_gross_potential);
 
   const expenses_fixed = (offer.fixed_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
-  const expenses_variable = (offer.variable_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
+
+  // The card surcharge is a show expense, derived from the rate rather than
+  // read off the record. Deriving it rather than trusting the stored rows
+  // matters for the same reason the walkout below is derived: an offer saved
+  // before this existed carries either no card line at all (21 of the 40 on
+  // file), or a hand-entered 3% of gross (13), or a 0% line (6). Any legacy
+  // row is dropped so the derived one replaces it instead of stacking.
+  const cardExpense = cardExpenseAtSellout(rows, { taxMethod, taxRate });
+  const ownVariable = withoutCardExpense(offer.variable_expenses || []).map((e) => ({
+    name: e.name,
+    amount: e.amount || 0,
+  }));
+  const expenses_variable = [...ownVariable, { name: CARD_EXPENSE_NAME, amount: cardExpense.amount }];
   const total_fixed = offer.total_fixed ?? expenses_fixed.reduce((s, e) => s + e.amount, 0);
-  const total_variable = offer.total_variable ?? expenses_variable.reduce((s, e) => s + e.amount, 0);
-  const total_expenses = offer.total_expenses ?? total_fixed + total_variable;
+  // Sum the offer's own rate lines when it has them; fall back to the stored
+  // total when it does not, since some records carry totals without rows.
+  // Then add the card surcharge, which is derived either way.
+  const ownVariableTotal =
+    ownVariable.length > 0
+      ? ownVariable.reduce((s, e) => s + e.amount, 0)
+      : offer.total_variable ?? 0;
+  const total_variable = ownVariableTotal + cardExpense.amount;
+  const total_expenses = total_fixed + total_variable;
 
   const guarantee = offer.guarantee || 0;
   const backendPct = (Number(offer.backend_percentage) || 0) / 100;

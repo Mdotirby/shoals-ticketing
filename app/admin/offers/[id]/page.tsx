@@ -15,6 +15,7 @@ import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
 import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
 import { walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import OfferRail from "../_parts/OfferRail";
+import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
  * Deal lab — the mockup's four levers (offers.dc.html): move one, read the
@@ -292,7 +293,17 @@ export default function AdminOfferDetailPage() {
     const displayAdjGross = preCCGross - totalFees;
 
     const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const totalVariable = varExp.reduce((s, e) => s + ((Number(e.rate) || 0) * grossPotential), 0);
+    // The card surcharge is a show cost, not a typed-in rate. Any legacy
+    // hand-entered card row is dropped first -- 13 offers carry one at a flat
+    // 3% of gross -- so the derived line replaces it rather than stacking on
+    // top of it. See lib/offers/cardExpense.ts.
+    const ownVarExp = withoutCardExpense(varExp as Array<{ name?: string; rate: number; amount: number }>);
+    const cardExpense = cardExpenseAtSellout(scaling, {
+      taxMethod: form.tax_method as string,
+      taxRate: form.tax_rate as number,
+    });
+    const totalVariable =
+      ownVarExp.reduce((s, e) => s + ((Number(e.rate) || 0) * grossPotential), 0) + cardExpense.amount;
     const totalExpenses = totalFixed + totalVariable;
 
     // Artist payment model — identical to the create page and to the
@@ -327,6 +338,8 @@ export default function AdminOfferDetailPage() {
       totalFixed,
       totalVariable,
       totalExpenses,
+      cardExpense,
+      ownVarExp,
       netAfterExpenses,
       splitpoint,
       overage,
@@ -433,12 +446,19 @@ export default function AdminOfferDetailPage() {
     total_variable: live.totalVariable,
     total_expenses: live.totalExpenses,
     splitpoint: live.splitpoint,
-    // Re-sync variable expense amounts so stored amounts match live display
-    variable_expenses: (Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<Record<string, unknown>> : [])
-      .map((e) => ({
+    // Re-sync variable expense amounts so stored amounts match live display.
+    // The card line is stored too, with its computed amount and rate 0, so
+    // anything reading the row list straight off the record -- the Excel
+    // export, the offer PDF -- sees the same expenses the builder totalled.
+    // It is rebuilt from `ownVarExp` each save rather than appended, so a
+    // legacy 3%-of-gross card row is replaced instead of duplicated.
+    variable_expenses: [
+      ...live.ownVarExp.map((e) => ({
         ...e,
         amount: Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100,
       })),
+      { name: CARD_EXPENSE_NAME, rate: 0, amount: live.cardExpense.amount, locked: true },
+    ],
     ...overrides,
   });
 
@@ -1427,10 +1447,14 @@ export default function AdminOfferDetailPage() {
         // ── P&L Calculations ──
         const scaling = Array.isArray(form.ticket_scaling) ? form.ticket_scaling as Array<Record<string, number>> : [];
         const fixedExp = Array.isArray(form.fixed_expenses) ? form.fixed_expenses as Array<{name: string; amount: number}> : [];
-        const varExp = Array.isArray(form.variable_expenses) ? form.variable_expenses as Array<{name: string; rate: number; amount: number}> : [];
 
         const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-        const totalVariable = varExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+        // Take the rail's figures rather than re-summing the stored rows.
+        // This tab summed `e.amount`, which goes stale the moment a ticket
+        // price changes and is only rewritten on save -- and on an offer not
+        // yet re-saved it still holds the old hand-entered card line. One
+        // computation, so the two tabs cannot disagree.
+        const totalVariable = live.totalVariable;
         const totalExpenses = totalFixed + totalVariable;
 
         const grossPotential = scaling.reduce((s, r) => s + (Number(r.sellable_cap) || 0) * (Number(r.price) || 0), 0);
@@ -1509,7 +1533,9 @@ export default function AdminOfferDetailPage() {
         };
 
         const fixedRows = Array.isArray(form.fixed_expenses) ? (form.fixed_expenses as Array<{ name: string; amount: number }>) : [];
-        const varRows = Array.isArray(form.variable_expenses) ? (form.variable_expenses as Array<{ name: string; rate: number; amount: number }>) : [];
+        // The user's own rate lines. The card surcharge is derived, not typed,
+        // so it is excluded here and rendered as a locked row beneath them.
+        const varRows = live.ownVarExp as Array<{ name: string; rate: number; amount: number }>;
 
         return (
         <div className="ofb-stack">
@@ -1558,6 +1584,9 @@ export default function AdminOfferDetailPage() {
                           const v = [...varRows];
                           const rate = parseFloat(ev.target.value) || 0;
                           v[i] = { ...v[i], rate, amount: Math.round(live.grossPotential * rate * 100) / 100 };
+                          // Own rows only -- buildSavePayload re-appends the
+                          // derived card line, so writing it back here too
+                          // would leave two of them in the record.
                           updateField("variable_expenses", v);
                         }}
                       />
@@ -1566,6 +1595,21 @@ export default function AdminOfferDetailPage() {
                   </div>
                 );
               })}
+
+              {/* Derived, not typed. See lib/offers/cardExpense.ts. */}
+              <div className="ofe-row ofe-row--locked">
+                <span className="ofe-name ofe-name--static">
+                  {CARD_EXPENSE_NAME}
+                  <span className="ofe-lock" title="Set by the card rate, not editable">locked</span>
+                </span>
+                <span className="ofe-kind ofe-kind--var">Variable</span>
+                <span className="ofe-var">
+                  <span className="ofe-derived-note">
+                    {live.cardExpense.tickets.toLocaleString()} × {fmtUSD(live.cardExpense.perTicket)}
+                  </span>
+                  <b>{fmtUSD(live.cardExpense.amount)}</b>
+                </span>
+              </div>
             </div>
             <div className="ofe-foot">
               <Button onClick={() => updateField("fixed_expenses", [...fixedRows, { name: "", amount: 0 }])}>+ New expense</Button>

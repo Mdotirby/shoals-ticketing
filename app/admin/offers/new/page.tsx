@@ -8,6 +8,7 @@ import type { ShowLineupItem, TicketScalingRow, ExpenseItem, VariableExpenseItem
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { offerSurchargePerTicket, rateLabel } from "@/lib/fees/rates";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
+import { cardExpenseAtSellout, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 type Agent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null };
@@ -327,7 +328,14 @@ export default function AdminCreateOfferPage() {
   const displayAdjGross = preCCGross - totalFees; // after ticketing/facility fees removed
 
   const totalFixed = fixedExpenses.reduce((s, e) => s + (e.amount || 0), 0);
-  const totalVariable = variableExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+  // The card surcharge is a show cost, derived from the rate rather than
+  // typed in -- see lib/offers/cardExpense.ts. totalCC above is the same
+  // figure; it is named here so the expense list and the fee stack cannot
+  // drift apart.
+  const ownVariableExpenses = withoutCardExpense(variableExpenses);
+  const cardExpense = cardExpenseAtSellout(scaling, { taxMethod: taxMode, taxRate: taxRateDecimal });
+  const totalVariable =
+    ownVariableExpenses.reduce((s, e) => s + (e.amount || 0), 0) + cardExpense.amount;
   const totalExpenses = totalFixed + totalVariable;
 
   const guaranteeNum = parseFloat(guarantee || "0");
@@ -456,7 +464,11 @@ export default function AdminCreateOfferPage() {
           comps: parseInt(comps) || 0,
           artist_comps: parseInt(artistComps) || 0,
           marketing_comps: parseInt(marketingComps) || 0,
-          ticket_scaling: scaling, fixed_expenses: fixedExpenses, variable_expenses: variableExpenses,
+          ticket_scaling: scaling, fixed_expenses: fixedExpenses,
+          variable_expenses: [
+            ...ownVariableExpenses,
+            { name: CARD_EXPENSE_NAME, rate: 0, amount: cardExpense.amount, locked: true },
+          ],
           total_fixed: totalFixed, total_variable: totalVariable, total_expenses: totalExpenses,
           gross_potential: grossPotential, adj_gross: adjGross,
           tax_rate: taxRateDecimal, tax_method: taxMode, net_potential: netPotential,
@@ -725,13 +737,21 @@ export default function AdminCreateOfferPage() {
 
           <div className="offer-expenses-col">
             <h3 className="offer-expenses-heading">Variable Expenses</h3>
-            {variableExpenses.map((exp, i) => (
+            {ownVariableExpenses.map((exp, i) => (
               <div key={i} className="offer-expense-row">
                 <span className="offer-var-name">{exp.name}</span>
                 <input type="number" className="admin-form-input" value={exp.rate} onChange={(e) => { const rate = parseFloat(e.target.value) || 0; setVariableExpenses((p) => p.map((x, j) => j === i ? { ...x, rate, amount: Math.round(grossPotential * rate * 100) / 100 } : x)); }} step="0.0001" style={{ width: 80 }} />
                 <span className="offer-var-amount">${exp.amount.toFixed(2)}</span>
               </div>
             ))}
+            {/* Derived from the card rate, not editable. */}
+            <div className="offer-expense-row">
+              <span className="offer-var-name">{CARD_EXPENSE_NAME}</span>
+              <span className="offer-var-name" style={{ opacity: 0.5, fontSize: 11 }}>
+                {cardExpense.tickets.toLocaleString()} x ${cardExpense.perTicket.toFixed(2)}
+              </span>
+              <span className="offer-var-amount">${cardExpense.amount.toFixed(2)}</span>
+            </div>
             <div className="offer-expense-total">Variable Total: <strong>${totalVariable.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           </div>
         </div>
