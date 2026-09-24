@@ -275,22 +275,11 @@ export default function AdminOfferDetailPage() {
       netPotential = adjGross; // = face × sellable; taxes collected from customers and remitted
     }
 
-    // displayGross = true all-in × sellable: what customers collectively pay (incl. CC).
-    const displayGross = scaling.reduce((s, r) => {
-      const taxPer = taxMethod === "divisor"
-        ? 0
-        : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
-      const preCC = (Number(r.price) || 0) + taxPer;
-      const cc = cardSurchargeExact(preCC);
-      return s + (Number(r.sellable_cap) || 0) * (preCC + cc);
-    }, 0);
-    const totalCC = scaling.reduce((s, r) => {
-      const taxPer = taxMethod === "divisor" ? 0 : Math.round((Number(r.net_price) || 0) * taxRateDecimal * 100) / 100;
-      const preCC = (Number(r.price) || 0) + taxPer;
-      return s + (Number(r.sellable_cap) || 0) * cardSurchargeExact(preCC);
-    }, 0);
-    const preCCGross = displayGross - totalCC;
-    const displayAdjGross = preCCGross - totalFees;
+    // displayGross, totalCC, preCCGross and displayAdjGross used to be
+    // computed here. Nothing read any of them, and a second copy of the
+    // surcharge arithmetic sitting next to the real one is exactly how the
+    // two versions drift apart. The surcharge now has one home:
+    // lib/offers/cardExpense.ts.
 
     const totalFixed = fixedExp.reduce((s, e) => s + (Number(e.amount) || 0), 0);
     // The card surcharge is a show cost, not a typed-in rate. Any legacy
@@ -327,10 +316,6 @@ export default function AdminOfferDetailPage() {
     return {
       grossPotential,
       adjGross,
-      displayGross,
-      totalCC,
-      preCCGross,
-      displayAdjGross,
       totalFees,
       taxRatePct,
       taxAmount,
