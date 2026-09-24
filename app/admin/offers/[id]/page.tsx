@@ -389,9 +389,18 @@ export default function AdminOfferDetailPage() {
     const ccEach = offerSurchargePerTicket(preCC);
     const allIn = preCC + ccEach;
     const sellable = Number(r.sellable_cap || 0);
+    // A tier is consistent when what the buyer pays before tax and card is
+    // exactly face plus the two fees. This form guarantees that — "Net price
+    // (face)" is the only editable price and it rewrites `price` — but rows
+    // that arrived before it did can carry a gap, and adjusted gross reads
+    // that gap as FACE. Sunny Sweeney's $24 tier had $4 of ticketing fee that
+    // was never entered, so the split basis read $12,480 against a real face
+    // value of $10,400. Surface it; never bank it silently.
+    const gap = Math.round((price - netPrice - facFee - tktFee) * 100) / 100;
     return {
       i,
       raw: r,
+      gap,
       name: String(r.name || ""),
       seats: Number(r.seats || 0),
       comps: Number(r.comps || 0),
@@ -408,6 +417,8 @@ export default function AdminOfferDetailPage() {
     sellable: scalingRows.reduce((t, r) => t + r.sellable, 0),
     gross: scalingRows.reduce((t, r) => t + r.gross, 0),
     net: scalingRows.reduce((t, r) => t + r.net, 0),
+    // Money adjusted gross is about to treat as face without being told to.
+    gap: scalingRows.reduce((t, r) => t + r.gap * r.sellable, 0),
   };
 
   // Merge live-computed derived totals into form state before saving so the
@@ -925,6 +936,26 @@ export default function AdminOfferDetailPage() {
                   {openTier === r.i ? "▾" : "▸"}
                 </button>
               </div>
+              {Math.abs(r.gap) > 0.005 && (
+                <div className="ofs-gap">
+                  <div>
+                    <strong>{fmtUSD(Math.abs(r.gap))} a ticket is unaccounted for.</strong>{" "}
+                    Face {fmtUSD(r.netPrice)} plus fees {fmtUSD(r.facFee + r.tktFee)} does not make the{" "}
+                    {fmtUSD(r.price)} sub-total. Adjusted gross counts the difference as face, so the
+                    artist&rsquo;s split basis is {fmtUSD(Math.abs(r.gap) * r.sellable, { cents: false })}{" "}
+                    {r.gap > 0 ? "higher" : "lower"} than face value on this tier.
+                  </div>
+                  {r.gap > 0 && (
+                    <button
+                      type="button"
+                      className="ofs-gap-fix"
+                      onClick={() => setTier(r.i, { ticketing_fee: Math.round((r.tktFee + r.gap) * 100) / 100 })}
+                    >
+                      Record it as ticketing fee
+                    </button>
+                  )}
+                </div>
+              )}
               {openTier === r.i && (
                 <div className="ofs-edit">
                   <label className="ofb-field">
@@ -970,6 +1001,14 @@ export default function AdminOfferDetailPage() {
               )}
             </div>
           ))}
+
+          {Math.abs(scalingTotals.gap) > 0.005 && (
+            <div className="ofs-gap ofs-gap--total">
+              Adjusted gross is {fmtUSD(Math.abs(scalingTotals.gap), { cents: false })}{" "}
+              {scalingTotals.gap > 0 ? "above" : "below"} face value across the tiers flagged above.
+              Saving writes that figure to the artist&rsquo;s split basis.
+            </div>
+          )}
 
           <div className="ofs-row ofs-row--total">
             <div>Gross potential</div>
@@ -1401,7 +1440,11 @@ export default function AdminOfferDetailPage() {
         // Handle tax_rate stored as decimal (0.095) or percentage (9.5)
         const taxRate = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
         const taxRateDecimal = taxRate / 100;
-        const taxMethod = (form.tax_method as string) || "divisor";
+        // Default matches the rail above and POST /api/offers, both of which
+        // fall back to "multiplier". This tab defaulted to "divisor", so an
+        // offer with no tax_method set showed two different Net Potentials on
+        // two tabs of the same page — and the rail's figure is the one saved.
+        const taxMethod = (form.tax_method as string) || "multiplier";
         let netPotential: number;
         let taxAmount: number;
         if (taxMethod === "divisor") {

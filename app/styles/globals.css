@@ -23820,6 +23820,39 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 }
 .admin-shell .ofs-row--total { border-bottom: none; font-weight: 650; font-size: 12.5px; padding-top: 14px; }
 .admin-shell .ofs-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* A tier whose sub-total is not face + fees. Adjusted gross reads the
+   difference as face, which moves the artist's split basis, so it is stated
+   on the row rather than left to be discovered in a settlement. */
+.admin-shell .ofs-gap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 2px 0 8px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 140, 170, 0.32);
+  border-radius: 10px;
+  background: rgba(255, 140, 170, 0.08);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+.admin-shell .ofs-gap > div { flex: 1 1 320px; min-width: 0; }
+.admin-shell .ofs-gap strong { color: var(--lg-bad); font-weight: 650; }
+.admin-shell .ofs-gap--total { margin-top: 10px; }
+.admin-shell .ofs-gap-fix {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-shell .ofs-gap-fix:hover { background: rgba(255, 255, 255, 0.12); }
 .admin-shell .ofs-dim { color: rgba(255, 255, 255, 0.44); }
 .admin-shell .ofs-strong { font-weight: 650; }
 .admin-shell .ofs-name { min-width: 0; font-size: 12.5px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
