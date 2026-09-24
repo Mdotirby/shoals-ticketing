@@ -13,7 +13,7 @@ import type {
   MerchSellerFeePayer,
   MerchTaxPayer,
 } from "@/lib/types/settlement";
-import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
+import { settlementWaterfall, artistPayout, withCardExpense } from "@/lib/settlement/model";
 import { getCookie } from "@/lib/cookies";
 import { Card } from "@/app/components/admin/ui";
 
@@ -349,8 +349,10 @@ export default function SettlementDetailPage() {
   // out of the artist's split base at all. Every settlement in the database
   // still shows adj_gross == net_receipts == total_gross because of it.
   //
-  // The card surcharge is deliberately absent: the buyer funds it and it goes
-  // to Stripe, so it was never part of the ticket gross the artist splits.
+  // The card surcharge is NOT taken out here. It rides through GBOR into NBOR
+  // and leaves once, as a locked expense line below -- so a "% after expenses"
+  // deal picks it up there and nowhere else. The pool is identical either way;
+  // taking it out in both places would charge the show twice.
   // The one exception is a fees-included event, where the venue absorbs it —
   // the audit already carves it out of face value before it reaches here.
   const { gbor, adjGross, taxes, netReceipts } = settlementWaterfall({
@@ -366,9 +368,13 @@ export default function SettlementDetailPage() {
   // from effectiveCcFees, which is what buyers were surcharged.
   const ccActual = ticketAudit.reduce((s, r) => s + (r.cc_fees_actual ?? 0), 0);
 
-  const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
+  // The card surcharge joins the expense list here rather than being stored:
+  // it is whatever the orders actually carried, so a saved row would go stale
+  // on the next refund and could be edited away from the ledger.
+  const expensesWithCard = withCardExpense(expenses, effectiveCcFees);
+  const totalExpenses = expensesWithCard.reduce((s, e) => s + (e.actual_amount || 0), 0);
   // Offer vs. actual, as the mockup's expense table reads it.
-  const totalEstimated = expenses.reduce((s, e) => s + (e.estimated_amount || 0), 0);
+  const totalEstimated = expensesWithCard.reduce((s, e) => s + (e.estimated_amount || 0), 0);
   const totalVariance = totalExpenses - totalEstimated;
 
   // Cash sales carry no fees, no tax, no card surcharge — the whole figure
@@ -379,6 +385,12 @@ export default function SettlementDetailPage() {
   const cashGrossNum = isExternal || hasRealCashRows ? 0 : cashGross;
   const cashTicketsSoldNum = isExternal || hasRealCashRows ? 0 : cashTicketsSold;
   const netReceiptsWithCash = netReceipts + cashGrossNum;
+  // What gets STORED in settlements.net_receipts stays face value — the
+  // surcharge-free figure every existing row already holds and every document
+  // reads as `net_receipts − expenses`. The displayed NBOR above carries the
+  // surcharge because the expense line below takes it back out; a reader that
+  // wants that figure adds cc_fees back, as the settlement adapters do.
+  const netReceiptsStored = netReceiptsWithCash - effectiveCcFees;
 
   // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
   const backendPctDecimal = backendPctInput / 100;
@@ -391,6 +403,7 @@ export default function SettlementDetailPage() {
       dealType,
       ticketingFees: effectiveTicketingFees,
       serviceFeeRebatePct: serviceFeeRebatePct / 100,
+      cardSurcharge: effectiveCcFees,
     });
 
   const totalDeposits = deposits
@@ -618,7 +631,7 @@ export default function SettlementDetailPage() {
       adj_gross: adjGross,
       // NBOR including cash — cash carries no fees/tax/cc, so it's added on
       // top of the Stripe-sourced walk rather than run through it.
-      net_receipts: netReceiptsWithCash,
+      net_receipts: netReceiptsStored,
       total_expenses: totalExpenses,
       splitpoint,
       artist_backend: artistBackend,
@@ -807,7 +820,7 @@ export default function SettlementDetailPage() {
       taxes,
       tax_rate: effectiveTaxRate,
       tax_method: effectiveTaxMethod,
-      net_receipts: netReceiptsWithCash,
+      net_receipts: netReceiptsStored,
       total_expenses: totalExpenses,
       splitpoint,
       artist_backend: artistBackend,
@@ -1439,10 +1452,6 @@ export default function SettlementDetailPage() {
           <span style={valStyle}>({fmt(effectiveFacilityFees)})</span>
         </div>
         <div style={rowStyle}>
-          <span style={{ ...labelStyle, paddingLeft: 12 }}>CC Fees</span>
-          <span style={valStyle}>({fmt(effectiveCcFees)})</span>
-        </div>
-        <div style={rowStyle}>
           <span style={{ ...labelStyle, paddingLeft: 12 }}>
             Taxes ({(effectiveTaxRate * 100).toFixed(1)}%{" "}
             {effectiveTaxMethod === "divisor" ? "Divisor" : "Multiplier"})
@@ -1582,6 +1591,34 @@ export default function SettlementDetailPage() {
                 </td>
               </tr>
             ))}
+
+            {/* The card surcharge. Derived from the orders, not stored and not
+                editable -- this is the one place it comes out, so a "% after
+                expenses" deal picks it up here and the financial summary above
+                leaves it alone. */}
+            {effectiveCcFees > 0 && (
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)" }}>
+                <td style={{ padding: "10px 6px" }}>
+                  Card processing
+                  <span
+                    title="What buyers were surcharged for card processing, from the per-order ledger. Not editable — it is whatever the orders actually carried."
+                    style={{
+                      marginLeft: 8, fontSize: 8.5, fontWeight: 700, letterSpacing: "0.12em",
+                      textTransform: "uppercase", padding: "2px 6px", borderRadius: 5,
+                      color: "rgba(255,255,255,0.46)", background: "rgba(255,255,255,0.07)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                    }}
+                  >
+                    locked
+                  </span>
+                </td>
+                <td style={{ padding: "10px 6px", opacity: 0.6 }}>Variable</td>
+                <td style={{ padding: "10px 6px", opacity: 0.5 }}>{fmt(effectiveCcFees)}</td>
+                <td style={{ padding: "10px 6px", fontWeight: 600 }}>{fmt(effectiveCcFees)}</td>
+                <td style={{ padding: "10px 6px", color: "rgba(255,255,255,0.3)" }}>—</td>
+                <td colSpan={2} />
+              </tr>
+            )}
           </tbody>
           <tfoot>
             <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>

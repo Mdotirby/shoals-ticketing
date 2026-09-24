@@ -1,4 +1,4 @@
-import { settlementWaterfall, artistPayout } from "@/lib/settlement/model";
+import { settlementWaterfall, artistPayout, withCardExpense, SETTLEMENT_CARD_EXPENSE_NAME } from "@/lib/settlement/model";
 
 describe("settlementWaterfall", () => {
   it("subtracts service and facility fees to reach adjusted gross", () => {
@@ -191,8 +191,10 @@ describe("service fee rebate", () => {
 });
 
 describe("GBOR / NBOR walk", () => {
-  // Matches the settlement workbook: GBOR is everything the buyer paid, so it
-  // ties to the Stripe deposit; four pass-throughs come out to reach NBOR.
+  // GBOR is everything the buyer paid, so it ties to the Stripe deposit.
+  // THREE pass-throughs come out to reach NBOR: service, facility and tax.
+  // The card surcharge is not one of them — it stays in and leaves once, as
+  // an expense line (Matt, confirmed). See withCardExpense below.
   it("reproduces the MSM 90's workbook figures", () => {
     const w = settlementWaterfall({
       totalGross: 39500 + 1962,   // face + service
@@ -203,15 +205,19 @@ describe("GBOR / NBOR walk", () => {
       ccFees: 1291.59,
     });
     expect(w.gbor).toBeCloseTo(46506.09, 2);
-    expect(w.netReceipts).toBeCloseTo(39500, 2);
+    // NBOR carries the surcharge...
+    expect(w.netReceipts).toBeCloseTo(39500 + 1291.59, 2);
+    // ...and face value is still recoverable, which is the figure Matt
+    // reconciles the payout against.
+    expect(w.netReceiptsExCard).toBeCloseTo(39500, 2);
   });
 
-  it("GBOR less the four pass-throughs equals NBOR", () => {
+  it("GBOR less the three pass-throughs equals NBOR", () => {
     const w = settlementWaterfall({
       totalGross: 41462, ticketingFees: 1962, facilityFees: 0,
       taxRate: 0.095, taxMethod: "multiplier", ccFees: 1291.59,
     });
-    expect(w.gbor - 1962 - 0 - 1291.59 - w.taxes).toBeCloseTo(w.netReceipts, 6);
+    expect(w.gbor - 1962 - 0 - w.taxes).toBeCloseTo(w.netReceipts, 6);
   });
 
   it("does not double-count tax on a divisor event", () => {
@@ -221,18 +227,95 @@ describe("GBOR / NBOR walk", () => {
       taxRate: 0.095, taxMethod: "divisor", ccFees: 32.25,
     });
     expect(w.gbor).toBeCloseTo(884 + 32.25, 2);
-    expect(w.netReceipts).toBeCloseTo(621.0046, 3);
+    expect(w.netReceipts).toBeCloseTo(621.0046 + 32.25, 3);
+    expect(w.netReceiptsExCard).toBeCloseTo(621.0046, 3);
   });
 
-  it("lands on the same NBOR the ticket-side walk gives", () => {
+  it("carries the surcharge into NBOR rather than deducting it", () => {
     const input = {
       totalGross: 41462, ticketingFees: 1962, facilityFees: 0,
       taxRate: 0.095, taxMethod: "multiplier" as const,
     };
-    // Whether or not a card surcharge is passed, NBOR is unchanged — the
-    // surcharge enters GBOR and leaves again as a deduction.
-    expect(settlementWaterfall({ ...input, ccFees: 1291.59 }).netReceipts)
-      .toBeCloseTo(settlementWaterfall(input).netReceipts, 6);
+    const withCc = settlementWaterfall({ ...input, ccFees: 1291.59 });
+    const withoutCc = settlementWaterfall(input);
+    expect(withCc.netReceipts - withoutCc.netReceipts).toBeCloseTo(1291.59, 6);
+    expect(withCc.netReceiptsExCard).toBeCloseTo(withoutCc.netReceipts, 6);
+  });
+});
+
+/**
+ * The surcharge comes out ONCE, and moving where it comes out must not move
+ * the artist.
+ *
+ * This is the check that made the change safe to make at all: Muscle Shoals
+ * Meets the 90s is finalised and was paid $39,451.92 on a 100% backend. If
+ * the surcharge were deducted in the waterfall AND listed as an expense, that
+ * becomes $38,161.89 -- $1,290.03 less than the cheque already written.
+ */
+describe("the card surcharge leaves exactly once", () => {
+  const CARD = 1290.03;
+  const base = {
+    totalGross: 41413.92, ticketingFees: 1962, facilityFees: 0,
+    taxRate: 0, taxMethod: "multiplier" as const, ccFees: CARD,
+  };
+
+  it("lands on the same pool as deducting it in the waterfall used to", () => {
+    const w = settlementWaterfall(base);
+    const expenses = withCardExpense([], w.cardSurcharge);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.actual_amount || 0), 0);
+    expect(totalExpenses).toBeCloseTo(CARD, 2);
+
+    const p = artistPayout({
+      netReceipts: w.netReceipts,
+      totalExpenses,
+      guarantee: 0,
+      backendPct: 1,
+      dealType: "VS",
+    });
+    // The figure MSM was actually paid.
+    expect(p.netAfterExpenses).toBeCloseTo(39451.92, 2);
+    expect(p.artistTotal).toBeCloseTo(39451.92, 2);
+  });
+
+  it("would underpay by the surcharge if it were taken out in both places", () => {
+    const w = settlementWaterfall(base);
+    const bothWays = artistPayout({
+      netReceipts: w.netReceiptsExCard, // already had it removed
+      totalExpenses: CARD,              // and removed again
+      guarantee: 0, backendPct: 1, dealType: "VS",
+    });
+    expect(bothWays.netAfterExpenses).toBeCloseTo(39451.92 - CARD, 2);
+  });
+
+  it("drops a stored card row so it cannot sit beside the derived one", () => {
+    const rows = withCardExpense(
+      [
+        { name: "Sound", estimated_amount: 500, actual_amount: 500 },
+        { name: "Credit Card (Stripe)", estimated_amount: 900, actual_amount: 900 },
+      ],
+      CARD,
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.name)).toEqual(["Sound", SETTLEMENT_CARD_EXPENSE_NAME]);
+    expect(rows.reduce((s, e) => s + (e.actual_amount || 0), 0)).toBeCloseTo(500 + CARD, 2);
+  });
+
+  it("adds nothing when there was no surcharge", () => {
+    expect(withCardExpense([{ name: "Sound", actual_amount: 500 }], 0)).toHaveLength(1);
+  });
+
+  it("DOOR takes the surcharge off itself, since it recoups no expenses", () => {
+    const w = settlementWaterfall(base);
+    const door = artistPayout({
+      netReceipts: w.netReceipts,
+      totalExpenses: 0,
+      guarantee: 0,
+      backendPct: 0.5,
+      dealType: "DOOR",
+      cardSurcharge: w.cardSurcharge,
+    });
+    // Half of face value, not half of face plus Stripe's cut.
+    expect(door.artistTotal).toBeCloseTo(w.netReceiptsExCard * 0.5, 2);
   });
 });
 

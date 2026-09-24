@@ -1,5 +1,10 @@
 import type { Settlement, TaxMethod } from "@/lib/types/settlement";
 import type { ArtistOffer } from "@/lib/types/offer";
+import { SETTLEMENT_CARD_EXPENSE_NAME } from "@/lib/settlement/model";
+
+/** A card row someone saved by hand, which the derived line replaces. */
+const isStoredCardExpense = (n: unknown) =>
+  /card processing|credit\s*card|stripe|processing fee/i.test(String(n ?? ""));
 
 type ExpenseInput = { name: string; category: string; actual_amount: number };
 
@@ -176,12 +181,24 @@ export function buildVenueSettlementData(
   });
   const avgPrice = rows.length > 0 ? rows.reduce((s, r) => s + (r.price || 0), 0) / rows.length : 0;
 
+  // Stored net_receipts is face value; cc_fees is what buyers were surcharged.
+  const cardSurcharge = Number(settlement.cc_fees) || 0;
+  const nborWithCard = (settlement.net_receipts || 0) + cardSurcharge;
+
   const expenses_fixed = expenses
     .filter((e) => e.category === "fixed")
     .map((e) => ({ name: e.name, amount: e.actual_amount || 0 }));
-  const expenses_variable = expenses
-    .filter((e) => e.category === "variable")
-    .map((e) => ({ name: e.name, amount: e.actual_amount || 0 }));
+  const expenses_variable = [
+    ...expenses
+      .filter((e) => e.category === "variable" && !isStoredCardExpense(e.name))
+      .map((e) => ({ name: e.name, amount: e.actual_amount || 0 })),
+    // The card surcharge as the show expense it is. Derived from stored
+    // cc_fees, because it is whatever the orders actually carried.
+    // settlements.net_receipts is FACE value with the surcharge already out,
+    // so it is added back into nbor below -- the two cancel and the pool is
+    // unchanged, which keeps finalised settlements paying what they paid.
+    ...(cardSurcharge > 0 ? [{ name: SETTLEMENT_CARD_EXPENSE_NAME, amount: cardSurcharge }] : []),
+  ];
   const total_fixed = expenses_fixed.reduce((s, e) => s + e.amount, 0);
   const total_variable = expenses_variable.reduce((s, e) => s + e.amount, 0);
   // "Splitpoint" on this document means the pool the backend % applies to
@@ -191,7 +208,8 @@ export function buildVenueSettlementData(
   // happens to share the same field name. Both net_receipts and the
   // expense totals here are already real, correct, stored/computed
   // values -- this is just their difference, not new business logic.
-  const netAfterExpenses = (settlement.net_receipts || 0) - (total_fixed + total_variable);
+  // nbor carries the surcharge so the expense line above can remove it.
+  const netAfterExpenses = nborWithCard - (total_fixed + total_variable);
 
   const o = offer;
   const showsLabel = o ? `${o.num_shows ?? ""} x ${o.show_length ?? ""}`.trim() : "";
@@ -275,7 +293,7 @@ export function buildVenueSettlementData(
     cc_fees: settlement.cc_fees || 0,
     tax_rate: taxRate,
     taxes: settlement.taxes || 0,
-    nbor: settlement.net_receipts || 0,
+    nbor: nborWithCard,
 
     expenses_fixed,
     expenses_variable,

@@ -33,11 +33,28 @@
  *                part of adjusted gross. Subtracting it again would take it out
  *                of the artist's split base a second time.
  *
- * ── Why the card surcharge never appears ─────────────────────────────────
- * The buyer funds it and it goes straight to Stripe, so it was never part of
- * the ticket gross being split. The exception is a fees-included event, where
- * the venue absorbs it — computeEventAudit carves it out of face value before
- * these numbers are ever built.
+ * ── Where the card surcharge lives ───────────────────────────────────────
+ * In the EXPENSES, once, and nowhere else (Matt, confirmed).
+ *
+ * It used to be deducted here, on the way from GBOR to NBOR, and left out of
+ * the expense list entirely. It is now the other way round: the waterfall
+ * carries it through — the buyer paid it, so it is inside GBOR and stays
+ * inside NBOR — and a single uneditable expense line takes it out.
+ *
+ * The two arrangements land on the SAME pool, because the surcharge is added
+ * and removed either way. That is the point, and it is what makes the change
+ * safe on settlements already finalised: Muscle Shoals Meets the 90s was paid
+ * $39,451.92 on a 100% backend, and it still is. Deducting it in both places
+ * would have made that $38,161.89 — $1,290.03 less than the cheque that was
+ * actually written.
+ *
+ * DOOR is the one deal that splits net receipts directly, with no expense
+ * recoupment, so it never sees that expense line. It gets `cardSurcharge`
+ * passed in and takes it off itself; see artistPayout below.
+ *
+ * The exception is a fees-included event, where the venue absorbs the
+ * surcharge — computeEventAudit carves it out of face value before these
+ * numbers are ever built.
  */
 
 import type { TaxMethod } from "@/lib/types/settlement";
@@ -49,7 +66,8 @@ export type SettlementWaterfallInput = {
   facilityFees: number;
   taxRate: number;
   taxMethod: TaxMethod;
-  /** Card surcharge collected from buyers — part of GBOR, deducted to reach NBOR. */
+  /** Card surcharge collected from buyers — part of GBOR, and carried through
+   *  into NBOR. It leaves as an expense line, not here. */
   ccFees?: number;
 };
 
@@ -68,8 +86,20 @@ export type SettlementWaterfall = {
   grossReceipts: number;
   adjGross: number;
   taxes: number;
-  /** NET BOX OFFICE RECEIPTS: GBOR − service − facility − card − tax. */
+  /**
+   * NET BOX OFFICE RECEIPTS: GBOR − service − facility − tax.
+   *
+   * The card surcharge is NOT taken out here. It is a show expense, and
+   * subtracting it in both places would charge the show twice for one
+   * surcharge.
+   */
   netReceipts: number;
+  /** The surcharge carried inside netReceipts, echoed back so callers can
+   *  build the expense line that removes it — and so DOOR can undo it. */
+  cardSurcharge: number;
+  /** netReceipts without the surcharge: face value, the true split base.
+   *  Only for the deals that split receipts directly rather than a pool. */
+  netReceiptsExCard: number;
 };
 
 export function settlementWaterfall(
@@ -93,13 +123,21 @@ export function settlementWaterfall(
   const taxChargedOnTop = taxMethod === "divisor" ? 0 : taxes;
   const gbor = grossReceipts + taxChargedOnTop + ccFees;
 
-  // NBOR = GBOR − service − facility − card − tax. Algebraically this lands on
-  // face value under multiplier, and face-less-embedded-tax under divisor —
-  // which is the same answer the ticket-side walk gives, arrived at from the
-  // number that actually hit the bank.
-  const netReceipts = gbor - ticketingFees - facilityFees - ccFees - taxes;
+  // NBOR = GBOR − service − facility − tax. The card surcharge stays in, and
+  // comes out once as an expense. Algebraically this lands on face value plus
+  // the surcharge under multiplier, and face-less-embedded-tax plus the
+  // surcharge under divisor.
+  const netReceipts = gbor - ticketingFees - facilityFees - taxes;
 
-  return { gbor, grossReceipts, adjGross, taxes, netReceipts };
+  return {
+    gbor,
+    grossReceipts,
+    adjGross,
+    taxes,
+    netReceipts,
+    cardSurcharge: ccFees,
+    netReceiptsExCard: netReceipts - ccFees,
+  };
 }
 
 export type ArtistPayoutInput = {
@@ -121,6 +159,15 @@ export type ArtistPayoutInput = {
    * backend, on top of whatever the deal produces.
    */
   serviceFeeRebatePct?: number;
+  /**
+   * The card surcharge carried inside netReceipts.
+   *
+   * Only DOOR needs it. Every other deal measures a pool that has already had
+   * the surcharge removed by its expense line; DOOR splits net receipts
+   * directly and recoups no expenses, so it would otherwise hand the artist a
+   * percentage of money that goes to Stripe.
+   */
+  cardSurcharge?: number;
 };
 
 export type ArtistPayout = {
@@ -151,6 +198,42 @@ export type ArtistPayout = {
   artistTotal: number;
 };
 
+/** The label the card surcharge carries on a settlement's expense list. */
+export const SETTLEMENT_CARD_EXPENSE_NAME = "Card processing (buyer-funded surcharge)";
+
+export type SettlementExpenseLike = {
+  name?: string | null;
+  estimated_amount?: number | null;
+  actual_amount?: number | null;
+};
+
+/**
+ * A settlement's expense rows with the card surcharge appended as a locked
+ * line, and any stored card row removed first.
+ *
+ * Derived rather than stored: the surcharge is whatever the orders actually
+ * carried, so a row in settlement_expenses would go stale the moment a refund
+ * landed, and could be edited to a number that no longer matches the ledger.
+ */
+export function withCardExpense<T extends SettlementExpenseLike>(
+  expenses: T[],
+  cardSurcharge: number,
+): Array<T | { name: string; estimated_amount: number; actual_amount: number; locked: true }> {
+  const own = (Array.isArray(expenses) ? expenses : []).filter(
+    (e) => !/card processing|credit\s*card|stripe|processing fee/i.test(String(e?.name ?? "")),
+  );
+  if (!(cardSurcharge > 0)) return own;
+  return [
+    ...own,
+    {
+      name: SETTLEMENT_CARD_EXPENSE_NAME,
+      estimated_amount: cardSurcharge,
+      actual_amount: cardSurcharge,
+      locked: true as const,
+    },
+  ];
+}
+
 export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   const { netReceipts, totalExpenses, guarantee, backendPct } = input;
   const dealType = String(input.dealType ?? "FLAT").toUpperCase();
@@ -160,13 +243,16 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
     (input.ticketingFees ?? 0) * (input.serviceFeeRebatePct ?? 0);
 
   // Pure door deal: a straight percentage of net, with no guarantee floor and
-  // no expense recoupment.
+  // no expense recoupment. Because it recoups nothing, it never meets the
+  // expense line that takes the card surcharge back out, so it takes it out
+  // here -- otherwise the artist is paid a share of Stripe's cut.
   if (dealType === "DOOR") {
-    const artistBackend = netReceipts > 0 ? netReceipts * backendPct : 0;
+    const doorBase = netReceipts - (input.cardSurcharge ?? 0);
+    const artistBackend = doorBase > 0 ? doorBase * backendPct : 0;
     return {
       netAfterExpenses,
       splitpoint: netAfterExpenses,
-      overage: netReceipts,
+      overage: doorBase,
       artistBackend,
       dealTotal: artistBackend,
       serviceFeeRebate,
