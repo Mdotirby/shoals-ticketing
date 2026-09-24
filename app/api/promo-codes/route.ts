@@ -1,8 +1,15 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/promo-codes?event_id=...
 export async function GET(request: Request) {
+  // Was unauthenticated: this lists every promo code and its discount, so
+  // anyone could read them and use them. The storefront never calls it — it
+  // calls /api/promo-codes/validate with a code the buyer already typed.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("event_id");
 

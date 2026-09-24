@@ -1,8 +1,13 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/marketing/social — Fetch all social metrics
 export async function GET() {
+  // Was unauthenticated.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
 
   const { data, error } = await admin

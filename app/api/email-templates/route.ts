@@ -1,8 +1,13 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/email-templates?venue_id=xxx
 export async function GET(req: NextRequest) {
+  // Was unauthenticated. Templates carry venue branding and copy.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const venueId = req.nextUrl.searchParams.get("venue_id");
   const admin = createAdminClient();
 

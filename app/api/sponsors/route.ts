@@ -1,11 +1,22 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET: list sponsors
 // ?event_id=   → sponsors assigned to a specific event
 // ?homepage=1  → sponsors with display_on_homepage=true
 // ?global=1    → sponsors with no event assignments
 export async function GET(request: Request) {
+  /**
+   * Sponsor rows carry the relationship as well as the logo: contact_name,
+   * contact_email, client_name and sponsor_address were all served to anyone.
+   * The homepage needs the badge, not the buyer.
+   */
+  const sponsorIsStaff = (await requireStaff()).ok;
+  const sponsorColumns = sponsorIsStaff
+    ? "*"
+    : "id, sponsor_name, logo_url, website_url, tier, bio, display_on_homepage, is_active, event_ids";
+
   const admin = createAdminClient();
   const { searchParams } = new URL(request.url);
   const eventId  = searchParams.get("event_id");
@@ -17,7 +28,7 @@ export async function GET(request: Request) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query: any = admin
     .from("sponsors")
-    .select("*")
+    .select(sponsorColumns)
     .eq("is_active", true)
     .order("tier", { ascending: true });
 

@@ -11,7 +11,7 @@ export async function GET(request) {
   const venueId = searchParams.get("venue_id");
   const eventVenueId = searchParams.get("event_venue_id");
   const venueSlug = searchParams.get("venue_slug");
-  const showAll = searchParams.get("all"); // for admin: show all statuses
+  const showAllRequested = searchParams.get("all"); // for admin: show all statuses
   const excludeHolds = searchParams.get("exclude_holds"); // for Shows page: omit hold-status events
   // include=past  → return ONLY past / closed-out events (for /events/past archive)
   // include=all   → return both upcoming + past (admin convenience)
@@ -29,6 +29,18 @@ export async function GET(request) {
     "id,title,subtitle,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_venue_id,event_type,booking_status,is_free,on_sale_at,closed_out_at";
   const legacyColumns =
     "id,title,subtitle,venue,date,price,image_url,ticketing_fee,venue_rebate,status,venue_id,event_venue_id,event_type,booking_status,is_free,on_sale_at";
+
+  /**
+   * `?all=1` drops the published / confirmed / not-private filters, which is
+   * exactly what the admin needs and exactly what the public must not have:
+   * anonymously it returned every DRAFT and CANCELLED show across every
+   * venue. Unannounced shows are commercially sensitive — a competitor could
+   * read next season off this endpoint.
+   *
+   * GET itself stays public, because it IS the storefront listing. Only the
+   * flag that lifts the filters needs a session.
+   */
+  const showAll = showAllRequested && (await requireStaff()).ok;
 
   let query = admin
     .from("events")

@@ -1,8 +1,14 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
 
 // GET /api/marketing/ad-spend — Fetch all ad campaigns
 export async function GET() {
+  // Was unauthenticated — what a venue spends on advertising is nobody's
+  // business but theirs.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
 
   const { data, error } = await admin

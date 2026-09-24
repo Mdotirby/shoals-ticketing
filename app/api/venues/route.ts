@@ -1,5 +1,28 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/lib/auth/can";
+
+/**
+ * The fields a storefront legitimately needs: branding, copy, links. Anything
+ * that describes the BUSINESS rather than the page stays server-side.
+ *
+ * This route returned `select("*")` to anyone. On a platform where venues run
+ * on their own subdomains that meant publishing the tenant list along with
+ * each one's commercial terms — ticketing_fee, venue_rebate, facility_fee,
+ * tax_rate — and their buyer_name, buyer_phone, buyer_email,
+ * contract_signatory, promoter_address, lessor_company and ad pixel ids.
+ * A competitor could read the customer list and what each one is charged.
+ */
+const PUBLIC_VENUE_FIELDS = [
+  "id", "name", "slug", "nickname", "logo_url", "favicon_url",
+  "hero_image_url", "hero_image_2_url", "about_image_url",
+  "primary_color", "secondary_color", "accent_color",
+  "tagline", "footer_description", "homepage_headline", "homepage_subheadline",
+  "homepage_cta_text", "homepage_cta_url", "about_headline", "about_description",
+  "about_features", "instagram_url", "facebook_url", "contact_email",
+  "support_email", "custom_domain", "auction_enabled", "capacity",
+  "address_street", "address_city", "address_state", "address_zip",
+].join(", ");
 
 // GET /api/venues — list all venues, or resolve a slug
 // ?slug=renshoals → returns single venue matching slug
@@ -8,10 +31,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
 
+  // Staff get the whole row; everyone else gets the presentation fields.
+  const isStaff = (await requireStaff()).ok;
+  const columns = isStaff ? "*" : PUBLIC_VENUE_FIELDS;
+
   if (slug) {
     const { data, error } = await admin
       .from("venues")
-      .select("*")
+      .select(columns)
       .eq("slug", slug)
       .single();
 
@@ -23,7 +50,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await admin
     .from("venues")
-    .select("*")
+    .select(columns)
     .order("name", { ascending: true });
 
   if (error) {
