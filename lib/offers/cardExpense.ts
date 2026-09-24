@@ -31,6 +31,21 @@ import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
  * ticket -- and rounded exactly once, at the end. The per-ticket figure is
  * returned unrounded for display.
  *
+ * ── Per order, and an offer assumes one ticket per order ─────────────────
+ * Stripe charges the flat fee once per CHARGE, not once per ticket: two
+ * tickets bought together are one order, one $0.30. That is what checkout
+ * and settlement do -- calculateFees() builds the whole order's subtotal
+ * (face + ticketing + facility + tax) and takes a single surcharge on it.
+ *
+ * An offer has no orders yet, so it assumes one ticket per order (Matt,
+ * confirmed): 520 sellable seats means 520 orders and 520 flat fees. That is
+ * deliberately the conservative end -- any real basket bigger than one ticket
+ * costs less than the offer forecast, never more.
+ *
+ * The base is the same either way: face plus both fees plus tax. Under
+ * `divisor` the tax is already inside the face, so the sub-total is the base
+ * as it stands; under `multiplier` it rides on top and is added first.
+ *
  * An offer assumes a sellout, so the expense is the surcharge on every
  * sellable seat. Door sales run card-present at a different rate, but an
  * offer has no way to know the split in advance and quoting the cheaper

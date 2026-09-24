@@ -1596,11 +1596,11 @@ export default function AdminOfferDetailPage() {
                 </span>
                 <span className="ofe-kind ofe-kind--var">Variable</span>
                 <span className="ofe-var">
-                  <span className="ofe-derived-note">
+                  <span className="ofe-derived-note" title="Stripe charges the flat fee once per order. An offer assumes one ticket per order, which is the conservative end — a larger basket costs less, never more.">
                     {/* Three decimals, because the per-ticket figure is not a
                         round cent and fmtUSD would show $0.996 as "$1.00" --
                         which reads as though the rate had been rounded. */}
-                    {live.cardExpense.tickets.toLocaleString()} × $
+                    {live.cardExpense.tickets.toLocaleString()} orders × $
                     {live.cardExpense.perTicket.toFixed(3)}
                   </span>
                   <b>{fmtUSD(live.cardExpense.amount)}</b>
