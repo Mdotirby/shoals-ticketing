@@ -1,5 +1,5 @@
 import type { ArtistOffer } from "@/lib/types/offer";
-import { offerSurchargePerTicket } from "@/lib/fees/rates";
+import { offerSurchargePerTicket, STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 import { artistPayout } from "@/lib/settlement/model";
 
 /**
@@ -100,8 +100,11 @@ export type OfferData = {
   cc_fees: number;
   adj_gross_potential: number;
   tax_rate: number;
+  tax_label: string;
   taxes: number;
   net_potential: number;
+  cc_rate_pct: number;
+  cc_rate_flat: number;
 
   expenses_fixed: { name: string; amount: number }[];
   expenses_variable: { name: string; amount: number }[];
@@ -175,8 +178,26 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   const cc_fees = tCc;
   const taxes = tTax;
   const gross_potential = offer.gross_potential ?? tGross;
-  const adj_gross_potential = gross_potential - (service_fees + facility_fees + cc_fees);
-  const net_potential = offer.net_potential ?? adj_gross_potential - taxes;
+  // Adjusted gross is gross less the ticketing and facility fees -- the two
+  // fees that are not the show's money. The card surcharge is NOT one of
+  // them: it is shown on its own line as a cost, but it is not carved out of
+  // the face value the artist's split is measured against.
+  //
+  // Subtracting it here made the printed column contradict itself. On a
+  // divisor offer it read Gross 19,344 -> Adj 14,061.60 -> Tax 1,290.96 ->
+  // Net 13,589.04, and 14,061.60 - 1,290.96 is 12,770.64, not 13,589.04. On
+  // a multiplier offer it printed a NET POTENTIAL larger than the ADJ. GROSS
+  // POTENTIAL above it. Net and Tax were right all along -- both come off
+  // the stored figures the builder computes -- so Adj. Gross was the one
+  // line on the sheet that disagreed with the screen, by exactly the card
+  // surcharge, on every offer exported.
+  const adj_gross_potential = gross_potential - (service_fees + facility_fees);
+  // Only the divisor case has tax inside the face to take back out; under
+  // multiplier it is charged on top and was never in here. The old fallback
+  // subtracted it either way.
+  const net_potential =
+    offer.net_potential ??
+    (taxMethod === "divisor" ? adj_gross_potential - taxes : adj_gross_potential);
 
   const expenses_fixed = (offer.fixed_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
   const expenses_variable = (offer.variable_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
@@ -296,8 +317,19 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     cc_fees,
     adj_gross_potential,
     tax_rate: taxRate,
+    // The template's label was the literal "Taxes (Multiplier)", so every
+    // divisor offer -- 21 of the 40 on file -- told the agent the wrong
+    // method while B36 printed the right rate beside it. The settlement
+    // documents already derive this; the offer sheet now does too.
+    tax_label: `Taxes (${taxMethod === "divisor" ? "Divisor" : "Multiplier"})`,
     taxes,
     net_potential,
+    // J34/K34 sat on the CC/Processing Fees row as the literal 0.029 and
+    // 0.30. They happen to match today, but nothing tied them to the rate
+    // L34 is actually computed with, so a rate change would have moved the
+    // money without moving the rate printed next to it.
+    cc_rate_pct: STRIPE_ONLINE_PCT,
+    cc_rate_flat: STRIPE_ONLINE_FLAT_CENTS / 100,
 
     expenses_fixed,
     expenses_variable,
