@@ -8,7 +8,11 @@ import {
   CARD_RATE_FLAT,
 } from "@/lib/offers/cardExpense";
 import { calculateFees } from "@/lib/checkout-helpers";
-import { STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
+import { STRIPE_ONLINE_FLAT_CENTS, STRIPE_ONLINE_PCT, grossUpCents } from "@/lib/fees/rates";
+
+/** What Stripe really deducts from a charge of this many dollars. */
+const stripeFeeOn = (dollars: number) =>
+  Math.round(Math.round(dollars * 100) * STRIPE_ONLINE_PCT + 30) / 100;
 
 describe("isCardExpense", () => {
   it.each([
@@ -48,29 +52,30 @@ describe("withoutCardExpense", () => {
 
 describe("cardExpenseAtSellout", () => {
   // Sunny Sweeney: 520 sellable, $24.00 sub-total, 9.5% divisor.
-  // Exactly 2.9% of 24.00 = $0.696, plus exactly $0.30 = $0.996 a ticket.
-  // x 520 = $517.92 -- NOT $520.00, which is what per-ticket rounding to the
-  // whole cent produces. Neither the rate nor the flat fee is rounded, and
-  // the total is rounded exactly once, at the end.
-  it("prices the divisor case off the sub-total alone, without rounding per ticket", () => {
+  // Grossed up: the surcharge is the amount that, once added, Stripe takes
+  // back in full -- $1.03 a ticket, because 2.9% of $25.03 plus $0.30 is
+  // $1.03. x 520 = $535.60. Charging 2.9% of the $24 sub-total instead gives
+  // $0.996 and Stripe still takes $1.03 -- the shortfall this exists to end.
+  it("grosses the divisor case up so the surcharge covers the real fee", () => {
     const out = cardExpenseAtSellout(
       [{ sellable_cap: 520, price: 24, net_price: 20 }],
       { taxMethod: "divisor", taxRate: 0.095 },
     );
-    expect(out.amount).toBeCloseTo(517.92, 2);
+    expect(out.amount).toBeCloseTo(535.6, 2);
     expect(out.tickets).toBe(520);
-    expect(out.perTicket).toBeCloseTo(0.996, 6);
+    expect(out.perTicket).toBeCloseTo(1.03, 6);
+    expect(stripeFeeOn(24 + 1.03)).toBeCloseTo(1.03, 6);
   });
 
   it("adds multiplier tax before charging the card, because the buyer pays it", () => {
-    // face 20 -> tax 1.90 on top -> card charged on 24 + 1.90 = 25.90
-    // 25.90 * 2.9% + 0.30 = $1.0511 a ticket, kept at full precision
+    // face 20 -> tax 1.90 on top -> card charged on 24 + 1.90 = 25.90,
+    // grossed up to $1.08: 2.9% of $26.98 plus $0.30 is $1.08, exactly.
     const out = cardExpenseAtSellout(
       [{ sellable_cap: 100, price: 24, net_price: 20 }],
       { taxMethod: "multiplier", taxRate: 0.095 },
     );
-    expect(out.perTicket).toBeCloseTo(1.0511, 6);
-    expect(out.amount).toBeCloseTo(105.11, 2);
+    expect(out.perTicket).toBeCloseTo(1.08, 6);
+    expect(out.amount).toBeCloseTo(108.0, 2);
   });
 
   it("reads a tax rate stored as a percentage the same as one stored as a decimal", () => {
@@ -87,8 +92,8 @@ describe("cardExpenseAtSellout", () => {
       ],
       { taxMethod: "divisor" },
     );
-    // (24*.029+.30)*100 + (50*.029+.30)*50 = 99.60 + 87.50 = 187.10
-    expect(out.amount).toBeCloseTo(187.1, 2);
+    // grossed up: $1.03 x 100 + $1.80 x 50 = 103.00 + 90.00 = 193.00
+    expect(out.amount).toBeCloseTo(193.0, 2);
     expect(out.tickets).toBe(150);
   });
 
@@ -104,18 +109,20 @@ describe("cardExpenseAtSellout", () => {
 });
 
 describe("the rate is exact", () => {
-  it("is 2.9% and $0.30, not 3% and not a rounded flat fee", () => {
-    // One ticket at $100: 2.9% is $2.90, never $3.00.
+  it("is 2.9% and $0.30, never 3% and never a rounded flat fee", () => {
+    // One ticket at $100, grossed up: $3.30, because 2.9% of $103.30 plus
+    // $0.30 is $3.30. The 2.9% is charged on what Stripe actually bills --
+    // the total -- and is not 3% of anything.
     const out = cardExpenseAtSellout([{ sellable_cap: 1, price: 100 }], {});
-    expect(out.amount).toBeCloseTo(3.2, 6); // 2.90 + 0.30
+    expect(out.amount).toBeCloseTo(3.3, 6);
+    expect(stripeFeeOn(100 + 3.3)).toBeCloseTo(3.3, 6);
   });
 
-  it("stays exact across a large tier rather than compounding a rounded cent", () => {
-    // 1,000 x $19.99. Exact: 19990 * 2.9% + 1000 * 0.30 = 579.71 + 300.
+  it("covers the fee exactly on every seat of a large tier", () => {
     const out = cardExpenseAtSellout([{ sellable_cap: 1000, price: 19.99 }], {});
-    expect(out.amount).toBeCloseTo(879.71, 2);
-    // Per-ticket rounding would have given $0.88 x 1000 = $880.00.
-    expect(out.amount).not.toBeCloseTo(880.0, 2);
+    expect(out.perTicket).toBeCloseTo(0.91, 6);
+    expect(out.amount).toBeCloseTo(910.0, 2);
+    expect(stripeFeeOn(19.99 + 0.91)).toBeCloseTo(0.91, 6);
   });
 });
 
@@ -128,7 +135,7 @@ describe("cardExpenseRow", () => {
     const row = cardExpenseRow([{ sellable_cap: 520, price: 24, net_price: 20 }], { taxMethod: "divisor", taxRate: 0.095 });
     expect(row.rate).toBe(0);
     expect(row.locked).toBe(true);
-    expect(row.amount).toBeCloseTo(517.92, 2);
+    expect(row.amount).toBeCloseTo(535.6, 2);
   });
 
   it("is itself recognised as a card line, so re-saving cannot stack copies", () => {
@@ -177,9 +184,14 @@ describe("per order at settlement, per ticket on an offer", () => {
     // ...but the surcharge does NOT, because only the percentage scales.
     // Two orders of one would have cost two flat fees; one order of two
     // costs a single $0.30, so the difference is exactly one flat fee.
+    // The saving is one flat fee plus the gross-up on it: 30c becomes 32c,
+    // because the surcharge that would have carried that second 30c is
+    // itself grossed up.
     const twoSeparateOrders = one.stripeFeeCents * 2;
     expect(two.stripeFeeCents).toBeLessThan(twoSeparateOrders);
-    expect(twoSeparateOrders - two.stripeFeeCents).toBe(STRIPE_ONLINE_FLAT_CENTS);
+    const saving = twoSeparateOrders - two.stripeFeeCents;
+    expect(saving).toBeGreaterThanOrEqual(STRIPE_ONLINE_FLAT_CENTS);
+    expect(saving).toBe(32);
   });
 
   it("an offer charges one flat fee per seat, because it assumes one ticket per order", () => {
@@ -188,15 +200,17 @@ describe("per order at settlement, per ticket on an offer", () => {
       [{ sellable_cap: 2, price: perTicketSubtotal, net_price: PRICE }],
       { taxMethod: "divisor", taxRate: TAX_RATE },
     );
-    // 2 x (31.00 x 2.9% + 0.30) = 2 x 1.199 = $2.398
-    expect(out.amount).toBeCloseTo(2.4, 2);
+    // Two $31.00 orders, each grossed up to $1.23.
+    expect(out.perTicket).toBeCloseTo(1.23, 6);
+    expect(out.amount).toBeCloseTo(2.46, 2);
     expect(out.tickets).toBe(2);
+    expect(stripeFeeOn(perTicketSubtotal + 1.23)).toBeCloseTo(1.23, 6);
 
-    // Which is one whole flat fee MORE than the same two seats bought as a
-    // single order would cost -- the conservative assumption, stated.
-    // Compared unrounded, since `amount` is rounded to the cent at the end.
-    const asOneOrder = 2 * perTicketSubtotal * CARD_RATE_PCT + CARD_RATE_FLAT;
-    expect(out.perTicket * out.tickets - asOneOrder).toBeCloseTo(CARD_RATE_FLAT, 6);
+    // More than the same two seats as ONE order, by a flat fee and the
+    // gross-up on it -- the conservative assumption, stated.
+    const asOneOrder =
+      grossUpCents(2 * perTicketSubtotal * 100, CARD_RATE_PCT, CARD_RATE_FLAT * 100) / 100;
+    expect(out.amount).toBeGreaterThan(asOneOrder);
   });
 
   it("bases the offer surcharge on face + fees + tax, the same subtotal checkout uses", () => {
@@ -206,7 +220,10 @@ describe("per order at settlement, per ticket on an offer", () => {
       [{ sellable_cap: 1, price: PRICE + TKT + FAC, net_price: PRICE }],
       { taxMethod: "multiplier", taxRate: TAX_RATE },
     );
-    const checkoutSubtotal = (PRICE + TKT + FAC + PRICE * TAX_RATE);
-    expect(out.perTicket).toBeCloseTo(checkoutSubtotal * CARD_RATE_PCT + CARD_RATE_FLAT, 6);
+    const checkoutSubtotal = PRICE + TKT + FAC + PRICE * TAX_RATE;
+    expect(out.perTicket).toBeCloseTo(
+      grossUpCents(Math.round(checkoutSubtotal * 100), CARD_RATE_PCT, CARD_RATE_FLAT * 100) / 100,
+      6,
+    );
   });
 });

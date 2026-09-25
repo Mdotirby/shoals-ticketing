@@ -27,11 +27,11 @@ const TEMPLATE_DIR = path.join(process.cwd(), "lib/xlsx-templates/offer");
  *  is the overage, pot_walkout is the venue's share. Figures are Adam Hood's
  *  offer from production — $1,500 vs 65%.
  *
- *  The pool is $6,132.31, not the $6,930.86 this offer was written with: the
+ *  The pool is $6,110.06, not the $6,930.86 this offer was written with: the
  *  card surcharge is now a show expense (lib/offers/cardExpense.ts) and costs
- *  $798.55 at sellout — exactly 2.9% of 720 × $27.90 plus exactly $0.30 a
- *  ticket, with no per-ticket rounding to compound. It is derived rather than
- *  read off the record, so it applies to this fixture's empty
+ *  $820.80 at sellout — 720 seats at $1.14, the grossed-up surcharge that
+ *  makes the venue exactly whole on a $27.90 sub-total. It is derived rather
+ *  than read off the record, so it applies to this fixture's empty
  *  variable_expenses too — which is the point, since 21 of the 40 offers on
  *  file have no card line saved at all. */
 function vsOffer(overrides: Partial<ArtistOffer> = {}): ArtistOffer {
@@ -100,32 +100,32 @@ describe("offer XLSX — artist potential at sellout", () => {
   it("VS above the guarantee: guarantee + overage, which is the percentage share", async () => {
     const c = await walkoutCells(vsOffer());
     expect(c.guarantee).toBe(1500);
-    expect(c.splitpoint).toBeCloseTo(6132.31, 2); // 6,930.86 − 798.55 card
-    expect(c.backend).toBeCloseTo(3986.0, 2); // 6,132.31 × 65%
-    expect(c.overage).toBeCloseTo(2486.0, 2); // 3,986.00 − 1,500
-    expect(c.artistTotal).toBeCloseTo(3986.0, 2); // 1,500 + 2,486.00
-    expect(c.revenueToVenue).toBeCloseTo(2146.31, 2); // 6,132.31 − 3,986.00
-    expect(c.venueTotal).toBeCloseTo(2146.31, 2);
+    expect(c.splitpoint).toBeCloseTo(6110.06, 2); // 6,930.86 − 820.80 card
+    expect(c.backend).toBeCloseTo(3971.54, 2); // 6,110.06 × 65%
+    expect(c.overage).toBeCloseTo(2471.54, 2); // 3,971.54 − 1,500
+    expect(c.artistTotal).toBeCloseTo(3971.54, 2); // 1,500 + 2,471.54
+    expect(c.revenueToVenue).toBeCloseTo(2138.52, 2); // 6,110.06 − 3,971.54
+    expect(c.venueTotal).toBeCloseTo(2138.52, 2);
   });
 
   it("VS below the guarantee: no backend, artist gets the guarantee", async () => {
-    // Pool $1,800 − $798.55 card = $1,001.45; × 65% = $650.94, well under
-    // the $1,500 guarantee, so the guarantee still carries.
+    // Pool $1,800 − $820.80 card = $979.20; × 65% = $636.48, well under the
+    // $1,500 guarantee, so the guarantee still carries.
     const c = await walkoutCells(
       vsOffer({ net_potential: 5669.14, artist_backend: 0, pot_walkout: 300 } as Partial<ArtistOffer>)
     );
-    expect(c.backend).toBeCloseTo(650.94, 2);
+    expect(c.backend).toBeCloseTo(636.48, 2);
     expect(c.overage).toBe(0);
     expect(c.artistTotal).toBe(1500);
-    expect(c.revenueToVenue).toBeCloseTo(-498.55, 2); // 1,001.45 − 1,500
+    expect(c.revenueToVenue).toBeCloseTo(-520.8, 2); // 979.20 − 1,500
   });
 
   it("ignores a stale stored artist_backend from an older offer", async () => {
     // Legacy rows were saved under an earlier model — derive, don't trust.
     const c = await walkoutCells(vsOffer({ artist_backend: 12605.04, splitpoint: 1500, pot_walkout: 99 } as Partial<ArtistOffer>));
-    expect(c.splitpoint).toBeCloseTo(6132.31, 2);
-    expect(c.artistTotal).toBeCloseTo(3986.0, 2);
-    expect(c.revenueToVenue).toBeCloseTo(2146.31, 2);
+    expect(c.splitpoint).toBeCloseTo(6110.06, 2);
+    expect(c.artistTotal).toBeCloseTo(3971.54, 2);
+    expect(c.revenueToVenue).toBeCloseTo(2138.52, 2);
   });
 
   it("FLAT: guarantee only, no backend or overage", async () => {
@@ -133,6 +133,6 @@ describe("offer XLSX — artist potential at sellout", () => {
     expect(c.backend).toBe(0);
     expect(c.overage).toBe(0);
     expect(c.artistTotal).toBe(1500);
-    expect(c.revenueToVenue).toBeCloseTo(4632.31, 2); // 6,132.31 − 1,500
+    expect(c.revenueToVenue).toBeCloseTo(4610.06, 2); // 6,110.06 − 1,500
   });
 });

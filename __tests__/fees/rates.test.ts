@@ -6,8 +6,9 @@ import {
   STRIPE_TERMINAL_FLAT_CENTS,
   surchargeCents,
   estimatedStripeCostCents,
-  offerSurchargePerTicket,
   rateLabel,
+  grossUpCents,
+  DEFAULT_SURCHARGE_MODE,
 } from "@/lib/fees/rates";
 
 describe("platform rate card", () => {
@@ -80,30 +81,62 @@ describe("surchargeCents", () => {
   });
 });
 
-describe("offerSurchargePerTicket", () => {
-  it("always quotes the corrected rate, since offers are for future shows", () => {
-    // 2.9% of $100 plus the full $0.30 flat fee = $3.20
-    expect(offerSurchargePerTicket(100)).toBeCloseTo(3.2, 2);
+/**
+ * Zero shortfall and zero overage — not approximately, exactly.
+ *
+ * Stripe's fee on a charge of T cents is round(T * pct + flat). Verified
+ * against all 795 live charges on the account: every single one matches,
+ * across Visa, Mastercard, Amex and Discover, online and card-present. There
+ * is no per-brand variance to absorb, so the venue can be made exactly whole
+ * and "close enough" is not the best available.
+ *
+ * The old default, "on_subtotal", charged pct of the SUBTOTAL while Stripe
+ * billed pct of the TOTAL — which includes the surcharge. It is short on
+ * essentially every possible basket, which is where the $195.88 absorbed
+ * across the book came from, and the $7.71 on the Dolly Parton Tribute.
+ */
+describe("gross_up leaves nothing on the table", () => {
+  const CARDS: Array<[string, number, number]> = [
+    ["online 2.9% + 30c", 0.029, 30],
+    ["terminal 2.7% + 5c", 0.027, 5],
+    ["legacy 2.7% + 30c", 0.027, 30],
+  ];
+
+  it.each(CARDS)(
+    "%s: every subtotal to $2,000 comes out exact",
+    (_label, pct, flat) => {
+      let short = 0;
+      let over = 0;
+      for (let sub = 1; sub <= 200000; sub++) {
+        const s = grossUpCents(sub, pct, flat);
+        const fee = Math.round((sub + s) * pct + flat);
+        if (s < fee) short++;
+        if (s > fee) over++;
+      }
+      expect(short).toBe(0);
+      expect(over).toBe(0);
+    },
+  );
+
+  it.each(CARDS)("%s: on_subtotal is short, which is why it was replaced", (_label, pct, flat) => {
+    // A representative basket rather than the whole sweep — the point is the
+    // sign, not the size.
+    const sub = 8370_00 / 100;
+    const s = Math.round(sub * pct + flat);
+    expect(s).toBeLessThan(Math.round((sub + s) * pct + flat));
   });
 
-  it("includes the full flat fee per ticket, not just the percentage", () => {
-    // The offer builder used to model a bare 2.7% with no flat fee at all,
-    // which understates processing cost badly on cheap inventory. It later
-    // amortised the flat fee across an assumed 2-ticket order, which
-    // understated it again relative to Matt's source spreadsheet -- the
-    // offer builder prices per ticket throughout, full flat fee included.
-    const perTicket = offerSurchargePerTicket(25);
-    expect(perTicket).toBeGreaterThan(25 * STRIPE_ONLINE_PCT);
-    expect(perTicket).toBeCloseTo(25 * STRIPE_ONLINE_PCT + 0.3, 2);
+  it("is the mode checkout actually uses", () => {
+    expect(DEFAULT_SURCHARGE_MODE).toBe("gross_up");
+    // Dolly's real numbers: $8,370.00 of tickets across 133 orders was
+    // surcharged $282.86 and cost $290.57. Grossed up, one order of that
+    // subtotal covers its own fee to the cent.
+    const s = surchargeCents(837000);
+    expect(Math.round((837000 + s) * 0.029 + 30)).toBe(s);
   });
 
-  it("costs proportionally more on a cheap ticket than an expensive one", () => {
-    const cheapRate = offerSurchargePerTicket(10) / 10;
-    const dearRate = offerSurchargePerTicket(100) / 100;
-    expect(cheapRate).toBeGreaterThan(dearRate);
-  });
-
-  it("is zero for a free ticket", () => {
-    expect(offerSurchargePerTicket(0)).toBe(0);
+  it("absorb still means the venue eats it, deliberately", () => {
+    // fees-included events; not a shortfall, a policy.
+    expect(surchargeCents(10000, "absorb")).toBe(0);
   });
 });

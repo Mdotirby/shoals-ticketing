@@ -33,9 +33,8 @@ import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPE
  * CC fee: computed via lib/offers/cardExpense.ts's cardSurchargeExact() --
  * the SAME function the live offer builder pages call, so this can never
  * drift out of sync with what Matt sees while creating the offer. Exactly
- * 2.9% + exactly $0.30, and deliberately NOT offerSurchargePerTicket(),
- * which rounds to the whole cent: right for pricing one real charge, wrong
- * for a figure about to be multiplied by a tier's seat count. It prices the
+ * 2.9% + exactly $0.30, grossed up so the surcharge covers the fee Stripe
+ * actually takes rather than falling short of it. It prices the
  * full flat fee per ticket (matches the source spreadsheet's own assumption
  * -- confirmed with Matt after an earlier version amortised the flat fee
  * across an assumed order size, which understated it here to match a

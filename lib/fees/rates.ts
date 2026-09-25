@@ -97,7 +97,18 @@ export function onlineSurchargeDollars(subtotalDollars: number): number {
  */
 export type SurchargeMode = "gross_up" | "on_subtotal" | "absorb";
 
-export const DEFAULT_SURCHARGE_MODE: SurchargeMode = "on_subtotal";
+/**
+ * Gross up, so the venue is exactly whole.
+ *
+ * This was "on_subtotal" until 2026-09-25, which under-recovers on every
+ * order — $195.88 across the book, $7.71 on the Dolly Parton Tribute alone.
+ * The rate was corrected to 2.9% in an earlier pass and the gap was then
+ * surfaced on the settlement page, but the mode itself was never changed, so
+ * the shortfall kept accruing where everyone could see it.
+ *
+ * It costs the buyer 2.9% of the surcharge — around 3c on a $25 ticket.
+ */
+export const DEFAULT_SURCHARGE_MODE: SurchargeMode = "gross_up";
 
 /**
  * The surcharge to add to `subtotalCents` so the buyer covers processing.
@@ -109,6 +120,9 @@ export const DEFAULT_SURCHARGE_MODE: SurchargeMode = "on_subtotal";
  *
  *   on_subtotal → charge $103.20, Stripe keeps $3.29  → venue is $0.09 short
  *   gross_up    → charge $103.40, Stripe keeps $3.30  → venue is whole
+ *
+ * gross_up is the default since 2026-09-25. It is exact, not close: see
+ * grossUpCents below, and the exhaustive test over every subtotal to $2,000.
  *
  * Returns 0 for "absorb" — the caller charges exactly the subtotal and the fee
  * becomes a real venue expense at settlement.
@@ -128,9 +142,48 @@ export function surchargeCents(
   if (mode === "on_subtotal") {
     return Math.round(subtotalCents * pct + flatCents);
   }
-  // gross_up: solve total = (subtotal + flat) / (1 - pct), surcharge = total - subtotal
-  const total = (subtotalCents + flatCents) / (1 - pct);
-  return Math.round(total - subtotalCents);
+  return grossUpCents(subtotalCents, pct, flatCents);
+}
+
+/**
+ * The surcharge that makes the venue EXACTLY whole — to the cent, every time.
+ *
+ * Stripe's fee on a charge of T cents is `round(T * pct + flat)`, verified
+ * against all 795 live charges on the account: every one matches, across
+ * Visa, Mastercard, Amex and Discover, online and card-present. There is no
+ * variance to absorb, so zero shortfall is reachable exactly rather than
+ * approximately.
+ *
+ * What we need is the surcharge `s` where charging `subtotal + s` produces a
+ * fee of exactly `s`:
+ *
+ *     s === round((subtotal + s) * pct + flat)
+ *
+ * The continuous solve — total = (subtotal + flat) / (1 - pct) — lands within
+ * a cent of that, but rounding it can miss either way, and a cent missed on
+ * every order is the whole problem restated. So the continuous answer is only
+ * a starting point; from there we step to the exact integer.
+ *
+ * A fixed point always exists. Let g(s) = round((subtotal + s) * pct + flat)
+ * - s. Raising s by one raises the rounded fee by 0 or 1, so g falls by
+ * exactly 1 or 0 at each step — never by 2. A function that decreases in
+ * steps of at most 1 cannot cross zero without landing on it.
+ */
+export function grossUpCents(subtotalCents: number, pct: number, flatCents: number): number {
+  const feeOn = (surcharge: number) => Math.round((subtotalCents + surcharge) * pct + flatCents);
+
+  let s = Math.round((subtotalCents * pct + flatCents) / (1 - pct));
+  // Walk to the fixed point. Two or three steps in practice; the bound only
+  // stops a pathological rate from spinning here.
+  for (let i = 0; i < 64; i++) {
+    const fee = feeOn(s);
+    if (fee === s) return s;
+    s += fee > s ? 1 : -1;
+  }
+  // Unreachable for any sane rate. Round up rather than down so the error, if
+  // it ever happens, is a cent of overage the buyer paid and not a cent the
+  // venue quietly ate.
+  return feeOn(s) > s ? s + 1 : s;
 }
 
 /**
@@ -152,33 +205,6 @@ export function estimatedStripeCostCents(
   const flatCents =
     method === "terminal" ? STRIPE_TERMINAL_FLAT_CENTS : STRIPE_ONLINE_FLAT_CENTS;
   return Math.round(totalCents * pct + flatCents);
-}
-
-/**
- * Per-ticket card surcharge for offer projections: the full flat fee applied
- * PER TICKET, not amortised across an assumed order size.
- *
- * The offer builder is the only place in the app that prices the card fee
- * per ticket at all — settlements and checkout always allocate it per real
- * order, because by settlement time the actual order composition is known.
- * An earlier version of this function tried to approximate that per-order
- * behavior for offers too, by dividing the flat fee across an assumed
- * average basket size (OFFER_AVG_TICKETS_PER_ORDER = 2). That doesn't match
- * how Matt's own offer-template spreadsheet prices it (full $0.30 per
- * ticket, same as every other per-ticket line item — Matt confirmed this
- * directly against the source design, see doc-templates-xlsx/), and it
- * quietly split every generated document's numbers from that spreadsheet's
- * math. Simple and matches the source of truth: full flat fee, per ticket.
- */
-export function offerSurchargePerTicket(preCcDollars: number): number {
-  if (preCcDollars <= 0) return 0;
-  // Offers deliberately IGNORE the cutover and always use the corrected rate.
-  // An offer models a show that hasn't happened yet — often months out — so
-  // quoting an agent the legacy rate would understate processing cost on a
-  // show that will certainly be sold at the new one.
-  const pct = STRIPE_ONLINE_PCT;
-  const cents = preCcDollars * 100 * pct + STRIPE_ONLINE_FLAT_CENTS;
-  return Math.round(cents) / 100;
 }
 
 /** Percentage rate currently in force, formatted for display, e.g. "2.9%". */
