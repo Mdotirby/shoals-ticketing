@@ -66,6 +66,7 @@ const pad = (s, n) => String(s).padStart(n);
  */
 const CLIENT_SHOWS = new Set([
   "ae91a17e-9892-4020-96ba-e62da8fb1b5e", // Muscle Shoals Meets: The 90's, 2026-08-15
+  "bd973aa3-f8c0-41f3-82de-0f549ff9d53a", // The Dolly Parton Tribute, 2026-09-25
 ]);
 
 // ── Live charges only ───────────────────────────────────────────────────
