@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getEventSeatInventory } from "@/lib/checkout-helpers";
+import { requireStaff } from "@/lib/auth/can";
 
+/**
+ * Every event with its sales, revenue, drop count and page views.
+ *
+ * This answered anyone. It uses the service-role client and returned the
+ * whole book — titles, dates, tickets sold and revenue for every show — to
+ * an unauthenticated GET, which is the same hole the eleven routes closed in
+ * 522ee75 and 0d93772 had.
+ */
 export async function GET() {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
+
   const supabase = createAdminClient();
 
   // Get all events

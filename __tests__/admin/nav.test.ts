@@ -46,13 +46,31 @@ describe("admin nav regroup keeps permissions", () => {
     expect(DEFAULT_TAB_ROLES).toEqual(baseline.defaults);
   });
 
-  test("the only new links are the design's additions, none with a tab_key", () => {
+  test("the only new links are the design additions plus Ticket sales, none with a tab_key", () => {
     const oldHrefs = new Set(baseline.leaves.map((l) => MOVED[l.href] ?? l.href));
     const added = allNavLinks.filter((l) => !oldHrefs.has(l.href));
     expect(added.map((l) => l.href).sort()).toEqual(
-      ["/admin/events/new", "/admin/marketing/fwb", "/admin/private-events", "/admin/settings?tab=profile", "/boxoffice"].sort()
+      [
+        "/admin/events/new",
+        "/admin/marketing/fwb",
+        "/admin/orders?tab=shows",
+        "/admin/private-events",
+        "/admin/settings?tab=profile",
+        "/boxoffice",
+      ].sort()
     );
+
+    // DEFAULT_TAB_ROLES is built last-writer-wins over tabKey, so a new link
+    // reusing an existing key would silently rewrite that permission with its
+    // own roles. Added rows carry no key and are gated on roles alone.
     for (const l of added) expect(l.tabKey).toBeUndefined();
+  });
+
+  test("Ticket sales opens to no one who cannot already open Orders", () => {
+    const orders = allNavLinks.find((l) => l.href === "/admin/orders");
+    const sales = allNavLinks.find((l) => l.href === "/admin/orders?tab=shows");
+    expect(sales).toBeDefined();
+    for (const r of sales!.roles) expect(orders!.roles).toContain(r);
   });
 });
 

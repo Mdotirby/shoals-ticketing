@@ -56,6 +56,7 @@ export default function AdminSalesPage() {
   const [venueFilter, setVenueFilter] = useState("");
   const [showPast, setShowPast] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const userRole = getCookie("user-role") || "";
   const isOwner = userRole === "owner";
   const isArtist = userRole === "artist";
@@ -111,34 +112,41 @@ export default function AdminSalesPage() {
             artistEventIds ? artistEventIds!.includes(ev.id as string) : true
           );
 
-        // Pull real sold/capacity/scanned numbers from the shared performance
-        // endpoint — for reserved-seating events this counts the seats table
-        // directly rather than ticket_tiers.capacity (a static number that
-        // drifts from the real per-section seat count) or orders.quantity
-        // (which drifts on refunded-but-reserved or mixed-section orders).
-        type PerfEntry = { id: string; total_capacity: number; total_sold: number; drop_count: number };
-        const performanceRes: { events?: PerfEntry[] } = await fetch("/api/marketing/event-performance")
-          .then((r) => r.json())
-          .catch(() => ({ events: [] }));
-        const perfById = new Map((performanceRes.events || []).map((p) => [p.id, p]));
+        // Sold, capacity and scanned come from lib/admin/eventSales.ts via
+        // /api/admin/events/sales — the same definition the Command Center
+        // and the calendar read, so this screen cannot disagree with them
+        // about the same show. It used to read /api/marketing/event-
+        // performance, which summed orders.quantity (comps included, and it
+        // drifts on a refunded-but-still-reserved order) against a different
+        // capacity table, and then fell back to `|| 500` when the lookup
+        // missed — inventing a 500-seat room rather than admitting it did
+        // not know.
+        const ids = filteredEventsData.map((ev: Record<string, unknown>) => ev.id as string);
+        const salesRes = await fetch(`/api/admin/events/sales?ids=${ids.join(",")}`);
+        if (!salesRes.ok) throw new Error("sales lookup failed");
+        const sales: Record<string, { sold: number; capacity: number; scanned: number }> =
+          await salesRes.json();
 
         const enriched: EventSales[] = filteredEventsData.map((ev: Record<string, unknown>) => {
-          const perf = perfById.get(ev.id as string);
+          const s = sales[ev.id as string];
           return {
             id: ev.id as string,
             title: ev.title as string,
             venue: ev.venue as string,
             date: ev.date as string,
             venue_id: ev.venue_id as string | null,
-            total_capacity: perf?.total_capacity || 500,
-            tickets_sold: perf?.total_sold || 0,
-            tickets_scanned: perf?.drop_count || 0,
+            total_capacity: s?.capacity ?? 0,
+            tickets_sold: s?.sold ?? 0,
+            tickets_scanned: s?.scanned ?? 0,
           };
         });
 
         setEvents(enriched);
       } catch {
-        // ignore
+        // Say so. Rendering zeroes against an invented capacity reads like a
+        // show that sold nothing, which is a different and worse lie than an
+        // error message.
+        setLoadError("Could not load ticket sales. Refresh to try again.");
       } finally {
         setLoading(false);
       }
@@ -183,7 +191,13 @@ export default function AdminSalesPage() {
 
       {loading && <p className="ui-intro">Loading…</p>}
 
-      {!loading && filteredEvents.length === 0 && (
+      {!loading && loadError && (
+        <Card>
+          <EmptyState title="Ticket sales unavailable" description={loadError} />
+        </Card>
+      )}
+
+      {!loading && !loadError && filteredEvents.length === 0 && (
         <Card>
           <EmptyState
             title={pastCount > 0 && !showPast ? "No active or upcoming shows" : "No events found"}
@@ -194,7 +208,7 @@ export default function AdminSalesPage() {
         </Card>
       )}
 
-      {!loading && filteredEvents.length > 0 && (
+      {!loading && !loadError && filteredEvents.length > 0 && (
         <Card flush>
           {filteredEvents.map((ev) => (
             <ListRow

@@ -123,7 +123,10 @@ export const navGroups: NavGroup[] = [
         // away, whichever of the two you're on.
         contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}` : null),
         match: /^\/admin\/events\/(?!new$)[^/]+$/,
-        link: { label: "Event workspace", href: "/admin/events", roles: R.events },
+        // /admin/events has no page — next.config.ts redirects it to the show
+        // list. Pointing there directly says where you actually land instead
+        // of bouncing through a route that does not exist.
+        link: { label: "Event workspace", href: "/admin/calendar?tab=list", roles: R.events },
         paramTabs: [
           { label: "Overview", key: "overview" },
           { label: "Inventory & Holds", key: "inventory" },
@@ -149,7 +152,10 @@ export const navGroups: NavGroup[] = [
         label: "Edit event",
         contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}/edit` : null),
         match: /^\/admin\/events\/[^/]+\/edit$/,
-        link: { label: "Edit event", href: "/admin/events", roles: R.events },
+        // Same dead route. Both this row and Event workspace above used to
+        // land on the calendar list without saying so; this one is only ever
+        // reached contextually from inside an event anyway.
+        link: { label: "Edit event", href: "/admin/calendar?tab=list", roles: R.events },
         paramTabs: [
           { label: "Setup", key: "setup" },
           { label: "Tickets", key: "tickets" },
@@ -224,6 +230,26 @@ export const navGroups: NavGroup[] = [
           { label: "By show", key: "shows" },
         ],
         paramTabsOn: /^\/admin\/orders$/,
+      },
+      {
+        // Ticket sales per show. This is the `shows` tab of Orders & refunds,
+        // promoted to a row of its own because paramTabs only render once you
+        // are already on the parent page (AdminSidebar renderTabs, gated on
+        // `on`) — so from anywhere else in the admin there was no sidebar path
+        // to it at all, and the word "sales" appeared nowhere in the nav. You
+        // had to know to open Orders, which lands on the cross-show Order
+        // book, and then find a sub-tab called "By show".
+        id: "ticketsales",
+        label: "Ticket sales",
+        // No tabKey, deliberately. DEFAULT_TAB_ROLES is built last-writer-wins
+        // over tabKey, so reusing "sales" here would overwrite the Orders
+        // permission with this row's roles. A link with no tabKey is gated on
+        // roles alone -- the documented pattern for an added row (see the file
+        // header, and /admin/events/new, /boxoffice).
+        //
+        // Artists are deliberately absent: they still reach the by-show tab
+        // through Orders, and their sidebar stays the three rows it was.
+        link: { label: "Ticket sales", href: "/admin/orders?tab=shows", roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
       },
       { id: "settle", label: "Settlements", link: { label: "Settlements", href: "/admin/settlements", tabKey: "settlements", roles: R.mgmt } },
       { id: "invoice", label: "Invoices", link: { label: "Invoices", href: "/admin/invoices", tabKey: "invoices_payments", roles: R.mgmt } },
