@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import TicketPreparingLoader from "@/app/components/TicketPreparingLoader";
 import { loadStripe } from "@stripe/stripe-js";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { onlineSurchargeDollars } from "@/lib/fees/rates";
+import { calculateFees } from "@/lib/fees/calculateFees";
 import {
   Elements,
   CardNumberElement,
@@ -138,22 +138,35 @@ function CheckoutForm({
   // Apple Pay / Google Pay via Stripe PaymentRequest
   const [paymentRequest, setPaymentRequest] = useState<PaymentRequest | null>(null);
 
-  // ── Fee calculation matching OrderSummary + create-intent API ────────────
+  // ── Fee calculation ──────────────────────────────────────────────────────
+  // calculateFees() is the same function the checkout routes price the real
+  // charge with, so what is shown here is what lands on the card. This used
+  // to be a second implementation of the same arithmetic and the two did not
+  // agree: it taxed the whole order while the server taxed one ticket and
+  // multiplied, so a basket of three $12.50 tickets displayed $3.56 of tax
+  // and was charged $3.57. Cents, but on the one screen where the number is
+  // a promise.
+  //
   // Divisor = tax baked into face price; don't add it again at checkout.
   const rate = taxMethod === "divisor" ? 0 : normalizeTaxRate(taxRate);
+  const priced = calculateFees({
+    ticketPriceCents: Math.round(ticketPrice * 100),
+    // The promo is applied server-side; this estimate is pre-discount, and
+    // the real figures come back on the order.
+    discountCentsPerTicket: 0,
+    ticketingFee,
+    facilityFee,
+    taxRate: rate,
+    quantity,
+    feesIncludedInPrice,
+  });
   const subtotal = ticketPrice * quantity;
-  const totalTicketingFee = ticketingFee * quantity;
-  const totalFacilityFee = facilityFee * quantity;
-  const tax = Math.round(subtotal * rate * 100) / 100;
-  const subtotalBeforeStripe = feesIncludedInPrice
-    ? subtotal + tax
-    : subtotal + totalTicketingFee + totalFacilityFee + tax;
-  // When fees are baked into the price, the venue absorbs the card
-  // processing fee too — the customer is charged exactly subtotalBeforeStripe.
-  const processingFee = feesIncludedInPrice
-    ? 0
-    : onlineSurchargeDollars(subtotalBeforeStripe);
-  const estimatedTotal = isFreeEvent ? 0 : subtotalBeforeStripe + processingFee;
+  const totalTicketingFee = (priced.ticketingFeeCents * quantity) / 100;
+  const totalFacilityFee = (priced.facilityFeeCents * quantity) / 100;
+  const tax = (priced.taxCents * quantity) / 100;
+  const subtotalBeforeStripe = priced.subtotalBeforeStripeFee / 100;
+  const processingFee = priced.stripeFeeCents / 100;
+  const estimatedTotal = isFreeEvent ? 0 : priced.totalCents / 100;
   const isFullyFree = isFreeEvent || ticketPrice === 0;
 
   // Fire AddPaymentInfo when all card fields are complete

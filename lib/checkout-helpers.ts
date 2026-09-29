@@ -9,6 +9,8 @@ import {
  * Re-exported for the many call sites that already reference these names.
  * The values live in lib/fees/rates.ts — do not redeclare them locally.
  */
+export { calculateFees } from "@/lib/fees/calculateFees";
+
 export const STRIPE_PERCENT_FEE = STRIPE_ONLINE_PCT;
 export const STRIPE_FLAT_FEE_CENTS = STRIPE_ONLINE_FLAT_CENTS;
 
@@ -31,33 +33,7 @@ export interface PromoResult {
   discountCentsPerTicket: number;
 }
 
-export interface FeeBreakdown {
-  /** Base ticket price in cents (before discount) */
-  ticketPriceCents: number;
-  /** Discounted ticket price in cents (after promo) */
-  discountedTicketPriceCents: number;
-  /** Ticketing fee per ticket in cents */
-  ticketingFeeCents: number;
-  /** Facility fee per ticket in cents */
-  facilityFeeCents: number;
-  /** Tax per ticket in cents */
-  taxCents: number;
-  /** Effective quantity (may differ from requested qty for assigned seating) */
-  effectiveQuantity: number;
-  /** Subtotal before Stripe fee in cents */
-  subtotalBeforeStripeFee: number;
-  /** Stripe processing fee in cents */
-  stripeFeeCents: number;
-  /** Grand total in cents */
-  totalCents: number;
-  /** Discount per ticket in cents */
-  discountCentsPerTicket: number;
-  /** True when ticketingFeeCents/facilityFeeCents are already baked into
-   *  ticketPriceCents and were NOT added again into totalCents. Callers building
-   *  line-item UIs (Stripe line items, order summaries) should label these as
-   *  "included" rather than adding them as separate charges. */
-  feesIncludedInPrice: boolean;
-}
+export type { FeeBreakdown } from "@/lib/fees/calculateFees";
 
 // ── Fee Resolution ───────────────────────────────────────────────────────────
 
@@ -555,62 +531,3 @@ export async function validateAndHoldSeats(
 
 // ── Fee Calculation ──────────────────────────────────────────────────────────
 
-/**
- * Compute the full fee breakdown for a checkout.
- *
- * This is the SINGLE SOURCE OF TRUTH for fee math used by both
- * the Checkout Session route and the PaymentIntent route.
- */
-export function calculateFees(opts: {
-  ticketPriceCents: number;
-  discountCentsPerTicket: number;
-  ticketingFee: number;
-  facilityFee: number;
-  taxRate: number;
-  quantity: number;
-  /** True when ticketPriceCents already has ticketingFee + facilityFee baked
-   *  in — don't add them again on top of the charge. */
-  feesIncludedInPrice?: boolean;
-}): FeeBreakdown {
-  const { ticketPriceCents, discountCentsPerTicket, ticketingFee, facilityFee, taxRate, quantity, feesIncludedInPrice = false } = opts;
-
-  const discountedTicketPriceCents = Math.max(0, ticketPriceCents - discountCentsPerTicket);
-  // Nominal per-ticket amounts — always returned for display/reporting, even
-  // when baked into the price and not separately charged.
-  const ticketingFeeCents = Math.round(ticketingFee * 100);
-  const facilityFeeCents = Math.round(facilityFee * 100);
-
-  // Tax on discounted ticket price
-  const taxCents = Math.round(discountedTicketPriceCents * taxRate);
-
-  // Subtotal before Stripe fee — skip re-adding fees already baked into the price.
-  const subtotalBeforeStripeFee = feesIncludedInPrice
-    ? (discountedTicketPriceCents + taxCents) * quantity
-    : (discountedTicketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
-
-  // Card processing surcharge — informational even when absorbed (see below).
-  // Routed through the rate card so the percentage, the flat fee, and the
-  // gross-up policy all live in one place.
-  const stripeFeeCents = surchargeCents(subtotalBeforeStripeFee);
-
-  // When fees are baked into the price, the venue absorbs the card
-  // processing fee too — the customer is charged exactly the sticker
-  // price (+ tax, if additive), full stop, never subtotal + surcharge.
-  const totalCents = feesIncludedInPrice
-    ? subtotalBeforeStripeFee
-    : subtotalBeforeStripeFee + stripeFeeCents;
-
-  return {
-    ticketPriceCents,
-    discountedTicketPriceCents,
-    ticketingFeeCents,
-    facilityFeeCents,
-    taxCents,
-    effectiveQuantity: quantity,
-    subtotalBeforeStripeFee,
-    stripeFeeCents,
-    totalCents,
-    discountCentsPerTicket,
-    feesIncludedInPrice,
-  };
-}
