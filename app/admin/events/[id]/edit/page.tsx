@@ -3,7 +3,7 @@
 import { isHardTicket as isHardTicketType } from "@/lib/eventClass";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import ImageCropper from "@/app/components/ImageCropper";
 import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
@@ -99,7 +99,6 @@ function chicagoToUtcIso(date: string, time: string): string {
 }
 
 export default function AdminEditEventPage() {
-  const router = useRouter();
   const { id } = useParams() as { id: string };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,6 +108,7 @@ export default function AdminEditEventPage() {
   const [uploadingFlyer, setUploadingFlyer] = useState(false);
   const flyerInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [eventVenues, setEventVenues] = useState<EventVenue[]>([]);
   const [selectedEventVenueId, setSelectedEventVenueId] = useState<string | null>(null);
   const [selectedVenueFees, setSelectedVenueFees] = useState<{ facility_fee: number | null }>({ facility_fee: null });
@@ -819,6 +819,7 @@ export default function AdminEditEventPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSavedAt(null);
 
     const isHardTicket = isHardTicketType(form.event_type);
     const isPrivate = form.event_type === "private";
@@ -1047,7 +1048,15 @@ export default function AdminEditEventPage() {
         }).catch(() => {});
       }
 
-      router.push("/admin/events");
+      // Stay on the form.
+      //
+      // This used to be router.push("/admin/events") -- and /admin/events has
+      // no page, so next.config.ts redirected it to /admin/calendar?tab=list.
+      // Saving an edit therefore threw you out of the show you were editing
+      // and into a different section of the nav, with no confirmation that
+      // anything had been saved at all. Same pattern the offer builder uses:
+      // save in place, say so, leave the scroll where it was.
+      setSavedAt(new Date());
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to update event");
     } finally {
@@ -2874,9 +2883,26 @@ export default function AdminEditEventPage() {
             )}
           </section>
 
-          <button type="submit" className="btn btn-primary ee-btn-lg ee-save" disabled={saving || uploading}>
-            {saving ? "Saving…" : "Save changes"}
-          </button>
+          {/* Sticky, because the form is ~3,000 lines and this used to sit at
+              the bottom of it: the only way to save was to scroll to the
+              floor. It follows you instead, and says what happened rather
+              than navigating away to prove it. */}
+          <div className="ee-savebar">
+            <button type="submit" className="btn btn-primary ee-btn-lg ee-save" disabled={saving || uploading}>
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+            {error ? (
+              <span className="ee-savebar-note ee-savebar-note--bad">{error}</span>
+            ) : savedAt ? (
+              <span className="ee-savebar-note ee-savebar-note--ok">
+                Saved at{" "}
+                {savedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                {" · "}you are still on this show
+              </span>
+            ) : (
+              <span className="ee-savebar-note">Changes are not live until you save.</span>
+            )}
+          </div>
 
           <section className="card ee-card">
             <span className="ee-eyebrow">Actions that leave this form</span>

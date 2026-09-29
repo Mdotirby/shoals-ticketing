@@ -10,6 +10,7 @@ import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { saveDraft, readDraft, clearDraft, draftAge, type Draft } from "@/lib/admin/draftStore";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null };
 
@@ -236,6 +237,51 @@ export default function AdminCreateEventPage() {
   // submit event because the label has to say "Publishing…" vs "Saving…".
   const [publishIntent, setPublishIntent] = useState<"draft" | "published">("draft");
 
+  /**
+   * Autosave, so a refresh does not cost you the whole form.
+   *
+   * Local to this browser — see lib/admin/draftStore.ts for why it is not a
+   * draft row. The image is deliberately left out: form.image_url points at
+   * an already-uploaded file and survives, but the in-progress cropper state
+   * is a blob URL that means nothing after a reload.
+   */
+  type ShowDraft = {
+    form: typeof form;
+    tiers: TicketTierDraft[];
+    onSaleDate: string;
+    onSaleTime: string;
+    reservedSeatingEnabled: boolean;
+    selectedLayoutId: string | null;
+  };
+  const DRAFT_KEY = "events-new";
+  const [foundDraft, setFoundDraft] = useState<Draft<ShowDraft> | null>(null);
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  /** Nothing is written until the operator has actually typed something. */
+  const [draftDirty, setDraftDirty] = useState(false);
+
+  // Offer whatever was left behind, once, on mount.
+  useEffect(() => {
+    const d = readDraft<ShowDraft>(DRAFT_KEY);
+    if (d) setFoundDraft(d);
+  }, []);
+
+  const restoreDraft = () => {
+    if (!foundDraft) return;
+    const d = foundDraft.data;
+    setForm(d.form);
+    setTiers(d.tiers?.length ? d.tiers : [emptyTier()]);
+    setOnSaleDate(d.onSaleDate || "");
+    setOnSaleTime(d.onSaleTime || "");
+    setReservedSeatingEnabled(!!d.reservedSeatingEnabled);
+    setSelectedChartId(d.selectedLayoutId ?? null);
+    setFoundDraft(null);
+  };
+
+  const discardDraft = () => {
+    clearDraft(DRAFT_KEY);
+    setFoundDraft(null);
+  };
+
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -351,23 +397,14 @@ export default function AdminCreateEventPage() {
 
     const isHardTicket = isHardTicketType(form.event_type);
 
-    // Validate tiers only for hard ticket events
-    if (isHardTicket) {
-      for (let i = 0; i < tiers.length; i++) {
-        const t = tiers[i];
-        if (!t.tier_name.trim()) {
-          setError(`Tier ${i + 1}: name is required.`);
-          return;
-        }
-        if (!t.price || isNaN(parseFloat(t.price)) || parseFloat(t.price) < 0) {
-          setError(`Tier ${i + 1}: price must be a valid number.`);
-          return;
-        }
-        if (!t.capacity || isNaN(parseInt(t.capacity)) || parseInt(t.capacity) < 1) {
-          setError(`Tier ${i + 1}: capacity must be at least 1.`);
-          return;
-        }
-      }
+    // One definition, shared with the step change above -- and it reports
+    // every problem at once rather than the first one found, then puts you
+    // on the step that holds them.
+    const problems = tierProblems();
+    if (problems.length) {
+      setError(problems.join(" "));
+      setStep(2);
+      return;
     }
 
     setLoading(true);
@@ -608,6 +645,9 @@ export default function AdminCreateEventPage() {
         }).catch(() => {}); // non-blocking
       }
 
+      // The show exists now, so the local draft has done its job.
+      clearDraft(DRAFT_KEY);
+
       // Routing after event creation based on type
       if (form.event_type === "private") {
         // Private events → management hub (billing, client details, attachments)
@@ -619,7 +659,11 @@ export default function AdminCreateEventPage() {
         // Rental / Box Office → offer creation pre-linked (FLAT fee deal)
         router.push(`/admin/offers/new?event_id=${event.id}&event_date=${form.date}&deal_type=FLAT`);
       } else {
-        router.push("/admin/events");
+        // The new show's own workspace. This used to be "/admin/events",
+        // which has no page — next.config.ts redirected it to the calendar
+        // list, so creating a show dropped you in a different section of the
+        // nav and you had to find what you had just made.
+        router.push(`/admin/events/${event.id}`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create event");
@@ -688,9 +732,12 @@ export default function AdminCreateEventPage() {
    * a show published before its artwork exists is a grey box on the storefront.
    * Every item is derived from the form as it stands.
    */
-  const publishChecks: { label: string; ok: boolean }[] = [
-    { label: "Title and venue", ok: !!form.title.trim() && !!form.venue.trim() },
-    { label: "Date and show time", ok: !!form.date && !!form.time },
+  // Each item carries the step it lives on, so an unticked line is a link to
+  // the field rather than a riddle -- "On-sale date set" is on step 3, and
+  // you could be reading it from step 1 with no way to know that.
+  const publishChecks: { label: string; ok: boolean; step: StepNumber }[] = [
+    { label: "Title and venue", ok: !!form.title.trim() && !!form.venue.trim(), step: 1 },
+    { label: "Date and show time", ok: !!form.date && !!form.time, step: 1 },
     ...(isHardTicket && !isFree
       ? [
           {
@@ -704,18 +751,86 @@ export default function AdminCreateEventPage() {
                   !isNaN(parseFloat(t.price)) &&
                   (parseInt(t.capacity) || 0) >= 1
               ),
+            step: 2 as StepNumber,
           },
         ]
       : []),
-    ...(!isPrivate ? [{ label: "Event artwork uploaded", ok: !!form.image_url }] : []),
+    ...(!isPrivate ? [{ label: "Event artwork uploaded", ok: !!form.image_url, step: 1 as StepNumber }] : []),
     ...(isHardTicket
-      ? [{ label: "On-sale date set", ok: !!onSaleDate }]
+      ? [{ label: "On-sale date set", ok: !!onSaleDate, step: 3 as StepNumber }]
       : []),
     ...(reservedSeatingEnabled
-      ? [{ label: "Reserved seating is on — a room map is selected", ok: !!selectedLayoutId }]
+      ? [{ label: "Reserved seating is on — a room map is selected", ok: !!selectedLayoutId, step: 2 as StepNumber }]
       : []),
   ];
   const outstanding = publishChecks.filter((c) => !c.ok).length;
+
+  /**
+   * The tier problems, as a list rather than the first one found.
+   *
+   * These used to be checked only inside handleSubmit, which meant you
+   * filled in all three steps, hit Publish, and were told "Tier 2: capacity
+   * must be at least 1" by a banner that did not move you to tier 2 -- and
+   * you might have been on step 3 at the time. Checked on every step change
+   * now, and the step is switched for you.
+   */
+  const tierProblems = (): string[] => {
+    if (!isHardTicketType(form.event_type)) return [];
+    const out: string[] = [];
+    tiers.forEach((t, i) => {
+      const n = t.tier_name.trim() || `Tier ${i + 1}`;
+      if (!t.tier_name.trim()) out.push(`Tier ${i + 1} needs a name.`);
+      if (!t.price || isNaN(parseFloat(t.price)) || parseFloat(t.price) < 0)
+        out.push(`${n}: price must be a number, and not negative.`);
+      if (!t.capacity || isNaN(parseInt(t.capacity)) || parseInt(t.capacity) < 1)
+        out.push(`${n}: capacity must be at least 1.`);
+    });
+    return out;
+  };
+
+  /** Move between steps, refusing to leave step 2 while a tier is broken. */
+  const goToStep = (next: StepNumber) => {
+    if (step === 2 && next > 2) {
+      const problems = tierProblems();
+      if (problems.length) {
+        setError(problems.join(" "));
+        return;
+      }
+    }
+    setError("");
+    setStep(next);
+  };
+
+  // Mark dirty on the first real edit, then write on a debounce. Without the
+  // dirty gate an untouched form would overwrite a genuine draft with empty
+  // fields the moment the page opened.
+  useEffect(() => {
+    if (foundDraft) return; // still offering the old one; don't clobber it
+    // emptyTier() ships with tier_name "General Admission" already filled in,
+    // so a name is not evidence of typing — checking it wrote a draft of an
+    // untouched form the moment the page opened. Only fields nobody has
+    // pre-filled count.
+    const touched =
+      form.title.trim() !== "" ||
+      form.venue.trim() !== "" ||
+      form.date !== "" ||
+      tiers.length > 1 ||
+      tiers.some((t) => t.price !== "" || t.capacity !== "" || t.seats !== "");
+    if (!touched) return;
+    setDraftDirty(true);
+    const t = setTimeout(() => {
+      saveDraft<ShowDraft>(DRAFT_KEY, {
+        form,
+        tiers,
+        onSaleDate,
+        onSaleTime,
+        reservedSeatingEnabled,
+        selectedLayoutId,
+      });
+      setDraftSavedAt(Date.now());
+    }, 800);
+    return () => clearTimeout(t);
+  }, [form, tiers, onSaleDate, onSaleTime, reservedSeatingEnabled, selectedLayoutId, foundDraft]);
 
   /**
    * Submit with an explicit visibility.
@@ -752,6 +867,26 @@ export default function AdminCreateEventPage() {
           knows the form should not have to click through Setup to fix a
           price. The publish gate is what enforces completeness, not the
           step order. */}
+      {foundDraft && (
+        <div className="cshow-restore">
+          <div>
+            <strong>You have an unfinished show in this browser.</strong>{" "}
+            {foundDraft.data.form?.title?.trim()
+              ? `“${foundDraft.data.form.title.trim()}”, last typed ${draftAge(foundDraft.savedAt)}.`
+              : `Last typed ${draftAge(foundDraft.savedAt)}.`}{" "}
+            It was never saved, so it does not exist as a show yet.
+          </div>
+          <div className="cshow-restore-actions">
+            <button type="button" className="cshow-btn cshow-btn--publish" onClick={restoreDraft}>
+              Pick it back up
+            </button>
+            <button type="button" className="cshow-btn" onClick={discardDraft}>
+              Discard it
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="cshow-steps">
         {STEPS.map((s) => (
           <button
@@ -759,7 +894,7 @@ export default function AdminCreateEventPage() {
             type="button"
             className={`cshow-step ${step > s.n ? "cshow-step-done" : ""}`}
             aria-current={step === s.n}
-            onClick={() => setStep(s.n)}
+            onClick={() => goToStep(s.n)}
             disabled={s.n > 1 && !isHardTicket}
             title={s.n > 1 && !isHardTicket ? "Only ticketed shows have tiers and an on-sale" : undefined}
           >
@@ -768,9 +903,16 @@ export default function AdminCreateEventPage() {
           </button>
         ))}
         <span className="cshow-spacer" />
-        {/* The mockup's "Draft · autosaved" chip. This form does not autosave,
-            so it says what is actually true: nothing exists until Save. */}
-        <span className="cshow-draft-chip">Draft · nothing saved until you save</span>
+        {/* The mockup's "Draft · autosaved" chip. It autosaves locally now, so
+            it can say so — but it still distinguishes a draft kept in this
+            browser from a show that exists, because only Save does that. */}
+        <span className="cshow-draft-chip">
+          {draftSavedAt
+            ? `Draft kept in this browser · ${draftAge(draftSavedAt)}`
+            : draftDirty
+              ? "Draft · saving\u2026"
+              : "Draft · nothing saved until you save"}
+        </span>
       </div>
 
       <div className="cshow-layout">
@@ -1642,23 +1784,67 @@ export default function AdminCreateEventPage() {
         )}
           </div>
 
+          {/* Narrow screens only. The rail is sticky at desktop width, but at
+              <=1000px cshow-layout collapses to one column and the rail --
+              with Publish and Save as draft in it -- drops below the whole
+              form. This puts the two actions back within reach without
+              duplicating them on desktop. */}
+          <div className="cshow-actionbar">
+            <button
+              type="button"
+              className="cshow-btn cshow-btn--publish"
+              disabled={loading || uploading || outstanding > 0}
+              onClick={() => submitWith("published")}
+            >
+              {loading && publishIntent === "published"
+                ? "Publishing\u2026"
+                : outstanding > 0
+                  ? `Publish — ${outstanding} outstanding`
+                  : "Publish"}
+            </button>
+            <button
+              type="button"
+              className="cshow-btn"
+              disabled={loading || uploading}
+              onClick={() => submitWith("draft")}
+            >
+              {loading && publishIntent === "draft" ? "Saving\u2026" : "Save as draft"}
+            </button>
+          </div>
+
           <div className="cshow-nav">
             <button
               type="button"
               className="cshow-btn"
-              onClick={() => setStep((s) => (s > 1 ? ((s - 1) as StepNumber) : s))}
+              onClick={() => goToStep((step > 1 ? step - 1 : step) as StepNumber)}
               disabled={step === 1}
             >
               ← Back
             </button>
-            <button
-              type="button"
-              className="cshow-btn"
-              onClick={() => setStep((s) => (s < 3 ? ((s + 1) as StepNumber) : s))}
-              disabled={step === 3 || !isHardTicket}
-            >
-              Next →
-            </button>
+            {/* A disabled Next with no explanation reads as a broken form.
+                Tiers and on-sale genuinely do not apply to these classes, so
+                say that instead of greying out a button and leaving you to
+                work out why. */}
+            {!isHardTicket ? (
+              <span className="cshow-nav-note">
+                Tickets and on-sale don&rsquo;t apply to a{" "}
+                {form.event_type === "private"
+                  ? "private event"
+                  : form.event_type === "non_ticketed"
+                    ? "non-ticketed event"
+                    : "externally promoted show"}
+                . Everything it needs is on this step.
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="cshow-btn"
+                onClick={() => goToStep((step < 3 ? step + 1 : step) as StepNumber)}
+                disabled={step === 3}
+              >
+                Next →
+              </button>
+            )}
           </div>
         </form>
 
@@ -1775,11 +1961,18 @@ export default function AdminCreateEventPage() {
               button and checks the list below first.
             </div>
             <div style={{ marginTop: 13 }}>
-              {publishChecks.map((c: { label: string; ok: boolean }) => (
-                <div key={c.label} className="cshow-check">
+              {publishChecks.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  className={`cshow-check ${c.ok ? "" : "cshow-check--todo"}`}
+                  onClick={() => goToStep(c.step)}
+                  title={c.ok ? `Done — on ${STEPS[c.step - 1].label}` : `Go to ${STEPS[c.step - 1].label}`}
+                >
                   <span className={`cshow-check-mark ${c.ok ? "cshow-check-ok" : "cshow-check-todo"}`}>{c.ok ? "\u2713" : ""}</span>
                   <span className="cshow-check-text" style={{ color: c.ok ? "var(--cshow-w72)" : "var(--cshow-w44)" }}>{c.label}</span>
-                </div>
+                  {!c.ok && <span className="cshow-check-go">{STEPS[c.step - 1].label} &rarr;</span>}
+                </button>
               ))}
             </div>
 
