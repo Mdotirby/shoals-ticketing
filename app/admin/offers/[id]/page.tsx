@@ -164,6 +164,22 @@ export default function AdminOfferDetailPage() {
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  /**
+   * Which show this offer is for.
+   *
+   * artist_offers.event_id has existed all along and every one of the 40
+   * offers on file has it null — the create-a-show flow passes it as a query
+   * param and nothing else ever set it. It is the only link between the two:
+   * events carry no offer column, and settlements reach the offer directly.
+   * So with it unset, the Command Center's deal line reads "No signed offer
+   * linked" on every night, and break-even has nothing to measure against.
+   */
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkQuery, setLinkQuery] = useState("");
+  const [linkEvents, setLinkEvents] = useState<{ id: string; title: string; date: string; status: string }[]>([]);
+  const [linkedEvent, setLinkedEvent] = useState<{ id: string; title: string; date: string } | null>(null);
+  const [linking, setLinking] = useState(false);
   /** The show a confirmed offer just created, so the banner can link to it. */
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
 
@@ -214,6 +230,15 @@ export default function AdminOfferDetailPage() {
         if (offerData.error) { setError(offerData.error); return; }
         setOffer(offerData);
         setForm(offerData);
+
+        // Resolve the linked show, if there is one, so the header can name it
+        // rather than just holding an id.
+        if (offerData.event_id) {
+          try {
+            const ev = await fetch(`/api/events/${offerData.event_id}`).then((r) => r.json());
+            if (ev && ev.id) setLinkedEvent({ id: ev.id, title: ev.title, date: ev.date });
+          } catch { /* the row below falls back to "linked, could not load" */ }
+        }
 
         // Resolve venue: use venue-id cookie, offer's venue_id, or first available venue (for owner)
         try {
@@ -471,6 +496,55 @@ export default function AdminOfferDetailPage() {
     finally { setSaving(false); }
   };
 
+  /** Shows to pick from. Searched server-side; capped by the API. */
+  const searchEvents = async (q: string) => {
+    setLinkQuery(q);
+    try {
+      const all = await fetch("/api/events?all=1").then((r) => r.json());
+      if (!Array.isArray(all)) return;
+      const needle = q.trim().toLowerCase();
+      setLinkEvents(
+        all
+          .filter((e: { title?: string }) => !needle || String(e.title || "").toLowerCase().includes(needle))
+          .slice(0, 40)
+          .map((e: { id: string; title: string; date: string; status: string }) => ({
+            id: e.id, title: e.title, date: e.date, status: e.status,
+          })),
+      );
+    } catch { /* the picker shows nothing rather than a half list */ }
+  };
+
+  /**
+   * Attach or detach the show.
+   *
+   * Written straight through rather than waiting for Save: the link is not a
+   * term of the deal, and leaving it as an unsaved edit on a countersigned
+   * offer -- whose terms the save route refuses -- would make it impossible
+   * to link one at all.
+   */
+  const setLinkedShow = async (ev: { id: string; title: string; date: string } | null) => {
+    setLinking(true);
+    setError(""); setSuccess("");
+    try {
+      const res = await fetch(`/api/offers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, event_id: ev?.id ?? null }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setOffer(updated);
+      setForm(updated);
+      setLinkedEvent(ev);
+      setLinkOpen(false);
+      setSuccess(ev ? `Linked to ${ev.title}.` : "Unlinked from the show.");
+    } catch {
+      setError("Could not change the linked show.");
+    } finally {
+      setLinking(false);
+    }
+  };
+
   const handleStatusChange = async (status: string) => {
     setSaving(true); setError(""); setSuccess(""); setCreatedEventId(null);
     try {
@@ -718,6 +792,57 @@ export default function AdminOfferDetailPage() {
           </Link>
         )}
       </div>
+
+      {/* Which show this offer is for. Nothing could set this before, so every
+          offer on file was unlinked and the dashboard's deal line was blank. */}
+      <div className={`ofb-link${linkedEvent ? " ofb-link--on" : ""}`}>
+        <span className="ofb-link-eyebrow">Show</span>
+        {linkedEvent ? (
+          <>
+            <Link href={`/admin/events/${linkedEvent.id}`} className="ofb-link-name">
+              {linkedEvent.title}
+              <span>{linkedEvent.date ? new Date(String(linkedEvent.date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : ""}</span>
+            </Link>
+            <span className="filter-spacer" />
+            <Button size="sm" variant="ghost" disabled={linking} onClick={() => { setLinkOpen((v) => !v); if (!linkEvents.length) searchEvents(""); }}>Change</Button>
+            <Button size="sm" variant="ghost" disabled={linking} onClick={() => setLinkedShow(null)}>Unlink</Button>
+          </>
+        ) : (
+          <>
+            <span className="ofb-link-none">
+              Not linked to a show — the settlement, the break-even and the dashboard&rsquo;s deal line all read this link.
+            </span>
+            <span className="filter-spacer" />
+            <Button size="sm" disabled={linking} onClick={() => { setLinkOpen((v) => !v); if (!linkEvents.length) searchEvents(""); }}>
+              {linking ? "Linking…" : "Link a show"}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {linkOpen && (
+        <div className="ofb-link-picker">
+          <input
+            autoFocus
+            className="ofb-link-search"
+            placeholder="Search shows by name…"
+            value={linkQuery}
+            onChange={(e) => searchEvents(e.target.value)}
+          />
+          <div className="ofb-link-list">
+            {linkEvents.length === 0 && <div className="ofb-link-empty">No shows match that.</div>}
+            {linkEvents.map((e) => (
+              <button key={e.id} type="button" className="ofb-link-row" disabled={linking} onClick={() => setLinkedShow(e)}>
+                <span className="ofb-link-row-title">{e.title}</span>
+                <span className="ofb-link-row-date">
+                  {e.date ? new Date(String(e.date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "no date"}
+                </span>
+                <span className={`ofb-link-row-status${e.status === "published" ? " is-live" : ""}`}>{e.status}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs — keys verbatim (details / pnl / deal_lab), held in ?tab= */}
       <div className="merged-tabs ofb-tabs" role="tablist">

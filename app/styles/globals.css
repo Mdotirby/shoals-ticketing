@@ -23213,6 +23213,59 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ofb-banner--bad { color: var(--lg-bad); border-color: rgba(255, 140, 170, 0.3); }
 
 .admin-shell .ofb-status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Which show the offer is for. Every offer on file was unlinked because
+   nothing in the UI could set artist_offers.event_id — it arrived only as a
+   query param from the create-a-show flow. */
+.admin-shell .ofb-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 11px 15px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.03);
+}
+.admin-shell .ofb-link--on { border-style: solid; border-color: rgba(255, 255, 255, 0.14); }
+.admin-shell .ofb-link-eyebrow {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.40); flex: 0 0 auto;
+}
+.admin-shell .ofb-link-name { display: flex; align-items: baseline; gap: 10px; min-width: 0; font-size: 13px; font-weight: 650; color: #fff; }
+.admin-shell .ofb-link-name span { font-size: 11px; font-weight: 500; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .ofb-link-name:hover { text-decoration: underline; }
+.admin-shell .ofb-link-none { flex: 1 1 280px; min-width: 0; font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.46); }
+
+.admin-shell .ofb-link-picker {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 26, 0.9);
+}
+.admin-shell .ofb-link-search {
+  width: 100%; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.05);
+  color: #fff; font: inherit; font-size: 12.5px;
+}
+.admin-shell .ofb-link-list { max-height: 260px; overflow-y: auto; margin-top: 8px; }
+.admin-shell .ofb-link-empty { padding: 14px 4px; font-size: 11.5px; color: rgba(255, 255, 255, 0.40); }
+.admin-shell .ofb-link-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 9px 10px; border: 0; border-radius: 10px; background: none;
+  text-align: left; cursor: pointer; font: inherit; color: inherit;
+}
+.admin-shell .ofb-link-row:hover { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .ofb-link-row-title { flex: 1 1 auto; min-width: 0; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .ofb-link-row-date { flex: 0 0 auto; font-size: 11px; color: rgba(255, 255, 255, 0.44); font-variant-numeric: tabular-nums; }
+.admin-shell .ofb-link-row-status {
+  flex: 0 0 auto; font-size: 8.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 5px; color: rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.admin-shell .ofb-link-row-status.is-live { color: var(--lg-good); border-color: rgba(143, 214, 168, 0.4); }
 .admin-shell .ofb-status-link {
   display: flex;
   align-items: baseline;
