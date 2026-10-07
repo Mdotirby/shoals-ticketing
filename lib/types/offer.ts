@@ -1,5 +1,15 @@
 export type DealType = "VS" | "FLAT" | "PLUS" | "BONUS";
 
+/**
+ * Whose risk the show is — a different question from DealType, which is how
+ * the artist gets paid. A VS deal can sit on an own-risk show or a
+ * co-promote; they are independent.
+ */
+export type RevenueStructure = "own_risk" | "co_promote" | "rental";
+
+/** What a co-promote split is measured against. These differ a lot. */
+export type CoproBasis = "gross" | "net_after_expenses";
+
 export type ShowLineupItem = {
   time: string;
   artist: string;
@@ -57,6 +67,12 @@ export type ArtistOffer = {
   // Deal
   guarantee?: number;
   deal_type?: DealType;
+  revenue_structure?: RevenueStructure;
+  copro_basis?: CoproBasis | null;
+  /** The VENUE's share of a co-promote, as a percentage. */
+  copro_venue_pct?: number | null;
+  /** Flat rental rate in dollars, same unit as guarantee. */
+  rental_fee?: number | null;
   backend_percentage?: string;
   other_terms?: string;
   radius_distance?: string;

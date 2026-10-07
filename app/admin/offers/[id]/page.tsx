@@ -903,6 +903,22 @@ export default function AdminOfferDetailPage() {
             <select value={String(form.deal_type || "FLAT")} onChange={(e) => updateField("deal_type", e.target.value)}>
               <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
             </select>
+            <span className="ofb-field-hint">How the artist is paid</span>
+          </label>
+          {/* A different question from Deal type: whose risk the show is, and
+              therefore who keeps the ticket money. The two are independent —
+              a VS deal can sit on an own-risk show or a co-promote. */}
+          <label className="ofb-field">
+            <span className="ofb-field-label">Risk &amp; revenue</span>
+            <select
+              value={String(form.revenue_structure || "own_risk")}
+              onChange={(e) => updateField("revenue_structure", e.target.value)}
+            >
+              <option value="own_risk">We take the risk — we keep the box office</option>
+              <option value="co_promote">Co-promote — revenue shared</option>
+              <option value="rental">Private rental — client pays a flat rate</option>
+            </select>
+            <span className="ofb-field-hint">Whose money the show is</span>
           </label>
           <label className="ofb-field">
             <span className="ofb-field-label">Guarantee</span>
@@ -926,6 +942,56 @@ export default function AdminOfferDetailPage() {
             <span className="ofb-field-label">Merch rate</span>
             <input value={String(form.merch_split || "")} placeholder="e.g. 80/20 · venue sells" onChange={(e) => updateField("merch_split", e.target.value)} />
           </label>
+
+          {/* Only the structure's own terms, so the form does not ask about a
+              rental fee on a show that is not one. */}
+          {form.revenue_structure === "co_promote" && (
+            <>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Split measured on</span>
+                <select
+                  value={String(form.copro_basis || "net_after_expenses")}
+                  onChange={(e) => updateField("copro_basis", e.target.value)}
+                >
+                  <option value="gross">Gross — before any expenses</option>
+                  <option value="net_after_expenses">Net after expenses</option>
+                </select>
+                <span className="ofb-field-hint">These produce very different numbers</span>
+              </label>
+              <label className="ofb-field">
+                <span className="ofb-field-label">Our share</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  max={100}
+                  placeholder="%"
+                  value={form.copro_venue_pct == null ? "" : String(form.copro_venue_pct)}
+                  onChange={(e) => updateField("copro_venue_pct", e.target.value === "" ? null : parseFloat(e.target.value))}
+                />
+                <span className="ofb-field-hint">
+                  {form.copro_venue_pct == null || form.copro_venue_pct === ""
+                    ? "The partner takes the rest"
+                    : `Partner takes ${Math.max(0, 100 - Number(form.copro_venue_pct)).toFixed(1).replace(/\.0$/, "")}%`}
+                </span>
+              </label>
+            </>
+          )}
+
+          {form.revenue_structure === "rental" && (
+            <label className="ofb-field">
+              <span className="ofb-field-label">Rental fee</span>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                placeholder="Flat rate the client pays"
+                value={form.rental_fee == null ? "" : String(form.rental_fee)}
+                onChange={(e) => updateField("rental_fee", e.target.value === "" ? null : parseFloat(e.target.value))}
+              />
+              <span className="ofb-field-hint">We sell the tickets; the ticket money is theirs</span>
+            </label>
+          )}
         </div>
 
         {/* Everything else the offer carries — the export and the contract read

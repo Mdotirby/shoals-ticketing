@@ -23933,6 +23933,10 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ofb-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .admin-shell .ofb-field--wide { grid-column: span 2; }
 .admin-shell .ofb-field-label { font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.46); }
+/* One line under a field saying what the field is for. "Deal type" and
+   "Risk & revenue" sit next to each other and are easy to confuse — one is
+   how the artist is paid, the other is whose money the show is. */
+.admin-shell .ofb-field-hint { font-size: 10.5px; line-height: 1.45; color: rgba(255, 255, 255, 0.38); margin-top: 1px; }
 .admin-shell .ofb-field input,
 .admin-shell .ofb-field select,
 .admin-shell .ofb-field textarea {

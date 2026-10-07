@@ -74,12 +74,40 @@ export async function PUT(
     }
   }
 
-  const { data, error } = await admin
+  /**
+   * Columns added by a migration Matt has not necessarily run yet.
+   *
+   * Postgres fails the WHOLE update when one column is unknown, so shipping
+   * these in the allowlist before the migration lands would break every
+   * offer save — not just the new fields. They are peeled off and the update
+   * retried, which is the same pattern POST /api/events uses for its own
+   * pending columns.
+   */
+  const PENDING_COLUMNS = ["revenue_structure", "copro_basis", "copro_venue_pct", "rental_fee"];
+
+  let { data, error } = await admin
     .from("artist_offers")
     .update(updates)
     .eq("id", id)
     .select()
     .single();
+
+  if (error && PENDING_COLUMNS.some((c) => error!.message.includes(c))) {
+    const withoutPending: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(updates)) {
+      if (!PENDING_COLUMNS.includes(k)) withoutPending[k] = v;
+    }
+    console.warn(
+      "artist_offers: revenue-structure columns are missing — saving without them. " +
+        "Run plans/offer-revenue-structure-migration.sql.",
+    );
+    ({ data, error } = await admin
+      .from("artist_offers")
+      .update(withoutPending)
+      .eq("id", id)
+      .select()
+      .single());
+  }
 
   // A revision just got countersigned: the version it revised stops being
   // the operative deal. Walk back up the chain and mark every signed

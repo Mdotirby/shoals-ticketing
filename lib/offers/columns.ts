@@ -13,6 +13,11 @@ export const ALLOWED_COLUMNS = new Set<string>([
   "show_lineup",
   // Deal
   "guarantee", "deal_type", "backend_percentage", "other_terms",
+  // Risk and revenue structure — whose money the show is, as opposed to
+  // deal_type which is how the artist is paid. Added by
+  // plans/offer-revenue-structure-migration.sql; the PUT peels these off and
+  // retries if that has not been run yet, so saves keep working either way.
+  "revenue_structure", "copro_basis", "copro_venue_pct", "rental_fee",
   "radius_distance", "radius_days_prior", "radius_days_after",
   "production_by", "deposit_pct", "deposit_amount", "deposit_due",
   "balance_due", "merch_split", "merch_seller",
