@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { eventSales } from "@/lib/admin/eventSales";
+import { HARD_TICKET_TYPES_ARRAY } from "@/lib/eventClass";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +40,24 @@ export async function GET(request: Request) {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   // ── Next 14 nights ──
+  //
+  // Sales progress, so only the shows that are actually selling: published,
+  // confirmed on the calendar, and ours to sell. A hold is not a date yet, a
+  // private rental has no public on-sale, and a draft is not visible to
+  // anyone — all three used to sit in this card showing a blank bar.
+  //
+  // NOT filtered on on_sale_at. A null there means no on-sale has been
+  // scheduled, which says nothing about whether the show is selling; only 9
+  // of 42 events have one set. A future on-sale is shown as a line under the
+  // title instead (Matt, confirmed).
   let evQ = admin
     .from("events")
-    .select("id, title, date, event_type, booking_status, venue")
+    .select("id, title, date, event_type, booking_status, venue, on_sale_at")
     .gte("date", now.toISOString().slice(0, 10))
     .lte("date", in14.toISOString())
-    .neq("booking_status", "cancelled")
+    .eq("status", "published")
+    .eq("booking_status", "confirmed")
+    .in("event_type", HARD_TICKET_TYPES_ARRAY as unknown as string[])
     .order("date", { ascending: true });
   if (venueId) evQ = evQ.eq("venue_id", venueId);
   const { data: events } = await evQ;
@@ -75,7 +88,11 @@ export async function GET(request: Request) {
       id: e.id,
       title: e.title,
       date: e.date,
-      kind: e.event_type === "private" ? "Rental" : e.booking_status === "hold" ? "Hold" : "Show",
+      kind: "Show" as const,
+      // Only when it is still ahead. A past on-sale is just "it is selling",
+      // which the bar already says.
+      onSaleAt:
+        e.on_sale_at && new Date(e.on_sale_at).getTime() > now.getTime() ? e.on_sale_at : null,
       venue: e.venue,
       deal: dealText,
       sold: s,

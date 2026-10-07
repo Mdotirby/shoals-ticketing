@@ -17,11 +17,30 @@ import { getCookie } from "@/lib/cookies";
  * deposit lag) the slot says "Not tracked yet" instead of estimating one.
  */
 
+/**
+ * "Oct 24, 2026 at 10:00 AM CDT".
+ *
+ * Rendered in the venue's own zone rather than the reader's, because an
+ * on-sale time is a fact about the box office, not about where you happen to
+ * be looking from. The abbreviation comes from the formatter, so it reads CDT
+ * in summer and CST in winter instead of being wrong half the year.
+ */
+const VENUE_TZ = "America/Chicago";
+function onSaleLabel(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("en-US", { timeZone: VENUE_TZ, month: "short", day: "numeric", year: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { timeZone: VENUE_TZ, hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+  return `${date} at ${time}`;
+}
+
 type Night = {
   id: string;
   title: string;
   date: string;
+  /** Always "Show" now — the band filters to published, confirmed, hard-ticket. */
   kind: "Show" | "Rental" | "Hold";
+  /** Set only when the on-sale is still ahead. */
+  onSaleAt?: string | null;
   venue: string | null;
   deal: string | null;
   sold: number;
@@ -237,6 +256,10 @@ export default function DashExtras({ monthName, decisions }: { monthName: string
                       <em className={`dx-kind dx-kind--${n.kind.toLowerCase()}`}>{n.kind}</em>
                     </div>
                     <div className="cc-twhen">{n.deal ?? (n.kind === "Rental" ? "Private rental" : "No signed offer linked")}</div>
+                    {/* Scheduled on-sale still ahead. The bar below reads 0 sold
+                        for these, which looks like a show nobody wants rather
+                        than one that has not opened yet. */}
+                    {n.onSaleAt && <div className="dx-onsale">Goes on sale {onSaleLabel(n.onSaleAt)}</div>}
                     {n.capacity > 0 && (
                       <div className="cc-bar" style={{ marginTop: 7 }}>
                         <span
