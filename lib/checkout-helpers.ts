@@ -4,6 +4,7 @@ import {
   STRIPE_ONLINE_FLAT_CENTS,
   surchargeCents,
 } from "@/lib/fees/rates";
+import { resolveSaleShape } from "@/lib/seating/sellMode";
 
 /**
  * Re-exported for the many call sites that already reference these names.
@@ -34,6 +35,23 @@ export interface PromoResult {
 }
 
 export type { FeeBreakdown } from "@/lib/fees/calculateFees";
+
+/**
+ * A section row as the seat pricer reads it.
+ *
+ * sale_unit and seat_price_cents are optional because they arrive with
+ * plans/seating-sell-modes-migration.sql, and this has to price a basket
+ * correctly before and after that runs.
+ */
+type SectionPricingRow = {
+  id: string;
+  name: string;
+  price_cents: number;
+  sells_as_table: boolean | null;
+  type: string | null;
+  sale_unit?: string | null;
+  seat_price_cents?: number | null;
+};
 
 // ── Fee Resolution ───────────────────────────────────────────────────────────
 
@@ -488,14 +506,39 @@ export async function validateAndHoldSeats(
     .in("id", seatIds);
 
   const sectionIds = [...new Set((seatDetails || []).map((s: { section_id: string }) => s.section_id))];
-  const { data: sectionDetails } = sectionIds.length
-    ? await admin.from("sections").select("id, name, price_cents, sells_as_table, type").in("id", sectionIds)
-    : { data: [] };
+  // sale_unit and seat_price_cents come from
+  // plans/seating-sell-modes-migration.sql. Selected defensively so this keeps
+  // working before that is run — a missing column makes the whole select fail,
+  // which would stop every seated checkout.
+  let sectionDetails: SectionPricingRow[] | null = null;
+  {
+    const full = await admin
+      .from("sections")
+      .select("id, name, price_cents, sells_as_table, type, sale_unit, seat_price_cents")
+      .in("id", sectionIds);
+    if (full.error && /sale_unit|seat_price_cents/.test(full.error.message)) {
+      console.warn(
+        "sections: sell-mode columns are missing — pricing from sells_as_table. " +
+          "Run plans/seating-sell-modes-migration.sql.",
+      );
+      const legacy = await admin
+        .from("sections")
+        .select("id, name, price_cents, sells_as_table, type")
+        .in("id", sectionIds);
+      sectionDetails = (legacy.data as SectionPricingRow[] | null) ?? [];
+    } else {
+      sectionDetails = (full.data as SectionPricingRow[] | null) ?? [];
+    }
+  }
+  if (!sectionIds.length) sectionDetails = [];
 
-  const sectionMap = new Map<string, { name: string; price_cents: number; sells_as_table: boolean }>();
+  // One definition of how a section prices, shared with the storefront and
+  // under test in __tests__/seating/sell-mode.test.ts.
+  const sectionMap = new Map<string, { name: string; priceCents: number; byTable: boolean }>();
   for (const sec of sectionDetails || []) {
-    const isTable = !!sec.sells_as_table || sec.type === "table";
-    sectionMap.set(sec.id, { name: sec.name, price_cents: sec.price_cents, sells_as_table: isTable });
+    const shape = resolveSaleShape(sec);
+    if ("error" in shape) return { error: shape.error };
+    sectionMap.set(sec.id, { name: sec.name, priceCents: shape.priceCents, byTable: shape.byTable });
   }
 
   const seatLabels: string[] = [];
@@ -506,12 +549,12 @@ export async function validateAndHoldSeats(
 
   for (const seat of seatDetails || []) {
     const sec = sectionMap.get(seat.section_id);
-    const priceCents = sec?.price_cents || Math.round(eventPrice * 100);
+    const priceCents = sec?.priceCents || Math.round(eventPrice * 100);
     const label = `${sec?.name || "Section"} | ${seat.row_label} | Seat ${seat.seat_number}`;
     seatLabels.push(label);
     seatSectionNames.push(sec?.name || "Section");
 
-    if (sec?.sells_as_table && seat.object_id) {
+    if (sec?.byTable && seat.object_id) {
       // Price the whole table once — not each seat individually
       if (!seenTableObjects.has(seat.object_id)) {
         seenTableObjects.add(seat.object_id);
