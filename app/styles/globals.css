@@ -21409,6 +21409,29 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
 .inv-status--paid    { background: rgba(143,214,168,0.16); border-color: rgba(143,214,168,0.4); color: #8fd6a8; }
 .inv-status--overdue { background: rgba(248,113,113,0.14); border-color: rgba(248,113,113,0.36); color: #f87171; }
 .inv-status--draft   { background: transparent; color: rgba(255,255,255,0.42); }
+.inv-status--sent    { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.82); }
+.inv-status--void    { background: transparent; color: rgba(255,255,255,0.30); text-decoration: line-through; }
+.inv-status--partial { background: rgba(251,191,36,0.14); border-color: rgba(251,191,36,0.36); color: #fbbf24; }
+
+/* The badge is a select now. It keeps the badge's shape so the column still
+   reads as a status at a glance rather than as a form control. */
+.inv-status-pick {
+  appearance: none; -webkit-appearance: none;
+  cursor: pointer; font-family: inherit; line-height: 1.6;
+  padding-right: 20px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 9px center, right 5px center;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+.inv-status-pick:hover:not(:disabled) { filter: brightness(1.25); }
+.inv-status-pick:disabled { opacity: 0.5; cursor: progress; }
+.inv-status-pick option { background: #17171c; color: #fff; text-transform: none; letter-spacing: 0; }
+
+.inv-note {
+  margin-top: 12px; font-size: 11.5px; line-height: 1.5;
+  color: var(--lg-good, #8fd6a8);
+}
 
 /* Aging buckets — the mockup's collections panel. Past 60 days is hatched,
    because "old" and "very old" are different conversations. */

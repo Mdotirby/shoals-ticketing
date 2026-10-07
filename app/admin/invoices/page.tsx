@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
 
@@ -33,6 +33,7 @@ type Invoice = {
   balance_due: number | null;
   due_date: string | null;
   status: string | null;
+  sent_at: string | null;
   created_at: string;
 };
 
@@ -51,10 +52,12 @@ export default function AdminInvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [note, setNote] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     const venueId = getCookie("venue-id");
-    fetch(`/api/invoices${venueId ? `?venue_id=${venueId}` : ""}`)
+    return fetch(`/api/invoices${venueId ? `?venue_id=${venueId}` : ""}`)
       .then(async (r) => {
         if (r.status === 401 || r.status === 403) { setDenied(true); return; }
         if (!r.ok) return;
@@ -64,6 +67,68 @@ export default function AdminInvoicesPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  /**
+   * Move an invoice between the states a person actually decides.
+   *
+   * draft / sent / void are human calls: has it gone out, is it cancelled.
+   * PAID is not — it is arithmetic, and the rest of this page already treats
+   * it that way ("status is set by hand and drifts; the balance is
+   * arithmetic"). Flipping the label to paid while balance_due still reads
+   * $2,226.57 would put this list, the client's payment page and the
+   * dashboard into three different opinions about the same invoice.
+   *
+   * So choosing Paid records the outstanding balance as a payment through
+   * the endpoint that already exists. That writes the invoice_payments row,
+   * sets amount_paid, zeroes the balance, sets paid_at and derives the
+   * status — the same path a Stripe payment takes, so a cheque and a card
+   * land in the same place with the same audit trail.
+   */
+  const setStatus = async (inv: Invoice, next: string) => {
+    setBusyId(inv.id);
+    setNote("");
+    try {
+      if (next === "paid") {
+        const balance = Number(inv.balance_due || 0);
+        if (balance <= 0) { setNote("That invoice has no balance left."); return; }
+        const res = await fetch(`/api/invoices/${inv.id}/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: balance,
+            payment_method: "other",
+            notes: "Marked paid from the invoice list",
+          }),
+        });
+        if (!res.ok) throw new Error();
+        setNote(`${inv.invoice_number || "Invoice"} marked paid — ${money(balance)} recorded.`);
+      } else {
+        const res = await fetch(`/api/invoices/${inv.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: next,
+            // Stamp the first send so "average days to collect" has a start
+            // point. Never overwritten — re-sending does not reset the clock.
+            ...(next === "sent" && !inv.sent_at ? { sent_at: new Date().toISOString() } : {}),
+          }),
+        });
+        if (!res.ok) throw new Error();
+        setNote(
+          next === "sent"
+            ? `${inv.invoice_number || "Invoice"} marked sent — it counts as a receivable now.`
+            : `${inv.invoice_number || "Invoice"} set to ${next}.`,
+        );
+      }
+      await load();
+    } catch {
+      setNote("Could not change that invoice.");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const totals = useMemo(() => {
     // An invoice with no balance is not a receivable, whatever its status
@@ -171,27 +236,57 @@ export default function AdminInvoicesPage() {
               const over = daysOverdue(i.due_date);
               const balance = Number(i.balance_due || 0);
               const status = balance <= 0 ? "paid" : over > 0 ? "overdue" : (i.status || "draft").toLowerCase();
+              // The stored status is what a person set. Paid and overdue are
+              // arithmetic, so the select shows them but does not pretend
+              // they were chosen.
+              const stored = (i.status || "draft").toLowerCase();
+              const derived = balance <= 0 ? "paid" : stored === "partial" ? "partial" : null;
               return (
-                <Link key={i.id} href={`/pay/${i.id}`} className="inv-row" target="_blank">
-                  <div className="inv-no">{i.invoice_number || "—"}</div>
-                  <div style={{ minWidth: 0 }}>
+                // No longer one big Link: a select inside an anchor fights the
+                // navigation on every click.
+                <div key={i.id} className="inv-row">
+                  <Link href={`/pay/${i.id}`} target="_blank" className="inv-no">{i.invoice_number || "—"}</Link>
+                  <Link href={`/pay/${i.id}`} target="_blank" style={{ minWidth: 0 }}>
                     <div className="inv-who">{i.client_company || i.client_name || "—"}</div>
                     <div className="inv-meta">
                       {i.due_date ? `Due ${new Date(`${i.due_date.slice(0,10)}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "No due date"}
                       {over > 0 && balance > 0 && ` · ${over} day${over === 1 ? "" : "s"} past`}
                     </div>
-                  </div>
+                  </Link>
                   <div className="inv-num">{money(Number(i.total || 0))}</div>
                   <div className="inv-num">{money(Number(i.amount_paid || 0))}</div>
                   <div className="inv-num inv-num--due">{money(balance)}</div>
-                  <div className={`inv-status inv-status--${status}`}>{status}</div>
-                </Link>
+                  <select
+                    className={`inv-status inv-status--${status} inv-status-pick`}
+                    value={derived ?? stored}
+                    disabled={busyId === i.id}
+                    onChange={(e) => setStatus(i, e.target.value)}
+                    title={
+                      derived === "paid"
+                        ? "Paid in full — set by the payments on it, not by hand"
+                        : over > 0 && balance > 0
+                          ? `Overdue by ${over} day${over === 1 ? "" : "s"}`
+                          : "Where this invoice has got to"
+                    }
+                  >
+                    <option value="draft">draft</option>
+                    <option value="sent">sent</option>
+                    <option value="paid">paid</option>
+                    <option value="void">void</option>
+                    {/* Reached by a part payment, never chosen. */}
+                    {derived === "partial" && <option value="partial" disabled>partial</option>}
+                  </select>
+                </div>
               );
             })}
           </div>
 
+          {note && <p className="inv-note">{note}</p>}
+
           <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.34)", marginTop: 14, lineHeight: 1.5, maxWidth: 640 }}>
-            A row opens the client&apos;s own payment page — the same link they were sent.
+            The number or the client opens their own payment page — the same link they were sent.
+            Marking one <strong>paid</strong> records the outstanding balance as a payment, so the
+            list, the dashboard and that page cannot disagree about it.
             Deposit schedules, trust accounting and BEO reconciliation are in the design
             but have no tables behind them yet, so they are not drawn here.
           </p>
