@@ -56,6 +56,9 @@ type Cash = {
   receivableCount: number;
   collectible7: number;
   collectible7Count: number;
+  /** Billed but never sent — not a receivable, and not nothing either. */
+  drafted?: number;
+  draftedCount?: number;
   avgDaysToCollect: number | null;
   paidInvoices: number;
 };
@@ -108,6 +111,15 @@ export default function DashExtras({ monthName, decisions }: { monthName: string
       delta: aged60 > 0 ? `${usd(aged60)} > 60d` : undefined,
       note: cash.receivableCount ? `${plural(cash.receivableCount, "open invoice")} with a balance.` : "No open balances on sent invoices.",
       bar: cash.receivables > 0 ? (cash.collectible7 / cash.receivables) * 100 : 0,
+    },
+    {
+      icon: "✎",
+      label: "Drafted, not sent",
+      value: usd(cash.drafted ?? 0),
+      delta: cash.draftedCount ? plural(cash.draftedCount, "invoice") : undefined,
+      note: cash.draftedCount
+        ? "Billed work the client has not seen yet. Send it and it becomes a receivable."
+        : "Nothing waiting to go out.",
     },
     {
       icon: "✓",

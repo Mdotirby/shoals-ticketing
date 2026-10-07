@@ -147,9 +147,29 @@ export async function GET(request: Request) {
   };
   const in7 = now.getTime() + 7 * 86400000;
   let depositsHeld = 0, depositEvents = 0, receivables = 0, receivableCount = 0, collectible7 = 0, collectible7Count = 0;
+  /**
+   * Billed work that has not been sent.
+   *
+   * A draft is deliberately NOT a receivable — the client has never seen the
+   * bill, so nothing is owed yet. But it was invisible here, and the invoices
+   * page counts the same row as outstanding because it goes by balance rather
+   * than status ("status is set by hand and drifts; the balance is
+   * arithmetic"). So the two pages disagreed about the same invoice: one
+   * showed $2,226.57, the other showed nothing.
+   *
+   * Both rules are right about different things, so this is its own line.
+   * Money you cannot collect because you have not asked is more actionable
+   * than money you are waiting on, not less.
+   */
+  let drafted = 0, draftedCount = 0;
   const collectDays: number[] = [];
   for (const inv of (allInvoices ?? []) as InvRow[]) {
-    if (inv.status === "void" || inv.status === "draft") continue;
+    if (inv.status === "void") continue;
+    if (inv.status === "draft") {
+      const open = Number(inv.balance_due) || 0;
+      if (open > 0) { drafted += open; draftedCount++; }
+      continue;
+    }
     const ev = Array.isArray(inv.events) ? inv.events[0] : inv.events;
     const eventAhead = ev?.date ? new Date(ev.date).getTime() > now.getTime() : false;
     const paid = Number(inv.amount_paid) || 0;
@@ -183,6 +203,8 @@ export async function GET(request: Request) {
       receivableCount,
       collectible7: r2(collectible7),
       collectible7Count,
+      drafted: r2(drafted),
+      draftedCount,
       avgDaysToCollect: collectDays.length ? Math.round((collectDays.reduce((a, b) => a + b, 0) / collectDays.length) * 10) / 10 : null,
       paidInvoices: collectDays.length,
     },
