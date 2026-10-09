@@ -18,7 +18,7 @@ import EventBadges from "@/app/components/EventBadges";
 import SfHeader from "@/app/components/SfHeader";
 import SfFooter from "@/app/components/SfFooter";
 import SfStepper from "@/app/components/SfStepper";
-import { safeDate, formatEventDateFull, formatEventTime } from "@/lib/dates";
+import { safeDate, formatEventDateFull, formatEventTime, formatDoorsTime } from "@/lib/dates";
 import { trackFbEvent } from "@/lib/fbq";
 import { pastEventReason } from "@/lib/events/closeout";
 import TrackingPixels from "@/app/components/TrackingPixels";
@@ -63,6 +63,7 @@ type EventData = {
   on_sale_at?: string;
   closed_out_at?: string | null;
   start_time?: string | null;
+  doors_time?: string | null;
   external_ticket_url?: string | null;
   external_ticket_label?: string | null;
   meta_pixel_id?: string | null;
@@ -910,6 +911,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   }
 
   const showTime = formatEventTime(event.date);
+  const doorsTime = formatDoorsTime(event.date, event.doors_time);
   const mapSrc = event.venue_lat && event.venue_lng
     ? `https://maps.google.com/maps?q=${event.venue_lat},${event.venue_lng}&z=15&output=embed`
     : event.venue_address
@@ -1052,9 +1054,15 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     <div className="sf-fact-label">Date</div>
                     <div className="sf-fact-value">{formatEventDateFull(event.date)}</div>
                   </div>
-                  {showTime && (
+                  {doorsTime && (
                     <div>
                       <div className="sf-fact-label">Doors</div>
+                      <div className="sf-fact-value">{doorsTime}</div>
+                    </div>
+                  )}
+                  {showTime && (
+                    <div>
+                      <div className="sf-fact-label">Show</div>
                       <div className="sf-fact-value">{showTime}</div>
                     </div>
                   )}
@@ -1129,6 +1137,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
 
                   <EventBadges
                     eventDate={event.date}
+                    doorsTime={event.doors_time}
                     ageRestriction={event.age_restriction}
                     presaleActive={!!event.presaleAvailable && !ticketsOnSale && !presaleUnlocked}
                   />

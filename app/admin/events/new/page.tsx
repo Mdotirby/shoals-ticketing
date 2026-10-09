@@ -10,6 +10,7 @@ import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { followDoors } from "@/lib/dates";
 import { saveDraft, readDraft, clearDraft, draftAge, type Draft } from "@/lib/admin/draftStore";
 
 type EventVenue = { id: string; name: string; full_address: string | null; contact_name: string | null; phone: string | null; facility_fee?: number | null; ticketing_fee?: number | null; tax_rate?: number | null };
@@ -1140,7 +1141,7 @@ export default function AdminCreateEventPage() {
                 name="time"
                 className="admin-form-input"
                 value={form.time}
-                onChange={(e) => setForm({ ...form, time: e.target.value })}
+                onChange={(e) => setForm({ ...form, time: e.target.value, doors_time: followDoors(form.doors_time, form.time, e.target.value) })}
               >
                 <option value="">— Select time —</option>
                 {Array.from({ length: 30 }, (_, i) => {

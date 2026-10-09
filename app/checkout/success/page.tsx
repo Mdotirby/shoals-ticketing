@@ -14,6 +14,7 @@ import { OrderConfirmationPanel } from "./_components/OrderConfirmationPanel";
 import { ActionRow } from "./_components/ActionRow";
 import { CrossSellSection } from "./_components/CrossSellSection";
 import { Event } from "@/lib/types/event";
+import { formatDoorsTime } from "@/lib/dates";
 
 type ConfirmationData = {
   order: {
@@ -24,7 +25,7 @@ type ConfirmationData = {
     quantity: number;
     total_amount: number;
   };
-  event: { id?: string; title: string; date: string; venue: string; image_url?: string | null } | null;
+  event: { id?: string; title: string; date: string; venue: string; image_url?: string | null; doors_time?: string | null } | null;
   ticket: { id: string; qr_code: string; qr_data_url: string } | null;
   /** Real ticket-tier name, e.g. "VIP Table" — resolved server-side from
    *  tickets.ticket_type_id, so it only arrives once the ticket itself
@@ -57,15 +58,6 @@ function safeDate(d: string) { return (d && d.length === 10 && d[4] === "-") ? n
 function shortOrderRef(id?: string) {
   if (!id) return "—";
   return id.replace(/-/g, "").slice(-6).toUpperCase();
-}
-
-/** Doors are conventionally an hour before the listed start. Returns null when
- *  the event has no time set, so we render nothing rather than a fake "Doors". */
-function doorsLabel(d: string) {
-  const start = safeDate(d);
-  if (start.getHours() === 0 && start.getMinutes() === 0) return null;
-  const doors = new Date(start.getTime() - 60 * 60 * 1000);
-  return doors.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 function formatDateShort(d: string) {
@@ -286,7 +278,7 @@ function SuccessContent() {
               eventName: data.event.title,
               dateVenue: `${formatDateShort(data.event.date)} · ${data.event.venue}`,
               tierLabel,
-              subLabel: doorsLabel(data.event.date) ? `Doors ${doorsLabel(data.event.date)}` : undefined,
+              subLabel: formatDoorsTime(data.event.date, data.event.doors_time) ? `Doors ${formatDoorsTime(data.event.date, data.event.doors_time)}` : undefined,
               photoUrl: data.event.image_url ?? undefined,
             }}
             priceLines={

@@ -83,6 +83,53 @@ export function formatEventTime(date: string): string | null {
   });
 }
 
+/** Doors open this many minutes before the show unless the event says otherwise. */
+export const DEFAULT_DOORS_LEAD_MINUTES = 60;
+
+/** "19:30" (or "19:30:00") → "7:30 PM". Null for blank or malformed input. */
+export function formatClockTime(hhmm: string | null | undefined): string | null {
+  const m = (hhmm || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  if (h > 23) return null;
+  return `${h % 12 || 12}:${m[2]} ${h >= 12 ? "PM" : "AM"}`;
+}
+
+/**
+ * The default doors for a show time "HH:MM": an hour earlier, as "HH:MM".
+ * Null when the show time is blank or malformed.
+ */
+export function defaultDoorsTime(showTime: string | null | undefined): string | null {
+  const m = (showTime || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const mins = (Number(m[1]) * 60 + Number(m[2]) - DEFAULT_DOORS_LEAD_MINUTES + 1440) % 1440;
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The doors field after the show time changes on an event form: it follows
+ * the show time (an hour earlier) while it is blank or still the default for
+ * the old show time, and is left alone once someone has typed their own.
+ */
+export function followDoors(doors: string, oldShowTime: string, newShowTime: string): string {
+  if (doors && doors !== defaultDoorsTime(oldShowTime)) return doors;
+  return defaultDoorsTime(newShowTime) ?? "";
+}
+
+/**
+ * Doors for a show, as "6:30 PM" — the one rule every surface uses. The
+ * doors time typed on the event wins; without one, doors are an hour before
+ * the show time the date carries. Null when neither gives a time, so a
+ * date-only show renders no "Doors" at all rather than a made-up one.
+ */
+export function formatDoorsTime(date: string, doorsTime?: string | null): string | null {
+  const typed = formatClockTime(doorsTime);
+  if (typed) return typed;
+  if (!formatEventTime(date)) return null;
+  const d = safeDate(date);
+  return formatClockTime(defaultDoorsTime(`${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`));
+}
+
 /**
  * Returns true if a date-only string was provided (no time component).
  */

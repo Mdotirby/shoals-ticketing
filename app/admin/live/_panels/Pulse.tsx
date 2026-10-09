@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCookie } from "@/lib/cookies";
-import { isEventToday } from "@/lib/dates";
+import { isEventToday, formatDoorsTime } from "@/lib/dates";
 import { useAdminNav } from "@/app/components/admin/AdminNavContext";
 import { visibleNav } from "@/lib/admin/nav";
 import { Card, Eyebrow, Kpi, KpiRow, fmtUSD } from "@/app/components/admin/ui";
@@ -178,7 +178,7 @@ export default function LivePulsePickerPage() {
   const seatsAll = guests.reduce((t, g) => t + (g.quantity || 0), 0);
   const issued = tonight?.ticketsIssued ?? 0;
   const lastScan = scans[0]?.at ?? null;
-  const doors = event.doors_time || null;
+  const doors = formatDoorsTime(event.date, event.doors_time);
 
   return (
     <div className="dof">

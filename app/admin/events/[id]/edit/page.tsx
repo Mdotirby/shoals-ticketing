@@ -10,6 +10,7 @@ import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
+import { followDoors } from "@/lib/dates";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import { fmtUSD } from "@/app/components/admin/ui";
@@ -1258,7 +1259,7 @@ export default function AdminEditEventPage() {
                       disabled={locked}
                       className="admin-form-input"
                       value={form.time}
-                      onChange={(e) => setForm({ ...form, time: e.target.value })}
+                      onChange={(e) => setForm({ ...form, time: e.target.value, doors_time: followDoors(form.doors_time, form.time, e.target.value) })}
                     >
                       <option value="">— Select time —</option>
                       {Array.from({ length: 30 }, (_, i) => {

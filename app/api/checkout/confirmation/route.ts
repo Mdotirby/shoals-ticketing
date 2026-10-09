@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   // Fetch event details
   const { data: event } = await admin
     .from("events")
-    .select("id, title, date, venue, image_url")
+    .select("id, title, date, venue, image_url, doors_time")
     .eq("id", order.event_id)
     .single();
 

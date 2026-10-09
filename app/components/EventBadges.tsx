@@ -1,28 +1,21 @@
 "use client";
 
-import { safeDate } from "@/lib/dates";
+import { safeDate, formatDoorsTime } from "@/lib/dates";
 
 type EventBadgesProps = {
   eventDate: string;        // ISO string e.g. "2025-11-08T20:00:00"
+  doorsTime?: string | null; // "HH:MM" typed on the event; else an hour before the show
   ageRestriction?: string;  // "all_ages" | "18+" | "21+" — default all_ages
   presaleActive?: boolean;  // show presale badge when true
 };
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-}
-
-export default function EventBadges({ eventDate, ageRestriction = "all_ages", presaleActive = false }: EventBadgesProps) {
+export default function EventBadges({ eventDate, doorsTime, ageRestriction = "all_ages", presaleActive = false }: EventBadgesProps) {
   const now = new Date();
   const showDate = safeDate(eventDate);
   const diffMs = showDate.getTime() - now.getTime();
   const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  const doorsOpen = new Date(showDate.getTime() - 60 * 60 * 1000); // 1hr before
+  const doors = formatDoorsTime(eventDate, doorsTime);
 
   const ageLabel =
     ageRestriction === "18+" ? "18+" :
@@ -63,12 +56,14 @@ export default function EventBadges({ eventDate, ageRestriction = "all_ages", pr
         {countdownLabel}
       </span>
 
-      <span className="event-badge event-badge-doors">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-          <path d="M3 12a9 9 0 1018 0 9 9 0 00-18 0zM12 7v5l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        Doors {formatTime(doorsOpen)}
-      </span>
+      {doors && (
+        <span className="event-badge event-badge-doors">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12a9 9 0 1018 0 9 9 0 00-18 0zM12 7v5l2.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Doors {doors}
+        </span>
+      )}
     </div>
   );
 }
