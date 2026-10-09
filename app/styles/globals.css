@@ -25127,3 +25127,67 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .evl-head { position: relative; padding: 18px 16px; }
   .admin-shell .evl-body { padding: 16px 16px 40px; }
 }
+
+/* ── Event hub · shared card bits ── */
+.admin-shell .hub-card--glow {
+  padding: 20px 22px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0) 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+}
+.admin-shell .hub-card .hub-eyebrow { font-size: 9.5px; letter-spacing: 0.17em; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .hub-card-line { display: flex; align-items: baseline; gap: 10px; }
+.admin-shell .hub-card-note { font-size: 11px; color: rgba(255, 255, 255, 0.5); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-card-link { font: inherit; font-size: 11px; font-weight: 650; color: rgba(255, 255, 255, 0.6); cursor: pointer; background: none; border: 0; padding: 0; text-decoration: none; }
+.admin-shell .hub-card-link:hover { color: #fff; }
+.admin-shell .hub-card-foot { font-size: 11.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.62); margin-top: 14px; text-wrap: pretty; }
+.admin-shell .hub-arrow { font-size: 11px; color: rgba(255, 255, 255, 0.4); flex: none; }
+
+/* ── Event hub · Summary ── */
+.admin-shell .hub-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .hub-pace { display: flex; align-items: flex-end; gap: 10px; height: 170px; margin-top: 18px; padding-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-pace-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; height: 100%; }
+.admin-shell .hub-pace-n { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-pace-n.is-partial { color: rgba(255, 255, 255, 0.72); }
+.admin-shell .hub-pace-bar { width: 100%; max-width: 46px; min-height: 2px; border-radius: 8px 8px 3px 3px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45)); }
+.admin-shell .hub-pace-bar.is-partial { background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.55) 0 5px, rgba(255, 255, 255, 0.28) 5px 10px); }
+.admin-shell .hub-pace-labels { display: flex; gap: 10px; margin-top: 7px; }
+.admin-shell .hub-pace-labels > div { flex: 1; min-width: 0; text-align: center; font-size: 10px; line-height: 1.3; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-pace-none { padding: 40px 0; text-align: center; font-size: 12px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-alerts { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.admin-shell .hub-alert {
+  display: flex; align-items: flex-start; gap: 11px; padding: 12px 13px; border-radius: 14px; cursor: pointer; width: 100%;
+  font: inherit; color: inherit; text-align: left; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.11);
+}
+.admin-shell .hub-alert:hover { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .hub-alert.is-static { cursor: default; }
+.admin-shell .hub-alert.is-static:hover { background: rgba(255, 255, 255, 0.04); }
+.admin-shell .hub-alert:disabled { opacity: 1; }
+.admin-shell .hub-alert-dot { width: 8px; height: 8px; border-radius: 8px; flex: none; margin-top: 5px; background: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-alert-dot.is-warn { background: var(--hub-warn); }
+.admin-shell .hub-alert-dot.is-blue { background: var(--hub-blue); }
+.admin-shell .hub-alert-dot.is-good { background: var(--hub-good); }
+.admin-shell .hub-alert-dot.is-bad { background: var(--hub-bad); }
+.admin-shell .hub-alert-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .hub-alert-title { font-size: 12.5px; font-weight: 650; }
+.admin-shell .hub-alert-sub { font-size: 11px; line-height: 1.5; color: rgba(255, 255, 255, 0.5); margin-top: 3px; text-wrap: pretty; }
+.admin-shell .hub-alert-none { padding: 14px 2px; font-size: 12px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-check { display: flex; flex-direction: column; margin-top: 10px; }
+.admin-shell .hub-check-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0; cursor: pointer; width: 100%;
+  font: inherit; color: inherit; text-align: left; background: none; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.admin-shell .hub-check-row:hover .hub-check-label { color: #fff; }
+.admin-shell .hub-check-mark {
+  width: 20px; height: 20px; border-radius: 20px; flex: none; display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  background: oklch(0.86 0.09 92 / 0.14); color: var(--hub-warn); border: 1px solid oklch(0.86 0.09 92 / 0.4);
+}
+.admin-shell .hub-check-mark.is-done { background: rgba(143, 214, 168, 0.14); color: var(--hub-good); border-color: rgba(143, 214, 168, 0.35); }
+.admin-shell .hub-check-label { width: 96px; flex: none; font-size: 12px; font-weight: 650; color: rgba(255, 255, 255, 0.8); }
+.admin-shell .hub-check-value { flex: 1; min-width: 0; font-size: 12px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-check-value.is-warn { color: var(--hub-warn); }
+.admin-shell .hub-attr { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.admin-shell .hub-attr-line { display: flex; align-items: baseline; gap: 10px; }
+.admin-shell .hub-attr-name { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-attr-orders { font-size: 11px; color: rgba(255, 255, 255, 0.48); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-attr-rev { width: 66px; text-align: right; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-attr-bar { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.07); margin-top: 6px; overflow: hidden; }
+.admin-shell .hub-attr-bar > div { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.55); }

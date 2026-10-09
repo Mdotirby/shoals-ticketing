@@ -21,6 +21,7 @@ import HubShell from "./_hub/HubShell";
 import { HUB_TABS, type HubTab } from "./_hub/config";
 import { InterimSection } from "./_hub/interim";
 import { HubEmpty } from "./_hub/ui";
+import Summary from "./_hub/sections/Summary";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -37,15 +38,16 @@ function Hub() {
   const [tab, setTab] = useTabParam<HubTab>(HUB_TABS);
   return (
     <HubShell tab={tab} setTab={setTab}>
-      <Section tab={tab} />
+      <Section tab={tab} go={setTab} />
     </HubShell>
   );
 }
 
-const INTERIM: HubTab[] = ["summary", "inventory", "orders", "settlement", "marketing", "guests", "access"];
+const INTERIM: HubTab[] = ["inventory", "orders", "settlement", "marketing", "guests", "access"];
 
-function Section({ tab }: { tab: HubTab }) {
+function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   const { id, offer } = useHub();
+  if (tab === "summary") return <Summary go={go} />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
