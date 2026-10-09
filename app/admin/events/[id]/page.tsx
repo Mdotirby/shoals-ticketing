@@ -22,6 +22,7 @@ import { HUB_TABS, type HubTab } from "./_hub/config";
 import { InterimSection } from "./_hub/interim";
 import { HubEmpty } from "./_hub/ui";
 import Summary from "./_hub/sections/Summary";
+import Details from "./_hub/sections/Details";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -48,10 +49,10 @@ const INTERIM: HubTab[] = ["inventory", "orders", "settlement", "marketing", "gu
 function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   const { id, offer } = useHub();
   if (tab === "summary") return <Summary go={go} />;
+  if (tab === "details") return <Details />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
-    details: { title: "Details are still on the edit form", body: "Title, date, doors and show, venue, artwork and copy move into this section next.", href: `/admin/events/${id}/edit?tab=setup`, cta: "Open the edit form" },
     tickets: { title: "Tickets are still on the edit form", body: "Tiers, fees and on-sale windows move into this section next.", href: `/admin/events/${id}/edit?tab=tickets`, cta: "Open ticket setup" },
     promotions: { title: "Promo codes are still on the edit form", body: "Discount and presale codes move into this section next.", href: `/admin/events/${id}/edit?tab=promo`, cta: "Open promo & tracking" },
     dayof: { title: "The live view is still its own page", body: "Scan velocity, the capacity gauge and recent check-ins move into this section next.", href: `/admin/live/${id}`, cta: "Open the live view" },
