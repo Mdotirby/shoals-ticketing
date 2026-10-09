@@ -15,6 +15,10 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  /* clip, where supported: it trims sideways overflow the same way but, unlike
+     hidden, doesn't turn body into a scroll container — which silently broke
+     every position: sticky on the site (headers, save bars). */
+  overflow-x: clip;
 }
 
 /* iOS Safari zooms the page in whenever a focused field renders under 16px,
@@ -3709,7 +3713,7 @@ body {
    FINAL FIXES — overflow, backgrounds, sizing
    ============================================================ */
 
-html, body { overflow-x: hidden; }
+html, body { overflow-x: hidden; overflow-x: clip; }
 .home-hero, .home-hero-secondary { overflow: hidden; }
 .site-header { overflow: visible; } /* Must be visible so the mobile nav dropdown isn't clipped */
 
