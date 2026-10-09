@@ -1051,8 +1051,8 @@ export default function AdminEditEventPage() {
 
       // Stay on the form.
       //
-      // This used to be router.push("/admin/events") -- and /admin/events has
-      // no page, so next.config.ts redirected it to /admin/calendar?tab=list.
+      // This used to be router.push("/admin/events") -- which, before the
+      // events list existed, redirected to the calendar's show list.
       // Saving an edit therefore threw you out of the show you were editing
       // and into a different section of the nav, with no confirmation that
       // anything had been saved at all. Same pattern the offer builder uses:

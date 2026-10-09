@@ -1,33 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import MergedPage from "@/app/components/admin/MergedPage";
+import { PageHeader } from "@/app/components/admin/ui";
 import Month from "./_panels/Month";
-import ShowList from "./_panels/ShowList";
 
 /**
- * Calendar & shows — PHASE1B § Merges: the calendar and the events list are
- * the same shows read two ways, the month for the room and the list for the
- * book. /admin/calendar?tab=month|list; each tab is the old page moved in
- * unchanged. Roles are the old routes' own: a box office user who could only
- * see the show list lands on it.
+ * Calendar — the month, for the room: holds, confirms and rentals by date.
+ * The list half of the old "Calendar & shows" page is the events list now
+ * (/admin/events, eventslist.dc.html); /admin/calendar?tab=list redirects
+ * there.
  */
-export default function CalendarAndShowsPage() {
+export default function CalendarPage() {
   return (
-    <MergedPage
-      pageId="calendar"
-      title="Calendar & shows"
-      sub="Holds, confirms & rentals — by month or as a list"
-      actions={
-        <Link href="/admin/events/new" className="btn btn-primary">
-          + New event
-        </Link>
-      }
-      tabsNote="Same shows, two readings — the month for the room, the list for the book"
-      panels={{
-        month: () => <Month />,
-        list: () => <ShowList />,
-      }}
-    />
+    <div className="merged-page">
+      <PageHeader
+        title="Calendar"
+        sub="Holds, confirms & rentals by month"
+        actions={
+          <>
+            <Link href="/admin/events" className="btn">All events</Link>
+            <Link href="/admin/events/new" className="btn btn-primary">+ New event</Link>
+          </>
+        }
+      />
+      <Month />
+    </div>
   );
 }

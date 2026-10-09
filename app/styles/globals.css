@@ -25033,3 +25033,97 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .hub-head { position: relative; padding: 16px; }
   .admin-shell .hub-main { padding: 18px 16px 40px; }
 }
+
+/* ── Events list (eventslist.dc.html) — /admin/events ─────────────────── */
+.admin-content:has(> .evl) { padding: 0; overflow: visible; }
+.admin-shell .evl { min-height: 100vh; display: flex; flex-direction: column; color: rgba(255, 255, 255, 0.95); }
+.admin-shell .evl-head {
+  position: sticky; top: 0; z-index: 30; display: flex; align-items: flex-end; flex-wrap: wrap; gap: 16px;
+  padding: 22px 28px 18px; background: rgba(0, 0, 0, 0.74);
+  backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.admin-shell .evl-head-text { flex: 1; min-width: 240px; }
+.admin-shell .evl-title { font-size: 28px; font-weight: 800; letter-spacing: -0.035em; margin: 0; }
+.admin-shell .evl-sub { font-size: 12px; color: rgba(255, 255, 255, 0.46); margin-top: 4px; }
+.admin-shell .evl-body { padding: 20px 28px 60px; display: flex; flex-direction: column; gap: 14px; max-width: 1320px; }
+.admin-shell .evl-filters {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 20px;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+.admin-shell .evl-filter-row { display: flex; gap: 10px 14px; flex-wrap: wrap; align-items: center; }
+.admin-shell .evl-search { flex: 1 1 260px; width: auto; }
+.admin-shell .evl-seg { display: flex; gap: 3px; padding: 3px; border-radius: 999px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); flex-wrap: wrap; }
+.admin-shell .evl-seg-btn {
+  padding: 7px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; font: inherit; font-size: 11.5px; font-weight: 650;
+  background: transparent; border: 0; color: rgba(255, 255, 255, 0.56);
+}
+.admin-shell .evl-seg-btn.is-on { background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.95); }
+.admin-shell .evl-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.admin-shell .evl-chips-label { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); margin-right: 2px; }
+.admin-shell .evl-chip {
+  display: flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 11.5px; font-weight: 650;
+  background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.56);
+}
+.admin-shell .evl-chip.is-on { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); color: rgba(255, 255, 255, 0.95); }
+.admin-shell .evl-chip-n { color: rgba(255, 255, 255, 0.4); font-variant-numeric: tabular-nums; }
+.admin-shell .evl-dot { width: 6px; height: 6px; border-radius: 6px; flex: none; background: var(--evl-tone, rgba(255, 255, 255, 0.56)); }
+.admin-shell .is-good { --evl-tone: var(--hub-good); }
+.admin-shell .is-warn { --evl-tone: var(--hub-warn); }
+.admin-shell .is-bad { --evl-tone: var(--hub-bad); }
+.admin-shell .is-blue { --evl-tone: var(--hub-blue); }
+.admin-shell .is-dim { --evl-tone: rgba(255, 255, 255, 0.56); }
+.admin-shell .evl-clear { font: inherit; font-size: 11.5px; font-weight: 650; color: rgba(255, 255, 255, 0.62); cursor: pointer; background: none; border: 0; }
+.admin-shell .evl-clear:hover { color: #fff; }
+.admin-shell .evl-loading { padding: 40px 4px; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
+
+.admin-shell .evl-table-card {
+  padding: 6px 18px 8px; border-radius: 22px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0) 60%), linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.admin-shell .evl-scroll { overflow-x: auto; }
+.admin-shell .evl-table { min-width: 980px; }
+.admin-shell .evl-tr {
+  display: grid; grid-template-columns: 82px minmax(0, 1.8fr) minmax(0, 1fr) 104px minmax(0, 1.1fr) 92px 82px 168px;
+  gap: 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.admin-shell .evl-tr:not(.evl-tr--head):hover { background: rgba(255, 255, 255, 0.025); }
+.admin-shell .evl-tr--head {
+  padding: 12px 0 9px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
+}
+.admin-shell .evl-num { text-align: right; }
+.admin-shell .evl-date, .admin-shell .evl-show { display: flex; flex-direction: column; min-width: 0; color: inherit; text-decoration: none; }
+.admin-shell .evl-dow { font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .evl-day { font-size: 14px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.admin-shell .evl-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .evl-meta { font-size: 10.5px; color: rgba(255, 255, 255, 0.42); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .evl-venue { min-width: 0; font-size: 12px; color: rgba(255, 255, 255, 0.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .evl-status {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.13); color: var(--evl-tone);
+}
+.admin-shell .evl-sold { display: flex; align-items: baseline; gap: 6px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.admin-shell .evl-cap { color: rgba(255, 255, 255, 0.4); }
+.admin-shell .evl-pct { font-size: 10.5px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .evl-bar { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); margin-top: 6px; overflow: hidden; }
+.admin-shell .evl-bar > div { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.65); }
+.admin-shell .evl-bar > div.is-good { background: var(--hub-good); }
+.admin-shell .evl-bar > div.is-bad { background: var(--hub-bad); }
+.admin-shell .evl-gross { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .evl-days { font-size: 12px; font-variant-numeric: tabular-nums; }
+.admin-shell .evl-days.is-warn { color: var(--hub-warn); }
+.admin-shell .evl-days.is-dim { color: rgba(255, 255, 255, 0.44); }
+.admin-shell .evl-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.admin-shell .evl-act {
+  width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; cursor: pointer; font: inherit; font-size: 13px;
+  color: rgba(255, 255, 255, 0.78); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12); text-decoration: none;
+}
+.admin-shell .evl-act:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.admin-shell .evl-foot { display: flex; gap: 10px; padding: 12px 0 6px; font-size: 11px; color: rgba(255, 255, 255, 0.46); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .admin-shell .evl-head { position: relative; padding: 18px 16px; }
+  .admin-shell .evl-body { padding: 16px 16px 40px; }
+}

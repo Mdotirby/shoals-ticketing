@@ -109,34 +109,15 @@ export const navGroups: NavGroup[] = [
     icon: "◈",
     pages: [
       {
-        id: "calendar",
-        label: "Calendar & shows",
-        routeTabs: [
-          { label: "Month", href: "/admin/calendar?tab=month", tabKey: "calendar", roles: R.exec },
-          { label: "Show list", href: "/admin/calendar?tab=list", roles: R.events },
-        ],
+        id: "events",
+        label: "Events",
+        // eventslist.dc.html — every show, each row opening its event hub.
+        // Inside a show the hub is the page; its sections are the hub's own
+        // sub-nav, so the sidebar doesn't repeat them.
+        match: /^\/admin\/events(\/(?!new$)[^/]+)?$/,
+        link: { label: "Events", href: "/admin/events", roles: R.events },
       },
-      {
-        id: "workspace",
-        label: "Event workspace",
-        // Inside an event, its workspace and edit form are both one click
-        // away, whichever of the two you're on.
-        contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}` : null),
-        match: /^\/admin\/events\/(?!new$)[^/]+$/,
-        // /admin/events has no page — next.config.ts redirects it to the show
-        // list. Pointing there directly says where you actually land instead
-        // of bouncing through a route that does not exist.
-        link: { label: "Event workspace", href: "/admin/calendar?tab=list", roles: R.events },
-        paramTabs: [
-          { label: "Overview", key: "overview" },
-          { label: "Inventory & Holds", key: "inventory" },
-          { label: "Orders", key: "orders" },
-          { label: "Settlement", key: "settlement" },
-          { label: "Marketing", key: "marketing" },
-          { label: "Guest List", key: "guestlist" },
-          { label: "Access", key: "access" },
-        ],
-      },
+      { id: "calendar", label: "Calendar", link: { label: "Calendar", href: "/admin/calendar", tabKey: "calendar", roles: R.exec } },
       {
         id: "create",
         label: "Create a show",
@@ -152,10 +133,9 @@ export const navGroups: NavGroup[] = [
         label: "Edit event",
         contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}/edit` : null),
         match: /^\/admin\/events\/[^/]+\/edit$/,
-        // Same dead route. Both this row and Event workspace above used to
-        // land on the calendar list without saying so; this one is only ever
-        // reached contextually from inside an event anyway.
-        link: { label: "Edit event", href: "/admin/calendar?tab=list", roles: R.events },
+        // Only ever reached contextually from inside an event; out of one it
+        // lands on the events list.
+        link: { label: "Edit event", href: "/admin/events", roles: R.events },
         paramTabs: [
           { label: "Setup", key: "setup" },
           { label: "Tickets", key: "tickets" },

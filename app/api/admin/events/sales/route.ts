@@ -22,6 +22,16 @@ export async function GET(request: Request) {
     .map((s) => s.trim())
     .filter((s) => /^[0-9a-f-]{36}$/i.test(s))
     .slice(0, 300);
-  const sales = await eventSales(createAdminClient(), ids);
-  return NextResponse.json(Object.fromEntries(sales));
+  const admin = createAdminClient();
+  const [sales, { data: settlements }] = await Promise.all([
+    eventSales(admin, ids),
+    // The events list's "Settled" status — a finalized settlement, nothing else.
+    ids.length
+      ? admin.from("settlements").select("event_id, status").in("event_id", ids)
+      : Promise.resolve({ data: [] as Array<{ event_id: string; status: string }> }),
+  ]);
+  const settled = new Set((settlements ?? []).filter((s) => s.status === "finalized").map((s) => s.event_id));
+  return NextResponse.json(
+    Object.fromEntries([...sales].map(([id, s]) => [id, { ...s, settled: settled.has(id) }])),
+  );
 }

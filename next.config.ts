@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const MERGED_ROUTES: [string, string][] = [
-  ["/admin/events", "/admin/calendar?tab=list"],
   ["/admin/guest-lists", "/admin/live?tab=guests"],
   ["/admin/broadcasts", "/admin/marketing?tab=broadcasts"],
   ["/admin/auctions", "/admin/marketing?tab=auctions"],
@@ -49,7 +48,16 @@ const nextConfig: NextConfig = {
   // the detail pages' own "back" links keep working. Exact paths only —
   // detail routes under them (/admin/broadcasts/new, …) are untouched.
   async redirects() {
-    return MERGED_ROUTES.map(([source, destination]) => ({ source, destination, permanent: false }));
+    return [
+      ...MERGED_ROUTES.map(([source, destination]) => ({ source, destination, permanent: false })),
+      // The calendar's Show list became the events list (eventslist.dc.html).
+      {
+        source: "/admin/calendar",
+        has: [{ type: "query" as const, key: "tab", value: "list" }],
+        destination: "/admin/events",
+        permanent: false,
+      },
+    ];
   },
   async rewrites() {
     return [

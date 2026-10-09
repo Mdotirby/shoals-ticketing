@@ -160,7 +160,7 @@ export default function HubShell({
         <div className="hub-empty">
           <div className="hub-empty-title">Show not found</div>
           <div className="hub-empty-body">It may have been deleted, or it belongs to another venue.</div>
-          <div className="hub-empty-ctas"><Link href="/admin/calendar?tab=list" className="hub-btn hub-btn--primary">Back to events</Link></div>
+          <div className="hub-empty-ctas"><Link href="/admin/events" className="hub-btn hub-btn--primary">Back to events</Link></div>
         </div>
       </div>
     );
@@ -290,7 +290,7 @@ export default function HubShell({
     <div className="hub" style={{ ["--hub-head-h" as string]: `${headH}px` }}>
       <header ref={headRef} className="hub-head">
         <div className="hub-crumbs">
-          <Link href="/admin/calendar?tab=list" className="hub-crumb">Events</Link>
+          <Link href="/admin/events" className="hub-crumb">Events</Link>
           <span className="hub-crumb-sep">›</span>
           <span className="hub-crumb">{event.title}</span>
           <span className="hub-crumb-sep">›</span>
