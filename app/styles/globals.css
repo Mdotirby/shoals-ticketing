@@ -24781,3 +24781,255 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .mkt-promo-row > .cshow-btn { flex: 0 0 auto; width: auto; min-height: 42px; }
 .admin-shell .mkt-toggle { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255, 255, 255, 0.55); cursor: pointer; }
 .admin-shell .mkt-toggle input { width: 16px; height: 16px; accent-color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Event hub (eventhub.dc.html) — /admin/events/[id]?tab=…
+   One page per show: sticky header with KPIs, grouped sub-nav, section
+   head, the section, and a save bar. Values are the mockup's own.
+   ══════════════════════════════════════════════════════════════════════ */
+.admin-shell {
+  --hub-good: #8fd6a8;
+  --hub-warn: oklch(0.86 0.09 92);
+  --hub-bad: oklch(0.72 0.13 22);
+  --hub-blue: oklch(0.78 0.11 250);
+  --hub-purp: oklch(0.74 0.13 300);
+  --hub-teal: oklch(0.80 0.10 200);
+}
+/* The hub is full-bleed and scrolls with the window, so the header can stick. */
+.admin-content:has(> .hub) { padding: 0; overflow: visible; }
+.admin-shell .hub { position: relative; min-height: 100vh; display: flex; flex-direction: column; color: rgba(255, 255, 255, 0.95); }
+.admin-shell .hub-booting { padding: 40px 28px; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .hub-missing { padding: 40px 28px; }
+.admin-shell .hub-spacer { flex: 1; }
+
+/* ── Header ── */
+.admin-shell .hub-head {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 16px 28px;
+  background: rgba(0, 0, 0, 0.74);
+  backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.admin-shell .hub-crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-crumb { color: rgba(255, 255, 255, 0.62); font-weight: 600; text-decoration: none; }
+.admin-shell a.hub-crumb:hover { color: #fff; }
+.admin-shell .hub-crumb.is-on { color: rgba(255, 255, 255, 0.9); font-weight: 700; }
+.admin-shell .hub-crumb-sep { color: rgba(255, 255, 255, 0.28); }
+.admin-shell .hub-pop-anchor { position: relative; }
+.admin-shell .hub-switch {
+  display: flex; align-items: center; gap: 8px; padding: 7px 13px; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 11.5px; font-weight: 650; color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.admin-shell .hub-switch:hover { background: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-kbd { font-size: 9px; color: rgba(255, 255, 255, 0.45); }
+.admin-shell .hub-pop-scrim { position: fixed; inset: 0; z-index: 79; }
+.admin-shell .hub-pop {
+  position: absolute; z-index: 80; padding: 10px; border-radius: 18px;
+  background: rgba(18, 18, 22, 0.97); border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+}
+.admin-shell .hub-pop--switch { right: 0; top: 40px; width: 360px; max-width: calc(100vw - 32px); }
+.admin-shell .hub-input {
+  width: 100%; padding: 11px 13px; border-radius: 12px; font: inherit; font-size: 13px; color: #fff;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18); outline: none; color-scheme: dark;
+}
+.admin-shell .hub-input:focus { border-color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-switch-list { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 320px; overflow-y: auto; }
+.admin-shell .hub-switch-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 11px; border-radius: 11px; cursor: pointer;
+  background: transparent; border: 0; font: inherit; color: inherit; text-align: left; width: 100%;
+}
+.admin-shell .hub-switch-row:hover { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .hub-switch-row.is-on { background: rgba(255, 255, 255, 0.06); }
+.admin-shell .hub-switch-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.admin-shell .hub-switch-name { font-size: 12.5px; font-weight: 650; }
+.admin-shell .hub-switch-meta { font-size: 10.5px; color: rgba(255, 255, 255, 0.46); margin-top: 2px; }
+.admin-shell .hub-switch-status { font-size: 10px; color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-switch-none { padding: 14px 11px; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .hub-dot { width: 6px; height: 6px; border-radius: 6px; flex: none; background: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-dot--good { background: var(--hub-good); }
+.admin-shell .hub-dot--warn { background: var(--hub-warn); }
+.admin-shell .hub-dot--bad { background: var(--hub-bad); }
+
+.admin-shell .hub-titlebar { display: flex; align-items: flex-end; gap: 18px; flex-wrap: wrap; }
+.admin-shell .hub-title-text { flex: 1 1 360px; min-width: 0; }
+.admin-shell .hub-state { display: flex; align-items: center; gap: 9px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--hub-tone); }
+.admin-shell .hub-state-dot { width: 7px; height: 7px; border-radius: 999px; flex: none; background: var(--hub-tone); box-shadow: 0 0 10px var(--hub-tone); }
+.admin-shell .hub-state--good { --hub-tone: var(--hub-good); }
+.admin-shell .hub-state--warn { --hub-tone: var(--hub-warn); }
+.admin-shell .hub-state--bad { --hub-tone: var(--hub-bad); }
+.admin-shell .hub-state--dim { --hub-tone: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-title { font-size: 28px; font-weight: 800; letter-spacing: -0.035em; margin: 6px 0 0; line-height: 1.15; }
+.admin-shell .hub-meta { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; margin-top: 7px; font-size: 12.5px; color: rgba(255, 255, 255, 0.7); }
+.admin-shell .hub-meta-date { font-weight: 650; color: rgba(255, 255, 255, 0.9); }
+.admin-shell .hub-meta-sep { color: rgba(255, 255, 255, 0.26); }
+.admin-shell .hub-meta-age { padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.16); }
+.admin-shell .hub-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ── Buttons ── */
+.admin-shell .hub-btn {
+  min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 18px; border-radius: 999px;
+  cursor: pointer; white-space: nowrap; font: inherit; font-size: 12.5px; font-weight: 650; text-decoration: none;
+  color: rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .hub-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.admin-shell .hub-btn:disabled { opacity: 0.5; cursor: default; }
+.admin-shell .hub-btn--primary {
+  font-weight: 750; color: #0a0a0c; border-color: transparent;
+  background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.8));
+  box-shadow: 0 0 26px rgba(255, 255, 255, 0.25), inset 0 1px 0 #fff;
+}
+.admin-shell .hub-btn--primary:hover { filter: brightness(1.06); background: linear-gradient(180deg, #ffffff, rgba(255, 255, 255, 0.8)); color: #0a0a0c; }
+.admin-shell .hub-btn--quiet { background: transparent; border-color: transparent; color: rgba(255, 255, 255, 0.7); }
+.admin-shell .hub-btn--sm { min-height: 32px; padding: 0 13px; font-size: 11.5px; }
+.admin-shell .hub-btn--warn { background: var(--hub-warn); color: #0a0a0c; border-color: transparent; font-weight: 750; }
+.admin-shell .hub-btn--bad { background: var(--hub-bad); color: #0a0a0c; border-color: transparent; font-weight: 750; }
+.admin-shell .hub-x {
+  width: 34px; height: 34px; border-radius: 34px; display: grid; place-items: center; cursor: pointer; flex: none;
+  font: inherit; font-size: 12px; color: #fff; background: rgba(255, 255, 255, 0.06); border: 0;
+}
+.admin-shell .hub-x:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ── KPIs ── */
+.admin-shell .hub-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.admin-shell .hub-kpi { padding: 10px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.12); min-width: 0; }
+.admin-shell .hub-kpi-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .hub-kpi-line { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; min-width: 0; }
+.admin-shell .hub-kpi-value { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.admin-shell .hub-kpi-value.is-warn { color: var(--hub-warn); }
+.admin-shell .hub-kpi-value.is-good { color: var(--hub-good); }
+.admin-shell .hub-kpi-value.is-bad { color: var(--hub-bad); }
+.admin-shell .hub-kpi-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.admin-shell .hub-kpi-bar { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); margin-top: 7px; overflow: hidden; }
+.admin-shell .hub-kpi-bar > div { height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.7); }
+
+/* ── Body: sub-nav + section ── */
+.admin-shell .hub-body { display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; flex: 1; }
+.admin-shell .hub-nav {
+  position: sticky; top: var(--hub-head-h, 200px); max-height: calc(100vh - var(--hub-head-h, 200px)); overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px; padding: 18px 12px 30px 16px; border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.admin-shell .hub-nav-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.admin-shell .hub-nav-label { font-size: 9px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.34); padding: 6px 11px 4px; }
+.admin-shell .hub-nav-item {
+  display: flex; align-items: center; gap: 9px; min-height: 36px; padding: 8px 11px; border-radius: 10px; cursor: pointer; width: 100%;
+  font: inherit; text-align: left; color: rgba(255, 255, 255, 0.6); background: transparent; border: 1px solid transparent;
+}
+.admin-shell .hub-nav-item:hover { background: rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-nav-item.is-on {
+  color: rgba(255, 255, 255, 0.95); background: linear-gradient(155deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+  border-color: rgba(255, 255, 255, 0.18); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.admin-shell .hub-nav-item.is-off { color: rgba(255, 255, 255, 0.28); }
+.admin-shell .hub-nav-dot { width: 5px; height: 5px; border-radius: 999px; flex: none; background: rgba(255, 255, 255, 0.2); }
+.admin-shell .hub-nav-item.is-on .hub-nav-dot { background: rgba(255, 255, 255, 0.86); }
+.admin-shell .hub-nav-item.is-off .hub-nav-dot { background: transparent; }
+.admin-shell .hub-nav-name { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-nav-item.is-on .hub-nav-name { font-weight: 700; }
+.admin-shell .hub-nav-badge { font-size: 9.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .hub-nav-badge.is-dirty { color: var(--hub-warn); }
+.admin-shell .hub-nav-item.is-off .hub-nav-badge { color: rgba(255, 255, 255, 0.28); }
+.admin-shell .hub-nav-item--picker { min-height: 44px; padding: 0 10px; border: 0; }
+.admin-shell .hub-nav-item--picker .hub-nav-name { font-size: 13px; }
+
+.admin-shell .hub-main { min-width: 0; padding: 22px 28px 40px; display: flex; flex-direction: column; gap: 16px; max-width: 1240px; }
+.admin-shell .hub-picker { position: relative; display: none; }
+.admin-shell .hub-picker-btn {
+  display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 16px; border-radius: 14px; cursor: pointer; width: 100%;
+  font: inherit; color: #fff; text-align: left; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .hub-picker-group { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .hub-picker-name { font-size: 14px; font-weight: 750; flex: 1; }
+.admin-shell .hub-picker-caret { font-size: 11px; color: rgba(255, 255, 255, 0.55); }
+.admin-shell .hub-pop--picker { left: 0; right: 0; top: 54px; z-index: 60; padding: 8px; }
+
+.admin-shell .hub-sec-head { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.admin-shell .hub-sec-text { flex: 1 1 320px; min-width: 0; }
+.admin-shell .hub-sec-title { font-size: 22px; font-weight: 800; letter-spacing: -0.03em; margin: 0; }
+.admin-shell .hub-sec-sub { font-size: 12.5px; color: rgba(255, 255, 255, 0.56); margin-top: 4px; line-height: 1.5; text-wrap: pretty; }
+.admin-shell .hub-sec-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.admin-shell .hub-sec-actions:empty { display: none; }
+
+/* ── Cards, empty, denied, loading ── */
+.admin-shell .hub-card {
+  padding: 18px 20px; border-radius: 22px; min-width: 0;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+.admin-shell .hub-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.admin-shell .hub-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-empty, .admin-shell .hub-denied {
+  padding: 54px 32px; border-radius: 24px; text-align: center;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)); border: 1px dashed rgba(255, 255, 255, 0.22);
+  display: flex; flex-direction: column; align-items: center;
+}
+.admin-shell .hub-denied-icon { font-size: 26px; color: rgba(255, 255, 255, 0.4); margin-bottom: 10px; }
+.admin-shell .hub-empty-title { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.admin-shell .hub-empty-body { font-size: 12.5px; line-height: 1.6; color: rgba(255, 255, 255, 0.58); margin: 8px auto 0; max-width: 460px; text-wrap: pretty; }
+.admin-shell .hub-empty-ctas { display: flex; justify-content: center; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+.admin-shell .hub-denied .hub-btn { margin-top: 20px; }
+.admin-shell .hub-skel-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.admin-shell .hub-skel { padding: 18px 20px; border-radius: 22px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; gap: 10px; }
+.admin-shell .hub-skel-bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); animation: hub-pulse 1.4s ease-in-out infinite; }
+.admin-shell .hub-skel-bar--head { width: 40%; height: 8px; margin-bottom: 6px; }
+.admin-shell .hub-skel-note { font-size: 11.5px; color: rgba(255, 255, 255, 0.44); }
+@keyframes hub-pulse { 50% { opacity: 0.45; } }
+
+/* ── Save bar, modal, drawer, toast ── */
+.admin-shell .hub-savebar {
+  position: sticky; bottom: 16px; z-index: 25; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px 12px 18px; border-radius: 18px;
+  background: rgba(22, 22, 26, 0.94); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid oklch(0.86 0.09 92 / 0.45); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.admin-shell .hub-savebar-dot { width: 8px; height: 8px; border-radius: 8px; background: var(--hub-warn); }
+.admin-shell .hub-savebar-text { flex: 1; min-width: 200px; }
+.admin-shell .hub-savebar-count { font-size: 13px; font-weight: 750; }
+.admin-shell .hub-savebar-note { font-size: 11px; color: rgba(255, 255, 255, 0.5); margin-top: 2px; }
+
+.admin-shell .hub-modal-wrap {
+  position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 24px;
+  background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.admin-shell .hub-modal {
+  max-height: calc(100vh - 48px); overflow-y: auto; padding: 24px; border-radius: 26px;
+  background: rgba(20, 20, 24, 0.98); border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7);
+  display: flex; flex-direction: column; gap: 16px; color: rgba(255, 255, 255, 0.95);
+}
+.admin-shell .hub-modal-head { display: flex; align-items: flex-start; gap: 10px; }
+.admin-shell .hub-modal-headtext { flex: 1; }
+.admin-shell .hub-modal-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.admin-shell .hub-modal-eyebrow.is-warn { color: var(--hub-warn); }
+.admin-shell .hub-modal-eyebrow.is-bad { color: var(--hub-bad); }
+.admin-shell .hub-modal-eyebrow.is-good { color: var(--hub-good); }
+.admin-shell .hub-modal-eyebrow.is-info { color: var(--hub-blue); }
+.admin-shell .hub-modal-eyebrow.is-dim { color: rgba(255, 255, 255, 0.46); }
+.admin-shell .hub-modal-title { font-size: 20px; font-weight: 800; letter-spacing: -0.03em; margin-top: 5px; }
+.admin-shell .hub-modal-body { font-size: 12.5px; line-height: 1.6; color: rgba(255, 255, 255, 0.66); }
+.admin-shell .hub-modal-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+.admin-shell .hub-drawer-scrim { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.45); }
+.admin-shell .hub-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 91; width: min(440px, 100vw); overflow-y: auto;
+  padding: 22px 22px 30px; display: flex; flex-direction: column; gap: 16px;
+  background: rgba(16, 16, 20, 0.97); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+  border-left: 1px solid rgba(255, 255, 255, 0.14); box-shadow: -30px 0 80px rgba(0, 0, 0, 0.6); color: rgba(255, 255, 255, 0.95);
+}
+
+.admin-shell .hub-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 200; padding: 12px 20px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; background: rgba(22, 22, 26, 0.96); border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55); max-width: calc(100vw - 32px);
+}
+
+/* Under 900px the sub-nav folds into a section picker, and the header stops
+   sticking so it never sits under the mobile top bar. */
+@media (max-width: 900px) {
+  .admin-shell .hub-body { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .hub-nav { display: none; }
+  .admin-shell .hub-picker { display: block; }
+  .admin-shell .hub-head { position: relative; padding: 16px; }
+  .admin-shell .hub-main { padding: 18px 16px 40px; }
+}
