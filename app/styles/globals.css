@@ -25685,3 +25685,23 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 1640px) {
   .admin-shell .hub-offer-embed .ofb-grid, .admin-shell .hub-offer-embed .ee-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Event hub · Marketing — managing links ── */
+.admin-shell .hub-link-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.3fr) 64px 60px 82px 164px; }
+.admin-shell .hub-link-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.admin-shell .hub-link-actions .evl-act { width: 34px; height: 34px; font-size: 12px; }
+.admin-shell .hub-link-row.is-paused .hub-link-name, .admin-shell .hub-link-row.is-paused .hub-link-slug { opacity: 0.55; }
+.admin-shell .hub-link-paused { margin-left: 8px; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hub-warn); background: oklch(0.86 0.09 92 / 0.12); }
+.admin-shell .hub-link-tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.admin-shell .hub-danger { color: var(--hub-bad); }
+.admin-shell .hub-in:disabled { opacity: 0.55; }
+
+/* ── Event hub · back to the show list, and an order opened in place ── */
+.admin-shell .hub-back {
+  display: inline-flex; align-items: center; padding: 6px 12px; margin-right: 6px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 650; color: rgba(255, 255, 255, 0.85); text-decoration: none;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.admin-shell .hub-back:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.admin-shell .hub-order-embed .admin-page-wrapper { max-width: none; padding: 0; margin: 0; }
+.admin-shell .hub-order-embed .card, .admin-shell .hub-order-embed .portal-card { overflow-x: auto; }

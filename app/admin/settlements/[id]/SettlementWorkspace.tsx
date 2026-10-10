@@ -1014,7 +1014,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           {settlement.event_id && (
             <button
               className="admin-sponsor-edit-btn"
-              onClick={() => router.push(`/admin/orders/${settlement.event_id}`)}
+              onClick={() => router.push(`/admin/events/${settlement.event_id}?tab=orders`)}
             >
               ← View Sales
             </button>

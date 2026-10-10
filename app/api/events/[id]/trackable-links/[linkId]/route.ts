@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
+import { eventInTenant } from "@/lib/auth/eventScope";
 
 // GET: fetch a single trackable link with analytics
 export async function GET(
@@ -14,6 +15,7 @@ export async function GET(
   try {
     const { id, linkId } = await params;
     const admin = createAdminClient();
+    if (!(await eventInTenant(admin, guard.actor, id))) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     // Fetch the link
     const { data: link, error: linkError } = await admin
@@ -142,6 +144,7 @@ export async function PATCH(
   try {
     const { id, linkId } = await params;
     const admin = createAdminClient();
+    if (!(await eventInTenant(admin, guard.actor, id))) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     const body = await request.json();
 
     // Only allow specific fields to be updated

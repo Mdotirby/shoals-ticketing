@@ -177,7 +177,7 @@ export default function MarketingHubPage() {
               <tr
                 key={e.id}
                 className="mkt-row"
-                onClick={() => router.push(`/admin/marketing/events/${e.id}`)}
+                onClick={() => router.push(`/admin/events/${e.id}?tab=marketing`)}
               >
                 <td>
                   <div className="mkt-show">

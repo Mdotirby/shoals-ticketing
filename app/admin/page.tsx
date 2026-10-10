@@ -537,7 +537,7 @@ export default function AdminDashboardPage() {
         body: "Capacity is zero, so sell-through cannot be measured and the storefront has nothing to sell. Add a tier or the show will not appear as available.",
         age: days === 0 ? "tonight" : `${days}d out`,
         tone: "var(--cc-bad)",
-        href: `/admin/events/${ev.id}/edit`,
+        href: `/admin/events/${ev.id}?tab=details`,
       });
     }
   }
@@ -565,7 +565,7 @@ export default function AdminDashboardPage() {
         <div className="cc-actions">
           <Link href="/admin/events/new" className="cc-btn cc-btn--primary">+ New event</Link>
           <Link href="/admin/reports" className="cc-btn">View reports</Link>
-          {dosEvent && <Link href={`/admin/live/${dosEvent.id}`} className="cc-btn">Tonight: {dosEvent.title}</Link>}
+          {dosEvent && <Link href={`/admin/events/${dosEvent.id}?tab=dayof`} className="cc-btn">Tonight: {dosEvent.title}</Link>}
         </div>
       </div>
 

@@ -197,7 +197,7 @@ export default function EventAdsPage({ params }: { params: Promise<{ id: string 
   return (
     <div style={{ maxWidth: 1200, padding: 24, color: "#eee" }}>
       <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.7 }}>
-        <Link href={`/admin/events/${eventId}/edit`} style={{ color: "#ffffff", textDecoration: "none" }}>
+        <Link href={`/admin/events/${eventId}?tab=marketing`} style={{ color: "#ffffff", textDecoration: "none" }}>
           ← Back to event
         </Link>
       </div>

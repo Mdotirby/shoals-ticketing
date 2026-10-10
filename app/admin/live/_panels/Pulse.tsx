@@ -208,7 +208,7 @@ export default function LivePulsePickerPage() {
                 </option>
               ))}
             </select>
-            <Link href={`/admin/live/${event.id}`} className="dof-link">Full pulse analytics →</Link>
+            <Link href={`/admin/events/${event.id}?tab=dayof`} className="dof-link">Full pulse analytics →</Link>
           </div>
         </div>
         {canSell && (

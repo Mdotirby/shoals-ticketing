@@ -212,7 +212,7 @@ export default function EventPanel({ event, onClose, onUpdate }: Props) {
             {event.event_type === "private" ? (
               <a href={`/admin/private-events/${event.id}`}>Full rental hub →</a>
             ) : (
-              <a href={`/admin/events/${event.id}/edit`}>Full event editor →</a>
+              <a href={`/admin/events/${event.id}`}>Open the event →</a>
             )}
           </div>
         )}
@@ -409,7 +409,7 @@ function TicketSalesTab({ eventId, event }: { eventId: string; event: CalendarEv
       )}
 
       <div style={{ display: "flex", gap: 8 }}>
-        <a href={`/admin/orders/${eventId}`} style={{ ...btnGold, textDecoration: "none", fontSize: 12, padding: "8px 14px" }}>
+        <a href={`/admin/events/${eventId}?tab=orders`} style={{ ...btnGold, textDecoration: "none", fontSize: 12, padding: "8px 14px" }}>
           Full Sales Report →
         </a>
         <button onClick={handleCloseOut} disabled={closingOut} style={{ ...btnDanger, fontSize: 12 }}>
@@ -600,7 +600,7 @@ function SettlementTab({ eventId, event, venueSlug }: { eventId: string; event: 
           </div>
         ))}
       </div>
-      <a href={`/admin/settlements/${settlement.id}`} style={{ ...btnGold, textDecoration: "none", fontSize: 13 }}>
+      <a href={`/admin/events/${eventId}?tab=settlement`} style={{ ...btnGold, textDecoration: "none", fontSize: 13 }}>
         {settlement.status === "finalized" ? "View Settlement" : "Open & Finalize"} →
       </a>
     </div>

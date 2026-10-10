@@ -960,7 +960,7 @@ export default function CalendarPage() {
           {editingEvent && (
             <a
               className="calm-link"
-              href={editingEvent.event_type === "private" ? `/admin/private-events/${editingEvent.id}` : `/admin/events/${editingEvent.id}/edit`}
+              href={editingEvent.event_type === "private" ? `/admin/private-events/${editingEvent.id}` : `/admin/events/${editingEvent.id}`}
             >
               {editingEvent.event_type === "private" ? "Manage rental →" : "View full details →"}
             </a>

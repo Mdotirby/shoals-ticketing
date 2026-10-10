@@ -76,7 +76,7 @@ export default function AdminOffersPage() {
               // a button inside an anchor is invalid, and the whole row would
               // navigate on the way to the button. It sits alongside instead.
               <div key={offer.id} className="ofr-line">
-              <Link href={`/admin/offers/${offer.id}`} className="ofr-row">
+              <Link href={offer.event_id ? `/admin/events/${offer.event_id}?tab=deal&offer=${offer.id}` : `/admin/offers/${offer.id}`} className="ofr-row">
                 <div style={{ minWidth: 0 }}>
                   <div className="ofr-artist">{offer.artist_name}</div>
                   <div className="ofr-meta">

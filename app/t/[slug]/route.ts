@@ -47,11 +47,19 @@ export async function GET(
       .from("trackable_links")
       .select("*")
       .eq("slug", slug)
-      .eq("is_active", true)
       .single();
 
     if (error || !link) {
       return NextResponse.redirect(new URL("/", origin));
+    }
+
+    // A paused link still takes the person to the show — a printed QR or an
+    // old post shouldn't strand a buyer — but it isn't counted and the sale
+    // isn't credited to it: the ref is dropped.
+    if (link.is_active === false) {
+      const dest = new URL(link.destination_url);
+      dest.searchParams.delete("ref");
+      return NextResponse.redirect(dest, 302);
     }
 
     const userAgent = request.headers.get("user-agent");

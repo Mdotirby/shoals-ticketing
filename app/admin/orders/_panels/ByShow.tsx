@@ -214,7 +214,7 @@ export default function AdminSalesPage() {
             <ListRow
               key={ev.id}
               link={Link}
-              href={`/admin/orders/${ev.id}`}
+              href={`/admin/events/${ev.id}?tab=orders`}
               thumb={false}
               title={
                 <>

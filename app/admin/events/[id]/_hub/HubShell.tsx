@@ -291,6 +291,13 @@ export default function HubShell({
     <div className="hub" style={{ ["--hub-head-h" as string]: `${headH}px` }}>
       <header ref={headRef} className="hub-head">
         <div className="hub-crumbs">
+          <Link
+            href="/admin/events"
+            className="hub-back"
+            onClick={(e) => { if (anyDirty && !confirm("You have unsaved changes on this show. Leave without saving?")) e.preventDefault(); }}
+          >
+            ← All shows
+          </Link>
           <Link href="/admin/events" className="hub-crumb">Events</Link>
           <span className="hub-crumb-sep">›</span>
           <span className="hub-crumb">{event.title}</span>

@@ -141,7 +141,7 @@ export default function AdminSettlementsPage() {
       <ListRow
         key={s.id}
         link={Link}
-        href={`/admin/settlements/${s.id}`}
+        href={s.event_id && !isExternal ? `/admin/events/${s.event_id}?tab=settlement` : `/admin/settlements/${s.id}`}
         thumb={false}
         title={
           <>

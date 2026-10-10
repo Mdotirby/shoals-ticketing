@@ -99,30 +99,23 @@ export const navGroups: NavGroup[] = [
   },
   {
     id: "shows",
-    label: "Shows",
+    label: "Events",
     icon: "◈",
     pages: [
       {
+        // One sidebar entry for everything about shows. The show list is its
+        // main page (eventslist.dc.html); every show opens its event hub,
+        // whose sections are the hub's own sub-nav — so the sidebar lists
+        // only the ways in: the list, the month, a new show, the room maps.
         id: "events",
         label: "Events",
-        // eventslist.dc.html — every show, each row opening its event hub.
-        // Inside a show the hub is the page; its sections are the hub's own
-        // sub-nav, so the sidebar doesn't repeat them.
-        match: /^\/admin\/events(\/(?!new$)[^/]+)?$/,
-        link: { label: "Events", href: "/admin/events", roles: R.events },
-      },
-      { id: "calendar", label: "Calendar", link: { label: "Calendar", href: "/admin/calendar", tabKey: "calendar", roles: R.exec } },
-      {
-        id: "create",
-        label: "Create a show",
-        link: { label: "Create a show", href: "/admin/events/new", roles: R.exec },
-        paramTabs: [
-          { label: "Setup", key: "setup" },
-          { label: "Tickets", key: "tickets" },
-          { label: "On-sale & fees", key: "onsale" },
+        routeTabs: [
+          { label: "Show list", href: "/admin/events", roles: R.events },
+          { label: "Calendar", href: "/admin/calendar", tabKey: "calendar", roles: R.exec },
+          { label: "Create a show", href: "/admin/events/new", roles: R.exec },
+          { label: "Seating map", href: "/admin/seating", tabKey: "seating", roles: R.mgmt },
         ],
       },
-      { id: "seating", label: "Seating map", link: { label: "Seating", href: "/admin/seating", tabKey: "seating", roles: R.mgmt } },
     ],
   },
   {
@@ -189,26 +182,6 @@ export const navGroups: NavGroup[] = [
           { label: "By show", key: "shows" },
         ],
         paramTabsOn: /^\/admin\/orders$/,
-      },
-      {
-        // Ticket sales per show. This is the `shows` tab of Orders & refunds,
-        // promoted to a row of its own because paramTabs only render once you
-        // are already on the parent page (AdminSidebar renderTabs, gated on
-        // `on`) — so from anywhere else in the admin there was no sidebar path
-        // to it at all, and the word "sales" appeared nowhere in the nav. You
-        // had to know to open Orders, which lands on the cross-show Order
-        // book, and then find a sub-tab called "By show".
-        id: "ticketsales",
-        label: "Ticket sales",
-        // No tabKey, deliberately. DEFAULT_TAB_ROLES is built last-writer-wins
-        // over tabKey, so reusing "sales" here would overwrite the Orders
-        // permission with this row's roles. A link with no tabKey is gated on
-        // roles alone -- the documented pattern for an added row (see the file
-        // header, and /admin/events/new, /boxoffice).
-        //
-        // Artists are deliberately absent: they still reach the by-show tab
-        // through Orders, and their sidebar stays the three rows it was.
-        link: { label: "Ticket sales", href: "/admin/orders?tab=shows", roles: ["owner","venue_admin","full_admin","box_office","door_greeter"] },
       },
       { id: "settle", label: "Settlements", link: { label: "Settlements", href: "/admin/settlements", tabKey: "settlements", roles: R.mgmt } },
       { id: "invoice", label: "Invoices", link: { label: "Invoices", href: "/admin/invoices", tabKey: "invoices_payments", roles: R.mgmt } },

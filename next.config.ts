@@ -54,6 +54,7 @@ const nextConfig: NextConfig = {
       // the old addresses open the matching section. Exact paths only — an
       // order's own page (/admin/orders/:id/:orderId) is untouched.
       { source: "/admin/orders/:id", destination: "/admin/events/:id?tab=orders", permanent: false },
+      { source: "/admin/orders/:id/:orderId", destination: "/admin/events/:id?tab=orders&order=:orderId", permanent: false },
       { source: "/admin/marketing/events/:id", destination: "/admin/events/:id?tab=marketing", permanent: false },
       { source: "/admin/live/:id", destination: "/admin/events/:id?tab=dayof", permanent: false },
       // The calendar's Show list became the events list (eventslist.dc.html).

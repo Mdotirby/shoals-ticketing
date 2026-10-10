@@ -41,6 +41,8 @@ export type VariableExpenseItem = {
 
 export type ArtistOffer = {
   id: string;
+  /** The show this offer is for, once linked — it then opens in that show's event hub. */
+  event_id?: string | null;
   artist_name: string;
   venue?: string;
   venue_address?: string;

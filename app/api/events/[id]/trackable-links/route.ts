@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
+import { eventInTenant } from "@/lib/auth/eventScope";
 
 // GET: fetch all trackable links for an event
 export async function GET(
@@ -14,6 +15,7 @@ export async function GET(
   try {
     const { id } = await params;
     const admin = createAdminClient();
+    if (!(await eventInTenant(admin, guard.actor, id))) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     const { data, error } = await admin
       .from("trackable_links")
@@ -46,6 +48,7 @@ export async function POST(
   try {
     const { id } = await params;
     const admin = createAdminClient();
+    if (!(await eventInTenant(admin, guard.actor, id))) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     const body = await request.json();
 
     if (!body.label || !body.slug) {
@@ -119,6 +122,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     const admin = createAdminClient();
+    if (!(await eventInTenant(admin, guard.actor, id))) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     // Support both body { id } and query param ?linkId=xxx
     const url = new URL(request.url);

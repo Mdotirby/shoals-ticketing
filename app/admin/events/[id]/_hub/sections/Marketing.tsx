@@ -26,7 +26,7 @@ import { localTodayISO } from "@/lib/dates";
 import { useHub } from "../HubContext";
 import { HubActions } from "../HubShell";
 import { HubDrawer, HubEmpty, HubLoading } from "../ui";
-import { isPaidSale, useEventLinks, useEventOrders } from "../useEventData";
+import { isPaidSale, useEventLinks, useEventOrders, type HubLink } from "../useEventData";
 
 const usd = (n: number) => fmtUSD(n, { cents: false });
 const shortDay = (iso: string) => new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -50,6 +50,8 @@ export default function Marketing() {
   const [caps, setCaps] = useState<{ daily: number; total: number } | null>(null);
   const [qr, setQr] = useState<{ url: string; label: string } | null>(null);
   const [drawer, setDrawer] = useState(false);
+  // The link the drawer is editing; null when it's making a new one.
+  const [editing, setEditing] = useState<HubLink | null>(null);
   const [form, setForm] = useState({ label: "", slug: "", source: "", medium: "", campaign: "" });
   const [error, setError] = useState("");
   const [presale, setPresale] = useState<{ artist?: { enabled?: boolean; starts_at?: string | null } | null; venue?: { enabled?: boolean; starts_at?: string | null } | null } | null>(null);
@@ -142,11 +144,34 @@ export default function Marketing() {
   const buyers = new Set(paid.map((o) => (o.customer_email || "").trim().toLowerCase()).filter(Boolean)).size;
   const shortUrl = (slug: string) => `${typeof window !== "undefined" ? window.location.origin : ""}/t/${slug}`;
 
-  const createLink = async () => {
+  const blankForm = { label: "", slug: "", source: "", medium: "", campaign: "" };
+  const openNew = () => { setEditing(null); setForm(blankForm); setError(""); setDrawer(true); };
+  const openEdit = (l: HubLink) => {
+    setEditing(l);
+    setForm({ label: l.label ?? "", slug: l.slug, source: l.source ?? "", medium: l.medium ?? "", campaign: l.campaign ?? "" });
+    setError("");
+    setDrawer(true);
+  };
+
+  const saveLink = async () => {
     setError("");
     const label = form.label.trim();
+    if (!label) { setError("Give the link a label."); return; }
+    if (editing) {
+      // The slug is the link itself — it's out in the world, so it never changes.
+      const r = await fetch(`/api/events/${id}/trackable-links/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, source: form.source.trim() || null, medium: form.medium.trim() || null, campaign: form.campaign.trim() || null }),
+      });
+      if (!r.ok) { setError((await r.json().catch(() => ({}))).error || "Couldn't save the link."); return; }
+      setDrawer(false);
+      refreshLinks();
+      hub.toast(`${label} saved.`);
+      return;
+    }
     const slug = slugify(form.slug || form.label);
-    if (!label || !slug) { setError("Give the link a label."); return; }
+    if (!slug) { setError("Give the link a label."); return; }
     const r = await fetch(`/api/events/${id}/trackable-links`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -154,9 +179,31 @@ export default function Marketing() {
     });
     if (!r.ok) { setError((await r.json().catch(() => ({}))).error || "Couldn't create the link."); return; }
     setDrawer(false);
-    setForm({ label: "", slug: "", source: "", medium: "", campaign: "" });
+    setForm(blankForm);
     refreshLinks();
     hub.toast(`${label} is ready — ${shortUrl(slug)}`);
+  };
+
+  const setActive = async (l: HubLink, on: boolean) => {
+    const r = await fetch(`/api/events/${id}/trackable-links/${l.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: on }) });
+    if (!r.ok) { hub.toast("Couldn't change the link."); return; }
+    refreshLinks();
+    hub.toast(on ? `${l.label || l.slug} is live again.` : `${l.label || l.slug} paused — it opens the event page without crediting the sale.`);
+  };
+
+  const removeLink = async (l: HubLink) => {
+    const sold = perLink.get(l.slug)?.orders ?? 0;
+    if (!confirm(`Delete ${l.label || l.slug}?${sold ? `\n\nIts ${sold} order${sold === 1 ? "" : "s"} keep their slug but lose the label here.` : ""} Anything already printed or posted with this link stops being tracked.`)) return;
+    const r = await fetch(`/api/events/${id}/trackable-links?linkId=${l.id}`, { method: "DELETE" });
+    if (!r.ok) { hub.toast("Couldn't delete the link."); return; }
+    setDrawer(false);
+    refreshLinks();
+    hub.toast("Link deleted.");
+  };
+
+  const copyLink = async (l: HubLink) => {
+    try { await navigator.clipboard.writeText(shortUrl(l.slug)); hub.toast(`Copied ${shortUrl(l.slug)}`); }
+    catch { hub.toast(shortUrl(l.slug)); }
   };
 
   const saveCaps = async (next: { daily: number; total: number }) => {
@@ -189,31 +236,36 @@ export default function Marketing() {
   return (
     <>
       <HubActions>
-        <button type="button" className="hub-btn" onClick={() => setDrawer(true)}>+ Tracking link</button>
+        <button type="button" className="hub-btn" onClick={openNew}>+ Tracking link</button>
       </HubActions>
 
       <div className="hub-mkt">
         <section className="hub-card hub-card--glow">
           <div className="hub-eyebrow">Tracking links</div>
           {links.length === 0 ? (
-            <HubEmpty title="No tracking links yet" body="Make one link for each place you post this show, so every sale is credited to the right channel." ctas={[{ label: "+ New tracking link", onClick: () => setDrawer(true) }]} />
+            <HubEmpty title="No tracking links yet" body="Make one link for each place you post this show, so every sale is credited to the right channel." ctas={[{ label: "+ New tracking link", onClick: openNew }]} />
           ) : (
             <div className="hub-tiers-scroll">
               <div className="hub-link-table">
                 <div className="hub-link-row hub-link-row--head">
-                  <div>Label</div><div>Slug</div><div>Source / medium / campaign</div><div className="hub-num">Clicks</div><div className="hub-num">Orders</div><div className="hub-num">Revenue</div><div className="hub-num">QR</div>
+                  <div>Label</div><div>Slug</div><div>Source / medium / campaign</div><div className="hub-num">Clicks</div><div className="hub-num">Orders</div><div className="hub-num">Revenue</div><div className="hub-num">Manage</div>
                 </div>
                 {links.map((l) => {
                   const s = perLink.get(l.slug);
                   return (
-                    <div key={l.id} className="hub-link-row">
-                      <div className="hub-link-name">{l.label || l.slug}</div>
+                    <div key={l.id} className={`hub-link-row${l.is_active === false ? " is-paused" : ""}`}>
+                      <div className="hub-link-name">{l.label || l.slug}{l.is_active === false && <span className="hub-link-paused">Paused</span>}</div>
                       <div className="hub-link-slug">/t/{l.slug}</div>
                       <div className="hub-link-utm">{[l.source, l.medium, l.campaign].filter(Boolean).join(" / ") || "—"}</div>
                       <div className="hub-num hub-link-n">{(l.clicks ?? 0).toLocaleString()}</div>
                       <div className="hub-num hub-link-n">{s?.orders ?? 0}</div>
                       <div className={`hub-num hub-link-rev${s?.rev ? "" : " is-dim"}`}>{usd(s?.rev ?? 0)}</div>
-                      <div className="hub-num"><button type="button" className="evl-act" title="QR code" onClick={() => setQr({ url: shortUrl(l.slug), label: l.label || l.slug })}>▦</button></div>
+                      <div className="hub-link-actions">
+                        <button type="button" className="evl-act" title="Copy link" onClick={() => copyLink(l)}>⧉</button>
+                        <button type="button" className="evl-act" title="QR code" onClick={() => setQr({ url: shortUrl(l.slug), label: l.label || l.slug })}>▦</button>
+                        <button type="button" className="evl-act" title="Edit" onClick={() => openEdit(l)}>✎</button>
+                        <button type="button" className="evl-act" title={l.is_active === false ? "Resume" : "Pause"} onClick={() => setActive(l, l.is_active === false)}>{l.is_active === false ? "▶" : "❚❚"}</button>
+                      </div>
                     </div>
                   );
                 })}
@@ -335,7 +387,7 @@ export default function Marketing() {
       {drawer && (
         <HubDrawer onClose={() => setDrawer(false)}>
           <div className="hub-drawer-head">
-            <div><div className="hub-eyebrow">Marketing</div><div className="hub-drawer-title">New tracking link</div></div>
+            <div><div className="hub-eyebrow">Marketing</div><div className="hub-drawer-title">{editing ? editing.label || editing.slug : "New tracking link"}</div></div>
             <button type="button" className="hub-x" onClick={() => setDrawer(false)} aria-label="Close">✕</button>
           </div>
           {error && <div className="hub-error">{error}</div>}
@@ -348,11 +400,28 @@ export default function Marketing() {
           ] as const).map(([k, label, ph]) => (
             <div key={k} className="hub-field">
               <div className="hub-field-head"><label className="hub-field-label" htmlFor={`tl-${k}`}>{label}</label></div>
-              <input id={`tl-${k}`} className="hub-in" placeholder={ph} value={form[k]} onChange={(e) => setForm({ ...form, [k]: k === "slug" ? slugify(e.target.value) : e.target.value })} />
+              <input
+                id={`tl-${k}`}
+                className="hub-in"
+                placeholder={ph}
+                value={form[k]}
+                disabled={k === "slug" && !!editing}
+                onChange={(e) => setForm({ ...form, [k]: k === "slug" ? slugify(e.target.value) : e.target.value })}
+              />
+              {k === "slug" && editing && <div className="hub-field-foot"><div className="hub-field-hint">The slug is the link people already have, so it can&apos;t change. Make a new link instead.</div></div>}
             </div>
           ))}
-          <div className="hub-drawer-preview">Short link: {shortUrl(slugify(form.slug || form.label) || "your-slug")} — opens this show&apos;s page and credits the sale to it.</div>
-          <button type="button" className="hub-btn hub-btn--primary hub-btn--block" onClick={createLink}>Create link</button>
+          <div className="hub-drawer-preview">Short link: {shortUrl(editing ? editing.slug : slugify(form.slug || form.label) || "your-slug")} — opens this show&apos;s page and credits the sale to it.</div>
+          {editing && (
+            <div className="hub-link-tools">
+              <button type="button" className="hub-btn hub-btn--sm" onClick={() => copyLink(editing)}>Copy link</button>
+              <button type="button" className="hub-btn hub-btn--sm" onClick={() => setQr({ url: shortUrl(editing.slug), label: editing.label || editing.slug })}>QR code</button>
+              <button type="button" className="hub-btn hub-btn--sm" onClick={() => { setActive(editing, editing.is_active === false); setDrawer(false); }}>{editing.is_active === false ? "Resume" : "Pause"}</button>
+              <span className="hub-spacer" />
+              <button type="button" className="hub-btn hub-btn--sm hub-btn--quiet hub-danger" onClick={() => removeLink(editing)}>Delete</button>
+            </div>
+          )}
+          <button type="button" className="hub-btn hub-btn--primary hub-btn--block" onClick={saveLink}>{editing ? "Save link" : "Create link"}</button>
         </HubDrawer>
       )}
 

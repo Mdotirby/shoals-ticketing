@@ -375,7 +375,7 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
             </li>
           ))}
         </ul>
-        <Link href={`/admin/orders/${order.event_id}/${order.id}`} className="ee-action ob-full">
+        <Link href={`/admin/events/${order.event_id}?tab=orders&order=${order.id}`} className="ee-action ob-full">
           <strong>Open the full order</strong>
           <span>Resend tickets, correct a payment, notes.</span>
         </Link>
