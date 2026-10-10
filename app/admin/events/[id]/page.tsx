@@ -25,6 +25,7 @@ import Summary from "./_hub/sections/Summary";
 import Details from "./_hub/sections/Details";
 import Tickets from "./_hub/sections/Tickets";
 import Inventory from "./_hub/sections/Inventory";
+import Promotions from "./_hub/sections/Promotions";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -54,10 +55,10 @@ function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "details") return <Details />;
   if (tab === "tickets") return <Tickets go={go} />;
   if (tab === "inventory") return <Inventory />;
+  if (tab === "promotions") return <Promotions />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
-    promotions: { title: "Promo codes are still on the edit form", body: "Discount and presale codes move into this section next.", href: `/admin/events/${id}/edit?tab=promo`, cta: "Open promo & tracking" },
     dayof: { title: "The live view is still its own page", body: "Scan velocity, the capacity gauge and recent check-ins move into this section next.", href: `/admin/live/${id}`, cta: "Open the live view" },
     deal: offer
       ? { title: "The deal is still on the offer", body: "The linked offer's deal, scaling and P&L move into this section next.", href: `/admin/offers/${offer.id}`, cta: "Open the offer" }

@@ -25393,3 +25393,35 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-inv-tiers { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .admin-shell .hub-capbar > div.is-unloaded, .admin-shell .hub-sw.is-unloaded { background: repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.08) 0 4px, transparent 4px 8px); }
 .admin-shell .hub-sw.is-unloaded { border: 1px solid rgba(255, 255, 255, 0.2); }
+
+/* ── Event hub · Promotions ── */
+.admin-shell .hub-promos { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-promo-table { min-width: 760px; margin-top: 6px; }
+.admin-shell .hub-promo-row {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 90px 130px minmax(0, 1fr) 110px; gap: 14px; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.admin-shell .hub-promo-row--head { padding: 12px 0 9px; border-bottom-color: rgba(255, 255, 255, 0.1); font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-promo-code { font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-promo-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); margin-top: 2px; }
+.admin-shell .hub-promo-type { font-size: 12px; color: rgba(255, 255, 255, 0.66); }
+.admin-shell .hub-promo-value { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-promo-uses { font-size: 12px; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-promo-window { font-size: 11.5px; color: rgba(255, 255, 255, 0.62); }
+.admin-shell .hub-promo-status { cursor: pointer; font-family: inherit; }
+.admin-shell .hub-promo-status:disabled { cursor: default; opacity: 1; }
+.admin-shell .hub-tier-status.is-warn { background: oklch(0.86 0.09 92 / 0.1); color: var(--hub-warn); }
+.admin-shell .hub-unlock { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 13px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-unlock-code { width: 110px; font-size: 12.5px; font-weight: 800; letter-spacing: 0.06em; }
+.admin-shell .hub-unlock-text { flex: 1; min-width: 200px; }
+.admin-shell .hub-unlock-what { font-size: 12.5px; font-weight: 600; }
+.admin-shell .hub-unlock-uses { font-size: 12px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.7); }
+.admin-shell .hub-unlock-status { font-size: 10.5px; font-weight: 700; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-unlock-status.is-good { color: var(--hub-good); }
+.admin-shell .hub-drawer-step { display: flex; align-items: center; gap: 10px; }
+.admin-shell .hub-drawer-step .hub-field-label { flex: 1; }
+.admin-shell .hub-step--lg { width: 30px; height: 30px; border-radius: 9px; }
+.admin-shell .hub-drawer-step-value { min-width: 64px; text-align: center; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-fields--two { grid-template-columns: 1fr 1fr; gap: 10px; }
+.admin-shell .hub-drawer-preview { padding: 12px 14px; border-radius: 14px; font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.72); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-btn--block { width: 100%; min-height: 46px; }

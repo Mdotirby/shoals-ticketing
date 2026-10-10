@@ -184,7 +184,8 @@ export function HubProvider({ id, children }: { id: string; children: React.Reac
       }
     },
     tiers: async () => {
-      const r = await json<HubTier[]>(`/api/events/${id}/ticket-types`);
+      // admin=1 adds unlock codes — only for roles the route lets see them.
+      const r = await json<HubTier[]>(`/api/events/${id}/ticket-types?admin=1`);
       setTiers(Array.isArray(r.data) ? r.data : []);
     },
     holds: async () => {
@@ -213,8 +214,13 @@ export function HubProvider({ id, children }: { id: string; children: React.Reac
     },
     revenue: async () => setRevenue(await json<HubRevenue>(`/api/events/${id}/revenue-summary`)),
     promos: async () => {
-      const r = await json<Array<{ is_active?: boolean; active?: boolean }>>(`/api/promo-codes?event_id=${id}`);
-      setPromoActive(Array.isArray(r.data) ? r.data.filter((p) => p.is_active ?? p.active ?? true).length : null);
+      type P = { active?: boolean; is_presale?: boolean; max_uses?: number | null; current_uses?: number | null; expires_at?: string | null };
+      const r = await json<P[]>(`/api/promo-codes?event_id=${id}`);
+      const now = Date.now();
+      // The badge counts codes a buyer could use right now — not ended or used up.
+      setPromoActive(Array.isArray(r.data)
+        ? r.data.filter((p) => p.active && !(p.max_uses && (p.current_uses ?? 0) >= p.max_uses) && !(p.expires_at && new Date(p.expires_at).getTime() < now)).length
+        : null);
     },
   }), [id]);
 
