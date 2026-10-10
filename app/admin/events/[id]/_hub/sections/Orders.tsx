@@ -127,7 +127,7 @@ export default function Orders() {
                       <div className="hub-order-id">{ref(x.id)}<span>{when(x.created_at)}</span></div>
                       <div className="hub-order-who"><b>{x.customer_name || "Guest"}</b><span>{x.customer_email || "—"}</span></div>
                       <div><span className="hub-src">{srcOf(x)}</span></div>
-                      <div className="hub-num hub-link-n">{x.quantity ?? 1}</div>
+                      <div className="hub-num hub-link-n" data-label="Qty">{x.quantity ?? 1}</div>
                       <div className="hub-num hub-link-rev">{fmtUSD(Number(x.total_amount) || 0)}</div>
                       <div className={`hub-order-state is-${s.tone}`}>{s.label}</div>
                     </button>

@@ -284,7 +284,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
                 const amount = which === "svc" ? ctx.ticketingFee : ctx.facilityFee;
                 const inherited = !t[which];
                 return (
-                  <div className="hub-fee">
+                  <div className="hub-fee" data-label={which === "svc" ? "Service fee" : "Facility fee"}>
                     <span className={`hub-fee-amt${r.mode === "waived" ? " is-off" : ""}`}>{usd(amount)}</span>
                     <button
                       type="button"
@@ -323,7 +323,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
                         {!sold && <button type="button" className="hub-field-link hub-tier-remove" onClick={() => removeTier(t.key)}>Remove</button>}
                       </div>
                     </div>
-                    <div className="hub-stepper">
+                    <div className="hub-stepper" data-label="Face">
                       <button type="button" className={`hub-step${sold > 0 && face <= floor ? " is-floor" : ""}`} onClick={() => step(-1)} aria-label="Lower price">−</button>
                       <input
                         className="hub-step-value"
@@ -337,13 +337,13 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
                     </div>
                     {feeCell("svc")}
                     {feeCell("fac")}
-                    <div className="hub-stepper">
+                    <div className="hub-stepper" data-label="Qty">
                       <button type="button" className="hub-step" onClick={() => upd(t.key, { capacity: String(Math.max(sold, 1, cap - 10)) })} aria-label="Fewer">−</button>
                       <input className="hub-step-value hub-step-value--qty" value={t.capacity} inputMode="numeric" onChange={(e) => upd(t.key, { capacity: e.target.value.replace(/\D/g, "") })} aria-label="Quantity" />
                       <button type="button" className="hub-step" onClick={() => upd(t.key, { capacity: String(cap + 10) })} aria-label="More">+</button>
                     </div>
-                    <div className="hub-num hub-tier-sold">{sold.toLocaleString()}{sold > 0 ? " ↑" : ""}</div>
-                    <div><span className={`hub-tier-status is-${status.tone}`}>{status.label}</span></div>
+                    <div className="hub-num hub-tier-sold" data-label="Sold">{sold.toLocaleString()}{sold > 0 ? " ↑" : ""}</div>
+                    <div data-label="Status"><span className={`hub-tier-status is-${status.tone}`}>{status.label}</span></div>
                   </div>
                   {priceWarn === t.key && (
                     <div className="hub-tier-warn">

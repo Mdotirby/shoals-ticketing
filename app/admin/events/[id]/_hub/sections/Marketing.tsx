@@ -257,8 +257,8 @@ export default function Marketing() {
                       <div className="hub-link-name">{l.label || l.slug}{l.is_active === false && <span className="hub-link-paused">Paused</span>}</div>
                       <div className="hub-link-slug">/t/{l.slug}</div>
                       <div className="hub-link-utm">{[l.source, l.medium, l.campaign].filter(Boolean).join(" / ") || "—"}</div>
-                      <div className="hub-num hub-link-n">{(l.clicks ?? 0).toLocaleString()}</div>
-                      <div className="hub-num hub-link-n">{s?.orders ?? 0}</div>
+                      <div className="hub-num hub-link-n" data-label="Clicks">{(l.clicks ?? 0).toLocaleString()}</div>
+                      <div className="hub-num hub-link-n" data-label="Orders">{s?.orders ?? 0}</div>
                       <div className={`hub-num hub-link-rev${s?.rev ? "" : " is-dim"}`}>{usd(s?.rev ?? 0)}</div>
                       <div className="hub-link-actions">
                         <button type="button" className="evl-act" title="Copy link" onClick={() => copyLink(l)}>⧉</button>
@@ -355,8 +355,8 @@ export default function Marketing() {
                     return (
                       <div key={c.id} className="hub-camp-row">
                         <div><div className="hub-link-name">{c.name}</div><div className="hub-promo-sub">{c.platform}</div></div>
-                        <div className="hub-num hub-link-n">{usd(c.current_total_spend || 0)}</div>
-                        <div className="hub-num hub-link-n">{usd(c.current_daily_budget || 0)}</div>
+                        <div className="hub-num hub-link-n" data-label="Spend">{usd(c.current_total_spend || 0)}</div>
+                        <div className="hub-num hub-link-n" data-label="Daily">{usd(c.current_daily_budget || 0)}</div>
                         <div className="hub-promo-type">{c.mode}</div>
                         <div>
                           <button type="button" className={`hub-tier-status hub-promo-status is-${running ? "good" : "warn"}`} onClick={() => control(c.id, running ? "pause" : "resume")}>

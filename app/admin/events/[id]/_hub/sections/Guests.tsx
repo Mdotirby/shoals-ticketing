@@ -208,7 +208,7 @@ export default function Guests() {
               <div key={g.key} className={`hub-guest-row${g.id ? "" : " is-new"}`}>
                 <input className="hub-tier-input" value={g.name} onChange={(e) => upd(g.key, { name: e.target.value })} aria-label="Guest name" />
                 <div><span className={`hub-guest-list is-${g.list}`} title={g.by ? `Added by ${g.by}` : undefined}>{g.list === "artist" ? (g.by || "Artist") : "House"}</span></div>
-                <div className="hub-stepper">
+                <div className="hub-stepper" data-label="Qty">
                   <button type="button" className="hub-step" onClick={() => upd(g.key, { qty: Math.max(1, g.qty - 1) })}>−</button>
                   <div className="hub-step-value">{g.qty}</div>
                   <button type="button" className="hub-step" onClick={() => upd(g.key, { qty: g.qty + 1 })}>+</button>

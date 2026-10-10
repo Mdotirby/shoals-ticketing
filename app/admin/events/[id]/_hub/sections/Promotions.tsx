@@ -174,11 +174,11 @@ export default function Promotions() {
                         </div>
                         <div className="hub-promo-type">{p.discount_type === "percentage" ? "Percent off" : "Amount off"}</div>
                         <div className="hub-promo-value">{p.discount_type === "percentage" ? `${p.discount_value}%` : fmtUSD(p.discount_value)}</div>
-                        <div>
+                        <div data-label="Uses">
                           <div className="hub-promo-uses">{used} / {p.max_uses ?? "∞"}</div>
                           <div className="hub-attr-bar"><div style={{ width: `${p.max_uses ? Math.min(100, Math.round((used / p.max_uses) * 100)) : 0}%` }} /></div>
                         </div>
-                        <div className="hub-promo-window">{[day(p.starts_at) ?? "Now", day(p.expires_at) ?? "show"].join(" – ")}</div>
+                        <div className="hub-promo-window" data-label="Window">{[day(p.starts_at) ?? "Now", day(p.expires_at) ?? "show"].join(" – ")}</div>
                         <div>
                           <button
                             type="button"

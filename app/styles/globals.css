@@ -25705,3 +25705,156 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-back:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
 .admin-shell .hub-order-embed .admin-page-wrapper { max-width: none; padding: 0; margin: 0; }
 .admin-shell .hub-order-embed .card, .admin-shell .hub-order-embed .portal-card { overflow-x: auto; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Events list + event hub on phones (≤ 640px). Every list table stops
+   being a table you scroll sideways: the header row goes, the minimum
+   width goes, and each row becomes a stacked card. Cells that need a name
+   carry data-label, shown above the value.
+   ══════════════════════════════════════════════════════════════════════ */
+.admin-shell .evl-filter-toggle { display: none; }
+@media (max-width: 640px) {
+  /* Shared */
+  .admin-shell .evl-table, .admin-shell .hub-tiers, .admin-shell .hub-link-table, .admin-shell .hub-guest-table,
+  .admin-shell .hub-promo-table, .admin-shell .hub-order-table, .admin-shell .hub-camp-table { min-width: 0; }
+  .admin-shell .evl-tr--head, .admin-shell .hub-tier-row--head, .admin-shell .hub-link-row--head, .admin-shell .hub-guest-row--head,
+  .admin-shell .hub-promo-row--head, .admin-shell .hub-order-row--head, .admin-shell .hub-camp-row--head { display: none; }
+  .admin-shell .hub-tiers-scroll, .admin-shell .evl-scroll { overflow-x: visible; margin: 0; padding: 0; }
+  .admin-shell [data-label]::before {
+    content: attr(data-label); display: block; flex-basis: 100%; margin-bottom: 3px; text-align: left;
+    font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
+  }
+  .admin-shell .hub-stepper[data-label], .admin-shell .hub-fee[data-label] { flex-wrap: wrap; }
+  .admin-shell .hub-num[data-label] { text-align: left; }
+  .admin-shell .hub-card, .admin-shell .hub-card--glow { padding: 16px; }
+
+  /* Events list */
+  .admin-shell .evl-filter-toggle {
+    display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 650; color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  .admin-shell .evl-filter-toggle.is-on { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.3); }
+  .admin-shell .evl-filter-row--chips { display: none; }
+  .admin-shell .evl-filter-row--chips.is-open { display: flex; }
+  .admin-shell .evl-search { flex-basis: 100%; }
+  .admin-shell .evl-seg { overflow-x: auto; flex-wrap: nowrap; max-width: 100%; scrollbar-width: none; }
+  .admin-shell .evl-seg::-webkit-scrollbar { display: none; }
+  .admin-shell .evl-table-card { padding: 4px 14px 8px; }
+  .admin-shell .evl-tr {
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+    grid-template-areas: "date show show" "date status days" "sold sold gross" "acts acts acts";
+    gap: 6px 12px; padding: 14px 0;
+  }
+  .admin-shell .evl-tr > :nth-child(1) { grid-area: date; align-self: start; }
+  .admin-shell .evl-tr > :nth-child(2) { grid-area: show; }
+  .admin-shell .evl-tr > :nth-child(3) { display: none; }
+  .admin-shell .evl-tr > :nth-child(4) { grid-area: status; }
+  .admin-shell .evl-tr > :nth-child(5) { grid-area: sold; }
+  .admin-shell .evl-tr > :nth-child(6) { grid-area: gross; align-self: end; }
+  .admin-shell .evl-tr > :nth-child(7) { grid-area: days; align-self: center; }
+  .admin-shell .evl-tr > :nth-child(8) { grid-area: acts; justify-content: flex-start; }
+  .admin-shell .evl-name { white-space: normal; }
+
+  /* Orders */
+  .admin-shell .hub-order-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "who who total" "id src state";
+    gap: 4px 10px; padding: 12px 0;
+  }
+  .admin-shell .hub-order-row > :nth-child(1) { grid-area: id; }
+  .admin-shell .hub-order-row > :nth-child(2) { grid-area: who; }
+  .admin-shell .hub-order-row > :nth-child(3) { grid-area: src; }
+  .admin-shell .hub-order-row > :nth-child(4) { display: none; }
+  .admin-shell .hub-order-row > :nth-child(5) { grid-area: total; }
+  .admin-shell .hub-order-row > :nth-child(6) { grid-area: state; text-align: right; }
+  .admin-shell .hub-order-id { flex-direction: row; gap: 6px; align-items: baseline; }
+
+  /* Tiers */
+  .admin-shell .hub-tier-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "name name" "face qty" "svc fac" "sold status";
+    gap: 12px 14px;
+  }
+  .admin-shell .hub-tier-row > :nth-child(1) { grid-area: name; }
+  .admin-shell .hub-tier-row > :nth-child(2) { grid-area: face; }
+  .admin-shell .hub-tier-row > :nth-child(3) { grid-area: svc; }
+  .admin-shell .hub-tier-row > :nth-child(4) { grid-area: fac; }
+  .admin-shell .hub-tier-row > :nth-child(5) { grid-area: qty; }
+  .admin-shell .hub-tier-row > :nth-child(6) { grid-area: sold; }
+  .admin-shell .hub-tier-row > :nth-child(7) { grid-area: status; }
+  .admin-shell .hub-tier { padding: 16px 0; }
+  .admin-shell .hub-step { width: 36px; height: 36px; }
+
+  /* Tracking links */
+  .admin-shell .hub-link-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas: "name name rev" "slug slug slug" "utm utm utm" "clicks orders orders" "acts acts acts";
+    gap: 6px 12px; padding: 14px 0;
+  }
+  .admin-shell .hub-link-row > :nth-child(1) { grid-area: name; white-space: normal; }
+  .admin-shell .hub-link-row > :nth-child(2) { grid-area: slug; }
+  .admin-shell .hub-link-row > :nth-child(3) { grid-area: utm; }
+  .admin-shell .hub-link-row > :nth-child(4) { grid-area: clicks; }
+  .admin-shell .hub-link-row > :nth-child(5) { grid-area: orders; }
+  .admin-shell .hub-link-row > :nth-child(6) { grid-area: rev; }
+  .admin-shell .hub-link-row > :nth-child(7) { grid-area: acts; justify-content: flex-start; }
+  .admin-shell .hub-link-actions .evl-act { width: 40px; height: 40px; }
+
+  /* Guest list */
+  .admin-shell .hub-guest-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name x" "list qty" "note note" "ci ci";
+    gap: 8px 12px; padding: 14px 0;
+  }
+  .admin-shell .hub-guest-row > :nth-child(1) { grid-area: name; }
+  .admin-shell .hub-guest-row > :nth-child(2) { grid-area: list; align-self: end; }
+  .admin-shell .hub-guest-row > :nth-child(3) { grid-area: qty; width: 140px; }
+  .admin-shell .hub-guest-row > :nth-child(4) { grid-area: note; }
+  .admin-shell .hub-guest-row > :nth-child(5) { grid-area: ci; }
+  .admin-shell .hub-guest-row > :nth-child(6) { grid-area: x; }
+  .admin-shell .hub-guest-qty { width: 100%; }
+  .admin-shell .hub-guest-add > * { flex: 1 1 100%; }
+  .admin-shell .hub-guest-add .hub-stepper { flex: 0 0 140px; }
+
+  /* Promo codes */
+  .admin-shell .hub-promo-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "code status" "value type" "uses uses" "window window";
+    gap: 6px 12px; padding: 14px 0;
+  }
+  .admin-shell .hub-promo-row > :nth-child(1) { grid-area: code; }
+  .admin-shell .hub-promo-row > :nth-child(2) { grid-area: type; text-align: right; }
+  .admin-shell .hub-promo-row > :nth-child(3) { grid-area: value; }
+  .admin-shell .hub-promo-row > :nth-child(4) { grid-area: uses; }
+  .admin-shell .hub-promo-row > :nth-child(5) { grid-area: window; }
+  .admin-shell .hub-promo-row > :nth-child(6) { grid-area: status; }
+
+  /* Ad campaigns */
+  .admin-shell .hub-camp-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "name state" "spend daily";
+    gap: 8px 12px;
+  }
+  .admin-shell .hub-camp-row > :nth-child(1) { grid-area: name; }
+  .admin-shell .hub-camp-row > :nth-child(2) { grid-area: spend; }
+  .admin-shell .hub-camp-row > :nth-child(3) { grid-area: daily; }
+  .admin-shell .hub-camp-row > :nth-child(4) { display: none; }
+  .admin-shell .hub-camp-row > :nth-child(5) { grid-area: state; text-align: right; }
+
+  /* On-sale windows: label above the field */
+  .admin-shell .hub-win { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+
+  /* Header and section chrome */
+  .admin-shell .hub-title { font-size: 24px; }
+  .admin-shell .hub-head-actions { width: 100%; }
+  .admin-shell .hub-head-actions .hub-btn { flex: 1; }
+  .admin-shell .hub-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-shell .hub-sec-actions { width: 100%; }
+  .admin-shell .hub-sec-actions .hub-btn { flex: 1; }
+  .admin-shell .hub-pnl-row { grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 1fr)); font-size: 11px; }
+  .admin-shell .hub-fields--two, .admin-shell .hub-pp-fields { grid-template-columns: minmax(0, 1fr); }
+  .admin-shell .hub-modal-wrap { padding: 12px; align-items: end; }
+  .admin-shell .hub-modal { padding: 18px; border-radius: 22px; }
+  .admin-shell .hub-modal-actions .hub-btn { flex: 1 1 auto; }
+}

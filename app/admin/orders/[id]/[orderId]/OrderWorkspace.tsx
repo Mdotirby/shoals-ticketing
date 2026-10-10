@@ -941,7 +941,7 @@ export default function OrderWorkspace({ eventId, orderId, onBack }: { eventId: 
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr 1fr" }}>
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
 
         {/* ── Customer Info Card ── */}
         <div style={{

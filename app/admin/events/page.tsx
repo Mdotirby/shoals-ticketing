@@ -86,6 +86,8 @@ export default function EventsListPage() {
   const [venues, setVenues] = useState<string[]>([]);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  // Phones: status and venue chips fold behind a button so the list is first.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams({ all: "1" });
@@ -189,6 +191,9 @@ export default function EventsListPage() {
               placeholder="Search shows, artists or venues"
               className="hub-input evl-search"
             />
+            <button type="button" className={`evl-filter-toggle${filtersOpen ? " is-on" : ""}`} onClick={() => setFiltersOpen(!filtersOpen)} aria-expanded={filtersOpen}>
+              Filters{statuses.length + venues.length ? ` · ${statuses.length + venues.length}` : ""}
+            </button>
             <div className="evl-seg" role="tablist" aria-label="Date range">
               {RANGES.map((r) => (
                 <button key={r} type="button" role="tab" aria-selected={range === r} className={`evl-seg-btn${range === r ? " is-on" : ""}`} onClick={() => setRange(r)}>
@@ -197,7 +202,7 @@ export default function EventsListPage() {
               ))}
             </div>
           </div>
-          <div className="evl-filter-row">
+          <div className={`evl-filter-row evl-filter-row--chips${filtersOpen ? " is-open" : ""}`}>
             <div className="evl-chips">
               <span className="evl-chips-label">Status</span>
               {CHIPS.map((k) => (
