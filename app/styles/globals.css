@@ -25614,3 +25614,11 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-num.is-good { color: var(--hub-good); }
 .admin-shell .hub-num.is-bad { color: var(--hub-bad); }
 .admin-shell .hub-pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 380px; overflow-y: auto; }
+
+/* ── Event hub · Settlement (the settlement editor, embedded) ── */
+.admin-shell .hub-settle .admin-form-page.stl { max-width: none; padding: 0; margin: 0; }
+/* Beside the hub's sub-nav the editor has ~900px, too narrow for its rail. */
+@media (max-width: 1640px) {
+  .admin-shell .hub-settle .stl-grid { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
+}
+.admin-shell .hub-settle .stl .card { overflow-x: auto; }

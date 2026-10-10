@@ -31,6 +31,7 @@ import Orders from "./_hub/sections/Orders";
 import Guests from "./_hub/sections/Guests";
 import DayOf from "./_hub/sections/DayOf";
 import Deal from "./_hub/sections/Deal";
+import Settlement from "./_hub/sections/Settlement";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -52,7 +53,7 @@ function Hub() {
   );
 }
 
-const INTERIM: HubTab[] = ["settlement", "access"];
+const INTERIM: HubTab[] = ["access"];
 
 function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "summary") return <Summary go={go} />;
@@ -65,6 +66,7 @@ function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "guests") return <Guests />;
   if (tab === "dayof") return <DayOf />;
   if (tab === "deal") return <Deal go={go} />;
+  if (tab === "settlement") return <Settlement />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
