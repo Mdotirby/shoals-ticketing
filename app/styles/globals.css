@@ -25425,3 +25425,52 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-fields--two { grid-template-columns: 1fr 1fr; gap: 10px; }
 .admin-shell .hub-drawer-preview { padding: 12px 14px; border-radius: 14px; font-size: 12px; line-height: 1.55; color: rgba(255, 255, 255, 0.72); background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); }
 .admin-shell .hub-btn--block { width: 100%; min-height: 46px; }
+
+/* ── Event hub · Marketing ── */
+.admin-shell .hub-mkt { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-mkt .hub-empty { margin-top: 12px; padding: 32px 24px; }
+.admin-shell .hub-link-table { min-width: 860px; margin-top: 6px; }
+.admin-shell .hub-link-row {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.4fr) 70px 64px 86px 52px; gap: 12px; align-items: center;
+  padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+.admin-shell .hub-link-row--head { padding: 12px 0 9px; border-bottom-color: rgba(255, 255, 255, 0.1); font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-link-name { min-width: 0; font-size: 12.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-link-slug { min-width: 0; font-size: 11.5px; color: rgba(255, 255, 255, 0.62); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-link-utm { min-width: 0; font-size: 11px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-link-n { font-size: 12px; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-link-rev { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-link-rev.is-dim { color: rgba(255, 255, 255, 0.4); font-weight: 600; }
+.admin-shell .hub-mkt-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .hub-tl { display: flex; flex-direction: column; margin-top: 14px; }
+.admin-shell .hub-tl-row { display: grid; grid-template-columns: 52px 14px minmax(0, 1fr) auto; gap: 10px; align-items: start; min-height: 46px; }
+.admin-shell .hub-tl-date { font-size: 11px; font-weight: 650; color: rgba(255, 255, 255, 0.56); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.admin-shell .hub-tl-rail { display: flex; flex-direction: column; align-items: center; height: 100%; }
+.admin-shell .hub-tl-dot { width: 9px; height: 9px; border-radius: 9px; margin-top: 3px; background: rgba(255, 255, 255, 0.5); flex: none; }
+.admin-shell .hub-tl-dot.is-good { background: var(--hub-good); }
+.admin-shell .hub-tl-dot.is-warn { background: var(--hub-warn); }
+.admin-shell .hub-tl-dot.is-bad { background: var(--hub-bad); }
+.admin-shell .hub-tl-dot.is-blue { background: var(--hub-blue); }
+.admin-shell .hub-tl-dot.is-purp { background: var(--hub-purp); }
+.admin-shell .hub-tl-line { flex: 1; width: 1px; background: rgba(255, 255, 255, 0.12); margin-top: 4px; }
+.admin-shell .hub-tl-row:last-child .hub-tl-line { display: none; }
+.admin-shell .hub-tl-label { font-size: 12.5px; font-weight: 650; }
+.admin-shell .hub-tl-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.46); margin-top: 2px; padding-bottom: 12px; }
+.admin-shell .hub-tl-n { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.8); }
+.admin-shell .hub-attr-bar--thick { height: 6px; border-radius: 6px; }
+.admin-shell .hub-attr-bar--thick > div { height: 6px; border-radius: 6px; }
+.admin-shell .hub-attr-bar > div.is-lead { background: rgba(255, 255, 255, 0.85); }
+.admin-shell .hub-card-foot--quiet { font-size: 10.5px; color: rgba(255, 255, 255, 0.42); }
+.admin-shell .hub-ads-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 14px; }
+.admin-shell .hub-ads-sub { font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.7); margin-bottom: 8px; }
+.admin-shell .hub-ads-check { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.admin-shell .hub-ads-check-label { flex: 1; font-size: 12px; color: rgba(255, 255, 255, 0.8); }
+.admin-shell .hub-ads-cap { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.admin-shell .hub-ads-cap-text { flex: 1; }
+.admin-shell .hub-camp-table { min-width: 620px; margin-top: 16px; }
+.admin-shell .hub-camp-row { display: grid; grid-template-columns: minmax(0, 2fr) 90px 90px 100px 110px; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-camp-row--head { padding: 9px 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); border-bottom-color: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-msg { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)); }
+.admin-shell .hub-msg-text { flex: 1; min-width: 240px; }
+.admin-shell .hub-msg-title { font-size: 14px; font-weight: 750; }
+.admin-shell .hub-msg-body { font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.56); margin-top: 3px; text-wrap: pretty; }
