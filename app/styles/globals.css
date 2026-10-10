@@ -25622,3 +25622,32 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   .admin-shell .hub-settle .stl-grid { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
 }
 .admin-shell .hub-settle .stl .card { overflow-x: auto; }
+
+/* ── Event hub · Activity ── */
+.admin-shell .hub-activity { display: flex; flex-direction: column; gap: 14px; }
+.admin-shell .hub-choice-n { margin-left: 6px; font-size: 10px; color: rgba(255, 255, 255, 0.4); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-act-note { margin: 0 0 8px; }
+.admin-shell .hub-act-row { display: grid; grid-template-columns: 116px 150px 104px minmax(0, 1fr); gap: 14px; align-items: baseline; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-act-when { font-size: 11px; color: rgba(255, 255, 255, 0.46); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-act-who { font-size: 12px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-act-who.is-dim { font-weight: 500; color: rgba(255, 255, 255, 0.38); font-style: italic; }
+.admin-shell .hub-act-what { min-width: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 12px; color: rgba(255, 255, 255, 0.85); }
+.admin-shell .hub-act-diff { display: inline-flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-act-diff s { color: rgba(255, 255, 255, 0.42); }
+.admin-shell .hub-act-diff i { font-style: normal; color: rgba(255, 255, 255, 0.36); }
+.admin-shell .hub-act-diff b { font-weight: 700; }
+@media (max-width: 760px) { .admin-shell .hub-act-row { grid-template-columns: 1fr; gap: 4px; } }
+
+/* ── Event hub · Access ── */
+.admin-shell .hub-access-wrap { display: flex; flex-direction: column; gap: 14px; }
+.admin-shell .hub-access { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.admin-shell .hub-access-card { padding: 16px 18px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.admin-shell .hub-access-head { display: flex; align-items: baseline; gap: 8px; }
+.admin-shell .hub-access-role { flex: 1; font-size: 13px; font-weight: 750; }
+.admin-shell .hub-access-kind { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.56); }
+.admin-shell .hub-access-kind.is-teal { color: var(--hub-teal); }
+.admin-shell .hub-access-scope { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.46); margin-top: 3px; text-wrap: pretty; }
+.admin-shell .hub-access-people { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.admin-shell .hub-access-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-shell .hub-access-avatar { width: 30px; height: 30px; border-radius: 30px; flex: none; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; background: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-access-text { flex: 1; min-width: 0; }

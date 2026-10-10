@@ -75,11 +75,11 @@ export async function GET(request: Request) {
   };
 
   let { data, error } = await build(
-    "id, first_name, last_name, quantity, notes, artist_id, checked_in_at"
+    "id, first_name, last_name, quantity, notes, artist_id, checked_in_at, created_at"
   );
 
   if (error && /checked_in_at|column .* does not exist/i.test(error.message)) {
-    const fallback = await build("id, first_name, last_name, quantity, notes, artist_id");
+    const fallback = await build("id, first_name, last_name, quantity, notes, artist_id, created_at");
     data = fallback.data;
     error = fallback.error;
   }
