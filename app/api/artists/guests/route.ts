@@ -165,7 +165,8 @@ export async function POST(request: Request) {
   const { event_id, first_name, last_name, quantity, notes } = body;
   const artist_id = w.artist ? w.actor.id : body.artist_id || w.actor.id;
 
-  if (!event_id || !first_name || !last_name) {
+  // One name is enough — a band's "+1" or a sponsor's company has no surname.
+  if (!event_id || !String(first_name ?? "").trim()) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
       event_id,
       artist_id,
       first_name: String(first_name).trim(),
-      last_name: String(last_name).trim(),
+      last_name: String(last_name ?? "").trim(),
       quantity: Math.max(1, parseInt(quantity) || 1),
       notes: typeof notes === "string" && notes.trim() ? notes.trim() : null,
     })

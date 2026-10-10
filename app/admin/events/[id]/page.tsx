@@ -28,6 +28,7 @@ import Inventory from "./_hub/sections/Inventory";
 import Promotions from "./_hub/sections/Promotions";
 import Marketing from "./_hub/sections/Marketing";
 import Orders from "./_hub/sections/Orders";
+import Guests from "./_hub/sections/Guests";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -49,7 +50,7 @@ function Hub() {
   );
 }
 
-const INTERIM: HubTab[] = ["settlement", "guests", "access"];
+const INTERIM: HubTab[] = ["settlement", "access"];
 
 function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   const { id, offer } = useHub();
@@ -60,6 +61,7 @@ function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "promotions") return <Promotions />;
   if (tab === "marketing") return <Marketing />;
   if (tab === "orders") return <Orders />;
+  if (tab === "guests") return <Guests />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {

@@ -25519,3 +25519,31 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-od-panel-title { font-size: 12.5px; font-weight: 750; }
 .admin-shell .hub-ok { padding: 11px 14px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; background: rgba(143, 214, 168, 0.12); border: 1px solid rgba(143, 214, 168, 0.4); }
 @media (max-width: 1100px) { .admin-shell .hub-orders { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Event hub · Guest list & comps ── */
+.admin-shell .hub-guests { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-allot { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.admin-shell .hub-allot-card { padding: 14px 16px; border-radius: 16px; background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.12); }
+.admin-shell .hub-allot-line { display: flex; align-items: baseline; gap: 8px; }
+.admin-shell .hub-allot-label { flex: 1; font-size: 9.5px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-allot-used { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-allot-used.is-warn { color: var(--hub-warn); }
+.admin-shell .hub-allot-used.is-bad { color: var(--hub-bad); }
+.admin-shell .hub-allot-bar { height: 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); margin-top: 9px; overflow: hidden; }
+.admin-shell .hub-allot-bar > div { height: 5px; background: rgba(255, 255, 255, 0.9); }
+.admin-shell .hub-allot-bar > div.is-warn { background: var(--hub-warn); }
+.admin-shell .hub-allot-bar > div.is-bad { background: var(--hub-bad); }
+.admin-shell .hub-allot-bar > div.is-good { background: var(--hub-good); }
+.admin-shell .hub-guest-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-shell .hub-guest-name { flex: 1 1 200px; width: auto; }
+.admin-shell .hub-guest-note { flex: 1 1 160px; width: auto; }
+.admin-shell .hub-guest-qty { width: 110px; }
+.admin-shell .hub-guest-table { min-width: 720px; margin-top: 6px; }
+.admin-shell .hub-guest-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 120px 110px minmax(0, 1fr) 120px 34px; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-guest-row.is-new { background: oklch(0.86 0.09 92 / 0.04); }
+.admin-shell .hub-guest-row--head { padding: 12px 0 9px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); border-bottom-color: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-guest-list { display: inline-block; max-width: 100%; padding: 4px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-guest-list.is-artist { background: oklch(0.86 0.09 92 / 0.12); color: var(--hub-warn); }
+.admin-shell .hub-guest-list.is-house { background: oklch(0.78 0.11 250 / 0.12); color: var(--hub-blue); }
+.admin-shell .hub-guest-noteinput { font-weight: 500; font-size: 12px; color: rgba(255, 255, 255, 0.75); }
+.admin-shell .hub-x--sm { width: 28px; height: 28px; font-size: 10px; }
