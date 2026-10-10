@@ -38,6 +38,9 @@ export default function Inventory() {
   const [busy, setBusy] = useState<string | null>(null);
   const [form, setForm] = useState({ ticket_tier_id: "", quantity: "1", hold_type: "artist" as HubHold["hold_type"], owner_label: "", release_note: "" });
   const [error, setError] = useState("");
+  const [layouts, setLayouts] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [pickLayout, setPickLayout] = useState("");
+  const [mapN, setMapN] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -46,7 +49,23 @@ export default function Inventory() {
       .then((d) => live && setMap(d))
       .catch(() => live && setMap({ enabled: false, layout: null }));
     return () => { live = false; };
-  }, [id]);
+  }, [id, mapN]);
+
+  // Saved room layouts, for attaching one to this show.
+  useEffect(() => {
+    if (!map || map.enabled) return;
+    fetch("/api/seating/layouts").then((r) => (r.ok ? r.json() : [])).then((d) => setLayouts(Array.isArray(d) ? d : [])).catch(() => setLayouts([]));
+  }, [map]);
+
+  const attach = async (layoutId: string | null) => {
+    if (layoutId === null && !confirm("Detach the seat map? The show goes back to selling from its tiers alone. Seats already sold keep their assignments.")) return;
+    const r = await fetch(`/api/seating/events/${id}/map`, layoutId
+      ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ layout_id: layoutId, enabled: true }) }
+      : { method: "DELETE" });
+    if (!r.ok) { hub.toast("Couldn't change the seat map."); return; }
+    setMapN((n) => n + 1);
+    hub.toast(layoutId ? "Seat map attached. Buyers pick seats from it now." : "Seat map detached.");
+  };
 
   const byType = (k: HubHold["hold_type"]) => holds.filter((h) => h.hold_type === k);
   const held = holds.reduce((t, h) => t + (Number(h.quantity) || 0), 0);
@@ -177,7 +196,8 @@ export default function Inventory() {
             <div className="hub-eyebrow">Seat map · this show</div>
             {map?.layout?.name && <div className="hub-card-note">{map.layout.name}</div>}
             <span className="hub-spacer" />
-            <Link href="/admin/seating" className="hub-card-link">{map?.enabled ? "Edit holds in the seat map builder →" : "Attach a room in Seating →"}</Link>
+            {map?.enabled && <button type="button" className="hub-card-link" onClick={() => attach(null)}>Detach</button>}
+            <Link href="/admin/seating" className="hub-card-link">{map?.enabled ? "Edit holds in the seat map builder →" : "Build a room in Seating →"}</Link>
           </div>
           {map === null ? (
             <HubLoading label="the seat map" />
@@ -202,7 +222,16 @@ export default function Inventory() {
           ) : (
             <div className="hub-inv-ga">
               <div className="hub-inv-ga-title">General admission</div>
-              <div className="hub-inv-ga-body">This show sells from its tiers with no seat map. Attach a saved room layout in Seating to sell assigned seats or tables.</div>
+              <div className="hub-inv-ga-body">This show sells from its tiers with no seat map. Attach a saved room layout to sell assigned seats or tables.</div>
+              {layouts && layouts.length > 0 && (
+                <div className="hub-inv-attach">
+                  <select className="hub-in hub-in--sm" value={pickLayout} onChange={(e) => setPickLayout(e.target.value)}>
+                    <option value="">Choose a room…</option>
+                    {layouts.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                  <button type="button" className="hub-btn hub-btn--sm" disabled={!pickLayout} onClick={() => attach(pickLayout)}>Attach</button>
+                </div>
+              )}
               <div className="hub-inv-tiers">
                 {tiers.map((t) => {
                   const tierHeld = holds.filter((h) => h.ticket_tier_id === t.id).reduce((n, h) => n + h.quantity, 0);

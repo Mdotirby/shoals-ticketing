@@ -25651,3 +25651,28 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-access-person { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
 .admin-shell .hub-access-avatar { width: 30px; height: 30px; border-radius: 30px; flex: none; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; background: rgba(255, 255, 255, 0.1); }
 .admin-shell .hub-access-text { flex: 1; min-width: 0; }
+.admin-shell .hub-tax-fields { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-shell .hub-inv-attach { display: flex; gap: 8px; align-items: center; margin-top: 12px; max-width: 460px; }
+
+/* ── Event hub · ⋯ menu, postpone and cancel ── */
+.admin-shell .hub-more-btn {
+  width: 40px; height: 40px; display: grid; place-items: center; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 800; color: #fff; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .hub-more-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.admin-shell .hub-pop--more { right: 0; top: 48px; width: 280px; padding: 6px; border-radius: 16px; }
+.admin-shell .hub-more-item { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 11px 12px; border-radius: 11px; cursor: pointer; text-align: left; font: inherit; color: #fff; background: none; border: 0; }
+.admin-shell .hub-more-item:hover { background: rgba(255, 255, 255, 0.07); }
+.admin-shell .hub-more-item b { font-size: 12.5px; font-weight: 650; }
+.admin-shell .hub-more-item span { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-more-item.is-warn b { color: var(--hub-warn); }
+.admin-shell .hub-more-item.is-bad b { color: var(--hub-bad); }
+.admin-shell .hub-pp-fields { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.admin-shell .hub-pp-what { display: flex; flex-direction: column; gap: 8px; }
+.admin-shell .hub-radio { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-radio.is-on { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.3); }
+.admin-shell .hub-radio-dot { width: 18px; height: 18px; border-radius: 18px; flex: none; margin-top: 1px; border: 1.5px solid #fff; background: radial-gradient(circle, #fff 0 4px, transparent 5px); }
+.admin-shell .hub-radio > div { display: flex; flex-direction: column; }
+.admin-shell .hub-radio b { font-size: 12.5px; font-weight: 700; }
+.admin-shell .hub-radio span:not(.hub-radio-dot) { font-size: 11px; line-height: 1.5; color: rgba(255, 255, 255, 0.52); margin-top: 2px; }
+.admin-shell .hub-note-warn { padding: 10px 12px; border-radius: 12px; background: oklch(0.86 0.09 92 / 0.08); border: 1px solid oklch(0.86 0.09 92 / 0.3); color: rgba(255, 255, 255, 0.78); }

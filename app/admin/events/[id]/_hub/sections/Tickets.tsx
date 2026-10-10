@@ -41,7 +41,7 @@ type Tier = {
 
 type Presale = { enabled: boolean; code: string; starts_at: string; ends_at: string; capacity: string };
 type Windows = { onsaleDate: string; onsaleTime: string; artist: Presale; venue: Presale };
-type Draft = { tiers: Tier[]; win: Windows };
+type Draft = { tiers: Tier[]; win: Windows; tax: { method: "multiplier" | "divisor"; included: boolean } };
 
 type RoomFees = { ticketing_fee: number | null; facility_fee: number | null; tax_rate: number | null };
 type Inventory = Record<string, { sold: number; price: number }>;
@@ -107,6 +107,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
           code: String(t.unlock_code ?? ""),
         })),
         win: { onsaleDate: on.date, onsaleTime: on.time, artist: presaleFrom(pre?.artist ?? null), venue: presaleFrom(pre?.venue ?? null) },
+        tax: { method: event.tax_method === "divisor" ? "divisor" : "multiplier", included: event.fees_included_in_price === true },
       };
       setSaved(draft);
       setD(draft);
@@ -137,6 +138,8 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
     if (d.win.onsaleDate !== saved.win.onsaleDate || d.win.onsaleTime !== saved.win.onsaleTime) n++;
     if (JSON.stringify(d.win.artist) !== JSON.stringify(saved.win.artist)) n++;
     if (JSON.stringify(d.win.venue) !== JSON.stringify(saved.win.venue)) n++;
+    if (d.tax.method !== saved.tax.method) n++;
+    if (d.tax.included !== saved.tax.included) n++;
     return n;
   }, [d, saved]);
 
@@ -180,6 +183,8 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
       eventPatch.price = Math.min(...d.tiers.map((t) => parseFloat(t.price) || 0));
       eventPatch.is_free = d.tiers.every((t) => (parseFloat(t.price) || 0) === 0);
     }
+    if (d.tax.method !== saved.tax.method) eventPatch.tax_method = d.tax.method;
+    if (d.tax.included !== saved.tax.included) eventPatch.fees_included_in_price = d.tax.included;
     if (d.win.onsaleDate !== saved.win.onsaleDate || d.win.onsaleTime !== saved.win.onsaleTime) {
       eventPatch.on_sale_at = d.win.onsaleDate ? chicagoToUtcIso(d.win.onsaleDate, d.win.onsaleTime) : null;
     }
@@ -212,7 +217,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
   const ctx = {
     ticketingFee: Number(room?.ticketing_fee ?? event.ticketing_fee ?? 3) || 0,
     facilityFee: Number(room?.facility_fee ?? 0) || 0,
-    feesIncludedInPrice: event.fees_included_in_price === true,
+    feesIncludedInPrice: d.tax.included,
     facilityFeeEnabled: d.tiers.length > 0 && !d.tiers.every((t) => (parseFloat(t.price) || 0) === 0),
   };
 
@@ -421,6 +426,22 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
             <div><span className="hub-feekey-label is-added">Added</span><span>Shown as its own line at checkout, on top of the face price.</span></div>
             <div><span className="hub-feekey-label is-included">Included</span><span>Built into the face price. The buyer sees one number; the fee comes out of your net.</span></div>
             <div><span className="hub-feekey-label is-waived">Waived</span><span>Not charged at all on this tier.</span></div>
+          </div>
+          <div className="hub-fields hub-tax-fields">
+            <div className="hub-field">
+              <div className="hub-field-head"><label className="hub-field-label" htmlFor="tk-tax">Sales tax</label></div>
+              <select id="tk-tax" className={`hub-in hub-in--sm${d.tax.method !== saved.tax.method ? " is-edited" : ""}`} value={d.tax.method} onChange={(e) => setD((p) => (p ? { ...p, tax: { ...p.tax, method: e.target.value as "multiplier" | "divisor" } } : p))}>
+                <option value="multiplier">Added on top of the face price</option>
+                <option value="divisor">Already inside the face price</option>
+              </select>
+            </div>
+            <div className="hub-field">
+              <div className="hub-field-head"><div className="hub-field-label">Show default for fees</div></div>
+              <div className="hub-choices">
+                <button type="button" className={`hub-choice hub-choice--sm${!d.tax.included ? " is-on" : ""}`} onClick={() => setD((p) => (p ? { ...p, tax: { ...p.tax, included: false } } : p))}>Added</button>
+                <button type="button" className={`hub-choice hub-choice--sm${d.tax.included ? " is-on" : ""}`} onClick={() => setD((p) => (p ? { ...p, tax: { ...p.tax, included: true } } : p))}>Included</button>
+              </div>
+            </div>
           </div>
           <div className="hub-card-foot">
             Amounts are the room&apos;s rate card{room ? "" : " (no room picked — platform defaults)"}. A mode with a dot is the show&apos;s default; clicking it sets the tier&apos;s own.

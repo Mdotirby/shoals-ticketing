@@ -19,6 +19,7 @@ import { fmtUSD } from "@/app/components/admin/ui";
 import { getCookie } from "@/lib/cookies";
 import { useHub } from "./HubContext";
 import { HubModal } from "./ui";
+import { LifecycleMenu } from "./Lifecycle";
 import {
   HUB_GROUPS, HUB_GROUP_OF, HUB_LABEL, HUB_SUB, canOpen, deniedCopy, firstTabFor, OWNER_ROLES, type HubTab,
 } from "./config";
@@ -170,12 +171,12 @@ export default function HubShell({
 
   const isOwner = OWNER_ROLES.includes(role);
   const published = (event.status || "published") === "published";
-  const cancelled = event.status === "cancelled";
+  const cancelled = event.booking_status === "cancelled" || event.status === "cancelled";
   const postponed = event.status === "postponed";
   const days = daysOut(event.date);
   const soldOut = capacity.sellable > 0 && sold >= capacity.sellable;
 
-  const stateLine = cancelled ? "Cancelled · refunds processing"
+  const stateLine = cancelled ? "Cancelled · off the storefront"
     : postponed ? "Postponed · new date TBD"
     : !published ? "Unpublished · hidden from the storefront"
     : days < 0 ? "Played"
@@ -362,7 +363,7 @@ export default function HubShell({
             </div>
           </div>
           <div className="hub-head-actions">
-            {isOwner && (
+            {isOwner && !cancelled && (
               <button
                 type="button"
                 className={`hub-btn${published ? "" : " hub-btn--primary"}`}
@@ -373,6 +374,7 @@ export default function HubShell({
               </button>
             )}
             <a href={`/events/${event.id}`} target="_blank" rel="noreferrer" className="hub-btn">View on storefront ↗</a>
+            {isOwner && <LifecycleMenu />}
           </div>
         </div>
 

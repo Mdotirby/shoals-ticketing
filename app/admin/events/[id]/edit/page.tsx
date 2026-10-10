@@ -243,6 +243,16 @@ export default function AdminEditEventPage() {
           return;
         }
 
+        // A show's editing lives in its event hub now (eventhub.dc.html);
+        // this form stays only for private rentals. Old links and bookmarks
+        // land on the matching hub section.
+        if (event.event_type !== "private") {
+          const from = new URLSearchParams(window.location.search).get("tab") || "setup";
+          const to = ({ setup: "details", tickets: "tickets", onsale: "tickets", promo: "promotions" } as Record<string, string>)[from] ?? "details";
+          window.location.replace(`/admin/events/${id}?tab=${to}`);
+          return;
+        }
+
         // Parse date + time from raw string
         const raw = event.date || "";
         const dateStr = raw.length >= 10 ? raw.slice(0, 10) : "";

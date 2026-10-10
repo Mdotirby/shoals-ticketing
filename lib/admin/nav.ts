@@ -80,12 +80,6 @@ export type NavGroup = {
   pages: NavPage[];
 };
 
-/** The event an /admin/events/<id>/… path is about, if any. */
-function eventIdIn(pathname: string): string | null {
-  const m = /^\/admin\/events\/([^/]+)/.exec(pathname);
-  return m && m[1] !== "new" ? m[1] : null;
-}
-
 const R = {
   all: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist","partner"],
   events: ["owner","venue_admin","full_admin","read_only","box_office","door_greeter","artist"],
@@ -126,21 +120,6 @@ export const navGroups: NavGroup[] = [
           { label: "Setup", key: "setup" },
           { label: "Tickets", key: "tickets" },
           { label: "On-sale & fees", key: "onsale" },
-        ],
-      },
-      {
-        id: "eventedit",
-        label: "Edit event",
-        contextualHref: (p) => (eventIdIn(p) ? `/admin/events/${eventIdIn(p)}/edit` : null),
-        match: /^\/admin\/events\/[^/]+\/edit$/,
-        // Only ever reached contextually from inside an event; out of one it
-        // lands on the events list.
-        link: { label: "Edit event", href: "/admin/events", roles: R.events },
-        paramTabs: [
-          { label: "Setup", key: "setup" },
-          { label: "Tickets", key: "tickets" },
-          { label: "On-sale & fees", key: "onsale" },
-          { label: "Promo & tracking", key: "promo" },
         ],
       },
       { id: "seating", label: "Seating map", link: { label: "Seating", href: "/admin/seating", tabKey: "seating", roles: R.mgmt } },

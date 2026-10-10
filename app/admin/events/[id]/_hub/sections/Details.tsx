@@ -41,6 +41,14 @@ type Draft = {
   meta_pixel_id: string;
   talent_buyer: string;
   booking_agent: string;
+  event_type: string;
+  deal_type: string;
+  booking_status: string;
+  venue_id: string;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
+  landing_page_slug: string;
 };
 
 type EventVenue = { id: string; name: string; full_address: string | null };
@@ -71,6 +79,14 @@ function fromEvent(e: HubEvent): Draft {
     meta_pixel_id: s(e.meta_pixel_id),
     talent_buyer: s(e.talent_buyer),
     booking_agent: s(e.booking_agent),
+    event_type: s(e.event_type) || "hard_ticket",
+    deal_type: s(e.deal_type) || "own_risk",
+    booking_status: s(e.booking_status) || "confirmed",
+    venue_id: s(e.venue_id),
+    contact_name: s(e.contact_name),
+    contact_phone: s(e.contact_phone),
+    contact_email: s(e.contact_email),
+    landing_page_slug: s(e.landing_page_slug),
   };
 }
 
@@ -85,6 +101,10 @@ function patchFor(d: Draft, saved: Draft): Record<string, unknown> {
     out.event_venue_id = d.event_venue_id || null;
   }
   if (changed("age")) out.age_restriction = d.age;
+  for (const k of ["event_type", "deal_type", "booking_status"] as const) if (changed(k)) out[k] = d[k];
+  if (changed("venue_id")) out.venue_id = d.venue_id || null;
+  if (changed("landing_page_slug")) out.landing_page_slug = d.landing_page_slug.trim() || null;
+  for (const k of ["contact_name", "contact_phone", "contact_email"] as const) if (changed(k)) out[k] = d[k].trim() || null;
   const plain: Array<keyof Draft> = [
     "title", "subtitle", "description", "spotify_url", "external_ticket_url", "image_url", "email_flyer_url",
     "external_ticket_label", "spotify_monthly_listeners", "spotify_featured_track", "meta_pixel_id", "talent_buyer", "booking_agent",
@@ -110,6 +130,7 @@ export default function Details() {
   const saved = useMemo(() => (event ? fromEvent(event) : null), [event]);
   const [d, setD] = useState<Draft | null>(saved);
   const [venues, setVenues] = useState<EventVenue[]>([]);
+  const [hosts, setHosts] = useState<Array<{ id: string; name: string }>>([]);
   const [more, setMore] = useState(false);
   const [error, setError] = useState("");
   const [crop, setCrop] = useState<string | null>(null);
@@ -119,6 +140,10 @@ export default function Details() {
 
   // A save (or another section) changed the show: start again from it.
   useEffect(() => { setD(saved); }, [saved]);
+
+  useEffect(() => {
+    fetch("/api/venues").then((r) => (r.ok ? r.json() : [])).then((v) => setHosts(Array.isArray(v) ? v.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) : [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) =>
@@ -156,7 +181,7 @@ export default function Details() {
   const set = (k: keyof Draft, v: string) =>
     setD((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, [k]: v };
+      const next = { ...prev, [k]: k === "landing_page_slug" ? v.toLowerCase().replace(/[^a-z0-9-]/g, "") : v };
       // Doors move with the show time while they're still the default for it.
       if (k === "show" && (!prev.doors || prev.doors === defaultDoorsTime(prev.show))) next.doors = defaultDoorsTime(v) ?? "";
       return next;
@@ -219,6 +244,20 @@ export default function Details() {
     </div>
   );
 
+  const select = (k: keyof Draft, label: string, options: Array<[string, string]>, hint: string) => (
+    <div className="hub-field" key={k}>
+      <div className="hub-field-head">
+        <label className="hub-field-label" htmlFor={`hub-d-${k}`}>{label}</label>
+        <span className="hub-spacer" />
+        {edited(k) && <span className="hub-field-chip">Edited</span>}
+      </div>
+      <select id={`hub-d-${k}`} value={d[k]} onChange={(e) => set(k, e.target.value)} className={`hub-in${edited(k) ? " is-edited" : ""}`}>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+      <div className="hub-field-foot"><div className="hub-field-hint">{hint}</div></div>
+    </div>
+  );
+
   const venueOptions: Array<[string, string]> = venues.map((v) => [v.id, v.name]);
   if (d.event_venue_id && !venues.some((v) => v.id === d.event_venue_id)) venueOptions.unshift([d.event_venue_id, d.venue]);
   if (!d.event_venue_id && d.venue) venueOptions.unshift(["", d.venue]);
@@ -276,7 +315,7 @@ export default function Details() {
         <details className="hub-more" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
           <summary>
             <span className="hub-eyebrow">More details</span>
-            <span className="hub-more-sub">external link label · Spotify player · Meta pixel · talent buyer · agent</span>
+            <span className="hub-more-sub">class · whose money · booking state · host · contact · landing page · links · Spotify · pixel · buyer · agent</span>
           </summary>
           <div className="hub-fields">
             {field("external_ticket_label", "External ticket button label", { placeholder: "Buy on Eventbrite", hint: "The storefront button text when the show sells elsewhere." })}
@@ -285,6 +324,14 @@ export default function Details() {
             {field("meta_pixel_id", "Meta pixel ID", { placeholder: "Leave blank to use the venue's", hint: "Only when this show reports to its own ad account." })}
             {field("talent_buyer", "Talent buyer")}
             {field("booking_agent", "Booking agent")}
+            {select("event_type", "Event class", [["hard_ticket", "Hard ticket"], ["non_ticketed", "Non-ticketed"]], "Fixed once the show has sold — tickets were sold under it.")}
+            {select("deal_type", "Whose money", [["own_risk", "Own risk — the room carries it"], ["guarantee", "Guarantee — the artist is promised a figure"], ["co_promote", "Co-promote — split after costs"], ["rental_box_office", "Rental + box office — they rent, you sell"]], "Who carries the risk if the show doesn't sell.")}
+            {select("booking_status", "Booking state", [["confirmed", "Confirmed"], ["hold", "Hold"], ["cancelled", "Cancelled"]], "A hold reads as a draft on the events list. To cancel a selling show, use Cancel event in the ⋯ menu so buyers are refunded.")}
+            {hosts.length > 1 && select("venue_id", "Host / organization", [["", "—"], ...hosts.map((h) => [h.id, h.name] as [string, string])], "The account this show belongs to.")}
+            {field("contact_name", "Day-of contact")}
+            {field("contact_phone", "Contact phone", { type: "tel" })}
+            {field("contact_email", "Contact email", { type: "email" })}
+            {field("landing_page_slug", "Landing page", { placeholder: "auto-generated-from-title", hint: d.landing_page_slug ? `/e/${d.landing_page_slug}` : "A short address for this show at /e/…" })}
           </div>
         </details>
       </section>
