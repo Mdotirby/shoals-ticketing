@@ -10,7 +10,7 @@ import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
-import { followDoors } from "@/lib/dates";
+import { followDoors, utcToChicago, chicagoToUtcIso } from "@/lib/dates";
 import { useIsMobile } from "@/lib/useIsMobile";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import { fmtUSD } from "@/app/components/admin/ui";
@@ -71,33 +71,6 @@ function emptyTier(): TicketTierDraft {
   return { tier_name: "", price: "", capacity: "" };
 }
 
-// Convert a UTC ISO string to date + time strings in America/Chicago timezone
-function utcToChicago(utcIso: string): { date: string; time: string } {
-  const dt = new Date(utcIso);
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit",
-    hour12: false,
-  }).formatToParts(dt);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
-  const hour = get("hour") === "24" ? "00" : get("hour");
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, time: `${hour}:${get("minute")}` };
-}
-
-// Convert a date + time entered as America/Chicago to a UTC ISO string
-function chicagoToUtcIso(date: string, time: string): string {
-  const naive = `${date}T${time || "00:00"}:00`;
-  // Start guess: CST = UTC-6
-  let guess = new Date(`${naive}-06:00`);
-  for (let i = 0; i < 3; i++) {
-    const { date: cd, time: ct } = utcToChicago(guess.toISOString());
-    const diff = new Date(naive).getTime() - new Date(`${cd}T${ct}:00`).getTime();
-    if (Math.abs(diff) < 30000) break;
-    guess = new Date(guess.getTime() + diff);
-  }
-  return guess.toISOString();
-}
 
 export default function AdminEditEventPage() {
   const { id } = useParams() as { id: string };

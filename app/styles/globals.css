@@ -25256,3 +25256,91 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 @media (max-width: 1100px) {
   .admin-shell .hub-details { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Event hub · Tickets & pricing ── */
+.admin-shell .hub-tickets { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-tiers-card { padding: 20px 22px 16px; }
+.admin-shell .hub-tiers-scroll { overflow-x: auto; margin: 0 -6px; padding: 0 6px; }
+.admin-shell .hub-tiers { min-width: 900px; }
+.admin-shell .hub-tier-row {
+  display: grid; grid-template-columns: minmax(180px, 1fr) 112px 136px 136px 108px 52px 112px; gap: 12px; align-items: center;
+}
+.admin-shell .hub-tier-row--head {
+  padding: 14px 0 9px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
+}
+.admin-shell .hub-num { text-align: right; }
+.admin-shell .hub-tier { padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-tier-name { min-width: 0; }
+.admin-shell .hub-tier-input {
+  width: 100%; padding: 4px 0; font: inherit; font-size: 13px; font-weight: 650; color: #fff;
+  background: transparent; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); outline: none;
+}
+.admin-shell .hub-tier-input:focus { border-bottom-color: rgba(255, 255, 255, 0.35); }
+.admin-shell .hub-tier-meta { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; font-size: 10.5px; color: rgba(255, 255, 255, 0.48); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-code {
+  padding: 2px 8px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;
+  background: transparent; border: 1px solid rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .hub-code.is-on { background: oklch(0.74 0.13 300 / 0.14); border-color: oklch(0.74 0.13 300 / 0.45); color: var(--hub-purp); }
+.admin-shell .hub-code-input {
+  width: 110px; padding: 2px 8px; border-radius: 999px; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; color: var(--hub-purp);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid oklch(0.74 0.13 300 / 0.45); outline: none;
+}
+.admin-shell .hub-tier-remove { font-weight: 600; color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-stepper { display: flex; align-items: center; gap: 4px; }
+.admin-shell .hub-step {
+  width: 26px; height: 26px; flex: none; border-radius: 8px; display: grid; place-items: center; cursor: pointer;
+  font: inherit; font-size: 13px; color: #fff; background: rgba(255, 255, 255, 0.06); border: 0;
+}
+.admin-shell .hub-step:hover { background: rgba(255, 255, 255, 0.12); }
+.admin-shell .hub-step.is-floor { color: rgba(255, 255, 255, 0.25); }
+.admin-shell .hub-step-value {
+  flex: 1; min-width: 0; width: 100%; text-align: center; font: inherit; font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums;
+  color: #fff; background: transparent; border: 0; border-bottom: 1px solid transparent; outline: none; padding: 2px 0;
+}
+.admin-shell .hub-step-value:focus { border-bottom-color: rgba(255, 255, 255, 0.35); }
+.admin-shell .hub-step-value--qty { font-size: 12px; font-weight: 650; }
+.admin-shell .hub-fee { display: flex; align-items: center; gap: 8px; }
+.admin-shell .hub-fee-amt { font-size: 12px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.72); }
+.admin-shell .hub-fee-amt.is-off { color: rgba(255, 255, 255, 0.3); text-decoration: line-through; }
+.admin-shell .hub-fee-mode {
+  padding: 4px 10px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 10px; font-weight: 700; white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .hub-fee-mode.is-added { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.95); }
+.admin-shell .hub-fee-mode.is-included { background: oklch(0.80 0.10 200 / 0.12); color: var(--hub-teal); }
+.admin-shell .hub-fee-mode.is-waived { background: transparent; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .hub-tier-sold { font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-tier-status {
+  display: inline-block; padding: 5px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700; white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.12); background: rgba(255, 255, 255, 0.05); color: rgba(255, 255, 255, 0.56);
+}
+.admin-shell .hub-tier-status.is-good { background: rgba(143, 214, 168, 0.1); color: var(--hub-good); }
+.admin-shell .hub-tier-status.is-bad { background: oklch(0.72 0.13 22 / 0.1); color: var(--hub-bad); }
+.admin-shell .hub-tier-status.is-purp { background: oklch(0.74 0.13 300 / 0.1); color: var(--hub-purp); }
+.admin-shell .hub-tier-warn {
+  display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px;
+  background: oklch(0.86 0.09 92 / 0.08); border: 1px solid oklch(0.86 0.09 92 / 0.35);
+}
+.admin-shell .hub-tier-warn-icon { font-size: 12px; color: var(--hub-warn); }
+.admin-shell .hub-tier-warn-text { flex: 1; font-size: 11.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.8); text-wrap: pretty; }
+.admin-shell .hub-tiers-foot { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.admin-shell .hub-tiers-note { flex: 1 1 380px; font-size: 11px; line-height: 1.55; color: rgba(255, 255, 255, 0.5); text-wrap: pretty; }
+.admin-shell .hub-tickets-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .hub-card--quiet { background: linear-gradient(155deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025)); border-color: rgba(255, 255, 255, 0.13); box-shadow: none; }
+.admin-shell .hub-wins { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.admin-shell .hub-win { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; align-items: center; }
+.admin-shell .hub-win-group { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.admin-shell .hub-win-label { font-size: 12px; font-weight: 650; }
+.admin-shell .hub-win-sub { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); margin-top: 2px; }
+.admin-shell .hub-win-pair { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 8px; }
+.admin-shell .hub-win-fixed { font-size: 12.5px; color: rgba(255, 255, 255, 0.72); }
+.admin-shell .hub-in--sm { padding: 10px 12px; border-radius: 12px; font-size: 12.5px; }
+.admin-shell .hub-choice--sm { min-height: 34px; padding: 0 13px; font-size: 11.5px; }
+.admin-shell .hub-feekey { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.admin-shell .hub-feekey > div { display: flex; gap: 10px; align-items: baseline; font-size: 11.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.62); }
+.admin-shell .hub-feekey-label { width: 70px; flex: none; font-weight: 700; }
+.admin-shell .hub-feekey-label.is-added { color: rgba(255, 255, 255, 0.95); }
+.admin-shell .hub-feekey-label.is-included { color: var(--hub-teal); }
+.admin-shell .hub-feekey-label.is-waived { color: rgba(255, 255, 255, 0.44); }
