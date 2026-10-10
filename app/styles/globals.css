@@ -25547,3 +25547,36 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-guest-list.is-house { background: oklch(0.78 0.11 250 / 0.12); color: var(--hub-blue); }
 .admin-shell .hub-guest-noteinput { font-weight: 500; font-size: 12px; color: rgba(255, 255, 255, 0.75); }
 .admin-shell .hub-x--sm { width: 28px; height: 28px; font-size: 10px; }
+
+/* ── Event hub · Day of show ── */
+.admin-shell .hub-dayof { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-live-strip { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; border-radius: 16px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.12); }
+.admin-shell .hub-live-strip.is-live { background: rgba(143, 214, 168, 0.07); border-color: rgba(143, 214, 168, 0.3); }
+.admin-shell .hub-live-dot { width: 9px; height: 9px; border-radius: 9px; background: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-live-strip.is-live .hub-live-dot { background: var(--hub-good); box-shadow: 0 0 12px var(--hub-good); }
+.admin-shell .hub-live-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.17em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); }
+.admin-shell .hub-live-strip.is-live .hub-live-label { color: var(--hub-good); }
+.admin-shell .hub-dayof-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .hub-dayof-feed { grid-column: 1 / -1; }
+.admin-shell .hub-dayof-big { font-size: 44px; font-weight: 800; letter-spacing: -0.05em; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-roombar { position: relative; height: 14px; border-radius: 8px; margin-top: 14px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.admin-shell .hub-roombar > div { height: 100%; border-radius: 8px; background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.9)); }
+.admin-shell .hub-roombar > span { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--hub-warn); }
+.admin-shell .hub-roombar-scale { display: flex; justify-content: space-between; font-size: 10.5px; color: rgba(255, 255, 255, 0.44); margin-top: 6px; }
+.admin-shell .hub-roombar-scale .is-warn { color: var(--hub-warn); }
+.admin-shell .hub-dayof-rate { font-size: 11px; font-weight: 700; color: var(--hub-good); }
+.admin-shell .hub-scanbars { display: flex; align-items: flex-end; gap: 5px; height: 110px; margin-top: 14px; }
+.admin-shell .hub-scanbars > div { flex: 1; border-radius: 4px 4px 2px 2px; background: rgba(255, 255, 255, 0.55); }
+.admin-shell .hub-scanbars > div.is-now { background: var(--hub-good); }
+.admin-shell .hub-dayof-rev { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-dayof-rev > div { flex: 1; display: flex; flex-direction: column; }
+.admin-shell .hub-dayof-rev b { font-size: 12.5px; font-weight: 600; }
+.admin-shell .hub-dayof-rev span { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); margin-top: 2px; }
+.admin-shell .hub-dayof-rev strong { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-dayof-rev.is-dim { opacity: 0.55; }
+.admin-shell .hub-feed { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 24px; margin-top: 10px; }
+.admin-shell .hub-feed-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.admin-shell .hub-feed-t { width: 62px; font-size: 11px; color: rgba(255, 255, 255, 0.46); font-variant-numeric: tabular-nums; }
+.admin-shell .hub-feed-row .hub-tl-dot { margin-top: 0; width: 7px; height: 7px; }
+.admin-shell .hub-feed-what { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.admin-shell .hub-feed-where { font-size: 11px; color: rgba(255, 255, 255, 0.5); }

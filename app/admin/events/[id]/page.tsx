@@ -29,6 +29,7 @@ import Promotions from "./_hub/sections/Promotions";
 import Marketing from "./_hub/sections/Marketing";
 import Orders from "./_hub/sections/Orders";
 import Guests from "./_hub/sections/Guests";
+import DayOf from "./_hub/sections/DayOf";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -53,7 +54,7 @@ function Hub() {
 const INTERIM: HubTab[] = ["settlement", "access"];
 
 function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
-  const { id, offer } = useHub();
+  const { offer } = useHub();
   if (tab === "summary") return <Summary go={go} />;
   if (tab === "details") return <Details />;
   if (tab === "tickets") return <Tickets go={go} />;
@@ -62,10 +63,10 @@ function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "marketing") return <Marketing />;
   if (tab === "orders") return <Orders />;
   if (tab === "guests") return <Guests />;
+  if (tab === "dayof") return <DayOf />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
-    dayof: { title: "The live view is still its own page", body: "Scan velocity, the capacity gauge and recent check-ins move into this section next.", href: `/admin/live/${id}`, cta: "Open the live view" },
     deal: offer
       ? { title: "The deal is still on the offer", body: "The linked offer's deal, scaling and P&L move into this section next.", href: `/admin/offers/${offer.id}`, cta: "Open the offer" }
       : { title: "No offer linked", body: "Link the signed offer for this show to bring in its deal, scaling and expenses, or start a new offer.", href: "/admin/offers", cta: "Go to offers" },

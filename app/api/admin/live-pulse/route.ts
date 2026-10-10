@@ -1,4 +1,5 @@
 import { requireStaff } from "@/lib/auth/can";
+import { tenantScope, DENY } from "@/lib/auth/tenant";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 
@@ -45,6 +46,7 @@ export async function GET(request: Request) {
       recentScansRes,
       recentOrdersRes,
       scanVelocityRes,
+      scannedAllRes,
     ] = await Promise.all([
       // Event info
       admin.from("events").select("id, title, venue, date, image_url, venue_id").eq("id", eventId).single(),
@@ -59,7 +61,7 @@ export async function GET(request: Request) {
       admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", eventId).gte("created_at", todayStart),
 
       // All paid orders — for revenue
-      admin.from("orders").select("total_amount, quantity, created_at").eq("event_id", eventId).eq("status", "paid"),
+      admin.from("orders").select("total_amount, quantity, created_at, source").eq("event_id", eventId).eq("status", "paid"),
 
       // Orders today — for today's revenue
       admin.from("orders").select("total_amount, quantity").eq("event_id", eventId).eq("status", "paid").gte("created_at", todayStart),
@@ -96,11 +98,42 @@ export async function GET(request: Request) {
         .eq("event_id", eventId)
         .eq("is_scanned", true)
         .gte("scanned_at", thirtyMinAgo),
+
+      // Every scan of the night — for scans by tier and the whole-night curve
+      admin.from("tickets")
+        .select("scanned_at, ticket_type_id")
+        .eq("event_id", eventId)
+        .eq("is_scanned", true)
+        .not("scanned_at", "is", null)
+        .order("scanned_at", { ascending: true })
+        .limit(10000),
     ]);
 
     const event = eventRes.data;
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+    // Staff see only their own tenant's shows.
+    const scope = tenantScope(guard.actor, event.venue_id);
+    if (scope === DENY || (scope !== null && scope !== event.venue_id)) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // The night as scanned: per tier, and in 10-minute buckets from the first scan.
+    const scannedAll = (scannedAllRes.data || []) as { scanned_at: string; ticket_type_id: string | null }[];
+    const scannedByTier = new Map<string, number>();
+    for (const t of scannedAll) if (t.ticket_type_id) scannedByTier.set(t.ticket_type_id, (scannedByTier.get(t.ticket_type_id) ?? 0) + 1);
+    const BUCKET = 10 * 60 * 1000;
+    const scanBuckets: { start: string; scans: number }[] = [];
+    if (scannedAll.length) {
+      const first = Math.floor(new Date(scannedAll[0].scanned_at).getTime() / BUCKET) * BUCKET;
+      const last = new Date(scannedAll[scannedAll.length - 1].scanned_at).getTime();
+      const n = Math.min(36, Math.floor((last - first) / BUCKET) + 1);
+      for (let i = 0; i < n; i++) scanBuckets.push({ start: new Date(first + i * BUCKET).toISOString(), scans: 0 });
+      for (const t of scannedAll) {
+        const i = Math.floor((new Date(t.scanned_at).getTime() - first) / BUCKET);
+        if (i >= 0 && i < scanBuckets.length) scanBuckets[i].scans += 1;
+      }
     }
 
     // Calculate metrics
@@ -131,6 +164,7 @@ export async function GET(request: Request) {
           price: tier.price,
           capacity: tier.capacity,
           sold: count ?? 0,
+          scanned: scannedByTier.get(tier.id) ?? 0,
           percentSold: tier.capacity > 0 ? Math.round(((count ?? 0) / tier.capacity) * 100) : 0,
         };
       })
@@ -203,6 +237,12 @@ export async function GET(request: Request) {
         today: Math.round(revenueToday * 100) / 100,
         timeline: revenueTimeline,
       },
+      doorSales: (() => {
+        // Sold in person today — the box office, a terminal or cash.
+        const door = (orders as { total_amount: number; quantity: number; created_at: string; source: string | null }[])
+          .filter((o) => o.created_at >= todayStart && ["box_office", "terminal", "cash"].includes(o.source || ""));
+        return { orders: door.length, tickets: door.reduce((t, o) => t + (o.quantity || 1), 0), amount: Math.round(door.reduce((t, o) => t + (o.total_amount || 0), 0) * 100) / 100 };
+      })(),
       sales: {
         today: ticketsSoldToday,
         total: totalTicketsSold,
@@ -211,6 +251,7 @@ export async function GET(request: Request) {
         total: totalScanned,
         velocity: scanVelocity,
         timeline: scanTimeline,
+        buckets: scanBuckets,
       },
       views: {
         total: totalViews,
