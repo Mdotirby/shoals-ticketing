@@ -24,7 +24,7 @@ export async function GET(
 
   const { data: rows, error } = await admin
     .from("settlement_ledger")
-    .select("gross_amount, ticket_revenue, ticketing_fee, tax_collected, stripe_fee, net_to_venue, type")
+    .select("gross_amount, ticket_revenue, ticketing_fee, facility_fee, tax_collected, stripe_fee, net_to_venue, type")
     .eq("event_id", eventId);
 
   if (error) {
@@ -40,6 +40,7 @@ export async function GET(
   const grossRevenue     = sum("gross_amount");      // net of refunds (refund rows are negative)
   const ticketRevenue    = sum("ticket_revenue");    // face value, net of refunds
   const serviceFeesGross = sales.reduce((acc, r) => acc + (Number(r.ticketing_fee) || 0), 0);
+  const facilityFeesGross = sales.reduce((acc, r) => acc + (Number(r.facility_fee) || 0), 0);
   const taxCollected     = sum("tax_collected");
   const processingFees   = sales.reduce((acc, r) => acc + (Number(r.stripe_fee) || 0), 0);
   const netToVenue       = sum("net_to_venue");
@@ -49,6 +50,7 @@ export async function GET(
     grossRevenue,
     ticketRevenue,
     serviceFeesGross,
+    facilityFeesGross,
     taxCollected,
     processingFees,
     netToVenue,

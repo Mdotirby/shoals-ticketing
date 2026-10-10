@@ -88,6 +88,7 @@ export type HubRevenue = {
   grossRevenue: number;
   ticketRevenue: number;
   serviceFeesGross: number;
+  facilityFeesGross?: number;
   taxCollected: number;
   processingFees: number;
   netToVenue: number;
