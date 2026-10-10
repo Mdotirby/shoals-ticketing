@@ -25676,3 +25676,12 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-radio b { font-size: 12.5px; font-weight: 700; }
 .admin-shell .hub-radio span:not(.hub-radio-dot) { font-size: 11px; line-height: 1.5; color: rgba(255, 255, 255, 0.52); margin-top: 2px; }
 .admin-shell .hub-note-warn { padding: 10px 12px; border-radius: 12px; background: oklch(0.86 0.09 92 / 0.08); border: 1px solid oklch(0.86 0.09 92 / 0.3); color: rgba(255, 255, 255, 0.78); }
+
+/* ── Event hub · Deal — the offer builder and signed view, embedded ── */
+.admin-shell .hub-offer-embed .ofb, .admin-shell .hub-offer-embed .admin-form-page { max-width: none; padding: 0; margin: 0; }
+.admin-shell .ofb-embedded-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.admin-shell .ofb-embedded-title { font-size: 13px; font-weight: 750; }
+.admin-shell .hub-offer-embed .card { overflow-x: auto; }
+@media (max-width: 1640px) {
+  .admin-shell .hub-offer-embed .ofb-grid, .admin-shell .hub-offer-embed .ee-grid { grid-template-columns: minmax(0, 1fr); }
+}

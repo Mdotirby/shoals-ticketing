@@ -62,7 +62,7 @@ const SECTIONS: Record<HubTab, (go: (t: HubTab) => void) => React.ReactNode> = {
   orders: () => <Orders />,
   guests: () => <Guests />,
   dayof: () => <DayOf />,
-  deal: (go) => <Deal go={go} />,
+  deal: () => <Deal />,
   settlement: () => <Settlement />,
   activity: () => <Activity />,
   access: () => <Access />,
