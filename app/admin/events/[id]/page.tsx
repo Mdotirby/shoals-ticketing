@@ -16,7 +16,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useTabParam } from "@/lib/admin/useTabParam";
-import { HubProvider, useHub } from "./_hub/HubContext";
+import { HubProvider } from "./_hub/HubContext";
 import HubShell from "./_hub/HubShell";
 import { HUB_TABS, type HubTab } from "./_hub/config";
 import { InterimSection } from "./_hub/interim";
@@ -30,6 +30,7 @@ import Marketing from "./_hub/sections/Marketing";
 import Orders from "./_hub/sections/Orders";
 import Guests from "./_hub/sections/Guests";
 import DayOf from "./_hub/sections/DayOf";
+import Deal from "./_hub/sections/Deal";
 
 export default function EventHubPage() {
   const id = useParams().id as string;
@@ -54,7 +55,6 @@ function Hub() {
 const INTERIM: HubTab[] = ["settlement", "access"];
 
 function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
-  const { offer } = useHub();
   if (tab === "summary") return <Summary go={go} />;
   if (tab === "details") return <Details />;
   if (tab === "tickets") return <Tickets go={go} />;
@@ -64,12 +64,10 @@ function Section({ tab, go }: { tab: HubTab; go: (t: HubTab) => void }) {
   if (tab === "orders") return <Orders />;
   if (tab === "guests") return <Guests />;
   if (tab === "dayof") return <DayOf />;
+  if (tab === "deal") return <Deal go={go} />;
   if (INTERIM.includes(tab)) return <InterimSection key={tab} tab={tab} />;
 
   const elsewhere: Partial<Record<HubTab, { title: string; body: string; href?: string; cta?: string }>> = {
-    deal: offer
-      ? { title: "The deal is still on the offer", body: "The linked offer's deal, scaling and P&L move into this section next.", href: `/admin/offers/${offer.id}`, cta: "Open the offer" }
-      : { title: "No offer linked", body: "Link the signed offer for this show to bring in its deal, scaling and expenses, or start a new offer.", href: "/admin/offers", cta: "Go to offers" },
     activity: { title: "Activity is coming to this section", body: "Every edit, refund, hold and price change on this show will be listed here with who made it." },
   };
   const e = elsewhere[tab];

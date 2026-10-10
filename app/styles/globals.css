@@ -25580,3 +25580,37 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-feed-row .hub-tl-dot { margin-top: 0; width: 7px; height: 7px; }
 .admin-shell .hub-feed-what { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-shell .hub-feed-where { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+
+/* ── Event hub · Deal ── */
+.admin-shell .hub-deal { display: flex; flex-direction: column; gap: 16px; }
+.admin-shell .hub-deal-banner { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 18px; border-radius: 18px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14); }
+.admin-shell .hub-deal-banner-text { flex: 1; min-width: 220px; }
+.admin-shell .hub-deal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start; }
+.admin-shell .hub-deal-types { margin-top: 12px; }
+.admin-shell .hub-levers { display: flex; flex-direction: column; margin-top: 12px; }
+.admin-shell .hub-lever { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-lever-text { flex: 1; min-width: 0; }
+.admin-shell .hub-lever-value { min-width: 84px; text-align: center; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-scale-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 76px 64px 90px; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-scale-row--head { margin-top: 10px; padding: 8px 0; font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
+.admin-shell .hub-link-n.is-dim { color: rgba(255, 255, 255, 0.62); }
+.admin-shell .hub-scale-total { display: flex; align-items: baseline; padding-top: 10px; font-size: 12px; font-weight: 750; }
+.admin-shell .hub-scale-total span { flex: 1; }
+.admin-shell .hub-scale-total b { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-deal-total { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-exp-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.admin-shell .hub-exp-row.is-dim { opacity: 0.65; }
+.admin-shell .hub-exp-name { flex: 1; font-size: 12px; color: rgba(255, 255, 255, 0.78); }
+.admin-shell .hub-exp-amt { min-width: 70px; text-align: right; font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-pnl { margin-top: 12px; }
+.admin-shell .hub-pnl-row { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.055); }
+.admin-shell .hub-pnl-row--head > div { display: flex; flex-direction: column; }
+.admin-shell .hub-pnl-row--head b { font-size: 8.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
+.admin-shell .hub-pnl-row--head span { font-size: 10px; color: rgba(255, 255, 255, 0.4); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-pnl-label { font-size: 12px; color: rgba(255, 255, 255, 0.66); }
+.admin-shell .hub-pnl-row.is-total { border-bottom: 0; }
+.admin-shell .hub-pnl-row.is-total .hub-pnl-label { font-weight: 800; color: #fff; }
+.admin-shell .hub-pnl-row.is-total .hub-num { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.admin-shell .hub-num.is-good { color: var(--hub-good); }
+.admin-shell .hub-num.is-bad { color: var(--hub-bad); }
+.admin-shell .hub-pick-list { display: flex; flex-direction: column; gap: 2px; max-height: 380px; overflow-y: auto; }

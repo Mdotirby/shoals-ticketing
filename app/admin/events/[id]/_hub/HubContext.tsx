@@ -15,6 +15,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { resolveCapacity } from "@/lib/capacity";
 import { breakEvenShare } from "@/lib/offers/walkout";
+import { offerTotals } from "@/lib/offers/totals";
 import { useAdminNav } from "@/app/components/admin/AdminNavContext";
 import type { HubTab } from "./config";
 
@@ -201,8 +202,9 @@ export function HubProvider({ id, children }: { id: string; children: React.Reac
       const { getSupabaseBrowser } = await import("@/lib/supabase-browser");
       const { data } = await getSupabaseBrowser()
         .from("artist_offers")
-        .select("id, status, version, guarantee, backend_percentage, deal_type, agent_name, agency, net_potential, total_fixed, total_variable, ticket_scaling, artist_comps, marketing_comps")
+        .select("*")
         .eq("event_id", id)
+        .is("superseded_at", null)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -263,20 +265,25 @@ export function HubProvider({ id, children }: { id: string; children: React.Reac
     offerMarketingComps: offer?.marketing_comps ?? null,
   });
 
-  // To break even — the offer's own walkout, not a new formula.
+  // To break even — the offer's own walkout on the offer's own sellable, with
+  // its totals recomputed by lib/offers/totals exactly as the builder and the
+  // Deal section compute them (stored totals can lag the builder's math).
   const breakEven = useMemo(() => {
-    if (!offer || !offer.net_potential || capacity.sellable <= 0) return null;
+    if (!offer) return null;
+    const t = offerTotals(offer as unknown as Record<string, unknown>);
+    const offerSellable = (offer.ticket_scaling ?? []).reduce((n, r) => n + (Number(r.sellable_cap) || 0), 0);
+    if (!t.netPotential || offerSellable <= 0) return null;
     const share = breakEvenShare({
-      netPotential: Number(offer.net_potential) || 0,
-      totalFixed: Number(offer.total_fixed) || 0,
-      totalVariable: Number(offer.total_variable) || 0,
-      sellable: capacity.sellable,
+      netPotential: t.netPotential,
+      totalFixed: t.totalFixed,
+      totalVariable: t.totalVariable,
+      sellable: offerSellable,
       guarantee: Number(offer.guarantee) || 0,
       backendPct: Number(offer.backend_percentage) || 0,
       dealType: String(offer.deal_type || "FLAT"),
     });
-    return share === null ? null : Math.ceil(share * capacity.sellable);
-  }, [offer, capacity.sellable]);
+    return share === null ? null : Math.ceil(share * offerSellable);
+  }, [offer]);
 
   const value: HubState = {
     id, role, event, setEvent, notFound, tiers, holds, guests, venue, offer, settlement, revenue, promoActive,
