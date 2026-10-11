@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/can";
+import { actorName } from "@/lib/auth/actor-name";
 
 /**
  * Payments made to the artist against one settlement — a list, not a column.
@@ -81,7 +82,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       reference: body.reference?.trim() || null,
       // Lets a payment be dated when it actually left, not when it was typed in.
       paid_at: body.paid_at || new Date().toISOString(),
-      paid_by: body.paid_by || null,
+      // From the session, not the client's cookie — see lib/auth/actor-name.ts.
+      paid_by: await actorName(guard.actor, body.paid_by),
       notes: body.notes?.trim() || null,
     })
     .select("id, amount, method, reference, paid_at, paid_by, notes")

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireCapability } from "@/lib/auth/can";
+import { actorName } from "@/lib/auth/actor-name";
 
 /**
  * Deposits and cash advances against one settlement — money paid to the artist
@@ -71,7 +72,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     receipt_url: body.receipt_url || null,
     method: body.method || null,
     reference: body.reference?.trim() || null,
-    paid_by: body.paid_by || null,
+    // From the session, not the client's cookie — see lib/auth/actor-name.ts.
+    paid_by: await actorName(guard.actor, body.paid_by),
   };
 
   let { data, error } = await admin.from("settlement_deposits").insert(row).select().single();
@@ -109,6 +111,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const updates: Record<string, unknown> = {};
   for (const k of DEPOSIT_FIELDS) if (k in body) updates[k] = body[k];
+  if ("paid_by" in updates) updates.paid_by = await actorName(guard.actor, updates.paid_by);
   if ("amount" in updates) updates.amount = Math.round((Number(updates.amount) || 0) * 100) / 100;
   if (updates.date === "") updates.date = null;
 

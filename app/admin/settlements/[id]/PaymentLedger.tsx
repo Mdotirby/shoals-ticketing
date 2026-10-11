@@ -85,7 +85,11 @@ export default function PaymentLedger({
   const [amount, setAmount] = useState("");
 
   const entered = Math.round((Number(amount) || 0) * 100) / 100;
-  const over = entered > remaining + 0.005 && remaining > 0;
+  // Any amount beyond what is left, including every amount when nothing is
+  // left. The `remaining > 0` this used to carry meant a payment against an
+  // already-settled balance passed in silence -- the one case where a warning
+  // matters most, because it is usually the second entry of the same cheque.
+  const over = entered > remaining + 0.005;
 
   const submit = () => {
     if (!(entered > 0) || !onAdd) return;
@@ -199,7 +203,10 @@ export default function PaymentLedger({
           )}
           {over && (
             <div className="pledger-warn">
-              That is {fmt(entered - remaining)} more than is still owed. Recorded anyway if that is right.
+              {remaining > 0.004
+                ? <>That is {fmt(entered - remaining)} more than is still owed.</>
+                : <>Nothing is still owed here{paid > 0 ? `, ${fmt(paid)} has already been recorded` : ""}. Check this is not a {noun} already entered.</>}
+              {" "}Recorded anyway if that is right.
             </div>
           )}
           <div className="pledger-form-cta">
