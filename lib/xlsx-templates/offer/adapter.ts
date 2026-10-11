@@ -1,5 +1,4 @@
 import type { ArtistOffer } from "@/lib/types/offer";
-import { STRIPE_ONLINE_PCT, STRIPE_ONLINE_FLAT_CENTS } from "@/lib/fees/rates";
 import { artistPayout } from "@/lib/settlement/model";
 import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
@@ -100,14 +99,16 @@ export type OfferData = {
   gross_potential: number;
   service_fees: number;
   facility_fees: number;
-  cc_fees: number;
+  /** Blanked — the card fee is not a deduction here. */
+  cc_label: string;
+  cc_fees: number | null;
   adj_gross_potential: number;
   tax_rate: number;
   tax_label: string;
   taxes: number;
   net_potential: number;
-  cc_rate_pct: number;
-  cc_rate_flat: number;
+  cc_rate_pct: number | null;
+  cc_rate_flat: number | null;
 
   expenses_fixed: { name: string; amount: number }[];
   expenses_variable: { name: string; amount: number }[];
@@ -138,10 +139,6 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   const taxMethod = offer.tax_method;
 
   let tCap = 0, tComps = 0, tKills = 0, tSellable = 0, tSvc = 0, tFac = 0, tTax = 0, tCc = 0, tAllin = 0, tGross = 0;
-  // Sub-total x sellable: face plus the two fees, with no tax and no card.
-  // This is what gross_potential means on the record, and tGross (the all-in)
-  // is not -- see the fallback below.
-  let tSubtotal = 0;
   const ticket_scaling = rows.map((r) => {
     const capacity = r.seats || 0;
     const comps = r.comps || 0;
@@ -183,7 +180,6 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     tCc += cc * sellable;
     tAllin += allin_price * sellable;
     tGross += gross;
-    tSubtotal += (price + svc + fac) * sellable;
 
     return { tier: r.name, capacity, comps, kills, sellable, price, svc, fac, tax, cc, allin_price, gross };
   });
@@ -193,34 +189,44 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   // used tier 1 for these).
   const service_fees = tSvc;
   const facility_fees = tFac;
-  const cc_fees = tCc;
   const taxes = tTax;
-  // Falls back to the SUB-TOTAL, not tGross. tGross is the all-in and carries
-  // the card surcharge and any multiplier tax inside it; using it here would
-  // leave the surcharge inside adjusted gross while the expense list takes it
-  // out again -- charging the show twice for it. No offer on file has a null
-  // gross_potential, so this never fires today; it is wrong anyway.
-  const gross_potential = offer.gross_potential ?? tSubtotal;
-  // Adjusted gross is gross less the ticketing and facility fees -- the two
-  // fees that are not the show's money. The card surcharge is NOT one of
-  // them: it is shown on its own line as a cost, but it is not carved out of
-  // the face value the artist's split is measured against.
-  //
-  // Subtracting it here made the printed column contradict itself. On a
-  // divisor offer it read Gross 19,344 -> Adj 14,061.60 -> Tax 1,290.96 ->
-  // Net 13,589.04, and 14,061.60 - 1,290.96 is 12,770.64, not 13,589.04. On
-  // a multiplier offer it printed a NET POTENTIAL larger than the ADJ. GROSS
-  // POTENTIAL above it. Net and Tax were right all along -- both come off
-  // the stored figures the builder computes -- so Adj. Gross was the one
-  // line on the sheet that disagreed with the screen, by exactly the card
-  // surcharge, on every offer exported.
+  /**
+   * Gross is everything the buyer pays — the all-in, card fee included.
+   *
+   * It used to be the sub-total (face + service + facility), which left the
+   * surcharge out of gross while the expense list charged it. That subtracts
+   * money that was never added: on Sunny Sweeney the buyer paid $13,015.60,
+   * the sheet called gross $12,480.00, and then took $535.60 of card fee out
+   * as a cost. $535.60 of pool, and at a 65% backend about $348 of artist
+   * money, against what settlement will actually produce — because settlement
+   * does the opposite and carries the surcharge through NBOR so the expense
+   * removes it once (see lib/settlement/model.ts).
+   *
+   * It also made the sheet contradict itself: the scaling table totalled
+   * $13,015.60 and the summary said $12,480.00, two numbers called gross
+   * differing by exactly the card fee.
+   *
+   * Computed, not read from offer.gross_potential — the stored figure follows
+   * the old definition and would reintroduce both problems.
+   */
+  const gross_potential = tGross;
+
+  // Gross less the two fees that are not the show's money. The card fee is
+  // not one of them: it stays in and leaves once, below, as an expense.
   const adj_gross_potential = gross_potential - (service_fees + facility_fees);
-  // Only the divisor case has tax inside the face to take back out; under
-  // multiplier it is charged on top and was never in here. The old fallback
-  // subtracted it either way.
-  const net_potential =
-    offer.net_potential ??
-    (taxMethod === "divisor" ? adj_gross_potential - taxes : adj_gross_potential);
+
+  /**
+   * Tax comes out under BOTH methods now, which it did not before.
+   *
+   * Gross is the all-in, so a multiplier tax is inside it — it is charged on
+   * top of the face at checkout and the buyer pays it. Under divisor it is
+   * inside the face and therefore inside gross too. Either way adjusted gross
+   * carries it and net has to take it out.
+   *
+   * `taxes` is computed per tier off net_price, so it is tax on FACE only —
+   * the card fee is not taxed, and must not be.
+   */
+  const net_potential = adj_gross_potential - taxes;
 
   const expenses_fixed = (offer.fixed_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
 
@@ -356,7 +362,23 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     gross_potential,
     service_fees,
     facility_fees,
-    cc_fees,
+    /**
+     * The CC row is blanked out of the deduction stack.
+     *
+     * The template has a "CC/Processing Fees" line between Facility Fees and
+     * ADJ. GROSS, and everything in that column is a subtraction. The card
+     * fee is not subtracted there — it is inside gross and comes out once, in
+     * the expenses below — so printing it mid-stack read as a second charge:
+     * 12,480 − 2,080 − 0 − 535.60 is 9,864.40, and the next row said 10,400.
+     *
+     * Blanked rather than relabelled. A number sitting in a column of
+     * deductions that is not deducted is a question every reader has to work
+     * out, and the answer is already on the expense line that carries it.
+     */
+    cc_label: "",
+    cc_fees: null,
+    cc_rate_pct: null,
+    cc_rate_flat: null,
     adj_gross_potential,
     tax_rate: taxRate,
     // The template's label was the literal "Taxes (Multiplier)", so every
@@ -366,12 +388,6 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     tax_label: `Taxes (${taxMethod === "divisor" ? "Divisor" : "Multiplier"})`,
     taxes,
     net_potential,
-    // J34/K34 sat on the CC/Processing Fees row as the literal 0.029 and
-    // 0.30. They happen to match today, but nothing tied them to the rate
-    // L34 is actually computed with, so a rate change would have moved the
-    // money without moving the rate printed next to it.
-    cc_rate_pct: STRIPE_ONLINE_PCT,
-    cc_rate_flat: STRIPE_ONLINE_FLAT_CENTS / 100,
 
     expenses_fixed,
     expenses_variable,

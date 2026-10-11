@@ -1576,32 +1576,16 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         const totalVariable = live.totalVariable;
         const totalExpenses = totalFixed + totalVariable;
 
-        const grossPotential = scaling.reduce((s, r) => s + (Number(r.sellable_cap) || 0) * (Number(r.price) || 0), 0);
-        const totalFees = scaling.reduce((s, r) => s + ((Number(r.ticketing_fee) || 0) + (Number(r.facility_fee) || 0)) * (Number(r.sellable_cap) || 0), 0);
-        const adjGross = grossPotential - totalFees;
-        const rawTaxRate = Number(form.tax_rate) || 0;
-        // Handle tax_rate stored as decimal (0.095) or percentage (9.5)
-        const taxRate = rawTaxRate > 0 && rawTaxRate < 1 ? rawTaxRate * 100 : rawTaxRate;
-        const taxRateDecimal = taxRate / 100;
-        // Default matches the rail above and POST /api/offers, both of which
-        // fall back to "multiplier". This tab defaulted to "divisor", so an
-        // offer with no tax_method set showed two different Net Potentials on
-        // two tabs of the same page — and the rail's figure is the one saved.
+        // One chain, from lib/offers/totals.ts — the same one the rail, the
+        // save payload, the PDF and the Excel export all read. This tab used
+        // to recompute gross, adjusted gross, tax and net itself, which is
+        // how it came to disagree with the rail about the same offer twice.
+        const grossPotential = live.grossPotential;
+        const adjGross = live.adjGross;
+        const taxRate = live.taxRatePct;
         const taxMethod = (form.tax_method as string) || "multiplier";
-        let netPotential: number;
-        let taxAmount: number;
-        if (taxMethod === "divisor") {
-          // Tax is baked into the face price — back it out of adjusted gross.
-          netPotential = Math.round((adjGross / (1 + taxRateDecimal)) * 100) / 100;
-          taxAmount = Math.round((adjGross - netPotential) * 100) / 100;
-        } else {
-          // Multiplier: tax is charged ON TOP of face, so it was never inside
-          // adjusted gross and must not be subtracted from it. It's collected
-          // from the customer and remitted. This tab used to subtract it,
-          // making the P&L tab disagree with the Details tab on the same offer.
-          taxAmount = Math.round((adjGross * taxRateDecimal) * 100) / 100;
-          netPotential = adjGross;
-        }
+        const taxAmount = live.taxAmount;
+        const netPotential = live.netPotential;
 
         const guarantee = Number(form.guarantee) || 0;
         const backendPct = Number(form.backend_percentage) || 0;
@@ -1689,7 +1673,10 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                 </div>
               ))}
               {varRows.map((e, i) => {
-                const liveAmount = Math.round((Number(e.rate) || 0) * live.grossPotential * 100) / 100;
+                // A rate line is a percentage of ticket receipts, so it runs on
+                // the sub-total. Gross now includes the card fee, which is not
+                // ticket revenue and must not raise ASCAP.
+                const liveAmount = Math.round((Number(e.rate) || 0) * live.subtotalGross * 100) / 100;
                 return (
                   <div key={`v${i}`} className="ofe-row">
                     <span className="ofe-name ofe-name--static">{e.name}</span>
@@ -1702,7 +1689,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                         onChange={(ev) => {
                           const v = [...varRows];
                           const rate = parseFloat(ev.target.value) || 0;
-                          v[i] = { ...v[i], rate, amount: Math.round(live.grossPotential * rate * 100) / 100 };
+                          v[i] = { ...v[i], rate, amount: Math.round(live.subtotalGross * rate * 100) / 100 };
                           // Own rows only -- buildSavePayload re-appends the
                           // derived card line, so writing it back here too
                           // would leave two of them in the record.

@@ -6,7 +6,22 @@ import { embedLogo } from "./embed-logo";
 
 // ── Manifest schema ─────────────────────────────────────────────────────
 
-type ScalarFieldSpec = { cell: string; field: string; type: "text" | "currency" | "percent" | "number"; note?: string };
+type ScalarFieldSpec = {
+  cell: string;
+  field: string;
+  type: "text" | "currency" | "percent" | "number";
+  note?: string;
+  /**
+   * Leave the cell EMPTY when the value is null, instead of printing 0.
+   *
+   * A numeric cell normally renders 0 for a missing value, which is right
+   * almost everywhere — a fee of nothing is nothing. It is wrong for a row
+   * that should not be there at all: the offer sheet's CC line sits in a
+   * column of deductions, and printing $0.00 in it still invites the reader
+   * to subtract something. Opt-in per cell so no other document changes.
+   */
+  blankWhenNull?: boolean;
+};
 type RepeatRowField = { col: string; field: string; type: "text" | "currency" | "percent" | "number" };
 type RepeatingSection = {
   id: string;
@@ -159,7 +174,11 @@ export async function renderXlsxTemplate(
     const { col, row } = splitAddress(field.cell);
     const shift = shiftForOriginalRow(row);
     const cell = sheet.getCell(`${col}${row + shift}`);
-    cell.value = formatValue(data[field.field], field.type);
+    const raw = data[field.field];
+    cell.value =
+      field.blankWhenNull && (raw === null || raw === undefined)
+        ? null
+        : formatValue(raw, field.type);
   }
 
   // 4b. Vertically center every cell's content. The source design uses
