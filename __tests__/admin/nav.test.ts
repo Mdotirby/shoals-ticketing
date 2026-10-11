@@ -1,13 +1,16 @@
 import baseline from "./nav-baseline.json";
-import { allNavLinks, DEFAULT_TAB_ROLES, resolveActive, visibleNav } from "@/lib/admin/nav";
+import { allNavLinks, DEFAULT_TAB_ROLES, navGroups, resolveActive, visibleNav } from "@/lib/admin/nav";
 
 /**
  * Routes merged into tabbed pages: old href → where that permission now
  * lives. Must match the redirects in next.config.ts.
  */
 const MOVED: Record<string, string> = {
-  "/admin/calendar": "/admin/calendar?tab=month",
-  "/admin/events": "/admin/calendar?tab=list",
+  // /admin/calendar and /admin/events were tabs of one merged page and are
+  // their own routes again -- the Events sidebar entry lists both (the show
+  // list is its main page, the month beside it), and the event hub is where
+  // a show opens. So neither is redirected any more, and both keep the
+  // tab_key and roles the baseline recorded; the first test checks that.
   "/admin/live": "/admin/live?tab=pulse",
   "/admin/guest-lists": "/admin/live?tab=guests",
   "/admin/marketing": "/admin/marketing?tab=campaigns",
@@ -46,14 +49,13 @@ describe("admin nav regroup keeps permissions", () => {
     expect(DEFAULT_TAB_ROLES).toEqual(baseline.defaults);
   });
 
-  test("the only new links are the design additions plus Ticket sales, none with a tab_key", () => {
+  test("the only new links are the design additions, none with a tab_key", () => {
     const oldHrefs = new Set(baseline.leaves.map((l) => MOVED[l.href] ?? l.href));
     const added = allNavLinks.filter((l) => !oldHrefs.has(l.href));
     expect(added.map((l) => l.href).sort()).toEqual(
       [
         "/admin/events/new",
         "/admin/marketing/fwb",
-        "/admin/orders?tab=shows",
         "/admin/private-events",
         "/admin/settings?tab=profile",
         "/boxoffice",
@@ -66,11 +68,14 @@ describe("admin nav regroup keeps permissions", () => {
     for (const l of added) expect(l.tabKey).toBeUndefined();
   });
 
-  test("Ticket sales opens to no one who cannot already open Orders", () => {
-    const orders = allNavLinks.find((l) => l.href === "/admin/orders");
-    const sales = allNavLinks.find((l) => l.href === "/admin/orders?tab=shows");
-    expect(sales).toBeDefined();
-    for (const r of sales!.roles) expect(orders!.roles).toContain(r);
+  test("the by-show sales list is still reachable, and on Orders' own roles", () => {
+    // It had its own sidebar row for a while, which is gone -- a second list
+    // of shows beside the show list. It is a param tab of the order book
+    // again, so it carries no roles of its own and cannot widen anything:
+    // whoever can open Orders can open it, and no one else.
+    const orders = navGroups.flatMap((g) => g.pages).find((p) => p.id === "orders")!;
+    expect(orders.paramTabs?.map((t) => t.key)).toContain("shows");
+    expect(allNavLinks.find((l) => l.href === "/admin/orders?tab=shows")).toBeUndefined();
   });
 });
 
@@ -84,11 +89,16 @@ describe("resolveActive", () => {
     expect(at("/admin")).toEqual(["today", "dash", null]);
     expect(at("/admin/nope")).toBeNull();
   });
-  test("an event's own pages beat the show list's prefix", () => {
-    expect(at("/admin/calendar")).toEqual(["shows", "calendar", "/admin/calendar?tab=month"]);
-    expect(at("/admin/events/new")).toEqual(["shows", "create", null]);
-    expect(at("/admin/events/abc-123")).toEqual(["shows", "workspace", null]);
-    expect(at("/admin/events/abc-123/edit")).toEqual(["shows", "eventedit", null]);
+  test("one Events entry owns every show route, and a show lands on the list", () => {
+    expect(at("/admin/events")).toEqual(["shows", "events", "/admin/events"]);
+    expect(at("/admin/calendar")).toEqual(["shows", "events", "/admin/calendar"]);
+    expect(at("/admin/events/new")).toEqual(["shows", "events", "/admin/events/new"]);
+    expect(at("/admin/seating")).toEqual(["shows", "events", "/admin/seating"]);
+    // Inside a show the hub is the page and its sections are its own sub-nav,
+    // so the sidebar highlights the way back in: the show list.
+    expect(at("/admin/events/abc-123")).toEqual(["shows", "events", "/admin/events"]);
+    expect(at("/admin/events/abc-123/edit")).toEqual(["shows", "events", "/admin/events"]);
+    // Except the ad engine, which folded into Campaigns.
     expect(at("/admin/events/abc-123/ads")).toEqual(["audience", "marketing", null]);
   });
   test("longest route wins inside a merged page", () => {
