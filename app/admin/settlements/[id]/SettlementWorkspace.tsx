@@ -773,8 +773,18 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     }
   };
 
+  // Each edit is written straight to the row, like expenses. The rows are what
+  // the page loads, so an edit kept only in state reverted to the offer's
+  // pre-filled deposit on the next visit.
   const updateDepositLocal = (depositId: string, updates: Partial<SettlementDeposit>) => {
     setDeposits((prev) => prev.map((d) => (d.id === depositId ? { ...d, ...updates } : d)));
+    fetch(`/api/settlements/${id}/deposits`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deposit_id: depositId, ...updates }),
+    }).then((r) => {
+      if (!r.ok) setError("Couldn't save that deposit change.");
+    }).catch(() => setError("Couldn't save that deposit change."));
   };
 
   const removeDeposit = async (depositId: string) => {
