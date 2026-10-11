@@ -210,12 +210,45 @@ export type SettlementExpense = {
   sort_order: number;
 };
 
+/** How money left the account. The same list for a deposit and for a payout. */
+export const PAYMENT_METHODS = ["ACH", "Check", "Cash", "Stripe", "Other"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export type SettlementDeposit = {
   id: string;
   settlement_id: string;
   type: "deposit" | "cash_advance" | "other";
   amount: number;
-  date?: string;
+  /**
+   * The date the money actually left. Undefined or null means it has not been
+   * paid yet — a deposit the offer calls for, pre-filled from it, still owed.
+   */
+  date?: string | null;
   notes?: string;
   receipt_url?: string;
+  /**
+   * method/reference/paid_by need plans/settlement-payments-migration.sql, so
+   * they are absent on an un-migrated database. The method used to go in notes
+   * ("Paid to WME Via ACH Wire"), which reads fine and totals never.
+   */
+  method?: PaymentMethod | string | null;
+  reference?: string | null;
+  paid_by?: string | null;
+};
+
+/**
+ * One payment made to the artist against a settlement.
+ *
+ * settlements.payout_* held a single payout and the screen hard-wired its
+ * amount to the whole balance due, so a show paid in instalments had nowhere
+ * to say so. See plans/settlement-payments-migration.sql.
+ */
+export type SettlementPayout = {
+  id: string;
+  amount: number;
+  method?: PaymentMethod | string | null;
+  reference?: string | null;
+  paid_at: string;
+  paid_by?: string | null;
+  notes?: string | null;
 };

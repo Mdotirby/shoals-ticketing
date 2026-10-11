@@ -24304,6 +24304,159 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .stl-payout-form select option { color: #000; }
 .admin-shell .stl-payout-form input { flex: 1; min-width: 0; }
 .admin-shell .stl-payout-note { margin-top: 10px; font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.38); }
+
+/* ── pledger — payments to the artist, one list ─────────────────────────────
+   Used by the settlement's payout card and by the event hub's Deal section
+   (app/admin/settlements/[id]/PaymentLedger.tsx). Takes its surface from
+   .stl-payout above so a payout looks the same in both places. */
+.admin-shell .pledger {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .pledger-head { display: flex; align-items: baseline; gap: 10px; }
+.admin-shell .pledger-head span {
+  flex: 1;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.44);
+}
+.admin-shell .pledger-head b {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.admin-shell .pledger-head b.is-over { color: #ff9a9a; }
+.admin-shell .pledger-sub { margin-top: 6px; font-size: 10.5px; color: rgba(255, 255, 255, 0.46); }
+
+.admin-shell .pledger-rows { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 1px; }
+.admin-shell .pledger-rows li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+/* A deposit the offer calls for but nobody has paid yet. */
+.admin-shell .pledger-rows li.is-unpaid { opacity: 0.55; }
+.admin-shell .pledger-amt {
+  font-size: 13.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 86px;
+}
+.admin-shell .pledger-rows li.is-unpaid .pledger-amt { font-weight: 600; }
+.admin-shell .pledger-meta { flex: 1; min-width: 0; font-size: 10.5px; color: rgba(255, 255, 255, 0.46); }
+.admin-shell .pledger-meta i { display: block; margin-top: 2px; font-style: normal; color: rgba(255, 255, 255, 0.34); }
+.admin-shell .pledger-del {
+  flex: none;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 10px;
+  padding: 3px 7px;
+  cursor: pointer;
+  min-height: 30px;
+  min-width: 30px;
+}
+.admin-shell .pledger-del:hover:not(:disabled) { color: #ff9a9a; border-color: rgba(255, 154, 154, 0.4); }
+
+.admin-shell .pledger-add,
+.admin-shell .pledger-save,
+.admin-shell .pledger-cancel,
+.admin-shell .pledger-fill {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 12px;
+  min-height: 38px;
+  padding: 9px 14px;
+}
+.admin-shell .pledger-add {
+  margin-top: 12px;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .pledger-add:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+.admin-shell .pledger-form { margin-top: 12px; display: grid; gap: 8px; }
+.admin-shell .pledger-form-row { display: flex; gap: 8px; }
+.admin-shell .pledger-form-row label { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.admin-shell .pledger-form-row label > span {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.admin-shell .pledger-form-row input,
+.admin-shell .pledger-form-row select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  font: inherit;
+  /* 16px so iOS does not zoom the page when the field takes focus. */
+  font-size: 16px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .pledger-form-row select option { color: #000; }
+.admin-shell .pledger-fill {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  background: none;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+}
+.admin-shell .pledger-fill:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+.admin-shell .pledger-warn {
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #ffcf8f;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 190, 110, 0.1);
+  border: 1px solid rgba(255, 190, 110, 0.26);
+}
+.admin-shell .pledger-form-cta { display: flex; gap: 8px; }
+.admin-shell .pledger-save {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #000;
+  background: var(--admin-primary, #fff);
+  border: 1px solid var(--admin-primary, #fff);
+}
+.admin-shell .pledger-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.admin-shell .pledger-cancel {
+  flex: none;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.admin-shell .pledger-note { margin-top: 10px; font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.38); }
+.admin-shell .hub-deposit { margin-bottom: 14px; }
+.admin-shell .hub-deposit .pledger { margin-top: 0; }
+.admin-shell .hub-deposit-foot { margin-top: 12px; }
+
+@media (max-width: 560px) {
+  .admin-shell .pledger-form-row { flex-direction: column; }
+  .admin-shell .pledger-rows li { flex-wrap: wrap; }
+  .admin-shell .pledger-meta { flex-basis: 100%; }
+}
 .admin-shell .stl-more {
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);

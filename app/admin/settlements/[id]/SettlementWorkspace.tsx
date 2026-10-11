@@ -6,6 +6,7 @@ import type {
   Settlement,
   SettlementExpense,
   SettlementDeposit,
+  SettlementPayout,
   TicketAuditRow,
   OtherAncillaryItem,
   TaxMethod,
@@ -16,6 +17,8 @@ import type {
 import { settlementWaterfall, artistPayout, withCardExpense } from "@/lib/settlement/model";
 import { getCookie } from "@/lib/cookies";
 import { Card } from "@/app/components/admin/ui";
+import PaymentLedger, { type LedgerRow } from "./PaymentLedger";
+import { PAYMENT_METHODS } from "@/lib/types/settlement";
 
 /* ─── helpers ─── */
 const fmt = (n: number) =>
@@ -119,8 +122,17 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   }, []);
 
   const [settlement, setSettlement] = useState<Settlement | null>(null);
-  const [payoutMethod, setPayoutMethod] = useState("ACH");
-  const [payoutReference, setPayoutReference] = useState("");
+  /**
+   * Payouts, as a list. settlements.payout_* held one and the card hard-wired
+   * its amount to the whole balance due, so a show paid in instalments had
+   * nowhere to say so -- MSM 90s was paid in two. `payoutsMigrated` is false
+   * until plans/settlement-payments-migration.sql has been run, and the card
+   * then falls back to the single stored payout read-only, so this page keeps
+   * working either way.
+   */
+  const [payouts, setPayouts] = useState<SettlementPayout[]>([]);
+  const [payoutsMigrated, setPayoutsMigrated] = useState(true);
+  const [payoutBusy, setPayoutBusy] = useState(false);
   const [expenses, setExpenses] = useState<SettlementExpense[]>([]);
   const [deposits, setDeposits] = useState<SettlementDeposit[]>([]);
 
@@ -252,6 +264,24 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   // When the settlement is in DRAFT, we silently re-pull the audit from
   // orders on every page load so the displayed numbers always reflect
   // current sales (no stale snapshot). FINALIZED settlements keep their
+  /**
+   * Payouts live in their own table now, not in five columns on the row, so
+   * they load separately. A database without the migration answers
+   * `migrated: false` rather than failing, and the card degrades to showing
+   * the one stored payout.
+   */
+  const loadPayouts = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/settlements/${id}/payouts`);
+      if (!r.ok) return;
+      const d = await r.json();
+      setPayoutsMigrated(d.migrated !== false);
+      setPayouts(Array.isArray(d.payouts) ? d.payouts : []);
+    } catch {
+      // Network error -- leave what is on screen rather than blanking it.
+    }
+  }, [id]);
+
   // saved snapshot — that's the whole point of finalization.
   useEffect(() => {
     let active = true;
@@ -266,6 +296,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         hydrate(initial);
         setExpenses(initial.expenses || []);
         setDeposits(initial.deposits || []);
+        loadPayouts();
 
         if (initial.status === "draft" && initial.source !== "external") {
           // Silent refresh-from-orders so the audit + fee totals are live.
@@ -292,7 +323,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     return () => {
       active = false;
     };
-  }, [id, hydrate]);
+  }, [id, hydrate, loadPayouts]);
 
   /* ─── Client-side calculations ─── */
   const ticketAudit: TicketAuditRow[] = settlement?.ticket_audit || [];
@@ -417,6 +448,35 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const totalCashAdvances = deposits
     .filter((d) => d.type === "cash_advance")
     .reduce((s, d) => s + (d.amount || 0), 0);
+
+  /**
+   * The payout list the ledger renders. After the migration these are rows;
+   * before it, the one payout the settlement row itself carries, so the card
+   * shows the same money either way.
+   */
+  const payoutRows: LedgerRow[] = payoutsMigrated
+    ? payouts.map((p) => ({
+        id: p.id,
+        amount: Number(p.amount) || 0,
+        method: p.method,
+        reference: p.reference,
+        when: p.paid_at,
+        by: p.paid_by,
+        notes: p.notes,
+      }))
+    : (() => {
+        const st = settlement as unknown as Record<string, string | number | null> | null;
+        if (!st?.payout_at) return [];
+        return [{
+          id: "legacy",
+          amount: Number(st.payout_amount) || 0,
+          method: (st.payout_method as string) || null,
+          reference: (st.payout_reference as string) || null,
+          when: st.payout_at as string,
+          by: (st.payout_by as string) || null,
+          notes: null,
+        }];
+      })();
 
   // ── Merch math ────────────────────────────────────────────────────
   // Flow:
@@ -761,6 +821,37 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   };
 
   /* ─── Deposit CRUD ─── */
+  const addPayout = async (p: { amount: number; method: string; reference: string; when: string }) => {
+    setPayoutBusy(true);
+    const res = await fetch(`/api/settlements/${id}/payouts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: p.amount,
+        method: p.method,
+        reference: p.reference || null,
+        // A payment is dated when the money left, which is often not today.
+        // Noon local so the stored timestamp reads back as the same day.
+        paid_at: new Date(`${p.when}T12:00:00`).toISOString(),
+        paid_by: getCookie("user-name") || null,
+      }),
+    });
+    setPayoutBusy(false);
+    if (!res.ok) {
+      setError((await res.json().catch(() => ({}))).error || "Couldn't record that payout.");
+      return;
+    }
+    loadPayouts();
+  };
+
+  const removePayout = async (payoutId: string) => {
+    setPayoutBusy(true);
+    const res = await fetch(`/api/settlements/${id}/payouts?payout_id=${payoutId}`, { method: "DELETE" });
+    setPayoutBusy(false);
+    if (!res.ok) { setError("Couldn't remove that payout."); return; }
+    loadPayouts();
+  };
+
   const addDeposit = async (type: "deposit" | "cash_advance" = "deposit") => {
     const res = await fetch(`/api/settlements/${id}/deposits`, {
       method: "POST",
@@ -2162,7 +2253,32 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             className="admin-form-input"
             style={{ width: 150 }}
             value={dep.date?.slice(0, 10) || ""}
+            title="The date the money left. Empty means not paid yet."
             onChange={(e) => updateDepositLocal(dep.id, { date: e.target.value })}
+            disabled={isFinalized}
+          />
+          {/* How it was paid. This used to go in the notes -- "Paid to WME Via
+              ACH Wire" -- which reads fine and totals never. */}
+          <select
+            className="admin-form-input"
+            style={{ width: 104 }}
+            value={dep.method || ""}
+            aria-label="How the deposit was paid"
+            onChange={(e) => updateDepositLocal(dep.id, { method: e.target.value || null })}
+            disabled={isFinalized}
+          >
+            <option value="">Method…</option>
+            {PAYMENT_METHODS.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <input
+            className="admin-form-input"
+            style={{ width: 130 }}
+            placeholder="Reference"
+            title="Cheque number, wire or transfer id"
+            value={dep.reference || ""}
+            onChange={(e) => updateDepositLocal(dep.id, { reference: e.target.value })}
             disabled={isFinalized}
           />
           <input
@@ -2353,8 +2469,6 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           const venueAt = (st.venue_signed_at as string) || "";
           const artistBy = (st.artist_signed_by as string) || "";
           const artistAt = (st.artist_signed_at as string) || "";
-          const paidAt = (st.payout_at as string) || "";
-          const paidAmount = Number(st.payout_amount ?? 0);
           const when = (iso: string) =>
             new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -2413,73 +2527,30 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
                 </div>
               </div>
 
-              {/* Payout — a record of a payment made elsewhere; this app moves no money. */}
-              {paidAt ? (
-                <div className="stl-paid">
-                  <div className="stl-paid-head">
-                    <span>Paid</span>
-                    <b>{fmt(paidAmount)}</b>
-                  </div>
-                  <div className="stl-paid-sub">
-                    {[(st.payout_method as string) || "method not noted", (st.payout_reference as string) || null, when(paidAt), (st.payout_by as string) ? `by ${st.payout_by}` : null]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-sponsor-edit-btn"
-                    style={{ marginTop: 10, fontSize: 11 }}
-                    disabled={saving}
-                    onClick={() => {
-                      if (!confirm("Clear this payout record? The settlement goes back to unpaid.")) return;
-                      patchSettlement({ payout_amount: null, payout_method: null, payout_reference: null, payout_at: null, payout_by: null });
-                    }}
-                  >
-                    Clear payout record
-                  </button>
-                </div>
+              {/* Payouts — records of payments made elsewhere; this app moves no money. */}
+              {payoutsMigrated ? (
+                <PaymentLedger
+                  rows={payoutRows}
+                  owed={balanceDue}
+                  noun="payout"
+                  // Deliberately still editable after finalize: a settlement
+                  // is struck first and paid afterwards, often in instalments.
+                  busy={payoutBusy || saving}
+                  onAdd={addPayout}
+                  onDelete={removePayout}
+                />
               ) : (
-                <div className="stl-payout">
-                  <div className="stl-payout-head">
-                    <span>Due to artist</span>
-                    <b>{fmt(balanceDue)}</b>
-                  </div>
-                  <div className="stl-payout-form">
-                    <select value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)} aria-label="Payout method">
-                      <option value="ACH">ACH</option>
-                      <option value="Check">Check</option>
-                      <option value="Cash">Cash</option>
-                      <option value="Stripe">Stripe</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    <input
-                      value={payoutReference}
-                      onChange={(e) => setPayoutReference(e.target.value)}
-                      placeholder="Reference — cheque no., transfer id"
-                      aria-label="Payout reference"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="admin-form-submit"
-                    style={{ width: "100%", marginTop: 10 }}
-                    disabled={saving || balanceDue <= 0}
-                    onClick={() =>
-                      patchSettlement({
-                        payout_amount: balanceDue,
-                        payout_method: payoutMethod,
-                        payout_reference: payoutReference.trim() || null,
-                        payout_at: new Date().toISOString(),
-                        payout_by: getCookie("user-name") || null,
-                      })
-                    }
-                  >
-                    {balanceDue > 0 ? `Record payout · ${fmt(balanceDue)}` : "Nothing due"}
-                  </button>
-                  <div className="stl-payout-note">
-                    Records a payment made elsewhere — by ACH, cheque or cash. Nothing here moves money.
-                  </div>
-                </div>
+                /* Before plans/settlement-payments-migration.sql: the single
+                   stored payout, shown as it was. Read-only rather than
+                   half-working -- recording a second one has nowhere to go
+                   until the table exists. */
+                <PaymentLedger
+                  rows={payoutRows}
+                  owed={balanceDue}
+                  noun="payout"
+                  migrated={false}
+                  migrationNote="Run plans/settlement-payments-migration.sql to record more than one payout, a part payment, or the date a payment actually left."
+                />
               )}
             </>
           );

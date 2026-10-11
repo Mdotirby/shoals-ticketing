@@ -21,6 +21,7 @@ import OfferWorkspace, { type OfferHref } from "@/app/admin/offers/[id]/OfferWor
 import OfferSigned from "@/app/admin/offers/[id]/edit/OfferSigned";
 import { useHub } from "../HubContext";
 import { HubEmpty, HubLoading, HubModal } from "../ui";
+import DepositCard from "./DepositCard";
 
 type Version = {
   id: string;
@@ -32,6 +33,12 @@ type Version = {
   agency: string | null;
   updated_at: string | null;
   created_at: string;
+  // The deposit the offer calls for, which the deposit card measures what has
+  // actually been paid against.
+  guarantee: number | null;
+  deposit_amount: number | null;
+  deposit_pct: number | null;
+  deposit_due: string | null;
 };
 
 const shortDay = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
@@ -52,7 +59,7 @@ export default function Deal() {
     import("@/lib/supabase-browser").then(async ({ getSupabaseBrowser }) => {
       const { data } = await getSupabaseBrowser()
         .from("artist_offers")
-        .select("id, version, status, revision_of, artist_name, agent_name, agency, updated_at, created_at")
+        .select("id, version, status, revision_of, artist_name, agent_name, agency, updated_at, created_at, guarantee, deposit_amount, deposit_pct, deposit_due")
         .eq("event_id", id)
         .is("superseded_at", null)
         .order("created_at", { ascending: true });
@@ -120,6 +127,10 @@ export default function Deal() {
           body="Link the signed offer for this show to bring in its deal, scaling and expenses, or start a new offer."
           ctas={[{ label: "Link an offer", onClick: openPicker }, { label: "Create offer", href: "/admin/offers/new" }]}
         />
+        {/* Still here with no offer: a deposit is money that has left the
+            account, and recording it should not wait on the paperwork. It has
+            no terms to measure against until an offer is linked. */}
+        <DepositCard offer={null} />
         {picker}
       </>
     );
@@ -164,6 +175,8 @@ export default function Deal() {
           <button type="button" className="hub-card-link" onClick={() => confirm("Unlink this offer from the show?") && link(current.id, false)}>Unlink</button>
         )}
       </div>
+
+      <DepositCard offer={current} />
 
       <div className="hub-offer-embed">
         {showSigned
