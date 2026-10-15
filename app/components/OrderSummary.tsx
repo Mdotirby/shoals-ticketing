@@ -4,6 +4,7 @@ import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
 import { resolveTierFees } from "@/lib/fees/tierFees";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
+import { tierDescriptionLines, TIER_DESCRIPTION_FALLBACK } from "@/lib/tiers/description";
 
 
 /** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */
@@ -275,6 +276,7 @@ export default function OrderSummary({
               // shown on purpose, so nobody has to know it exists to ask.
               const locked = isTierLocked?.(tt) ?? false;
               const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price, tt) ?? tt.price);
+              const descLines = tierDescriptionLines(tt.description);
               return (
                 <div
                   key={tt.id}
@@ -284,18 +286,22 @@ export default function OrderSummary({
                   <div className="sf-tier-top">
                     <div className="sf-tier-info">
                       <div className="sf-tier-name">{locked ? `🔒 ${tt.name}` : tt.name}</div>
-                      <div className="sf-tier-note">
-                        {soldOut
-                          ? "Sold out"
-                          : locked
-                            ? "Code required"
-                            // What the tier editor was given for this tier. It
-                            // used to be perks[0], which was the literal "Full
-                            // event access" on every tier of every show —
-                            // still the fallback, so a tier nobody has
-                            // described reads as it always did.
-                            : (tt.description?.trim() || "Full event access")}
-                      </div>
+                      {/* What the tier editor was given for this tier. It used
+                          to be perks[0], the literal "Full event access" on
+                          every tier of every show — still the fallback, so a
+                          tier nobody has described reads as it always did.
+                          Several lines become a list: that is how a VIP tier's
+                          benefits get written, and a run-on paragraph of them
+                          is not what anyone means by typing Enter. */}
+                      {soldOut || locked ? (
+                        <div className="sf-tier-note">{soldOut ? "Sold out" : "Code required"}</div>
+                      ) : descLines.length > 1 ? (
+                        <ul className="sf-tier-perks">
+                          {descLines.map((line, i) => <li key={i}>{line}</li>)}
+                        </ul>
+                      ) : (
+                        <div className="sf-tier-note">{descLines[0] ?? TIER_DESCRIPTION_FALLBACK}</div>
+                      )}
                     </div>
                     <div className="sf-tier-price">
                       {tt.price === 0 ? "FREE" : `$${allIn.toFixed(2)}`}

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useTabParam } from "@/lib/admin/useTabParam";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
+import TierDescriptionField from "@/app/components/admin/TierDescriptionField";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { followDoors } from "@/lib/dates";
@@ -1431,20 +1432,14 @@ export default function AdminCreateEventPage() {
                   )}
 
                   {/* What the buyer reads under the tier name on the
-                      storefront. Full width under the name/price/quantity
-                      row, because it is a sentence, not a number. The
-                      placeholder is what they get when it is blank. */}
-                  <label className="cshow-tier-desc">
-                    <span>Buyer sees</span>
-                    <input
-                      type="text"
-                      className="admin-form-input"
-                      placeholder="Full event access"
-                      maxLength={80}
-                      value={tier.description ?? ""}
-                      onChange={(e) => handleTierChange(i, "description", e.target.value)}
-                    />
-                  </label>
+                      storefront. Its own full-width row under the
+                      name/price/quantity line: it is prose, and a VIP tier
+                      lists several lines of it. */}
+                  <TierDescriptionField
+                    className="cshow-tier-desc"
+                    value={tier.description ?? ""}
+                    onChange={(v) => handleTierChange(i, "description", v)}
+                  />
 
                   {/* ── Scaling ────────────────────────────────────────────
                       The room, and what comes off it, in the same three

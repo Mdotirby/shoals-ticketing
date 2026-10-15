@@ -26,6 +26,7 @@ import { chicagoToUtcIso, utcToChicago } from "@/lib/dates";
 import { resolveTierFees, normalizeUnlockCode, type FeeMode } from "@/lib/fees/tierFees";
 import { useHub, useSectionDirty } from "../HubContext";
 import { HubEmpty, HubLoading } from "../ui";
+import TierDescriptionField from "@/app/components/admin/TierDescriptionField";
 import type { HubTab } from "../config";
 
 type Tier = {
@@ -41,14 +42,6 @@ type Tier = {
   code: string;
 };
 
-/**
- * What the storefront shows when a tier has no description — the string that
- * used to be hardcoded on every tier of every show. Kept here as the input's
- * placeholder so the editor shows what the buyer will actually read.
- */
-const DESC_FALLBACK = "Full event access";
-/** One line on a narrow card; longer than this wraps and crowds the price. */
-const DESC_MAX = 80;
 
 type Presale = { enabled: boolean; code: string; starts_at: string; ends_at: string; capacity: string };
 type Windows = { onsaleDate: string; onsaleTime: string; artist: Presale; venue: Presale };
@@ -316,16 +309,13 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
                     <div className="hub-tier-name">
                       <input value={t.name} onChange={(e) => upd(t.key, { name: e.target.value })} className="hub-tier-input" aria-label="Tier name" />
                       {/* What the buyer reads under the name on the
-                          storefront. The placeholder is the string they get
-                          when this is blank, so the field shows its own
-                          default rather than describing it. */}
-                      <input
-                        value={t.desc}
-                        placeholder={DESC_FALLBACK}
-                        maxLength={DESC_MAX}
-                        onChange={(e) => upd(t.key, { desc: e.target.value })}
+                          storefront — one benefit per line for a tier that
+                          has several. */}
+                      <TierDescriptionField
                         className="hub-tier-desc"
-                        aria-label="What the buyer reads under the tier name"
+                        label="Buyer sees"
+                        value={t.desc}
+                        onChange={(desc) => upd(t.key, { desc })}
                       />
                       <div className="hub-tier-meta">
                         <span>Buyer pays {usd(face + fees.addedToFace)} · you net {usd(net)}</span>

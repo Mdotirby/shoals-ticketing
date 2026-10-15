@@ -18663,6 +18663,40 @@ body[data-theme="liquid-glass"] .sf-tier-note {
   margin-top: 3px;
   text-wrap: pretty;
 }
+/* A tier that lists what it includes — one line per benefit, as typed in the
+   tier editor. The marker is drawn here, so a bullet somebody typed is
+   stripped before it gets this far (lib/tiers/description.ts). */
+body[data-theme="liquid-glass"] .sf-tier-perks {
+  list-style: none;
+  margin: 5px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+}
+body[data-theme="liquid-glass"] .sf-tier-perks li {
+  position: relative;
+  padding-left: 15px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.56);
+  text-wrap: pretty;
+}
+body[data-theme="liquid-glass"] .sf-tier-perks li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  /* Centred on the first line's cap height, so it holds its place when the
+     benefit wraps to two lines. */
+  top: 0.52em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+/* Selecting a tier brings its list forward with the rest of the card. */
+body[data-theme="liquid-glass"] .sf-tier--active .sf-tier-perks li { color: rgba(255, 255, 255, 0.72); }
+.sf-tier--locked .sf-tier-perks li { color: rgba(255, 255, 255, 0.42); }
 body[data-theme="liquid-glass"] .sf-tier-price {
   font-size: 16px;
   font-weight: 800;
@@ -20757,19 +20791,33 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
 .cshow-tier-desc,
 .ee-tier-desc {
   flex: 1 0 100%;
-  display: flex; align-items: center; gap: 10px;
+  /* Top, not centre: the box grows downward as lines are added, and a label
+     floating against the middle of a five-line list reads as unattached. */
+  display: flex; align-items: flex-start; gap: 10px;
   margin-top: 8px;
 }
 .cshow-tier-desc > span,
 .ee-tier-desc > span {
-  flex: none;
+  flex: none; padding-top: 13px;
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em;
   text-transform: uppercase; color: rgba(255, 255, 255, 0.42);
 }
-.cshow-tier-desc > input,
-.ee-tier-desc > input { flex: 1; min-width: 0; min-height: 38px; padding: 8px 10px; font-size: 14px; }
-.cshow-tier-desc > input::placeholder,
-.ee-tier-desc > input::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.cshow-tier-desc > textarea,
+.ee-tier-desc > textarea {
+  flex: 1; min-width: 0; min-height: 38px; padding: 8px 10px;
+  font: inherit; font-size: 14px; line-height: 1.55; color: #fff;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px;
+  outline: none; resize: none; overflow: hidden;
+}
+.cshow-tier-desc > textarea:focus,
+.ee-tier-desc > textarea:focus { border-color: rgba(255, 255, 255, 0.34); }
+.cshow-tier-desc > textarea::placeholder,
+.ee-tier-desc > textarea::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.cshow-tier-desc > small,
+.ee-tier-desc > small { flex: none; font-size: 9.5px; color: rgba(255, 255, 255, 0.34); }
+.cshow-tier-desc > small.is-full,
+.ee-tier-desc > small.is-full { color: #ffcf8f; }
 
 .cshow-scaling {
   flex: 1 0 100%;
@@ -25449,16 +25497,22 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   background: transparent; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); outline: none;
 }
 .admin-shell .hub-tier-input:focus { border-bottom-color: rgba(255, 255, 255, 0.35); }
-/* The line the buyer reads under the tier name. Quieter than the name above
-   it — it is the subtitle on the storefront and reads as one here too. */
-.admin-shell .hub-tier-desc {
-  width: 100%; margin-top: 3px; padding: 3px 0;
-  font: inherit; font-size: 11px; color: rgba(255, 255, 255, 0.72);
+/* What the buyer reads under the tier name. A textarea that grows with what
+   is typed — a VIP tier lists its benefits one per line — kept quieter than
+   the name above it, because it is the subtitle on the storefront too. */
+.admin-shell .hub-tier-desc { display: block; width: 100%; margin-top: 3px; position: relative; }
+.admin-shell .hub-tier-desc > span { display: none; }
+.admin-shell .hub-tier-desc > textarea {
+  width: 100%; padding: 3px 0; display: block;
+  font: inherit; font-size: 11px; line-height: 1.5; color: rgba(255, 255, 255, 0.72);
   background: transparent; border: 0; border-bottom: 1px solid transparent; outline: none;
+  resize: none; overflow: hidden; min-height: 0;
 }
-.admin-shell .hub-tier-desc::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
-.admin-shell .hub-tier-desc:hover { border-bottom-color: rgba(255, 255, 255, 0.1); }
-.admin-shell .hub-tier-desc:focus { border-bottom-color: rgba(255, 255, 255, 0.35); color: #fff; }
+.admin-shell .hub-tier-desc > textarea::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.admin-shell .hub-tier-desc:hover > textarea { border-bottom-color: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-tier-desc > textarea:focus { border-bottom-color: rgba(255, 255, 255, 0.35); color: #fff; }
+.admin-shell .hub-tier-desc > small { display: block; margin-top: 2px; font-size: 9px; color: rgba(255, 255, 255, 0.34); }
+.admin-shell .hub-tier-desc > small.is-full { color: #ffcf8f; }
 .admin-shell .hub-tier-meta { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; font-size: 10.5px; color: rgba(255, 255, 255, 0.48); font-variant-numeric: tabular-nums; }
 .admin-shell .hub-code {
   padding: 2px 8px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;

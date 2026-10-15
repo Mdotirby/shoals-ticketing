@@ -8,6 +8,7 @@ import Link from "next/link";
 import ImageCropper from "@/app/components/ImageCropper";
 import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
+import TierDescriptionField from "@/app/components/admin/TierDescriptionField";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { followDoors, utcToChicago, chicagoToUtcIso } from "@/lib/dates";
@@ -1753,20 +1754,13 @@ export default function AdminEditEventPage() {
                         )}
                         {/* What the buyer reads under the tier name on the
                             storefront. Its own full-width row under the
-                            name/price/capacity line, because it is a
-                            sentence, not a number. The placeholder is what
-                            they get when it is blank. */}
-                        <label className="ee-tier-desc">
-                          <span>Buyer sees</span>
-                          <input
-                            type="text"
-                            className="admin-form-input"
-                            placeholder="Full event access"
-                            maxLength={80}
-                            value={tier.description ?? ""}
-                            onChange={(e) => handleTierChange(i, "description", e.target.value)}
-                          />
-                        </label>
+                            name/price/capacity line: it is prose, and a VIP
+                            tier lists several lines of it. */}
+                        <TierDescriptionField
+                          className="ee-tier-desc"
+                          value={tier.description ?? ""}
+                          onChange={(v) => handleTierChange(i, "description", v)}
+                        />
                         <TierFeePanel
                           tier={tier}
                           ctx={tierFeeCtx}
