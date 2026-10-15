@@ -32,12 +32,23 @@ type Tier = {
   key: string;
   id?: string;
   name: string;
+  /** The buyer-facing line under the name on the storefront. */
+  desc: string;
   price: string;
   capacity: string;
   svc: FeeMode | "";
   fac: FeeMode | "";
   code: string;
 };
+
+/**
+ * What the storefront shows when a tier has no description — the string that
+ * used to be hardcoded on every tier of every show. Kept here as the input's
+ * placeholder so the editor shows what the buyer will actually read.
+ */
+const DESC_FALLBACK = "Full event access";
+/** One line on a narrow card; longer than this wraps and crowds the price. */
+const DESC_MAX = 80;
 
 type Presale = { enabled: boolean; code: string; starts_at: string; ends_at: string; capacity: string };
 type Windows = { onsaleDate: string; onsaleTime: string; artist: Presale; venue: Presale };
@@ -100,6 +111,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
           key: String(t.id),
           id: String(t.id),
           name: String(t.tier_name ?? ""),
+          desc: String(t.description ?? ""),
           price: String(t.price ?? 0),
           capacity: String(t.capacity ?? 0),
           svc: (t.service_fee_mode as FeeMode) ?? "",
@@ -165,6 +177,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
           tiers: d.tiers.map((t, i) => ({
             ...(t.id ? { id: t.id } : {}),
             tier_name: t.name.trim(),
+            description: t.desc.trim() || null,
             price: parseFloat(t.price),
             capacity: parseInt(t.capacity),
             sort_order: i,
@@ -228,7 +241,7 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
     setD((prev) => (prev ? { ...prev, win: { ...prev.win, [which]: { ...prev.win[which], ...patch } } } : prev));
 
   const addTier = () =>
-    setD((prev) => (prev ? { ...prev, tiers: [...prev.tiers, { key: newKey(), name: "New tier", price: "40", capacity: "50", svc: "", fac: "", code: "" }] } : prev));
+    setD((prev) => (prev ? { ...prev, tiers: [...prev.tiers, { key: newKey(), name: "New tier", desc: "", price: "40", capacity: "50", svc: "", fac: "", code: "" }] } : prev));
   const removeTier = (key: string) => setD((prev) => (prev ? { ...prev, tiers: prev.tiers.filter((t) => t.key !== key) } : prev));
 
   const onsaleIso = d.win.onsaleDate ? chicagoToUtcIso(d.win.onsaleDate, d.win.onsaleTime) : null;
@@ -302,6 +315,18 @@ export default function Tickets({ go }: { go: (t: HubTab) => void }) {
                   <div className="hub-tier-row">
                     <div className="hub-tier-name">
                       <input value={t.name} onChange={(e) => upd(t.key, { name: e.target.value })} className="hub-tier-input" aria-label="Tier name" />
+                      {/* What the buyer reads under the name on the
+                          storefront. The placeholder is the string they get
+                          when this is blank, so the field shows its own
+                          default rather than describing it. */}
+                      <input
+                        value={t.desc}
+                        placeholder={DESC_FALLBACK}
+                        maxLength={DESC_MAX}
+                        onChange={(e) => upd(t.key, { desc: e.target.value })}
+                        className="hub-tier-desc"
+                        aria-label="What the buyer reads under the tier name"
+                      />
                       <div className="hub-tier-meta">
                         <span>Buyer pays {usd(face + fees.addedToFace)} · you net {usd(net)}</span>
                         {codeEdit === t.key ? (

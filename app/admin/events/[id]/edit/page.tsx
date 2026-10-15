@@ -68,7 +68,7 @@ const REVENUE_CATEGORIES = [
 ];
 
 function emptyTier(): TicketTierDraft {
-  return { tier_name: "", price: "", capacity: "" };
+  return { tier_name: "", description: "", price: "", capacity: "" };
 }
 
 
@@ -341,9 +341,11 @@ export default function AdminEditEventPage() {
             tierData.map((t: {
               id: string; tier_name: string; price: number; capacity: number;
               service_fee_mode?: string | null; facility_fee_mode?: string | null; unlock_code?: string | null;
+              description?: string | null;
             }) => ({
               id: t.id,
               tier_name: t.tier_name,
+              description: t.description ?? "",
               price: String(t.price),
               capacity: String(t.capacity),
               // NULL in the column means inherit, which the form shows as "".
@@ -356,6 +358,7 @@ export default function AdminEditEventPage() {
           setTiers([
             {
               tier_name: "General Admission",
+              description: "",
               price: String(event.price ?? 0),
               capacity: "500",
             },
@@ -958,6 +961,7 @@ export default function AdminEditEventPage() {
             tiers: tiers.map((t, i) => ({
               ...(t.id ? { id: t.id } : {}),
               tier_name: t.tier_name.trim(),
+              description: (t.description ?? "").trim() || null,
               price: parseFloat(t.price),
               capacity: parseInt(t.capacity),
               sort_order: i,
@@ -1747,6 +1751,22 @@ export default function AdminEditEventPage() {
                             ✕
                           </button>
                         )}
+                        {/* What the buyer reads under the tier name on the
+                            storefront. Its own full-width row under the
+                            name/price/capacity line, because it is a
+                            sentence, not a number. The placeholder is what
+                            they get when it is blank. */}
+                        <label className="ee-tier-desc">
+                          <span>Buyer sees</span>
+                          <input
+                            type="text"
+                            className="admin-form-input"
+                            placeholder="Full event access"
+                            maxLength={80}
+                            value={tier.description ?? ""}
+                            onChange={(e) => handleTierChange(i, "description", e.target.value)}
+                          />
+                        </label>
                         <TierFeePanel
                           tier={tier}
                           ctx={tierFeeCtx}

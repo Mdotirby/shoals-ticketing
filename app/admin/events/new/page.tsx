@@ -52,7 +52,7 @@ const fmtMoney = (n: number) =>
   "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function emptyTier(): TicketTierDraft {
-  return { tier_name: "General Admission", price: "", capacity: "", seats: "", comps: "", kills: "" };
+  return { tier_name: "General Admission", description: "", price: "", capacity: "", seats: "", comps: "", kills: "" };
 }
 
 /**
@@ -324,7 +324,7 @@ export default function AdminCreateEventPage() {
     if (tiers.length >= MAX_TIERS) return;
     setTiers((prev) => [
       ...prev,
-      { tier_name: "", price: "", capacity: "", seats: "", comps: "", kills: "" },
+      { tier_name: "", description: "", price: "", capacity: "", seats: "", comps: "", kills: "" },
     ]);
   };
 
@@ -463,6 +463,7 @@ export default function AdminCreateEventPage() {
           tiers: isHardTicket
             ? tiers.map((t, i) => ({
                 tier_name: t.tier_name.trim(),
+                description: (t.description ?? "").trim() || null,
                 price: parseFloat(t.price),
                 capacity: parseInt(t.capacity),
                 sort_order: i,
@@ -1428,6 +1429,22 @@ export default function AdminCreateEventPage() {
                       ✕
                     </button>
                   )}
+
+                  {/* What the buyer reads under the tier name on the
+                      storefront. Full width under the name/price/quantity
+                      row, because it is a sentence, not a number. The
+                      placeholder is what they get when it is blank. */}
+                  <label className="cshow-tier-desc">
+                    <span>Buyer sees</span>
+                    <input
+                      type="text"
+                      className="admin-form-input"
+                      placeholder="Full event access"
+                      maxLength={80}
+                      value={tier.description ?? ""}
+                      onChange={(e) => handleTierChange(i, "description", e.target.value)}
+                    />
+                  </label>
 
                   {/* ── Scaling ────────────────────────────────────────────
                       The room, and what comes off it, in the same three

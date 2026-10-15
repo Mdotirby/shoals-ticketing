@@ -277,17 +277,30 @@ export async function POST(request) {
 
   // 2. Insert ticket tiers (if provided)
   if (Array.isArray(body.tiers) && body.tiers.length > 0) {
-    const tierRows = body.tiers.map((t, i) => ({
+    const base = (t, i) => ({
       event_id: event.id,
       tier_name: t.tier_name,
       price: t.price,
       capacity: t.capacity,
       sort_order: t.sort_order ?? i,
+    });
+    const tierRows = body.tiers.map((t, i) => ({
+      ...base(t, i),
+      // plans/tier-description-migration.sql — peeled off and retried below,
+      // because PostgREST rejects the whole insert on one unknown column and
+      // a show would then be created with no tiers at all.
+      description: typeof t.description === "string" ? t.description.trim() || null : null,
     }));
 
-    const { error: tierError } = await admin
+    let { error: tierError } = await admin
       .from("ticket_tiers")
       .insert(tierRows);
+
+    if (tierError && /description|column .* does not exist/i.test(tierError.message ?? "")) {
+      ({ error: tierError } = await admin
+        .from("ticket_tiers")
+        .insert(body.tiers.map(base)));
+    }
 
     if (tierError) {
       console.error("Failed to insert tiers:", tierError.message);

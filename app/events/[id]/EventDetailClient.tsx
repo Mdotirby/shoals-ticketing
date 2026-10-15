@@ -577,6 +577,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                 quantity_available?: number; locked?: boolean;
                 service_fee_mode?: "added" | "included" | "waived" | null;
                 facility_fee_mode?: "added" | "included" | "waived" | null;
+                description?: string | null;
               }) => ({
                 id: t.id,
                 event_id: t.event_id,
@@ -591,7 +592,11 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                 quantity_available: t.quantity_available ?? t.capacity,
                 quantity_sold: t.quantity_sold ?? 0,
                 sort_order: t.sort_order,
-                perks: ["Full event access", "Venue amenities"],
+                // The line under the tier name. Was a hardcoded perks array
+                // here — the same two strings on every tier of every show —
+                // which is why every VIP table read "Full event access".
+                // OrderSummary still falls back to that when it is blank.
+                description: t.description ?? null,
               }));
               setTicketTypes(mapped);
               // Default to first available (non-sold-out) tier
@@ -611,7 +616,6 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                 quantity_available: 500,
                 quantity_sold: 0,
                 sort_order: 0,
-                perks: ["Full event access", "Venue amenities"],
               };
               setTicketTypes([ga]);
               setSelectedTicketId(ga.id);
@@ -621,7 +625,6 @@ export default function EventDetailClient({ requiresSeating = false }: { require
             const ga: TicketType = {
               id: `${data.id}-ga`, event_id: data.id, name: "General Admission",
               price: data.price, quantity_available: 500, quantity_sold: 0, sort_order: 0,
-              perks: ["Full event access"],
             };
             setTicketTypes([ga]);
             setSelectedTicketId(ga.id);

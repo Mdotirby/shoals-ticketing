@@ -285,7 +285,16 @@ export default function OrderSummary({
                     <div className="sf-tier-info">
                       <div className="sf-tier-name">{locked ? `🔒 ${tt.name}` : tt.name}</div>
                       <div className="sf-tier-note">
-                        {soldOut ? "Sold out" : locked ? "Code required" : (tt.perks?.[0] ?? "Full event access")}
+                        {soldOut
+                          ? "Sold out"
+                          : locked
+                            ? "Code required"
+                            // What the tier editor was given for this tier. It
+                            // used to be perks[0], which was the literal "Full
+                            // event access" on every tier of every show —
+                            // still the fallback, so a tier nobody has
+                            // described reads as it always did.
+                            : (tt.description?.trim() || "Full event access")}
                       </div>
                     </div>
                     <div className="sf-tier-price">

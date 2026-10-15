@@ -148,6 +148,7 @@ export async function POST(
       price: body.price,
       capacity: body.capacity,
       sort_order: body.sort_order ?? 0,
+      description: typeof body.description === "string" ? body.description.trim() || null : null,
     })
     .select()
     .single();
@@ -183,6 +184,7 @@ export async function PUT(
   type IncomingTier = {
     id?: string; tier_name: string; price: number; capacity: number; sort_order?: number;
     service_fee_mode?: FeeMode | null; facility_fee_mode?: FeeMode | null; unlock_code?: string | null;
+    description?: string | null;
   };
 
   /**
@@ -194,9 +196,13 @@ export async function PUT(
     service_fee_mode: t.service_fee_mode ?? null,
     facility_fee_mode: t.facility_fee_mode ?? null,
     unlock_code: normalizeUnlockCode(t.unlock_code) || null,
+    // plans/tier-description-migration.sql. Rides in the same peel-off group:
+    // PostgREST fails the whole statement on one unknown column, so a tier
+    // could not be saved at all on a database missing any of these.
+    description: typeof t.description === "string" ? t.description.trim() || null : null,
   });
   const missingColumn = (msg: string | undefined) =>
-    /service_fee_mode|facility_fee_mode|unlock_code|column .* does not exist/i.test(msg ?? "");
+    /service_fee_mode|facility_fee_mode|unlock_code|description|column .* does not exist/i.test(msg ?? "");
 
   // Fetch existing tier IDs and which ones have tickets sold
   const [{ data: existingRows }, { data: soldRows }] = await Promise.all([

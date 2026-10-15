@@ -20752,6 +20752,25 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
    untouched — and let the scaling block claim a line of its own. */
 .cshow .admin-tier-row { flex-wrap: wrap; }
 
+/* What the buyer reads under the tier name. Its own full-width row: a
+   sentence, not a number, so it does not belong beside price and capacity. */
+.cshow-tier-desc,
+.ee-tier-desc {
+  flex: 1 0 100%;
+  display: flex; align-items: center; gap: 10px;
+  margin-top: 8px;
+}
+.cshow-tier-desc > span,
+.ee-tier-desc > span {
+  flex: none;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.42);
+}
+.cshow-tier-desc > input,
+.ee-tier-desc > input { flex: 1; min-width: 0; min-height: 38px; padding: 8px 10px; font-size: 14px; }
+.cshow-tier-desc > input::placeholder,
+.ee-tier-desc > input::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+
 .cshow-scaling {
   flex: 1 0 100%;
   display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
@@ -25430,6 +25449,16 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
   background: transparent; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); outline: none;
 }
 .admin-shell .hub-tier-input:focus { border-bottom-color: rgba(255, 255, 255, 0.35); }
+/* The line the buyer reads under the tier name. Quieter than the name above
+   it — it is the subtitle on the storefront and reads as one here too. */
+.admin-shell .hub-tier-desc {
+  width: 100%; margin-top: 3px; padding: 3px 0;
+  font: inherit; font-size: 11px; color: rgba(255, 255, 255, 0.72);
+  background: transparent; border: 0; border-bottom: 1px solid transparent; outline: none;
+}
+.admin-shell .hub-tier-desc::placeholder { color: rgba(255, 255, 255, 0.3); font-style: italic; }
+.admin-shell .hub-tier-desc:hover { border-bottom-color: rgba(255, 255, 255, 0.1); }
+.admin-shell .hub-tier-desc:focus { border-bottom-color: rgba(255, 255, 255, 0.35); color: #fff; }
 .admin-shell .hub-tier-meta { display: flex; align-items: center; gap: 7px; margin-top: 5px; flex-wrap: wrap; font-size: 10.5px; color: rgba(255, 255, 255, 0.48); font-variant-numeric: tabular-nums; }
 .admin-shell .hub-code {
   padding: 2px 8px; border-radius: 999px; cursor: pointer; font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em;

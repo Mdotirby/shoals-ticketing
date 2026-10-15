@@ -6,6 +6,13 @@ export type TicketType = {
   quantity_available: number;
   quantity_sold: number;
   sort_order: number;
+  /**
+   * The line under the tier name on the storefront. Was the hardcoded "Full
+   * event access" on every tier of every show; it is a column now
+   * (plans/tier-description-migration.sql), set in the tier editor. Blank
+   * still falls back to that string.
+   */
+  description?: string | null;
   perks?: string[]; // e.g. ["All sessions & workshops", "Meals & coffee breaks"]
 
   /**
@@ -27,6 +34,8 @@ export type TicketTier = {
   capacity: number;
   sort_order: number;
   created_at: string;
+  /** Buyer-facing line under the tier name. See TicketType.description. */
+  description?: string | null;
 };
 
 /**
@@ -65,6 +74,12 @@ export type TicketTierDraft = {
   facility_fee_mode?: "" | "added" | "included" | "waived";
   /** When set, the tier shows locked and needs this code to buy. */
   unlock_code?: string;
+  /**
+   * What the buyer reads under the tier name. Empty means the storefront
+   * keeps saying "Full event access", which is what every tier said before
+   * this existed.
+   */
+  description?: string;
 };
 
 export type Ticket = {
