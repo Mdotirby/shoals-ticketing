@@ -10280,6 +10280,8 @@ body:has(.lp-main) .site-footer {
   line-height: 1.7;
   margin: 0;
   white-space: pre-wrap;
+  /* See .ticket-card-desc — a pasted URL is one unbreakable token. */
+  overflow-wrap: anywhere;
 }
 
 /* ── Social Proof Banner ── */
@@ -13345,6 +13347,14 @@ body:has(.lp-main) .site-footer {
      pre-line rather than pre-wrap: it keeps the breaks the author typed and
      drops the runs of spaces that come with a paste. */
   white-space: pre-line;
+  /* A pasted URL is one token with no spaces in it, and a box with nothing
+     to break on grows to fit. Measured on Halloween on Court: the Google
+     Form link reached x=803 while the order summary column starts at x=718,
+     so 85px of it ran underneath the panel and could not be read. That is
+     why the link in that description had a newline hand-typed into the
+     middle of it. Here rather than only on .sf-autolink, so a long token
+     that is NOT a detected link — a hashtag, a run-on word — wraps too. */
+  overflow-wrap: anywhere;
 }
 
 .ticket-card-desc.ticket-card-desc-expanded {
@@ -18669,6 +18679,7 @@ body[data-theme="liquid-glass"] .sf-tier-note {
   color: rgba(255, 255, 255, 0.48);
   margin-top: 3px;
   text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
 /* A tier description with more than one line in it, drawn as typed: a dashed
    line is a bullet, anything else is a line of its own, a blank line is a
@@ -18680,6 +18691,9 @@ body[data-theme="liquid-glass"] .sf-tier-line {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.56);
   text-wrap: pretty;
+  /* The tier column is narrower than the description's, so an unbreakable
+     token blows out of it sooner. See .ticket-card-desc. */
+  overflow-wrap: anywhere;
 }
 body[data-theme="liquid-glass"] .sf-tier--active .sf-tier-line { color: rgba(255, 255, 255, 0.72); }
 .sf-tier--locked .sf-tier-line { color: rgba(255, 255, 255, 0.42); }
@@ -18724,6 +18738,7 @@ body[data-theme="liquid-glass"] .sf-tier-perks li {
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.56);
   text-wrap: pretty;
+  overflow-wrap: anywhere;
 }
 body[data-theme="liquid-glass"] .sf-tier-perks li::before {
   content: "";

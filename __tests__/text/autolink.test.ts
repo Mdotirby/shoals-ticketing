@@ -1,4 +1,4 @@
-import { linkSegments, hasLink } from "@/lib/text/autolink";
+import { linkSegments, hasLink, withoutBlankLines } from "@/lib/text/autolink";
 
 /**
  * This renders on public pages from text typed in the admin, so the two
@@ -146,5 +146,44 @@ describe("hasLink", () => {
     expect(hasLink("a@b.com")).toBe(true);
     expect(hasLink("no links here")).toBe(false);
     expect(hasLink("")).toBe(false);
+  });
+});
+
+describe("withoutBlankLines — the clamped preview", () => {
+  /**
+   * The event description is clamped to three lines with Read More under it.
+   * Once blank lines render, one costs a line of that preview: Halloween on
+   * Court spent its third line on an empty one and hid the link entirely.
+   */
+  test("the real one — the link makes it into the preview", () => {
+    const stored =
+      "What: Dope Party - Music, Food, Costume Contest, Games, Lounge. Hosted at Pickett on Court in Florence, AL, Saturday October 31st from 9pm - 1am.\n\nFill out the google sheet to unlock your promo code: https://docs.google.com/forms/d/e/1FAIpQ/viewform";
+    const preview = withoutBlankLines(stored);
+    expect(preview.split("\n")).toHaveLength(2);
+    expect(preview.split("\n")[1]).toContain("https://");
+  });
+
+  test("the line structure is kept, only the gaps go", () => {
+    expect(withoutBlankLines("One\n\nTwo\n\n\nThree")).toBe("One\nTwo\nThree");
+  });
+
+  test("a line of only whitespace counts as blank", () => {
+    expect(withoutBlankLines("One\n   \nTwo")).toBe("One\nTwo");
+  });
+
+  test("text with no blank lines is unchanged", () => {
+    expect(withoutBlankLines("One\nTwo\nThree")).toBe("One\nTwo\nThree");
+    expect(withoutBlankLines("Just one line")).toBe("Just one line");
+  });
+
+  test("nothing in, nothing out", () => {
+    expect(withoutBlankLines(null)).toBe("");
+    expect(withoutBlankLines(undefined)).toBe("");
+    expect(withoutBlankLines("\n\n")).toBe("");
+  });
+
+  test("it does not touch the words — only whole blank lines go", () => {
+    const t = "Doors at 7   with   spaces\n\nShow at 8";
+    expect(withoutBlankLines(t)).toBe("Doors at 7   with   spaces\nShow at 8");
   });
 });

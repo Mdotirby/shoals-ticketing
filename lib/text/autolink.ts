@@ -137,6 +137,24 @@ export function linkSegments(text: string | null | undefined): LinkSegment[] {
   return out;
 }
 
+/**
+ * The same text with its blank lines removed — for a clamped preview.
+ *
+ * The event description is clamped to three lines with a Read More under it.
+ * Once blank lines render as blank lines, one of them costs a line of that
+ * preview: Halloween on Court spent its third line on an empty one and hid
+ * the link entirely behind the button. A blank line is air for the full
+ * text; a three-line teaser has no room for air, so the preview keeps the
+ * line structure and drops the gaps.
+ */
+export function withoutBlankLines(text: string | null | undefined): string {
+  if (!text) return "";
+  return text
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== "")
+    .join("\n");
+}
+
 /** Whether there is anything to link — lets a caller skip the work. */
 export function hasLink(text: string | null | undefined): boolean {
   return linkSegments(text).some((s) => s.kind === "link");

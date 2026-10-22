@@ -14,6 +14,7 @@ import SeatMap from "@/app/components/seating/SeatMap";
 import type { SectionFull } from "@/lib/seating/types";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
 import AutoLinkText from "@/app/components/AutoLinkText";
+import { withoutBlankLines } from "@/lib/text/autolink";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import SfHeader from "@/app/components/SfHeader";
@@ -1257,7 +1258,9 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                           and were being collapsed into one run-on paragraph;
                           one has a Google Form link nobody could click. */}
                       <p className={`ticket-card-desc ${descExpanded ? "ticket-card-desc-expanded" : ""}`}>
-                        <AutoLinkText text={event.description} />
+                        <AutoLinkText
+                          text={descExpanded ? event.description : withoutBlankLines(event.description)}
+                        />
                       </p>
                       {!descExpanded && checkoutStep !== "checkout" && (
                         <button
