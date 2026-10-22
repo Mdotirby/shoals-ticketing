@@ -9,6 +9,7 @@ import { useTabParam } from "@/lib/admin/useTabParam";
 import ImageCropper from "@/app/components/ImageCropper";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import TierDescriptionField from "@/app/components/admin/TierDescriptionField";
+import NewHostButton from "@/app/components/admin/NewHostButton";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { followDoors } from "@/lib/dates";
@@ -984,6 +985,14 @@ export default function AdminCreateEventPage() {
                   <option key={h.id} value={h.id}>{h.name}</option>
                 ))}
               </select>
+              {/* Booking for someone not on file meant leaving a half-filled
+                  form to go and add them. Added here, and selected. */}
+              <NewHostButton
+                onCreated={(h) => {
+                  setAvailableHosts((prev) => [...prev, h].sort((a, b) => a.name.localeCompare(b.name)));
+                  setResolvedVenueId(h.id);
+                }}
+              />
               <span className="cshow-select-note">The organization, promoter or venue hosting this show.</span>
             </label>
           </div>

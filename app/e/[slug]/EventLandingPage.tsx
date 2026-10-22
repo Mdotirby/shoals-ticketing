@@ -10,6 +10,7 @@ import { onlineSurchargeDollars } from "@/lib/fees/rates";
 import { formatEventDateFull, formatEventTime } from "@/lib/dates";
 import { loadStripe } from "@stripe/stripe-js";
 import TrackingPixels from "@/app/components/TrackingPixels";
+import AutoLinkText from "@/app/components/AutoLinkText";
 import { persistUtmParams, getStoredUtmParams } from "@/lib/clientAttribution";
 import {
   Elements,
@@ -1628,7 +1629,7 @@ export default function EventLandingPage({ event, ticketTypes, attendeeCount, fe
                 </p>
               )}
               {event.description && (
-                <p className="lp-about-text">{event.description}</p>
+                <p className="lp-about-text"><AutoLinkText text={event.description} /></p>
               )}
             </div>
           )}

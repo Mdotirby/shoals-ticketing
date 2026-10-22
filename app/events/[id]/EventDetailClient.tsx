@@ -13,6 +13,7 @@ import InlineCheckout from "@/app/components/InlineCheckout";
 import SeatMap from "@/app/components/seating/SeatMap";
 import type { SectionFull } from "@/lib/seating/types";
 import PurchaseTicketCard from "@/app/components/PurchaseTicketCard";
+import AutoLinkText from "@/app/components/AutoLinkText";
 import FAQAccordion from "@/app/components/FAQAccordion";
 import EventBadges from "@/app/components/EventBadges";
 import SfHeader from "@/app/components/SfHeader";
@@ -1250,8 +1251,13 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                       (not the whole description) on checkoutStep specifically. */}
                   {event.description && (
                     <div className="ticket-card-desc-wrap">
+                      {/* Typed line breaks are kept (white-space: pre-line in
+                          the stylesheet) and URLs are clickable. 13 of the
+                          descriptions on file already have newlines in them
+                          and were being collapsed into one run-on paragraph;
+                          one has a Google Form link nobody could click. */}
                       <p className={`ticket-card-desc ${descExpanded ? "ticket-card-desc-expanded" : ""}`}>
-                        {event.description}
+                        <AutoLinkText text={event.description} />
                       </p>
                       {!descExpanded && checkoutStep !== "checkout" && (
                         <button

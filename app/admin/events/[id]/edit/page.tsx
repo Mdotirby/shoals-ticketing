@@ -9,6 +9,7 @@ import ImageCropper from "@/app/components/ImageCropper";
 import TrackableLinkQRModal from "@/app/components/admin/TrackableLinkQRModal";
 import { TicketTierDraft } from "@/lib/types/ticket";
 import TierDescriptionField from "@/app/components/admin/TierDescriptionField";
+import NewHostButton from "@/app/components/admin/NewHostButton";
 import { getCookie } from "@/lib/cookies";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import { followDoors, utcToChicago, chicagoToUtcIso } from "@/lib/dates";
@@ -1141,6 +1142,14 @@ export default function AdminEditEventPage() {
                       <option key={h.id} value={h.id}>{h.name}</option>
                     ))}
                   </select>
+                  {!locked && (
+                    <NewHostButton
+                      onCreated={(h) => {
+                        setAvailableHosts((prev) => [...prev, h].sort((a, b) => a.name.localeCompare(b.name)));
+                        setResolvedVenueId(h.id);
+                      }}
+                    />
+                  )}
                   <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, marginTop: 4 }}>
                     The organization, promoter, or venue hosting this event
                   </p>

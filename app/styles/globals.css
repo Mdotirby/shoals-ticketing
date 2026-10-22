@@ -13338,6 +13338,13 @@ body:has(.lp-main) .site-footer {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* As typed. 13 of the descriptions on file carry newlines — a bill, a
+     doors/show time, a sign-off — and this page was running them together
+     into one paragraph. The /e/[slug] landing page has had pre-wrap all
+     along, so the same description read correctly there and wrongly here.
+     pre-line rather than pre-wrap: it keeps the breaks the author typed and
+     drops the runs of spaces that come with a paste. */
+  white-space: pre-line;
 }
 
 .ticket-card-desc.ticket-card-desc-expanded {
@@ -18663,9 +18670,42 @@ body[data-theme="liquid-glass"] .sf-tier-note {
   margin-top: 3px;
   text-wrap: pretty;
 }
-/* A tier that lists what it includes — one line per benefit, as typed in the
-   tier editor. The marker is drawn here, so a bullet somebody typed is
-   stripped before it gets this far (lib/tiers/description.ts). */
+/* A tier description with more than one line in it, drawn as typed: a dashed
+   line is a bullet, anything else is a line of its own, a blank line is a
+   gap. See lib/tiers/description.ts. */
+body[data-theme="liquid-glass"] .sf-tier-body { margin-top: 5px; }
+body[data-theme="liquid-glass"] .sf-tier-line {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.56);
+  text-wrap: pretty;
+}
+body[data-theme="liquid-glass"] .sf-tier--active .sf-tier-line { color: rgba(255, 255, 255, 0.72); }
+.sf-tier--locked .sf-tier-line { color: rgba(255, 255, 255, 0.42); }
+/* A blank line the author left for air. One typed blank line, one line of
+   space — not a margin that collapses into whatever is next to it. */
+body[data-theme="liquid-glass"] .sf-tier-space { height: 0.75em; }
+
+/* An auto-detected link in a description. Underlined rather than coloured:
+   these sit inside grey body copy on a dark card, and a colour that reads as
+   a link there would have to fight every tenant's own branding.
+   overflow-wrap because a pasted URL has no spaces in it and would otherwise
+   widen its column on a phone. */
+.sf-autolink {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+  overflow-wrap: anywhere;
+}
+.sf-autolink:hover {
+  color: #fff;
+  text-decoration-color: currentColor;
+}
+
+/* A run of dashed lines. The marker is drawn here, so one somebody typed is
+   stripped before it gets this far. */
 body[data-theme="liquid-glass"] .sf-tier-perks {
   list-style: none;
   margin: 5px 0 0;
@@ -18673,6 +18713,10 @@ body[data-theme="liquid-glass"] .sf-tier-perks {
   display: grid;
   gap: 3px;
 }
+/* Inside the body the surrounding lines already provide the spacing. */
+body[data-theme="liquid-glass"] .sf-tier-body > .sf-tier-perks { margin-top: 0; }
+body[data-theme="liquid-glass"] .sf-tier-body > * + .sf-tier-perks,
+body[data-theme="liquid-glass"] .sf-tier-perks + .sf-tier-line { margin-top: 3px; }
 body[data-theme="liquid-glass"] .sf-tier-perks li {
   position: relative;
   padding-left: 15px;
@@ -20818,6 +20862,75 @@ body[data-theme="liquid-glass"]::after { z-index: -1; }
 .ee-tier-desc > small { flex: none; font-size: 9.5px; color: rgba(255, 255, 255, 0.34); }
 .cshow-tier-desc > small.is-full,
 .ee-tier-desc > small.is-full { color: #ffcf8f; }
+
+/* ── "+ New host" — add a promoter without leaving the booking form ────────
+   app/components/admin/NewHostButton.tsx, on the create and edit pages. */
+.newhost-open {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 650;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+}
+.newhost-open:hover:not(:disabled) { color: #fff; border-color: rgba(255, 255, 255, 0.42); border-style: solid; }
+.newhost-open:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.newhost {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  display: grid;
+  gap: 10px;
+}
+.newhost-row { display: flex; gap: 8px; }
+.newhost-field { flex: 1; min-width: 0; display: grid; gap: 4px; }
+/* The slug is short and derived; the name is what gets typed. */
+.newhost-field--slug { flex: 0 1 150px; }
+.newhost-field > span {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.42);
+}
+.newhost-field > input {
+  width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px;
+  font: inherit; font-size: 16px; color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px; outline: none;
+}
+.newhost-field > input:focus { border-color: rgba(255, 255, 255, 0.36); }
+.newhost-field--slug > input { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }
+
+.newhost-foot { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.newhost-note { flex: 1; min-width: 180px; font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.38); }
+.newhost-cta { display: flex; gap: 8px; flex: none; }
+.newhost-save, .newhost-cancel {
+  font: inherit; cursor: pointer; border-radius: 10px; min-height: 36px; padding: 8px 14px; font-size: 12px;
+}
+.newhost-save { font-weight: 700; color: #000; background: var(--admin-primary, #fff); border: 1px solid var(--admin-primary, #fff); }
+.newhost-save:disabled { opacity: 0.4; cursor: not-allowed; }
+.newhost-cancel { color: rgba(255, 255, 255, 0.55); background: none; border: 1px solid rgba(255, 255, 255, 0.16); }
+.newhost-error {
+  font-size: 11px; line-height: 1.5; color: #ffb4b4;
+  padding: 7px 10px; border-radius: 9px;
+  background: rgba(255, 120, 120, 0.1); border: 1px solid rgba(255, 120, 120, 0.26);
+}
+
+/* In the hub's Details grid the control spans the row rather than sitting in
+   a column beside a field. */
+.admin-shell .hub-newhost { grid-column: 1 / -1; }
+.admin-shell .newhost { grid-column: 1 / -1; }
+
+@media (max-width: 560px) {
+  .newhost-row { flex-direction: column; }
+  .newhost-field--slug { flex: 1; }
+}
 
 .cshow-scaling {
   flex: 1 0 100%;

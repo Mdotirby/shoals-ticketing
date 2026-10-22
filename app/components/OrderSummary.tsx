@@ -4,7 +4,8 @@ import { useState } from "react";
 import { TicketType } from "@/lib/types/ticket";
 import { resolveTierFees } from "@/lib/fees/tierFees";
 import { onlineSurchargeDollars } from "@/lib/fees/rates";
-import { tierDescriptionLines, TIER_DESCRIPTION_FALLBACK } from "@/lib/tiers/description";
+import { tierDescriptionBlocks, isSingleLineDescription, TIER_DESCRIPTION_FALLBACK } from "@/lib/tiers/description";
+import AutoLinkText from "./AutoLinkText";
 
 
 /** Normalize tax rate: accepts 9.5 (percent) or 0.095 (decimal). Returns decimal. */
@@ -276,31 +277,49 @@ export default function OrderSummary({
               // shown on purpose, so nobody has to know it exists to ask.
               const locked = isTierLocked?.(tt) ?? false;
               const allIn = tt.price === 0 ? 0 : (computeAllInPrice?.(tt.price, tt) ?? tt.price);
-              const descLines = tierDescriptionLines(tt.description);
+              const descBlocks = tierDescriptionBlocks(tt.description);
               return (
                 <div
                   key={tt.id}
                   className={`sf-tier${isActive ? " sf-tier--active" : ""}${locked ? " sf-tier--locked" : ""}`}
-                  onClick={() => { if (!soldOut && !locked) onSelectTicket?.(tt.id); }}
+                  onClick={(e) => {
+                    // A description can carry a link now. Clicking it should
+                    // open it, not quietly select the tier underneath as well.
+                    if ((e.target as HTMLElement).closest("a")) return;
+                    if (!soldOut && !locked) onSelectTicket?.(tt.id);
+                  }}
                 >
                   <div className="sf-tier-top">
                     <div className="sf-tier-info">
                       <div className="sf-tier-name">{locked ? `🔒 ${tt.name}` : tt.name}</div>
-                      {/* What the tier editor was given for this tier. It used
-                          to be perks[0], the literal "Full event access" on
-                          every tier of every show — still the fallback, so a
-                          tier nobody has described reads as it always did.
-                          Several lines become a list: that is how a VIP tier's
-                          benefits get written, and a run-on paragraph of them
-                          is not what anyone means by typing Enter. */}
+                      {/* What the tier editor was given for this tier, drawn
+                          as it was typed: a dashed line is a bullet, anything
+                          else is a line of its own, a blank line is a gap.
+                          A tier nobody has described still reads "Full event
+                          access", the literal that used to be on every tier of
+                          every show. */}
                       {soldOut || locked ? (
                         <div className="sf-tier-note">{soldOut ? "Sold out" : "Code required"}</div>
-                      ) : descLines.length > 1 ? (
-                        <ul className="sf-tier-perks">
-                          {descLines.map((line, i) => <li key={i}>{line}</li>)}
-                        </ul>
+                      ) : isSingleLineDescription(descBlocks) ? (
+                        <div className="sf-tier-note">
+                          <AutoLinkText text={(descBlocks[0] as { text: string }).text} />
+                        </div>
+                      ) : descBlocks.length === 0 ? (
+                        <div className="sf-tier-note">{TIER_DESCRIPTION_FALLBACK}</div>
                       ) : (
-                        <div className="sf-tier-note">{descLines[0] ?? TIER_DESCRIPTION_FALLBACK}</div>
+                        <div className="sf-tier-body">
+                          {descBlocks.map((b, i) =>
+                            b.kind === "bullets" ? (
+                              <ul key={i} className="sf-tier-perks">
+                                {b.items.map((item, j) => <li key={j}><AutoLinkText text={item} /></li>)}
+                              </ul>
+                            ) : b.kind === "text" ? (
+                              <p key={i} className="sf-tier-line"><AutoLinkText text={b.text} /></p>
+                            ) : (
+                              <div key={i} className="sf-tier-space" aria-hidden="true" />
+                            ),
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="sf-tier-price">

@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ImageCropper from "@/app/components/ImageCropper";
 import { defaultDoorsTime } from "@/lib/dates";
 import { useHub, useSectionDirty, type HubEvent } from "../HubContext";
+import NewHostButton from "@/app/components/admin/NewHostButton";
 
 type Draft = {
   title: string;
@@ -328,6 +329,18 @@ export default function Details() {
             {select("deal_type", "Whose money", [["own_risk", "Own risk — the room carries it"], ["guarantee", "Guarantee — the artist is promised a figure"], ["co_promote", "Co-promote — split after costs"], ["rental_box_office", "Rental + box office — they rent, you sell"]], "Who carries the risk if the show doesn't sell.")}
             {select("booking_status", "Booking state", [["confirmed", "Confirmed"], ["hold", "Hold"], ["cancelled", "Cancelled"]], "A hold reads as a draft on the events list. To cancel a selling show, use Cancel event in the ⋯ menu so buyers are refunded.")}
             {hosts.length > 1 && select("venue_id", "Host / organization", [["", "—"], ...hosts.map((h) => [h.id, h.name] as [string, string])], "The account this show belongs to.")}
+            {/* Booking for an organisation not on file meant leaving a
+                half-edited show to go and add them under Users & tenants.
+                This is the host picker that is actually reached: the old
+                /edit form renders for private rentals only, and everything
+                else redirects here. */}
+            <NewHostButton
+              className="hub-newhost"
+              onCreated={(h) => {
+                setHosts((prev) => [...prev, h].sort((a, b) => a.name.localeCompare(b.name)));
+                set("venue_id", h.id);
+              }}
+            />
             {field("contact_name", "Day-of contact")}
             {field("contact_phone", "Contact phone", { type: "tel" })}
             {field("contact_email", "Contact email", { type: "email" })}

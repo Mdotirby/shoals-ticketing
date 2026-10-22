@@ -1,95 +1,190 @@
-import { tierDescriptionLines, TIER_DESCRIPTION_FALLBACK } from "@/lib/tiers/description";
+import {
+  tierDescriptionBlocks,
+  isSingleLineDescription,
+  TIER_DESCRIPTION_FALLBACK,
+} from "@/lib/tiers/description";
 
 /**
- * The tier description is a textarea — a VIP tier lists what it includes, one
- * benefit per line. These pin what the storefront is handed: which lines
- * survive, what a typed bullet becomes, and that an empty field still reads
- * the way every tier read before the field existed.
+ * A dash makes a bullet and nothing else does; a blank line is a blank line.
+ *
+ * It used to bullet every line and drop the blanks, which is what made the
+ * two real descriptions below come out as one undifferentiated list.
  */
 
-describe("splitting a description into lines", () => {
-  test("one line stays one line", () => {
-    expect(tierDescriptionLines("Standing room, doors at 7")).toEqual(["Standing room, doors at 7"]);
+describe("the descriptions actually on file", () => {
+  test("the Downtown Florence pass: heading, list, gap, footnote", () => {
+    const written = [
+      "Applies to the following places: FLOBAMA | LAVA ROOM | ON THE ROCKS | CHICAGO CAFE | WILDWOOD TAVERN",
+      "- Waived Cover",
+      "- Skip the entry line (N/A at Chicago Cafe)",
+      "- 20% off all food items",
+      "- Satin Wristband",
+      "",
+      "Must be 21+ | ID to be verified at each establishment",
+    ].join("\n");
+
+    expect(tierDescriptionBlocks(written)).toEqual([
+      { kind: "text", text: "Applies to the following places: FLOBAMA | LAVA ROOM | ON THE ROCKS | CHICAGO CAFE | WILDWOOD TAVERN" },
+      {
+        kind: "bullets",
+        items: ["Waived Cover", "Skip the entry line (N/A at Chicago Cafe)", "20% off all food items", "Satin Wristband"],
+      },
+      { kind: "space" },
+      { kind: "text", text: "Must be 21+ | ID to be verified at each establishment" },
+    ]);
   });
 
-  test("Enter makes the next benefit", () => {
-    expect(tierDescriptionLines("Front-row table for four\nEarly entry at 6:30\nMeet & greet")).toEqual([
-      "Front-row table for four",
-      "Early entry at 6:30",
-      "Meet & greet",
+  test("the wristband: plain lines either side of a gap, no bullets at all", () => {
+    const written = [
+      "Works at Flobama, Lava Room, On the Rocks, Wildwood, Chicago Cafe",
+      "Skip the Line (N/A at Chicago Cafe)",
+      "waived cover",
+      "20% all food",
+      "",
+      "pickup your wristband on Mobile Plaza starting at 5pm Saturday",
+      "MUST BE 21+ TO PURCHASE",
+    ].join("\n");
+
+    const blocks = tierDescriptionBlocks(written);
+    // Nothing was dashed, so nothing is a bullet.
+    expect(blocks.filter((b) => b.kind === "bullets")).toHaveLength(0);
+    expect(blocks.filter((b) => b.kind === "space")).toHaveLength(1);
+    expect(blocks.filter((b) => b.kind === "text")).toHaveLength(6);
+  });
+
+  test("a one-liner stays the plain note it always was", () => {
+    const blocks = tierDescriptionBlocks("Each ticket comes with a surprise at the door");
+    expect(isSingleLineDescription(blocks)).toBe(true);
+    expect(blocks).toEqual([{ kind: "text", text: "Each ticket comes with a surprise at the door" }]);
+  });
+});
+
+describe("a dash makes a bullet", () => {
+  test.each(["-", "–", "—", "*", "•", "·", "▪"])("%s with a space opens a bullet", (marker) => {
+    expect(tierDescriptionBlocks(`${marker} Early entry`)).toEqual([
+      { kind: "bullets", items: ["Early entry"] },
+    ]);
+  });
+
+  test("consecutive bullets group into one list", () => {
+    expect(tierDescriptionBlocks("- One\n- Two\n- Three")).toEqual([
+      { kind: "bullets", items: ["One", "Two", "Three"] },
+    ]);
+  });
+
+  test("a plain line between two bullets breaks the list in two", () => {
+    expect(tierDescriptionBlocks("- One\nAnd also\n- Two")).toEqual([
+      { kind: "bullets", items: ["One"] },
+      { kind: "text", text: "And also" },
+      { kind: "bullets", items: ["Two"] },
+    ]);
+  });
+
+  test("a blank line between bullets breaks the list and keeps the gap", () => {
+    expect(tierDescriptionBlocks("- One\n\n- Two")).toEqual([
+      { kind: "bullets", items: ["One"] },
+      { kind: "space" },
+      { kind: "bullets", items: ["Two"] },
+    ]);
+  });
+});
+
+describe("a dash that is not a bullet", () => {
+  test("no space after it means it is part of the word", () => {
+    expect(tierDescriptionBlocks("-5 degrees outside")).toEqual([{ kind: "text", text: "-5 degrees outside" }]);
+    expect(tierDescriptionBlocks("Front-row table")).toEqual([{ kind: "text", text: "Front-row table" }]);
+  });
+
+  test("mid-sentence it is left alone", () => {
+    expect(tierDescriptionBlocks("Doors at 7 - show at 8")).toEqual([
+      { kind: "text", text: "Doors at 7 - show at 8" },
+    ]);
+  });
+
+  test("a marker alone on a line is air, not an empty bullet", () => {
+    // What you get hitting Enter after a dash before typing the benefit.
+    expect(tierDescriptionBlocks("- One\n-\n- Two")).toEqual([
+      { kind: "bullets", items: ["One"] },
+      { kind: "space" },
+      { kind: "bullets", items: ["Two"] },
+    ]);
+  });
+});
+
+describe("blank lines are kept", () => {
+  test("one blank line is one gap", () => {
+    expect(tierDescriptionBlocks("Above\n\nBelow")).toEqual([
+      { kind: "text", text: "Above" },
+      { kind: "space" },
+      { kind: "text", text: "Below" },
+    ]);
+  });
+
+  test("two blank lines are two gaps — what is typed is what is shown", () => {
+    expect(tierDescriptionBlocks("Above\n\n\nBelow")).toEqual([
+      { kind: "text", text: "Above" },
+      { kind: "space" },
+      { kind: "space" },
+      { kind: "text", text: "Below" },
+    ]);
+  });
+
+  test("adjacent lines with no blank between them stay tight", () => {
+    expect(tierDescriptionBlocks("One\nTwo")).toEqual([
+      { kind: "text", text: "One" },
+      { kind: "text", text: "Two" },
+    ]);
+  });
+
+  test("space at either end is trimmed", () => {
+    // A trailing newline, or a paste that began with one — not a gap anybody
+    // asked for, and it would push the price row out of line.
+    expect(tierDescriptionBlocks("\n\nOne\n\n")).toEqual([{ kind: "text", text: "One" }]);
+  });
+
+  test("a line of only whitespace counts as blank", () => {
+    expect(tierDescriptionBlocks("One\n   \nTwo")).toEqual([
+      { kind: "text", text: "One" },
+      { kind: "space" },
+      { kind: "text", text: "Two" },
     ]);
   });
 
   test("Windows line endings split the same", () => {
-    // A description pasted out of Word or an email arrives with \r\n.
-    expect(tierDescriptionLines("Early entry\r\nReserved table")).toEqual(["Early entry", "Reserved table"]);
-  });
-
-  test("blank lines are spacing in the editor, not empty bullets on the page", () => {
-    expect(tierDescriptionLines("Early entry\n\n\nReserved table\n")).toEqual(["Early entry", "Reserved table"]);
-  });
-
-  test("trailing and leading whitespace on a line is trimmed", () => {
-    expect(tierDescriptionLines("  Early entry  \n\tReserved table ")).toEqual(["Early entry", "Reserved table"]);
-  });
-});
-
-describe("a bullet somebody typed", () => {
-  // The storefront draws its own marker, so a typed one would double up.
-  test.each([
-    ["- Early entry", "Early entry"],
-    ["* Early entry", "Early entry"],
-    ["• Early entry", "Early entry"],
-    ["· Early entry", "Early entry"],
-    ["– Early entry", "Early entry"],
-    ["— Early entry", "Early entry"],
-    ["▪ Early entry", "Early entry"],
-  ])("%s becomes %s", (typed, expected) => {
-    expect(tierDescriptionLines(typed)).toEqual([expected]);
-  });
-
-  test("a hyphen that is part of the words is left alone", () => {
-    expect(tierDescriptionLines("Front-row table")).toEqual(["Front-row table"]);
-    expect(tierDescriptionLines("-5 degrees outside")).toEqual(["-5 degrees outside"]);
-  });
-
-  test("a dash mid-sentence is left alone", () => {
-    expect(tierDescriptionLines("Doors at 7 - show at 8")).toEqual(["Doors at 7 - show at 8"]);
-  });
-
-  test("only the leading bullet goes, one per line", () => {
-    expect(tierDescriptionLines("- Early entry\n- Reserved table")).toEqual(["Early entry", "Reserved table"]);
-  });
-
-  test("a bare bullet on its own line disappears", () => {
-    // What you get typing a list and hitting Enter before writing the next
-    // benefit. It used to survive as a literal "-" bullet on the storefront.
-    expect(tierDescriptionLines("- Early entry\n-\n- Reserved table")).toEqual(["Early entry", "Reserved table"]);
-    expect(tierDescriptionLines("•")).toEqual([]);
+    expect(tierDescriptionBlocks("One\r\n\r\nTwo")).toEqual([
+      { kind: "text", text: "One" },
+      { kind: "space" },
+      { kind: "text", text: "Two" },
+    ]);
   });
 });
 
 describe("nothing written", () => {
-  test.each([null, undefined, "", "   ", "\n\n"])("%p gives no lines", (v) => {
-    expect(tierDescriptionLines(v)).toEqual([]);
+  test.each([null, undefined, "", "   ", "\n\n"])("%p gives no blocks", (v) => {
+    expect(tierDescriptionBlocks(v)).toEqual([]);
   });
 
-  test("no lines means the storefront prints the old hardcoded string", () => {
-    // Which is how every tier of every show read before this field existed —
-    // so adding the column changed nothing until someone writes something.
-    const lines = tierDescriptionLines(null);
-    expect(lines[0] ?? TIER_DESCRIPTION_FALLBACK).toBe("Full event access");
+  test("no blocks means the storefront prints the old hardcoded string", () => {
+    const blocks = tierDescriptionBlocks(null);
+    expect(blocks).toHaveLength(0);
+    expect(TIER_DESCRIPTION_FALLBACK).toBe("Full event access");
+  });
+
+  test("the fallback is not treated as a single typed line", () => {
+    expect(isSingleLineDescription(tierDescriptionBlocks(null))).toBe(false);
   });
 });
 
-describe("one line vs several", () => {
-  // The storefront renders one line as the plain note and several as a list.
-  test("a paragraph with no newlines is a single line and stays a note", () => {
-    const para = "Includes a reserved table for four, early entry at 6:30 and a meet and greet after the set.";
-    expect(tierDescriptionLines(para)).toHaveLength(1);
+describe("isSingleLineDescription", () => {
+  test("one plain line, yes", () => {
+    expect(isSingleLineDescription(tierDescriptionBlocks("Standing room"))).toBe(true);
   });
 
-  test("the same benefits on their own lines become a list", () => {
-    expect(tierDescriptionLines("Reserved table for four\nEarly entry at 6:30\nMeet & greet")).toHaveLength(3);
+  test("one bullet, no — a list is a list even with one item", () => {
+    expect(isSingleLineDescription(tierDescriptionBlocks("- Standing room"))).toBe(false);
+  });
+
+  test("two lines, no", () => {
+    expect(isSingleLineDescription(tierDescriptionBlocks("One\nTwo"))).toBe(false);
   });
 });

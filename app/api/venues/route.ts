@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
-import { requireStaff } from "@/lib/auth/can";
+import { requireStaff, requireCapability } from "@/lib/auth/can";
 
 /**
  * The fields a storefront legitimately needs: branding, copy, links. Anything
@@ -60,22 +60,54 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? []);
 }
 
-// POST /api/venues — create a venue (owner/super_admin only)
+/**
+ * POST /api/venues — create a venue (owner only)
+ *
+ * The comment here has said "owner/super_admin only" since it was written
+ * and the code checked nothing at all. middleware.ts skips everything under
+ * /api/, and this uses the service-role client that bypasses RLS, so anyone
+ * who could reach the server could create a tenant — a venue is a tenant,
+ * with its own slug, subdomain and storefront. venue_lifecycle is owner-only
+ * (lib/auth/capabilities.ts), which is what the comment always claimed.
+ */
 export async function POST(request: Request) {
+  const guard = await requireCapability("venue_lifecycle", { write: true });
+  if (!guard.ok) return guard.response;
+
   const admin = createAdminClient();
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
+
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase() : "";
+  if (!name || !slug) {
+    return NextResponse.json({ error: "A host needs a name and a slug." }, { status: 400 });
+  }
 
   const { data, error } = await admin
     .from("venues")
     .insert({
-      name: body.name,
-      slug: body.slug,
+      name,
+      // Lower-cased on the way in. One row on file is "West72", which works
+      // as a subdomain by luck rather than by design.
+      slug,
       logo_url: body.logo_url || null,
+      // This was being dropped. The Tenants panel has always sent the
+      // own/client choice and the insert ignored it, so every host created
+      // there landed on the column default whatever was picked.
+      account_type: body.account_type === "own" ? "own" : "client",
     })
     .select()
     .single();
 
   if (error) {
+    // The slug is the subdomain and is UNIQUE. Say which field, rather than
+    // handing back a constraint name.
+    if (error.code === "23505") {
+      return NextResponse.json(
+        { error: `The slug "${slug}" is already taken by another host.` },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
