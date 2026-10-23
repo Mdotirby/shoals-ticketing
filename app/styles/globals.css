@@ -19257,7 +19257,13 @@ body[data-theme="liquid-glass"] .sf-page {
      gutter itself — without this the pill and the cards go flush to the
      viewport edge on anything narrower than 1280. */
   max-width: calc(var(--sf-max) + 40px);
-  padding: 0 20px;
+  /* The top gutter matches the sides, so the header pill floats instead of
+     sitting in the viewport's top edge. It had 20px either side and 0 above,
+     which clipped its top corners against the edge and read as a bar that
+     had failed to reach full width rather than a pill deliberately inset.
+     env() is 0 in a normal browser tab and only non-zero in standalone,
+     where it keeps the pill clear of the notch with the same 20px of air. */
+  padding: calc(20px + env(safe-area-inset-top)) 20px 0;
 }
 
 /* ── Storefront listing: controls ───────────────────────────────
