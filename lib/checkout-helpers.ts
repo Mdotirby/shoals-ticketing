@@ -238,6 +238,82 @@ export async function eventRequiresSeating(
   return !!data?.layout_id;
 }
 
+/**
+ * Do these seats belong to the show being bought?
+ *
+ * WHY THIS EXISTS — this is a security fix, not a tidy-up
+ * ------------------------------------------------------
+ * The seats table has no event_id. A seat belongs to a section, a section to
+ * a layout, and a layout is attached to an event by event_layout_maps. So
+ * every checkout path that took `seat_ids` from a request body and wrote them
+ * with `.in("id", seatIds)` was holding and selling seats without ever asking
+ * whose show they were.
+ *
+ * Verified against a running server before writing this: POST
+ * /api/checkout/create-intent with Bottomland's eventId and two of Comic
+ * Invasion's seat ids returned 200, created a real PaymentIntent, priced it
+ * at Comic Invasion's $30 VIP seats rather than Bottomland's $15 GA, and left
+ * both Comic Invasion seats `held` against a Bottomland order. Confirming that
+ * intent would have taken $74.46 for one show and marked two seats sold at
+ * another.
+ *
+ * The storefront never produces such a request — the event page remounts on
+ * navigation, so a selection cannot follow a buyer from one show to the next
+ * (checked in a browser). This is the server-side backstop that was missing
+ * underneath it.
+ *
+ * Returns the offending ids rather than a bare boolean so the caller can say
+ * what was wrong. A seat id that does not exist at all is foreign too.
+ */
+export async function assertSeatsBelongToEvent(
+  admin: SupabaseClient,
+  eventId: string,
+  seatIds: string[]
+): Promise<{ ok: true } | { ok: false; error: string; foreign: string[] }> {
+  if (!Array.isArray(seatIds) || seatIds.length === 0) return { ok: true };
+
+  const { data: map } = await admin
+    .from("event_layout_maps")
+    .select("layout_id")
+    .eq("event_id", eventId)
+    .eq("enabled", true)
+    .maybeSingle();
+
+  // Seats sent for a show that sells no seat map at all: nothing here is
+  // theirs, so all of them are foreign.
+  if (!map?.layout_id) {
+    return { ok: false, error: "This show does not have reserved seating.", foreign: [...seatIds] };
+  }
+
+  const { data: sections } = await admin
+    .from("sections")
+    .select("id")
+    .eq("layout_id", map.layout_id);
+  const ownSections = new Set((sections ?? []).map((r: { id: string }) => r.id));
+
+  const { data: seats } = await admin
+    .from("seats")
+    .select("id, section_id")
+    .in("id", seatIds);
+  const sectionOf = new Map(
+    (seats ?? []).map((r: { id: string; section_id: string }) => [r.id, r.section_id])
+  );
+
+  const foreign = seatIds.filter((id) => {
+    const section = sectionOf.get(id);
+    return !section || !ownSections.has(section);
+  });
+
+  if (foreign.length > 0) {
+    return {
+      ok: false,
+      error: "Those seats are not part of this show. Please re-select.",
+      foreign,
+    };
+  }
+  return { ok: true };
+}
+
 export interface EventSeatInventory {
   capacity: number;
   sold: number;
@@ -393,8 +469,21 @@ export async function validateAndHoldSeats(
   admin: SupabaseClient,
   seatIds: string[],
   eventPrice: number,
-  sessionId?: string
+  sessionId: string | undefined,
+  /**
+   * The show being bought. Required, and checked first: this function holds
+   * and prices whatever ids it is handed, so without it a seat from another
+   * show is held and sold just as readily as one of this show's. Made a
+   * parameter rather than something the caller checks beforehand so it cannot
+   * be forgotten at a new call site. See assertSeatsBelongToEvent.
+   */
+  eventId: string
 ): Promise<{ error?: string; unavailable?: string[]; result?: SeatValidationResult }> {
+  const owned = await assertSeatsBelongToEvent(admin, eventId, seatIds);
+  if (!owned.ok) {
+    return { error: owned.error, unavailable: owned.foreign };
+  }
+
   // Release stale holds from this same session's earlier / abandoned attempts
   // — but only ones NOT part of the current request. Without this, a buyer
   // who re-picked seats in the same browser session leaves multiple sets of

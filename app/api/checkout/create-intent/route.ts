@@ -300,7 +300,12 @@ export async function POST(request: Request) {
         admin,
         selectedSeats,
         ticketPriceDollars,
-        holdSessionId
+        holdSessionId,
+        // Without this the seats were never checked against the show. A
+        // request pairing this event with another's seat ids was accepted,
+        // priced at the other show's seats and held them. See
+        // lib/checkout-helpers.ts assertSeatsBelongToEvent.
+        eventId
       );
 
       if (seatResult.error) {

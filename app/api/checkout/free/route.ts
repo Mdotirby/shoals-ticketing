@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
-import { validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
+import { validatePresaleCode, eventRequiresSeating, assertSeatsBelongToEvent } from "@/lib/checkout-helpers";
 import { unlocksTier } from "@/lib/fees/tierFees";
 import { sendTicketEmail } from "@/lib/email/ticket-email";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
@@ -110,6 +110,17 @@ export async function POST(request: Request) {
   }
 
   // Guard: reserved-seating events require a seat selection (authoritative backstop).
+  // Whose seats are these? A $0 claim marks them sold outright, with no hold
+  // and no availability check, so an unchecked id here is a seat at another
+  // show flipped to sold by a free registration. See
+  // lib/checkout-helpers.ts assertSeatsBelongToEvent.
+  if (Array.isArray(seat_ids) && seat_ids.length > 0) {
+    const owned = await assertSeatsBelongToEvent(admin, event_id, seat_ids);
+    if (!owned.ok) {
+      return NextResponse.json({ error: owned.error, unavailable: owned.foreign }, { status: 409 });
+    }
+  }
+
   if (!(Array.isArray(seat_ids) && seat_ids.length > 0)) {
     if (await eventRequiresSeating(admin, event_id)) {
       return NextResponse.json(

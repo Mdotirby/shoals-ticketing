@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { v4 as uuidv4 } from "uuid";
 import { pastEventReason } from "@/lib/events/closeout";
-import { resolveVenueFees, validatePresaleCode, eventRequiresSeating } from "@/lib/checkout-helpers";
+import { resolveVenueFees, validatePresaleCode, eventRequiresSeating, assertSeatsBelongToEvent } from "@/lib/checkout-helpers";
 import { OPERATOR_DOMAIN_MAP } from "@/lib/operators";
 import { surchargeCents } from "@/lib/fees/rates";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
@@ -143,6 +143,15 @@ export async function POST(request: Request) {
 
     let reservedSeatIds: string[] = [];
     if (Array.isArray(seat_ids) && seat_ids.length > 0) {
+      // Whose seats are these? This route is no longer referenced by any
+      // client, but the endpoint is live and takes seat ids from the body
+      // exactly as the others did. See lib/checkout-helpers.ts
+      // assertSeatsBelongToEvent.
+      const owned = await assertSeatsBelongToEvent(admin, event_id, seat_ids);
+      if (!owned.ok) {
+        return NextResponse.json({ error: owned.error, unavailable: owned.foreign }, { status: 409 });
+      }
+
       // Verify seats are still available or held by this same session (already reserved on the seating page)
       const { data: seatCheck } = await admin
         .from("seats")
