@@ -20,6 +20,7 @@ import type { SectionFull } from "@/lib/seating/types";
 import { useHub, type HubHold } from "../HubContext";
 import { HubActions } from "../HubShell";
 import { HubDrawer, HubLoading } from "../ui";
+import ShowSeatMap from "./ShowSeatMap";
 
 const KINDS: Array<{ key: HubHold["hold_type"]; label: string; tone: string; note: string }> = [
   { key: "artist", label: "Artist", tone: "warn", note: "Held for the band, crew and their guests" },
@@ -300,6 +301,10 @@ export default function Inventory() {
           </div>
         </HubDrawer>
       )}
+
+      {/* The seat-level half of the same question the Holds panel answers by
+          count: which particular seats are spoken for on this night. */}
+      <ShowSeatMap />
     </>
   );
 }

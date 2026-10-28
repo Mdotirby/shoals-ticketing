@@ -24737,6 +24737,89 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ebuy-history li span { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); }
 .admin-shell .ebuy-note { margin-top: 14px; }
 
+/* ── Show seat map — holds and kills on one show's room ────────────────────
+   app/admin/events/[id]/_hub/sections/ShowSeatMap.tsx, built to
+   handoff/screens/seatmap-builder.dc.html (Show mode). */
+.admin-shell .ssm { margin-top: 16px; }
+.admin-shell .ssm-none { margin-top: 16px; }
+
+.admin-shell .ssm-tools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.admin-shell .ssm-tool {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 11px; border-radius: 11px; cursor: pointer;
+  font: inherit; font-size: 11.5px; font-weight: 600;
+  color: rgba(255, 255, 255, 0.66);
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+}
+.admin-shell .ssm-tool:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.admin-shell .ssm-tool.is-on {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.admin-shell .ssm-tool-icon { font-size: 12px; line-height: 1; }
+.admin-shell .ssm-tool kbd {
+  font: inherit; font-size: 9px; font-weight: 700;
+  padding: 1px 4px; border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.admin-shell .ssm-hint { font-size: 10.5px; line-height: 1.5; color: rgba(255, 255, 255, 0.42); margin-bottom: 12px; }
+
+.admin-shell .ssm-warn {
+  margin-bottom: 12px; padding: 8px 11px; border-radius: 10px;
+  font-size: 11px; line-height: 1.5; color: #ffcf8f;
+  background: rgba(255, 190, 110, 0.1); border: 1px solid rgba(255, 190, 110, 0.26);
+}
+.admin-shell .ssm-inspect {
+  margin-bottom: 12px; padding: 8px 11px; border-radius: 10px;
+  font-size: 11px; color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.admin-shell .ssm-canvas-wrap {
+  overflow: auto; border-radius: 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px;
+}
+.admin-shell .ssm-canvas { position: relative; margin: 0 auto; }
+.admin-shell .ssm-seat {
+  position: absolute; width: 9px; height: 9px; padding: 0;
+  border-radius: 999px; transform: translate(-50%, -50%);
+  transition: transform 0.08s ease;
+}
+.admin-shell .ssm-seat:hover { transform: translate(-50%, -50%) scale(1.5); z-index: 2; }
+/* A sold seat is not a target. It does not grow under the cursor either. */
+.admin-shell .ssm-seat.is-sold:hover { transform: translate(-50%, -50%); }
+
+.admin-shell .ssm-fire { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.admin-shell .ssm-fire-bar {
+  flex: 1; height: 5px; border-radius: 999px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+.admin-shell .ssm-fire-bar > span { display: block; height: 100%; border-radius: 999px; }
+.admin-shell .ssm-fire-label {
+  flex: none; font-size: 10.5px; color: rgba(255, 255, 255, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-shell .ssm-summary { margin-top: 14px; display: grid; gap: 1px; }
+.admin-shell .ssm-sum-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11.5px; color: rgba(255, 255, 255, 0.62);
+}
+.admin-shell .ssm-sw { flex: none; width: 10px; height: 10px; border-radius: 999px; }
+.admin-shell .ssm-sum-label { flex: 1; }
+.admin-shell .ssm-sum-row b { font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.9); }
+
+.admin-shell .ssm-shortcuts {
+  margin-top: 12px; font-size: 10px; color: rgba(255, 255, 255, 0.33);
+}
+
 @media (max-width: 560px) {
   .admin-shell .ebuy-send { flex-direction: column; align-items: stretch; }
   .admin-shell .ebuy-confirm { justify-content: space-between; }
