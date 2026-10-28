@@ -24653,6 +24653,96 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .hub-deposit .pledger { margin-top: 0; }
 .admin-shell .hub-deposit-foot { margin-top: 12px; }
 
+/* ── Email buyers — a message to everyone holding a ticket ─────────────────
+   app/admin/events/[id]/_hub/sections/EmailBuyers.tsx, opened from Orders. */
+.admin-shell .ebuy { margin-bottom: 16px; }
+.admin-shell .ebuy-refunded {
+  display: flex; gap: 9px; align-items: flex-start;
+  margin-bottom: 14px; padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 190, 110, 0.07);
+  border: 1px solid rgba(255, 190, 110, 0.2);
+  font-size: 11px; line-height: 1.55; color: rgba(255, 255, 255, 0.62);
+}
+.admin-shell .ebuy-refunded input { margin-top: 2px; flex: none; width: 15px; height: 15px; accent-color: #ffcf8f; }
+
+.admin-shell .ebuy-form { display: grid; gap: 12px; }
+.admin-shell .ebuy-field { display: grid; gap: 5px; }
+.admin-shell .ebuy-field > span {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.42);
+}
+.admin-shell .ebuy-field input,
+.admin-shell .ebuy-field textarea {
+  width: 100%; min-width: 0; padding: 10px 12px;
+  font: inherit; font-size: 16px; line-height: 1.55; color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 12px; outline: none;
+  resize: vertical;
+}
+.admin-shell .ebuy-field input:focus,
+.admin-shell .ebuy-field textarea:focus { border-color: rgba(255, 255, 255, 0.36); }
+.admin-shell .ebuy-field > small { font-size: 10px; line-height: 1.5; color: rgba(255, 255, 255, 0.38); }
+
+.admin-shell .ebuy-send {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-top: 14px;
+  padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.admin-shell .ebuy-confirm { display: flex; align-items: flex-end; gap: 8px; }
+.admin-shell .ebuy-confirm label { display: grid; gap: 5px; }
+.admin-shell .ebuy-confirm label > span {
+  font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.42);
+}
+.admin-shell .ebuy-confirm input {
+  width: 92px; padding: 9px 11px;
+  font: inherit; font-size: 15px; text-align: center;
+  font-variant-numeric: tabular-nums; color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 10px; outline: none;
+}
+.admin-shell .ebuy-confirm input:focus { border-color: rgba(255, 255, 255, 0.36); }
+
+.admin-shell .ebuy-test, .admin-shell .ebuy-go {
+  font: inherit; cursor: pointer; border-radius: 11px; min-height: 40px; padding: 9px 16px; font-size: 12.5px;
+}
+.admin-shell .ebuy-test {
+  font-weight: 600; color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.admin-shell .ebuy-test:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, 0.1); }
+/* Deliberately not a quiet button. It is the one that reaches the room. */
+.admin-shell .ebuy-go {
+  font-weight: 700; color: #000;
+  background: var(--admin-primary, #fff); border: 1px solid var(--admin-primary, #fff);
+}
+.admin-shell .ebuy-test:disabled, .admin-shell .ebuy-go:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.admin-shell .ebuy-error, .admin-shell .ebuy-ok {
+  margin-top: 12px; padding: 9px 12px; border-radius: 11px;
+  font-size: 11.5px; line-height: 1.55;
+}
+.admin-shell .ebuy-error { color: #ffb4b4; background: rgba(255, 120, 120, 0.1); border: 1px solid rgba(255, 120, 120, 0.26); }
+.admin-shell .ebuy-ok { color: #a9e5bd; background: rgba(120, 220, 160, 0.09); border: 1px solid rgba(120, 220, 160, 0.24); }
+
+.admin-shell .ebuy-history { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.admin-shell .ebuy-history ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 1px; }
+.admin-shell .ebuy-history li {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11.5px;
+}
+.admin-shell .ebuy-history li b { font-weight: 650; color: rgba(255, 255, 255, 0.82); }
+.admin-shell .ebuy-history li span { font-size: 10.5px; color: rgba(255, 255, 255, 0.44); }
+.admin-shell .ebuy-note { margin-top: 14px; }
+
+@media (max-width: 560px) {
+  .admin-shell .ebuy-send { flex-direction: column; align-items: stretch; }
+  .admin-shell .ebuy-confirm { justify-content: space-between; }
+  .admin-shell .ebuy-go { flex: 1; }
+}
+
 @media (max-width: 560px) {
   .admin-shell .pledger-form-row { flex-direction: column; }
   .admin-shell .pledger-rows li { flex-wrap: wrap; }

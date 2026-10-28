@@ -18,6 +18,7 @@ import { useHub } from "../HubContext";
 import { HubActions } from "../HubShell";
 import { HubEmpty, HubLoading } from "../ui";
 import { useEventOrders, type HubOrder } from "../useEventData";
+import EmailBuyers from "./EmailBuyers";
 
 const SRC: Record<string, string> = {
   online: "Online", inline_checkout: "Online", box_office: "Box office", terminal: "Terminal", cash: "Cash", comp: "Comp",
@@ -41,6 +42,7 @@ export default function Orders() {
   const { data: orders, refresh } = useEventOrders(id);
   const [q, setQ] = useState("");
   const [src, setSrc] = useState("All");
+  const [emailOpen, setEmailOpen] = useState(false);
   const router = useRouter();
   const params = useSearchParams();
   const open = params.get("order");
@@ -95,8 +97,15 @@ export default function Orders() {
   return (
     <>
       <HubActions>
+        {/* Writing to the room. Here rather than under Marketing: it is a
+            message to the people on this list, not a campaign. */}
+        <button type="button" className="hub-btn" onClick={() => setEmailOpen((v) => !v)} disabled={!orders.length}>
+          {emailOpen ? "Close email" : "Email buyers"}
+        </button>
         <button type="button" className="hub-btn" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
       </HubActions>
+
+      {emailOpen && <EmailBuyers onClose={() => setEmailOpen(false)} />}
 
       {orders.length === 0 ? (
         <HubEmpty

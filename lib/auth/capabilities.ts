@@ -27,6 +27,7 @@ export const CAPABILITIES = [
   "expenses",
   "export_ledger",
   "read_audit",
+  "message_buyers",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -74,6 +75,16 @@ const MATRIX: Record<Capability, readonly CapabilityLevel[]> = {
   expenses: [F, F, S, F, S, N],
   export_ledger: [F, F, N, F, N, N],
   read_audit: [F, F, N, R, N, N],
+  /**
+   * Emailing everyone who bought a ticket to a show.
+   *
+   * Its own capability rather than borrowed from a neighbour: this is the one
+   * admin action that reaches hundreds of customers at once and cannot be
+   * taken back, so it should not ride along with pricing or role assignment.
+   * Owner and Venue Admin only — the same two who can already change what a
+   * show charges.
+   */
+  message_buyers: [F, F, N, N, N, N],
 };
 
 /** Default capability level for a staff level, from the design matrix. */
