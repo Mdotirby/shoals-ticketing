@@ -6,8 +6,11 @@ import { sendEventAnnouncementBroadcast } from "@/standalone-emails/lib/sendEven
 import { sendUpcomingEventsBroadcast } from "@/standalone-emails/lib/sendUpcomingEventsEmail";
 import { getNewsletterSegmentId } from "@/standalone-emails/lib/getNewsletterSegmentId";
 import { TRIGGERS } from "@/standalone-emails/lib/triggers";
+import { requireCapability } from "@/lib/auth/can";
 
 export async function POST(request: Request) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   try {
     const body = await request.json();
     const { trigger, eventId, limit, confirm, reminderStage, customMessage, eventIds } = body;

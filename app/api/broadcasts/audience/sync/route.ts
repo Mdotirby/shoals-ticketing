@@ -4,8 +4,11 @@
 import { NextResponse } from "next/server";
 import { syncNewsletterSubscribersToSegment } from "@/standalone-emails/lib/contactSync";
 import { getNewsletterSegmentId } from "@/standalone-emails/lib/getNewsletterSegmentId";
+import { requireCapability } from "@/lib/auth/can";
 
 export async function POST() {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   try {
     const segmentId = await getNewsletterSegmentId();
     const result = await syncNewsletterSubscribersToSegment(segmentId);

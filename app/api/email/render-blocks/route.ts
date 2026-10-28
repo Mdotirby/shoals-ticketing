@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderDocument } from "@/emails/render";
 import type { EmailDocument } from "@/emails/email-document";
+import { requireStaff } from "@/lib/auth/can";
 
 /**
  * POST /api/email/render-blocks
@@ -15,6 +16,8 @@ import type { EmailDocument } from "@/emails/email-document";
  * Returns: { html: string, subject: string }
  */
 export async function POST(req: NextRequest) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const body = await req.json() as {
     document: EmailDocument;
     subject?: string;

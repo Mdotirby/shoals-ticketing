@@ -3,8 +3,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getNewsletterSegmentId } from "@/standalone-emails/lib/getNewsletterSegmentId";
+import { requireStaff } from "@/lib/auth/can";
 
 export async function GET() {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   try {
     const admin = createAdminClient();
 

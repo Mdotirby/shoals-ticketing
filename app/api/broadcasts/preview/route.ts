@@ -10,8 +10,11 @@ import { UpcomingEventsEmail } from "@/standalone-emails/templates/UpcomingEvent
 import { buildEventAnnouncementSubject } from "@/standalone-emails/lib/sendEventAnnouncement";
 import { UPCOMING_EVENTS_SUBJECT } from "@/standalone-emails/lib/sendUpcomingEventsEmail";
 import { TRIGGERS } from "@/standalone-emails/lib/triggers";
+import { requireStaff } from "@/lib/auth/can";
 
 export async function POST(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   try {
     const body = await request.json();
     const { trigger, eventId, limit, reminderStage, customMessage, eventIds } = body;

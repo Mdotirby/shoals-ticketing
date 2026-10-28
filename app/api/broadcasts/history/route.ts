@@ -4,8 +4,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import { computeSendRevenue } from "@/standalone-emails/lib/attributeRevenue";
+import { requireStaff } from "@/lib/auth/can";
 
 export async function GET(request: Request) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);

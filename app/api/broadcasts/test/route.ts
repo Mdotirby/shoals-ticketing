@@ -5,8 +5,11 @@ import { NextResponse } from "next/server";
 import { sendEventAnnouncementTest } from "@/standalone-emails/lib/sendEventAnnouncement";
 import { sendUpcomingEventsTest } from "@/standalone-emails/lib/sendUpcomingEventsEmail";
 import { TRIGGERS } from "@/standalone-emails/lib/triggers";
+import { requireCapability } from "@/lib/auth/can";
 
 export async function POST(request: Request) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   try {
     const body = await request.json();
     const { trigger, eventId, limit, to, reminderStage, customMessage, eventIds } = body;

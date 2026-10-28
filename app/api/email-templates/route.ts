@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
-import { requireStaff } from "@/lib/auth/can";
+import { requireStaff, requireCapability } from "@/lib/auth/can";
 
 // GET /api/email-templates?venue_id=xxx
 export async function GET(req: NextRequest) {
@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/email-templates — Create a template
 export async function POST(req: NextRequest) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   const body = await req.json();
   const admin = createAdminClient();
 
@@ -52,6 +54,8 @@ export async function POST(req: NextRequest) {
 
 // PUT /api/email-templates — Update a template
 export async function PUT(req: NextRequest) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   const body = await req.json();
   const admin = createAdminClient();
 
@@ -77,6 +81,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE /api/email-templates?id=xxx
 export async function DELETE(req: NextRequest) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 

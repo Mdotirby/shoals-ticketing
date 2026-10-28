@@ -1,8 +1,11 @@
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireCapability } from "@/lib/auth/can";
 
 // POST /api/email-templates/seed?venue_id=xxx — Seed default templates for a venue
 export async function POST(req: NextRequest) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   const venueId = req.nextUrl.searchParams.get("venue_id") || null;
   const admin = createAdminClient();
 

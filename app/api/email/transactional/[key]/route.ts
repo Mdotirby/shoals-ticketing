@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
 import type { EmailDocument } from "@/emails/email-document";
+import { requireCapability, requireStaff } from "@/lib/auth/can";
 
 type Params = { params: Promise<{ key: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   const { key } = await params;
   const admin = createAdminClient();
 
@@ -19,6 +22,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  const guard = await requireCapability("message_buyers", { write: true });
+  if (!guard.ok) return guard.response;
   const { key } = await params;
   const body = await req.json() as { label?: string; body_json: EmailDocument; updated_by?: string };
 
