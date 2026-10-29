@@ -39,7 +39,7 @@ export type InlineInputs = {
   variable_expense_rates: Array<{ name: string; rate: number }>;
   /** Offer-side deal terms, shown as defaults. Optional. */
   offer_guarantee?: number;
-  offer_deal_type?: "FLAT" | "VS" | "PLUS" | "BONUS" | null;
+  offer_deal_type?: "FLAT" | "VS" | "PLUS" | "BONUS" | "DOOR" | null;
   offer_backend_percentage?: number | null;
 };
 

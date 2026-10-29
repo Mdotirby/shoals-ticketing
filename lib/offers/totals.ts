@@ -1,5 +1,7 @@
 import { artistPayout } from "@/lib/settlement/model";
 import { talentInExpenses } from "./defaults";
+import { doorDeductions as doorDeductionsOf } from "./door";
+import { artistFacilityShare } from "./facilityShare";
 import type { ExpenseItem } from "@/lib/types/offer";
 import { withoutCardExpense, cardExpenseAtSellout, CARD_EXPENSE_NAME } from "./cardExpense";
 
@@ -106,6 +108,11 @@ export function offerTotals(form: Record<string, unknown>) {
     guarantee: guaranteeNum,
     backendPct: backendPctDecimal,
     dealType: dealTypeNow || "FLAT",
+    // DOOR splits receipts directly, so it takes the card surcharge out
+    // itself, and any lines the deal names as coming off the top.
+    cardSurcharge: cardExpense.amount,
+    doorDeductions: doorDeductionsOf(fixedExp as ExpenseItem[], dealTypeNow),
+    facilityFeeToArtist: artistFacilityShare(scaling),
   });
   const overage = payout.overage;
   // On top of the guarantee: VS/BONUS the overage, PLUS the whole backend.
@@ -150,5 +157,9 @@ export function offerTotals(form: Record<string, unknown>) {
     artistBackend,
     artistTotal,
     potWalkout,
+    /** DOOR: what comes off the door before the split. Zero otherwise. */
+    doorDeductions: doorDeductionsOf(fixedExp as ExpenseItem[], dealTypeNow),
+    /** Facility fee paid to the artist at sellout — inside artistTotal. */
+    artistFac: payout.facilityFeeToArtist,
   };
 }

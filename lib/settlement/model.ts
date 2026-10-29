@@ -168,6 +168,18 @@ export type ArtistPayoutInput = {
    * percentage of money that goes to Stripe.
    */
   cardSurcharge?: number;
+  /**
+   * DOOR only: the expenses agreed to come off the top before the split
+   * ("70% of the door after support and catering"). Paid by the venue like
+   * any other expense; the deal just measures the door after them.
+   */
+  doorDeductions?: number;
+  /**
+   * Facility fee handed to the artist ("$1 a ticket of the FAC fee"), as a
+   * dollar total. Outside the split, on top of whatever the deal pays —
+   * and a cost to whoever keeps the facility fee.
+   */
+  facilityFeeToArtist?: number;
 };
 
 export type ArtistPayout = {
@@ -196,6 +208,8 @@ export type ArtistPayout = {
   serviceFeeRebate: number;
   /** dealTotal + serviceFeeRebate — the figure to write the cheque for. */
   artistTotal: number;
+  /** The facility fee share inside dealTotal; zero when the deal has none. */
+  facilityFeeToArtist: number;
 };
 
 /** The label the card surcharge carries on a settlement's expense list. */
@@ -235,6 +249,13 @@ export function withCardExpense<T extends SettlementExpenseLike>(
 }
 
 export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
+  const fac = Math.max(0, Number(input.facilityFeeToArtist) || 0);
+  const p = splitPayout(input);
+  return { ...p, dealTotal: p.dealTotal + fac, artistTotal: p.artistTotal + fac, facilityFeeToArtist: fac };
+}
+
+/** The deal itself, before anything paid outside the split. */
+function splitPayout(input: ArtistPayoutInput): Omit<ArtistPayout, "facilityFeeToArtist"> {
   const { netReceipts, totalExpenses, guarantee, backendPct } = input;
   const dealType = String(input.dealType ?? "FLAT").toUpperCase();
 
@@ -242,12 +263,13 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   const serviceFeeRebate =
     (input.ticketingFees ?? 0) * (input.serviceFeeRebatePct ?? 0);
 
-  // Pure door deal: a straight percentage of net, with no guarantee floor and
-  // no expense recoupment. Because it recoups nothing, it never meets the
-  // expense line that takes the card surcharge back out, so it takes it out
-  // here -- otherwise the artist is paid a share of Stripe's cut.
+  // Door deal: a straight percentage of the door, with no guarantee floor.
+  // It recoups no expenses except the ones the deal names as coming off the
+  // top. Because it never meets the expense line that takes the card
+  // surcharge back out, it takes it out here -- otherwise the artist is paid
+  // a share of Stripe's cut.
   if (dealType === "DOOR") {
-    const doorBase = netReceipts - (input.cardSurcharge ?? 0);
+    const doorBase = netReceipts - (input.cardSurcharge ?? 0) - (input.doorDeductions ?? 0);
     const artistBackend = doorBase > 0 ? doorBase * backendPct : 0;
     return {
       netAfterExpenses,

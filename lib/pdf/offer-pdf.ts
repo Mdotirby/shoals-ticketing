@@ -7,6 +7,8 @@ import type { TicketScalingRow, ExpenseItem, VariableExpenseItem, ShowLineupItem
 import { artistPayout } from "@/lib/settlement/model";
 import type { Venue } from "../types/venue";
 import { cardSurchargeExact } from "@/lib/offers/cardExpense";
+import { doorDeductions, joinNames, offTopNames } from "@/lib/offers/door";
+import { artistFacilityShare, artistFacPerTicket } from "@/lib/offers/facilityShare";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize, formatTime12hr,
@@ -491,17 +493,25 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
     guarantee,
     backendPct,
     dealType,
+    // This page's net potential is face value -- no card surcharge inside it.
+    doorDeductions: doorDeductions(data.fixed_expenses, dealType),
+    facilityFeeToArtist: artistFacilityShare(scaling),
   });
   const backendAmt = dealType === "FLAT" ? 0 : payoutPDF.artistBackend;
   const artistTotal = payoutPDF.dealTotal;
   const backendLabel =
     dealType === "FLAT" ? ""
     : dealType === "PLUS" ? `Backend (PLUS — ${(backendPct * 100).toFixed(0)}% of net after expenses, on top of guarantee)`
+    : dealType === "DOOR"
+      ? `Door (${(backendPct * 100).toFixed(0)}% of the door${offTopNames(data.fixed_expenses).length ? ` after ${joinNames(offTopNames(data.fixed_expenses))}` : ""})`
     : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
 
   y = lv("Guarantee", f2(guarantee), y);
   if (backendLabel) {
     y = lv(backendLabel, `$${backendAmt.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
+  }
+  if (payoutPDF.facilityFeeToArtist > 0) {
+    y = lv(`Facility fee to artist ($${artistFacPerTicket(scaling).toFixed(2)} per ticket)`, f2(payoutPDF.facilityFeeToArtist), y);
   }
   // Gold highlight for artist total
   doc.setDrawColor(...GOLD);

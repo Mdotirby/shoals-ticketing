@@ -1,4 +1,4 @@
-export type DealType = "VS" | "FLAT" | "PLUS" | "BONUS";
+export type DealType = "VS" | "FLAT" | "PLUS" | "BONUS" | "DOOR";
 
 /**
  * Whose risk the show is — a different question from DealType, which is how
@@ -26,11 +26,15 @@ export type TicketScalingRow = {
   net_price: number;
   facility_fee: number;
   ticketing_fee: number;
+  /** $ per ticket of this tier's facility fee paid to the artist. */
+  artist_fac?: number;
 };
 
 export type ExpenseItem = {
   name: string;
   amount: number;
+  /** DOOR deals: this line comes off the door before the split. */
+  off_top?: boolean;
 };
 
 export type VariableExpenseItem = {

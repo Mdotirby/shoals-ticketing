@@ -1,6 +1,8 @@
 import type { ArtistOffer } from "@/lib/types/offer";
 import { artistPayout } from "@/lib/settlement/model";
 import { talentInExpenses } from "@/lib/offers/defaults";
+import { doorDeductions, joinNames, offTopNames } from "@/lib/offers/door";
+import { artistFacilityShare, artistFacPerTicket } from "@/lib/offers/facilityShare";
 import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
@@ -118,6 +120,10 @@ export type OfferData = {
   total_expenses: number;
 
   artist_guarantee: number;
+  /** A64-A66: the template's row names, renamed on a door deal. */
+  splitpoint_label: string;
+  backend_label: string;
+  overage_label: string;
   splitpoint: number;
   backend: number;
   overage: number;
@@ -229,7 +235,12 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
    */
   const net_potential = adj_gross_potential - taxes;
 
-  const expenses_fixed = (offer.fixed_expenses || []).map((e) => ({ name: e.name, amount: e.amount || 0 }));
+  // On a door deal, say which lines come off the door before the split.
+  const isDoor = String(offer.deal_type || "").toUpperCase() === "DOOR";
+  const expenses_fixed = (offer.fixed_expenses || []).map((e) => ({
+    name: isDoor && e.off_top ? `${e.name} (off the top)` : e.name,
+    amount: e.amount || 0,
+  }));
 
   // The card surcharge is a show expense, derived from the rate rather than
   // read off the record. Deriving it rather than trusting the stored rows
@@ -279,10 +290,27 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     guarantee,
     backendPct,
     dealType,
+    // DOOR splits receipts directly: out comes the surcharge inside
+    // net_potential, and any lines the deal takes off the top.
+    cardSurcharge: cardExpense.amount,
+    doorDeductions: doorDeductions(offer.fixed_expenses, dealType),
+    facilityFeeToArtist: artistFacilityShare(rows),
   });
   const hasBackend = dealType !== "FLAT";
-  const backend = hasBackend && netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0;
-  const overage = hasBackend ? payout.artistBackend : 0;
+  const backend = dealType === "DOOR"
+    ? payout.artistBackend
+    : hasBackend && netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0;
+  // A door deal has no overage; that row carries the facility fee share.
+  const overage = isDoor ? payout.facilityFeeToArtist : hasBackend ? payout.artistBackend : 0;
+  const facPer = artistFacPerTicket(rows);
+  const offTop = offTopNames(offer.fixed_expenses);
+  // B18 spells the deal out, so the sheet says what the numbers are.
+  const dealLabel = [
+    isDoor
+      ? `DOOR ${Math.round(backendPct * 100)}/${100 - Math.round(backendPct * 100)}${offTop.length ? ` after ${joinNames(offTop)}` : ""}`
+      : String(offer.deal_type || ""),
+    facPer > 0 ? `+ $${facPer.toFixed(2)}/tkt FAC to artist` : "",
+  ].filter(Boolean).join(" ");
   const artist_total_potential = payout.dealTotal;
 
   // On FLAT, PLUS and BONUS the guarantee is the Talent line inside
@@ -344,7 +372,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     guarantee,
     deposit_pct: (o.deposit_pct || 0) / 100,
     deposit_amount: o.deposit_amount ?? guarantee * ((o.deposit_pct || 0) / 100),
-    deal_type: o.deal_type || "",
+    deal_type: dealLabel,
     deposit_due: o.deposit_due || "",
     backend_percentage: backendPct,
     balance_due_terms: o.balance_due || "",
@@ -404,7 +432,11 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     total_expenses,
 
     artist_guarantee: guarantee,
-    splitpoint: netAfterExpenses,
+    splitpoint_label: isDoor ? (offTop.length ? `Door after ${joinNames(offTop)}` : "Door (face value)") : "Splitpoint",
+    backend_label: isDoor ? "Door share" : "Backend",
+    overage_label: isDoor ? "Facility fee to artist" : "Overage",
+    // On a door deal the split runs on the door, not on net after expenses.
+    splitpoint: isDoor ? payout.overage : netAfterExpenses,
     backend,
     overage,
     artist_total_potential,

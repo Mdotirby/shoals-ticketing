@@ -14,6 +14,8 @@ import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { rateLabel } from "@/lib/fees/rates";
 import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
 import { guaranteeInExpenses as guaranteeIsExpense, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
+import { offTopNames, withDoorDefaults } from "@/lib/offers/door";
+import { artistFacPerTicket, withArtistFac } from "@/lib/offers/facilityShare";
 import { syncTalentLine, TALENT_LINE } from "@/lib/offers/defaults";
 import OfferRail from "../_parts/OfferRail";
 import { offerTotals } from "@/lib/offers/totals";
@@ -297,6 +299,11 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         next.fixed_expenses = syncTalentLine(
           next.fixed_expenses as ExpenseItem[], String(next.deal_type || ""), Number(next.guarantee) || 0,
         );
+      }
+      // Door deals usually come "after support and catering" — flag those
+      // when the deal first becomes DOOR, so the common ask is no clicks.
+      if (key === "deal_type" && String(value).toUpperCase() === "DOOR") {
+        next.fixed_expenses = withDoorDefaults(next.fixed_expenses as ExpenseItem[]);
       }
       return next;
     });
@@ -698,6 +705,9 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
     guarantee: Number(form.guarantee) || 0,
     backendPct: Number(form.backend_percentage) || 0,
     dealType: String(form.deal_type || "FLAT"),
+    cardAtSellout: live.cardExpense.amount,
+    doorDeductions: live.doorDeductions,
+    artistFacAtSellout: live.artistFac,
   };
 
   return (
@@ -887,7 +897,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
           <label className="ofb-field">
             <span className="ofb-field-label">Deal type</span>
             <select value={String(form.deal_type || "FLAT")} onChange={(e) => updateField("deal_type", e.target.value)}>
-              <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option>
+              <option>VS</option><option>FLAT</option><option>PLUS</option><option>BONUS</option><option value="DOOR">DOOR</option>
             </select>
             <span className="ofb-field-hint">How the artist is paid</span>
           </label>
@@ -917,6 +927,18 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
               placeholder="% after costs"
               onChange={(e) => updateField("backend_percentage", e.target.value)}
             />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Fac fee to artist</span>
+            <input
+              type="number"
+              step="0.25"
+              min="0"
+              placeholder="$ per ticket"
+              value={artistFacPerTicket(form.ticket_scaling as TicketScalingRow[]) || ""}
+              onChange={(e) => updateField("ticket_scaling", withArtistFac(form.ticket_scaling as TicketScalingRow[], parseFloat(e.target.value) || 0))}
+            />
+            <span className="ofb-field-hint">Paid per ticket sold, on top of the deal</span>
           </label>
           <label className="ofb-field">
             <span className="ofb-field-label">Billing</span>
@@ -1212,7 +1234,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
 
         <div className="ofs-foot">
           <Button
-            onClick={() => updateField("ticket_scaling", [...scalingRows.map((x) => x.raw), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: globalFees.fac + globalFees.tkt, net_price: 0, facility_fee: globalFees.fac, ticketing_fee: globalFees.tkt }])}
+            onClick={() => updateField("ticket_scaling", [...scalingRows.map((x) => x.raw), { name: "General Admission", seats: 0, comps: 0, kills: 0, sellable_cap: 0, price: globalFees.fac + globalFees.tkt, net_price: 0, facility_fee: globalFees.fac, ticketing_fee: globalFees.tkt, artist_fac: artistFacPerTicket(form.ticket_scaling as TicketScalingRow[]) }])}
           >
             + Add tier
           </Button>
@@ -1683,7 +1705,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
           return v < 0 ? `$(${formatted})` : `$${formatted}`;
         };
 
-        const fixedRows = Array.isArray(form.fixed_expenses) ? (form.fixed_expenses as Array<{ name: string; amount: number }>) : [];
+        const fixedRows = Array.isArray(form.fixed_expenses) ? (form.fixed_expenses as ExpenseItem[]) : [];
+        const isDoorDeal = dealType.toUpperCase() === "DOOR";
         // The user's own rate lines. The card surcharge is derived, not typed,
         // so it is excluded here and rendered as a locked row beneath them.
         const varRows = live.ownVarExp as Array<{ name: string; rate: number; amount: number }>;
@@ -1707,7 +1730,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                       <span className="ofe-kind">Fixed</span>
                       <span className="ofe-var">
                         <span className="ofe-derived-note">
-                          {guaranteeIsExpense(String(form.deal_type || "")) ? "= guarantee" : "VS — paid from the split"}
+                          {guaranteeIsExpense(String(form.deal_type || "")) ? "= guarantee" : isDoorDeal ? "Door — no guarantee" : "VS — paid from the split"}
                         </span>
                         <b>{fmtUSD(Number(e.amount) || 0)}</b>
                       </span>
@@ -1726,7 +1749,23 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                       updateField("fixed_expenses", f);
                     }}
                   />
-                  <span className="ofe-kind">Fixed</span>
+                  {isDoorDeal ? (
+                    <button
+                      type="button"
+                      className={`ofe-kind ofe-kind--toggle${e.off_top ? " is-top" : ""}`}
+                      aria-pressed={!!e.off_top}
+                      title={e.off_top ? "Comes off the door before the split — click to make it a venue cost" : "Venue cost after the split — click to take it off the door first"}
+                      onClick={() => {
+                        const f = [...fixedRows];
+                        f[i] = { ...f[i], off_top: !f[i].off_top };
+                        updateField("fixed_expenses", f);
+                      }}
+                    >
+                      {e.off_top ? "Off the top" : "Fixed"}
+                    </button>
+                  ) : (
+                    <span className="ofe-kind">Fixed</span>
+                  )}
                   <input
                     className="ofe-amt"
                     type="number"
@@ -2028,7 +2067,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
               })),
               offer_guarantee: Number(form.guarantee) || 0,
               offer_deal_type:
-                (form.deal_type as "FLAT" | "VS" | "PLUS" | "BONUS") ?? null,
+                (form.deal_type as "FLAT" | "VS" | "PLUS" | "BONUS" | "DOOR") ?? null,
               offer_backend_percentage: backendPct,
             }}
           />
@@ -2041,6 +2080,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
       </div>
       <OfferRail
         basis={walkoutBasis}
+        doorOffTop={String(form.deal_type || "").toUpperCase() === "DOOR" ? offTopNames(form.fixed_expenses as ExpenseItem[]) : []}
+        facPerTicket={artistFacPerTicket(form.ticket_scaling as TicketScalingRow[])}
         showWalkouts={activeTab !== "deal_lab"}
         venueId={venue?.id || offer.venue_id || getCookie("venue-id") || null}
         artistName={String(form.artist_name || "")}

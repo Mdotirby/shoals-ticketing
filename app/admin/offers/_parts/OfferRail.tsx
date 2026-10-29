@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Eyebrow, fmtUSD } from "@/app/components/admin/ui";
 import { breakEvenShare, guaranteeInExpenses, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
+import { joinNames } from "@/lib/offers/door";
 
 type Comparable = {
   id: string;
@@ -31,12 +32,15 @@ const whole = (n: number) => fmtUSD(n, { cents: false });
 const pct = (share: number) => `${Math.round(share * 100)}%`;
 const toneOf = (n: number) => (n > 0.5 ? "good" : n < -0.5 ? "bad" : "flat");
 
-function dealSentence(b: WalkoutBasis, costs: number): string {
+function dealSentence(b: WalkoutBasis, costs: number, offTop: string[]): string {
   const d = String(b.dealType || "").toUpperCase();
   const g = whole(b.guarantee);
   const p = Number(b.backendPct) || 0;
   if (d === "FLAT") return `${g} flat — already in the expenses as the Talent line.`;
-  if (d === "DOOR") return `${p}% of net receipts, no guarantee.`;
+  if (d === "DOOR") {
+    const after = offTop.length ? ` after ${joinNames(offTop)} (${whole(Number(b.doorDeductions) || 0)})` : "";
+    return `${p}% of the door — face value, after tax and fees —${after}. No guarantee.`;
+  }
   if (d === "PLUS") {
     return `${g} guarantee (in expenses as Talent), plus ${p}% of net after ${whole(costs)} of costs.`;
   }
@@ -48,6 +52,8 @@ function dealSentence(b: WalkoutBasis, costs: number): string {
 
 export default function OfferRail({
   basis,
+  doorOffTop = [],
+  facPerTicket = 0,
   showWalkouts,
   venueId,
   artistName,
@@ -58,6 +64,10 @@ export default function OfferRail({
   onExport,
 }: {
   basis: WalkoutBasis;
+  /** DOOR: names of the expense lines that come off the door first. */
+  doorOffTop?: string[];
+  /** $ per ticket of the facility fee paid to the artist on top of the deal. */
+  facPerTicket?: number;
   showWalkouts: boolean;
   venueId: string | null;
   artistName: string;
@@ -112,7 +122,7 @@ export default function OfferRail({
       {showWalkouts && (
         <Card>
           <Eyebrow>Walkout scenarios</Eyebrow>
-          <p className="ofb-rail-lede">{dealSentence(basis, costsAtSellout)}</p>
+          <p className="ofb-rail-lede">{dealSentence(basis, costsAtSellout, doorOffTop)}{facPerTicket > 0 ? ` Plus ${fmtUSD(facPerTicket)} a ticket of the facility fee.` : ""}</p>
           {scenarios.length === 0 ? (
             <div className="ofb-rail-empty">Add ticket scaling to see what each side walks out with.</div>
           ) : (
@@ -126,7 +136,7 @@ export default function OfferRail({
                   : d === "FLAT"
                     ? "Flat guarantee — the artist's pay doesn't move with sales"
                     : d === "DOOR"
-                      ? "Straight percentage of net"
+                      ? "Straight percentage of the door"
                       : d === "PLUS"
                         ? (over > 0.5 ? `Guarantee plus ${whole(over)} of backend` : "Guarantee only — nothing left after costs")
                       : over > 0.5

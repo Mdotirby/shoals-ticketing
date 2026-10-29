@@ -281,6 +281,9 @@ export function HubProvider({ id, children }: { id: string; children: React.Reac
       guarantee: Number(offer.guarantee) || 0,
       backendPct: Number(offer.backend_percentage) || 0,
       dealType: String(offer.deal_type || "FLAT"),
+      cardAtSellout: t.cardExpense.amount,
+      doorDeductions: t.doorDeductions,
+      artistFacAtSellout: t.artistFac,
     });
     return share === null ? null : Math.ceil(share * offerSellable);
   }, [offer]);

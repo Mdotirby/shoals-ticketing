@@ -30,6 +30,12 @@ export type WalkoutBasis = {
   /** Backend as the builder stores it: a percentage (85 = 85%). */
   backendPct: number;
   dealType: string;
+  /** Card surcharge at sellout — inside netPotential; DOOR takes it out itself. */
+  cardAtSellout?: number;
+  /** DOOR: expenses off the top before the split. Fixed, so they don't scale. */
+  doorDeductions?: number;
+  /** Facility fee paid to the artist at sellout — per ticket, so it scales. */
+  artistFacAtSellout?: number;
 };
 
 export type Walkout = {
@@ -60,6 +66,9 @@ export function walkoutAt(share: number, b: WalkoutBasis): Walkout {
     guarantee: b.guarantee,
     backendPct: (Number(b.backendPct) || 0) / 100,
     dealType: b.dealType,
+    cardSurcharge: (Number(b.cardAtSellout) || 0) * s,
+    doorDeductions: Number(b.doorDeductions) || 0,
+    facilityFeeToArtist: (Number(b.artistFacAtSellout) || 0) * s,
   });
   const artistCost = guaranteeInExpenses(b.dealType) ? payout.dealTotal - b.guarantee : payout.dealTotal;
   return {

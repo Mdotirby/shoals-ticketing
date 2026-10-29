@@ -72,7 +72,10 @@
     { "cell": "L60", "field": "total_expenses", "type": "currency" },
 
     { "cell": "L63", "field": "artist_guarantee", "type": "currency" },
+    { "cell": "A64", "field": "splitpoint_label", "type": "text" },
     { "cell": "L64", "field": "splitpoint", "type": "currency" },
+    { "cell": "A65", "field": "backend_label", "type": "text" },
+    { "cell": "A66", "field": "overage_label", "type": "text", "note": "On a door deal there is no overage; the row carries the facility fee paid to the artist." },
     { "cell": "K65", "field": "backend_percentage", "type": "percent", "note": "The deal's own rate. Was never mapped, so the template's literal 0.8 printed on every export." },
     { "cell": "L65", "field": "backend", "type": "currency" },
     { "cell": "L66", "field": "overage", "type": "currency" },
