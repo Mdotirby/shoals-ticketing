@@ -258,8 +258,12 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   // Sum the offer's own rate lines when it has them; fall back to the stored
   // total when it does not, since some records carry totals without rows.
   // Then add the card surcharge, which is derived either way.
+  // Only an offer with NO rows at all falls back. One whose only row is the
+  // card line has a stored total that already includes the card fee, so
+  // falling back there added it twice (Cigarettes @ Sunset: $1,000.80 off the
+  // venue's line).
   const ownVariableTotal =
-    ownVariable.length > 0
+    (offer.variable_expenses || []).length > 0
       ? ownVariable.reduce((s, e) => s + e.amount, 0)
       : offer.total_variable ?? 0;
   const total_variable = ownVariableTotal + cardExpense.amount;

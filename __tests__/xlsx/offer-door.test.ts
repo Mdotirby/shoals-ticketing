@@ -84,3 +84,22 @@ describe("door deal on the offer sheet", () => {
     expect(rowOf("Overage")).toBeGreaterThan(0);
   });
 });
+
+describe("an offer whose only variable line is the card fee", () => {
+  // As the builder saves it: the card row stored, and total_variable holding
+  // the card fee. The export used to add the derived card fee on top.
+  const saved = {
+    ...DOOR,
+    ticket_scaling: [{ name: "GA", seats: 750, comps: 30, kills: 0, sellable_cap: 720, price: 33.5, net_price: 27.5, facility_fee: 3, ticketing_fee: 3, artist_fac: 1 }],
+    variable_expenses: [{ name: "Card processing (2.9% + $0.30)", rate: 0, amount: 1000.8, locked: true }],
+    total_variable: 1000.8,
+  } as unknown as ArtistOffer;
+
+  it("charges the card fee once", async () => {
+    // door 19,800 − 1,000 Support = 18,800 → 15,040 + 720; venue keeps 3,760,
+    // less Rent and Production (1,500) and the 720 of facility fee
+    const { cell } = await sheet(saved);
+    expect(Number(cell("ARTIST TOTAL POTENTIAL", 12))).toBeCloseTo(15760, 2);
+    expect(Number(cell("REVENUE TO VENUE", 12))).toBeCloseTo(1540, 2);
+  });
+});
