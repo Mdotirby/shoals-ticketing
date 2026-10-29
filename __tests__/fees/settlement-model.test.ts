@@ -90,10 +90,22 @@ describe("artistPayout", () => {
     expect(2000 + (3000 - 2000) * 0.7).toBe(2700);
   });
 
-  it("PLUS computes identically to VS", () => {
-    const vs = artistPayout({ ...base, guarantee: 5000, dealType: "VS" });
-    const plus = artistPayout({ ...base, guarantee: 5000, dealType: "PLUS" });
-    expect(plus.artistTotal).toBe(vs.artistTotal);
+  it("PLUS pays the guarantee plus the backend on the pool after it", () => {
+    // $50k net, $20k expenses (the $10k guarantee among them), 50%:
+    // pool $30k → backend $15k → artist $25k. Not max($10k, $15k).
+    const plus = artistPayout({
+      netReceipts: 50000, totalExpenses: 20000,
+      guarantee: 10000, backendPct: 0.5, dealType: "PLUS",
+    });
+    expect(plus.artistBackend).toBe(15000);
+    expect(plus.artistTotal).toBe(25000);
+    // A losing pool still pays the guarantee, and no backend.
+    const under = artistPayout({
+      netReceipts: 15000, totalExpenses: 20000,
+      guarantee: 10000, backendPct: 0.5, dealType: "PLUS",
+    });
+    expect(under.artistBackend).toBe(0);
+    expect(under.artistTotal).toBe(10000);
   });
 
   it("pays the guarantee when the percentage doesn't beat it", () => {

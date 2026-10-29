@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getCookie } from "@/lib/cookies";
+import { newOfferDefaults, type OwnerDefaults, type VenueDefaults } from "@/lib/offers/defaults";
 
 /**
  * Creating an offer opens the offer builder.
@@ -23,7 +25,11 @@ import { useRouter, useSearchParams } from "next/navigation";
  *   /admin/offers/new?event_id=…&event_date=…&deal_type=VS
  *
  * Those are carried onto the new offer, so a co-promote or rental created
- * from a show arrives linked to it.
+ * from a show arrives linked to it. *
+ * The new offer starts filled in — default expenses, PRO rates, the venue's
+ * fees, tax rate, contact and radius clause — from lib/offers/defaults.ts.
+ * It used to start blank, which made the builder more typing than the form
+ * it replaced.
  */
 export default function NewOfferPage() {
   const router = useRouter();
@@ -43,14 +49,27 @@ export default function NewOfferPage() {
 
     (async () => {
       try {
+        // Both are best-effort: an offer with the generic defaults beats no
+        // offer. /api/admin/users answers only roles that can assign roles.
+        const [venues, users] = await Promise.all([
+          fetch("/api/venues").then((r) => r.json()).catch(() => []),
+          fetch("/api/admin/users").then((r) => (r.ok ? r.json() : [])).catch(() => []),
+        ]);
+        const venueId = getCookie("venue-id");
+        const venueList: VenueDefaults[] = Array.isArray(venues) ? venues : [];
+        const venue = venueList.find((v) => v.id === venueId) ?? (venueList.length === 1 ? venueList[0] : null);
+        const owner: OwnerDefaults | null = Array.isArray(users)
+          ? users.find((u: { role?: string }) => u.role === "owner") ?? null
+          : null;
+
         const res = await fetch("/api/offers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            ...newOfferDefaults(venue, owner, dealType || "VS"),
             artist_name: "",
             event_id: eventId || null,
             event_date: eventDate || null,
-            deal_type: dealType || "VS",
             status: "draft",
           }),
         });

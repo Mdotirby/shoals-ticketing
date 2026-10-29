@@ -13,7 +13,8 @@ import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { rateLabel } from "@/lib/fees/rates";
 import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
-import { walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
+import { guaranteeInExpenses as guaranteeIsExpense, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
+import { syncTalentLine, TALENT_LINE } from "@/lib/offers/defaults";
 import OfferRail from "../_parts/OfferRail";
 import { offerTotals } from "@/lib/offers/totals";
 import { cardSurchargeExact, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
@@ -138,19 +139,6 @@ function formatTime12hr(time: string): string {
   return `${hours}:${minutes} ${ampm}`;
 }
 
-const DEFAULT_FIXED: ExpenseItem[] = [
-  { name: "Rent", amount: 0 }, { name: "Production", amount: 0 }, { name: "Catering", amount: 0 },
-  { name: "Hospitality", amount: 0 }, { name: "Support", amount: 0 }, { name: "Talent", amount: 0 },
-  { name: "Marketing", amount: 0 }, { name: "Labor", amount: 0 }, { name: "Insurance", amount: 0 },
-  { name: "Security", amount: 0 }, { name: "Ushers", amount: 0 }, { name: "Police", amount: 0 },
-  { name: "Cleaning", amount: 0 }, { name: "Medical", amount: 0 },
-];
-
-const DEFAULT_VARIABLE: VariableExpenseItem[] = [
-  { name: "ASCAP", rate: 0.008, amount: 0 }, { name: "BMI", rate: 0.008, amount: 0 },
-  { name: "SESAC", rate: 0.0003, amount: 0 }, { name: "GMR", rate: 0.0015, amount: 0 },
-];
-
 const OFFER_TABS = ["details", "pnl", "deal_lab"] as const;
 
 export type OfferHref = (offerId: string, signed: boolean) => string;
@@ -169,6 +157,9 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   const [offer, setOffer] = useState<ArtistOffer | null>(null);
   const [venue, setVenue] = useState<Venue | null>(null);
   const [eventVenues, setEventVenues] = useState<EventVenueOption[]>([]);
+  type SavedAgent = { id: string; agency: string; agent_name: string; agent_phone: string | null; agent_email: string | null };
+  /** Agents from earlier offers — the picker the old new-offer form had. */
+  const [agents, setAgents] = useState<SavedAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -244,7 +235,14 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
       .then(async (offerData) => {
         if (offerData.error) { setError(offerData.error); return; }
         setOffer(offerData);
-        setForm(offerData);
+        // A draft's Talent line follows its deal: most FLAT offers on file
+        // have the guarantee nowhere in their expenses, because it had to be
+        // typed in by hand. Sent and signed offers keep what they said.
+        setForm(
+          offerData.status === "draft"
+            ? { ...offerData, fixed_expenses: syncTalentLine(offerData.fixed_expenses, String(offerData.deal_type || ""), Number(offerData.guarantee) || 0) }
+            : offerData,
+        );
 
         // Resolve the linked show, if there is one, so the header can name it
         // rather than just holding an id.
@@ -273,6 +271,11 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
     // Also load contract
     fetchContract();
 
+    fetch(`/api/agents${venueId ? `?venue_id=${venueId}` : ""}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setAgents(data); })
+      .catch(() => {});
+
     // Fetch event venues for dropdown
     import("@/lib/supabase-browser").then(({ getSupabaseBrowser }) => {
       getSupabaseBrowser()
@@ -286,7 +289,29 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   }, [id]);
 
   const updateField = (key: string, value: unknown) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      // The guarantee is the Talent expense on FLAT / PLUS / BONUS — kept in
+      // step here so nobody has to type it twice.
+      if (key === "guarantee" || key === "deal_type") {
+        next.fixed_expenses = syncTalentLine(
+          next.fixed_expenses as ExpenseItem[], String(next.deal_type || ""), Number(next.guarantee) || 0,
+        );
+      }
+      return next;
+    });
+  };
+
+  const selectAgent = (agentId: string) => {
+    const a = agents.find((x) => x.id === agentId);
+    if (!a) return;
+    setForm((prev) => ({
+      ...prev,
+      agency: a.agency,
+      agent_name: a.agent_name,
+      agent_phone: a.agent_phone || "",
+      agent_email: a.agent_email || "",
+    }));
   };
 
   // ── Live-computed financials (recalculate whenever tiers/expenses/tax change) ──
@@ -414,6 +439,23 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
       setOffer(updated);
       setForm(updated);
       setSuccess("Offer saved.");
+      // Remember the agent for the picker next time (upserts on agency + name).
+      const agency = String(form.agency || "").trim();
+      const agentName = String(form.agent_name || "").trim();
+      if (agency && agentName && !agents.some((a) => a.agency === agency && a.agent_name === agentName)) {
+        fetch("/api/agents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            agency, agent_name: agentName,
+            agent_phone: form.agent_phone || null, agent_email: form.agent_email || null,
+            venue_id: getCookie("venue-id") || updated.venue_id || null,
+          }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((a) => { if (a?.id) setAgents((prev) => [...prev, a]); })
+          .catch(() => {});
+      }
     } catch { setError("Failed to save."); }
     finally { setSaving(false); }
   };
@@ -817,6 +859,14 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
           </label>
           <label className="ofb-field">
             <span className="ofb-field-label">Agency / agent</span>
+            {agents.length > 0 && (
+              <select value="" onChange={(e) => selectAgent(e.target.value)} aria-label="Saved agent">
+                <option value="">Saved agent…</option>
+                {agents.map((a) => (
+                  <option key={a.id} value={a.id}>{a.agent_name} ({a.agency})</option>
+                ))}
+              </select>
+            )}
             <span className="ofb-field-pair">
               <input value={String(form.agency || "")} placeholder="Agency" onChange={(e) => updateField("agency", e.target.value)} />
               <input value={String(form.agent_name || "")} placeholder="Agent" onChange={(e) => updateField("agent_name", e.target.value)} />
@@ -1588,21 +1638,19 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         const netPotential = live.netPotential;
 
         const guarantee = Number(form.guarantee) || 0;
-        const backendPct = Number(form.backend_percentage) || 0;
         const dealType = String(form.deal_type || "FLAT");
-        const netAfterExpenses = netPotential - totalExpenses;
 
-        // Backend is earned on the overage above the guarantee and added to it.
-        // (pool × backend%) − guarantee, matching the Details tab.
-        const overage = netAfterExpenses * (backendPct / 100) - guarantee;
-        const backendAmount = dealType === "FLAT" || overage <= 0 ? 0 : overage;
-        const artistTotal = guarantee + backendAmount;
+        // What the artist earns on top of the guarantee — artistPayout() via
+        // lib/offers/totals, the same figure the rail and the documents use.
+        // VS/BONUS: the overage above the guarantee. PLUS: the whole backend.
+        const backendAmount = live.artistBackend;
+        const artistTotal = live.artistTotal;
 
-        // For FLAT / PLUS / BONUS deals, the guarantee is entered as the "Talent" line in
-        // fixed_expenses. It's already baked into totalExpenses — do NOT subtract it again
-        // in breakeven or P&L, or it will be double-counted. Only VS deals treat the guarantee
-        // as a separate outflow from show expenses.
-        const guaranteeInExpenses = dealType === "FLAT" || dealType === "PLUS" || dealType === "BONUS";
+        // For FLAT / PLUS / BONUS deals, the guarantee is the "Talent" line in
+        // fixed_expenses (kept in step by syncTalentLine). It's already in
+        // totalExpenses — do NOT subtract it again in breakeven or P&L. Only VS
+        // deals treat the guarantee as a separate outflow from show expenses.
+        const guaranteeInExpenses = guaranteeIsExpense(dealType);
 
         // Breakeven
         const tierCount = scaling.length || 1;
@@ -1646,7 +1694,27 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
           {/* ── Show expenses — where the mockup puts them ── */}
           <Card title="Show expenses — offer estimate" sub="Fixed amounts and rates on gross; the rate lines recompute as scaling changes">
             <div className="ofe">
-              {fixedRows.map((e, i) => (
+              {fixedRows.map((e, i) => {
+                const isTalent = String(e.name || "").trim().toLowerCase() === TALENT_LINE.toLowerCase();
+                if (isTalent) {
+                  // Set by the deal, not typed — see syncTalentLine.
+                  return (
+                    <div key={`f${i}`} className="ofe-row ofe-row--locked">
+                      <span className="ofe-name ofe-name--static">
+                        {e.name}
+                        <span className="ofe-lock" title="Follows the guarantee on FLAT, PLUS and BONUS deals; zero on VS, where the guarantee comes out of the artist's share">auto</span>
+                      </span>
+                      <span className="ofe-kind">Fixed</span>
+                      <span className="ofe-var">
+                        <span className="ofe-derived-note">
+                          {guaranteeIsExpense(String(form.deal_type || "")) ? "= guarantee" : "VS — paid from the split"}
+                        </span>
+                        <b>{fmtUSD(Number(e.amount) || 0)}</b>
+                      </span>
+                    </div>
+                  );
+                }
+                return (
                 <div key={`f${i}`} className="ofe-row">
                   <input
                     className="ofe-name"
@@ -1671,7 +1739,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                     }}
                   />
                 </div>
-              ))}
+                );
+              })}
               {varRows.map((e, i) => {
                 // A rate line is a percentage of ticket receipts, so it runs on
                 // the sub-total. Gross now includes the card fee, which is not

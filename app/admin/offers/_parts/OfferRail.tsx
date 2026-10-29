@@ -37,6 +37,9 @@ function dealSentence(b: WalkoutBasis, costs: number): string {
   const p = Number(b.backendPct) || 0;
   if (d === "FLAT") return `${g} flat — already in the expenses as the Talent line.`;
   if (d === "DOOR") return `${p}% of net receipts, no guarantee.`;
+  if (d === "PLUS") {
+    return `${g} guarantee (in expenses as Talent), plus ${p}% of net after ${whole(costs)} of costs.`;
+  }
   if (guaranteeInExpenses(d)) {
     return `${g} guarantee (in expenses as Talent), plus anything ${p}% of net after ${whole(costs)} of costs pays above it.`;
   }
@@ -124,6 +127,8 @@ export default function OfferRail({
                     ? "Flat guarantee — the artist's pay doesn't move with sales"
                     : d === "DOOR"
                       ? "Straight percentage of net"
+                      : d === "PLUS"
+                        ? (over > 0.5 ? `Guarantee plus ${whole(over)} of backend` : "Guarantee only — nothing left after costs")
                       : over > 0.5
                         ? `Backend pays ${whole(over)} over the guarantee`
                         : "Guarantee holds — the percentage doesn't beat it";

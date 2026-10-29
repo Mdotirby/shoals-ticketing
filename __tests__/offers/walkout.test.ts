@@ -53,7 +53,8 @@ describe("walkout scenarios", () => {
   });
 
   it("charges only the backend on top of expenses for a PLUS deal", () => {
-    // pool 30,000 × 50% = 15,000 → overage 5,000 over the $10k guarantee
+    // $10k guarantee is in the $20k of expenses; pool 30,000 × 50% = 15,000
+    // of backend on top of it
     const plus: WalkoutBasis = {
       netPotential: 50000,
       totalFixed: 20000,
@@ -64,8 +65,8 @@ describe("walkout scenarios", () => {
       dealType: "PLUS",
     };
     const w = walkoutAt(1, plus);
-    expect(w.artist).toBe(15000);
-    expect(w.venue).toBe(25000);
+    expect(w.artist).toBe(25000);
+    expect(w.venue).toBe(15000);
   });
 
   it("reports no break-even when the show loses money even sold out", () => {

@@ -495,7 +495,9 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   const backendAmt = dealType === "FLAT" ? 0 : payoutPDF.artistBackend;
   const artistTotal = payoutPDF.dealTotal;
   const backendLabel =
-    dealType === "FLAT" ? "" : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
+    dealType === "FLAT" ? ""
+    : dealType === "PLUS" ? `Backend (PLUS — ${(backendPct * 100).toFixed(0)}% of net after expenses, on top of guarantee)`
+    : `Overage (${dealType} — ${(backendPct * 100).toFixed(0)}% of net, less guarantee)`;
 
   y = lv("Guarantee", f2(guarantee), y);
   if (backendLabel) {

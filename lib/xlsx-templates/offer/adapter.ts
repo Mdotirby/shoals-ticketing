@@ -1,5 +1,6 @@
 import type { ArtistOffer } from "@/lib/types/offer";
 import { artistPayout } from "@/lib/settlement/model";
+import { talentInExpenses } from "@/lib/offers/defaults";
 import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
@@ -284,15 +285,22 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
   const overage = hasBackend ? payout.artistBackend : 0;
   const artist_total_potential = payout.dealTotal;
 
-  const expenses_incl_artist = total_expenses + artist_total_potential;
+  // On FLAT, PLUS and BONUS the guarantee is the Talent line inside
+  // total_expenses, so only what the artist earns beyond it is a further cost.
+  // Subtracting the whole artist total there charged the guarantee twice.
+  // Read off the row: older offers have Talent at $0.
+  const talent = talentInExpenses(offer.fixed_expenses, dealType);
+  const artistCostBeyondExpenses = artist_total_potential - talent;
+  const expenses_incl_artist = total_expenses + artistCostBeyondExpenses;
   // The VENUE's potential. Derived rather than read from offer.pot_walkout for
   // the same stale-row reason as above; on a current offer the two agree.
-  const revenue_to_venue = netAfterExpenses - artist_total_potential;
+  const revenue_to_venue = netAfterExpenses - artistCostBeyondExpenses;
 
   const totalCapacity = tCap || 1;
   const breakeven_tickets = avgPrice > 0 ? expenses_incl_artist / avgPrice : 0;
   const bare_minimum_tickets = avgPrice > 0 ? guarantee / avgPrice : 0;
-  const cover_band_expenses_tickets = avgPrice > 0 ? (total_expenses + guarantee) / avgPrice : 0;
+  const cover_band_expenses_tickets =
+    avgPrice > 0 ? (total_expenses + guarantee - talent) / avgPrice : 0;
 
   const o = offer;
   const showsLabel = `${o.num_shows ?? ""} x ${o.show_length ?? ""}`.trim();

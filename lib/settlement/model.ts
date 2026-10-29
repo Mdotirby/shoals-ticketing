@@ -273,7 +273,31 @@ export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
     };
   }
 
-  // VS / PLUS / BONUS — a true "versus" deal:
+  // PLUS: the guarantee AND a backend, not the better of the two. The
+  // guarantee is a show expense (the Talent line — the offer builder writes
+  // it there itself, see lib/offers/defaults.ts syncTalentLine), so the pool
+  // the percentage runs on is already net of it:
+  //
+  //   artist = guarantee + (net after expenses × backend%)
+  //
+  // $10k guarantee, $50k net, $20k of expenses including the $10k, 50%:
+  // pool $30k → backend $15k → artist $25k. It used to fall through to the
+  // versus branch below and pay $15k — max($10k, $15k) — shorting the artist
+  // the whole guarantee.
+  if (dealType === "PLUS") {
+    const artistBackend = netAfterExpenses > 0 ? netAfterExpenses * backendPct : 0;
+    return {
+      netAfterExpenses,
+      splitpoint: netAfterExpenses,
+      overage: artistBackend,
+      artistBackend,
+      dealTotal: guarantee + artistBackend,
+      serviceFeeRebate,
+      artistTotal: guarantee + artistBackend + serviceFeeRebate,
+    };
+  }
+
+  // VS / BONUS — a true "versus" deal:
   //
   //   overage = (net after expenses × backend%) − guarantee
   //   artist  = guarantee + overage, when the overage is positive

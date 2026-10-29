@@ -147,4 +147,18 @@ describe("offer XLSX — artist potential at sellout", () => {
     expect(c.artistTotal).toBe(1500);
     expect(c.revenueToVenue).toBeCloseTo(9030.86, 2); // 10,530.86 − 1,500
   });
+
+  it("PLUS: guarantee in Talent, backend on the pool after it, charged once", async () => {
+    // Same room, with the $1,500 guarantee written into Talent: expenses
+    // $3,869.14 + $1,500, pool $9,030.86 × 65% = $5,870.06 of backend.
+    const c = await walkoutCells(vsOffer({
+      deal_type: "PLUS",
+      total_fixed: 3600 + 1500,
+      total_expenses: 3869.14 + 1500,
+      fixed_expenses: [{ name: "Talent", amount: 1500 }],
+    } as Partial<ArtistOffer>));
+    expect(c.overage).toBeCloseTo(5870.06, 2);
+    expect(c.artistTotal).toBeCloseTo(7370.06, 2);
+    expect(c.revenueToVenue).toBeCloseTo(3160.8, 2); // 9,030.86 − 5,870.06
+  });
 });

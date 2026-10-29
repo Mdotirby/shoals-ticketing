@@ -1,3 +1,6 @@
+import { artistPayout } from "@/lib/settlement/model";
+import { talentInExpenses } from "./defaults";
+import type { ExpenseItem } from "@/lib/types/offer";
 import { withoutCardExpense, cardExpenseAtSellout, CARD_EXPENSE_NAME } from "./cardExpense";
 
 /**
@@ -94,12 +97,23 @@ export function offerTotals(form: Record<string, unknown>) {
   const backendPctDecimal = Number(form.backend_percentage || 0) / 100;
   const dealTypeNow = String(form.deal_type || "");
   const splitpoint = netAfterExpenses;
-  // (pool × backend%) − guarantee, i.e. max(guarantee, pool × backend%).
-  const overage = netAfterExpenses * backendPctDecimal - guaranteeNum;
-  const artistBackend =
-    dealTypeNow === "FLAT" || overage <= 0 ? 0 : overage;
-  const artistTotal = guaranteeNum + artistBackend;
-  const potWalkout = netAfterExpenses - artistTotal;
+  // artistPayout(), the one implementation settlements and the documents
+  // share. This used to inline the versus formula for every deal type, so a
+  // PLUS offer paid max(guarantee, pool × %) instead of guarantee + pool × %.
+  const payout = artistPayout({
+    netReceipts: netPotential,
+    totalExpenses,
+    guarantee: guaranteeNum,
+    backendPct: backendPctDecimal,
+    dealType: dealTypeNow || "FLAT",
+  });
+  const overage = payout.overage;
+  // On top of the guarantee: VS/BONUS the overage, PLUS the whole backend.
+  const artistBackend = payout.artistBackend;
+  const artistTotal = payout.dealTotal;
+  // The venue's walkout. On FLAT/PLUS/BONUS the guarantee is the Talent line
+  // inside totalExpenses, so only what the artist earns beyond it comes off.
+  const potWalkout = netAfterExpenses - (artistTotal - talentInExpenses(fixedExp as ExpenseItem[], dealTypeNow));
 
   return {
     grossPotential,
