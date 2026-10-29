@@ -39,7 +39,7 @@ function dealSentence(b: WalkoutBasis, costs: number, offTop: string[]): string 
   if (d === "FLAT") return `${g} flat — already in the expenses as the Talent line.`;
   if (d === "DOOR") {
     const after = offTop.length ? ` after ${joinNames(offTop)} (${whole(Number(b.doorDeductions) || 0)})` : "";
-    return `${p}% of the door — face value, after tax and fees —${after}. No guarantee.`;
+    return `${p}% of the door — face value, after tax, fees and card processing —${after}. No guarantee.`;
   }
   if (d === "PLUS") {
     return `${g} guarantee (in expenses as Talent), plus ${p}% of net after ${whole(costs)} of costs.`;

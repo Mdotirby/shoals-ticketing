@@ -1816,7 +1816,13 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                   {CARD_EXPENSE_NAME}
                   <span className="ofe-lock" title="Set by the card rate, not editable">locked</span>
                 </span>
-                <span className="ofe-kind ofe-kind--var">Variable</span>
+                {/* On a door deal the card fee is taken out before the split
+                    (artistPayout's cardSurcharge), so it reads as one. */}
+                {isDoorDeal ? (
+                  <span className="ofe-kind is-top" title="Paid before the band's split — the door is face value, with the card fee already out">Off the top</span>
+                ) : (
+                  <span className="ofe-kind ofe-kind--var">Variable</span>
+                )}
                 <span className="ofe-var">
                   <span className="ofe-derived-note" title="Stripe charges the flat fee once per order. An offer assumes one ticket per order, which is the conservative end — a larger basket costs less, never more.">
                     {/* Three decimals, because the per-ticket figure is not a

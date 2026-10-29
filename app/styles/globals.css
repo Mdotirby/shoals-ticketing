@@ -24360,7 +24360,7 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
    comes off the door before the split. */
 .admin-shell .ofe-kind--toggle { background: none; font-family: inherit; cursor: pointer; }
 .admin-shell .ofe-kind--toggle:hover { color: rgba(255, 255, 255, 0.80); border-color: rgba(255, 255, 255, 0.32); }
-.admin-shell .ofe-kind--toggle.is-top { color: #fff; background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.40); }
+.admin-shell .ofe-kind.is-top { color: #fff; background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.40); }
 .admin-shell .ofe-amt,
 .admin-shell .ofe-var input {
   width: 100%;
