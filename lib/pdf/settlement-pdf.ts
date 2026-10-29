@@ -443,8 +443,16 @@ function drawSettlementCalc(
   const pct = (Number(s.backend_percentage) * 100).toFixed(2);
   const netAfterExpenses = (s.net_receipts || 0) - (s.total_expenses || 0);
 
+  // Service fee rebate — outside the deal, folded into artist_total.
+  const rebatePct = Number(s.service_fee_rebate_pct) || 0;
+  const rebate = (s.ticketing_fees || 0) * rebatePct;
+
   y = moneyRow(doc, "Net Receipts", fmt(s.net_receipts), y);
-  y = moneyRow(doc, "Less: Total Expenses", `(${fmt(s.total_expenses)})`, y, { indent: 4 });
+  // A door deal splits the door, not net after expenses, so the expense
+  // total isn't a step in its arithmetic.
+  if (dealType !== "DOOR") {
+    y = moneyRow(doc, "Less: Total Expenses", `(${fmt(s.total_expenses)})`, y, { indent: 4 });
+  }
 
   if (dealType === "VS" || dealType === "PLUS") {
     y = moneyRow(doc, "Backend Threshold", `(${fmt(s.guarantee || 0)})`, y, { indent: 4 });
@@ -452,16 +460,23 @@ function drawSettlementCalc(
     y = moneyRow(doc, `Artist Backend (${pct}% of overage)`, fmt(s.artist_backend), y, { indent: 4 });
     y = moneyRow(doc, "Artist Guarantee", fmt(s.guarantee), y, { indent: 4 });
   } else if (dealType === "DOOR") {
-    y = moneyRow(doc, "Net After Expenses", fmt(netAfterExpenses), y, { bold: true });
-    y = moneyRow(doc, `Artist Backend (${pct}% of net)`, fmt(s.artist_backend), y, { indent: 4 });
+    // Rebuilt from the stored figures: the door share is artist_backend, so
+    // the door it was taken from is that ÷ the percentage, and whatever of
+    // artist_total is neither the share nor the rebate is the facility fee.
+    const pctDec = Number(s.backend_percentage) || 0;
+    const door = pctDec > 0 ? (s.artist_backend || 0) / pctDec : s.net_receipts || 0;
+    const offTop = (s.net_receipts || 0) - door;
+    const fac = (s.artist_total || 0) - (s.artist_backend || 0) - rebate;
+    if (offTop > 0.5) y = moneyRow(doc, "Less: Off the top", `(${fmt(offTop)})`, y, { indent: 4 });
+    y = moneyRow(doc, offTop > 0.5 ? "Door After Deductions" : "Door", fmt(door), y, { bold: true });
+    y = moneyRow(doc, `Door Share (${Math.round(pctDec * 100)}% of the door)`, fmt(s.artist_backend), y, { indent: 4 });
+    if (fac > 0.5) y = moneyRow(doc, "Facility Fee to Artist", fmt(fac), y, { indent: 4 });
   } else {
     // FLAT / CO_PROMOTE
     y = moneyRow(doc, "Artist Guarantee", fmt(s.guarantee), y, { indent: 4 });
   }
   // Service fee rebate — shown on BOTH copies. It is money the promoter is
   // owed, so it belongs on the document they sign, not just the venue's.
-  const rebatePct = Number(s.service_fee_rebate_pct) || 0;
-  const rebate = (s.ticketing_fees || 0) * rebatePct;
   if (rebate > 0) {
     y = moneyRow(doc, "Deal Total", fmt((s.artist_total || 0) - rebate), y, { indent: 4 });
     y = moneyRow(

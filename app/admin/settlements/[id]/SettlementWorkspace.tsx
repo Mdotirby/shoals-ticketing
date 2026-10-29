@@ -15,6 +15,8 @@ import type {
   MerchTaxPayer,
 } from "@/lib/types/settlement";
 import { settlementWaterfall, artistPayout, withCardExpense } from "@/lib/settlement/model";
+import { joinNames } from "@/lib/offers/door";
+import { NO_TERMS, offerSettleTerms, settlementArtistFac, settlementDoorDeductions, type OfferSettleTerms } from "@/lib/settlement/doorTerms";
 import { getCookie } from "@/lib/cookies";
 import { Card } from "@/app/components/admin/ui";
 import PaymentLedger, { type LedgerRow } from "./PaymentLedger";
@@ -187,6 +189,19 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const [merchSellerFee, setMerchSellerFee] = useState(0);
   const [merchSellerFeePayer, setMerchSellerFeePayer] =
     useState<MerchSellerFeePayer>("venue");
+
+  // Door deductions and the facility fee share live on the linked offer.
+  const [offerTerms, setOfferTerms] = useState<OfferSettleTerms>(NO_TERMS);
+  const offerId = settlement?.offer_id ?? null;
+  useEffect(() => {
+    if (!offerId) { setOfferTerms(NO_TERMS); return; }
+    let live = true;
+    fetch(`/api/offers/${offerId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((o) => { if (live) setOfferTerms(offerSettleTerms(o)); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [offerId]);
 
   const isFinalized = settlement?.status === "finalized";
   const isExternal = settlement?.source === "external";
@@ -430,6 +445,14 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
 
   // backendPctInput is a true percentage (85 for 85%); the model wants a decimal.
   const backendPctDecimal = backendPctInput / 100;
+  // From the offer: what comes off the door first (at what those lines
+  // actually cost), and the artist's cut of the facility fees collected.
+  const doorDeductions = settlementDoorDeductions(expenses, offerTerms.offTop, dealType);
+  const artistFac = settlementArtistFac(
+    effectiveFacilityFees,
+    isExternal ? manualFacilityFee : facilityFeePerTicket,
+    offerTerms.facPerTicket,
+  );
   const { netAfterExpenses, splitpoint, artistBackend, dealTotal, serviceFeeRebate, artistTotal } =
     artistPayout({
       netReceipts: netReceiptsWithCash,
@@ -440,6 +463,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
       ticketingFees: effectiveTicketingFees,
       serviceFeeRebatePct: serviceFeeRebatePct / 100,
       cardSurcharge: effectiveCcFees,
+      doorDeductions,
+      facilityFeeToArtist: artistFac,
     });
 
   const totalDeposits = deposits
@@ -2366,12 +2391,20 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           </div>
         )}
         {dealType === "DOOR" && (
-          <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
-            <span style={{ ...labelStyle, fontWeight: 700 }}>Net After Expenses</span>
-            <span style={{ ...valStyle, color: netAfterExpenses >= 0 ? "#7ddb7d" : "#ff9a9a" }}>
-              {fmt(netAfterExpenses)}
-            </span>
-          </div>
+          /* A door deal splits the door, not net after expenses: face value,
+             less only the lines the offer takes off the top. */
+          <>
+            {doorDeductions > 0 && (
+              <div style={rowStyle}>
+                <span style={labelStyle}>Off the top ({joinNames(offerTerms.offTop)})</span>
+                <span style={valStyle}>({fmt(doorDeductions)})</span>
+              </div>
+            )}
+            <div style={{ ...rowStyle, borderBottom: "2px solid rgba(255, 255, 255, 0.3)" }}>
+              <span style={{ ...labelStyle, fontWeight: 700 }}>Door{doorDeductions > 0 ? " after deductions" : ""}</span>
+              <span style={valStyle}>{fmt(netReceiptsStored - doorDeductions)}</span>
+            </div>
+          </>
         )}
         {(dealType === "VS" || dealType === "PLUS") && (
           <div style={rowStyle}>
@@ -2384,7 +2417,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         {dealType === "DOOR" && (
           <div style={rowStyle}>
             <span style={labelStyle}>
-              Artist Backend ({backendPctInput.toFixed(2)}% of net)
+              Door share ({backendPctInput.toFixed(0)}% of the door)
             </span>
             <span style={valStyle}>{fmt(artistBackend)}</span>
           </div>
@@ -2393,6 +2426,16 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           <div style={rowStyle}>
             <span style={labelStyle}>Guarantee</span>
             <span style={valStyle}>{fmt(guaranteeInput)}</span>
+          </div>
+        )}
+        {artistFac > 0 && (
+          /* Outside the split: the artist's cut of the facility fees
+             actually collected, per the offer. */
+          <div style={rowStyle}>
+            <span style={labelStyle}>
+              Facility fee to artist ({fmt(offerTerms.facPerTicket)} of each {fmt(isExternal ? manualFacilityFee : facilityFeePerTicket)} collected)
+            </span>
+            <span style={valStyle}>{fmt(artistFac)}</span>
           </div>
         )}
         {serviceFeeRebate > 0 && (
