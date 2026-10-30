@@ -9,6 +9,7 @@ import type { Venue } from "../types/venue";
 import { cardSurchargeExact } from "@/lib/offers/cardExpense";
 import { doorDeductions, joinNames, offTopNames } from "@/lib/offers/door";
 import { artistFacilityShare, artistFacPerTicket } from "@/lib/offers/facilityShare";
+import { otherTerms } from "@/lib/offers/agentEmail";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize, formatTime12hr,
@@ -40,6 +41,8 @@ export type OfferPdfData = {
   deal_type?: string;
   backend_percentage?: number;
   other_terms?: string;
+  /** Where other terms lived before the form had the field; the fallback. */
+  notes?: string;
   radius_distance?: string;
   radius_days_prior?: number;
   radius_days_after?: number;
@@ -216,7 +219,7 @@ export async function exportOfferPDF(data: OfferPdfData, venue: Venue | null): P
   dlY = lv("Backend %", `${data.backend_percentage || 0}%`, dlY);
   dlY = lv("Radius", `${data.radius_distance || "—"}mi | ${data.radius_days_prior || "—"}d prior | ${data.radius_days_after || "—"}d after`, dlY, { maxW: 50 });
   dlY = lv("Production", String(data.production_by || "—"), dlY);
-  dlY = lv("Other Terms", String(data.other_terms || "—"), dlY, { maxW: 50 });
+  dlY = lv("Other Terms", otherTerms(data) || "—", dlY, { maxW: 50 });
 
   // Right column
   let drY = dealStartY;

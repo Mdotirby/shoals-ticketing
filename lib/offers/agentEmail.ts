@@ -1,5 +1,6 @@
 import { joinNames, offTopNames } from "./door";
 import { artistFacPerTicket } from "./facilityShare";
+import { tierAllInPrice } from "./cardExpense";
 import { OPERATORS, type OperatorConfig } from "@/lib/operators";
 import type { ArtistOffer } from "@/lib/types/offer";
 
@@ -60,13 +61,22 @@ export function agentDealLine(offer: ArtistOffer): string {
   return fac > 0 ? `${line}, plus ${money(fac)} per ticket from the facility fee` : line;
 }
 
-/** "General Admission $27.50 ($33.50 with fees)", one per tier. */
+/**
+ * "General Admission $27.50 ($37.50 with fees)", one per tier. The figure in
+ * brackets is what the buyer actually pays -- fees, tax and card processing
+ * in. It used to be the face plus the two fees, $4 short of the checkout.
+ */
 export function ticketLines(offer: ArtistOffer): string[] {
   return (offer.ticket_scaling || []).map((t) => {
     const face = Number(t.net_price) || 0;
-    const allIn = Number(t.price) || 0;
+    const allIn = tierAllInPrice(t, { taxMethod: offer.tax_method, taxRate: offer.tax_rate });
     return `${t.name || "Tier"} ${money(face)}${allIn > face ? ` (${money(allIn)} with fees)` : ""}`;
   });
+}
+
+/** The offer's other terms: the field, or the notes it used to live in. */
+export function otherTerms(offer: Pick<ArtistOffer, "other_terms" | "notes">): string {
+  return String(offer.other_terms || offer.notes || "").trim();
 }
 
 const esc = (s: unknown) =>
@@ -95,6 +105,7 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
     ["Billing", offer.billing || ""],
     ["Radius", [offer.radius_distance ? `${offer.radius_distance} mi` : "", offer.radius_days_prior != null ? `${offer.radius_days_prior} days prior` : "", offer.radius_days_after != null ? `${offer.radius_days_after} days after` : ""].filter(Boolean).join(" · ")],
     ["Merch", offer.merch_split || ""],
+    ["Other terms", otherTerms(offer)],
     ["Valid for", offer.offer_valid_days ? `${offer.offer_valid_days} days` : ""],
   ].filter(([, v]) => v) as Array<[string, string]>;
 

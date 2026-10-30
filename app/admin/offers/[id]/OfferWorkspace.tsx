@@ -418,6 +418,14 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
     gap: scalingRows.reduce((t, r) => t + r.gap * r.sellable, 0),
   };
 
+  // ── Lineup rows ──────────────────────────────────────────────────────
+  const lineupRows = Array.isArray(form.show_lineup) ? (form.show_lineup as ShowLineupItem[]) : [];
+  const setLineup = (i: number, patch: Partial<ShowLineupItem>) => {
+    const next = [...lineupRows];
+    next[i] = { ...next[i], ...patch };
+    updateField("show_lineup", next);
+  };
+
   // Merge live-computed derived totals into form state before saving so the
   // database always has the up-to-date totals/splitpoint/net_potential/etc.
   const buildSavePayload = (overrides: Record<string, unknown> = {}) => ({
@@ -1023,6 +1031,40 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
             <span className="ofb-field-label">Merch rate</span>
             <input value={String(form.merch_split || "")} placeholder="e.g. 80/20 · venue sells" onChange={(e) => updateField("merch_split", e.target.value)} />
           </label>
+          {/* The show itself -- these print on the offer sheet and PDF, and
+              had no field on the form since the rebuild. */}
+          <label className="ofb-field">
+            <span className="ofb-field-label">Show time</span>
+            <input type="time" value={String(form.show_time || "")} onChange={(e) => updateField("show_time", e.target.value || null)} />
+          </label>
+          <label className="ofb-field">
+            <span className="ofb-field-label">Set length (min)</span>
+            <input inputMode="numeric" value={String(form.show_length || "")} placeholder="e.g. 90" onChange={(e) => updateField("show_length", e.target.value)} />
+          </label>
+          <div className="ofb-field ofb-field--wide ofb-lineup">
+            <span className="ofb-field-label">Lineup</span>
+            {lineupRows.map((l, i) => (
+              <div key={i} className="ofb-lineup-row">
+                <input type="time" aria-label="Set time" value={l.time || ""} onChange={(e) => setLineup(i, { time: e.target.value })} />
+                <input aria-label="Act" placeholder="Act" value={l.artist || ""} onChange={(e) => setLineup(i, { artist: e.target.value })} />
+                <input aria-label="Set length (min)" inputMode="numeric" placeholder="min" value={l.set_length || ""} onChange={(e) => setLineup(i, { set_length: e.target.value })} />
+                <button type="button" className="ofs-remove" aria-label="Remove this set" onClick={() => updateField("show_lineup", lineupRows.filter((_, j) => j !== i))}>×</button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="ofb-lineup-add"
+              onClick={() => updateField("show_lineup", [
+                ...lineupRows,
+                lineupRows.length === 0
+                  ? { time: String(form.show_time || ""), artist: String(form.artist_name || ""), set_length: String(form.show_length || "") }
+                  : { time: "", artist: "", set_length: "" },
+              ])}
+            >
+              + Add a set
+            </button>
+            <span className="ofb-field-hint">The first three print on the offer sheet, in order</span>
+          </div>
 
           {/* Only the structure's own terms, so the form does not ask about a
               rental fee on a show that is not one. */}
@@ -1080,7 +1122,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         <details className="ofb-terms">
           <summary>
             <span className="ui-eyebrow">More terms</span>
-            <span className="ofb-terms-sub">venue contact · agent contact · radius · deposit · comps · tax · notes</span>
+            <span className="ofb-terms-sub">venue contact · agent contact · radius · deposit · comps · tax · other terms</span>
           </summary>
           <div className="ofb-terms-body">
             <div className="ofb-fields">
@@ -1176,9 +1218,19 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                   onChange={(e) => updateField("tax_rate", parseFloat(e.target.value) / 100 || 0)}
                 />
               </label>
+              {/* The notes ARE the other terms: what's typed here prints as
+                  "Other terms" on the offer sheet, the PDF and the email.
+                  Offers whose terms were typed into notes before this field
+                  existed show those until they're edited. */}
               <label className="ofb-field ofb-field--wide">
-                <span className="ofb-field-label">Notes</span>
-                <textarea rows={3} value={String(form.notes || "")} onChange={(e) => updateField("notes", e.target.value)} />
+                <span className="ofb-field-label">Other terms</span>
+                <textarea
+                  rows={3}
+                  value={String(form.other_terms || form.notes || "")}
+                  placeholder="Hotels, catering, hospitality — printed on the offer"
+                  onChange={(e) => updateField("other_terms", e.target.value)}
+                />
+                <span className="ofb-field-hint">Prints as Other terms on the offer sheet, PDF and email</span>
               </label>
             </div>
           </div>

@@ -3,6 +3,8 @@ import { artistPayout } from "@/lib/settlement/model";
 import { talentInExpenses } from "@/lib/offers/defaults";
 import { doorDeductions, joinNames, offTopNames } from "@/lib/offers/door";
 import { artistFacilityShare, artistFacPerTicket } from "@/lib/offers/facilityShare";
+import { otherTerms } from "@/lib/offers/agentEmail";
+import { formatTime12hr } from "@/lib/pdf/pdf-header";
 import { cardExpenseAtSellout, cardSurchargeExact, withoutCardExpense, CARD_EXPENSE_NAME } from "@/lib/offers/cardExpense";
 
 /**
@@ -335,10 +337,18 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     avgPrice > 0 ? (total_expenses + guarantee - talent) / avgPrice : 0;
 
   const o = offer;
-  const showsLabel = `${o.num_shows ?? ""} x ${o.show_length ?? ""}`.trim();
-  const lineupLines = (o.show_lineup || []).slice(0, 3).map(
-    (l) => `${l.time} - ${l.artist}${l.set_length ? ` (${l.set_length})` : ""}`
-  );
+  // "1 show × 90 min", "8:45 PM", "8:00 PM — Local talent (30 min)". These
+  // printed raw ("1 x 90", "20:45", "20:00 - Local talent (30)").
+  const mins = (v: unknown) => {
+    const t = String(v ?? "").trim();
+    return /^\d+$/.test(t) ? `${t} min` : t;
+  };
+  const shows = Number(o.num_shows) || 1;
+  const showsLabel = o.show_length ? `${shows} show${shows === 1 ? "" : "s"} × ${mins(o.show_length)}` : "";
+  const lineupLines = (o.show_lineup || [])
+    .filter((l) => l && (l.artist || l.time))
+    .slice(0, 3)
+    .map((l) => `${l.time ? formatTime12hr(l.time) : "TBA"} — ${l.artist || "TBA"}${l.set_length ? ` (${mins(l.set_length)})` : ""}`);
   const compsParts: string[] = [];
   if (o.comps != null) compsParts.push(`${o.comps} total`);
   if (o.artist_comps != null) compsParts.push(`${o.artist_comps} Artist`);
@@ -362,7 +372,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     shows_label: showsLabel,
     venue_capacity: tCap,
     agent_name: o.agent_name || "",
-    show_time_label: o.show_time || "",
+    show_time_label: o.show_time ? formatTime12hr(o.show_time) : "",
     radius_clause: [o.radius_distance, o.radius_days_prior != null ? `${o.radius_days_prior}d prior` : null, o.radius_days_after != null ? `${o.radius_days_after} days after` : null]
       .filter(Boolean)
       .join(" | "),
@@ -383,7 +393,7 @@ export function buildOfferData(offer: ArtistOffer): OfferData {
     merch_split: o.merch_split || "",
     production_by: o.production_by || "",
     merch_seller: o.merch_seller || "",
-    other_terms: o.other_terms || "",
+    other_terms: otherTerms(o),
     comps_label: compsParts.join(" | "),
 
     ticket_scaling,

@@ -135,6 +135,22 @@ export function cardExpenseAtSellout(
   return { amount, tickets, perTicket: tickets > 0 ? amount / tickets : 0 };
 }
 
+/**
+ * What one buyer pays for one ticket of a tier, everything in: face, both
+ * fees, a multiplier tax on the face, and the card fee on all of that. The
+ * same arithmetic the scaling table and the offer sheet's ALL-IN column use.
+ */
+export function tierAllInPrice(
+  row: ScalingLike,
+  opts: { taxMethod?: string | null; taxRate?: number | null } = {},
+): number {
+  const raw = Number(opts.taxRate) || 0;
+  const dec = (raw > 0 && raw < 1 ? raw * 100 : raw) / 100;
+  const taxPer = opts.taxMethod === "divisor" ? 0 : (Number(row?.net_price) || 0) * dec;
+  const preCc = (Number(row?.price) || 0) + taxPer;
+  return Math.round((preCc + cardSurchargeExact(preCc)) * 100) / 100;
+}
+
 /** The derived line, shaped like the stored expense rows it sits beside. */
 export function cardExpenseRow(
   scaling: ScalingLike[],

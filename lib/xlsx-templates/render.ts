@@ -37,6 +37,14 @@ type Manifest = {
   source_sheet: string;
   scalar_fields: ScalarFieldSpec[];
   repeating_sections: RepeatingSection[];
+  /**
+   * Template merges to draw wider than the template has them, keyed by the
+   * template's own range ("F20:G20": "F20:L20"), and new merges for value
+   * cells that had none. Both in template row numbers; they shift with the
+   * rows like every other merge. For value cells whose text outgrew them.
+   */
+  merge_overrides?: Record<string, string>;
+  extra_merges?: string[];
 };
 
 // ── Cell address helpers ────────────────────────────────────────────────
@@ -167,8 +175,16 @@ export async function renderXlsxTemplate(
   // merge already merged cells" on the second one, which killed the whole
   // render. Skipping the duplicate keeps the first (topmost) merge, which is
   // the one whose row the shift was computed from.
+  const overrides = manifest.merge_overrides ?? {};
+  const merges = [
+    ...originalMerges.map((m) => {
+      const key = `${m.c1}${m.r1}:${m.c2}${m.r2}`;
+      return overrides[key] ? parseRange(overrides[key]) : m;
+    }),
+    ...(manifest.extra_merges ?? []).map(parseRange),
+  ];
   const applied = new Set<string>();
-  for (const m of originalMerges) {
+  for (const m of merges) {
     const shift = shiftForOriginalRow(m.r1);
     const range = `${m.c1}${m.r1 + shift}:${m.c2}${m.r2 + shift}`;
     if (applied.has(range)) continue;
@@ -217,6 +233,13 @@ export async function renderXlsxTemplate(
     if (last >= cut) sheet.spliceRows(cut, last - cut + 1);
   }
 
+  // 4b'. Make every wrapped value fit. The template's text cells wrap, but
+  //      at fixed row heights, so anything longer than one line was cut off
+  //      at the cell's bottom edge -- a door deal's terms, a merch split, a
+  //      long note. Rows only ever grow, and only as far as their longest
+  //      cell needs.
+  fitRowsToText(sheet);
+
   // 4b. Vertically center every cell's content. The source design uses
   //     vertical="top" throughout (confirmed against the original file's
   //     own XML -- not something introduced by this pipeline), but Matt
@@ -252,4 +275,69 @@ export async function renderXlsxTemplate(
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   return fixIndexedColors(Buffer.from(arrayBuffer));
+}
+
+// ── Row heights that fit their text ─────────────────────────────────────
+
+/** Excel's default column width, in its own units (about one '0' each). */
+const DEFAULT_COL_WIDTH = 8.43;
+
+/** Lines a string needs at `cap` characters per line, wrapping on words. */
+function linesFor(text: string, cap: number): number {
+  let lines = 0;
+  for (const para of text.split(/\r?\n/)) {
+    let line = 0;
+    lines++;
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const w = word.length;
+      if (line === 0) {
+        line = w;
+        lines += Math.floor(Math.max(0, w - 1) / cap);
+        line = w % cap || cap;
+      } else if (line + 1 + w <= cap) {
+        line += 1 + w;
+      } else {
+        lines++;
+        lines += Math.floor(Math.max(0, w - 1) / cap);
+        line = w % cap || cap;
+      }
+    }
+  }
+  return Math.max(1, lines);
+}
+
+function fitRowsToText(sheet: ExcelJS.Worksheet) {
+  const colWidth = (c: number) => sheet.getColumn(c).width ?? DEFAULT_COL_WIDTH;
+  // The width a value really has: its whole merge, when it is the top-left.
+  const spans = new Map<string, number>();
+  for (const m of (sheet.model.merges || []).map(parseRange)) {
+    let w = 0;
+    for (let c = colIndex(m.c1); c <= colIndex(m.c2); c++) w += colWidth(c);
+    spans.set(`${m.c1}${m.r1}`, w);
+  }
+
+  sheet.eachRow({ includeEmpty: false }, (row) => {
+    let need = 0;
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      if (typeof cell.value !== "string" || !cell.alignment?.wrapText) return;
+      // Every cell of a merge reports the merge's text; only its top-left
+      // owns it, measured across the whole merge.
+      if (cell.isMerged && cell.master.address !== cell.address) return;
+      const width = spans.get(cell.address) ?? colWidth(Number(cell.col));
+      const size = Number(cell.font?.size) || 11;
+      // Width units are 11pt digits; a smaller font fits proportionally
+      // more, and running text averages a little narrower than a digit.
+      // Still on the safe side -- a row a little tall beats a word cut off.
+      const cap = Math.max(4, Math.floor(width * (11 / size) * 1.05));
+      const lines = linesFor(cell.value, cap);
+      need = Math.max(need, 6 + lines * size * 1.35);
+    });
+    if (need > (row.height ?? 15)) row.height = Math.ceil(need * 10) / 10;
+  });
+}
+
+function colIndex(col: string): number {
+  let n = 0;
+  for (const ch of col) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
 }

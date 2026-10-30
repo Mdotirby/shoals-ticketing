@@ -24362,6 +24362,13 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ofe-kind--toggle:hover { color: rgba(255, 255, 255, 0.80); border-color: rgba(255, 255, 255, 0.32); }
 .admin-shell .ofe-kind.is-top { color: #fff; background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.40); }
 
+/* Lineup — one row per set: time, act, minutes. */
+.admin-shell .ofb-lineup { display: flex; flex-direction: column; gap: 8px; }
+.admin-shell .ofb-lineup-row { display: grid; grid-template-columns: 130px 1fr 80px 32px; gap: 8px; align-items: center; }
+.admin-shell .ofb-lineup-add { align-self: flex-start; background: none; border: 1px dashed rgba(255, 255, 255, 0.28); color: rgba(255, 255, 255, 0.75); border-radius: 10px; padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.admin-shell .ofb-lineup-add:hover { border-color: rgba(255, 255, 255, 0.5); color: #fff; }
+@media (max-width: 640px) { .admin-shell .ofb-lineup-row { grid-template-columns: 1fr 1fr 64px 32px; } .admin-shell .ofb-lineup-row input[aria-label="Act"] { grid-column: 1 / -1; grid-row: 1; } }
+
 /* Send to agent — the compose box. */
 .admin-shell .ofb-send { display: flex; flex-direction: column; gap: 12px; }
 .admin-shell .ofb-send textarea { min-height: 140px; resize: vertical; font: inherit; }
