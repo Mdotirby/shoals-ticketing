@@ -4,6 +4,8 @@ import { sanitize } from "@/lib/pdf/pdf-header";
 import { renderXlsxTemplate } from "@/lib/xlsx-templates/render";
 import { buildOfferData } from "@/lib/xlsx-templates/offer/adapter";
 import type { ArtistOffer } from "@/lib/types/offer";
+import { requireStaff } from "@/lib/auth/can";
+import { AGENT_COPY_CUT } from "@/lib/offers/agentEmail";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -18,7 +20,12 @@ type ExportXlsxBody = { offer: ArtistOffer };
 // lib/xlsx-templates/offer/adapter.ts for exactly which already-computed
 // fields land in which cell.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  // The workbook carries the venue's own numbers. It answered anyone.
+  const guard = await requireStaff();
+  if (!guard.ok) return guard.response;
   await params;
+  // ?copy=agent: the copy that goes to the agent -- cut before the venue's block.
+  const agentCopy = new URL(request.url).searchParams.get("copy") === "agent";
 
   let body: ExportXlsxBody;
   try {
@@ -33,7 +40,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     const data = buildOfferData(body.offer);
-    const xlsxBuffer = await renderXlsxTemplate(TEMPLATE_DIR, data as unknown as Record<string, unknown>);
+    const xlsxBuffer = await renderXlsxTemplate(
+      TEMPLATE_DIR,
+      data as unknown as Record<string, unknown>,
+      agentCopy ? { cutFromLabel: AGENT_COPY_CUT } : {},
+    );
 
     const filename = `${sanitize(body.offer.artist_name ?? "Artist")}-${sanitize(data.event_date_label)}-Offer.xlsx`;
 

@@ -24361,6 +24361,12 @@ body[data-theme="liquid-glass"] .admin-signout-btn {
 .admin-shell .ofe-kind--toggle { background: none; font-family: inherit; cursor: pointer; }
 .admin-shell .ofe-kind--toggle:hover { color: rgba(255, 255, 255, 0.80); border-color: rgba(255, 255, 255, 0.32); }
 .admin-shell .ofe-kind.is-top { color: #fff; background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.40); }
+
+/* Send to agent — the compose box. */
+.admin-shell .ofb-send { display: flex; flex-direction: column; gap: 12px; }
+.admin-shell .ofb-send textarea { min-height: 140px; resize: vertical; font: inherit; }
+.admin-shell .ofb-send-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255, 255, 255, 0.78); cursor: pointer; }
+.admin-shell .ofb-send-attach { font-size: 12px; color: rgba(255, 255, 255, 0.55); padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.10); }
 .admin-shell .ofe-amt,
 .admin-shell .ofe-var input {
   width: 100%;

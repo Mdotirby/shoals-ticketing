@@ -56,12 +56,12 @@ export default function OfferRail({
   facPerTicket = 0,
   showWalkouts,
   venueId,
-  artistName,
   agentEmail,
   saving,
   exporting,
   onSave,
   onExport,
+  onSend,
 }: {
   basis: WalkoutBasis;
   /** DOOR: names of the expense lines that come off the door first. */
@@ -70,12 +70,12 @@ export default function OfferRail({
   facPerTicket?: number;
   showWalkouts: boolean;
   venueId: string | null;
-  artistName: string;
   agentEmail: string;
   saving: boolean;
   exporting: boolean;
   onSave: () => void;
   onExport: () => void;
+  onSend: () => void;
 }) {
   const scenarios = useMemo(() => {
     if (basis.sellable <= 0) return [];
@@ -219,14 +219,11 @@ export default function OfferRail({
         <Button onClick={onExport} disabled={exporting}>
           {exporting ? "Generating…" : "Export Excel"}
         </Button>
-        {agentEmail && (
-          <Button
-            variant="ghost"
-            href={`mailto:${agentEmail}?subject=${encodeURIComponent(`Offer — ${artistName || "your artist"}`)}`}
-          >
-            Email agent
-          </Button>
-        )}
+        {/* Through Resend from offers@, with the locked sheet attached —
+            no longer a mailto that opened a blank message. */}
+        <Button variant="ghost" onClick={onSend} disabled={saving}>
+          {agentEmail ? "Send to agent" : "Send to agent…"}
+        </Button>
       </div>
     </aside>
   );

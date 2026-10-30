@@ -12,7 +12,9 @@ import { exportContractPDF } from "@/lib/pdf/contract-pdf";
 import { formatPhoneNumber } from "@/lib/formatPhone";
 import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { rateLabel } from "@/lib/fees/rates";
-import { Button, Card, Eyebrow, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
+import { Button, Card, Eyebrow, Field, Modal, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
+import { OPERATORS } from "@/lib/operators";
+import { defaultAgentMessage, offerSubject, offersAddress } from "@/lib/offers/agentEmail";
 import { guaranteeInExpenses as guaranteeIsExpense, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import { offTopNames, withDoorDefaults } from "@/lib/offers/door";
 import { artistFacPerTicket, withArtistFac } from "@/lib/offers/facilityShare";
@@ -167,6 +169,11 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Send to agent — the compose box, and where it stands.
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", ccMe: true, subject: "", message: "" });
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
 
   /**
    * Which show this offer is for.
@@ -609,12 +616,9 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   // loaded record + any live/unsaved form edits (same assembly pattern as
   // buildPdfSettlement() in the settlements admin page), so the export
   // always matches what's on screen, not just what's last been saved.
-  const exportPDF = async () => {
-    if (!offer) return;
-    setExporting(true);
-    try {
-      const xlsxOffer: ArtistOffer = {
-        ...offer,
+  /** The offer as the workbook reads it: saved record, with the form's live terms and totals on top. */
+  const buildXlsxOffer = (): ArtistOffer => ({
+        ...(offer as ArtistOffer),
         venue: form.venue as string,
         venue_address: form.venue_address as string,
         venue_contact: form.venue_contact as string,
@@ -661,12 +665,16 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         splitpoint: live.splitpoint,
         artist_backend: form.artist_backend as number,
         offer_valid_days: form.offer_valid_days as number,
-      };
+  } as ArtistOffer);
 
-      const res = await fetch(`/api/offers/${offer.id}/export-xlsx`, {
+  const exportPDF = async (copy: "venue" | "agent" = "venue") => {
+    if (!offer) return;
+    setExporting(true);
+    try {
+      const res = await fetch(`/api/offers/${offer.id}/export-xlsx${copy === "agent" ? "?copy=agent" : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ offer: xlsxOffer }),
+        body: JSON.stringify({ offer: buildXlsxOffer() }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -687,6 +695,71 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
       URL.revokeObjectURL(url);
     } catch (err) { console.error("Excel export failed:", err); }
     finally { setExporting(false); }
+  };
+
+  const openSend = () => {
+    // The domain this admin is signed in on, unless they picked another last time.
+    let remembered = "";
+    try { remembered = localStorage.getItem("offer-send-from") || ""; } catch { /* private window */ }
+    const signedIn = OPERATORS[getCookie("operatorSlug") || ""]?.domain || OPERATORS.venuecore.domain;
+    const snapshot = { ...(offer as ArtistOffer), ...form } as ArtistOffer;
+    setSendDraft({
+      fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
+      to: String(form.agent_email || ""),
+      cc: "",
+      ccMe: true,
+      subject: offerSubject(snapshot),
+      message: defaultAgentMessage(snapshot),
+    });
+    setSendError("");
+    setSendOpen(true);
+  };
+
+  /** Save first, so what the agent gets is what's on file; then send. */
+  const handleSend = async () => {
+    if (!offer) return;
+    setSending(true); setSendError(""); setSuccess(""); setError("");
+    try {
+      const saved = await fetch(`/api/offers/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildSavePayload()),
+      });
+      if (!saved.ok) {
+        const b = await saved.json().catch(() => ({}));
+        throw new Error(b.error || "Couldn't save the offer before sending.");
+      }
+      const updated = await saved.json();
+      setOffer(updated);
+      setForm(updated);
+
+      const res = await fetch(`/api/offers/${id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          offer: { ...buildXlsxOffer(), ...updated },
+          to: sendDraft.to,
+          cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
+          ccMe: sendDraft.ccMe,
+          subject: sendDraft.subject,
+          message: sendDraft.message,
+          fromDomain: sendDraft.fromDomain,
+        }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `Send failed (${res.status})`);
+      try { localStorage.setItem("offer-send-from", sendDraft.fromDomain); } catch { /* fine */ }
+      if (out.status) {
+        setOffer((o) => (o ? { ...o, status: out.status } : o));
+        setForm((f) => ({ ...f, status: out.status }));
+      }
+      setSendOpen(false);
+      setSuccess(`Offer sent to ${out.to}${out.cc?.length ? ` (cc ${out.cc.join(", ")})` : ""} from ${out.from}.`);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "Send failed.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (loading) return <div className="ofb-state">Loading offer…</div>;
@@ -716,7 +789,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         <div className="ofb-embedded-bar">
           <span className="ofb-embedded-title">{String(form.artist_name || "Offer")}{form.agency ? ` · ${String(form.agency)}` : ""}</span>
           <span className="filter-spacer" />
-          <Button onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</Button>
+          <Button onClick={() => exportPDF("venue")} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save offer"}</Button>
         </div>
       ) : (
@@ -727,7 +800,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         actions={
           <>
             <Button variant="ghost" onClick={() => router.push("/admin/offers")}>← Offers</Button>
-            <Button onClick={exportPDF} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</Button>
+            <Button onClick={() => exportPDF("venue")} disabled={exporting}>{exporting ? "Generating…" : "Export Excel"}</Button>
             <Button variant="primary" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </>
         }
@@ -2090,14 +2163,64 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         facPerTicket={artistFacPerTicket(form.ticket_scaling as TicketScalingRow[])}
         showWalkouts={activeTab !== "deal_lab"}
         venueId={venue?.id || offer.venue_id || getCookie("venue-id") || null}
-        artistName={String(form.artist_name || "")}
         agentEmail={String(form.agent_email || "")}
         saving={saving}
         exporting={exporting}
         onSave={handleSave}
-        onExport={exportPDF}
+        onExport={() => exportPDF("venue")}
+        onSend={openSend}
       />
       </div>
+      {sendOpen && (
+        <Modal
+          title="Send offer to agent"
+          sub="Sent through the platform with the offer sheet attached, locked. The agent's copy stops before your venue numbers."
+          onClose={() => !sending && setSendOpen(false)}
+          width={620}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => exportPDF("agent")} disabled={exporting || sending}>
+                {exporting ? "Generating…" : "Preview attachment"}
+              </Button>
+              <span className="filter-spacer" />
+              <Button onClick={() => setSendOpen(false)} disabled={sending}>Cancel</Button>
+              <Button variant="primary" onClick={handleSend} disabled={sending || !sendDraft.to || !sendDraft.subject}>
+                {sending ? "Sending…" : `Send to ${sendDraft.to || "agent"}`}
+              </Button>
+            </>
+          }
+        >
+          <div className="ofb-send">
+            <Field label="From">
+              <select value={sendDraft.fromDomain} onChange={(e) => setSendDraft((d) => ({ ...d, fromDomain: e.target.value }))}>
+                {Object.values(OPERATORS).map((o) => (
+                  <option key={o.domain} value={o.domain}>{o.copyright} &lt;{offersAddress(o)}&gt;</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="To" hint="Replies come back to you, not to offers@.">
+              <input type="email" value={sendDraft.to} onChange={(e) => setSendDraft((d) => ({ ...d, to: e.target.value }))} />
+            </Field>
+            <Field label="CC" hint="Tour manager, co-agent — separate with commas">
+              <input value={sendDraft.cc} placeholder="name@agency.com" onChange={(e) => setSendDraft((d) => ({ ...d, cc: e.target.value }))} />
+            </Field>
+            <label className="ofb-send-check">
+              <input type="checkbox" checked={sendDraft.ccMe} onChange={(e) => setSendDraft((d) => ({ ...d, ccMe: e.target.checked }))} />
+              <span>Send me a copy</span>
+            </label>
+            <Field label="Subject">
+              <input value={sendDraft.subject} onChange={(e) => setSendDraft((d) => ({ ...d, subject: e.target.value }))} />
+            </Field>
+            <Field label="Message" hint="The deal terms and what the artist walks with at sellout are added below it.">
+              <textarea rows={7} value={sendDraft.message} onChange={(e) => setSendDraft((d) => ({ ...d, message: e.target.value }))} />
+            </Field>
+            <div className="ofb-send-attach">
+              Attached: {String(form.artist_name || "Offer")} offer sheet (.xlsx, locked, no venue numbers). Saving happens first, so they get what&apos;s on file.
+            </div>
+            {sendError && <div className="ofb-banner ofb-banner--bad">{sendError}</div>}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

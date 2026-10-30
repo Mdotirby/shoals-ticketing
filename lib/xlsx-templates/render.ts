@@ -75,9 +75,20 @@ function formatValue(raw: unknown, type: ScalarFieldSpec["type"]): ExcelJS.CellV
  * `data` is the flat field map (already computed by the type's adapter --
  * this function does no business-math of its own, purely cell placement).
  */
+export type RenderOptions = {
+  /**
+   * Drop every row from the one whose column-A label is this text to the end
+   * of the sheet. The offer workbook's last block is the venue's own numbers
+   * ("VENUE POTENTIAL AT SELLOUT — WEST 72 ENT INTERNAL USE ONLY"); the copy
+   * that goes to an agent is cut there.
+   */
+  cutFromLabel?: string;
+};
+
 export async function renderXlsxTemplate(
   templateDir: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  opts: RenderOptions = {},
 ): Promise<Buffer> {
   const manifest: Manifest = JSON.parse(
     await readFile(path.join(templateDir, "manifest.json"), "utf-8")
@@ -179,6 +190,31 @@ export async function renderXlsxTemplate(
       field.blankWhenNull && (raw === null || raw === undefined)
         ? null
         : formatValue(raw, field.type);
+  }
+
+  // 4a. Cut the sheet short, for a copy that leaves the building. Merges in
+  //     the cut rows go first -- spliceRows doesn't move them -- and blank
+  //     rows above the cut go with it, so the sheet doesn't end in a gap.
+  if (opts.cutFromLabel) {
+    const want = opts.cutFromLabel.trim().toUpperCase();
+    let cut = 0;
+    sheet.eachRow({ includeEmpty: false }, (row, r) => {
+      if (!cut && String(row.getCell(1).value ?? "").trim().toUpperCase() === want) cut = r;
+    });
+    if (!cut) throw new Error(`cutFromLabel "${opts.cutFromLabel}" not found`);
+    const isBlank = (r: number) => {
+      let blank = true;
+      sheet.getRow(r).eachCell({ includeEmpty: false }, (c) => {
+        if (c.value !== null && c.value !== "") blank = false;
+      });
+      return blank;
+    };
+    while (cut > 1 && isBlank(cut - 1)) cut--;
+    for (const m of (sheet.model.merges || []).map(parseRange)) {
+      if (m.r2 >= cut) sheet.unMergeCells(`${m.c1}${m.r1}:${m.c2}${m.r2}`);
+    }
+    const last = sheet.rowCount;
+    if (last >= cut) sheet.spliceRows(cut, last - cut + 1);
   }
 
   // 4b. Vertically center every cell's content. The source design uses

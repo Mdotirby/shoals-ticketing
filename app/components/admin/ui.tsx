@@ -31,6 +31,7 @@
  */
 
 import React from "react";
+import { createPortal } from "react-dom";
 
 export function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
@@ -462,7 +463,17 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  // Rendered into .admin-shell itself, not where it's used. .admin-content is
+  // a stacking context (z-index 1) under the sidebar's (2), so a modal drawn
+  // inside it sat beneath the sidebar whatever its own z-index, with its left
+  // edge cut off. .admin-shell still scopes every admin and theme style.
+  const [host, setHost] = React.useState<Element | null>(null);
+  React.useEffect(() => {
+    setHost(document.querySelector(".admin-shell") ?? document.body);
+  }, []);
+  if (!host) return null;
+
+  return createPortal(
     <div
       className="ui-modal-scrim"
       onClick={(e) => {
@@ -477,7 +488,8 @@ export function Modal({
         {children}
         {footer && <div className="ui-modal-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    host,
   );
 }
 
