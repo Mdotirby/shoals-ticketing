@@ -26,6 +26,9 @@ type SendBody = {
   cc?: string[];
   /** Saved to the linked offer, so it's there next time. */
   assistantEmail?: string;
+  /** Kept on the settlement. A finalized one can't be saved, so they're stored on send. */
+  tourManagerEmail?: string;
+  artistManagerEmail?: string;
   subject: string;
   message: string;
   /** Which operator domain to send from: west72ent.com or venuecore.live. */
@@ -121,6 +124,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .update({ agent_assistant_email: body.assistantEmail.trim() || null })
         .eq("id", current.offer_id);
     }
+    await admin
+      .from("settlements")
+      .update({
+        tour_manager_email: String(body.tourManagerEmail || "").trim() || null,
+        artist_manager_email: String(body.artistManagerEmail || "").trim() || null,
+      })
+      .eq("id", id);
     await writeAudit(guard.actor, {
       action: "settlement.sent",
       targetType: "settlement",

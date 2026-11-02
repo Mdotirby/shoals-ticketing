@@ -207,6 +207,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const [offerTerms, setOfferTerms] = useState<OfferSettleTerms>(NO_TERMS);
   const [offerAgent, setOfferAgent] = useState({ name: "", email: "", venue: "" });
   const [assistantEmail, setAssistantEmail] = useState("");
+  const [tourManagerEmail, setTourManagerEmail] = useState("");
+  const [artistManagerEmail, setArtistManagerEmail] = useState("");
   const offerId = settlement?.offer_id ?? null;
   useEffect(() => {
     if (!offerId) { setOfferTerms(NO_TERMS); setOfferAgent({ name: "", email: "", venue: "" }); return; }
@@ -294,6 +296,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     );
     setMerchSettleMethod((data.merch_settle_method as MerchSettleMethod) || "guarantee");
     setMerchSettleReference(String(data.merch_settle_reference || ""));
+    setTourManagerEmail(String(data.tour_manager_email || ""));
+    setArtistManagerEmail(String(data.artist_manager_email || ""));
   }, []);
 
   /* ─── Load data ─── */
@@ -779,6 +783,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
       merch_seller_fee_payer: merchSellerFeePayer,
       merch_settle_method: merchSettleMethod,
       merch_settle_reference: merchSettleMethod === "check" ? merchSettleReference.trim() || null : null,
+      tour_manager_email: tourManagerEmail.trim() || null,
+      artist_manager_email: artistManagerEmail.trim() || null,
       merch_total_gross: merchTotalGross,
       merch_total_tax: merchTotalTax,
       merch_total_net: merchTotalNet,
@@ -1113,7 +1119,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     };
     setSendDraft({
       fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
-      ...agentRecipients(offerAgent.email, assistantEmail),
+      ...agentRecipients(offerAgent.email, assistantEmail, [tourManagerEmail, artistManagerEmail]),
       subject: settlementSubject(named),
       message: defaultSettlementMessage({ ...named, agentName: offerAgent.name }),
     });
@@ -1135,6 +1141,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           to: sendDraft.to,
           cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
           assistantEmail,
+          tourManagerEmail,
+          artistManagerEmail,
           subject: sendDraft.subject,
           message: sendDraft.message,
           fromDomain: sendDraft.fromDomain,
@@ -2787,6 +2795,24 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             value={assistantEmail}
             placeholder="assistant@agency.com"
             onChange={(e) => setAssistantEmail(e.target.value)}
+          />
+        </Field>
+        <Field label="Tour manager email" hint="Goes on the CC line.">
+          <input
+            type="email"
+            className="admin-form-input"
+            value={tourManagerEmail}
+            placeholder="tm@artist.com"
+            onChange={(e) => setTourManagerEmail(e.target.value)}
+          />
+        </Field>
+        <Field label="Artist manager email" hint="Goes on the CC line.">
+          <input
+            type="email"
+            className="admin-form-input"
+            value={artistManagerEmail}
+            placeholder="manager@artist.com"
+            onChange={(e) => setArtistManagerEmail(e.target.value)}
           />
         </Field>
       </div>

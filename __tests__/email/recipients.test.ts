@@ -47,6 +47,15 @@ describe("agentRecipients", () => {
 
   it("doesn't copy the same person twice", () => {
     expect(agentRecipients("a@a.com", "A@a.com")).toEqual({ to: "A@a.com", cc: "" });
+    expect(agentRecipients("a@a.com", "", ["A@a.com", "tm@a.com", "TM@a.com"])).toEqual({ to: "a@a.com", cc: "tm@a.com" });
+  });
+
+  it("copies the tour and artist managers, skipping blanks", () => {
+    expect(agentRecipients("agent@a.com", "asst@a.com", ["tm@a.com", "", "am@a.com"])).toEqual({
+      to: "asst@a.com",
+      cc: "agent@a.com, tm@a.com, am@a.com",
+    });
+    expect(agentRecipients("agent@a.com", "", ["tm@a.com", null])).toEqual({ to: "agent@a.com", cc: "tm@a.com" });
   });
 });
 

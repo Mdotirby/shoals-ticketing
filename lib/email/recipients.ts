@@ -9,15 +9,24 @@ const EMAIL = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-/** The assistant is who it's addressed to, with the agent copied. With no assistant, it's the agent. */
+/**
+ * The assistant is who it's addressed to, with the agent copied. With no
+ * assistant, it's the agent. Anyone in `alsoCopy` is copied either way.
+ */
 export function agentRecipients(
   agentEmail: string | null | undefined,
   assistantEmail: string | null | undefined,
+  alsoCopy: Array<string | null | undefined> = [],
 ): { to: string; cc: string } {
   const agent = String(agentEmail || "").trim();
   const assistant = String(assistantEmail || "").trim();
-  if (!assistant) return { to: agent, cc: "" };
-  return { to: assistant, cc: agent && !same(agent, assistant) ? agent : "" };
+  const to = assistant || agent;
+  const cc: string[] = [];
+  for (const raw of [assistant ? agent : "", ...alsoCopy]) {
+    const email = String(raw || "").trim();
+    if (email && !same(email, to) && !cc.some((e) => same(e, email))) cc.push(email);
+  }
+  return { to, cc: cc.join(", ") };
 }
 
 export type RecipientInput = {
