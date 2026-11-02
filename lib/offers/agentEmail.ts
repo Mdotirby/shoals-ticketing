@@ -164,8 +164,11 @@ export function documentEmailHtml({
   const logoWidth = LOGO_WIDTH[sender.slug] ?? 150;
   const glass = `https://${sender.domain}/email/glass-panel.jpg`;
   const pageGlow = `https://${sender.domain}/email/page-glow.jpg`;
-  // The gradient is for clients that drop the image. The solid colour is for the rest.
-  const glassStyle = `background-color:${PANEL};background-image:linear-gradient(120deg,#2a2b31 0%,${PANEL} 32%,${PANEL} 100%);background-image:url('${glass}');background-size:cover;background-position:center top;`;
+  // Glass three ways, because mail apps differ. The image is on top. CSS drawn to
+  // match sits under it, for an app that doesn't show the image but does draw
+  // gradients (Apple Mail showed flat panels). The solid colour is for the rest.
+  // The image-only line is for an app that rejects a layered background.
+  const glassStyle = `background-color:${PANEL};background-image:url('${glass}');background-image:url('${glass}'),radial-gradient(520px 340px at 0% 0%,rgba(143,160,255,0.22),rgba(143,160,255,0) 72%),radial-gradient(460px 340px at 100% 100%,rgba(143,214,168,0.12),rgba(143,214,168,0) 72%),linear-gradient(118deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.02) 30%,rgba(255,255,255,0) 58%);background-size:cover;background-position:center top;`;
   const stat = (label: string, value: string, size: number) => `<div style="font-family:${FONT};font-size:10px;line-height:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};">${esc(label)}</div>
         <div class="hero" style="margin-top:6px;font-family:${FONT};font-size:${size}px;line-height:${size + 4}px;font-weight:700;color:${TEXT};">${esc(value)}</div>`;
   const stats = heroSide
@@ -203,7 +206,7 @@ export function documentEmailHtml({
 <body bgcolor="#08080a" style="margin:0;padding:0;background-color:#08080a;">
 <div style="display:none;max-height:0;max-width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#08080a;opacity:0;">${esc(heading)}: ${esc(heroLabel)} ${esc(heroValue)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#08080a" style="background-color:#08080a;">
-  <tr><td class="outer" align="center" bgcolor="#08080a" background="${pageGlow}" style="padding:40px 16px;background-color:#08080a;background-image:radial-gradient(620px 420px at 12% 0%,#1c1f38 0%,#08080a 70%);background-image:url('${pageGlow}');background-repeat:no-repeat;background-position:center top;background-size:1400px auto;">
+  <tr><td class="outer" align="center" bgcolor="#08080a" background="${pageGlow}" style="padding:40px 16px;background-color:#08080a;background-image:url('${pageGlow}');background-image:url('${pageGlow}'),radial-gradient(620px 420px at 12% 0%,rgba(143,160,255,0.22),rgba(143,160,255,0) 72%);background-repeat:no-repeat;background-position:center top;background-size:1400px auto,100% 100%;">
     <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
       <tr><td style="padding:0 4px 20px;">
@@ -230,7 +233,7 @@ export function documentEmailHtml({
       <tr><td style="padding:24px 8px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
           <td align="left" style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(sender.copyright)}</td>
-          <td align="right" style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(sender.domain)}</td>
+          <td align="right" style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};"><a href="https://${esc(sender.domain)}" style="color:${MUTED};text-decoration:none;">${esc(sender.domain)}</a></td>
         </tr></table>
       </td></tr>
     </table>
