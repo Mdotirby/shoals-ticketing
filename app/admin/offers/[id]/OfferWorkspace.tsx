@@ -172,7 +172,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   const [success, setSuccess] = useState("");
   // Send to agent — the compose box, and where it stands.
   const [sendOpen, setSendOpen] = useState(false);
-  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", subject: "", message: "" });
+  const [sendDraft, setSendDraft] = useState({ fromDomain: "", subject: "", message: "" });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sendNote, setSendNote] = useState("");
@@ -715,7 +715,6 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
     const snapshot = { ...(offer as ArtistOffer), ...form } as ArtistOffer;
     setSendDraft({
       fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
-      ...agentRecipients(form.agent_email as string, form.agent_assistant_email as string),
       subject: offerSubject(snapshot),
       message: defaultAgentMessage(snapshot),
     });
@@ -747,8 +746,6 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           offer: { ...buildXlsxOffer(), ...updated },
-          to: sendDraft.to,
-          cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
           subject: sendDraft.subject,
           message: sendDraft.message,
           fromDomain: sendDraft.fromDomain,
@@ -774,6 +771,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
       setSending(false);
     }
   };
+
+  const sendRecipients = agentRecipients(form.agent_email as string, form.agent_assistant_email as string);
 
   if (loading) return <div className="ofb-state">Loading offer…</div>;
   if (!offer) return <div className="ofb-state">Offer not found.</div>;
@@ -2246,8 +2245,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
               <Button onClick={() => handleSend(true)} disabled={sending || !sendDraft.subject}>
                 Send test to me
               </Button>
-              <Button variant="primary" onClick={() => handleSend()} disabled={sending || !sendDraft.to || !sendDraft.subject}>
-                {sending ? "Sending…" : `Send to ${sendDraft.to || "agent"}`}
+              <Button variant="primary" onClick={() => handleSend()} disabled={sending || !sendRecipients.to || !sendDraft.subject}>
+                {sending ? "Sending…" : `Send to ${sendRecipients.to || "agent"}`}
               </Button>
             </>
           }
@@ -2260,11 +2259,11 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                 ))}
               </select>
             </Field>
-            <Field label="To" hint="You're always copied. Replies come back to you, not to offers@.">
-              <input type="email" value={sendDraft.to} onChange={(e) => setSendDraft((d) => ({ ...d, to: e.target.value }))} />
+            <Field label="To">
+              <div className="ofb-send-attach">{sendRecipients.to || "Add the agent's email on the Details tab first."}</div>
             </Field>
-            <Field label="CC" hint="Tour manager, co-agent — separate with commas">
-              <input value={sendDraft.cc} placeholder="name@agency.com" onChange={(e) => setSendDraft((d) => ({ ...d, cc: e.target.value }))} />
+            <Field label="CC" hint="Offers only go to the agent and their assistant. Replies come back to you, not to offers@.">
+              <div className="ofb-send-attach">{[sendRecipients.cc, "You"].filter(Boolean).join(", ")}</div>
             </Field>
             <Field label="Subject">
               <input value={sendDraft.subject} onChange={(e) => setSendDraft((d) => ({ ...d, subject: e.target.value }))} />

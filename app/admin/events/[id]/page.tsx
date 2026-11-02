@@ -27,6 +27,7 @@ import Marketing from "./_hub/sections/Marketing";
 import Orders from "./_hub/sections/Orders";
 import Guests from "./_hub/sections/Guests";
 import DayOf from "./_hub/sections/DayOf";
+import Contacts from "./_hub/sections/Contacts";
 import Deal from "./_hub/sections/Deal";
 import Settlement from "./_hub/sections/Settlement";
 import Activity from "./_hub/sections/Activity";
@@ -62,6 +63,7 @@ const SECTIONS: Record<HubTab, (go: (t: HubTab) => void) => React.ReactNode> = {
   orders: () => <Orders />,
   guests: () => <Guests />,
   dayof: () => <DayOf />,
+  contacts: () => <Contacts />,
   deal: () => <Deal />,
   settlement: () => <Settlement />,
   activity: () => <Activity />,

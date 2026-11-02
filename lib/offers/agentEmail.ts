@@ -95,13 +95,9 @@ export type AgentEmailInput = {
 export function agentEmailHtml({ offer, sender, message, artistAtSellout, attachmentName }: AgentEmailInput): string {
   const sellable = (offer.ticket_scaling || []).reduce((n, t) => n + (Number(t.sellable_cap) || 0), 0);
   const rows: Array<[string, string]> = [
-    ["Artist", offer.artist_name || ""],
-    ["Date", offerDateLabel(offer)],
     ["Venue", [offer.venue, offer.venue_address].filter(Boolean).join(" · ")],
-    ["Deal", agentDealLine(offer)],
     ["Tickets", ticketLines(offer).join("\n")],
     ["Sellable", sellable ? `${sellable.toLocaleString("en-US")}` : ""],
-    ["Artist at sellout", money(artistAtSellout)],
     ["Billing", offer.billing || ""],
     ["Radius", [offer.radius_distance ? `${offer.radius_distance} mi` : "", offer.radius_days_prior != null ? `${offer.radius_days_prior} days prior` : "", offer.radius_days_after != null ? `${offer.radius_days_after} days after` : ""].filter(Boolean).join(" · ")],
     ["Merch", offer.merch_split || ""],
@@ -111,61 +107,153 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
 
   return documentEmailHtml({
     title: offerSubject(offer),
-    eyebrow: `Offer · ${sender.copyright}`,
+    kind: "Offer",
     heading: offer.artist_name || "Offer",
+    subline: [offerDateLabel(offer), offer.venue].filter(Boolean).join(" · "),
+    heroLabel: "Artist at sellout",
+    heroValue: money(artistAtSellout),
+    heroNote: agentDealLine(offer),
     message,
     rows,
-    note: `The full offer is attached: <b style="color:#111;">${esc(attachmentName)}</b>. Reply to this email with any questions or to confirm.`,
+    attachmentName,
+    attachmentNote: "Attached. Reply to this email with any questions or to confirm.",
     sender,
   });
 }
 
+/** Logo widths at 26px tall. Outlook draws an image at full size without one. */
+const LOGO_WIDTH: Record<string, number> = { west72: 89, venuecore: 170 };
+
+const FONT = "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif";
+const PANEL = "#15161b";
+const LINE = "#2d2e35";
+const TEXT = "#ffffff";
+const BODY = "#e6e6e8";
+const MUTED = "#a3a3aa";
+
 /**
- * The layout every document email shares. Values are escaped here, and line
- * breaks in one become <br/>; `note` is trusted HTML, so escape what goes in it.
+ * The layout every document email shares: the platform's liquid glass, built
+ * for mail clients. Tables and inline styles throughout, solid hex colours
+ * beneath every gradient, and no blur, since none of that survives everywhere.
+ * Outlook gets flat dark panels with square corners; the rest get the glow.
  */
-export function documentEmailHtml({ title, eyebrow, heading, message, rows, note, sender }: {
+export function documentEmailHtml({
+  title, kind, heading, subline, heroLabel, heroValue, heroSide, heroNote, badges = [], message, rows, total, attachmentName, attachmentNote, sender,
+}: {
   title: string;
-  eyebrow: string;
+  kind: string;
   heading: string;
+  subline: string;
+  heroLabel: string;
+  heroValue: string;
+  /** A second figure beside the first, for when two matter equally. */
+  heroSide?: { label: string; value: string };
+  heroNote?: string;
+  /** Short green confirmations under the big number. */
+  badges?: string[];
   message: string;
   rows: Array<[string, string]>;
-  note: string;
+  /** A bold last row. */
+  total?: [string, string];
+  attachmentName?: string;
+  attachmentNote?: string;
   sender: OperatorConfig;
 }): string {
-  const termRows = rows
-    .map(([k, v]) => `<tr>
-      <td style="padding:8px 0;border-bottom:1px solid #ececec;color:#6b6b6b;font-size:13px;width:130px;vertical-align:top;">${esc(k)}</td>
-      <td style="padding:8px 0;border-bottom:1px solid #ececec;color:#111;font-size:14px;vertical-align:top;">${v.split("\n").map(esc).join("<br/>")}</td>
-    </tr>`)
-    .join("");
+  const row = ([k, v]: [string, string], last: boolean, strong = false) => `<tr>
+    <td class="k" width="120" valign="top" style="padding:14px 16px 14px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:14px;line-height:20px;color:${strong ? TEXT : MUTED};${strong ? "font-weight:700;" : ""}">${esc(k)}</td>
+    <td valign="top" style="padding:14px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:14px;line-height:20px;color:${TEXT};font-weight:${strong ? 700 : 500};">${v.split("\n").map(esc).join("<br/>")}</td>
+  </tr>`;
+  const all = [...rows.map((r, i) => row(r, !total && i === rows.length - 1)), ...(total ? [row(total, true, true)] : [])].join("");
+  const badgeHtml = badges.map((b) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr><td bgcolor="#16261d" style="padding:7px 12px;background-color:#16261d;border:1px solid #2f4b39;border-radius:999px;font-family:${FONT};font-size:13px;line-height:18px;font-weight:500;color:#8fd6a8;">${esc(b)}</td></tr></table>`).join("");
+  const logo = `https://${sender.domain}${sender.logoWhite}`;
+  const logoWidth = LOGO_WIDTH[sender.slug] ?? 150;
+  const glass = `https://${sender.domain}/email/glass-panel.jpg`;
+  const stat = (label: string, value: string, size: number) => `<div style="font-family:${FONT};font-size:11px;line-height:16px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};">${esc(label)}</div>
+        <div class="hero" style="margin-top:6px;font-family:${FONT};font-size:${size}px;line-height:${size + 4}px;font-weight:700;color:${TEXT};">${esc(value)}</div>`;
+  const stats = heroSide
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td class="stat" width="50%" valign="top" style="padding-right:12px;">${stat(heroLabel, heroValue, 44)}</td>
+          <td class="stat" width="50%" valign="top">${stat(heroSide.label, heroSide.value, 44)}</td>
+        </tr></table>`
+    : stat(heroLabel, heroValue, 52);
+  const paragraphs = esc(message).split(/\r?\n/).join("<br/>");
 
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${esc(title)}</title></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:28px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e4e4e7;">
-        <tr><td style="background:#111111;padding:18px 28px;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;">${esc(eyebrow)}</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#ffffff;">${esc(heading)}</h1>
-        </td></tr>
-        <tr><td style="padding:24px 28px 8px;">
-          <p style="margin:0;color:#111;font-size:15px;line-height:1.6;white-space:pre-wrap;">${esc(message)}</p>
-        </td></tr>
-        <tr><td style="padding:8px 28px 4px;">
-          <table width="100%" cellpadding="0" cellspacing="0">${termRows}</table>
-        </td></tr>
-        <tr><td style="padding:16px 28px 26px;">
-          <p style="margin:0;color:#6b6b6b;font-size:13px;line-height:1.6;">${note}</p>
-        </td></tr>
-        <tr><td style="padding:12px 28px;background:#fafafa;border-top:1px solid #ececec;">
-          <p style="margin:0;font-size:11px;color:#a1a1aa;">${esc(sender.copyright)} · ${esc(sender.domain)}</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="dark light">
+<meta name="supported-color-schemes" content="dark light">
+<title>${esc(title)}</title>
+<!--[if mso]><style>table,td{border-collapse:collapse;}td{mso-line-height-rule:exactly;}</style><![endif]-->
+<style>
+  :root { color-scheme: dark light; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; -webkit-text-size-adjust:100%; }
+  img { border:0; outline:none; text-decoration:none; }
+  @media only screen and (max-width: 620px) {
+    .outer { padding:24px 12px !important; }
+    .pad { padding:24px 20px !important; }
+    .hero { font-size:40px !important; line-height:44px !important; }
+    .title { font-size:28px !important; line-height:32px !important; }
+    .k { width:96px !important; }
+    .stat { display:block !important; width:100% !important; padding:0 0 16px !important; }
+  }
+</style>
+</head>
+<body bgcolor="#08080a" style="margin:0;padding:0;background-color:#08080a;">
+<div style="display:none;max-height:0;max-width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#08080a;opacity:0;">${esc(heading)}: ${esc(heroLabel)} ${esc(heroValue)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#08080a" style="background-color:#08080a;">
+  <tr><td class="outer" align="center" bgcolor="#08080a" style="padding:40px 16px;background-color:#08080a;background-image:radial-gradient(620px 420px at 12% 0%,#1c1f38 0%,#08080a 70%);">
+    <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+      <tr><td style="padding:0 4px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="left"><img src="${esc(logo)}" alt="${esc(sender.copyright)}" width="${logoWidth}" height="26" style="display:block;width:${logoWidth}px;height:26px;"></td>
+          <td align="right" style="font-family:${FONT};font-size:11px;line-height:16px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:${MUTED};">${esc(kind)}</td>
+        </tr></table>
+      </td></tr>
+
+      <tr><td class="pad" bgcolor="${PANEL}" background="${glass}" style="padding:32px;background-color:${PANEL};background-image:linear-gradient(120deg,#2a2b31 0%,${PANEL} 32%,${PANEL} 100%);background-image:url('${glass}');background-size:cover;background-position:center top;border:1px solid #33343b;border-radius:24px;">
+        <div style="font-family:${FONT};font-size:13px;line-height:18px;color:${MUTED};">${esc(subline)}</div>
+        <h1 class="title" style="margin:6px 0 24px;font-family:${FONT};font-size:34px;line-height:39px;font-weight:700;color:${TEXT};">${esc(heading)}</h1>
+        ${stats}
+        ${heroNote ? `<div style="margin-top:14px;font-family:${FONT};font-size:14px;line-height:21px;color:${BODY};">${esc(heroNote)}</div>` : ""}
+        ${badgeHtml}
+      </td></tr>
+
+      <tr><td style="padding:24px 8px;font-family:${FONT};font-size:15px;line-height:24px;color:${BODY};">${paragraphs}</td></tr>
+
+      <tr><td class="pad" bgcolor="${PANEL}" style="padding:10px 28px;background-color:${PANEL};border:1px solid #33343b;border-radius:24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${all}</table>
+      </td></tr>
+
+      ${attachmentName ? `      <tr><td style="height:20px;line-height:20px;font-size:1px;">&nbsp;</td></tr>
+
+      <tr><td bgcolor="#101115" style="padding:16px 20px;background-color:#101115;border:1px solid #33343b;border-radius:18px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td valign="middle" style="padding-right:14px;font-family:${FONT};font-size:11px;line-height:16px;font-weight:700;letter-spacing:1px;color:#8fd6a8;">XLSX</td>
+          <td valign="middle">
+            <div style="font-family:${FONT};font-size:14px;line-height:20px;font-weight:600;color:${TEXT};word-break:break-all;">${esc(attachmentName)}</div>
+            <div style="margin-top:2px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(attachmentNote ?? "")}</div>
+          </td>
+        </tr></table>
+      </td></tr>
+` : ""}
+
+      <tr><td style="padding:24px 8px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="left" style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(sender.copyright)}</td>
+          <td align="right" style="font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(sender.domain)}</td>
+        </tr></table>
+      </td></tr>
+    </table>
+    <!--[if mso]></td></tr></table><![endif]-->
+  </td></tr>
+</table>
+</body>
+</html>`;
 }
 
 /** What the compose box opens with. */

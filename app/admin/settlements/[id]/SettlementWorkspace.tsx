@@ -20,7 +20,7 @@ import { joinNames } from "@/lib/offers/door";
 import { NO_TERMS, offerSettleTerms, settlementArtistFac, settlementDoorDeductions, type OfferSettleTerms } from "@/lib/settlement/doorTerms";
 import { MERCH_SETTLE_METHODS, isMerchPaidSeparately, merchSettleLabel } from "@/lib/settlement/merchSettle";
 import { defaultSettlementMessage, settlementSubject, settlementsAddress } from "@/lib/settlement/agentEmail";
-import { agentRecipients } from "@/lib/email/recipients";
+import { EMAIL, contactRoleLabel, defaultRecipients, mergeOfferContacts, type ShowContact } from "@/lib/contacts/showContacts";
 import { OPERATORS } from "@/lib/operators";
 import { auditSourceLabel } from "@/lib/settlement/auditSource";
 import { getCookie } from "@/lib/cookies";
@@ -120,7 +120,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
   const [exportingVenueXlsx, setExportingVenueXlsx] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
-  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", subject: "", message: "" });
+  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: [] as string[], subject: "", message: "" });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [sendNote, setSendNote] = useState("");
@@ -205,21 +205,21 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
 
   // Door deductions and the facility fee share live on the linked offer.
   const [offerTerms, setOfferTerms] = useState<OfferSettleTerms>(NO_TERMS);
-  const [offerAgent, setOfferAgent] = useState({ name: "", email: "", venue: "" });
-  const [assistantEmail, setAssistantEmail] = useState("");
-  const [tourManagerEmail, setTourManagerEmail] = useState("");
-  const [artistManagerEmail, setArtistManagerEmail] = useState("");
+  const [offerAgent, setOfferAgent] = useState({ name: "", email: "", assistant: "", venue: "" });
+  const [showContacts, setShowContacts] = useState<ShowContact[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [typedContact, setTypedContact] = useState("");
   const offerId = settlement?.offer_id ?? null;
   useEffect(() => {
-    if (!offerId) { setOfferTerms(NO_TERMS); setOfferAgent({ name: "", email: "", venue: "" }); return; }
+    if (!offerId) { setOfferTerms(NO_TERMS); setOfferAgent({ name: "", email: "", assistant: "", venue: "" }); return; }
     let live = true;
     fetch(`/api/offers/${offerId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((o) => {
         if (!live) return;
         setOfferTerms(offerSettleTerms(o));
-        setOfferAgent({ name: String(o?.agent_name || ""), email: String(o?.agent_email || ""), venue: String(o?.venue || "") });
-        setAssistantEmail(String(o?.agent_assistant_email || ""));
+        setOfferAgent({ name: String(o?.agent_name || ""), email: String(o?.agent_email || ""), assistant: String(o?.agent_assistant_email || ""), venue: String(o?.venue || "") });
       })
       .catch(() => {});
     return () => { live = false; };
@@ -296,8 +296,6 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     );
     setMerchSettleMethod((data.merch_settle_method as MerchSettleMethod) || "guarantee");
     setMerchSettleReference(String(data.merch_settle_reference || ""));
-    setTourManagerEmail(String(data.tour_manager_email || ""));
-    setArtistManagerEmail(String(data.artist_manager_email || ""));
   }, []);
 
   /* ─── Load data ─── */
@@ -783,8 +781,6 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
       merch_seller_fee_payer: merchSellerFeePayer,
       merch_settle_method: merchSettleMethod,
       merch_settle_reference: merchSettleMethod === "check" ? merchSettleReference.trim() || null : null,
-      tour_manager_email: tourManagerEmail.trim() || null,
-      artist_manager_email: artistManagerEmail.trim() || null,
       merch_total_gross: merchTotalGross,
       merch_total_tax: merchTotalTax,
       merch_total_net: merchTotalNet,
@@ -1103,7 +1099,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   };
 
   /* ─── Send to agent ─── */
-  const openSend = () => {
+  const openSend = async () => {
     if (!settlement) return;
     // Shares the offer builder's remembered domain: same sender, same deal.
     let remembered = "";
@@ -1117,9 +1113,23 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         ? new Date(String(pdf.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
         : "Date TBD",
     };
+    // The show's list, which includes the offer's agent and assistant. A
+    // settlement with no event only has the offer to go on.
+    const offerContacts = mergeOfferContacts([], {
+      agent_name: offerAgent.name,
+      agent_email: offerAgent.email,
+      agent_assistant_email: offerAgent.assistant,
+    });
+    let contacts = offerContacts;
+    if (settlement.event_id) {
+      const res = await fetch(`/api/events/${settlement.event_id}/contacts`).catch(() => null);
+      const out = res?.ok ? await res.json().catch(() => null) : null;
+      if (out?.contacts) contacts = out.contacts;
+    }
+    setShowContacts(contacts);
     setSendDraft({
       fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
-      ...agentRecipients(offerAgent.email, assistantEmail, [tourManagerEmail, artistManagerEmail]),
+      ...defaultRecipients(contacts),
       subject: settlementSubject(named),
       message: defaultSettlementMessage({ ...named, agentName: offerAgent.name }),
     });
@@ -1139,10 +1149,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           settlement: buildPdfSettlement(),
           expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
           to: sendDraft.to,
-          cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
-          assistantEmail,
-          tourManagerEmail,
-          artistManagerEmail,
+          cc: sendDraft.cc,
           subject: sendDraft.subject,
           message: sendDraft.message,
           fromDomain: sendDraft.fromDomain,
@@ -1163,6 +1170,26 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     } finally {
       setSending(false);
     }
+  };
+
+  const onEmail = (email: string | null) => {
+    const e = String(email || "").trim().toLowerCase();
+    return !!e && (sendDraft.to.trim().toLowerCase() === e || sendDraft.cc.some((c) => c.toLowerCase() === e));
+  };
+
+  /** Add what's ticked in the contact list, and anyone typed in, to the CC line. */
+  const addContacts = () => {
+    const typed = typedContact.trim();
+    if (typed && !EMAIL.test(typed)) {
+      setSendError(`"${typed}" isn't a valid email address.`);
+      return;
+    }
+    const fresh = [...picked, ...(typed ? [typed] : [])].filter((e, i, all) => !onEmail(e) && all.indexOf(e) === i);
+    setSendDraft((d) => ({ ...d, cc: [...d.cc, ...fresh] }));
+    setSendError("");
+    setPicked([]);
+    setTypedContact("");
+    setPickerOpen(false);
   };
 
   /* ─── Other Ancillary CRUD ─── */
@@ -2787,35 +2814,6 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           Send to agent
         </button>
       </div>
-      <div style={{ marginTop: 12 }}>
-        <Field label="Agent's assistant email" hint="Goes on the To line, with the agent and you on CC.">
-          <input
-            type="email"
-            className="admin-form-input"
-            value={assistantEmail}
-            placeholder="assistant@agency.com"
-            onChange={(e) => setAssistantEmail(e.target.value)}
-          />
-        </Field>
-        <Field label="Tour manager email" hint="Goes on the CC line.">
-          <input
-            type="email"
-            className="admin-form-input"
-            value={tourManagerEmail}
-            placeholder="tm@artist.com"
-            onChange={(e) => setTourManagerEmail(e.target.value)}
-          />
-        </Field>
-        <Field label="Artist manager email" hint="Goes on the CC line.">
-          <input
-            type="email"
-            className="admin-form-input"
-            value={artistManagerEmail}
-            placeholder="manager@artist.com"
-            onChange={(e) => setArtistManagerEmail(e.target.value)}
-          />
-        </Field>
-      </div>
       </Card>
       </aside>
       </div>
@@ -2823,7 +2821,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         <Modal
           title="Send settlement to agent"
           sub="Sent through the platform with the artist settlement attached, locked. The venue settlement and its P&L never go out."
-          onClose={() => !sending && setSendOpen(false)}
+          onClose={() => !sending && !pickerOpen && setSendOpen(false)}
           width={620}
           footer={
             <>
@@ -2849,11 +2847,29 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
                 ))}
               </select>
             </Field>
-            <Field label="To" hint="You're always copied. Replies come back to you, not to settlements@.">
+            <Field label="To">
               <input type="email" value={sendDraft.to} onChange={(e) => setSendDraft((d) => ({ ...d, to: e.target.value }))} />
             </Field>
-            <Field label="CC" hint="Tour manager, co-agent — separate with commas">
-              <input value={sendDraft.cc} placeholder="name@agency.com" onChange={(e) => setSendDraft((d) => ({ ...d, cc: e.target.value }))} />
+            <Field label="CC" hint="You're always copied. Replies come back to you, not to settlements@.">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                {sendDraft.cc.map((email) => (
+                  <span
+                    key={email}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 6px 5px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontSize: 13 }}
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${email}`}
+                      onClick={() => setSendDraft((d) => ({ ...d, cc: d.cc.filter((c) => c !== email) }))}
+                      style={{ border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 15, lineHeight: 1, padding: "0 4px" }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <Button onClick={() => { setPicked([]); setTypedContact(""); setPickerOpen(true); }} disabled={sending}>+ Contact</Button>
+              </div>
             </Field>
             <Field label="Subject">
               <input value={sendDraft.subject} onChange={(e) => setSendDraft((d) => ({ ...d, subject: e.target.value }))} />
@@ -2866,6 +2882,41 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             </div>
             {sendNote && <div className="ofb-banner ofb-banner--good">{sendNote}</div>}
             {sendError && <div className="ofb-banner ofb-banner--bad">{sendError}</div>}
+          </div>
+        </Modal>
+      )}
+      {sendOpen && pickerOpen && (
+        <Modal
+          title="Add contacts"
+          sub="They go on the CC line for this email."
+          onClose={() => setPickerOpen(false)}
+          width={480}
+          footer={
+            <>
+              <span className="filter-spacer" />
+              <Button onClick={() => setPickerOpen(false)}>Cancel</Button>
+              <Button variant="primary" onClick={addContacts} disabled={picked.length === 0 && !typedContact.trim()}>Add</Button>
+            </>
+          }
+        >
+          <div className="ofb-send">
+            {showContacts.filter((c) => c.email && !onEmail(c.email)).length === 0 ? (
+              <div className="ofb-send-attach">Everyone on this show&apos;s contact list is already on the email.</div>
+            ) : (
+              showContacts.filter((c) => c.email && !onEmail(c.email)).map((c) => (
+                <label key={c.id} className="ofb-send-check">
+                  <input
+                    type="checkbox"
+                    checked={picked.includes(c.email as string)}
+                    onChange={(e) => setPicked((p) => (e.target.checked ? [...p, c.email as string] : p.filter((x) => x !== c.email)))}
+                  />
+                  <span>{c.name ? `${c.name} · ` : ""}{contactRoleLabel(c.role)} · {c.email}</span>
+                </label>
+              ))
+            )}
+            <Field label="Someone not on the list" hint={settlement?.event_id ? "They're saved to this show's contacts when you send." : undefined}>
+              <input type="email" value={typedContact} placeholder="name@company.com" onChange={(e) => setTypedContact(e.target.value)} />
+            </Field>
           </div>
         </Modal>
       )}

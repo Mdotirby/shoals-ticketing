@@ -188,9 +188,6 @@ export type Settlement = {
   /** Out of the guarantee, or paid to the promoter separately (plans/settlement-merch-settle-migration.sql). */
   merch_settle_method?: MerchSettleMethod;
   merch_settle_reference?: string | null;   // check number when paid by check
-  /** Copied on the settlement email (plans/settlement-contacts-migration.sql). */
-  tour_manager_email?: string | null;
-  artist_manager_email?: string | null;
   /** The one payout from before settlement_payouts (plans/settlement-payments-migration.sql). */
   payout_amount?: number | null;
   payout_method?: string | null;

@@ -15,6 +15,9 @@
 import { useMemo, useState } from "react";
 import { eventDayISO, formatDoorsTime, formatEventTime, isEventPast, localTodayISO } from "@/lib/dates";
 import { fmtUSD } from "@/app/components/admin/ui";
+import { defaultCapabilityLevel, grantsWrite } from "@/lib/auth/capabilities";
+import { normalizeRole } from "@/lib/auth/roles";
+import SalesUpdateButton from "../SalesUpdateButton";
 import { useHub } from "../HubContext";
 import { isPaidSale, useEventContracts, useEventLinks, useEventOrders } from "../useEventData";
 import { HubEmpty, HubLoading } from "../ui";
@@ -41,6 +44,9 @@ function shortDate(iso: string) {
 
 export default function Summary({ go }: { go: (t: HubTab) => void }) {
   const hub = useHub();
+  // The route checks this too; this only hides what would be refused.
+  const staffLevel = normalizeRole(hub.role).level;
+  const canSendUpdate = !!staffLevel && grantsWrite(defaultCapabilityLevel(staffLevel, "offers"));
   const { id, event, tiers, guests, offer, settlement, sold, capacity, breakEven } = hub;
   const { data: orders } = useEventOrders(id);
   const { data: links } = useEventLinks(id);
@@ -190,6 +196,7 @@ export default function Summary({ go }: { go: (t: HubTab) => void }) {
         <div className="hub-card-line">
           <div className="hub-eyebrow">Sales pace by week</div>
           <span className="hub-spacer" />
+          {canSendUpdate && <SalesUpdateButton eventId={hub.id} />}
           <div className="hub-card-note">
             {sold.toLocaleString()} sold{capacity.sellable > 0 ? ` · ${pct}% of ${capacity.sellable.toLocaleString()}` : ""}
           </div>

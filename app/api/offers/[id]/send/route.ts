@@ -6,7 +6,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { sanitize } from "@/lib/pdf/pdf-header";
 import { renderXlsxTemplate } from "@/lib/xlsx-templates/render";
 import { buildOfferData } from "@/lib/xlsx-templates/offer/adapter";
-import { resolveRecipients } from "@/lib/email/recipients";
+import { agentRecipients, resolveRecipients } from "@/lib/email/recipients";
 import { AGENT_COPY_CUT, agentEmailHtml, offersAddress, senderForDomain } from "@/lib/offers/agentEmail";
 import type { ArtistOffer } from "@/lib/types/offer";
 
@@ -18,8 +18,6 @@ const TEMPLATE_DIR = path.join(process.cwd(), "lib/xlsx-templates/offer");
 type SendBody = {
   /** The offer as the builder holds it — the same shape Export Excel posts. */
   offer: ArtistOffer;
-  to?: string;
-  cc?: string[];
   subject: string;
   message: string;
   /** Which operator domain to send from: west72ent.com or venuecore.live. */
@@ -30,7 +28,8 @@ type SendBody = {
 
 /**
  * POST /api/offers/:id/send — email the offer to the agent through Resend,
- * from offers@<operator domain>, with the offer workbook attached: locked,
+ * from offers@<operator domain>, to the assistant with the agent copied (or
+ * the agent alone), with the offer workbook attached: locked,
  * and cut before the venue's own numbers. Replies go to whoever sent it.
  *
  * A draft becomes "sent". Nothing else about the offer changes. A test goes
@@ -45,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: current } = await admin
     .from("artist_offers")
-    .select("id, venue_id, status")
+    .select("id, venue_id, status, agent_email, agent_assistant_email")
     .eq("id", id)
     .maybeSingle();
   // The id alone is not a boundary (lib/auth/tenant.ts).
@@ -62,7 +61,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   if (!body?.offer) return NextResponse.json({ error: "Missing offer" }, { status: 400 });
 
-  const recipients = resolveRecipients(body, guard.actor.email);
+  // An offer only ever goes to the agent and their assistant, as saved on it.
+  const { to: toAddress, cc: agentCc } = agentRecipients(current.agent_email, current.agent_assistant_email);
+  if (!body.test && !toAddress) return NextResponse.json({ error: "Add the agent's email to the offer first." }, { status: 400 });
+  const recipients = resolveRecipients({ to: toAddress, cc: agentCc ? [agentCc] : [], subject: body.subject, test: body.test }, guard.actor.email);
   if (!recipients.ok) return NextResponse.json({ error: recipients.error }, { status: 400 });
   const { to, cc, subject, test } = recipients;
 

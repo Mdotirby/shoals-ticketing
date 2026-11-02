@@ -9,7 +9,7 @@
 export const HUB_TABS = [
   "summary", "details", "tickets", "inventory", "promotions",
   "marketing", "orders", "guests",
-  "dayof",
+  "dayof", "contacts",
   "deal", "settlement",
   "activity", "access",
 ] as const;
@@ -26,6 +26,7 @@ export const HUB_LABEL: Record<HubTab, string> = {
   orders: "Orders",
   guests: "Guest list & comps",
   dayof: "Day of show",
+  contacts: "Contacts",
   deal: "Deal",
   settlement: "Settlement",
   activity: "Activity",
@@ -35,7 +36,7 @@ export const HUB_LABEL: Record<HubTab, string> = {
 export const HUB_GROUPS: Array<{ label: string; items: HubTab[] }> = [
   { label: "Build", items: ["summary", "details", "tickets", "inventory", "promotions"] },
   { label: "Sell", items: ["marketing", "orders", "guests"] },
-  { label: "Show night", items: ["dayof"] },
+  { label: "Show night", items: ["dayof", "contacts"] },
   { label: "Money", items: ["deal", "settlement"] },
   { label: "Admin", items: ["activity", "access"] },
 ];
@@ -54,6 +55,7 @@ export const HUB_SUB: Record<HubTab, string> = {
   orders: "Every order for this show, from every place it was sold.",
   guests: "Artist and house guests. The door works from this list on show night.",
   dayof: "The room in real time once doors open.",
+  contacts: "The people on this show. The settlement email picks who to copy from this list.",
   deal: "The deal from the linked offer, priced against this show's real scaling and expenses.",
   settlement: "Settle the night here: manifest, tax, expenses, ancillary, the artist split, signatures and payout.",
   activity: "Who changed what on this show, and when.",

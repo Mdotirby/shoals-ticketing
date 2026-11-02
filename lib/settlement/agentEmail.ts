@@ -1,4 +1,4 @@
-import { documentEmailHtml, esc, money, senderForDomain } from "@/lib/offers/agentEmail";
+import { documentEmailHtml, senderForDomain } from "@/lib/offers/agentEmail";
 import type { OperatorConfig } from "@/lib/operators";
 import type { ArtistSettlementData } from "@/lib/xlsx-templates/artist-settlement/adapter";
 
@@ -36,28 +36,33 @@ export type SettlementEmailInput = {
   attachmentName: string;
 };
 
+const usd = (n: number) => `$${(Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export function settlementEmailHtml({ data, sender, subject, message, attachmentName }: SettlementEmailInput): string {
   const merch = data.merch_venue_take_deduction + data.seller_fee;
   const rows: Array<[string, string]> = [
-    ["Artist", data.artist_name],
-    ["Date", data.event_date_label],
     ["Venue", [data.venue_name, data.venue_address].filter(Boolean).join(" · ")],
     ["Tickets sold", data.ticket_totals_sold.toLocaleString("en-US")],
-    ["Guarantee", money(data.artist_guarantee)],
-    ["Backend", data.backend_overage ? money(data.backend_overage) : ""],
-    ["Deposits paid", data.deposits_paid ? `-${money(data.deposits_paid)}` : ""],
-    ["Cash advance", data.cash_advance ? `-${money(data.cash_advance)}` : ""],
-    ["Merch", merch ? `-${money(merch)}` : ""],
-    ["Balance due", money(data.balance_due)],
+    ["Guarantee", usd(data.artist_guarantee)],
+    ["Backend", data.backend_overage ? usd(data.backend_overage) : ""],
+    ["Deposits paid", data.deposits_paid ? `-${usd(data.deposits_paid)}` : ""],
+    ["Cash advance", data.cash_advance ? `-${usd(data.cash_advance)}` : ""],
+    ["Merch", merch ? `-${usd(merch)}` : ""],
   ];
 
   return documentEmailHtml({
     title: subject,
-    eyebrow: `Settlement · ${sender.copyright}`,
+    kind: "Settlement",
     heading: data.artist_name || "Settlement",
+    subline: [data.event_date_label, data.venue_name].filter(Boolean).join(" · "),
+    heroLabel: "Balance due",
+    heroValue: usd(data.balance_due),
+    badges: (data.payout_records ?? []).filter((p) => p.amount !== null).map((p) => p.label),
     message,
     rows: rows.filter(([, v]) => v),
-    note: `The full settlement is attached: <b style="color:#111;">${esc(attachmentName)}</b>. Reply to this email with any questions.`,
+    total: ["Balance due", usd(data.balance_due)],
+    attachmentName,
+    attachmentNote: "Attached. Reply to this email with any questions.",
     sender,
   });
 }

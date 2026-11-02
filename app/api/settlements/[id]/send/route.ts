@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { sanitize } from "@/lib/pdf/pdf-header";
 import { renderXlsxTemplate } from "@/lib/xlsx-templates/render";
 import { buildArtistSettlementData } from "@/lib/xlsx-templates/artist-settlement/adapter";
+import { saveNewContacts } from "@/lib/contacts/showContacts";
 import { loadPayouts } from "@/lib/settlement/payoutRecord";
 import { resolveRecipients } from "@/lib/email/recipients";
 import { senderForDomain, settlementEmailHtml, settlementsAddress } from "@/lib/settlement/agentEmail";
@@ -24,11 +25,6 @@ type SendBody = {
   expenses?: { name: string; category: string; actual_amount: number }[];
   to?: string;
   cc?: string[];
-  /** Saved to the linked offer, so it's there next time. */
-  assistantEmail?: string;
-  /** Kept on the settlement. A finalized one can't be saved, so they're stored on send. */
-  tourManagerEmail?: string;
-  artistManagerEmail?: string;
   subject: string;
   message: string;
   /** Which operator domain to send from: west72ent.com or venuecore.live. */
@@ -51,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: current } = await admin
     .from("settlements")
-    .select("id, venue_id, offer_id")
+    .select("id, venue_id, offer_id, event_id")
     .eq("id", id)
     .maybeSingle();
   // The id alone is not a boundary (lib/auth/tenant.ts).
@@ -118,19 +114,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const sent = (await res.json().catch(() => ({}))) as { id?: string };
 
   if (!test) {
-    if (current.offer_id && typeof body.assistantEmail === "string") {
-      await admin
-        .from("artist_offers")
-        .update({ agent_assistant_email: body.assistantEmail.trim() || null })
-        .eq("id", current.offer_id);
-    }
-    await admin
-      .from("settlements")
-      .update({
-        tour_manager_email: String(body.tourManagerEmail || "").trim() || null,
-        artist_manager_email: String(body.artistManagerEmail || "").trim() || null,
-      })
-      .eq("id", id);
+    // Anyone typed into the send box joins the show's contacts.
+    if (current.event_id) await saveNewContacts(admin, current.event_id, [to, ...cc], guard.actor.email);
     await writeAudit(guard.actor, {
       action: "settlement.sent",
       targetType: "settlement",

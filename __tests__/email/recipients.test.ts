@@ -1,9 +1,13 @@
 import { agentRecipients, resolveRecipients } from "@/lib/email/recipients";
 import { settlementEmailHtml, settlementSubject, settlementsAddress } from "@/lib/settlement/agentEmail";
 import { agentEmailHtml } from "@/lib/offers/agentEmail";
+import { defaultRecipients, mergeOfferContacts, type ShowContact } from "@/lib/contacts/showContacts";
+import { daysOut, salesSubject, salesUpdateEmailHtml } from "@/lib/events/salesUpdateEmail";
 import { OPERATORS } from "@/lib/operators";
 import type { ArtistSettlementData } from "@/lib/xlsx-templates/artist-settlement/adapter";
 import type { ArtistOffer } from "@/lib/types/offer";
+
+const OP = OPERATORS.venuecore;
 
 describe("resolveRecipients", () => {
   const base = { to: "agent@agency.com", cc: ["tm@agency.com"], subject: "Offer: X" };
@@ -47,15 +51,6 @@ describe("agentRecipients", () => {
 
   it("doesn't copy the same person twice", () => {
     expect(agentRecipients("a@a.com", "A@a.com")).toEqual({ to: "A@a.com", cc: "" });
-    expect(agentRecipients("a@a.com", "", ["A@a.com", "tm@a.com", "TM@a.com"])).toEqual({ to: "a@a.com", cc: "tm@a.com" });
-  });
-
-  it("copies the tour and artist managers, skipping blanks", () => {
-    expect(agentRecipients("agent@a.com", "asst@a.com", ["tm@a.com", "", "am@a.com"])).toEqual({
-      to: "asst@a.com",
-      cc: "agent@a.com, tm@a.com, am@a.com",
-    });
-    expect(agentRecipients("agent@a.com", "", ["tm@a.com", null])).toEqual({ to: "agent@a.com", cc: "tm@a.com" });
   });
 });
 
@@ -98,4 +93,70 @@ it("still breaks ticket tiers onto their own lines in the offer email", () => {
     sender: OPERATORS.west72, message: "", artistAtSellout: 0, attachmentName: "a.xlsx",
   });
   expect(html).toMatch(/GA \$20[^<]*<br\/>VIP &lt;1&gt; \$50/);
+});
+
+describe("show contacts", () => {
+  const tm: ShowContact = { id: "1", name: "Tess", role: "tour_manager", email: "tm@a.com", phone: null, source: "contact" };
+  const offer = { agent_name: "Ann", agent_email: "agent@a.com", agent_assistant_email: "asst@a.com" };
+
+  it("lists the offer's agent and assistant with the show's own contacts", () => {
+    expect(mergeOfferContacts([tm], offer).map((c) => [c.email, c.source])).toEqual([
+      ["asst@a.com", "offer"], ["agent@a.com", "offer"], ["tm@a.com", "contact"],
+    ]);
+  });
+
+  it("lets a contact added by hand stand in for the same address on the offer", () => {
+    const own: ShowContact = { ...tm, role: "agent", email: "AGENT@a.com" };
+    expect(mergeOfferContacts([own], offer).filter((c) => c.role === "agent")).toEqual([own]);
+  });
+
+  it("defaults to the assistant, with the agent copied and nobody else", () => {
+    expect(defaultRecipients(mergeOfferContacts([tm], offer))).toEqual({ to: "asst@a.com", cc: ["agent@a.com"] });
+  });
+
+  it("defaults to the agent when there's no assistant", () => {
+    expect(defaultRecipients(mergeOfferContacts([tm], { agent_email: "agent@a.com" }))).toEqual({ to: "agent@a.com", cc: [] });
+  });
+
+  it("uses an assistant added by hand when the offer has none", () => {
+    const own: ShowContact = { ...tm, role: "assistant", email: "own@a.com" };
+    expect(defaultRecipients(mergeOfferContacts([own], { agent_email: "agent@a.com" }))).toEqual({ to: "own@a.com", cc: ["agent@a.com"] });
+  });
+});
+
+describe("sales update email", () => {
+  const figures = { title: "Cole <Phillips>", venue: "Singin' River", date: "2026-11-06T19:30:00+00:00", sold: 412, capacity: 720, gbor: 9876.5 };
+  const now = new Date("2026-11-02T18:00:00Z");
+  const html = salesUpdateEmailHtml({ figures, sender: OP, subject: "S", message: "Hi", now });
+
+  it("leads with tickets sold and GBOR, and escapes the title", () => {
+    expect(html).toContain("Tickets sold");
+    expect(html).toContain(">412<");
+    expect(html).toContain("GBOR");
+    expect(html).toContain("$9,876.50");
+    expect(html).toContain("Cole &lt;Phillips&gt;");
+    expect(html).toContain("412 of 720 (57%)");
+  });
+
+  it("has no attachment block", () => {
+    expect(html).not.toContain("XLSX");
+  });
+
+  it("counts days out, and drops them after the show", () => {
+    expect(daysOut(figures.date, now)).toBe(4);
+    expect(daysOut(figures.date, new Date("2026-11-08T18:00:00Z"))).toBeNull();
+  });
+
+  it("puts the count in the subject", () => {
+    expect(salesSubject(figures)).toContain("412 sold");
+  });
+});
+
+it("puts the glass image behind the top panel, over a solid fallback", () => {
+  const html = salesUpdateEmailHtml({
+    figures: { title: "A", venue: "V", date: "2026-11-06", sold: 1, capacity: 0, gbor: 0 },
+    sender: OP, subject: "S", message: "",
+  });
+  expect(html).toContain(`url('https://${OP.domain}/email/glass-panel.jpg')`);
+  expect(html).toContain('bgcolor="#15161b" background=');
 });
