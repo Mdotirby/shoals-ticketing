@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { requireCapability } from "@/lib/auth/can";
 import { writeAudit } from "@/lib/auth/audit";
 import { CAPABILITIES, defaultCapabilityLevel, type Capability, type CapabilityLevel } from "@/lib/auth/capabilities";
-import { STAFF_LEVELS, type StaffLevel } from "@/lib/auth/roles";
+import { STAFF_LEVELS, levelRank, type StaffLevel } from "@/lib/auth/roles";
 import { NextResponse } from "next/server";
 
 /**
@@ -107,6 +107,15 @@ export async function PUT(request: Request) {
   if (role === "owner") {
     return NextResponse.json(
       { error: "Owner holds every capability and cannot be reduced." },
+      { status: 403 }
+    );
+  }
+
+  // You only change what levels below yours can do, same as assigning them.
+  const actorLevel = guard.actor.resolved.level;
+  if (!actorLevel || levelRank(actorLevel) >= levelRank(role as StaffLevel)) {
+    return NextResponse.json(
+      { error: "You can only change access for levels below your own." },
       { status: 403 }
     );
   }

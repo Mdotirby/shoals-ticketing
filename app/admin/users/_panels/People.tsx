@@ -6,7 +6,7 @@ import {
   STAFF_LEVEL_LABELS,
   EXTERNAL_IDENTITY_LABELS,
   normalizeRole,
-  levelRank,
+  canSetRole,
   roleLabel,
   type StaffLevel,
 } from "@/lib/auth/roles";
@@ -82,6 +82,9 @@ export default function AdminUsersPage() {
    */
   const [showAdd, setShowAdd] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [actorId, setActorId] = useState("");
+  const [venues, setVenues] = useState<{ id: string; name: string }[]>([]);
+  const [newVenueId, setNewVenueId] = useState("");
   const [newPerson, setNewPerson] = useState({ first_name: "", last_name: "", email: "", password: "", role: "box_office" as StaffLevel });
 
   const load = useCallback(async () => {
@@ -118,6 +121,7 @@ export default function AdminUsersPage() {
           // recovery link instead — safer than inventing a password here.
           password: newPerson.password.trim() || undefined,
           role: newPerson.role,
+          venue_id: newVenueId || undefined,
           first_name: newPerson.first_name.trim() || null,
           last_name: newPerson.last_name.trim() || null,
         }),
@@ -144,8 +148,14 @@ export default function AdminUsersPage() {
       const supabase = getSupabaseBrowser();
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) return;
+      setActorId(auth.user.id);
       const { data } = await supabase.from("admin_users").select("role").eq("id", auth.user.id).maybeSingle();
       if (data?.role) setActorRole(data.role);
+      // Only owners choose a venue; everyone else's people land in their own.
+      if (normalizeRole(data?.role).level === "owner") {
+        const list = await fetch("/api/venues").then((r) => r.json());
+        if (Array.isArray(list)) setVenues(list);
+      }
     }).catch(() => {});
   }, []);
 
@@ -160,20 +170,10 @@ export default function AdminUsersPage() {
     setRecoveryLink(null);
   };
 
-  // Seniority mirrors lib/auth/roles.canEditRole — the server enforces it, this
-  // only stops the UI offering something the API will refuse.
-  const actorLevel = normalizeRole(actorRole).level;
-  const outranks = useMemo(
-    () => (targetRole: string | null | undefined) => {
-      if (!actorLevel) return false;
-      const t = normalizeRole(targetRole).level;
-      if (!t) return true; // external identities carry no rank
-      return levelRank(actorLevel) < levelRank(t);
-    },
-    [actorLevel]
-  );
-
-  const canEditSelected = selected ? outranks(selected.role) : false;
+  // Mirrors lib/auth/roles.canSetRole — the server enforces it, this only stops
+  // the UI offering something the API will refuse.
+  const actor = useMemo(() => ({ id: actorId, role: actorRole }), [actorId, actorRole]);
+  const canEditSelected = selected ? selected.id !== actorId && canSetRole(actor, selected.role) : false;
 
   const staff = users.filter((u) => normalizeRole(u.role).level);
   const external = users.filter((u) => !normalizeRole(u.role).level);
@@ -288,11 +288,22 @@ export default function AdminUsersPage() {
                 <label>
                   <span>Access level *</span>
                   <select value={newPerson.role} onChange={(e) => setNewPerson((p) => ({ ...p, role: e.target.value as StaffLevel }))}>
-                    {STAFF_LEVELS.map((lv) => (
+                    {STAFF_LEVELS.filter((lv) => canSetRole(actor, lv)).map((lv) => (
                       <option key={lv} value={lv}>{STAFF_LEVEL_LABELS[lv]}</option>
                     ))}
                   </select>
                 </label>
+                {venues.length > 0 && (
+                  <label>
+                    <span>Venue</span>
+                    <select value={newVenueId} onChange={(e) => setNewVenueId(e.target.value)}>
+                      <option value="">My venue</option>
+                      {venues.map((v) => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <label>
                   <span>Temporary password</span>
                   <input type="text" value={newPerson.password} onChange={(e) => setNewPerson((p) => ({ ...p, password: e.target.value }))} placeholder="leave blank to send a link" autoComplete="off" />
@@ -416,9 +427,7 @@ export default function AdminUsersPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 13 }}>
                   {STAFF_LEVELS.map((lvl) => {
                     const isCurrent = normalizeRole(draft.role ?? selected.role).level === lvl;
-                    // You cannot assign a level you do not outrank — promoting
-                    // someone to your own level is promoting yourself by proxy.
-                    const assignable = !!actorLevel && levelRank(actorLevel) < levelRank(lvl);
+                    const assignable = canSetRole(actor, lvl);
                     return (
                       <button
                         key={lvl}
@@ -434,7 +443,7 @@ export default function AdminUsersPage() {
                           <span className="team-level-note" style={{ display: "block" }}>{LEVEL_NOTES[lvl]}</span>
                         </span>
                         <span className="team-level-lock">
-                          {isCurrent ? "current" : !assignable ? "above you" : ""}
+                          {isCurrent ? "current" : !assignable ? "locked" : ""}
                         </span>
                       </button>
                     );

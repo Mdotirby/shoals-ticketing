@@ -1,6 +1,8 @@
 import { requireCapability, requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
+import { tenantScope, venueInTenant, DENY } from "@/lib/auth/tenant";
+import { levelRank, normalizeRole } from "@/lib/auth/roles";
 
 // GET /api/admin/sidebar-permissions?venue_id=xxx&role=artist
 // Returns sidebar permissions for a given venue + role (server-side, bypasses RLS)
@@ -10,7 +12,10 @@ export async function GET(request: Request) {
   if (!guard.ok) return guard.response;
 
   const { searchParams } = new URL(request.url);
-  const venueId = searchParams.get("venue_id");
+  // Staff read their own venue's tabs; the request's venue is only the owner's to choose.
+  const scope = tenantScope(guard.actor, searchParams.get("venue_id"));
+  if (scope === DENY) return NextResponse.json([]);
+  const venueId = scope;
   const role = searchParams.get("role");
 
   if (!role) {
@@ -66,6 +71,15 @@ export async function POST(request: Request) {
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: "rows array is required" }, { status: 400 });
   }
+
+  // Your own venue only, and only for levels below yours.
+  const actorLevel = guard.actor.resolved.level;
+  const allowed = rows.every((r: { venue_id?: string | null; role?: string }) => {
+    if (!venueInTenant(guard.actor, r.venue_id)) return false;
+    const target = normalizeRole(r.role).level;
+    return !target || (!!actorLevel && levelRank(actorLevel) < levelRank(target));
+  });
+  if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const admin = createAdminClient();
   const { error } = await admin

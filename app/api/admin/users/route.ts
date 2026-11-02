@@ -2,7 +2,8 @@ import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
-import { roleLabel, canEditRole } from "@/lib/auth/roles";
+import { roleLabel, canSetRole, normalizeRole, EXTERNAL_IDENTITIES } from "@/lib/auth/roles";
+import { tenantScope, venueInTenant, DENY } from "@/lib/auth/tenant";
 import { writeAudit } from "@/lib/auth/audit";
 
 // GET: list all admin users
@@ -12,13 +13,23 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const { data, error } = await admin
+  // Only the owner sees every tenant's staff. Artists and agents with no venue
+  // stay listed, because shows at any venue assign them from this list.
+  const scope = tenantScope(guard.actor);
+  const unassignedExternal = `and(venue_id.is.null,role.in.(${EXTERNAL_IDENTITIES.join(",")}))`;
+
+  let query = admin
     .from("admin_users")
     // The default_* columns are the owner's offer defaults, edited in Venue
     // settings and read by /admin/offers/new. They were never returned here,
     // so the editor could not show what was already set.
     .select("id, email, role, venue_id, first_name, last_name, avatar_url, website_url, buyer_name, contract_signatory, buyer_phone, buyer_email, promoter_address, default_radius_distance, default_radius_days_prior, default_radius_days_after, default_ticketing_fee, created_at")
     .order("created_at", { ascending: false });
+
+  if (scope === DENY) query = query.or(unassignedExternal);
+  else if (scope !== null) query = query.or(`venue_id.eq.${scope},${unassignedExternal}`);
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -40,6 +51,25 @@ export async function POST(request: Request) {
       { error: "role is required" },
       { status: 400 }
     );
+  }
+
+  if (typeof role !== "string" || !canSetRole(guard.actor, role)) {
+    return NextResponse.json(
+      { error: "You cannot give someone that access level." },
+      { status: 403 }
+    );
+  }
+
+  // The new person lands in the actor's own venue, whatever the request said.
+  const scope = tenantScope(guard.actor, venue_id);
+  if (scope === DENY) {
+    return NextResponse.json({ error: "Your account isn't assigned to a venue." }, { status: 403 });
+  }
+  const level = normalizeRole(role).level;
+  const assignedVenue = scope ?? (level && level !== "owner" ? guard.actor.venueId : null);
+  // Staff belong to one venue; with none, scoped routes give them nothing.
+  if (level && level !== "owner" && !assignedVenue) {
+    return NextResponse.json({ error: "Choose a venue for this person." }, { status: 400 });
   }
 
   const admin = createAdminClient();
@@ -80,6 +110,10 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (existingAdminUser) {
+        // Someone at another venue: say no more than that the address is taken.
+        if (!venueInTenant(guard.actor, existingAdminUser.venue_id)) {
+          return NextResponse.json({ error: "This email is already registered." }, { status: 409 });
+        }
         if (existingAdminUser.role !== role) {
           return NextResponse.json(
             { error: `This email is already registered with role "${existingAdminUser.role}"` },
@@ -101,7 +135,7 @@ export async function POST(request: Request) {
             id: existingAuthUser.id,
             email,
             role,
-            venue_id: venue_id || null,
+            venue_id: assignedVenue,
             first_name: first_name || null,
             last_name: last_name || null,
           })
@@ -125,7 +159,7 @@ export async function POST(request: Request) {
       id: authData.user.id,
       email: hasCredentials ? email : null,
       role,
-      venue_id: venue_id || null,
+      venue_id: assignedVenue,
       first_name: first_name || null,
       last_name: last_name || null,
     })
@@ -185,7 +219,27 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
+  if (id === guard.actor.id) {
+    return NextResponse.json({ error: "You can't remove your own account." }, { status: 403 });
+  }
+
   const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("admin_users")
+    .select("role, venue_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!target || !venueInTenant(guard.actor, target.venue_id)) {
+    return NextResponse.json({ error: "No such user at your venue." }, { status: 404 });
+  }
+  if (!canSetRole(guard.actor, target.role)) {
+    return NextResponse.json(
+      { error: "That account is at or above your access level." },
+      { status: 403 }
+    );
+  }
 
   // 1. Delete admin_users row
   const { error: dbError } = await admin
@@ -250,30 +304,50 @@ export async function PUT(request: Request) {
   delete fields.new_password;
   delete fields.created_at;
 
-  // Seniority, not just capability. Holding `assign_roles` is not the same as
-  // outranking the person you are editing: without this any venue admin could
-  // set an owner's password and take the account. canEditRole is false at or
-  // above the actor's own rank, which also blocks self-elevation.
   const { data: target } = await admin
     .from("admin_users")
-    .select("role")
+    .select("role, venue_id")
     .eq("id", id)
     .maybeSingle();
 
-  if (target && !canEditRole(guard.actor.role, target.role)) {
+  if (!target) {
+    return NextResponse.json({ error: "No such user." }, { status: 404 });
+  }
+
+  // Your own row: profile, defaults and password, but never your own access.
+  const isSelf = id === guard.actor.id;
+  if (isSelf) {
+    if (typeof fields.role === "string" && fields.role !== target.role) {
+      return NextResponse.json({ error: "You cannot change your own access level." }, { status: 403 });
+    }
+  } else {
+    if (!venueInTenant(guard.actor, target.venue_id)) {
+      return NextResponse.json({ error: "No such user at your venue." }, { status: 404 });
+    }
+    // Seniority, not just capability. Holding `assign_roles` is not the same as
+    // outranking the person you are editing: without this any venue admin could
+    // set an owner's password and take the account.
+    if (!canSetRole(guard.actor, target.role)) {
+      return NextResponse.json(
+        { error: "That account is at or above your access level." },
+        { status: 403 }
+      );
+    }
+  }
+
+  // Assigning a level you may not set is the same problem from the other side:
+  // promoting someone to your own level is promoting yourself by proxy.
+  if (!isSelf && fields.role !== undefined && fields.role !== target.role && (typeof fields.role !== "string" || !canSetRole(guard.actor, fields.role))) {
     return NextResponse.json(
-      { error: "That account is at or above your access level." },
+      { error: "You cannot give someone that access level." },
       { status: 403 }
     );
   }
 
-  // Assigning a level you do not outrank is the same problem from the other
-  // side — promoting someone to owner is promoting yourself by proxy.
-  if (typeof fields.role === "string" && !canEditRole(guard.actor.role, fields.role)) {
-    return NextResponse.json(
-      { error: "You cannot assign an access level at or above your own." },
-      { status: 403 }
-    );
+  // Moving someone between venues is the owner's call. An empty value would
+  // orphan them, so it counts as a move.
+  if (fields.venue_id !== undefined && (fields.venue_id || null) !== target.venue_id && tenantScope(guard.actor) !== null) {
+    return NextResponse.json({ error: "You cannot move someone to that venue." }, { status: 403 });
   }
 
   // A password set here is set. It is NOT emailed to anyone — the onboarding

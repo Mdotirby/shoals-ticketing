@@ -1,7 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase-server";
 import { requireCapability } from "@/lib/auth/can";
-import { canEditRole } from "@/lib/auth/roles";
+import { canSetRole } from "@/lib/auth/roles";
+import { venueInTenant } from "@/lib/auth/tenant";
 import { writeAudit } from "@/lib/auth/audit";
 import { NextResponse } from "next/server";
 
@@ -35,18 +36,18 @@ export async function POST(
 
   const { data: target } = await admin
     .from("admin_users")
-    .select("id, email, role, first_name, last_name")
+    .select("id, email, role, venue_id, first_name, last_name")
     .eq("id", id)
     .maybeSingle();
 
-  if (!target?.email) {
+  if (!target?.email || !venueInTenant(guard.actor, target.venue_id)) {
     return NextResponse.json({ error: "No user, or no email on file" }, { status: 404 });
   }
 
   // Seniority: you may not mint a recovery link for a peer or a senior. Holding
   // `assign_roles` is not the same as outranking the person you are acting on —
   // without this, any venue admin could take over an owner account.
-  if (!canEditRole(guard.actor.role, target.role)) {
+  if (!canSetRole(guard.actor, target.role)) {
     return NextResponse.json(
       { error: "That account is at or above your access level." },
       { status: 403 }

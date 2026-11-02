@@ -146,20 +146,29 @@ export function levelRank(level: StaffLevel): number {
   return LEVEL_RANK[level];
 }
 
+/** Matt Irby's admin_users id. The one account that sets owners and venue admins. */
+export const PLATFORM_OWNER_ID = "c31fdb14-ac49-4b25-95a3-bc70a73199a5";
+
 /**
- * Can `actor` edit a user who holds `target`? False when the actor is not
- * staff, and false at or above their own rank — an actor may not edit a peer
- * or a senior, which also blocks self-elevation.
+ * May this actor give someone `target`, or manage someone who already holds it?
+ *
+ *   • The platform owner may set anything.
+ *   • Owner and Venue Admin are his alone. Other owners can't set them either.
+ *   • Everyone else may only set levels strictly below their own, so never a
+ *     peer, which also blocks self-elevation.
+ *
+ * External identities and unresolved roles carry no rank, so they are gated
+ * only on holding assign_roles, which the caller has already checked.
  */
-export function canEditRole(
-  actor: string | null | undefined,
+export function canSetRole(
+  actor: { id?: string | null; role?: string | null },
   target: string | null | undefined
 ): boolean {
-  const a = normalizeRole(actor);
+  const a = normalizeRole(actor.role);
   const t = normalizeRole(target);
   if (!a.level) return false;
-  // Editing an external identity or an unresolved role is gated on being able
-  // to assign roles at all; seniority does not apply since they have no rank.
+  if (a.level === "owner" && actor.id === PLATFORM_OWNER_ID) return true;
   if (!t.level) return true;
+  if (t.level === "owner" || t.level === "venue_admin") return false;
   return levelRank(a.level) < levelRank(t.level);
 }

@@ -42,6 +42,12 @@ export function tenantScope(
   return actor.venueId ?? DENY;
 }
 
+/** Is a row with this venue_id inside the actor's tenant? A null venue is only ever the owner's. */
+export function venueInTenant(actor: AdminActor | null, venueId: string | null | undefined): boolean {
+  const scope = tenantScope(actor, venueId);
+  return scope !== DENY && (scope === null || scope === venueId);
+}
+
 /**
  * Apply the scope to a Supabase query builder.
  *

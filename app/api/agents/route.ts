@@ -143,6 +143,13 @@ export async function DELETE(request: Request) {
     }
   }
 
+  // user_id comes from the request that created the agent, so confirm it really
+  // is an agent's login. Otherwise this would delete whoever it pointed at.
+  if (adminUserId) {
+    const { data: linked } = await admin.from("admin_users").select("role").eq("id", adminUserId).maybeSingle();
+    if (linked && linked.role !== "agent") adminUserId = null;
+  }
+
   if (adminUserId) {
     await admin.from("admin_users").delete().eq("id", adminUserId);
 
