@@ -132,6 +132,8 @@ const WRITABLE_COLUMNS = new Set([
   "merch_tax_payer",
   "merch_seller_fee",
   "merch_seller_fee_payer",
+  "merch_settle_method",
+  "merch_settle_reference",
   "merch_total_gross",
   "merch_total_tax",
   "merch_total_net",

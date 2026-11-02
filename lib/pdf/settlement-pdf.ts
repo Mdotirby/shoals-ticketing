@@ -5,6 +5,7 @@
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
 import { settlementWaterfall } from "@/lib/settlement/model";
+import { isMerchPaidSeparately, merchOwedToVenue, merchSettleLabel } from "@/lib/settlement/merchSettle";
 import {
   addPdfHeader, drawFooter, loadVenueCoreFavicon, ensureSpace,
   sanitize,
@@ -425,6 +426,10 @@ function drawMerchSection(doc: Doc, s: Settlement, y: number): {
   }
   const owedToVenue = venueShare + artistPaidSellerFee + venuePaidTax;
   y = moneyRow(doc, "Owed to Venue from Artist", fmt(owedToVenue), y, { highlight: true });
+  const paidSeparately = merchSettleLabel(s.merch_settle_method, s.merch_settle_reference);
+  if (paidSeparately && owedToVenue > 0) {
+    y = moneyRow(doc, `${paidSeparately} - not deducted from balance due`, "", y, { indent: 4 });
+  }
   return { y: y + 1, artistPaidSellerFee, venuePaidTax, venuePaidSellerFee };
 }
 
@@ -494,12 +499,20 @@ function drawSettlementCalc(
     y = moneyRow(doc, "Deposits Paid", `(${fmt(s.deposit_paid)})`, y, { indent: 4 });
   if ((s.cash_advance || 0) > 0)
     y = moneyRow(doc, "Cash Advances", `(${fmt(s.cash_advance)})`, y, { indent: 4 });
-  if ((s.merch_venue_share || 0) > 0)
-    y = moneyRow(doc, "Venue Merch Take", `(${fmt(s.merch_venue_share || 0)})`, y, { indent: 4 });
-  if (artistPaidMerchSellerFee > 0)
-    y = moneyRow(doc, "Merch Seller Fee (paid by artist)", `(${fmt(artistPaidMerchSellerFee)})`, y, { indent: 4 });
-  if (venuePaidMerchTax > 0)
-    y = moneyRow(doc, "Merch Sales Tax (venue covers)", `(${fmt(venuePaidMerchTax)})`, y, { indent: 4 });
+  // Merch paid to the promoter in cash/check never touches the balance due.
+  const merchSeparate = isMerchPaidSeparately(s.merch_settle_method);
+  if (merchSeparate) {
+    const owed = merchOwedToVenue(s);
+    if (owed > 0)
+      y = moneyRow(doc, `Merch Owed to Venue (${merchSettleLabel(s.merch_settle_method, s.merch_settle_reference).toLowerCase()})`, fmt(owed), y, { indent: 4 });
+  } else {
+    if ((s.merch_venue_share || 0) > 0)
+      y = moneyRow(doc, "Venue Merch Take", `(${fmt(s.merch_venue_share || 0)})`, y, { indent: 4 });
+    if (artistPaidMerchSellerFee > 0)
+      y = moneyRow(doc, "Merch Seller Fee (paid by artist)", `(${fmt(artistPaidMerchSellerFee)})`, y, { indent: 4 });
+    if (venuePaidMerchTax > 0)
+      y = moneyRow(doc, "Merch Sales Tax (venue covers)", `(${fmt(venuePaidMerchTax)})`, y, { indent: 4 });
+  }
 
   y = moneyRow(doc, "BALANCE DUE TO ARTIST", fmt(s.balance_due), y, { highlight: true });
   return y + 1;

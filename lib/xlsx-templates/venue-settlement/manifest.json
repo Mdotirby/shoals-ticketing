@@ -74,6 +74,7 @@
 
     { "cell": "L66", "field": "artist_guarantee", "type": "currency" },
     { "cell": "L67", "field": "splitpoint", "type": "currency" },
+    { "cell": "A68", "field": "merch_deduction_label", "type": "text" },
     { "cell": "L68", "field": "merch_venue_take_deduction", "type": "currency" },
     { "cell": "L69", "field": "seller_fee", "type": "currency" },
     { "cell": "L70", "field": "cash_advance", "type": "currency" },

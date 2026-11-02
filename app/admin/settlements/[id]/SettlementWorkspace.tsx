@@ -12,11 +12,13 @@ import type {
   TaxMethod,
   MerchItem,
   MerchSellerFeePayer,
+  MerchSettleMethod,
   MerchTaxPayer,
 } from "@/lib/types/settlement";
 import { settlementWaterfall, artistPayout, withCardExpense } from "@/lib/settlement/model";
 import { joinNames } from "@/lib/offers/door";
 import { NO_TERMS, offerSettleTerms, settlementArtistFac, settlementDoorDeductions, type OfferSettleTerms } from "@/lib/settlement/doorTerms";
+import { MERCH_SETTLE_METHODS, isMerchPaidSeparately, merchSettleLabel } from "@/lib/settlement/merchSettle";
 import { getCookie } from "@/lib/cookies";
 import { Card } from "@/app/components/admin/ui";
 import PaymentLedger, { type LedgerRow } from "./PaymentLedger";
@@ -189,6 +191,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const [merchSellerFee, setMerchSellerFee] = useState(0);
   const [merchSellerFeePayer, setMerchSellerFeePayer] =
     useState<MerchSellerFeePayer>("venue");
+  const [merchSettleMethod, setMerchSettleMethod] = useState<MerchSettleMethod>("guarantee");
+  const [merchSettleReference, setMerchSettleReference] = useState("");
 
   // Door deductions and the facility fee share live on the linked offer.
   const [offerTerms, setOfferTerms] = useState<OfferSettleTerms>(NO_TERMS);
@@ -272,6 +276,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     setMerchSellerFeePayer(
       (data.merch_seller_fee_payer as MerchSellerFeePayer) || "venue"
     );
+    setMerchSettleMethod((data.merch_settle_method as MerchSettleMethod) || "guarantee");
+    setMerchSettleReference(String(data.merch_settle_reference || ""));
   }, []);
 
   /* ─── Load data ─── */
@@ -546,20 +552,25 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const venuePaidMerchTax =
     merchTaxPayer === "venue" ? merchTotalTax : 0;
 
+  // What the artist owes the venue from merch: its cut, an artist-paid
+  // seller fee, and tax the venue remits for them.
+  const merchOwed = merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax;
+  // Out of the guarantee, or paid to the promoter separately in cash/check —
+  // then the balance due is the whole walkout and merch settles on its own.
+  const merchPaidSeparately = isMerchPaidSeparately(merchSettleMethod);
+  // Before plans/settlement-merch-settle-migration.sql the choice has nowhere to save.
+  const merchSettleMigrated = !!settlement && "merch_settle_method" in settlement;
+
   // Balance due:
   //   Artist Total (from ticket deal)
   //   − Deposits
   //   − Cash Advances
-  //   − Venue Merch Share
-  //   − Artist-paid Merch Seller Fee
-  //   − Tax (if venue is paying the tax for the artist)
+  //   − Merch owed to the venue (unless paid separately)
   const balanceDue =
     artistTotal -
     totalDeposits -
     totalCashAdvances -
-    merchVenueShare -
-    artistPaidMerchSellerFee -
-    venuePaidMerchTax;
+    (merchPaidSeparately ? 0 : merchOwed);
 
   // Ancillary
   // NOTE: `merchCommission` is the legacy single-number merch field. Once a
@@ -750,6 +761,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
       merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
       merch_seller_fee_payer: merchSellerFeePayer,
+      merch_settle_method: merchSettleMethod,
+      merch_settle_reference: merchSettleMethod === "check" ? merchSettleReference.trim() || null : null,
       merch_total_gross: merchTotalGross,
       merch_total_tax: merchTotalTax,
       merch_total_net: merchTotalNet,
@@ -981,6 +994,8 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
       merch_tax_payer: merchTaxPayer,
       merch_seller_fee: merchSellerFee,
       merch_seller_fee_payer: merchSellerFeePayer,
+      merch_settle_method: merchSettleMethod,
+      merch_settle_reference: merchSettleMethod === "check" ? merchSettleReference.trim() || null : null,
       merch_total_gross: merchTotalGross,
       merch_total_tax: merchTotalTax,
       merch_total_net: merchTotalNet,
@@ -1975,7 +1990,38 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             <option value="artist">Artist (deducted from Artist Guarantee)</option>
           </select>
         </div>
+        <div>
+          <label className="admin-form-label">Merch Owed to Venue Paid By</label>
+          <select
+            className="admin-form-input"
+            value={merchSettleMethod}
+            onChange={(e) => setMerchSettleMethod(e.target.value as MerchSettleMethod)}
+            disabled={isFinalized}
+          >
+            {MERCH_SETTLE_METHODS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+        </div>
+        {merchSettleMethod === "check" && (
+          <div>
+            <label className="admin-form-label">Check #</label>
+            <input
+              type="text"
+              className="admin-form-input"
+              value={merchSettleReference}
+              onChange={(e) => setMerchSettleReference(e.target.value)}
+              disabled={isFinalized}
+              placeholder="e.g. 1042"
+            />
+          </div>
+        )}
       </div>
+      {merchPaidSeparately && !merchSettleMigrated && (
+        <div className="admin-form-error" style={{ marginTop: 8 }}>
+          Run plans/settlement-merch-settle-migration.sql to save this. Until then it reverts to coming out of the guarantee on reload.
+        </div>
+      )}
 
       {/* Merch math summary */}
       <div style={{ maxWidth: 540, marginTop: 16 }}>
@@ -2034,8 +2080,10 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         )}
         <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(255, 255, 255, 0.08)", borderRadius: 4, fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
           <strong style={{ color: "#ffffff" }}>Owed to VENUE from artist:</strong>
-          {" "}{fmt(merchVenueShare + artistPaidMerchSellerFee + venuePaidMerchTax)}
-          {" (deducted from Balance Due)"}
+          {" "}{fmt(merchOwed)}
+          {merchPaidSeparately
+            ? ` (${merchSettleLabel(merchSettleMethod, merchSettleReference).toLowerCase()} — not deducted from Balance Due)`
+            : " (deducted from Balance Due)"}
           <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 4 }}>
             {fmt(merchVenueShare)} to VENUE
             {artistPaidMerchSellerFee > 0 && <> + {fmt(artistPaidMerchSellerFee)} seller fee</>}
@@ -2470,19 +2518,27 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
           <span style={labelStyle}>Buyouts (Production/Catering)</span>
           <span style={valStyle}>{fmt(totalCashAdvances)}</span>
         </div>
-        {merchVenueShare > 0 && (
+        {merchPaidSeparately && merchOwed > 0 && (
+          <div style={rowStyle}>
+            <span style={labelStyle}>
+              Merch owed to VENUE — {merchSettleLabel(merchSettleMethod, merchSettleReference).toLowerCase()}
+            </span>
+            <span style={{ ...valStyle, opacity: 0.55 }}>not deducted ({fmt(merchOwed)})</span>
+          </div>
+        )}
+        {!merchPaidSeparately && merchVenueShare > 0 && (
           <div style={rowStyle}>
             <span style={labelStyle}>Merch split to VENUE ({merchSplitVenuePct.toFixed(1)}%)</span>
             <span style={valStyle}>{fmt(merchVenueShare)}</span>
           </div>
         )}
-        {artistPaidMerchSellerFee > 0 && (
+        {!merchPaidSeparately && artistPaidMerchSellerFee > 0 && (
           <div style={rowStyle}>
             <span style={labelStyle}>Merch Seller Fee (Paid by ARTIST)</span>
             <span style={valStyle}>{fmt(artistPaidMerchSellerFee)}</span>
           </div>
         )}
-        {venuePaidMerchTax > 0 && (
+        {!merchPaidSeparately && venuePaidMerchTax > 0 && (
           <div style={rowStyle}>
             <span style={labelStyle}>Merch Sales Tax (Paid by VENUE)</span>
             <span style={valStyle}>{fmt(venuePaidMerchTax)}</span>

@@ -1,6 +1,7 @@
 import type { Settlement, TaxMethod } from "@/lib/types/settlement";
 import type { ArtistOffer } from "@/lib/types/offer";
 import { SETTLEMENT_CARD_EXPENSE_NAME } from "@/lib/settlement/model";
+import { isMerchPaidSeparately, merchSettleLabel } from "@/lib/settlement/merchSettle";
 
 /** A card row someone saved by hand, which the derived line replaces. */
 const isStoredCardExpense = (n: unknown) =>
@@ -103,6 +104,7 @@ export type ArtistSettlementData = {
 
   artist_guarantee: number;
   splitpoint: number;
+  merch_deduction_label: string;
   merch_venue_take_deduction: number;
   seller_fee: number;
   cash_advance: number;
@@ -293,9 +295,15 @@ export function buildArtistSettlementData(
 
     artist_guarantee: settlement.guarantee || 0,
     splitpoint: netAfterExpenses,
-    merch_venue_take_deduction: settlement.merch_venue_share || 0,
+    // Merch paid to the promoter in cash/check comes off nothing here.
+    merch_deduction_label: isMerchPaidSeparately(settlement.merch_settle_method)
+      ? `% Merch to Venue (${merchSettleLabel(settlement.merch_settle_method, settlement.merch_settle_reference).toLowerCase()})`
+      : "% Merch to Venue",
+    merch_venue_take_deduction: isMerchPaidSeparately(settlement.merch_settle_method) ? 0 : settlement.merch_venue_share || 0,
     seller_fee:
-      settlement.merch_seller_fee_payer === "artist" ? settlement.merch_seller_fee || 0 : 0,
+      settlement.merch_seller_fee_payer === "artist" && !isMerchPaidSeparately(settlement.merch_settle_method)
+        ? settlement.merch_seller_fee || 0
+        : 0,
     cash_advance: settlement.cash_advance || 0,
     deposits_paid: settlement.deposit_paid || 0,
     backend_overage: settlement.artist_backend || 0,

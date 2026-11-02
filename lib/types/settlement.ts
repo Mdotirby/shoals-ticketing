@@ -64,6 +64,8 @@ export type MerchItem = {
 
 /** Who eats the merch seller's per-night fee. */
 export type MerchSellerFeePayer = "venue" | "artist";
+/** How the artist pays the venue its merch money (lib/settlement/merchSettle.ts). */
+export type MerchSettleMethod = "guarantee" | "cash" | "check";
 
 /**
  * Who remits merch sales tax to the government:
@@ -181,6 +183,9 @@ export type Settlement = {
   merch_tax_payer: MerchTaxPayer;      // who remits the tax
   merch_seller_fee: number;            // cost to hire someone to run merch
   merch_seller_fee_payer: MerchSellerFeePayer;
+  /** Out of the guarantee, or paid to the promoter separately (plans/settlement-merch-settle-migration.sql). */
+  merch_settle_method?: MerchSettleMethod;
+  merch_settle_reference?: string | null;   // check number when paid by check
   // Computed snapshots
   merch_total_gross: number;           // Σ items.gross
   merch_total_tax: number;             // tax on (gross − discounts)
