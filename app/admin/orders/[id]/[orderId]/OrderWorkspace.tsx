@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { isCashSource } from "@/lib/orders/voidPolicy";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
     paid: { bg: "rgba(34,197,94,0.12)", color: "#22c55e" },
     refunded: { bg: "rgba(251,191,36,0.12)", color: "#fbbf24" },
+    voided: { bg: "rgba(148,163,184,0.12)", color: "#94a3b8" },
     cancelled: { bg: "rgba(239,68,68,0.12)", color: "#ef4444" },
     pending: { bg: "rgba(148,163,184,0.12)", color: "#94a3b8" },
   };
@@ -338,6 +340,43 @@ export default function OrderWorkspace({ eventId, orderId, onBack }: { eventId: 
     }
   }
 
+  // ── Void a cash sale that never happened ──────────────────────────────────
+  async function handleVoidCash() {
+    const note = window.prompt(
+      "Void this cash sale?\n\n" +
+        "Use this when the sale was rung up by mistake and no cash changed hands. It will:\n" +
+        "• Mark the order Voided, so settlements and the box office stop counting it\n" +
+        "• Release the seats for resale\n" +
+        "• Stop the tickets from scanning\n" +
+        "• Reverse its cash in the ledger\n\n" +
+        "What happened? (optional, saved on the order)",
+      "Rung up by mistake",
+    );
+    if (note === null) return;
+    setRefunding(true);
+    setRefundMsg(null);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/void`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Void failed");
+      setRefundMsg({
+        type: data.ledgerError ? "error" : "success",
+        text: data.ledgerError
+          ? `Voided, but the ledger reversal failed: ${data.ledgerError}`
+          : `Voided — ${data.ticketsVoided} ticket${data.ticketsVoided === 1 ? "" : "s"} stopped, ${data.seatsReleased} seat${data.seatsReleased === 1 ? "" : "s"} released.`,
+      });
+      await load();
+    } catch (e) {
+      setRefundMsg({ type: "error", text: e instanceof Error ? e.message : "Void failed" });
+    } finally {
+      setRefunding(false);
+    }
+  }
+
   // ── Issue a full refund (wrong event/tickets — not a billing correction) ──
   async function handleIssueRefund() {
     if (!confirm(
@@ -598,7 +637,22 @@ export default function OrderWorkspace({ eventId, orderId, onBack }: { eventId: 
               </button>
             </>
           )}
-          {order.status === "paid" && (
+          {order.status === "paid" && isCashSource(order.source) && Number(order.total_amount) > 0 && (
+            <button
+              onClick={handleVoidCash}
+              disabled={refunding}
+              title="The sale never happened — no cash changed hands. Voids the order, stops the tickets, releases the seats and reverses its cash."
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 13,
+                background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)",
+                color: "#ef4444", cursor: refunding ? "not-allowed" : "pointer",
+              }}
+            >
+              {refunding ? "Voiding…" : "Void Cash Sale"}
+            </button>
+          )}
+          {order.status === "paid" && !isCashSource(order.source) && (
             <button
               onClick={handleIssueRefund}
               disabled={refunding}

@@ -57,7 +57,7 @@ describe("merch settle method", () => {
       d as unknown as Record<string, unknown>
     );
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
     const ws = wb.worksheets[0];
     // The expense rows resize, so find the row by its label, not its address.
     const rowOf = (label: string) => {

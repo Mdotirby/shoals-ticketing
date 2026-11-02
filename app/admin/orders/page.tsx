@@ -8,6 +8,7 @@ import { useAdminNav } from "@/app/components/admin/AdminNavContext";
 import { fmtUSD } from "@/app/components/admin/ui";
 import { REFUND_REASONS, refundBlocker, type RefundReason } from "@/lib/orders/refundPolicy";
 import { orderBreakdown } from "@/lib/orders/breakdown";
+import { isCashSource, voidBlocker } from "@/lib/orders/voidPolicy";
 import ByShow from "./_panels/ByShow";
 
 /**
@@ -82,6 +83,7 @@ const when = (d: string, opts: Intl.DateTimeFormatOptions = { month: "short", da
 
 function stateOf(o: Pick<Row, "status" | "source" | "total_amount">): { label: string; tone: string } {
   if (o.status === "refunded") return { label: "Refunded", tone: "bad" };
+  if (o.status === "voided") return { label: "Voided", tone: "quiet" };
   if (o.source === "comp") return { label: "Comp", tone: "quiet" };
   // Claimed, not bought and not given away. Showing this as "Paid $0.00" made
   // a free RSVP look like a sale that collected nothing.
@@ -260,6 +262,7 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
   const [error, setError] = useState("");
   const [reason, setReason] = useState<RefundReason | null>(null);
   const [refunding, setRefunding] = useState(false);
+  const [voidNote, setVoidNote] = useState("");
   const [done, setDone] = useState("");
 
   const load = useCallback(() => {
@@ -284,7 +287,7 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
   const sale = ledger.find((l) => l.type === "sale");
   const refundRows = ledger.filter((l) => l.type !== "sale");
   const blocker = refundBlocker(order, order.events, reason);
-  const reasonNeeded = !reason && order.status !== "refunded" && order.source !== "cash";
+  const reasonNeeded = !reason && order.status !== "refunded" && !isCashSource(order.source);
 
   const refund = async () => {
     if (!reason) return;
@@ -311,6 +314,36 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
       onRefunded();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Refund failed");
+    } finally {
+      setRefunding(false);
+    }
+  };
+
+  // A cash sale that never happened. No money moves; it comes off the books.
+  const voidSale = async () => {
+    if (
+      !confirm(
+        `Void this ${fmtUSD(total)} cash sale?\n\n` +
+          "Only for a sale rung up by mistake, where no cash changed hands. The order stops counting in the settlement, the tickets stop scanning, any seats go back on sale and the cash comes out of the ledger. This can't be undone."
+      )
+    )
+      return;
+    setRefunding(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/void`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: voidNote }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Void failed");
+      if (data.ledgerError) setError(`Voided, but the ledger reversal failed: ${data.ledgerError}`);
+      setDone(`Voided. ${fmtUSD(total)} is off the books and the tickets no longer scan.`);
+      load();
+      onRefunded();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Void failed");
     } finally {
       setRefunding(false);
     }
@@ -347,7 +380,7 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
           ))}
           <div><dt>Charged</dt><dd>{fmtUSD(sale ? sale.gross_amount : total)}</dd></div>
           {refundRows.map((r, i) => (
-            <div key={i}><dt>Refunded</dt><dd className="ob-tone-bad">{fmtUSD(r.gross_amount)}</dd></div>
+            <div key={i}><dt>{r.type === "void" ? "Voided" : "Refunded"}</dt><dd className="ob-tone-bad">{fmtUSD(r.gross_amount)}</dd></div>
           ))}
           {/* What the show actually keeps — the mockup's last two lines. Both
               come off the same ledger row as everything above, and were
@@ -368,6 +401,8 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
               <span className={t.is_scanned ? "ob-tone-good" : ""}>
                 {order.status === "refunded"
                   ? "Void — refunded"
+                  : order.status === "voided"
+                  ? "Void — sale voided"
                   : t.is_scanned
                   ? `Scanned${t.scanned_at ? ` · ${when(t.scanned_at, { hour: "numeric", minute: "2-digit" })}` : ""}`
                   : "Valid · not yet scanned"}
@@ -382,11 +417,32 @@ function OrderDetail({ orderId, onRefunded }: { orderId: string; onRefunded: () 
       </section>
 
       <section className="card ee-card">
-        <span className="ee-eyebrow">Refund</span>
+        <span className="ee-eyebrow">{isCashSource(order.source) ? "Void" : "Refund"}</span>
         {order.status === "refunded" ? (
           <p className="ee-field-note">This order has been refunded.</p>
-        ) : order.source === "cash" ? (
-          <p className="ee-field-note">{refundBlocker(order, order.events, "glitch")}</p>
+        ) : order.status === "voided" ? (
+          <p className="ee-field-note">This cash sale was voided. It never counted.</p>
+        ) : isCashSource(order.source) ? (
+          voidBlocker(order) ? (
+            <p className="ee-field-note">{voidBlocker(order)}</p>
+          ) : (
+            <>
+              <p className="ee-state-body">
+                Cash isn&apos;t refunded here — the drawer is physical. But if this sale was rung up by mistake and no
+                cash changed hands, void it: it stops counting in the settlement, the tickets stop scanning, any seats go
+                back on sale and its {fmtUSD(total)} comes out of the ledger.
+              </p>
+              <input
+                className="admin-form-input"
+                value={voidNote}
+                onChange={(e) => setVoidNote(e.target.value)}
+                placeholder="What happened? e.g. rung up twice"
+              />
+              <button type="button" className="btn ob-refund-btn" onClick={voidSale} disabled={refunding}>
+                {refunding ? "Voiding…" : `Void ${fmtUSD(total)} cash sale`}
+              </button>
+            </>
+          )
         ) : (
           <>
             <p className="ee-state-body">

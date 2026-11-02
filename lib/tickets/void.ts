@@ -103,6 +103,9 @@ export function refusalReason(ticket: {
   if (ticket.orderStatus === "refunded") {
     return "This order was refunded — ticket is no longer valid.";
   }
+  if (ticket.orderStatus === "voided") {
+    return "This sale was voided — ticket is no longer valid.";
+  }
   if (ticket.is_scanned) {
     return ticket.scanned_at
       ? `Already scanned at ${new Date(ticket.scanned_at).toLocaleString()}`

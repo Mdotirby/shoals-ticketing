@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     });
     if (!reason) {
       admit.push(t.id);
-    } else if (t.is_scanned && !t.voided_at && orderStatus !== "refunded") {
+    } else if (t.is_scanned && !t.voided_at && orderStatus !== "refunded" && orderStatus !== "voided") {
       // An ordinary double-scan, which is routine and not worth flagging.
       alreadyScanned++;
     } else {

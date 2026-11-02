@@ -1,6 +1,14 @@
 import { requireCapability, requireStaff } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
+import { tenantScope, DENY } from "@/lib/auth/tenant";
+import { isCashSource, voidReversal } from "@/lib/orders/voidPolicy";
 import { NextResponse } from "next/server";
+
+/** Whether this actor may touch an order at this venue. The id alone is not a boundary (lib/auth/tenant.ts). */
+function inTenant(actor: Parameters<typeof tenantScope>[0], venueId: string | null): boolean {
+  const scope = tenantScope(actor, venueId);
+  return scope !== DENY && (scope === null || scope === venueId);
+}
 
 // GET /api/admin/orders/[orderId]
 // Returns the full order with its tickets and event info for the order detail page.
@@ -32,7 +40,7 @@ export async function GET(
     .eq("id", orderId)
     .single();
 
-  if (orderError || !order) {
+  if (orderError || !order || !inTenant(guard.actor, order.events?.venue_id ?? null)) {
     return NextResponse.json(
       { error: orderError?.message ?? "Order not found" },
       { status: 404 }
@@ -80,6 +88,9 @@ export async function GET(
 // PATCH /api/admin/orders/[orderId]
 // Reinstate a refunded order as a comp — sets status=paid, source=comp, total=0,
 // and appends an internal note. Tickets and seat assignments are preserved as-is.
+// A cash order's sale stays in the ledger otherwise, and every revenue report
+// would keep counting cash that was never in the till -- so its remaining
+// money is reversed. A card order's money really sits in Stripe; leave it.
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ orderId: string }> }
@@ -99,11 +110,12 @@ export async function PATCH(
 
   const { data: order, error: findError } = await admin
     .from("orders")
-    .select("id, status, notes")
+    .select("id, status, source, notes, event_id, events(venue_id)")
     .eq("id", orderId)
     .single();
 
-  if (findError || !order) {
+  const venueId = ((Array.isArray(order?.events) ? order?.events[0] : order?.events) as { venue_id: string | null } | null)?.venue_id ?? null;
+  if (findError || !order || !inTenant(guard.actor, venueId)) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
@@ -125,6 +137,28 @@ export async function PATCH(
 
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
+  }
+
+  if (isCashSource(order.source)) {
+    const { data: rows } = await admin
+      .from("settlement_ledger")
+      .select("gross_amount, ticket_revenue, net_to_venue")
+      .eq("order_id", orderId);
+    const reversal = voidReversal(rows ?? []);
+    if (reversal) {
+      const { error } = await admin.from("settlement_ledger").insert({
+        order_id: orderId, event_id: order.event_id, venue_id: venueId, ...reversal,
+        ticketing_fee: 0, facility_fee: 0, venue_rebate: 0, tax_collected: 0,
+        stripe_fee: 0, stripe_fee_actual: 0, stripe_net: reversal.gross_amount, net_to_platform: 0,
+        type: "void",
+      });
+      if (error) {
+        return NextResponse.json(
+          { error: `Reinstated as comp, but reversing its cash in the ledger failed: ${error.message}. Run plans/order-void-migration.sql.` },
+          { status: 500 },
+        );
+      }
+    }
   }
 
   return NextResponse.json({ success: true });
