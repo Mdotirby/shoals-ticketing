@@ -5,6 +5,8 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { staffHomeUrl, staffMayUseHost } from "@/lib/auth/hostTenant";
+import { normalizeRole } from "@/lib/auth/roles";
 
 export async function POST(request: Request) {
   try {
@@ -56,7 +58,22 @@ export async function POST(request: Request) {
       );
     }
 
+    // Staff work only on their own venue's site. Says where to send them; the
+    // wall itself is in getAdminActor.
+    let wrongHost = false;
+    let homeUrl: string | null = null;
+    const level = normalizeRole(adminRecord.role).level;
+    if (level && level !== "owner") {
+      const { data: venue } = adminRecord.venue_id
+        ? await adminClient.from("venues").select("id, slug, custom_domain").eq("id", adminRecord.venue_id).maybeSingle()
+        : { data: null };
+      wrongHost = !staffMayUseHost(request.headers.get("host"), venue);
+      homeUrl = staffHomeUrl(venue);
+    }
+
     return NextResponse.json({
+      wrong_host: wrongHost,
+      home_url: homeUrl,
       role: adminRecord.role,
       venue_id: adminRecord.venue_id || null,
       first_name: adminRecord.first_name || null,

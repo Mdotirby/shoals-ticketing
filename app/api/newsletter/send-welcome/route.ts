@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase-server";
 import { buildWelcomeEmailHtml } from "../route";
+import { staffMayUseHost } from "@/lib/auth/hostTenant";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "VenueCore <onboarding@resend.dev>";
 
@@ -39,12 +40,22 @@ export async function POST(req: NextRequest) {
 
     const { data: adminUser } = await supabase
       .from("admin_users")
-      .select("role")
+      .select("role, venue_id")
       .eq("id", user.id)
       .single();
 
     if (!adminUser || !["owner", "venue_admin"].includes(adminUser.role)) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
+
+    // Same rule as getAdminActor: staff work only on their own venue's site.
+    if (adminUser.role !== "owner") {
+      const { data: venue } = adminUser.venue_id
+        ? await supabase.from("venues").select("id, slug, custom_domain").eq("id", adminUser.venue_id).maybeSingle()
+        : { data: null };
+      if (!staffMayUseHost(req.headers.get("host"), venue)) {
+        return NextResponse.json({ error: "Sign in on your venue's own site" }, { status: 403 });
+      }
     }
 
     // Optional: filter by venue_id from request body

@@ -15,6 +15,7 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
+import { leaveIfWrongHost } from "@/lib/auth/hostRedirect";
 import { getCookie } from "@/lib/cookies";
 import { compareEventsForDisplay, isEventLive, isEventToday, safeDate } from "@/lib/dates";
 import { stripeAppearance } from "@/lib/stripeAppearance";
@@ -132,6 +133,12 @@ function LoginScreen({ onSuccess }: { onSuccess: (name: string) => void }) {
       const supabase = getSupabaseBrowser();
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError || !authData.user) { setError("Invalid email or password."); setLoading(false); return; }
+
+      if (authData.session) {
+        const hostCheck = await leaveIfWrongHost(authData.session.access_token);
+        if (hostCheck.redirecting) return;
+        if (hostCheck.error) { setError(hostCheck.error); setLoading(false); return; }
+      }
 
       const { data: adminRecord } = await supabase
         .from("admin_users").select("role, first_name").eq("id", authData.user.id).single();
@@ -1406,6 +1413,12 @@ export default function BoxOfficePage() {
     const supabase = getSupabaseBrowser();
     supabase.auth.getUser().then(async ({ data }: { data: { user: import("@supabase/supabase-js").User | null } }) => {
       if (!data?.user) { setAuthState("login"); return; }
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const hostCheck = await leaveIfWrongHost(sessionData.session.access_token);
+        if (hostCheck.redirecting) return;
+        if (hostCheck.error) { setAuthState("login"); return; }
+      }
       const { data: adminRecord } = await supabase.from("admin_users").select("role, first_name").eq("id", data.user.id).single();
       if (!adminRecord || !ALLOWED_ROLES.includes(adminRecord.role)) { await supabase.auth.signOut(); setAuthState("login"); return; }
       const name = adminRecord.first_name || data.user.email?.split("@")[0] || "Staff";

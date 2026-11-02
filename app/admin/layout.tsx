@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { leaveIfWrongHost } from "@/lib/auth/hostRedirect";
 import { getOperator } from "@/lib/operators";
 import ForcePasswordModal from "@/app/components/admin/ForcePasswordModal";
 import AdminSidebar from "@/app/components/admin/AdminSidebar";
@@ -52,6 +53,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const supabase = getSupabaseBrowser();
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
+
+      // A session already open on a site that isn't this person's own.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        const hostCheck = await leaveIfWrongHost(sessionData.session.access_token);
+        if (hostCheck.redirecting) return;
+        if (hostCheck.error) {
+          window.location.href = "/login";
+          return;
+        }
+      }
 
       const uid = authData.user.id;
       setUserId(uid);

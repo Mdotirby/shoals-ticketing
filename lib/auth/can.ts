@@ -1,7 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-server";
+import { staffMayUseHost } from "./hostTenant";
 import { normalizeRole, type ResolvedRole } from "./roles";
 import {
   defaultCapabilityLevel,
@@ -98,6 +99,18 @@ export async function getAdminActor(): Promise<AdminActor | null> {
   if (!record) return null;
 
   const venueId = record.venue_id ?? null;
+  const resolved = normalizeRole(record.role);
+
+  // Staff work only on their own venue's site; owners are exempt. Checked here
+  // so every guard inherits it. Artists and agents hold no staff level, and
+  // their portals don't belong to one venue.
+  if (resolved.level && resolved.level !== "owner") {
+    const { data: venue } = venueId
+      ? await admin.from("venues").select("id, slug, custom_domain").eq("id", venueId).maybeSingle()
+      : { data: null };
+    const host = (await headers()).get("host");
+    if (!staffMayUseHost(host, venue)) return null;
+  }
 
   // Per-venue overrides (plans/role-capabilities-migration.sql). Missing table
   // and no rows are the same answer, so the failure is swallowed: an
@@ -119,7 +132,7 @@ export async function getAdminActor(): Promise<AdminActor | null> {
     id: record.id,
     email: record.email ?? user.email ?? null,
     role: record.role,
-    resolved: normalizeRole(record.role),
+    resolved,
     venueId,
     capabilityOverrides,
   };

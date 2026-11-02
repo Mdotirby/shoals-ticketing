@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { leaveIfWrongHost } from "@/lib/auth/hostRedirect";
 
 type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist";
 
@@ -44,6 +45,10 @@ export default function AdminLoginPage() {
 
       if (authError) throw new Error(authError.message);
       if (!authData.user || !authData.session) throw new Error("Login failed.");
+
+      const hostCheck = await leaveIfWrongHost(authData.session.access_token);
+      if (hostCheck.redirecting) return;
+      if (hostCheck.error) throw new Error(hostCheck.error);
 
       // Look up admin role
       const authRes = await fetch("/api/admin/auth", {

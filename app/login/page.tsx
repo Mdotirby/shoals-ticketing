@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { getSupabaseBrowser } from "@/lib/supabase-browser";
 import { getCookie } from "@/lib/cookies";
+import { leaveIfWrongHost } from "@/lib/auth/hostRedirect";
 import Footer from "@/app/components/Footer";
 
 type UserRole = "owner" | "super_admin" | "venue_admin" | "promoter" | "full_admin" | "box_office" | "read_only" | "door_greeter" | "artist" | "agent";
@@ -74,6 +75,10 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
       }
 
       const accessToken = authData.session.access_token;
+
+      const hostCheck = await leaveIfWrongHost(accessToken);
+      if (hostCheck.redirecting) return;
+      if (hostCheck.error) throw new Error(hostCheck.error);
 
       // Look up admin role via server-side API (bypasses RLS)
       const authRes = await fetch("/api/admin/auth", {

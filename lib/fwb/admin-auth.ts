@@ -5,6 +5,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase-server";
+import { staffMayUseHost } from "@/lib/auth/hostTenant";
+import { normalizeRole } from "@/lib/auth/roles";
 
 interface AdminAuthResult {
   authorized: boolean;
@@ -60,6 +62,16 @@ export async function verifyAdminAuth(request: Request): Promise<AdminAuthResult
   const allowedRoles = ["owner", "super_admin", "full_admin", "venue_admin"];
   if (!allowedRoles.includes(adminRecord.role)) {
     return { authorized: false, userId: user.id, role: adminRecord.role, venueId: headerVenueId, error: "Insufficient permissions", status: 403 };
+  }
+
+  // Same rule as getAdminActor: staff work only on their own venue's site.
+  if (normalizeRole(adminRecord.role).level !== "owner") {
+    const { data: venue } = adminRecord.venue_id
+      ? await adminClient.from("venues").select("id, slug, custom_domain").eq("id", adminRecord.venue_id).maybeSingle()
+      : { data: null };
+    if (!staffMayUseHost(request.headers.get("host"), venue)) {
+      return { authorized: false, userId: user.id, role: adminRecord.role, venueId: headerVenueId, error: "Sign in on your venue's own site", status: 403 };
+    }
   }
 
   // Resolve venue_id: prefer header, fall back to admin_users record

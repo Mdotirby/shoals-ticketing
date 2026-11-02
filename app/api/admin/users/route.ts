@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { roleLabel, canSetRole, normalizeRole, EXTERNAL_IDENTITIES } from "@/lib/auth/roles";
 import { tenantScope, venueInTenant, DENY } from "@/lib/auth/tenant";
+import { staffHomeUrl } from "@/lib/auth/hostTenant";
 import { writeAudit } from "@/lib/auth/audit";
 
 // GET: list all admin users
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
   }
   const level = normalizeRole(role).level;
   const assignedVenue = scope ?? (level && level !== "owner" ? guard.actor.venueId : null);
-  // Staff belong to one venue; with none, scoped routes give them nothing.
+  // Staff with no venue can't sign in anywhere (lib/auth/hostTenant.ts).
   if (level && level !== "owner" && !assignedVenue) {
     return NextResponse.json({ error: "Choose a venue for this person." }, { status: 400 });
   }
@@ -188,7 +189,18 @@ export async function POST(request: Request) {
       temp_password: authPassword,
     });
     if (role === "agent") loginParams.set("redirect", "/agent");
-    const loginUrl = `https://venuecore.live/login?${loginParams.toString()}`;
+    // Staff sign in on their own venue's site; a link elsewhere would redirect
+    // them and lose these params. Owners, agents and artists have no such site.
+    let loginOrigin = "https://venuecore.live";
+    if (level && level !== "owner" && assignedVenue) {
+      const { data: venue } = await admin
+        .from("venues")
+        .select("id, slug, custom_domain")
+        .eq("id", assignedVenue)
+        .maybeSingle();
+      loginOrigin = staffHomeUrl(venue) ?? loginOrigin;
+    }
+    const loginUrl = `${loginOrigin}/login?${loginParams.toString()}`;
     const ctaLabel = role === "agent" ? "Sign In to Agent Portal →" : "Sign In to VenueCore →";
     const CC_EMAIL = "matt.irby@west72ent.com";
 
