@@ -62,15 +62,18 @@ describe("settlement email", () => {
     gbor: 99999, nbor: 88888,
   } as unknown as ArtistSettlementData;
   const html = settlementEmailHtml({
-    data, sender: OPERATORS.west72, subject: "S", message: "Hi <there>", attachmentName: "a&b.xlsx",
+    data, sender: OPERATORS.west72, subject: "S", message: "Hi <there>",
   });
 
   it("shows the artist's figures and escapes what it's given", () => {
     expect(html).toContain("$1,650");
     expect(html).toContain("-$1,000");
     expect(html).toContain("Hi &lt;there&gt;");
-    expect(html).toContain("a&amp;b.xlsx");
     expect(html).not.toContain("Cash advance");
+  });
+
+  it("doesn't draw a fake attachment, since the real one is on the email", () => {
+    expect(html).not.toContain("XLSX");
   });
 
   it("leaves out what isn't in the summary", () => {
@@ -90,7 +93,7 @@ it("still breaks ticket tiers onto their own lines in the offer email", () => {
       artist_name: "A",
       ticket_scaling: [{ name: "GA", net_price: 20 }, { name: "VIP <1>", net_price: 50 }],
     } as unknown as ArtistOffer,
-    sender: OPERATORS.west72, message: "", artistAtSellout: 0, attachmentName: "a.xlsx",
+    sender: OPERATORS.west72, message: "", artistAtSellout: 0,
   });
   expect(html).toMatch(/GA \$20[^<]*<br\/>VIP &lt;1&gt; \$50/);
 });
@@ -136,10 +139,6 @@ describe("sales update email", () => {
     expect(html).toContain("$9,876.50");
     expect(html).toContain("Cole &lt;Phillips&gt;");
     expect(html).toContain("412 of 720 (57%)");
-  });
-
-  it("has no attachment block", () => {
-    expect(html).not.toContain("XLSX");
   });
 
   it("counts days out, and drops them after the show", () => {

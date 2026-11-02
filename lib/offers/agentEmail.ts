@@ -89,10 +89,9 @@ export type AgentEmailInput = {
   message: string;
   /** What the artist walks with at sellout — the offer sheet's own figure. */
   artistAtSellout: number;
-  attachmentName: string;
 };
 
-export function agentEmailHtml({ offer, sender, message, artistAtSellout, attachmentName }: AgentEmailInput): string {
+export function agentEmailHtml({ offer, sender, message, artistAtSellout }: AgentEmailInput): string {
   const sellable = (offer.ticket_scaling || []).reduce((n, t) => n + (Number(t.sellable_cap) || 0), 0);
   const rows: Array<[string, string]> = [
     ["Venue", [offer.venue, offer.venue_address].filter(Boolean).join(" · ")],
@@ -115,8 +114,6 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
     heroNote: agentDealLine(offer),
     message,
     rows,
-    attachmentName,
-    attachmentNote: "Attached. Reply to this email with any questions or to confirm.",
     sender,
   });
 }
@@ -135,10 +132,10 @@ const MUTED = "#a3a3aa";
  * The layout every document email shares: the platform's liquid glass, built
  * for mail clients. Tables and inline styles throughout, solid hex colours
  * beneath every gradient, and no blur, since none of that survives everywhere.
- * Outlook gets flat dark panels with square corners; the rest get the glow.
+ * Outlook on Windows gets flat dark panels with square corners; the rest get the glow.
  */
 export function documentEmailHtml({
-  title, kind, heading, subline, heroLabel, heroValue, heroSide, heroNote, badges = [], message, rows, total, attachmentName, attachmentNote, sender,
+  title, kind, heading, subline, heroLabel, heroValue, heroSide, heroNote, badges = [], message, rows, total, sender,
 }: {
   title: string;
   kind: string;
@@ -155,27 +152,28 @@ export function documentEmailHtml({
   rows: Array<[string, string]>;
   /** A bold last row. */
   total?: [string, string];
-  attachmentName?: string;
-  attachmentNote?: string;
   sender: OperatorConfig;
 }): string {
   const row = ([k, v]: [string, string], last: boolean, strong = false) => `<tr>
-    <td class="k" width="120" valign="top" style="padding:14px 16px 14px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:14px;line-height:20px;color:${strong ? TEXT : MUTED};${strong ? "font-weight:700;" : ""}">${esc(k)}</td>
-    <td valign="top" style="padding:14px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:14px;line-height:20px;color:${TEXT};font-weight:${strong ? 700 : 500};">${v.split("\n").map(esc).join("<br/>")}</td>
+    <td class="k" width="104" valign="top" style="padding:12px 16px 12px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:13px;line-height:18px;color:${strong ? TEXT : MUTED};${strong ? "font-weight:700;" : ""}">${esc(k)}</td>
+    <td valign="top" style="padding:12px 0;${last ? "" : `border-bottom:1px solid ${LINE};`}font-family:${FONT};font-size:13px;line-height:18px;color:${TEXT};font-weight:${strong ? 700 : 500};">${v.split("\n").map(esc).join("<br/>")}</td>
   </tr>`;
   const all = [...rows.map((r, i) => row(r, !total && i === rows.length - 1)), ...(total ? [row(total, true, true)] : [])].join("");
-  const badgeHtml = badges.map((b) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr><td bgcolor="#16261d" style="padding:7px 12px;background-color:#16261d;border:1px solid #2f4b39;border-radius:999px;font-family:${FONT};font-size:13px;line-height:18px;font-weight:500;color:#8fd6a8;">${esc(b)}</td></tr></table>`).join("");
+  const badgeHtml = badges.map((b) => `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:14px;"><tr><td bgcolor="#16261d" style="padding:7px 12px;background-color:#16261d;border:1px solid #2f4b39;border-radius:999px;font-family:${FONT};font-size:12px;line-height:16px;font-weight:500;color:#8fd6a8;">${esc(b)}</td></tr></table>`).join("");
   const logo = `https://${sender.domain}${sender.logoWhite}`;
   const logoWidth = LOGO_WIDTH[sender.slug] ?? 150;
   const glass = `https://${sender.domain}/email/glass-panel.jpg`;
-  const stat = (label: string, value: string, size: number) => `<div style="font-family:${FONT};font-size:11px;line-height:16px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};">${esc(label)}</div>
+  const pageGlow = `https://${sender.domain}/email/page-glow.jpg`;
+  // The gradient is for clients that drop the image. The solid colour is for the rest.
+  const glassStyle = `background-color:${PANEL};background-image:linear-gradient(120deg,#2a2b31 0%,${PANEL} 32%,${PANEL} 100%);background-image:url('${glass}');background-size:cover;background-position:center top;`;
+  const stat = (label: string, value: string, size: number) => `<div style="font-family:${FONT};font-size:10px;line-height:14px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:${MUTED};">${esc(label)}</div>
         <div class="hero" style="margin-top:6px;font-family:${FONT};font-size:${size}px;line-height:${size + 4}px;font-weight:700;color:${TEXT};">${esc(value)}</div>`;
   const stats = heroSide
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td class="stat" width="50%" valign="top" style="padding-right:12px;">${stat(heroLabel, heroValue, 44)}</td>
-          <td class="stat" width="50%" valign="top">${stat(heroSide.label, heroSide.value, 44)}</td>
+          <td class="stat" width="50%" valign="top" style="padding-right:12px;">${stat(heroLabel, heroValue, 36)}</td>
+          <td class="stat" width="50%" valign="top">${stat(heroSide.label, heroSide.value, 36)}</td>
         </tr></table>`
-    : stat(heroLabel, heroValue, 52);
+    : stat(heroLabel, heroValue, 44);
   const paragraphs = esc(message).split(/\r?\n/).join("<br/>");
 
   return `<!DOCTYPE html>
@@ -193,11 +191,11 @@ export function documentEmailHtml({
   body { margin:0 !important; padding:0 !important; width:100% !important; -webkit-text-size-adjust:100%; }
   img { border:0; outline:none; text-decoration:none; }
   @media only screen and (max-width: 620px) {
-    .outer { padding:24px 12px !important; }
-    .pad { padding:24px 20px !important; }
-    .hero { font-size:40px !important; line-height:44px !important; }
-    .title { font-size:28px !important; line-height:32px !important; }
-    .k { width:96px !important; }
+    .outer { padding:20px 12px !important; }
+    .pad { padding:20px !important; }
+    .hero { font-size:32px !important; line-height:36px !important; }
+    .title { font-size:22px !important; line-height:27px !important; }
+    .k { width:84px !important; }
     .stat { display:block !important; width:100% !important; padding:0 0 16px !important; }
   }
 </style>
@@ -205,7 +203,7 @@ export function documentEmailHtml({
 <body bgcolor="#08080a" style="margin:0;padding:0;background-color:#08080a;">
 <div style="display:none;max-height:0;max-width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#08080a;opacity:0;">${esc(heading)}: ${esc(heroLabel)} ${esc(heroValue)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#08080a" style="background-color:#08080a;">
-  <tr><td class="outer" align="center" bgcolor="#08080a" style="padding:40px 16px;background-color:#08080a;background-image:radial-gradient(620px 420px at 12% 0%,#1c1f38 0%,#08080a 70%);">
+  <tr><td class="outer" align="center" bgcolor="#08080a" background="${pageGlow}" style="padding:40px 16px;background-color:#08080a;background-image:radial-gradient(620px 420px at 12% 0%,#1c1f38 0%,#08080a 70%);background-image:url('${pageGlow}');background-repeat:no-repeat;background-position:center top;background-size:1400px auto;">
     <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
       <tr><td style="padding:0 4px 20px;">
@@ -215,32 +213,19 @@ export function documentEmailHtml({
         </tr></table>
       </td></tr>
 
-      <tr><td class="pad" bgcolor="${PANEL}" background="${glass}" style="padding:32px;background-color:${PANEL};background-image:linear-gradient(120deg,#2a2b31 0%,${PANEL} 32%,${PANEL} 100%);background-image:url('${glass}');background-size:cover;background-position:center top;border:1px solid #33343b;border-radius:24px;">
-        <div style="font-family:${FONT};font-size:13px;line-height:18px;color:${MUTED};">${esc(subline)}</div>
-        <h1 class="title" style="margin:6px 0 24px;font-family:${FONT};font-size:34px;line-height:39px;font-weight:700;color:${TEXT};">${esc(heading)}</h1>
+      <tr><td class="pad" bgcolor="${PANEL}" background="${glass}" style="padding:28px;${glassStyle}border:1px solid #33343b;border-radius:24px;">
+        <div style="font-family:${FONT};font-size:12px;line-height:17px;color:${MUTED};">${esc(subline)}</div>
+        <h1 class="title" style="margin:4px 0 20px;font-family:${FONT};font-size:28px;line-height:33px;font-weight:700;color:${TEXT};">${esc(heading)}</h1>
         ${stats}
-        ${heroNote ? `<div style="margin-top:14px;font-family:${FONT};font-size:14px;line-height:21px;color:${BODY};">${esc(heroNote)}</div>` : ""}
+        ${heroNote ? `<div style="margin-top:12px;font-family:${FONT};font-size:13px;line-height:19px;color:${BODY};">${esc(heroNote)}</div>` : ""}
         ${badgeHtml}
       </td></tr>
 
-      <tr><td style="padding:24px 8px;font-family:${FONT};font-size:15px;line-height:24px;color:${BODY};">${paragraphs}</td></tr>
+      <tr><td style="padding:22px 8px;font-family:${FONT};font-size:14px;line-height:22px;color:${BODY};">${paragraphs}</td></tr>
 
-      <tr><td class="pad" bgcolor="${PANEL}" style="padding:10px 28px;background-color:${PANEL};border:1px solid #33343b;border-radius:24px;">
+      <tr><td class="pad" bgcolor="${PANEL}" background="${glass}" style="padding:8px 28px;${glassStyle}border:1px solid #33343b;border-radius:24px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${all}</table>
       </td></tr>
-
-      ${attachmentName ? `      <tr><td style="height:20px;line-height:20px;font-size:1px;">&nbsp;</td></tr>
-
-      <tr><td bgcolor="#101115" style="padding:16px 20px;background-color:#101115;border:1px solid #33343b;border-radius:18px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td valign="middle" style="padding-right:14px;font-family:${FONT};font-size:11px;line-height:16px;font-weight:700;letter-spacing:1px;color:#8fd6a8;">XLSX</td>
-          <td valign="middle">
-            <div style="font-family:${FONT};font-size:14px;line-height:20px;font-weight:600;color:${TEXT};word-break:break-all;">${esc(attachmentName)}</div>
-            <div style="margin-top:2px;font-family:${FONT};font-size:12px;line-height:18px;color:${MUTED};">${esc(attachmentNote ?? "")}</div>
-          </td>
-        </tr></table>
-      </td></tr>
-` : ""}
 
       <tr><td style="padding:24px 8px 0;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
@@ -259,5 +244,5 @@ export function documentEmailHtml({
 /** What the compose box opens with. */
 export function defaultAgentMessage(offer: ArtistOffer): string {
   const first = String(offer.agent_name || "").trim().split(/\s+/)[0];
-  return `Hi ${first || "there"},\n\nPlease find our offer for ${offer.artist_name || "your artist"} on ${offerDateLabel(offer)} at ${String(offer.venue || "our venue").replace(/\.$/, "")}. The terms are below and the full offer is attached.\n\nThanks,`;
+  return `Hi ${first || "there"},\n\nPlease find our offer for ${offer.artist_name || "your artist"} on ${offerDateLabel(offer)} at ${String(offer.venue || "our venue").replace(/\.$/, "")}. The terms are below and the full offer is attached. Reply to this email with any questions or to confirm.\n\nThanks,`;
 }

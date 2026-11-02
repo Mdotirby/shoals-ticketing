@@ -93,7 +93,7 @@ describe("other terms", () => {
   });
 
   it("go in the email", () => {
-    const html = agentEmailHtml({ offer: OFFER, sender: OPERATORS.west72, message: "", artistAtSellout: 0, attachmentName: "x" });
+    const html = agentEmailHtml({ offer: OFFER, sender: OPERATORS.west72, message: "", artistAtSellout: 0 });
     expect(html).toContain("Other terms");
     expect(html).toContain("Venue to cover 3 Hotel Rooms");
   });

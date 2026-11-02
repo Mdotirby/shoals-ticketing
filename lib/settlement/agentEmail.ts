@@ -25,7 +25,7 @@ export function settlementSubject({ artistName, venueName, dateLabel }: Named): 
 /** What the compose box opens with. */
 export function defaultSettlementMessage({ artistName, venueName, dateLabel, agentName }: Named & { agentName?: string | null }): string {
   const first = String(agentName || "").trim().split(/\s+/)[0];
-  return `Hi ${first || "there"},\n\nHere's the settlement for ${artistName || "the show"} on ${dateLabel} at ${String(venueName || "our venue").replace(/\.$/, "")}. The summary is below and the full settlement is attached.\n\nThanks,`;
+  return `Hi ${first || "there"},\n\nHere's the settlement for ${artistName || "the show"} on ${dateLabel} at ${String(venueName || "our venue").replace(/\.$/, "")}. The summary is below and the full settlement is attached. Reply to this email with any questions.\n\nThanks,`;
 }
 
 export type SettlementEmailInput = {
@@ -33,12 +33,11 @@ export type SettlementEmailInput = {
   sender: OperatorConfig;
   subject: string;
   message: string;
-  attachmentName: string;
 };
 
 const usd = (n: number) => `$${(Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export function settlementEmailHtml({ data, sender, subject, message, attachmentName }: SettlementEmailInput): string {
+export function settlementEmailHtml({ data, sender, subject, message }: SettlementEmailInput): string {
   const merch = data.merch_venue_take_deduction + data.seller_fee;
   const rows: Array<[string, string]> = [
     ["Venue", [data.venue_name, data.venue_address].filter(Boolean).join(" · ")],
@@ -61,8 +60,6 @@ export function settlementEmailHtml({ data, sender, subject, message, attachment
     message,
     rows: rows.filter(([, v]) => v),
     total: ["Balance due", usd(data.balance_due)],
-    attachmentName,
-    attachmentNote: "Attached. Reply to this email with any questions.",
     sender,
   });
 }

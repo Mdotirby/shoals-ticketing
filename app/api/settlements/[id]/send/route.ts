@@ -101,7 +101,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // settlements@ is a sending address; the conversation belongs to the sender.
       reply_to: guard.actor.email || undefined,
       subject,
-      html: settlementEmailHtml({ data, sender, subject, message: String(body.message || ""), attachmentName }),
+      html: settlementEmailHtml({ data, sender, subject, message: String(body.message || "") }),
       attachments: [{ filename: attachmentName, content: xlsx.toString("base64") }],
     }),
   });

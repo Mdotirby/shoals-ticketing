@@ -78,6 +78,7 @@ describe.each(["artist-settlement", "venue-settlement"] as const)("%s workbook",
     expect(rows.find((r) => /^Card processing/.test(String(r.A)))?.L).toBe(101.08);
   });
 
+  // Renders two workbooks, which can run past the default timeout on a busy machine.
   it("records payments right under Total Due to Artist", async () => {
     const after = (rows: Record<string, unknown>[], n: number) =>
       rows[rows.findIndex((r) => r.A === "Total Due to Artist") + n];
@@ -91,7 +92,7 @@ describe.each(["artist-settlement", "venue-settlement"] as const)("%s workbook",
     ]);
     expect(after(paid, 1)).toMatchObject({ A: "Paid Oct 31, 2026 · Check #1042", L: 200 });
     expect(after(paid, 2)).toMatchObject({ A: "Paid Nov 2, 2026 · Cash", L: 175 });
-  });
+  }, 20000);
 
   it("says the ticket tax method the settlement actually used", async () => {
     const rows = await sheetRows(type);

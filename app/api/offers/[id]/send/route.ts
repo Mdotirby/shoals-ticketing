@@ -100,7 +100,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         sender,
         message: String(body.message || ""),
         artistAtSellout: data.artist_total_potential,
-        attachmentName,
       }),
       attachments: [{ filename: attachmentName, content: xlsx.toString("base64") }],
     }),

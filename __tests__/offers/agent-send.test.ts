@@ -96,7 +96,7 @@ describe("the email", () => {
   });
 
   it("escapes what was typed and carries no venue numbers", () => {
-    const html = agentEmailHtml({ offer: OFFER, sender: OPERATORS.west72, message: "Hi <Carrie>", artistAtSellout: 14820, attachmentName: "o.xlsx" });
+    const html = agentEmailHtml({ offer: OFFER, sender: OPERATORS.west72, message: "Hi <Carrie>", artistAtSellout: 14820 });
     expect(html).toContain("Hi &lt;Carrie&gt;");
     expect(html).toContain("$14,820");
     expect(html).not.toMatch(/Rent|Production|Marketing|walkout|breakeven/i);
