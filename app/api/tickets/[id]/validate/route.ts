@@ -2,19 +2,28 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { NextResponse } from "next/server";
 import { refusalReason } from "@/lib/tickets/void";
+import { wrongShowReason } from "@/lib/tickets/scanShow";
+import { requireCapability } from "@/lib/auth/can";
+import { tenantScope, DENY } from "@/lib/auth/tenant";
 
-// POST: validate and scan a ticket by QR code
+// POST: validate and scan a ticket by QR code. Body: { event_id }, the show the
+// scanner is set to. Staff only: this marks a ticket used, which turns its owner
+// away at the door, and the code is printed on the ticket.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const guard = await requireCapability("scan_checkin", { write: true });
+  if (!guard.ok) return guard.response;
+
   const { id } = await params;
+  const body = await request.json().catch(() => ({}));
   const admin = createAdminClient();
 
   // Look up ticket by qr_code
   let { data: ticket, error: findError } = await admin
     .from("tickets")
-    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, voided_at, void_reason, event_id, order_id, events!inner(title, venue), orders(status)")
+    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, voided_at, void_reason, event_id, order_id, events!inner(title, venue, venue_id, date), orders(status)")
     .eq("qr_code", id)
     .single();
 
@@ -25,7 +34,7 @@ export async function POST(
   if (findError && /voided_at|void_reason|column .* does not exist/i.test(findError.message)) {
     const retry = await admin
       .from("tickets")
-      .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue), orders(status)")
+      .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue, venue_id, date), orders(status)")
       .eq("qr_code", id)
       .single();
     ticket = retry.data ? { ...retry.data, voided_at: null, void_reason: null } : null;
@@ -37,6 +46,24 @@ export async function POST(
       { valid: false, reason: "Ticket not found" },
       { status: 200 }
     );
+  }
+
+  const ev = ticket.events as unknown as { title: string; venue: string; venue_id: string | null; date: string | null } | null;
+
+  // The code alone is not a boundary (lib/auth/tenant.ts).
+  const venueId = ev?.venue_id ?? null;
+  const scope = tenantScope(guard.actor, venueId);
+  if (scope === DENY || (scope !== null && scope !== venueId)) {
+    return NextResponse.json({ valid: false, reason: "Ticket not found" }, { status: 200 });
+  }
+
+  // Before anything marks it used: at the wrong door it must stay good for its own.
+  const wrongShow = wrongShowReason(
+    { event_id: ticket.event_id, event_title: ev?.title, event_date: ev?.date },
+    typeof body?.event_id === "string" ? body.event_id : null,
+  );
+  if (wrongShow) {
+    return NextResponse.json({ valid: false, reason: wrongShow, customer_name: ticket.customer_name });
   }
 
   // One place decides what a valid ticket is, shared with the bulk check-in
@@ -70,8 +97,6 @@ export async function POST(
       { status: 500 }
     );
   }
-
-  const ev = ticket.events as unknown as { title: string; venue: string } | null;
 
   // Look up seat assignments — tables show as "Table X", individual seats show row+number
   let seatAssignments: { section: string; row: string; seat: string }[] = [];

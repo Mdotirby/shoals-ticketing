@@ -19,6 +19,7 @@ import { leaveIfWrongHost } from "@/lib/auth/hostRedirect";
 import { getCookie } from "@/lib/cookies";
 import { compareEventsForDisplay, isEventLive, isEventToday, safeDate } from "@/lib/dates";
 import { stripeAppearance } from "@/lib/stripeAppearance";
+import TicketScanner, { type ScannerButton } from "@/app/components/scan/TicketScanner";
 
 /**
  * BOX OFFICE POS — rebuilt to the mockup's Box office screen.
@@ -334,6 +335,7 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
   // with a buffer pending adds that many at once, per the mockup's rule
   // ("Tap a tier to add one. Type a number first to add several at once.").
   const [keyBuffer, setKeyBuffer] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
 
   // Terminal
   const terminalRef                           = useRef<Terminal | null>(null);
@@ -816,6 +818,8 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
     { key: "issued",     label: "Ticket issued & checked in", meta: "" },
   ];
   const payStepIndex = payStage ? PAY_STEPS.findIndex((s) => s.key === payStage) : -1;
+  // The scanner would cover a charge the customer is waiting on.
+  const paymentRunning = (!!payStage && payStage !== "issued") || cashSubmitting;
 
   const countedNum = parseFloat(counted);
   const overShort = door && !Number.isNaN(countedNum) ? Math.round((countedNum - door.cash.amount) * 100) / 100 : null;
@@ -895,6 +899,15 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={isWest72 ? "/West72_Logos/W72_tech_wordmark_white.png" : "/VenueCore_Logos/VenueCore_Wordmark_White.png"} alt="" style={{ height: 18, objectFit: "contain" }} />
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button
+            onClick={() => setScanOpen(true)}
+            className="bo-pill"
+            style={{ padding: "6px 12px", minHeight: 36, fontSize: 11 }}
+            disabled={!selectedEventId || paymentRunning}
+            title={!selectedEventId ? "Pick a show first" : paymentRunning ? "Finish this payment first" : undefined}
+          >
+            Scan tickets
+          </button>
           <span className="bo-sub">{staffName}</span>
           <button onClick={onSignOut} className="bo-pill" style={{ padding: "6px 12px", minHeight: 36, fontSize: 11 }}>Sign out</button>
         </div>
@@ -1399,11 +1412,46 @@ function BoxOfficeContent({ staffName, onSignOut }: { staffName: string; onSignO
           </div>
         </details>
       </div>
+      {/* Over the POS, not instead of it: the reader stays connected and a sale
+          in progress is still there when this closes. */}
+      {scanOpen && selectedEvent && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Scan tickets"
+          style={{ position: "fixed", inset: 0, zIndex: 9000, overflowY: "auto", background: "var(--bo-ink)", padding: "14px 16px 40px" }}
+        >
+          <div style={{ maxWidth: 680, margin: "0 auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: "var(--bo-w)" }}>{selectedEvent.title}</div>
+                <div className="bo-sub">
+                  {isEventToday(selectedEvent.date) ? "Tonight" : safeDate(selectedEvent.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  {door ? ` · ${door.scannedIn} checked in` : ""}
+                </div>
+              </div>
+              <span style={{ flex: 1 }} />
+              <button
+                className="bo-pill"
+                style={{ minHeight: 44, padding: "8px 16px", whiteSpace: "nowrap" }}
+                onClick={() => { setScanOpen(false); refreshDoor(); }}
+              >
+                Back to sales
+              </button>
+            </div>
+            <TicketScanner eventId={selectedEventId} autoStart onScanned={refreshDoor} Btn={ScanButton} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Page root ─────────────────────────────────────────────────────────────────
+
+const ScanButton: ScannerButton = ({ onClick, children }) => (
+  <button type="button" className="bo-pill" style={{ minHeight: 44, padding: "8px 18px" }} onClick={onClick}>{children}</button>
+);
 
 export default function BoxOfficePage() {
   const [authState, setAuthState] = useState<"loading" | "login" | "ready">("loading");
