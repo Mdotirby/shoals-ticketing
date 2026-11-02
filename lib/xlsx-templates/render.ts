@@ -151,7 +151,8 @@ export async function renderXlsxTemplate(
       const item = items[i] || {};
       for (const rf of section.row_fields) {
         const cell = sheet.getCell(`${rf.col}${row}`);
-        cell.value = formatValue(item[rf.field], rf.type);
+        // null means blank here: an unpaid payment row isn't a $0.00 payment.
+        cell.value = item[rf.field] === null ? null : formatValue(item[rf.field], rf.type);
       }
     }
 

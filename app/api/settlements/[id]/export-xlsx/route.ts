@@ -1,7 +1,10 @@
 import path from "path";
 import { NextResponse } from "next/server";
 import { sanitize } from "@/lib/pdf/pdf-header";
+import { requireCapability } from "@/lib/auth/can";
+import { tenantScope, DENY } from "@/lib/auth/tenant";
 import { createAdminClient } from "@/lib/supabase-server";
+import { loadPayouts } from "@/lib/settlement/payoutRecord";
 import { renderXlsxTemplate } from "@/lib/xlsx-templates/render";
 import { buildArtistSettlementData } from "@/lib/xlsx-templates/artist-settlement/adapter";
 import type { Settlement } from "@/lib/types/settlement";
@@ -30,7 +33,17 @@ type ExportXlsxBody = {
 // -- confirmed with Matt rather than snapshotting it onto Settlement. Comes
 // back blank for settlements with no linked offer (external/manual entries).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  await params;
+  const guard = await requireCapability("view_settlement");
+  if (!guard.ok) return guard.response;
+
+  const { id } = await params;
+  const admin = createAdminClient();
+  const { data: current } = await admin.from("settlements").select("venue_id").eq("id", id).maybeSingle();
+  // The id alone is not a boundary (lib/auth/tenant.ts).
+  const scope = tenantScope(guard.actor, current?.venue_id ?? null);
+  if (!current || scope === DENY || (scope !== null && scope !== current.venue_id)) {
+    return NextResponse.json({ error: "Settlement not found" }, { status: 404 });
+  }
 
   let body: ExportXlsxBody;
   try {
@@ -46,7 +59,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     let offer: ArtistOffer | null = null;
     if (body.settlement.offer_id) {
-      const admin = createAdminClient();
       const { data: offerRow } = await admin
         .from("artist_offers")
         .select("*")
@@ -55,7 +67,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       offer = (offerRow as ArtistOffer) ?? null;
     }
 
-    const data = buildArtistSettlementData(body.settlement, body.expenses ?? [], offer);
+    const payouts = await loadPayouts(admin, id);
+    const data = buildArtistSettlementData(body.settlement, body.expenses ?? [], offer, payouts);
     const xlsxBuffer = await renderXlsxTemplate(TEMPLATE_DIR, data as unknown as Record<string, unknown>);
 
     const filename = `${sanitize(body.settlement.artist_name ?? "Artist")}-${sanitize(data.event_date_label)}-Artist_Settlement.xlsx`;

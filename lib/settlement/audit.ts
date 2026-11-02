@@ -20,7 +20,7 @@
  * written at each sale doesn't have this problem — it already knows what
  * price and rate were live at that exact moment.
  *
- * Rows are grouped by (source, tier, unit price) rather than just tier, so a
+ * Rows are grouped by (source, promo code, tier, unit price) rather than just tier, so a
  * mid-run price change — or a facility fee toggled on partway through, as
  * also happened on this same show — surfaces as its own row instead of
  * being silently averaged into history. `ticket_tiers.price` /
@@ -124,6 +124,7 @@ type OrderRow = {
   source: string | null;
   quantity: number | null;
   total_amount: number | null;
+  promo_code_id: string | null;
 };
 
 type TicketRow = {
@@ -390,6 +391,7 @@ async function seatBasisForEvent(
 
 type Agg = {
   source: "online" | "terminal" | "cash";
+  promo_code: string | null;
   tier: string;
   /** Grouping key for capacity attribution — tier id (GA) or section name
    *  (seated). NOT displayed; two tiers can share a display name (as
@@ -433,13 +435,22 @@ export async function computeEventAudit(
   // against 9 real ones.
   const { data: orders } = await admin
     .from("orders")
-    .select("id, status, source, quantity, total_amount")
+    .select("id, status, source, quantity, total_amount, promo_code_id")
     .eq("event_id", eventId)
     .eq("status", "paid");
 
   const orderList: OrderRow[] = (orders ?? []) as OrderRow[];
   const orderById: Record<string, OrderRow> = {};
   for (const o of orderList) orderById[o.id] = o;
+
+  const promoIds = [...new Set(orderList.map((o) => o.promo_code_id).filter(Boolean))] as string[];
+  const promoCodeById: Record<string, string> = {};
+  if (promoIds.length > 0) {
+    const { data: promos } = await admin.from("promo_codes").select("id, code").in("id", promoIds);
+    for (const p of (promos ?? []) as { id: string; code: string }[]) promoCodeById[p.id] = p.code;
+  }
+  const rowPromo = (o: OrderRow | undefined): string | null =>
+    (o?.promo_code_id && promoCodeById[o.promo_code_id]) || null;
 
   const isCompOrder = (o: OrderRow | undefined) => o?.source === "comp";
   const isCashOrder = (o: OrderRow | undefined) => o?.source === "cash";
@@ -673,9 +684,10 @@ export async function computeEventAudit(
         const valueWeight = units * (secRow?.unitPrice ?? 0);
         const valueShare = valueWeightTotal > 0 ? valueWeight / valueWeightTotal : unitShare;
         const unitPrice = units > 0 ? (money.ticketRevenue * valueShare) / units : 0;
-        const key = `online::${secName}::${priceKey(unitPrice)}`;
+        const key = `online::${rowPromo(order) ?? ""}::${secName}::${priceKey(unitPrice)}`;
         const row = addRow(key, {
           source: "online",
+          promo_code: rowPromo(order),
           tier: secName,
           capacityKey: secName,
           capacity: secRow?.capacityUnits ?? 0,
@@ -725,9 +737,10 @@ export async function computeEventAudit(
       // real tier, two DB rows"; capacity below sums across every id that
       // shares the name, so the pooled inventory is still correct.
       const capacityKey = label;
-      const key = `${rowSource(order)}::${capacityKey}::${priceKey(unitPrice)}`;
+      const key = `${rowSource(order)}::${rowPromo(order) ?? ""}::${capacityKey}::${priceKey(unitPrice)}`;
       const row = addRow(key, {
         source: rowSource(order),
+        promo_code: rowPromo(order),
         tier: label,
         capacityKey,
         capacity: 0, // attributed once at final assembly, see below
@@ -771,9 +784,10 @@ export async function computeEventAudit(
         : orderMoney(order.id, units);
       const unitPrice = isFree || units === 0 ? 0 : money.ticketRevenue / units;
 
-      const key = `${rowSource(order)}::${capacityKey}::${priceKey(unitPrice)}`;
+      const key = `${rowSource(order)}::${rowPromo(order) ?? ""}::${capacityKey}::${priceKey(unitPrice)}`;
       const row = addRow(key, {
         source: rowSource(order),
+        promo_code: rowPromo(order),
         tier: label,
         capacityKey,
         capacity: 0, // attributed once at final assembly, see below
@@ -850,6 +864,7 @@ export async function computeEventAudit(
       if ((capacityByKey.get(t.tier_name) ?? 0) === 0 && comps === 0) continue;
       rows.push({
         source: "online",
+        promo_code: null,
         tier: t.tier_name,
         capacityKey: t.tier_name,
         capacity: capacityByKey.get(t.tier_name) ?? 0,
@@ -919,6 +934,7 @@ export async function computeEventAudit(
     .filter((t) => t.capacity > 0 || t.sold > 0 || t.comps > 0)
     .map((t) => ({
       source: t.source,
+      promo_code: t.promo_code,
       tier: t.tier,
       capacity: t.capacity,
       sold: t.sold,

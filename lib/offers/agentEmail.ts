@@ -26,7 +26,7 @@ export function senderForDomain(domain: string | null | undefined): OperatorConf
   return Object.values(OPERATORS).find((o) => o.domain === domain) ?? null;
 }
 
-const money = (n: number) =>
+export const money = (n: number) =>
   `$${(Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: Number(n) % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
 export function offerDateLabel(offer: Pick<ArtistOffer, "event_date">): string {
@@ -79,7 +79,7 @@ export function otherTerms(offer: Pick<ArtistOffer, "other_terms" | "notes">): s
   return String(offer.other_terms || offer.notes || "").trim();
 }
 
-const esc = (s: unknown) =>
+export const esc = (s: unknown) =>
   String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export type AgentEmailInput = {
@@ -99,7 +99,7 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
     ["Date", offerDateLabel(offer)],
     ["Venue", [offer.venue, offer.venue_address].filter(Boolean).join(" · ")],
     ["Deal", agentDealLine(offer)],
-    ["Tickets", ticketLines(offer).join("<br/>")],
+    ["Tickets", ticketLines(offer).join("\n")],
     ["Sellable", sellable ? `${sellable.toLocaleString("en-US")}` : ""],
     ["Artist at sellout", money(artistAtSellout)],
     ["Billing", offer.billing || ""],
@@ -109,22 +109,46 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
     ["Valid for", offer.offer_valid_days ? `${offer.offer_valid_days} days` : ""],
   ].filter(([, v]) => v) as Array<[string, string]>;
 
+  return documentEmailHtml({
+    title: offerSubject(offer),
+    eyebrow: `Offer · ${sender.copyright}`,
+    heading: offer.artist_name || "Offer",
+    message,
+    rows,
+    note: `The full offer is attached: <b style="color:#111;">${esc(attachmentName)}</b>. Reply to this email with any questions or to confirm.`,
+    sender,
+  });
+}
+
+/**
+ * The layout every document email shares. Values are escaped here, and line
+ * breaks in one become <br/>; `note` is trusted HTML, so escape what goes in it.
+ */
+export function documentEmailHtml({ title, eyebrow, heading, message, rows, note, sender }: {
+  title: string;
+  eyebrow: string;
+  heading: string;
+  message: string;
+  rows: Array<[string, string]>;
+  note: string;
+  sender: OperatorConfig;
+}): string {
   const termRows = rows
     .map(([k, v]) => `<tr>
       <td style="padding:8px 0;border-bottom:1px solid #ececec;color:#6b6b6b;font-size:13px;width:130px;vertical-align:top;">${esc(k)}</td>
-      <td style="padding:8px 0;border-bottom:1px solid #ececec;color:#111;font-size:14px;vertical-align:top;">${k === "Tickets" ? v.split("<br/>").map(esc).join("<br/>") : esc(v)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #ececec;color:#111;font-size:14px;vertical-align:top;">${v.split("\n").map(esc).join("<br/>")}</td>
     </tr>`)
     .join("");
 
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${esc(offerSubject(offer))}</title></head>
+<html><head><meta charset="UTF-8"><title>${esc(title)}</title></head>
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:28px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #e4e4e7;">
         <tr><td style="background:#111111;padding:18px 28px;">
-          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;">Offer · ${esc(sender.copyright)}</p>
-          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#ffffff;">${esc(offer.artist_name || "Offer")}</h1>
+          <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#a1a1aa;text-transform:uppercase;">${esc(eyebrow)}</p>
+          <h1 style="margin:6px 0 0;font-size:20px;font-weight:700;color:#ffffff;">${esc(heading)}</h1>
         </td></tr>
         <tr><td style="padding:24px 28px 8px;">
           <p style="margin:0;color:#111;font-size:15px;line-height:1.6;white-space:pre-wrap;">${esc(message)}</p>
@@ -133,7 +157,7 @@ export function agentEmailHtml({ offer, sender, message, artistAtSellout, attach
           <table width="100%" cellpadding="0" cellspacing="0">${termRows}</table>
         </td></tr>
         <tr><td style="padding:16px 28px 26px;">
-          <p style="margin:0;color:#6b6b6b;font-size:13px;line-height:1.6;">The full offer is attached: <b style="color:#111;">${esc(attachmentName)}</b>. Reply to this email with any questions or to confirm.</p>
+          <p style="margin:0;color:#6b6b6b;font-size:13px;line-height:1.6;">${note}</p>
         </td></tr>
         <tr><td style="padding:12px 28px;background:#fafafa;border-top:1px solid #ececec;">
           <p style="margin:0;font-size:11px;color:#a1a1aa;">${esc(sender.copyright)} · ${esc(sender.domain)}</p>

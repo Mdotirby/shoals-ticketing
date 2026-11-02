@@ -12,6 +12,8 @@ export type TicketAuditRow = {
    *  from the settlement's manual cash_gross/cash_tickets_sold fields, not
    *  computed by computeEventAudit. */
   source: "online" | "terminal" | "cash";
+  /** The promo code these tickets sold under. Each code gets its own row. */
+  promo_code?: string | null;
   tier: string;
   capacity: number;
   sold: number;          // paying tickets only (status='paid', source != 'comp')
@@ -186,6 +188,11 @@ export type Settlement = {
   /** Out of the guarantee, or paid to the promoter separately (plans/settlement-merch-settle-migration.sql). */
   merch_settle_method?: MerchSettleMethod;
   merch_settle_reference?: string | null;   // check number when paid by check
+  /** The one payout from before settlement_payouts (plans/settlement-payments-migration.sql). */
+  payout_amount?: number | null;
+  payout_method?: string | null;
+  payout_reference?: string | null;
+  payout_at?: string | null;
   // Computed snapshots
   merch_total_gross: number;           // Σ items.gross
   merch_total_tax: number;             // tax on (gross − discounts)

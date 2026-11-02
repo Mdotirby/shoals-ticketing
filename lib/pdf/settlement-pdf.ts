@@ -2,6 +2,7 @@
  * Settlement PDF Generator — compact one-page layout matching offer PDF style.
  * Uses small fonts, two-column sections, and dark section header bars.
  */
+import { auditSourceLabel } from "@/lib/settlement/auditSource";
 import type { Settlement, SettlementExpense, SettlementDeposit } from "../types/settlement";
 import type { Venue } from "../types/venue";
 import { settlementWaterfall } from "@/lib/settlement/model";
@@ -150,12 +151,13 @@ function drawTicketAudit(
   y: number
 ): number {
   y = secH(doc, "Ticket Audit", y);
-  const cols = ["Tier", "Cap", "Sold", "Cmp", "%H", "Price", "Svc", "Fac", "Tax", "CC", "Gross"];
-  const tierColW = 32;
-  const remaining = CONTENT_WIDTH - tierColW;
-  const numColW = remaining / (cols.length - 1);
-  const colX: number[] = [MARGIN + 2];
-  for (let i = 1; i < cols.length; i++) colX.push(MARGIN + tierColW + numColW * i - 2);
+  const cols = ["Tier", "Source", "Cap", "Sold", "Cmp", "%H", "Price", "Svc", "Fac", "Tax", "CC", "Gross"];
+  const tierColW = 26;
+  const sourceColW = 22;
+  const remaining = CONTENT_WIDTH - tierColW - sourceColW;
+  const numColW = remaining / (cols.length - 2);
+  const colX: number[] = [MARGIN + 2, MARGIN + tierColW + 1];
+  for (let i = 2; i < cols.length; i++) colX.push(MARGIN + tierColW + sourceColW + numColW * (i - 1) - 2);
 
   // Header
   doc.setFillColor(...LIGHT_GRAY);
@@ -163,7 +165,7 @@ function drawTicketAudit(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(6.5);
   doc.setTextColor(80, 80, 80);
-  cols.forEach((c, i) => doc.text(c, colX[i], y + 1.5, i >= 1 ? { align: "right" } : undefined));
+  cols.forEach((c, i) => doc.text(c, colX[i], y + 1.5, i >= 2 ? { align: "right" } : undefined));
   y += 5;
 
   const totalSoldAll = rows.reduce((s, r) => s + r.sold, 0) || 1;
@@ -185,16 +187,17 @@ function drawTicketAudit(
     const gross = r.gross + svc + fac + tax + cc;
 
     doc.text(tierName, colX[0], y);
-    doc.text(String(r.capacity), colX[1], y, { align: "right" });
-    doc.text(String(r.sold), colX[2], y, { align: "right" });
-    doc.text(String(r.comps), colX[3], y, { align: "right" });
-    doc.text(`${pctH.toFixed(1)}%`, colX[4], y, { align: "right" });
-    doc.text(fmt(r.price), colX[5], y, { align: "right" });
-    doc.text(fmt(svc), colX[6], y, { align: "right" });
-    doc.text(fmt(fac), colX[7], y, { align: "right" });
-    doc.text(fmt(tax), colX[8], y, { align: "right" });
-    doc.text(fmt(cc), colX[9], y, { align: "right" });
-    doc.text(fmt(gross), colX[10], y, { align: "right" });
+    doc.text(doc.splitTextToSize(auditSourceLabel(r), sourceColW - 2)[0] || "", colX[1], y);
+    doc.text(String(r.capacity), colX[2], y, { align: "right" });
+    doc.text(String(r.sold), colX[3], y, { align: "right" });
+    doc.text(String(r.comps), colX[4], y, { align: "right" });
+    doc.text(`${pctH.toFixed(1)}%`, colX[5], y, { align: "right" });
+    doc.text(fmt(r.price), colX[6], y, { align: "right" });
+    doc.text(fmt(svc), colX[7], y, { align: "right" });
+    doc.text(fmt(fac), colX[8], y, { align: "right" });
+    doc.text(fmt(tax), colX[9], y, { align: "right" });
+    doc.text(fmt(cc), colX[10], y, { align: "right" });
+    doc.text(fmt(gross), colX[11], y, { align: "right" });
 
     tCap += r.capacity;
     tSold += r.sold;
@@ -215,16 +218,16 @@ function drawTicketAudit(
   doc.setFontSize(7);
   doc.setTextColor(...GOLD);
   doc.text("TOTAL", colX[0], y);
-  doc.text(String(tCap), colX[1], y, { align: "right" });
-  doc.text(String(tSold), colX[2], y, { align: "right" });
-  doc.text(String(tComps), colX[3], y, { align: "right" });
-  doc.text(tCap > 0 ? `${((tSold / tCap) * 100).toFixed(1)}%` : "—", colX[4], y, { align: "right" });
-  doc.text("", colX[5], y);
-  doc.text(fmt(tSvc), colX[6], y, { align: "right" });
-  doc.text(fmt(tFac), colX[7], y, { align: "right" });
-  doc.text(fmt(tTax), colX[8], y, { align: "right" });
-  doc.text(fmt(tCc), colX[9], y, { align: "right" });
-  doc.text(fmt(tGross), colX[10], y, { align: "right" });
+  doc.text(String(tCap), colX[2], y, { align: "right" });
+  doc.text(String(tSold), colX[3], y, { align: "right" });
+  doc.text(String(tComps), colX[4], y, { align: "right" });
+  doc.text(tCap > 0 ? `${((tSold / tCap) * 100).toFixed(1)}%` : "—", colX[5], y, { align: "right" });
+  doc.text("", colX[6], y);
+  doc.text(fmt(tSvc), colX[7], y, { align: "right" });
+  doc.text(fmt(tFac), colX[8], y, { align: "right" });
+  doc.text(fmt(tTax), colX[9], y, { align: "right" });
+  doc.text(fmt(tCc), colX[10], y, { align: "right" });
+  doc.text(fmt(tGross), colX[11], y, { align: "right" });
   doc.setTextColor(0, 0, 0);
   y += RH + 1;
 

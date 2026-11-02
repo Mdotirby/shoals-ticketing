@@ -7,7 +7,7 @@ export const ALLOWED_COLUMNS = new Set<string>([
   "artist_name", "venue", "venue_address", "venue_contact", "venue_phone",
   "event_date", "venue_id", "event_venue_id", "event_id",
   // Agency
-  "agency", "agent_name", "agent_phone", "agent_email",
+  "agency", "agent_name", "agent_phone", "agent_email", "agent_assistant_email",
   // Show details
   "day_of_event", "num_shows", "show_length", "show_time", "billing",
   "show_lineup",

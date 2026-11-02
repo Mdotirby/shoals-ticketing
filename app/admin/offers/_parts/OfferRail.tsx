@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Card, Eyebrow, fmtUSD } from "@/app/components/admin/ui";
+import { Button, Card, Eyebrow, Field, fmtUSD } from "@/app/components/admin/ui";
 import { breakEvenShare, guaranteeInExpenses, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import { joinNames } from "@/lib/offers/door";
 
@@ -57,6 +57,8 @@ export default function OfferRail({
   showWalkouts,
   venueId,
   agentEmail,
+  assistantEmail,
+  onAssistantEmail,
   saving,
   exporting,
   onSave,
@@ -71,6 +73,8 @@ export default function OfferRail({
   showWalkouts: boolean;
   venueId: string | null;
   agentEmail: string;
+  assistantEmail: string;
+  onAssistantEmail: (email: string) => void;
   saving: boolean;
   exporting: boolean;
   onSave: () => void;
@@ -225,6 +229,9 @@ export default function OfferRail({
           {agentEmail ? "Send to agent" : "Send to agent…"}
         </Button>
       </div>
+      <Field label="Agent's assistant email" hint="Goes on the To line, with the agent and you on CC.">
+        <input type="email" value={assistantEmail} placeholder="assistant@agency.com" onChange={(e) => onAssistantEmail(e.target.value)} />
+      </Field>
     </aside>
   );
 }

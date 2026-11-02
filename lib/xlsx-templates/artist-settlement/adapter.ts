@@ -1,3 +1,6 @@
+import { payoutRecords, type PayoutRecord, type SettlementPayoutLike } from "@/lib/settlement/payoutRecord";
+import { settlementGbor } from "@/lib/settlement/model";
+import { auditSourceLabel } from "@/lib/settlement/auditSource";
 import type { Settlement, TaxMethod } from "@/lib/types/settlement";
 import type { ArtistOffer } from "@/lib/types/offer";
 import { SETTLEMENT_CARD_EXPENSE_NAME } from "@/lib/settlement/model";
@@ -58,6 +61,7 @@ export type ArtistSettlementData = {
 
   ticket_audit: {
     tier: string;
+    source: string;
     capacity: number;
     sold: number;
     comps: number;
@@ -83,7 +87,7 @@ export type ArtistSettlementData = {
   gbor: number;
   service_fees: number;
   facility_fees: number;
-  cc_fees: number;
+  tax_label: string;
   tax_rate: number;
   taxes: number;
   nbor: number;
@@ -111,6 +115,7 @@ export type ArtistSettlementData = {
   deposits_paid: number;
   backend_overage: number;
   balance_due: number;
+  payout_records: PayoutRecord[];
 };
 
 function pctLabel(rate: number, digits = 1): string {
@@ -124,7 +129,8 @@ function taxMethodLabel(method: TaxMethod | undefined): string {
 export function buildArtistSettlementData(
   settlement: Settlement,
   expenses: ExpenseInput[],
-  offer: ArtistOffer | null
+  offer: ArtistOffer | null,
+  payouts: SettlementPayoutLike[] = [],
 ): ArtistSettlementData {
   // ---- Ticket audit rows: same formula as settlement-report's adapter ----
   const rows = settlement.ticket_audit || [];
@@ -157,7 +163,7 @@ export function buildArtistSettlementData(
     tCc += cc;
     tGross += rowGross;
 
-    return { tier: r.tier, capacity, sold, comps, unsold, price: r.price || 0, svc, fac, tax, cc, gross: rowGross };
+    return { tier: r.tier, source: auditSourceLabel(r), capacity, sold, comps, unsold, price: r.price || 0, svc, fac, tax, cc, gross: rowGross };
   });
   // Average ticket price across tiers -- per Matt: sum of tier prices /
   // number of tiers, NOT a raw sum (the source sheet had this wrong in two
@@ -221,12 +227,14 @@ export function buildArtistSettlementData(
       })
     : "—";
 
-  const gbor =
-    (settlement.total_gross || 0) +
-    (settlement.ticketing_fees || 0) +
-    (settlement.facility_fees || 0) +
-    (settlement.cc_fees || 0) +
-    (settlement.taxes || 0);
+  // What buyers actually paid, so the summary foots to nbor. total_gross
+  // already holds the service and facility fees, and divisor tax sits inside it.
+  const gbor = settlementGbor({
+    totalGross: settlement.total_gross,
+    cardSurcharge,
+    taxes: settlement.taxes,
+    taxMethod: settlement.tax_method,
+  });
 
   return {
     artist_name: settlement.artist_name || "",
@@ -274,7 +282,7 @@ export function buildArtistSettlementData(
     gbor,
     service_fees: settlement.ticketing_fees || 0,
     facility_fees: settlement.facility_fees || 0,
-    cc_fees: settlement.cc_fees || 0,
+    tax_label: `Taxes (${taxMethodLabel(settlement.tax_method)})`,
     tax_rate: taxRate,
     taxes: settlement.taxes || 0,
     nbor: nborWithCard,
@@ -308,5 +316,6 @@ export function buildArtistSettlementData(
     deposits_paid: settlement.deposit_paid || 0,
     backend_overage: settlement.artist_backend || 0,
     balance_due: settlement.balance_due || 0,
+    payout_records: payoutRecords(settlement, payouts),
   };
 }

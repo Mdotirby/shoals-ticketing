@@ -14,6 +14,7 @@ import DealLabPanel from "@/app/components/deal-lab/DealLabPanel";
 import { rateLabel } from "@/lib/fees/rates";
 import { Button, Card, Eyebrow, Field, Modal, PageHeader, StatusBadge, fmtUSD } from "@/app/components/admin/ui";
 import { OPERATORS } from "@/lib/operators";
+import { agentRecipients } from "@/lib/email/recipients";
 import { defaultAgentMessage, offerSubject, offersAddress } from "@/lib/offers/agentEmail";
 import { guaranteeInExpenses as guaranteeIsExpense, walkoutAt, type WalkoutBasis } from "@/lib/offers/walkout";
 import { offTopNames, withDoorDefaults } from "@/lib/offers/door";
@@ -171,9 +172,10 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
   const [success, setSuccess] = useState("");
   // Send to agent — the compose box, and where it stands.
   const [sendOpen, setSendOpen] = useState(false);
-  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", ccMe: true, subject: "", message: "" });
+  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", subject: "", message: "" });
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
+  const [sendNote, setSendNote] = useState("");
 
   /**
    * Which show this offer is for.
@@ -713,20 +715,19 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
     const snapshot = { ...(offer as ArtistOffer), ...form } as ArtistOffer;
     setSendDraft({
       fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
-      to: String(form.agent_email || ""),
-      cc: "",
-      ccMe: true,
+      ...agentRecipients(form.agent_email as string, form.agent_assistant_email as string),
       subject: offerSubject(snapshot),
       message: defaultAgentMessage(snapshot),
     });
     setSendError("");
+    setSendNote("");
     setSendOpen(true);
   };
 
   /** Save first, so what the agent gets is what's on file; then send. */
-  const handleSend = async () => {
+  const handleSend = async (test = false) => {
     if (!offer) return;
-    setSending(true); setSendError(""); setSuccess(""); setError("");
+    setSending(true); setSendError(""); setSendNote(""); setSuccess(""); setError("");
     try {
       const saved = await fetch(`/api/offers/${id}`, {
         method: "PUT",
@@ -748,15 +749,19 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
           offer: { ...buildXlsxOffer(), ...updated },
           to: sendDraft.to,
           cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
-          ccMe: sendDraft.ccMe,
           subject: sendDraft.subject,
           message: sendDraft.message,
           fromDomain: sendDraft.fromDomain,
+          test,
         }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(out.error || `Send failed (${res.status})`);
       try { localStorage.setItem("offer-send-from", sendDraft.fromDomain); } catch { /* fine */ }
+      if (test) {
+        setSendNote(`Test sent to ${out.to}. The agent didn't get anything, and the offer is still a draft.`);
+        return;
+      }
       if (out.status) {
         setOffer((o) => (o ? { ...o, status: out.status } : o));
         setForm((f) => ({ ...f, status: out.status }));
@@ -2216,6 +2221,8 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
         showWalkouts={activeTab !== "deal_lab"}
         venueId={venue?.id || offer.venue_id || getCookie("venue-id") || null}
         agentEmail={String(form.agent_email || "")}
+        assistantEmail={String(form.agent_assistant_email || "")}
+        onAssistantEmail={(email) => updateField("agent_assistant_email", email)}
         saving={saving}
         exporting={exporting}
         onSave={handleSave}
@@ -2236,7 +2243,10 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
               </Button>
               <span className="filter-spacer" />
               <Button onClick={() => setSendOpen(false)} disabled={sending}>Cancel</Button>
-              <Button variant="primary" onClick={handleSend} disabled={sending || !sendDraft.to || !sendDraft.subject}>
+              <Button onClick={() => handleSend(true)} disabled={sending || !sendDraft.subject}>
+                Send test to me
+              </Button>
+              <Button variant="primary" onClick={() => handleSend()} disabled={sending || !sendDraft.to || !sendDraft.subject}>
                 {sending ? "Sending…" : `Send to ${sendDraft.to || "agent"}`}
               </Button>
             </>
@@ -2250,16 +2260,12 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
                 ))}
               </select>
             </Field>
-            <Field label="To" hint="Replies come back to you, not to offers@.">
+            <Field label="To" hint="You're always copied. Replies come back to you, not to offers@.">
               <input type="email" value={sendDraft.to} onChange={(e) => setSendDraft((d) => ({ ...d, to: e.target.value }))} />
             </Field>
             <Field label="CC" hint="Tour manager, co-agent — separate with commas">
               <input value={sendDraft.cc} placeholder="name@agency.com" onChange={(e) => setSendDraft((d) => ({ ...d, cc: e.target.value }))} />
             </Field>
-            <label className="ofb-send-check">
-              <input type="checkbox" checked={sendDraft.ccMe} onChange={(e) => setSendDraft((d) => ({ ...d, ccMe: e.target.checked }))} />
-              <span>Send me a copy</span>
-            </label>
             <Field label="Subject">
               <input value={sendDraft.subject} onChange={(e) => setSendDraft((d) => ({ ...d, subject: e.target.value }))} />
             </Field>
@@ -2269,6 +2275,7 @@ export default function OfferWorkspace({ id, embedded = false, hrefFor = pageHre
             <div className="ofb-send-attach">
               Attached: {String(form.artist_name || "Offer")} offer sheet (.xlsx, locked, no venue numbers). Saving happens first, so they get what&apos;s on file.
             </div>
+            {sendNote && <div className="ofb-banner ofb-banner--good">{sendNote}</div>}
             {sendError && <div className="ofb-banner ofb-banner--bad">{sendError}</div>}
           </div>
         </Modal>

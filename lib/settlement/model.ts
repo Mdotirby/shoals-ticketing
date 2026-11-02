@@ -248,6 +248,20 @@ export function withCardExpense<T extends SettlementExpenseLike>(
   ];
 }
 
+/**
+ * Gross box office receipts: everything the buyers paid. Multiplier tax was
+ * charged on top of the ticket gross; divisor tax is already inside it.
+ */
+export function settlementGbor(input: {
+  totalGross: number | null | undefined;
+  cardSurcharge: number | null | undefined;
+  taxes: number | null | undefined;
+  taxMethod: string | null | undefined;
+}): number {
+  const onTop = input.taxMethod === "divisor" ? 0 : Number(input.taxes) || 0;
+  return (Number(input.totalGross) || 0) + (Number(input.cardSurcharge) || 0) + onTop;
+}
+
 export function artistPayout(input: ArtistPayoutInput): ArtistPayout {
   const fac = Math.max(0, Number(input.facilityFeeToArtist) || 0);
   const p = splitPayout(input);

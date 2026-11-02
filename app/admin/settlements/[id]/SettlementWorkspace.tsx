@@ -19,8 +19,12 @@ import { settlementWaterfall, artistPayout, withCardExpense } from "@/lib/settle
 import { joinNames } from "@/lib/offers/door";
 import { NO_TERMS, offerSettleTerms, settlementArtistFac, settlementDoorDeductions, type OfferSettleTerms } from "@/lib/settlement/doorTerms";
 import { MERCH_SETTLE_METHODS, isMerchPaidSeparately, merchSettleLabel } from "@/lib/settlement/merchSettle";
+import { defaultSettlementMessage, settlementSubject, settlementsAddress } from "@/lib/settlement/agentEmail";
+import { agentRecipients } from "@/lib/email/recipients";
+import { OPERATORS } from "@/lib/operators";
+import { auditSourceLabel } from "@/lib/settlement/auditSource";
 import { getCookie } from "@/lib/cookies";
-import { Card } from "@/app/components/admin/ui";
+import { Button, Card, Field, Modal } from "@/app/components/admin/ui";
 import PaymentLedger, { type LedgerRow } from "./PaymentLedger";
 import { PAYMENT_METHODS } from "@/lib/types/settlement";
 
@@ -115,6 +119,11 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
   const [success, setSuccess] = useState("");
   const [exportingArtistPdf, setExportingArtistPdf] = useState(false);
   const [exportingVenueXlsx, setExportingVenueXlsx] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendDraft, setSendDraft] = useState({ fromDomain: "", to: "", cc: "", subject: "", message: "" });
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendNote, setSendNote] = useState("");
 
   // Core settlement
   // Platform-only view. /admin/settlements is open to owner AND venue_admin,
@@ -196,13 +205,20 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
 
   // Door deductions and the facility fee share live on the linked offer.
   const [offerTerms, setOfferTerms] = useState<OfferSettleTerms>(NO_TERMS);
+  const [offerAgent, setOfferAgent] = useState({ name: "", email: "", venue: "" });
+  const [assistantEmail, setAssistantEmail] = useState("");
   const offerId = settlement?.offer_id ?? null;
   useEffect(() => {
-    if (!offerId) { setOfferTerms(NO_TERMS); return; }
+    if (!offerId) { setOfferTerms(NO_TERMS); setOfferAgent({ name: "", email: "", venue: "" }); return; }
     let live = true;
     fetch(`/api/offers/${offerId}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((o) => { if (live) setOfferTerms(offerSettleTerms(o)); })
+      .then((o) => {
+        if (!live) return;
+        setOfferTerms(offerSettleTerms(o));
+        setOfferAgent({ name: String(o?.agent_name || ""), email: String(o?.agent_email || ""), venue: String(o?.venue || "") });
+        setAssistantEmail(String(o?.agent_assistant_email || ""));
+      })
       .catch(() => {});
     return () => { live = false; };
   }, [offerId]);
@@ -1080,6 +1096,67 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
     }
   };
 
+  /* ─── Send to agent ─── */
+  const openSend = () => {
+    if (!settlement) return;
+    // Shares the offer builder's remembered domain: same sender, same deal.
+    let remembered = "";
+    try { remembered = localStorage.getItem("offer-send-from") || ""; } catch { /* private window */ }
+    const signedIn = OPERATORS[getCookie("operatorSlug") || ""]?.domain || OPERATORS.venuecore.domain;
+    const pdf = buildPdfSettlement();
+    const named = {
+      artistName: pdf.artist_name || "",
+      venueName: offerAgent.venue,
+      dateLabel: pdf.event_date
+        ? new Date(String(pdf.event_date).slice(0, 10) + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+        : "Date TBD",
+    };
+    setSendDraft({
+      fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
+      ...agentRecipients(offerAgent.email, assistantEmail),
+      subject: settlementSubject(named),
+      message: defaultSettlementMessage({ ...named, agentName: offerAgent.name }),
+    });
+    setSendError("");
+    setSendNote("");
+    setSendOpen(true);
+  };
+
+  const handleSend = async (test = false) => {
+    if (!settlement) return;
+    setSending(true); setSendError(""); setSendNote(""); setSuccess("");
+    try {
+      const res = await fetch(`/api/settlements/${settlement.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          settlement: buildPdfSettlement(),
+          expenses: expenses.map((e) => ({ name: e.name, category: e.category, actual_amount: e.actual_amount })),
+          to: sendDraft.to,
+          cc: sendDraft.cc.split(/[,;\s]+/).filter(Boolean),
+          assistantEmail,
+          subject: sendDraft.subject,
+          message: sendDraft.message,
+          fromDomain: sendDraft.fromDomain,
+          test,
+        }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `Send failed (${res.status})`);
+      try { localStorage.setItem("offer-send-from", sendDraft.fromDomain); } catch { /* fine */ }
+      if (test) {
+        setSendNote(`Test sent to ${out.to}. The agent didn't get anything.`);
+        return;
+      }
+      setSendOpen(false);
+      setSuccess(`Settlement sent to ${out.to}${out.cc?.length ? ` (cc ${out.cc.join(", ")})` : ""} from ${out.from}.`);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "Send failed.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   /* ─── Other Ancillary CRUD ─── */
   const addOtherAncillary = () =>
     setOtherAncillary((prev) => [...prev, { name: "", amount: 0 }]);
@@ -1302,13 +1379,13 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
               per source is visible at a glance. */}
           <thead>
             <tr style={{ borderBottom: "2px solid rgba(255, 255, 255, 0.3)", textAlign: "left" }}>
-              {["Tier Name","Capacity","Sold","Comp/Guest","Unsold","Price","SVC","FAC","Tax","Orders","CC","Gross","Tot. Price"].map((h, i) => (
+              {["Tier Name","Source","Capacity","Sold","Comp/Guest","Unsold","Price","SVC","FAC","Tax","Orders","CC","Gross","Tot. Price"].map((h, i) => (
                 <th
                   key={h}
                   style={{
                     padding: "8px 6px",
                     color: h === "Gross" ? "rgba(255, 255, 255, 0.7)" : "rgba(255,255,255,0.5)",
-                    textAlign: i === 0 ? "left" : "right",
+                    textAlign: i <= 1 ? "left" : "right",
                     whiteSpace: "nowrap",
                   }}
                   title={
@@ -1355,7 +1432,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
                 <Fragment key={src}>
                   <tr>
                     <td
-                      colSpan={isPlatformOwner ? 14 : 13}
+                      colSpan={isPlatformOwner ? 15 : 14}
                       style={{
                         padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
                         textTransform: "uppercase", letterSpacing: 0.5,
@@ -1375,6 +1452,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
                     return (
                       <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                         <td style={{ padding: "6px" }}>{row.tier}</td>
+                        <td style={{ padding: "6px", whiteSpace: "nowrap" }}>{auditSourceLabel(row)}</td>
                         <td style={cell}>{row.capacity}</td>
                         <td style={cell}>{row.sold}</td>
                         <td style={cell}>{row.comps}</td>
@@ -1400,6 +1478,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
                   })}
                   <tr style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.2)" }}>
                     <td style={{ padding: "6px", fontStyle: "italic", color: "rgba(255,255,255,0.5)" }}>{label} subtotal</td>
+                    <td />
                     <td style={cell}>{sub.capacity}</td>
                     <td style={cell}>{sub.sold}</td>
                     <td style={cell}>{sub.comps}</td>
@@ -1428,7 +1507,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             <Fragment>
               <tr>
                 <td
-                  colSpan={isPlatformOwner ? 14 : 13}
+                  colSpan={isPlatformOwner ? 15 : 14}
                   style={{
                     padding: "10px 6px 4px", fontWeight: 700, fontSize: 11,
                     textTransform: "uppercase", letterSpacing: 0.5,
@@ -1440,6 +1519,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
               </tr>
               <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <td style={{ padding: "6px" }}>Door Cash</td>
+                <td style={{ padding: "6px", whiteSpace: "nowrap" }}>Door Cash</td>
                 <td style={{ padding: "6px", textAlign: "right" }}>—</td>
                 <td style={{ padding: "4px 6px", textAlign: "right" }}>
                   <input
@@ -1481,7 +1561,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
 
             {ticketAudit.length === 0 && cashGrossNum === 0 && (
               <tr>
-                <td colSpan={isPlatformOwner ? 14 : 13} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
+                <td colSpan={isPlatformOwner ? 15 : 14} style={{ padding: 12, color: "rgba(255,255,255,0.3)" }}>
                   No ticket data — click &ldquo;Refresh from Orders&rdquo; to pull live sales.
                 </td>
               </tr>
@@ -1491,6 +1571,7 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
             <tfoot>
               <tr style={{ borderTop: "2px solid rgba(255, 255, 255, 0.3)" }}>
                 <td style={{ padding: "8px 6px", fontWeight: 700 }}>Total</td>
+                <td />
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.capacity}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.sold + cashTicketsSoldNum}</td>
                 <td style={{ padding: "8px 6px", textAlign: "right" }}>{auditTotals.comps}</td>
@@ -2694,10 +2775,74 @@ export default function SettlementWorkspace({ id, embedded = false }: { id: stri
         <button className="admin-header-btn" onClick={exportVenuePDF} disabled={exportingVenueXlsx} style={{ padding: "10px 20px" }}>
           {exportingVenueXlsx ? "Exporting…" : "Export Venue Settlement Excel"}
         </button>
+        <button className="admin-header-btn" onClick={openSend} style={{ padding: "10px 20px" }}>
+          Send to agent
+        </button>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Field label="Agent's assistant email" hint="Goes on the To line, with the agent and you on CC.">
+          <input
+            type="email"
+            className="admin-form-input"
+            value={assistantEmail}
+            placeholder="assistant@agency.com"
+            onChange={(e) => setAssistantEmail(e.target.value)}
+          />
+        </Field>
       </div>
       </Card>
       </aside>
       </div>
+      {sendOpen && (
+        <Modal
+          title="Send settlement to agent"
+          sub="Sent through the platform with the artist settlement attached, locked. The venue settlement and its P&L never go out."
+          onClose={() => !sending && setSendOpen(false)}
+          width={620}
+          footer={
+            <>
+              <Button variant="ghost" onClick={exportArtistPDF} disabled={exportingArtistPdf || sending}>
+                {exportingArtistPdf ? "Generating…" : "Preview attachment"}
+              </Button>
+              <span className="filter-spacer" />
+              <Button onClick={() => setSendOpen(false)} disabled={sending}>Cancel</Button>
+              <Button onClick={() => handleSend(true)} disabled={sending || !sendDraft.subject}>
+                Send test to me
+              </Button>
+              <Button variant="primary" onClick={() => handleSend()} disabled={sending || !sendDraft.to || !sendDraft.subject}>
+                {sending ? "Sending…" : `Send to ${sendDraft.to || "agent"}`}
+              </Button>
+            </>
+          }
+        >
+          <div className="ofb-send">
+            <Field label="From">
+              <select value={sendDraft.fromDomain} onChange={(e) => setSendDraft((d) => ({ ...d, fromDomain: e.target.value }))}>
+                {Object.values(OPERATORS).map((o) => (
+                  <option key={o.domain} value={o.domain}>{o.copyright} &lt;{settlementsAddress(o)}&gt;</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="To" hint="You're always copied. Replies come back to you, not to settlements@.">
+              <input type="email" value={sendDraft.to} onChange={(e) => setSendDraft((d) => ({ ...d, to: e.target.value }))} />
+            </Field>
+            <Field label="CC" hint="Tour manager, co-agent — separate with commas">
+              <input value={sendDraft.cc} placeholder="name@agency.com" onChange={(e) => setSendDraft((d) => ({ ...d, cc: e.target.value }))} />
+            </Field>
+            <Field label="Subject">
+              <input value={sendDraft.subject} onChange={(e) => setSendDraft((d) => ({ ...d, subject: e.target.value }))} />
+            </Field>
+            <Field label="Message" hint="The settlement summary is added below it.">
+              <textarea rows={7} value={sendDraft.message} onChange={(e) => setSendDraft((d) => ({ ...d, message: e.target.value }))} />
+            </Field>
+            <div className="ofb-send-attach">
+              Attached: {artistName || "Artist"} settlement (.xlsx, locked). It sends the numbers on this screen{isFinalized ? "." : ", and this settlement isn't finalized yet."}
+            </div>
+            {sendNote && <div className="ofb-banner ofb-banner--good">{sendNote}</div>}
+            {sendError && <div className="ofb-banner ofb-banner--bad">{sendError}</div>}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

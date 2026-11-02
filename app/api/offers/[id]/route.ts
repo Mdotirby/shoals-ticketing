@@ -83,7 +83,7 @@ export async function PUT(
    * retried, which is the same pattern POST /api/events uses for its own
    * pending columns.
    */
-  const PENDING_COLUMNS = ["revenue_structure", "copro_basis", "copro_venue_pct", "rental_fee"];
+  const PENDING_COLUMNS = ["revenue_structure", "copro_basis", "copro_venue_pct", "rental_fee", "agent_assistant_email"];
 
   let { data, error } = await admin
     .from("artist_offers")
@@ -98,8 +98,8 @@ export async function PUT(
       if (!PENDING_COLUMNS.includes(k)) withoutPending[k] = v;
     }
     console.warn(
-      "artist_offers: revenue-structure columns are missing — saving without them. " +
-        "Run plans/offer-revenue-structure-migration.sql.",
+      "artist_offers: pending columns are missing — saving without them. " +
+        "Run plans/offer-revenue-structure-migration.sql and plans/offer-agent-assistant-migration.sql.",
     );
     ({ data, error } = await admin
       .from("artist_offers")

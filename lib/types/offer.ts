@@ -61,6 +61,7 @@ export type ArtistOffer = {
   agent_name?: string;
   agent_phone?: string;
   agent_email?: string;
+  agent_assistant_email?: string | null;
 
   // Show details
   day_of_event?: string;

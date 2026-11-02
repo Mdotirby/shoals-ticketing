@@ -11,7 +11,7 @@
  */
 
 /** Fields that never count as "the deal" — they can change on a signed offer. */
-const NON_TERM_FIELDS = new Set(["status", "notes", "updated_at", "created_at", "created_by"]);
+const NON_TERM_FIELDS = new Set(["status", "notes", "updated_at", "created_at", "created_by", "agent_assistant_email"]);
 
 /** Loose equality for form values: 5000 == "5000", null == "" == undefined. */
 function same(a: unknown, b: unknown): boolean {
