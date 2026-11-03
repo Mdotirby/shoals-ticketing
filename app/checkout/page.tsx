@@ -653,7 +653,7 @@ function CheckoutContent() {
             ) : promoValid ? (
               <div className="sf-promo--applied">
                 <span>
-                  ✓ {promoCode.toUpperCase()} — {promoValid.discount_type === "fixed"
+                  ✓ {promoCode.toUpperCase()} {promoValid.discount_value === 0 ? "applied" : "—"} {promoValid.discount_value === 0 ? "" : promoValid.discount_type === "fixed"
                     ? `$${promoValid.discount_value.toFixed(2)} off`
                     : `${promoValid.discount_value}% off`}
                 </span>

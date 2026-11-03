@@ -375,7 +375,7 @@ export default function OrderSummary({
             </div>
           ) : (
             <div className="sf-promo sf-promo--applied">
-              <span>✓ {appliedPromo.code} applied — ${totalDiscount.toFixed(2)} off</span>
+              <span>✓ {appliedPromo.code} applied{appliedPromo.discount_value > 0 ? ` — $${totalDiscount.toFixed(2)} off` : ""}</span>
               <button type="button" className="sf-promo-remove" onClick={removePromo}>Remove</button>
             </div>
           )}

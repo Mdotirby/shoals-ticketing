@@ -80,7 +80,8 @@ export default function Promotions() {
     setError("");
     const code = pd.code.trim().toUpperCase();
     if (!code) { setError("Give the code a name."); return; }
-    if (pd.type === "percentage" && (pd.value <= 0 || pd.value > 100)) { setError("A percent off is between 1 and 100."); return; }
+    // 0 is allowed: a code that takes nothing off, used to track where sales come from.
+    if (pd.type === "percentage" && (pd.value < 0 || pd.value > 100)) { setError("A percent off is between 0 and 100."); return; }
     if (pd.end && pd.start && pd.end < pd.start) { setError("The code ends before it starts."); return; }
     const r = await fetch("/api/promo-codes", {
       method: "POST",
@@ -173,7 +174,7 @@ export default function Promotions() {
                           <div className="hub-promo-sub">Whole order</div>
                         </div>
                         <div className="hub-promo-type">{p.discount_type === "percentage" ? "Percent off" : "Amount off"}</div>
-                        <div className="hub-promo-value">{p.discount_type === "percentage" ? `${p.discount_value}%` : fmtUSD(p.discount_value)}</div>
+                        <div className="hub-promo-value">{Number(p.discount_value) === 0 ? "Tracking only" : p.discount_type === "percentage" ? `${p.discount_value}%` : fmtUSD(p.discount_value)}</div>
                         <div data-label="Uses">
                           <div className="hub-promo-uses">{used} / {p.max_uses ?? "∞"}</div>
                           <div className="hub-attr-bar"><div style={{ width: `${p.max_uses ? Math.min(100, Math.round((used / p.max_uses) * 100)) : 0}%` }} /></div>
@@ -239,7 +240,7 @@ export default function Promotions() {
             </div>
           </div>
           {[
-            { label: "Value", value: pd.type === "percentage" ? `${pd.value}%` : fmtUSD(pd.value), dec: () => setPd({ ...pd, value: Math.max(1, pd.value - (pd.type === "percentage" ? 5 : 1)) }), inc: () => setPd({ ...pd, value: Math.min(pd.type === "percentage" ? 100 : 9999, pd.value + (pd.type === "percentage" ? 5 : 1)) }) },
+            { label: "Value", value: pd.type === "percentage" ? `${pd.value}%` : fmtUSD(pd.value), dec: () => setPd({ ...pd, value: Math.max(0, pd.value - (pd.type === "percentage" ? 5 : 1)) }), inc: () => setPd({ ...pd, value: Math.min(pd.type === "percentage" ? 100 : 9999, pd.value + (pd.type === "percentage" ? 5 : 1)) }) },
             { label: "Use limit", value: pd.limit ? String(pd.limit) : "No limit", dec: () => setPd({ ...pd, limit: Math.max(0, pd.limit - 10) }), inc: () => setPd({ ...pd, limit: pd.limit + 10 }) },
           ].map((f) => (
             <div key={f.label} className="hub-drawer-step">
