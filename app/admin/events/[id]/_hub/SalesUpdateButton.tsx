@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { Button, Field, Modal, fmtUSD } from "@/app/components/admin/ui";
 import { getCookie } from "@/lib/cookies";
+import { EMAIL } from "@/lib/contacts/showContacts";
 import { updatesAddress, type SalesFigures } from "@/lib/events/salesUpdateEmail";
 import { OPERATORS } from "@/lib/operators";
 
@@ -19,7 +20,12 @@ type Draft = {
   message: string;
   figures: SalesFigures;
   lastSentAt: string | null;
+  /** The show's agent and assistant, to go back to. */
+  defaults: { to: string; cc: string[] };
 };
+
+const CHIP: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 6px 5px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", fontSize: 13 };
+const REMOVE: React.CSSProperties = { border: 0, background: "transparent", color: "inherit", cursor: "pointer", fontSize: 16, lineHeight: 1, minWidth: 28, minHeight: 28 };
 
 export default function SalesUpdateButton({ eventId }: { eventId: string }) {
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -28,6 +34,7 @@ export default function SalesUpdateButton({ eventId }: { eventId: string }) {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [sentNote, setSentNote] = useState("");
+  const [ccInput, setCcInput] = useState("");
 
   const open = async () => {
     setOpening(true); setError(""); setNote(""); setSentNote("");
@@ -38,6 +45,7 @@ export default function SalesUpdateButton({ eventId }: { eventId: string }) {
       let remembered = "";
       try { remembered = localStorage.getItem("offer-send-from") || ""; } catch { /* private window */ }
       const signedIn = OPERATORS[getCookie("operatorSlug") || ""]?.domain || OPERATORS.venuecore.domain;
+      setCcInput("");
       setDraft({
         ...out,
         fromDomain: Object.values(OPERATORS).some((o) => o.domain === remembered) ? remembered : signedIn,
@@ -49,14 +57,33 @@ export default function SalesUpdateButton({ eventId }: { eventId: string }) {
     }
   };
 
+  const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+  /** Add what's typed to the CC line. False if it isn't an address. */
+  const addCc = () => {
+    if (!draft) return true;
+    const email = ccInput.trim();
+    if (!email) return true;
+    if (!EMAIL.test(email)) { setError(`"${email}" isn't a valid email address.`); return false; }
+    setError("");
+    if (!same(email, draft.to) && !draft.cc.some((c) => same(c, email))) setDraft({ ...draft, cc: [...draft.cc, email] });
+    setCcInput("");
+    return true;
+  };
+
   const send = async (test: boolean) => {
     if (!draft) return;
+    // An address typed but not added yet is still meant to get it.
+    const typed = ccInput.trim();
+    if (typed && !EMAIL.test(typed)) { setError(`"${typed}" isn't a valid email address.`); return; }
+    const cc = typed && !draft.cc.some((c) => same(c, typed)) ? [...draft.cc, typed] : draft.cc;
+    if (typed) { setDraft({ ...draft, cc }); setCcInput(""); }
     setSending(true); setError(""); setNote("");
     try {
       const res = await fetch(`/api/events/${eventId}/sales-update`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromDomain: draft.fromDomain, subject: draft.subject, message: draft.message, test }),
+        body: JSON.stringify({ fromDomain: draft.fromDomain, to: draft.to.trim(), cc, subject: draft.subject, message: draft.message, test }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(out.error || `Send failed (${res.status})`);
@@ -91,7 +118,7 @@ export default function SalesUpdateButton({ eventId }: { eventId: string }) {
               <span className="filter-spacer" />
               <Button onClick={() => setDraft(null)} disabled={sending}>Cancel</Button>
               <Button onClick={() => send(true)} disabled={sending || !draft.subject}>Send test to me</Button>
-              <Button variant="primary" onClick={() => send(false)} disabled={sending || !draft.to || !draft.subject}>
+              <Button variant="primary" onClick={() => send(false)} disabled={sending || !draft.to.trim() || !draft.subject}>
                 {sending ? "Sending…" : `Send to ${draft.to || "agent"}`}
               </Button>
             </>
@@ -109,11 +136,51 @@ export default function SalesUpdateButton({ eventId }: { eventId: string }) {
               </select>
             </Field>
             <Field label="To">
-              <div className="ofb-send-attach">{draft.to || "No agent on this show. Link its offer, or add one on the Contacts tab."}</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="email"
+                  aria-label="To"
+                  style={{ flex: 1, minWidth: 0 }}
+                  placeholder="name@agency.com"
+                  value={draft.to}
+                  onChange={(e) => setDraft({ ...draft, to: e.target.value })}
+                />
+                {draft.to && (
+                  <button type="button" aria-label="Remove the To address" style={REMOVE} onClick={() => setDraft({ ...draft, to: "" })}>×</button>
+                )}
+              </div>
             </Field>
-            <Field label="CC" hint="Replies come back to you, not to updates@.">
-              <div className="ofb-send-attach">{[...draft.cc, "You"].join(", ")}</div>
+            <Field label="CC" hint="You're always copied. Replies come back to you, not to updates@.">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {draft.cc.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {draft.cc.map((email) => (
+                      <span key={email} style={CHIP}>
+                        {email}
+                        <button type="button" aria-label={`Remove ${email}`} style={REMOVE} onClick={() => setDraft({ ...draft, cc: draft.cc.filter((c) => c !== email) })}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="email"
+                    aria-label="Add a CC address"
+                    style={{ flex: 1, minWidth: 0 }}
+                    placeholder="Add an address"
+                    value={ccInput}
+                    onChange={(e) => setCcInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCc(); } }}
+                  />
+                  <Button onClick={addCc} disabled={!ccInput.trim()}>Add</Button>
+                </div>
+              </div>
             </Field>
+            {(!same(draft.to, draft.defaults.to) || draft.cc.join() !== draft.defaults.cc.join()) && (
+              <button type="button" style={{ alignSelf: "flex-start", background: "none", border: 0, padding: 0, color: "inherit", fontSize: 13, textDecoration: "underline", cursor: "pointer", minHeight: 24 }} onClick={() => setDraft({ ...draft, to: draft.defaults.to, cc: draft.defaults.cc })}>
+                Go back to this show&apos;s agent and assistant
+              </button>
+            )}
             <Field label="Subject">
               <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
             </Field>

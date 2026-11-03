@@ -46,23 +46,37 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const agent = contacts.find((c) => c.role === "agent");
   const { data: last } = await admin
     .from("audit_log")
-    .select("created_at")
+    .select("created_at, detail")
     .eq("action", "event.sales_update_sent")
     .eq("target_id", id)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
+  // Sent every few days, so it opens with whoever it went to last time. The sender
+  // is copied on every send anyway, so they aren't listed as someone to remove.
+  const defaults = defaultRecipients(contacts);
+  const lastDetail = (last?.detail ?? {}) as { to?: unknown; cc?: unknown };
+  const me = String(guard.actor.email ?? "").toLowerCase();
+  const lastSent = typeof lastDetail.to === "string"
+    ? {
+        to: lastDetail.to,
+        cc: (Array.isArray(lastDetail.cc) ? lastDetail.cc : []).map(String).filter((e) => e.toLowerCase() !== me),
+      }
+    : null;
+
   return NextResponse.json({
     figures,
-    ...defaultRecipients(contacts),
+    ...(lastSent ?? defaults),
+    defaults,
     subject: salesSubject(figures),
     message: defaultSalesMessage(figures, agent?.name),
     lastSentAt: last?.created_at ?? null,
   });
 }
 
-// POST /api/events/:id/sales-update — send it, to the agent and assistant only.
+// POST /api/events/:id/sales-update — { to, cc } as set in the send box, or the
+// show's agent and assistant if none are given. The sender is always copied.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireCapability("offers", { write: true });
   if (!guard.ok) return guard.response;
@@ -77,12 +91,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const sender = senderForDomain(body.fromDomain);
   if (!sender) return NextResponse.json({ error: "Pick a sending domain." }, { status: 400 });
 
+  const chosen = typeof body.to === "string";
   const { contacts } = await loadShowContacts(admin, id);
-  const { to: agentTo, cc: agentCc } = defaultRecipients(contacts);
-  if (!body.test && !agentTo) {
-    return NextResponse.json({ error: "This show has no agent email. Link its offer, or add one on the Contacts tab." }, { status: 400 });
+  const defaults = defaultRecipients(contacts);
+  const toAddress = chosen ? body.to : defaults.to;
+  const ccAddresses = chosen ? body.cc : defaults.cc;
+  if (!body.test && !String(toAddress || "").trim()) {
+    return NextResponse.json({ error: "Add an address on the To line." }, { status: 400 });
   }
-  const recipients = resolveRecipients({ to: agentTo, cc: agentCc, subject: body.subject, test: body.test }, guard.actor.email);
+  const recipients = resolveRecipients({ to: toAddress, cc: ccAddresses, subject: body.subject, test: body.test }, guard.actor.email);
   if (!recipients.ok) return NextResponse.json({ error: recipients.error }, { status: 400 });
   const { to, cc, subject, test } = recipients;
 
