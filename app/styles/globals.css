@@ -3373,10 +3373,12 @@ body {
   width: 100%;
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  /* Set toward the top rather than dead centre: a form this tall centred on a
+     laptop screen reads as sitting low. */
+  align-items: flex-start;
   justify-content: center;
   background: var(--vc-bg);
-  padding: 40px 20px;
+  padding: clamp(24px, 7vh, 72px) 20px 40px;
   /* Explicit here (not relying on inheritance) so it's Archivo for both
      operators — venuecore's body defaults to Urbanist and only west72's
      body sets Archivo, but child elements with their own explicit
@@ -3390,7 +3392,7 @@ body {
   box-sizing: border-box;
   width: 100%;
   max-width: 420px;
-  padding: 48px 36px;
+  padding: 36px;
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: var(--lg-bf, blur(20px));
   border: 1px solid rgba(255, 255, 255, 0.09);
