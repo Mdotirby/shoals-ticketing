@@ -16,7 +16,7 @@
  * Ads reads the Ad engine for this show: pre-launch checks, budget caps
  * (editable) and campaigns (pause / resume). Building creatives and
  * launching campaigns stays in the Ad engine. Messaging one show's buyers
- * isn't built yet, so that card says so beside the real audience size.
+ * opens the same Email buyers panel as the Orders tab.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,6 +26,7 @@ import { localTodayISO } from "@/lib/dates";
 import { useHub } from "../HubContext";
 import { HubActions } from "../HubShell";
 import { HubDrawer, HubEmpty, HubLoading } from "../ui";
+import EmailBuyers from "./EmailBuyers";
 import { isPaidSale, useEventLinks, useEventOrders, type HubLink } from "../useEventData";
 
 const usd = (n: number) => fmtUSD(n, { cents: false });
@@ -50,6 +51,7 @@ export default function Marketing() {
   const [caps, setCaps] = useState<{ daily: number; total: number } | null>(null);
   const [qr, setQr] = useState<{ url: string; label: string } | null>(null);
   const [drawer, setDrawer] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
   // The link the drawer is editing; null when it's making a new one.
   const [editing, setEditing] = useState<HubLink | null>(null);
   const [form, setForm] = useState({ label: "", slug: "", source: "", medium: "", campaign: "" });
@@ -377,11 +379,17 @@ export default function Marketing() {
           <div className="hub-msg-text">
             <div className="hub-msg-title">Message this show&apos;s buyers</div>
             <div className="hub-msg-body">
-              {buyers.toLocaleString()} {buyers === 1 ? "person has" : "people have"} a paid ticket (unique emails). Sending to one show&apos;s buyers isn&apos;t built yet — broadcasts today go to the whole subscriber list.
+              {buyers.toLocaleString()} {buyers === 1 ? "person has" : "people have"} a paid ticket (unique emails). Email buyers goes only to this show&apos;s buyers. Broadcasts go to the whole subscriber list.
             </div>
           </div>
-          <a href="/admin/marketing?tab=broadcasts" className="hub-btn">Broadcasts →</a>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" className="hub-btn hub-btn--primary" disabled={buyers === 0} onClick={() => setEmailOpen((v) => !v)}>
+              {emailOpen ? "Close email" : "Email buyers"}
+            </button>
+            <a href="/admin/marketing?tab=broadcasts" className="hub-btn">Broadcasts →</a>
+          </div>
         </section>
+        {emailOpen && <EmailBuyers onClose={() => setEmailOpen(false)} />}
       </div>
 
       {drawer && (
