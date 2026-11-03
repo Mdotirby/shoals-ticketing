@@ -1,3 +1,4 @@
+import { assistantForAgent } from "@/lib/contacts/showContacts";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
 import { requireStaff } from "@/lib/auth/can";
@@ -28,6 +29,12 @@ export async function GET(
       { error: error.message },
       { status: error.code === "PGRST116" ? 404 : 500 }
     );
+  }
+
+  // The agent's assistant follows them from their other offers, so the field
+  // and the To line open filled in. It saves onto this offer with the next save.
+  if (data && !data.agent_assistant_email) {
+    data.agent_assistant_email = await assistantForAgent(admin, data.agent_email, data.venue_id);
   }
 
   return NextResponse.json(data);

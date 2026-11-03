@@ -63,9 +63,41 @@ export function defaultRecipients(contacts: ShowContact[]): { to: string; cc: st
   return { to, cc: cc ? [cc] : [] };
 }
 
+/**
+ * An agent's assistant, from any other offer of theirs at this venue. Entered
+ * once, it follows that agent onto every show. The newest offer wins, so
+ * changing it on one offer changes it from then on.
+ */
+export async function assistantForAgent(
+  admin: SupabaseClient,
+  agentEmail: string | null | undefined,
+  venueId: string | null | undefined,
+): Promise<string | null> {
+  const email = String(agentEmail || "").trim();
+  if (!email) return null;
+  let q = admin
+    .from("artist_offers")
+    .select("agent_assistant_email")
+    // ilike so GTurner@ and gturner@ are one agent. These two would be wildcards.
+    .ilike("agent_email", email.replace(/([\\%_])/g, "\\$1"))
+    .not("agent_assistant_email", "is", null)
+    .neq("agent_assistant_email", "")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  // The address stays with the venue that entered it.
+  if (venueId) q = q.eq("venue_id", venueId);
+  const { data } = await q;
+  return data?.[0]?.agent_assistant_email ?? null;
+}
+
+async function withAgentAssistant(admin: SupabaseClient, offer: OfferContactFields & { venue_id?: string | null }) {
+  if (offer.agent_assistant_email?.trim()) return offer;
+  return { ...offer, agent_assistant_email: await assistantForAgent(admin, offer.agent_email, offer.venue_id) };
+}
+
 /** The offer behind a show: the one its settlement settles, else the live one linked to it. */
 async function offerForEvent(admin: SupabaseClient, eventId: string): Promise<OfferContactFields | null> {
-  const FIELDS = "agent_name, agent_email, agent_phone, agent_assistant_email";
+  const FIELDS = "agent_name, agent_email, agent_phone, agent_assistant_email, venue_id";
   const { data: settlement } = await admin
     .from("settlements")
     .select("offer_id")
@@ -75,7 +107,7 @@ async function offerForEvent(admin: SupabaseClient, eventId: string): Promise<Of
     .maybeSingle();
   if (settlement?.offer_id) {
     const { data } = await admin.from("artist_offers").select(FIELDS).eq("id", settlement.offer_id).maybeSingle();
-    if (data) return data as OfferContactFields;
+    if (data) return withAgentAssistant(admin, data);
   }
   const { data } = await admin
     .from("artist_offers")
@@ -85,7 +117,7 @@ async function offerForEvent(admin: SupabaseClient, eventId: string): Promise<Of
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return (data as OfferContactFields) ?? null;
+  return data ? withAgentAssistant(admin, data) : null;
 }
 
 /** `migrated` is false until plans/show-contacts-migration.sql has run. */

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { sanitize } from "@/lib/pdf/pdf-header";
 import { renderXlsxTemplate } from "@/lib/xlsx-templates/render";
 import { buildOfferData } from "@/lib/xlsx-templates/offer/adapter";
+import { assistantForAgent } from "@/lib/contacts/showContacts";
 import { agentRecipients, resolveRecipients } from "@/lib/email/recipients";
 import { AGENT_COPY_CUT, agentEmailHtml, offersAddress, senderForDomain } from "@/lib/offers/agentEmail";
 import type { ArtistOffer } from "@/lib/types/offer";
@@ -62,7 +63,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!body?.offer) return NextResponse.json({ error: "Missing offer" }, { status: 400 });
 
   // An offer only ever goes to the agent and their assistant, as saved on it.
-  const { to: toAddress, cc: agentCc } = agentRecipients(current.agent_email, current.agent_assistant_email);
+  const { to: toAddress, cc: agentCc } = agentRecipients(
+    current.agent_email,
+    current.agent_assistant_email || (await assistantForAgent(admin, current.agent_email, current.venue_id)),
+  );
   if (!body.test && !toAddress) return NextResponse.json({ error: "Add the agent's email to the offer first." }, { status: 400 });
   const recipients = resolveRecipients({ to: toAddress, cc: agentCc ? [agentCc] : [], subject: body.subject, test: body.test }, guard.actor.email);
   if (!recipients.ok) return NextResponse.json({ error: recipients.error }, { status: 400 });

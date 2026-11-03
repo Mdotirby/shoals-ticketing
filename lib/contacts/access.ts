@@ -15,8 +15,10 @@ export async function eventInScope(admin: Admin, actor: AdminActor, eventId: str
 
 /** A contact's fields from a request, or why they can't be saved. */
 export function contactFields(body: Record<string, unknown>) {
-  const name = String(body.name ?? "").trim() || null;
-  const email = String(body.email ?? "").trim() || null;
+  let name = String(body.name ?? "").trim() || null;
+  let email = String(body.email ?? "").trim() || null;
+  // An address typed into the name box still has to reach them.
+  if (!email && name && EMAIL.test(name)) { email = name; name = null; }
   const phone = String(body.phone ?? "").trim() || null;
   const role = String(body.role ?? "other");
   if (!name && !email) return { error: "Add a name or an email." };
