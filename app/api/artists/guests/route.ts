@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { getAdminActor, requireCapability, type AdminActor } from "@/lib/auth/can";
 import { tenantScope, DENY } from "@/lib/auth/tenant";
 import { NextResponse } from "next/server";
+import { allocationFor, isCompAllocation } from "@/lib/guests/compAllocation";
 
 /**
  * Guest list for a show (guest_list rows). An entry belongs to whoever added
@@ -75,8 +76,11 @@ export async function GET(request: Request) {
   };
 
   let { data, error } = await build(
-    "id, first_name, last_name, quantity, notes, artist_id, checked_in_at, created_at"
+    "id, first_name, last_name, quantity, notes, artist_id, checked_in_at, created_at, comp_allocation"
   );
+  if (error && /comp_allocation/i.test(error.message)) {
+    ({ data, error } = await build("id, first_name, last_name, quantity, notes, artist_id, checked_in_at, created_at"));
+  }
 
   if (error && /checked_in_at|column .* does not exist/i.test(error.message)) {
     const fallback = await build("id, first_name, last_name, quantity, notes, artist_id, created_at");
@@ -88,7 +92,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const rows = (data || []) as unknown as Array<{ artist_id: string | null }>;
+  const rows = (data || []) as unknown as Array<{ artist_id: string | null; comp_allocation?: unknown }>;
   const ids = [...new Set(rows.map((r) => r.artist_id).filter(Boolean))] as string[];
   const { data: people } = ids.length
     ? await admin.from("admin_users").select("id, role, first_name, last_name").in("id", ids)
@@ -98,9 +102,11 @@ export async function GET(request: Request) {
   return NextResponse.json(
     rows.map((r) => {
       const p = r.artist_id ? byId.get(r.artist_id) : undefined;
+      const list = p?.role === "artist" ? "artist" : "house";
       return {
         ...r,
-        list: p?.role === "artist" ? "artist" : "house",
+        list,
+        comp_allocation: allocationFor(r.comp_allocation, list),
         added_by: p ? [p.first_name, p.last_name].filter(Boolean).join(" ") || null : null,
       };
     }),
@@ -173,18 +179,20 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   if (!(await eventOk(admin, w, event_id))) return NextResponse.json({ error: "Show not found" }, { status: 404 });
 
-  const { data, error } = await admin
-    .from("guest_list")
-    .insert({
-      event_id,
-      artist_id,
-      first_name: String(first_name).trim(),
-      last_name: String(last_name ?? "").trim(),
-      quantity: Math.max(1, parseInt(quantity) || 1),
-      notes: typeof notes === "string" && notes.trim() ? notes.trim() : null,
-    })
-    .select()
-    .single();
+  const row = {
+    event_id,
+    artist_id,
+    first_name: String(first_name).trim(),
+    last_name: String(last_name ?? "").trim(),
+    quantity: Math.max(1, parseInt(quantity) || 1),
+    notes: typeof notes === "string" && notes.trim() ? notes.trim() : null,
+  };
+  // An artist's guests are always the artist's comps.
+  const comp_allocation = w.artist ? "artist" : isCompAllocation(body.comp_allocation) ? body.comp_allocation : "venue";
+  let { data, error } = await admin.from("guest_list").insert({ ...row, comp_allocation }).select().single();
+  if (error && /comp_allocation/i.test(error.message)) {
+    ({ data, error } = await admin.from("guest_list").insert(row).select().single());
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -209,9 +217,13 @@ export async function PUT(request: Request) {
   if (typeof body.last_name === "string") updates.last_name = body.last_name.trim();
   if (body.quantity !== undefined) updates.quantity = Math.max(1, parseInt(body.quantity) || 1);
   if (body.notes !== undefined) updates.notes = typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+  if (!w.artist && isCompAllocation(body.comp_allocation)) updates.comp_allocation = body.comp_allocation;
   if (!Object.keys(updates).length) return NextResponse.json({ error: "Nothing to change" }, { status: 400 });
 
   const { data, error } = await admin.from("guest_list").update(updates).eq("id", body.id).select().single();
+  if (error && /comp_allocation/i.test(error.message)) {
+    return NextResponse.json({ error: "Run plans/guest-list-allocation-migration.sql to save who a guest is allocated to." }, { status: 503 });
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

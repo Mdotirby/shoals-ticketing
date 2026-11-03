@@ -14,3 +14,5 @@ export function wrongShowReason(
   const show = [ticket.event_title, day].filter(Boolean).join(" on ");
   return show ? `This ticket is for ${show}.` : "This ticket is for a different show.";
 }
+
+export const POSTPONED_SCAN_REASON = "This show is postponed. The ticket stays valid for the new date.";

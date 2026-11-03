@@ -60,13 +60,13 @@ export async function POST(request: Request) {
   // Fetch event (with closeout column when available)
   let { data: event, error: eventError } = await admin
     .from("events")
-    .select("id, title, venue, date, venue_id, image_url, on_sale_at, closed_out_at, start_time")
+    .select("status, id, title, venue, date, venue_id, image_url, on_sale_at, closed_out_at, start_time")
     .eq("id", event_id)
     .single();
   if (eventError && /closed_out_at|column .* does not exist/i.test(eventError.message)) {
     const retry = await admin
       .from("events")
-      .select("id, title, venue, date, venue_id, image_url, on_sale_at")
+      .select("status, id, title, venue, date, venue_id, image_url, on_sale_at")
       .eq("id", event_id)
       .single();
     event = retry.data ? { ...retry.data, closed_out_at: null, start_time: null } : null;
@@ -101,6 +101,7 @@ export async function POST(request: Request) {
 
   // Guard: reject if the show has already happened or has been closed out.
   const closeoutReason = pastEventReason({
+      status: event.status,
     date: event.date,
     closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
     start_time: (event as { start_time?: string | null }).start_time ?? null,

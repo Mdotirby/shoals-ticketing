@@ -68,6 +68,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TicketAuditRow, TaxMethod } from "@/lib/types/settlement";
 import { estimatedStripeCostCents } from "@/lib/fees/rates";
+import { checkedInGuestComps, generalAdmissionTier, type CompAllocation } from "@/lib/guests/compAllocation";
 
 export type AuditTotals = {
   audit: TicketAuditRow[];
@@ -106,6 +107,8 @@ export type AuditTotals = {
   billing_unit_count: number;
   comp_count: number;           // true comps (orders.source = 'comp')
   comp_face_value: number;      // would-be price of comps (excluded from gross)
+  /** Checked-in guests in comp_count, by who the comp is allocated to. */
+  guest_comps: { total: number; byAllocation: Record<CompAllocation, number> };
   /** $0 orders that are NOT comps — free events and 100%-off promo codes. */
   free_count: number;
   ticketing_fee_per_ticket: number; // snapshot of CURRENT per-unit rate (display only)
@@ -842,6 +845,26 @@ export async function computeEventAudit(
     comp_count += 0; // comp_count already tallied from orders above; this map is per-row attribution only
   }
 
+  // A guest who has checked in is a General Admission comp. The list has no order
+  // or ticket behind it, so without this they were in the room but not in the audit.
+  const { data: guestRows, error: guestError } = await admin
+    .from("guest_list")
+    .select("quantity, checked_in_at, comp_allocation, artist_id")
+    .eq("event_id", eventId)
+    .not("checked_in_at", "is", null);
+  // A database without the allocation column still counts them, as venue comps.
+  const checkedInGuests = guestError
+    ? (await admin.from("guest_list").select("quantity, checked_in_at").eq("event_id", eventId).not("checked_in_at", "is", null)).data ?? []
+    : guestRows ?? [];
+  const guest_comps = checkedInGuestComps(checkedInGuests);
+  if (guest_comps.total > 0) {
+    comp_count += guest_comps.total;
+    const gaName = generalAdmissionTier(seatBasis ? seatBasis.rows.map((r) => r.name) : tierList.map((t) => t.tier_name));
+    if (gaName) compsByKey.set(gaName, (compsByKey.get(gaName) ?? 0) + guest_comps.total);
+    const gaTier = tierList.find((t) => t.tier_name === gaName) ?? tierList[0];
+    comp_face_value += num(gaTier?.price) * guest_comps.total;
+  }
+
   rows.sort((a, b) => a.sort_order - b.sort_order || a.price - b.price || a.source.localeCompare(b.source));
   const seenCapacityKey = new Set<string>();
   for (const row of rows) {
@@ -986,6 +1009,7 @@ export async function computeEventAudit(
     tickets_sold_count,
     billing_unit_count,
     comp_count,
+    guest_comps,
     comp_face_value: r2(comp_face_value),
     free_count,
     ticketing_fee_per_ticket: r2(fees.ticketing_fee),

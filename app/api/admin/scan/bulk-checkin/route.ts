@@ -1,3 +1,4 @@
+import { POSTPONED_SCAN_REASON } from "@/lib/tickets/scanShow";
 import { requireCapability } from "@/lib/auth/can";
 import { createAdminClient } from "@/lib/supabase-server";
 import { refusalReason } from "@/lib/tickets/void";
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const columns = "id, is_scanned, scanned_at, voided_at, void_reason, customer_name, orders(status)";
+  const columns = "id, is_scanned, scanned_at, voided_at, void_reason, customer_name, orders(status), events(status)";
   let { data: existing, error: fetchError } = await admin
     .from("tickets")
     .select(columns)
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   if (fetchError && /voided_at|void_reason|column .* does not exist/i.test(fetchError.message)) {
     const retry = await admin
       .from("tickets")
-      .select("id, is_scanned, scanned_at, customer_name, orders(status)")
+      .select("id, is_scanned, scanned_at, customer_name, orders(status), events(status)")
       .in("id", ticketIds);
     existing = (retry.data ?? []).map((t) => ({ ...t, voided_at: null, void_reason: null }));
     fetchError = retry.error;
@@ -57,6 +58,10 @@ export async function POST(request: Request) {
 
   for (const t of existing ?? []) {
     const orderStatus = (t.orders as unknown as { status: string } | null)?.status;
+    if ((t.events as unknown as { status: string | null } | null)?.status === "postponed") {
+      refused.push({ id: t.id, name: t.customer_name ?? null, reason: POSTPONED_SCAN_REASON });
+      continue;
+    }
     const reason = refusalReason({
       voided_at: t.voided_at,
       void_reason: t.void_reason,

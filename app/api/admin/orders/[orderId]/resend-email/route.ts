@@ -23,7 +23,7 @@ export async function POST(
   // Fetch order + event
   const { data: order, error: orderError } = await admin
     .from("orders")
-    .select(`*, events!inner(id, title, date, venue, venue_id, image_url)`)
+    .select(`*, events!inner(id, title, date, venue, venue_id, image_url, status)`)
     .eq("id", orderId)
     .single();
 
@@ -84,7 +84,7 @@ export async function POST(
     to: order.customer_email,
     customerName: order.customer_name,
     eventTitle: order.events.title,
-    eventDate: order.events.date,
+    eventDate: order.events.status === "postponed" ? "Postponed · new date to be announced" : order.events.date,
     eventVenue: order.events.venue,
     eventImage: order.events.image_url,
     ticketCount: tickets.length,

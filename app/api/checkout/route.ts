@@ -29,13 +29,13 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     let { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at,closed_out_at,tax_method,start_time,fees_included_in_price")
+      .select("status, id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at,closed_out_at,tax_method,start_time,fees_included_in_price")
       .eq("id", event_id)
       .single();
     if (eventError && /closed_out_at|tax_method|fees_included_in_price|column .* does not exist/i.test(eventError.message)) {
       const retry = await admin
         .from("events")
-        .select("id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
+        .select("status, id,title,venue,date,price,venue_id,event_venue_id,facility_fee_enabled,on_sale_at")
         .eq("id", event_id)
         .single();
       event = retry.data ? { ...retry.data, closed_out_at: null, tax_method: null, start_time: null, fees_included_in_price: false } : null;
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
 
     // Guard: reject if the show has already happened or has been closed out.
     const closeoutReason = pastEventReason({
+      status: event.status,
       date: event.date,
       closed_out_at: (event as { closed_out_at?: string | null }).closed_out_at ?? null,
       start_time: (event as { start_time?: string | null }).start_time ?? null,

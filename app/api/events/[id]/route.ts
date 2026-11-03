@@ -29,13 +29,13 @@ export async function GET(
   // Try with closed_out_at (closeout migration); fall back without it.
   let { data, error } = await admin
     .from("events")
-    .select("id,title,subtitle,venue,date,price,image_url,email_flyer_url,venue_id,description,event_venue_id,event_type,deal_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,fees_included_in_price,spotify_url,spotify_monthly_listeners,spotify_featured_track,status,doors_time,age_restriction,talent_buyer,booking_agent")
+    .select("status,id,title,subtitle,venue,date,price,image_url,email_flyer_url,venue_id,description,event_venue_id,event_type,deal_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,closed_out_at,closed_out_note,external_ticket_url,external_ticket_label,meta_pixel_id,tax_method,fees_included_in_price,spotify_url,spotify_monthly_listeners,spotify_featured_track,status,doors_time,age_restriction,talent_buyer,booking_agent")
     .eq("id", id)
     .single();
   if (error && /closed_out_(at|note)|external_ticket|meta_pixel_id|tax_method|fees_included_in_price|spotify_url|spotify_monthly_listeners|spotify_featured_track|deal_type|doors_time|age_restriction|talent_buyer|booking_agent|column .* does not exist/i.test(error.message)) {
     const retry = await admin
       .from("events")
-      .select("id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,status")
+      .select("status,id,title,venue,date,price,image_url,venue_id,description,event_venue_id,event_type,booking_status,contact_name,contact_phone,contact_email,client_name,client_email,client_phone,client_billing_address,client_company,tax_exempt,start_time,end_time,facility_fee_enabled,is_free,on_sale_at,landing_page_slug,status")
       .eq("id", id)
       .single();
     data = retry.data ? { ...retry.data, subtitle: null, email_flyer_url: null, closed_out_at: null, closed_out_note: null, external_ticket_url: null, external_ticket_label: null, meta_pixel_id: null, tax_method: null, fees_included_in_price: false, spotify_url: null, spotify_monthly_listeners: null, spotify_featured_track: null, deal_type: null, doors_time: null, age_restriction: null, talent_buyer: null, booking_agent: null } : null;

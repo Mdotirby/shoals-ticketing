@@ -1,3 +1,4 @@
+import { checkedInGuestComps } from "@/lib/guests/compAllocation";
 import { createAdminClient } from "@/lib/supabase-server";
 import { requireCapability } from "@/lib/auth/can";
 import { fetchAll } from "@/lib/supabase/fetchAll";
@@ -37,17 +38,18 @@ export async function GET(request: Request) {
   // the limit you asked for. A sold-out night at a 1,400-cap room is one busy
   // show away from that, and this is the number staff reconcile a drawer
   // against — it must not quietly stop counting.
-  const [orders, scannedRes, totalTicketsRes] = await Promise.all([
-    fetchAll<{ id: string; customer_name: string | null; total_amount: number | null; quantity: number | null; source: string | null; created_at: string }>(
+  const [orders, scannedRes, totalTicketsRes, guestsRes] = await Promise.all([
+    fetchAll<{ id: string; customer_name: string | null; customer_email: string | null; total_amount: number | null; quantity: number | null; source: string | null; created_at: string }>(
       admin
         .from("orders")
-        .select("id, customer_name, total_amount, quantity, source, created_at")
+        .select("id, customer_name, customer_email, total_amount, quantity, source, created_at")
         .eq("event_id", eventId)
         .eq("status", "paid")
         .order("created_at", { ascending: false })
     ),
     admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("is_scanned", true),
     admin.from("tickets").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+    admin.from("guest_list").select("quantity, checked_in_at").eq("event_id", eventId).not("checked_in_at", "is", null),
   ]);
 
 
@@ -78,11 +80,27 @@ export async function GET(request: Request) {
     card: { orders: cardCount, amount: round(cardAmount), tickets: cardTickets },
     comp: { orders: compCount, tickets: compTickets },
     online: { orders: onlineCount, amount: round(onlineAmount), tickets: onlineTickets },
+    // Guests have no ticket to scan, so they're counted apart from scannedIn.
+    guestsIn: checkedInGuestComps(guestsRes.data ?? []).total,
     doorTotal: round(cashAmount + cardAmount),
     doorTickets: cashTickets + cardTickets,
     // The drop: what the scanner and the auto-checked-in door sales have let in.
     scannedIn: scannedRes.count ?? 0,
     ticketsIssued: totalTicketsRes.count ?? 0,
+    // Door sales only, for the POS: it needs to resend, refund or void them.
+    doorSales: orders
+      .filter((o) => Number(o.total_amount) > 0 && (isCash(o.source) || isDoorCard(o.source)))
+      .slice(0, 50)
+      .map((o) => ({
+        id: o.id,
+        name: o.customer_name || "Guest",
+        amount: round(Number(o.total_amount) || 0),
+        quantity: Number(o.quantity) || 1,
+        tender: isCash(o.source) ? "cash" : "card",
+        at: o.created_at,
+        // Cash sales carry a made-up address that exists only to fill the column.
+        email: o.customer_email && !o.customer_email.endsWith("@noemail.venuecore.internal") ? o.customer_email : null,
+      })),
     recent: orders.slice(0, 8).map((o) => ({
       id: o.id,
       name: o.customer_name || "Guest",

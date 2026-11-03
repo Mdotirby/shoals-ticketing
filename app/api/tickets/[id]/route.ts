@@ -12,7 +12,7 @@ export async function GET(
 
   const { data, error } = await admin
     .from("tickets")
-    .select("*, events!inner(title, venue, date, image_url)")
+    .select("*, events!inner(title, venue, date, image_url, status)")
     .eq("qr_code", id)
     .single();
 

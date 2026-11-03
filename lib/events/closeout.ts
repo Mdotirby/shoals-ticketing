@@ -24,7 +24,12 @@ export type EventLikeForCloseout = {
   date?: string | null;
   closed_out_at?: string | null;
   start_time?: string | null;
+  status?: string | null;
 };
+
+/** Why a postponed show isn't selling. Tickets already sold stay good for the new date. */
+export const POSTPONED_SALES_REASON =
+  "This show has been postponed. Tickets aren't on sale until the new date is set, and tickets already bought stay valid.";
 
 /** True if the event has been manually closed out by an admin. */
 export function isClosedOut(event: EventLikeForCloseout | null | undefined): boolean {
@@ -75,6 +80,7 @@ export function isEventPast(event: EventLikeForCloseout | null | undefined): boo
 export function pastEventReason(
   event: EventLikeForCloseout | null | undefined
 ): string | null {
+  if (event?.status === "postponed") return POSTPONED_SALES_REASON;
   if (isClosedOut(event)) return "This show has been closed out and is no longer on sale.";
   if (event?.date) {
     const w = salesWindowFor(event.date);

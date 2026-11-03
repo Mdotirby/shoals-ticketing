@@ -1,3 +1,4 @@
+import { POSTPONED_SALES_REASON } from "@/lib/events/closeout";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { NextResponse } from "next/server";
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     // Look up event + venue fees
     const { data: event, error: eventError } = await admin
       .from("events")
-      .select("id,title,venue,date,price,venue_id,event_venue_id,event_type,facility_fee_enabled,tax_method,fees_included_in_price")
+      .select("status, id,title,venue,date,price,venue_id,event_venue_id,event_type,facility_fee_enabled,tax_method,fees_included_in_price")
       .eq("id", event_id)
       .single();
 
@@ -36,6 +37,11 @@ export async function POST(request: Request) {
     // the show has happened and the till stops too. Advance sales for future
     // shows are unaffected; the window governs who owns the show ON THE DAY.
     // See lib/salesWindow.ts.
+    // A postponed show isn't selling at any till until it has its new date.
+    if (event.status === "postponed") {
+      return NextResponse.json({ error: POSTPONED_SALES_REASON }, { status: 403 });
+    }
+
     const salesWindow = salesWindowFor(event.date);
     if (!canSell(event.date, "box_office")) {
       return NextResponse.json(

@@ -64,6 +64,7 @@ type EventData = {
   is_free?: boolean;
   on_sale_at?: string;
   closed_out_at?: string | null;
+  status?: string | null;
   start_time?: string | null;
   doors_time?: string | null;
   external_ticket_url?: string | null;
@@ -815,7 +816,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   const willShowOrderSummary =
     !!event &&
     !event.external_ticket_url &&
-    !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+    !pastEventReason({ date: event.date, status: event.status, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
     checkoutStep !== "checkout" &&
     (ticketsOnSale || presaleUnlocked) &&
     // The free shortcut below only applies when there is nothing to choose.
@@ -834,7 +835,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
   const willShowInlineCheckout =
     !!event &&
     !event.external_ticket_url &&
-    !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+    !pastEventReason({ date: event.date, status: event.status, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
     (checkoutStep === "checkout" ||
       ((ticketsOnSale || presaleUnlocked) && freeShortcut));
 
@@ -1295,7 +1296,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                   one only ever renders step 1 — InlineCheckout owns the
                   display from step 2 on. */}
               {!event.external_ticket_url &&
-                !pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
+                !pastEventReason({ date: event.date, status: event.status, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) &&
                 !willShowInlineCheckout && (
                   <SfStepper current={1} />
                 )}
@@ -1389,7 +1390,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     {event.external_ticket_label || "Get Tickets"} →
                   </a>
                 </div>
-              ) : pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) ? (
+              ) : pastEventReason({ date: event.date, status: event.status, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null }) ? (
                 /* ── Past / Closed-Out Show — purchases locked ── */
                 <div style={{
                   background: "rgba(255,255,255,0.03)",
@@ -1416,7 +1417,7 @@ export default function EventDetailClient({ requiresSeating = false }: { require
                     Tickets are no longer on sale.
                   </p>
                   <p style={{ color: "rgba(255,255,255,0.45)", fontSize: 12, margin: 0 }}>
-                    {pastEventReason({ date: event.date, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null })}
+                    {pastEventReason({ date: event.date, status: event.status, closed_out_at: event.closed_out_at ?? null, start_time: event.start_time ?? null })}
                   </p>
                 </div>
               ) : checkoutStep === "checkout" ? (

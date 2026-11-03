@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase-server";
 import { buildSeatAssignments } from "@/lib/seating/buildAssignments";
 import { NextResponse } from "next/server";
 import { refusalReason } from "@/lib/tickets/void";
-import { wrongShowReason } from "@/lib/tickets/scanShow";
+import { POSTPONED_SCAN_REASON, wrongShowReason } from "@/lib/tickets/scanShow";
 import { requireCapability } from "@/lib/auth/can";
 import { tenantScope, DENY } from "@/lib/auth/tenant";
 
@@ -23,7 +23,7 @@ export async function POST(
   // Look up ticket by qr_code
   let { data: ticket, error: findError } = await admin
     .from("tickets")
-    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, voided_at, void_reason, event_id, order_id, events!inner(title, venue, venue_id, date), orders(status)")
+    .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, voided_at, void_reason, event_id, order_id, events!inner(title, venue, venue_id, date, status), orders(status)")
     .eq("qr_code", id)
     .single();
 
@@ -34,7 +34,7 @@ export async function POST(
   if (findError && /voided_at|void_reason|column .* does not exist/i.test(findError.message)) {
     const retry = await admin
       .from("tickets")
-      .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue, venue_id, date), orders(status)")
+      .select("id, qr_code, customer_name, customer_email, is_scanned, scanned_at, event_id, order_id, events!inner(title, venue, venue_id, date, status), orders(status)")
       .eq("qr_code", id)
       .single();
     ticket = retry.data ? { ...retry.data, voided_at: null, void_reason: null } : null;
@@ -48,13 +48,18 @@ export async function POST(
     );
   }
 
-  const ev = ticket.events as unknown as { title: string; venue: string; venue_id: string | null; date: string | null } | null;
+  const ev = ticket.events as unknown as { title: string; venue: string; venue_id: string | null; date: string | null; status: string | null } | null;
 
   // The code alone is not a boundary (lib/auth/tenant.ts).
   const venueId = ev?.venue_id ?? null;
   const scope = tenantScope(guard.actor, venueId);
   if (scope === DENY || (scope !== null && scope !== venueId)) {
     return NextResponse.json({ valid: false, reason: "Ticket not found" }, { status: 200 });
+  }
+
+  // The show moved: the ticket is good for the new date, so don't use it up.
+  if (ev?.status === "postponed") {
+    return NextResponse.json({ valid: false, reason: POSTPONED_SCAN_REASON, customer_name: ticket.customer_name });
   }
 
   // Before anything marks it used: at the wrong door it must stay good for its own.

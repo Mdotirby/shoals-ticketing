@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { COMP_ALLOCATIONS, allocationFor, type CompAllocation } from "@/lib/guests/compAllocation";
 import { useHub, useSectionDirty } from "../HubContext";
 import { HubLoading } from "../ui";
 
@@ -24,6 +25,7 @@ type G = {
   qty: number;
   notes: string;
   list: "artist" | "house";
+  alloc: CompAllocation;
   by: string | null;
   artistId: string | null;
   checkedIn: boolean;
@@ -45,7 +47,7 @@ export default function Guests() {
   const [saved, setSaved] = useState<G[] | null>(null);
   const [d, setD] = useState<G[] | null>(null);
   const [artists, setArtists] = useState<Assignment[]>([]);
-  const [n, setN] = useState({ name: "", qty: 2, to: "house", note: "" });
+  const [n, setN] = useState({ name: "", qty: 2, to: "house", note: "", alloc: "venue" as CompAllocation });
   const [error, setError] = useState("");
   const [loadN, setLoadN] = useState(0);
 
@@ -53,11 +55,11 @@ export default function Guests() {
     let live = true;
     fetch(`/api/artists/guests?event_id=${id}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((rows: Array<{ id: string; first_name: string; last_name: string; quantity: number; notes: string | null; list?: "artist" | "house"; added_by?: string | null; artist_id: string | null; checked_in_at?: string | null }>) => {
+      .then((rows: Array<{ id: string; first_name: string; last_name: string; quantity: number; notes: string | null; list?: "artist" | "house"; comp_allocation?: string | null; added_by?: string | null; artist_id: string | null; checked_in_at?: string | null }>) => {
         if (!live) return;
         const list: G[] = (Array.isArray(rows) ? rows : []).map((r) => ({
           key: r.id, id: r.id, name: nameOf(r.first_name, r.last_name), qty: Number(r.quantity) || 1, notes: r.notes ?? "",
-          list: r.list === "artist" ? "artist" : "house", by: r.added_by ?? null, artistId: r.artist_id, checkedIn: !!r.checked_in_at,
+          list: r.list === "artist" ? "artist" : "house", alloc: allocationFor(r.comp_allocation, r.list), by: r.added_by ?? null, artistId: r.artist_id, checkedIn: !!r.checked_in_at,
         }));
         setSaved(list);
         setD(list);
@@ -106,7 +108,7 @@ export default function Guests() {
         const r = await fetch("/api/artists/guests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ event_id: id, ...splitName(g.name), quantity: g.qty, notes: g.notes, ...(g.artistId ? { artist_id: g.artistId } : {}) }),
+          body: JSON.stringify({ event_id: id, ...splitName(g.name), quantity: g.qty, notes: g.notes, comp_allocation: g.alloc, ...(g.artistId ? { artist_id: g.artistId } : {}) }),
         });
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Couldn't add ${g.name}.`);
       }
@@ -114,7 +116,7 @@ export default function Guests() {
         const r = await fetch("/api/artists/guests", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: g.id, ...splitName(g.name), quantity: g.qty, notes: g.notes }),
+          body: JSON.stringify({ id: g.id, ...splitName(g.name), quantity: g.qty, notes: g.notes, comp_allocation: g.alloc }),
         });
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Couldn't update ${g.name}.`);
       }
@@ -140,7 +142,7 @@ export default function Guests() {
     const artist = artists.find((a) => a.artist_id === n.to);
     setD((prev) => [...(prev ?? []), {
       key: `new-${++seq}`, name: n.name.trim(), qty: n.qty, notes: n.note.trim(),
-      list: artist || role === "artist" ? "artist" : "house", by: artist?.name ?? null, artistId: artist?.artist_id ?? null, checkedIn: false,
+      list: artist || role === "artist" ? "artist" : "house", alloc: artist || role === "artist" ? "artist" : n.alloc, by: artist?.name ?? null, artistId: artist?.artist_id ?? null, checkedIn: false,
     }]);
     setN({ ...n, name: "", note: "", qty: 2 });
   };
@@ -165,6 +167,19 @@ export default function Guests() {
                 <div className={`hub-allot-used${over ? " is-bad" : full ? " is-warn" : ""}`}>{a.used} / {a.limit ?? "—"}</div>
               </div>
               <div className="hub-allot-bar"><div className={over ? "is-bad" : full ? "is-warn" : ""} style={{ width: `${a.limit ? Math.min(100, (a.used / a.limit) * 100) : a.used ? 100 : 0}%` }} /></div>
+            </div>
+          );
+        })}
+        {role !== "artist" && COMP_ALLOCATIONS.map((a) => {
+          const on = used((g) => g.alloc === a.value);
+          const inNow = d.filter((g) => g.alloc === a.value && g.checkedIn).reduce((t, g) => t + g.qty, 0);
+          return (
+            <div key={a.value} className="hub-allot-card">
+              <div className="hub-allot-line">
+                <div className="hub-allot-label">{a.label} comps</div>
+                <div className="hub-allot-used">{inNow} in / {on}</div>
+              </div>
+              <div className="hub-allot-bar"><div className="is-good" style={{ width: `${on ? (inNow / on) * 100 : 0}%` }} /></div>
             </div>
           );
         })}
@@ -194,6 +209,11 @@ export default function Guests() {
               ))}
             </div>
           )}
+          {role !== "artist" && (
+            <select className="hub-in hub-in--sm" aria-label="Allocated to" value={artists.some((x) => x.artist_id === n.to) ? "artist" : n.alloc} disabled={artists.some((x) => x.artist_id === n.to)} onChange={(e) => setN({ ...n, alloc: e.target.value as CompAllocation })}>
+              {COMP_ALLOCATIONS.map((a) => <option key={a.value} value={a.value}>{a.label} comp</option>)}
+            </select>
+          )}
           <input className="hub-in hub-in--sm hub-guest-note" placeholder="Note (optional)" value={n.note} onChange={(e) => setN({ ...n, note: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
           <button type="button" className="hub-btn hub-btn--primary" onClick={add}>+ Add guest</button>
         </div>
@@ -201,13 +221,17 @@ export default function Guests() {
         <div className="hub-tiers-scroll">
           <div className="hub-guest-table">
             <div className="hub-guest-row hub-guest-row--head">
-              <div>Name</div><div>List</div><div>Qty</div><div>Note</div><div>Check-in · read only</div><div />
+              <div>Name</div><div>Allocated to</div><div>Qty</div><div>Note</div><div>Check-in · read only</div><div />
             </div>
             {d.length === 0 && <div className="hub-alert-none">Guest list is empty. Add artist and house guests — the door sees this list on show night.</div>}
             {d.map((g) => (
               <div key={g.key} className={`hub-guest-row${g.id ? "" : " is-new"}`}>
                 <input className="hub-tier-input" value={g.name} onChange={(e) => upd(g.key, { name: e.target.value })} aria-label="Guest name" />
-                <div><span className={`hub-guest-list is-${g.list}`} title={g.by ? `Added by ${g.by}` : undefined}>{g.list === "artist" ? (g.by || "Artist") : "House"}</span></div>
+                {role === "artist" ? <div><span className="hub-guest-list is-artist">Artist</span></div> : (
+                  <select className="hub-tier-input" aria-label={`${g.name} allocated to`} title={g.by ? `Added by ${g.by}` : undefined} value={g.alloc} onChange={(e) => upd(g.key, { alloc: e.target.value as CompAllocation })}>
+                    {COMP_ALLOCATIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+                  </select>
+                )}
                 <div className="hub-stepper" data-label="Qty">
                   <button type="button" className="hub-step" onClick={() => upd(g.key, { qty: Math.max(1, g.qty - 1) })}>−</button>
                   <div className="hub-step-value">{g.qty}</div>
@@ -221,7 +245,7 @@ export default function Guests() {
           </div>
         </div>
         <div className="hub-tiers-foot">
-          <div className="hub-tiers-note">A comp is a guest with a real zero — no order, no money. Check-in is done at the door, not here.</div>
+          <div className="hub-tiers-note">A comp is a guest with a real zero: no order, no money. Once checked in, they count as a General Admission comp on the settlement. Check-in is done at the door, not here.</div>
           <Link href="/admin/live?tab=guests" className="hub-card-link">Open door view →</Link>
         </div>
       </section>

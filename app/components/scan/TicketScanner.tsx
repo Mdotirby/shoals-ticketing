@@ -48,6 +48,8 @@ export default function TicketScanner({
   autoStart = false,
   onScanned,
   Btn = Button as ScannerButton,
+  inline = false,
+  footer,
 }: {
   eventId: string;
   /** Open the camera straight away. */
@@ -55,6 +57,10 @@ export default function TicketScanner({
   /** After a ticket is admitted, so the host can refresh its counts. */
   onScanned?: () => void;
   Btn?: ScannerButton;
+  /** Camera beside results on a wide screen, instead of a full-screen flash. */
+  inline?: boolean;
+  /** Shown under the results when inline. */
+  footer?: ReactNode;
 }) {
   // ── QR scanner state ──────────────────────────────────────────────────────
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -67,6 +73,8 @@ export default function TicketScanner({
   const resultTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [cameraError, setCameraError] = useState("");
+  const [lastResult, setLastResult] = useState<ScanResult | null>(null);
+  const [recent, setRecent] = useState<{ at: string; name: string; valid: boolean; note: string }[]>([]);
   // The camera's callback is made once, so it reads the show from here.
   const eventIdRef = useRef(eventId);
   useEffect(() => { eventIdRef.current = eventId; }, [eventId]);
@@ -139,6 +147,13 @@ export default function TicketScanner({
         data.reason = res.status === 401 ? "You're signed out. Sign in again to scan." : data.error || "This account can't scan tickets.";
       }
       setResult(data);
+      setLastResult(data);
+      setRecent((r) => [{
+        at: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        name: data.customer_name || "Unknown ticket",
+        valid: !!data.valid,
+        note: data.valid ? "Checked in" : data.reason || "Refused",
+      }, ...r].slice(0, 20));
       if (data.valid) onScannedRef.current?.();
 
       try {
@@ -168,6 +183,34 @@ export default function TicketScanner({
       setProcessing(false);
     }
   }, []);
+
+  // ── USB scanner ───────────────────────────────────────────────────────────
+  // A USB scanner types the code fast and presses Enter. Anything slower, or
+  // typed into a box, is a person and isn't a scan.
+  useEffect(() => {
+    if (!inline) return;
+    let buffer = "";
+    let last = 0;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT") return;
+      const now = Date.now();
+      if (now - last > 80) buffer = "";
+      last = now;
+      if (e.key === "Enter") {
+        if (buffer.length >= 6) {
+          const raw = buffer;
+          buffer = "";
+          e.preventDefault();
+          validateTicket(raw.includes("/tickets/") ? raw.split("/tickets/").pop() || raw : raw);
+        }
+        return;
+      }
+      if (e.key.length === 1) buffer += e.key;
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [inline, validateTicket]);
 
   // ── Camera scanner — Android-safe three-layer fallback ────────────────────
   const startScanner = async () => {
@@ -372,14 +415,14 @@ export default function TicketScanner({
     : "transparent";
 
   return (
-    <div>
+    <div className={inline ? "scan-inline" : undefined}>
 
       {/* ── FULL-SCREEN RESULT OVERLAY ── */}
       <div
         style={{
           position: "fixed", inset: 0, zIndex: result ? 9999 : -1,
           background: overlayBg,
-          display: "flex", flexDirection: "column",
+          display: inline ? "none" : "flex", flexDirection: "column",
           alignItems: "center", justifyContent: "center",
           opacity: result ? 1 : 0,
           transition: "opacity 200ms ease, background 200ms ease",
@@ -449,6 +492,7 @@ export default function TicketScanner({
         </div>
       )}
 
+      <div className={inline ? "scan-inline-left" : undefined}>
       {/* ── CAMERA SCANNER ── */}
       <div className="scan-camera-section">
         <div
@@ -495,6 +539,9 @@ export default function TicketScanner({
         </div>
       </div>
 
+      </div>
+
+      <div className={inline ? "scan-inline-right" : undefined}>
       {cameraError && (
         <div className="scan-refusal" role="alert">
           <strong>Camera</strong>
@@ -632,6 +679,42 @@ export default function TicketScanner({
             <Btn variant="primary" onClick={handleManualScan}>Validate</Btn>
           </div>
         )}
+      </div>
+
+      {inline && (
+        <>
+          <div
+            className="scan-res"
+            role="status"
+            data-tone={!lastResult ? "" : lastResult.valid ? "good" : /^already scanned/i.test(lastResult.reason ?? "") ? "warn" : "bad"}
+          >
+            <i>{!lastResult ? "⌕" : lastResult.valid ? "✓" : /^already scanned/i.test(lastResult.reason ?? "") ? "!" : "✕"}</i>
+            <div style={{ minWidth: 0 }}>
+              <b>{!lastResult ? "Ready" : lastResult.valid ? "Valid" : /^already scanned/i.test(lastResult.reason ?? "") ? "Already scanned" : "Not valid"}</b>
+              <span>
+                {!lastResult
+                  ? "Hold the ticket QR up to the camera, or use a USB scanner."
+                  : lastResult.valid
+                    ? [lastResult.customer_name, ...(lastResult.seat_assignments ?? []).map((a) => `${a.section} · Row ${a.row} · Seat ${a.seat}`)].filter(Boolean).join(" · ")
+                    : [lastResult.reason, lastResult.customer_name].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+          </div>
+          <div className="scan-log">
+            <div className="pos-eyebrow">Recent scans</div>
+            {recent.map((r, i) => (
+              <div className="row" key={i}>
+                <em data-ok={r.valid} />
+                <span style={{ width: 70, color: "rgba(255,255,255,0.66)" }}>{r.at}</span>
+                <b style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</b>
+                <span style={{ color: "rgba(255,255,255,0.72)", maxWidth: "45%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.note}</span>
+              </div>
+            ))}
+            {recent.length === 0 && <div className="pos-sub" style={{ marginTop: 10 }}>Nothing scanned yet on this screen.</div>}
+          </div>
+          {footer}
+        </>
+      )}
       </div>
 
       <style jsx>{`

@@ -61,7 +61,7 @@ export function LifecycleMenu() {
             </button>
             {!cancelled && (
               <button type="button" className="hub-more-item is-warn" onClick={() => { setOpen(false); setModal("postpone"); }}>
-                <b>Postpone or reschedule</b><span>Pick a new date; tickets stay valid</span>
+                <b>Postpone or reschedule</b><span>Date known or not, tickets stay valid</span>
               </button>
             )}
             {!cancelled && (
@@ -87,6 +87,7 @@ function Postpone({ onClose }: { onClose: () => void }) {
   const [doors, setDoors] = useState((event?.doors_time ?? "").slice(0, 5) || defaultDoorsTime(raw.slice(11, 16)) || "");
   const [busy, setBusy] = useState(false);
   if (!event) return null;
+  const isPostponed = event.status === "postponed";
   const before = safeDate(event.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   const after = date ? new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "";
   const same = date === raw.slice(0, 10) && show === raw.slice(11, 16);
@@ -96,13 +97,29 @@ function Postpone({ onClose }: { onClose: () => void }) {
     const r = await fetch(`/api/events/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: `${date}T${show || "19:00"}:00`, doors_time: doors || null }),
+      // A new date puts a postponed show back on sale.
+      body: JSON.stringify({ date: `${date}T${show || "19:00"}:00`, doors_time: doors || null, ...(isPostponed ? { status: "published" } : {}) }),
     });
     setBusy(false);
     if (!r.ok) { hub.toast((await r.json().catch(() => ({}))).error || "Couldn't move the show."); return; }
     hub.reload(["event"]);
     onClose();
-    hub.toast(`Moved to ${after}. The change is recorded in Activity.`);
+    hub.toast(`Moved to ${after}. Every ticket is good for the new date. Email buyers from the Orders tab.`);
+  };
+
+  /** No new date yet: stop selling and scanning, and tell ticket holders to hold on. */
+  const postponeNoDate = async () => {
+    setBusy(true);
+    const r = await fetch(`/api/events/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "postponed" }),
+    });
+    setBusy(false);
+    if (!r.ok) { hub.toast((await r.json().catch(() => ({}))).error || "Couldn't postpone the show."); return; }
+    hub.reload(["event"]);
+    onClose();
+    hub.toast("Postponed. Sales are off and every ticket stays valid. Email buyers from the Orders tab.");
   };
 
   return (
@@ -115,13 +132,16 @@ function Postpone({ onClose }: { onClose: () => void }) {
       <div className="hub-pp-what">
         <div className="hub-od-panel-title">What happens to the {sold.toLocaleString()} ticket{sold === 1 ? "" : "s"} sold</div>
         <div className="hub-radio is-on"><span className="hub-radio-dot" /><div><b>Tickets stay valid for the new date</b><span>Nobody has to do anything. The new date shows on their tickets and the event page right away.</span></div></div>
-        <div className="hub-field-hint">Refunding everyone is a cancellation — use Cancel event. Don&apos;t know the new date yet? Unpublish the show until you do; a show can&apos;t be dated &ldquo;TBD&rdquo;.</div>
+        <div className="hub-field-hint">Refunding everyone is a cancellation — use Cancel event. Don&apos;t know the new date yet? Use Postpone, date to be announced, below. Sales stop until you set one.</div>
       </div>
-      <div className="hub-modal-body hub-note-warn">Buyers aren&apos;t emailed about the move automatically yet. Tell them from your own list until that&apos;s built.</div>
+      <div className="hub-modal-body hub-note-warn">Buyers aren&apos;t emailed automatically. Tell them with Email buyers on the Orders tab once this is saved.</div>
       <div className="hub-modal-actions">
         <button type="button" className="hub-btn hub-btn--quiet" onClick={onClose}>Keep the date</button>
+        {!isPostponed && (
+          <button type="button" className="hub-btn hub-btn--warn" disabled={busy} onClick={postponeNoDate}>Postpone, date to be announced</button>
+        )}
         <button type="button" className="hub-btn hub-btn--warn" disabled={busy || !date || same} onClick={go}>
-          {busy ? "Moving…" : same ? "Pick a new date" : `Move from ${before} to ${after}`}
+          {busy ? "Saving…" : same ? "Pick a new date" : isPostponed ? `Set new date: ${after}` : `Move from ${before} to ${after}`}
         </button>
       </div>
     </HubModal>

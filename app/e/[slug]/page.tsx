@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase-server";
 import { getOperator } from "@/lib/operators";
@@ -83,15 +83,18 @@ export default async function LandingPage({ params }: Props) {
   const { data: event, error: eventError } = await admin
     .from("events")
     .select(
-      "id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id, tax_method, fees_included_in_price"
+      "status, id, title, venue, date, price, image_url, description, venue_id, event_venue_id, event_type, is_free, on_sale_at, capacity, landing_page_slug, start_time, end_time, facility_fee_enabled, external_ticket_url, external_ticket_label, meta_pixel_id, tax_method, fees_included_in_price"
     )
     .eq("landing_page_slug", slug)
-    .eq("status", "published")
+    .in("status", ["published", "postponed"])
     .single();
 
   if (eventError || !event) {
     notFound();
   }
+
+  // Buyers still have this link. Their show is coming back, not gone.
+  if (event.status === "postponed") redirect(`/events/${event.id}`);
 
   // Exclude private events from public landing pages
   if (event.event_type === "private") {

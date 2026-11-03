@@ -1,9 +1,10 @@
+import { POSTPONED_SALES_REASON } from "@/lib/events/closeout";
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase-server";
 import { resolveVenueFees } from "@/lib/checkout-helpers";
 import { resolveTierFees, unlocksTier, type FeeMode, type TierFeeOverrides } from "@/lib/fees/tierFees";
-import { surchargeCents } from "@/lib/fees/rates";
+import { cardPresentTotal } from "@/lib/pos/pricing";
 import { salesWindowFor, canSell } from "@/lib/salesWindow";
 
 export async function POST(request: Request) {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     // Fetch event
     const { data: event } = await admin
       .from("events")
-      .select("id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price")
+      .select("status, id, title, venue, date, price, venue_id, event_venue_id, facility_fee_enabled, tax_method, fees_included_in_price")
       .eq("id", event_id)
       .single();
 
@@ -52,6 +53,11 @@ export async function POST(request: Request) {
     // the show has happened and the till stops too. Advance sales for future
     // shows are unaffected; the window governs who owns the show ON THE DAY.
     // See lib/salesWindow.ts.
+    // A postponed show isn't selling at any till until it has its new date.
+    if (event.status === "postponed") {
+      return NextResponse.json({ error: POSTPONED_SALES_REASON }, { status: 403 });
+    }
+
     const salesWindow = salesWindowFor(event.date);
     if (!canSell(event.date, "box_office")) {
       return NextResponse.json(
@@ -119,21 +125,18 @@ export async function POST(request: Request) {
     const facilityFeeCents = Math.round(fees.facilityFee * 100);
     const effectiveTaxRate = fees.taxMethod === "divisor" ? 0 : fees.taxRate;
     const taxCents = Math.round(ticketPriceCents * effectiveTaxRate);
-    const subtotalBeforeStripe = fees.feesIncludedInPrice
-      ? (ticketPriceCents + taxCents) * quantity
-      : (ticketPriceCents + ticketingFeeCents + facilityFeeCents + taxCents) * quantity;
-    // Card-present is a genuinely different rate (2.7% + $0.05), not a stale
-    // copy of the online one — the rate card keeps the two apart.
-    const stripeFeeCents = surchargeCents(
-      subtotalBeforeStripe,
-      undefined,
-      "terminal"
+    // One calculation with the POS screen's total (lib/pos/pricing.ts). Card-present
+    // is a genuinely different rate (2.7% + $0.05), not a stale copy of the online
+    // one. `feesIncludedInPrice` is always false here: `charged` already holds it.
+    const { totalCents, processingCents: stripeFeeCents } = cardPresentTotal(
+      {
+        faceCents: ticketPriceCents,
+        serviceCents: ticketingFeeCents,
+        facilityCents: facilityFeeCents,
+        taxCents,
+      },
+      quantity,
     );
-    // When fees are baked into the ticket price, the venue absorbs the card
-    // processing fee too — charge exactly the sticker price, no surcharge.
-    const totalCents = fees.feesIncludedInPrice
-      ? subtotalBeforeStripe
-      : subtotalBeforeStripe + stripeFeeCents;
 
     const stripe = getStripe();
 

@@ -29,7 +29,7 @@ type TicketData = {
   is_scanned: boolean;
   event_id: string;
   created_at: string;
-  events?: { title: string; venue: string; date: string; image_url?: string };
+  events?: { title: string; venue: string; date: string; image_url?: string; status?: string | null };
   siblings: SiblingTicket[];
   seatAssignments?: SeatAssignment[];
   operatorSlug?: string;
@@ -82,7 +82,10 @@ export default function TicketViewPage() {
   };
 
   const seats = current.seatAssignments ?? ticket.seatAssignments ?? [];
-  const formattedDate = event?.date
+  const postponed = event?.status === "postponed";
+  const formattedDate = postponed
+    ? "Postponed · new date to be announced"
+    : event?.date
     ? safeDate(event.date).toLocaleDateString("en-US", {
         weekday: "long", month: "long", day: "numeric", year: "numeric",
       })
@@ -106,6 +109,12 @@ export default function TicketViewPage() {
               </p>
             )}
           </div>
+
+          {postponed && (
+            <p className="digital-ticket-page-meta" role="status" style={{ marginTop: 0, marginBottom: 16, fontWeight: 700 }}>
+              This show is postponed. Your ticket stays valid for the new date, so keep it. There&apos;s nothing you need to do.
+            </p>
+          )}
 
           {/* Carousel */}
           <div
